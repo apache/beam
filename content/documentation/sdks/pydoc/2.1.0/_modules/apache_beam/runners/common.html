@@ -1,0 +1,717 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.common &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.common</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="c1"># cython: profile=True</span>
+
+<span class="sd">&quot;&quot;&quot;Worker operations executor.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.internal</span> <span class="k">import</span> <span class="n">util</span>
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.execution</span> <span class="k">import</span> <span class="n">ScopedMetricsContainer</span>
+<span class="kn">from</span> <span class="nn">apache_beam.pvalue</span> <span class="k">import</span> <span class="n">TaggedOutput</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms</span> <span class="k">import</span> <span class="n">core</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">TimestampedValue</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">WindowFn</span>
+<span class="kn">from</span> <span class="nn">apache_beam.transforms.window</span> <span class="k">import</span> <span class="n">GlobalWindow</span>
+<span class="kn">from</span> <span class="nn">apache_beam.utils.windowed_value</span> <span class="k">import</span> <span class="n">WindowedValue</span>
+
+
+<div class="viewcode-block" id="LoggingContext"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.LoggingContext">[docs]</a><span class="k">class</span> <span class="nc">LoggingContext</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="LoggingContext.enter"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.LoggingContext.enter">[docs]</a>  <span class="k">def</span> <span class="nf">enter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">pass</span></div>
+
+<div class="viewcode-block" id="LoggingContext.exit"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.LoggingContext.exit">[docs]</a>  <span class="k">def</span> <span class="nf">exit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">pass</span></div></div>
+
+
+<div class="viewcode-block" id="Receiver"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.Receiver">[docs]</a><span class="k">class</span> <span class="nc">Receiver</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  An object that consumes a WindowedValue.</span>
+
+<span class="sd">  This class can be efficiently used to pass values between the</span>
+<span class="sd">  sdk and worker harnesses.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="Receiver.receive"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.Receiver.receive">[docs]</a>  <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div></div>
+
+
+<div class="viewcode-block" id="DoFnMethodWrapper"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnMethodWrapper">[docs]</a><span class="k">class</span> <span class="nc">DoFnMethodWrapper</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Represents a method of a DoFn object.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">do_fn</span><span class="p">,</span> <span class="n">method_name</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Initiates a ``DoFnMethodWrapper``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      do_fn: A DoFn object that contains the method.</span>
+<span class="sd">      method_name: name of the method as a string.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">args</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">defaults</span> <span class="o">=</span> <span class="n">do_fn</span><span class="o">.</span><span class="n">get_function_arguments</span><span class="p">(</span><span class="n">method_name</span><span class="p">)</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="n">defaults</span> <span class="k">if</span> <span class="n">defaults</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="n">method_value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">do_fn</span><span class="p">,</span> <span class="n">method_name</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">method_value</span> <span class="o">=</span> <span class="n">method_value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span> <span class="o">=</span> <span class="n">defaults</span></div>
+
+
+<div class="viewcode-block" id="DoFnSignature"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnSignature">[docs]</a><span class="k">class</span> <span class="nc">DoFnSignature</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Represents the signature of a given ``DoFn`` object.</span>
+
+<span class="sd">  Signature of a ``DoFn`` provides a view of the properties of a given ``DoFn``.</span>
+<span class="sd">  Among other things, this will give an extensible way for for (1) accessing the</span>
+<span class="sd">  structure of the ``DoFn`` including methods and method parameters</span>
+<span class="sd">  (2) identifying features that a given ``DoFn`` support, for example, whether</span>
+<span class="sd">  a given ``DoFn`` is a Splittable ``DoFn`` (</span>
+<span class="sd">  https://s.apache.org/splittable-do-fn) (3) validating a ``DoFn`` based on the</span>
+<span class="sd">  feature set offered by it.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">do_fn</span><span class="p">):</span>
+    <span class="c1"># We add a property here for all methods defined by Beam DoFn features.</span>
+
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">do_fn</span><span class="p">,</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">do_fn</span> <span class="o">=</span> <span class="n">do_fn</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span> <span class="o">=</span> <span class="n">DoFnMethodWrapper</span><span class="p">(</span><span class="n">do_fn</span><span class="p">,</span> <span class="s1">&#39;process&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">start_bundle_method</span> <span class="o">=</span> <span class="n">DoFnMethodWrapper</span><span class="p">(</span><span class="n">do_fn</span><span class="p">,</span> <span class="s1">&#39;start_bundle&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">finish_bundle_method</span> <span class="o">=</span> <span class="n">DoFnMethodWrapper</span><span class="p">(</span><span class="n">do_fn</span><span class="p">,</span> <span class="s1">&#39;finish_bundle&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_validate</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_validate_process</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_validate_bundle_method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">start_bundle_method</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_validate_bundle_method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">finish_bundle_method</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">_validate_process</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validate that none of the DoFnParameters are repeated in the function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">DoFnParams</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">defaults</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="n">param</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="mi">1</span>
+
+  <span class="k">def</span> <span class="nf">_validate_bundle_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">method_wrapper</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validate that none of the DoFnParameters are used in the function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">DoFnParams</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">param</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">method_wrapper</span><span class="o">.</span><span class="n">defaults</span></div>
+
+
+<div class="viewcode-block" id="DoFnInvoker"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnInvoker">[docs]</a><span class="k">class</span> <span class="nc">DoFnInvoker</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An abstraction that can be used to execute DoFn methods.</span>
+
+<span class="sd">  A DoFnInvoker describes a particular way for invoking methods of a DoFn</span>
+<span class="sd">  represented by a given DoFnSignature.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_processor</span><span class="p">,</span> <span class="n">signature</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_processor</span> <span class="o">=</span> <span class="n">output_processor</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">signature</span> <span class="o">=</span> <span class="n">signature</span>
+
+  <span class="nd">@staticmethod</span>
+<div class="viewcode-block" id="DoFnInvoker.create_invoker"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnInvoker.create_invoker">[docs]</a>  <span class="k">def</span> <span class="nf">create_invoker</span><span class="p">(</span>
+      <span class="n">output_processor</span><span class="p">,</span>
+      <span class="n">signature</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">input_args</span><span class="p">,</span> <span class="n">input_kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot; Creates a new DoFnInvoker based on given arguments.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        signature: a DoFnSignature for the DoFn being invoked.</span>
+<span class="sd">        context: Context to be used when invoking the DoFn (deprecated).</span>
+<span class="sd">        side_inputs: side inputs to be used when invoking th process method.</span>
+<span class="sd">        input_args: arguments to be used when invoking the process method</span>
+<span class="sd">        input_kwargs: kwargs to be used when invoking the process method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">default_arg_values</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">defaults</span>
+    <span class="n">use_simple_invoker</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="ow">not</span> <span class="n">side_inputs</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">input_args</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">input_kwargs</span> <span class="ow">and</span>
+        <span class="ow">not</span> <span class="n">default_arg_values</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">use_simple_invoker</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">SimpleInvoker</span><span class="p">(</span><span class="n">output_processor</span><span class="p">,</span> <span class="n">signature</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="n">PerWindowInvoker</span><span class="p">(</span>
+          <span class="n">output_processor</span><span class="p">,</span>
+          <span class="n">signature</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">input_args</span><span class="p">,</span> <span class="n">input_kwargs</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoFnInvoker.invoke_process"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnInvoker.invoke_process">[docs]</a>  <span class="k">def</span> <span class="nf">invoke_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Invokes the DoFn.process() function.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      windowed_value: a WindowedValue object that gives the element for which</span>
+<span class="sd">                      process() method should be invoked along with the window</span>
+<span class="sd">                      the element belongs to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+<div class="viewcode-block" id="DoFnInvoker.invoke_start_bundle"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnInvoker.invoke_start_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">invoke_start_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Invokes the DoFn.start_bundle() method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_processor</span><span class="o">.</span><span class="n">start_bundle_outputs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">start_bundle_method</span><span class="o">.</span><span class="n">method_value</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="DoFnInvoker.invoke_finish_bundle"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnInvoker.invoke_finish_bundle">[docs]</a>  <span class="k">def</span> <span class="nf">invoke_finish_bundle</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Invokes the DoFn.finish_bundle() method.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_processor</span><span class="o">.</span><span class="n">finish_bundle_outputs</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">signature</span><span class="o">.</span><span class="n">finish_bundle_method</span><span class="o">.</span><span class="n">method_value</span><span class="p">())</span></div></div>
+
+
+<div class="viewcode-block" id="SimpleInvoker"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.SimpleInvoker">[docs]</a><span class="k">class</span> <span class="nc">SimpleInvoker</span><span class="p">(</span><span class="n">DoFnInvoker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An invoker that processes elements ignoring windowing information.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_processor</span><span class="p">,</span> <span class="n">signature</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">SimpleInvoker</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">output_processor</span><span class="p">,</span> <span class="n">signature</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">method_value</span>
+
+<div class="viewcode-block" id="SimpleInvoker.invoke_process"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.SimpleInvoker.invoke_process">[docs]</a>  <span class="k">def</span> <span class="nf">invoke_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_processor</span><span class="o">.</span><span class="n">process_outputs</span><span class="p">(</span>
+        <span class="n">windowed_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span><span class="p">(</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">value</span><span class="p">))</span></div></div>
+
+
+<div class="viewcode-block" id="PerWindowInvoker"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.PerWindowInvoker">[docs]</a><span class="k">class</span> <span class="nc">PerWindowInvoker</span><span class="p">(</span><span class="n">DoFnInvoker</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An invoker that processes elements considering windowing information.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_processor</span><span class="p">,</span> <span class="n">signature</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span>
+               <span class="n">side_inputs</span><span class="p">,</span> <span class="n">input_args</span><span class="p">,</span> <span class="n">input_kwargs</span><span class="p">):</span>
+    <span class="nb">super</span><span class="p">(</span><span class="n">PerWindowInvoker</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">output_processor</span><span class="p">,</span> <span class="n">signature</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span> <span class="o">=</span> <span class="n">side_inputs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">method_value</span>
+    <span class="n">default_arg_values</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">defaults</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">has_windowed_inputs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="n">si</span><span class="o">.</span><span class="n">is_globally_windowed</span><span class="p">()</span> <span class="k">for</span> <span class="n">si</span> <span class="ow">in</span> <span class="n">side_inputs</span><span class="p">)</span> <span class="ow">or</span>
+        <span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span> <span class="ow">in</span> <span class="n">default_arg_values</span><span class="p">))</span>
+
+    <span class="c1"># Try to prepare all the arguments that can just be filled in</span>
+    <span class="c1"># without any additional work. in the process function.</span>
+    <span class="c1"># Also cache all the placeholders needed in the process function.</span>
+
+    <span class="c1"># Fill in sideInputs if they are globally windowed</span>
+    <span class="n">global_window</span> <span class="o">=</span> <span class="n">GlobalWindow</span><span class="p">()</span>
+
+    <span class="n">input_args</span> <span class="o">=</span> <span class="n">input_args</span> <span class="k">if</span> <span class="n">input_args</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="n">input_kwargs</span> <span class="o">=</span> <span class="n">input_kwargs</span> <span class="k">if</span> <span class="n">input_kwargs</span> <span class="k">else</span> <span class="p">{}</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_windowed_inputs</span><span class="p">:</span>
+      <span class="n">input_args</span><span class="p">,</span> <span class="n">input_kwargs</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">insert_values_in_args</span><span class="p">(</span>
+          <span class="n">input_args</span><span class="p">,</span> <span class="n">input_kwargs</span><span class="p">,</span> <span class="p">[</span><span class="n">si</span><span class="p">[</span><span class="n">global_window</span><span class="p">]</span> <span class="k">for</span> <span class="n">si</span> <span class="ow">in</span> <span class="n">side_inputs</span><span class="p">])</span>
+
+    <span class="n">arguments</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">args</span>
+    <span class="n">defaults</span> <span class="o">=</span> <span class="n">signature</span><span class="o">.</span><span class="n">process_method</span><span class="o">.</span><span class="n">defaults</span>
+
+    <span class="c1"># Create placeholder for element parameter of DoFn.process() method.</span>
+    <span class="n">self_in_args</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">signature</span><span class="o">.</span><span class="n">do_fn</span><span class="o">.</span><span class="n">is_process_bounded</span><span class="p">())</span>
+
+    <span class="k">class</span> <span class="nc">ArgPlaceholder</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+      <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">placeholder</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="n">placeholder</span>
+
+    <span class="k">if</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">ElementParam</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">default_arg_values</span><span class="p">:</span>
+      <span class="n">args_to_pick</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arguments</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">default_arg_values</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">self_in_args</span>
+      <span class="n">args_with_placeholders</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="p">[</span><span class="n">ArgPlaceholder</span><span class="p">(</span><span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">ElementParam</span><span class="p">)]</span> <span class="o">+</span> <span class="n">input_args</span><span class="p">[:</span><span class="n">args_to_pick</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">args_to_pick</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arguments</span><span class="p">)</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">defaults</span><span class="p">)</span> <span class="o">-</span> <span class="n">self_in_args</span>
+      <span class="n">args_with_placeholders</span> <span class="o">=</span> <span class="n">input_args</span><span class="p">[:</span><span class="n">args_to_pick</span><span class="p">]</span>
+
+    <span class="c1"># Fill the OtherPlaceholders for context, window or timestamp</span>
+    <span class="n">remaining_args_iter</span> <span class="o">=</span> <span class="nb">iter</span><span class="p">(</span><span class="n">input_args</span><span class="p">[</span><span class="n">args_to_pick</span><span class="p">:])</span>
+    <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">d</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">arguments</span><span class="p">[</span><span class="o">-</span><span class="nb">len</span><span class="p">(</span><span class="n">defaults</span><span class="p">):],</span> <span class="n">defaults</span><span class="p">):</span>
+      <span class="k">if</span> <span class="n">d</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">ElementParam</span><span class="p">:</span>
+        <span class="n">args_with_placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ArgPlaceholder</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="n">d</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">:</span>
+        <span class="n">args_with_placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ArgPlaceholder</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="n">d</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">:</span>
+        <span class="n">args_with_placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ArgPlaceholder</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+      <span class="k">elif</span> <span class="n">d</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">SideInputParam</span><span class="p">:</span>
+        <span class="c1"># If no more args are present then the value must be passed via kwarg</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">args_with_placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">remaining_args_iter</span><span class="o">.</span><span class="n">next</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+          <span class="k">if</span> <span class="n">a</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">input_kwargs</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Value for sideinput </span><span class="si">%s</span><span class="s2"> not provided&quot;</span> <span class="o">%</span> <span class="n">a</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># If no more args are present then the value must be passed via kwarg</span>
+        <span class="k">try</span><span class="p">:</span>
+          <span class="n">args_with_placeholders</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">remaining_args_iter</span><span class="o">.</span><span class="n">next</span><span class="p">())</span>
+        <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span>
+          <span class="k">pass</span>
+    <span class="n">args_with_placeholders</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">remaining_args_iter</span><span class="p">))</span>
+
+    <span class="c1"># Stash the list of placeholder positions for performance</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">placeholders</span> <span class="o">=</span> <span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">placeholder</span><span class="p">)</span> <span class="k">for</span> <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+        <span class="n">args_with_placeholders</span><span class="p">)</span>
+                         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">ArgPlaceholder</span><span class="p">)]</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">args_for_process</span> <span class="o">=</span> <span class="n">args_with_placeholders</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kwargs_for_process</span> <span class="o">=</span> <span class="n">input_kwargs</span>
+
+<div class="viewcode-block" id="PerWindowInvoker.invoke_process"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.PerWindowInvoker.invoke_process">[docs]</a>  <span class="k">def</span> <span class="nf">invoke_process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">set_element</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+    <span class="c1"># Call for the process function for each window if has windowed side inputs</span>
+    <span class="c1"># or if the process accesses the window parameter. We can just call it once</span>
+    <span class="c1"># otherwise as none of the arguments are changing</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_windowed_inputs</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+      <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">windows</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_invoke_per_window</span><span class="p">(</span>
+            <span class="n">WindowedValue</span><span class="p">(</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span> <span class="p">(</span><span class="n">w</span><span class="p">,)))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_invoke_per_window</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_invoke_per_window</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">has_windowed_inputs</span><span class="p">:</span>
+      <span class="n">window</span><span class="p">,</span> <span class="o">=</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">windows</span>
+      <span class="n">args_for_process</span><span class="p">,</span> <span class="n">kwargs_for_process</span> <span class="o">=</span> <span class="n">util</span><span class="o">.</span><span class="n">insert_values_in_args</span><span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">args_for_process</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs_for_process</span><span class="p">,</span>
+          <span class="p">[</span><span class="n">si</span><span class="p">[</span><span class="n">window</span><span class="p">]</span> <span class="k">for</span> <span class="n">si</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">side_inputs</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">args_for_process</span><span class="p">,</span> <span class="n">kwargs_for_process</span> <span class="o">=</span> <span class="p">(</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">args_for_process</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs_for_process</span><span class="p">)</span>
+    <span class="c1"># TODO(sourabhbajaj): Investigate why we can&#39;t use `is` instead of ==</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">placeholders</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">p</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">ElementParam</span><span class="p">:</span>
+        <span class="n">args_for_process</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">value</span>
+      <span class="k">elif</span> <span class="n">p</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">WindowParam</span><span class="p">:</span>
+        <span class="n">args_for_process</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">window</span>
+      <span class="k">elif</span> <span class="n">p</span> <span class="o">==</span> <span class="n">core</span><span class="o">.</span><span class="n">DoFn</span><span class="o">.</span><span class="n">TimestampParam</span><span class="p">:</span>
+        <span class="n">args_for_process</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">windowed_value</span><span class="o">.</span><span class="n">timestamp</span>
+
+    <span class="k">if</span> <span class="n">kwargs_for_process</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output_processor</span><span class="o">.</span><span class="n">process_outputs</span><span class="p">(</span>
+          <span class="n">windowed_value</span><span class="p">,</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span><span class="p">(</span><span class="o">*</span><span class="n">args_for_process</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs_for_process</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">output_processor</span><span class="o">.</span><span class="n">process_outputs</span><span class="p">(</span>
+          <span class="n">windowed_value</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">process_method</span><span class="p">(</span><span class="o">*</span><span class="n">args_for_process</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="DoFnRunner"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnRunner">[docs]</a><span class="k">class</span> <span class="nc">DoFnRunner</span><span class="p">(</span><span class="n">Receiver</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  A helper class for executing ParDo operations.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+               <span class="n">fn</span><span class="p">,</span>
+               <span class="n">args</span><span class="p">,</span>
+               <span class="n">kwargs</span><span class="p">,</span>
+               <span class="n">side_inputs</span><span class="p">,</span>
+               <span class="n">windowing</span><span class="p">,</span>
+               <span class="n">context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">tagged_receivers</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">step_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="c1"># Preferred alternative to logger</span>
+               <span class="c1"># TODO(robertwb): Remove once all runners are updated.</span>
+               <span class="n">logging_context</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="c1"># Preferred alternative to context</span>
+               <span class="c1"># TODO(robertwb): Remove once all runners are updated.</span>
+               <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+               <span class="n">scoped_metrics_container</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes a DoFnRunner.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      fn: user DoFn to invoke</span>
+<span class="sd">      args: positional side input arguments (static and placeholder), if any</span>
+<span class="sd">      kwargs: keyword side input arguments (static and placeholder), if any</span>
+<span class="sd">      side_inputs: list of sideinput.SideInputMaps for deferred side inputs</span>
+<span class="sd">      windowing: windowing properties of the output PCollection(s)</span>
+<span class="sd">      context: a DoFnContext to use (deprecated)</span>
+<span class="sd">      tagged_receivers: a dict of tag name to Receiver objects</span>
+<span class="sd">      logger: a logging module (deprecated)</span>
+<span class="sd">      step_name: the name of this step</span>
+<span class="sd">      logging_context: a LoggingContext object</span>
+<span class="sd">      state: handle for accessing DoFn state</span>
+<span class="sd">      scoped_metrics_container: Context switcher for metrics container</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span> <span class="o">=</span> <span class="p">(</span><span class="n">scoped_metrics_container</span>
+                                     <span class="ow">or</span> <span class="n">ScopedMetricsContainer</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">step_name</span>
+
+    <span class="c1"># Need to support multiple iterations.</span>
+    <span class="n">side_inputs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">side_inputs</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">logging_context</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logging_context</span> <span class="o">=</span> <span class="n">logging_context</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logging_context</span> <span class="o">=</span> <span class="n">get_logging_context</span><span class="p">(</span><span class="n">logger</span><span class="p">,</span> <span class="n">step_name</span><span class="o">=</span><span class="n">step_name</span><span class="p">)</span>
+
+    <span class="c1"># TODO(sourabh): Deprecate the use of context</span>
+    <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">context</span> <span class="ow">is</span> <span class="kc">None</span>
+      <span class="n">context</span> <span class="o">=</span> <span class="n">DoFnContext</span><span class="p">(</span><span class="n">step_name</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="n">state</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">assert</span> <span class="n">context</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+      <span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">context</span> <span class="o">=</span> <span class="n">context</span>
+
+    <span class="n">do_fn_signature</span> <span class="o">=</span> <span class="n">DoFnSignature</span><span class="p">(</span><span class="n">fn</span><span class="p">)</span>
+
+    <span class="c1"># Optimize for the common case.</span>
+    <span class="n">main_receivers</span> <span class="o">=</span> <span class="n">as_receiver</span><span class="p">(</span><span class="n">tagged_receivers</span><span class="p">[</span><span class="kc">None</span><span class="p">])</span>
+    <span class="n">output_processor</span> <span class="o">=</span> <span class="n">_OutputProcessor</span><span class="p">(</span>
+        <span class="n">windowing</span><span class="o">.</span><span class="n">windowfn</span><span class="p">,</span> <span class="n">main_receivers</span><span class="p">,</span> <span class="n">tagged_receivers</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">do_fn_invoker</span> <span class="o">=</span> <span class="n">DoFnInvoker</span><span class="o">.</span><span class="n">create_invoker</span><span class="p">(</span>
+        <span class="n">output_processor</span><span class="p">,</span> <span class="n">do_fn_signature</span><span class="p">,</span> <span class="n">context</span><span class="p">,</span> <span class="n">side_inputs</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DoFnRunner.receive"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnRunner.receive">[docs]</a>  <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoFnRunner.process"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnRunner.process">[docs]</a>  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logging_context</span><span class="o">.</span><span class="n">enter</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span><span class="o">.</span><span class="n">enter</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">do_fn_invoker</span><span class="o">.</span><span class="n">invoke_process</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_reraise_augmented</span><span class="p">(</span><span class="n">exn</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logging_context</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">_invoke_bundle_method</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">bundle_method</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logging_context</span><span class="o">.</span><span class="n">enter</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span><span class="o">.</span><span class="n">enter</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">set_element</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+      <span class="n">bundle_method</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">BaseException</span> <span class="k">as</span> <span class="n">exn</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">_reraise_augmented</span><span class="p">(</span><span class="n">exn</span><span class="p">)</span>
+    <span class="k">finally</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">scoped_metrics_container</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">logging_context</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+<div class="viewcode-block" id="DoFnRunner.start"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnRunner.start">[docs]</a>  <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_invoke_bundle_method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">do_fn_invoker</span><span class="o">.</span><span class="n">invoke_start_bundle</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DoFnRunner.finish"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnRunner.finish">[docs]</a>  <span class="k">def</span> <span class="nf">finish</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_invoke_bundle_method</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">do_fn_invoker</span><span class="o">.</span><span class="n">invoke_finish_bundle</span><span class="p">)</span></div>
+
+  <span class="k">def</span> <span class="nf">_reraise_augmented</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">exn</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">exn</span><span class="p">,</span> <span class="s1">&#39;_tagged_with_step&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span><span class="p">:</span>
+      <span class="k">raise</span>
+    <span class="n">step_annotation</span> <span class="o">=</span> <span class="s2">&quot; [while running &#39;</span><span class="si">%s</span><span class="s2">&#39;]&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span>
+    <span class="c1"># To emulate exception chaining (not available in Python 2).</span>
+    <span class="n">original_traceback</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">exc_info</span><span class="p">()[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># Attempt to construct the same kind of exception</span>
+      <span class="c1"># with an augmented message.</span>
+      <span class="n">new_exn</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="n">exn</span><span class="p">)(</span><span class="n">exn</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">step_annotation</span><span class="p">,</span> <span class="o">*</span><span class="n">exn</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+      <span class="n">new_exn</span><span class="o">.</span><span class="n">_tagged_with_step</span> <span class="o">=</span> <span class="kc">True</span>  <span class="c1"># Could raise attribute error.</span>
+    <span class="k">except</span><span class="p">:</span>  <span class="c1"># pylint: disable=bare-except</span>
+      <span class="c1"># If anything goes wrong, construct a RuntimeError whose message</span>
+      <span class="c1"># records the original exception&#39;s type and message.</span>
+      <span class="n">new_exn</span> <span class="o">=</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+          <span class="n">traceback</span><span class="o">.</span><span class="n">format_exception_only</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">exn</span><span class="p">),</span> <span class="n">exn</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+          <span class="o">+</span> <span class="n">step_annotation</span><span class="p">)</span>
+      <span class="n">new_exn</span><span class="o">.</span><span class="n">_tagged_with_step</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">raise</span> <span class="n">new_exn</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">original_traceback</span></div>
+
+
+<span class="k">class</span> <span class="nc">_OutputProcessor</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Processes output produced by DoFn method invocations.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">window_fn</span><span class="p">,</span> <span class="n">main_receivers</span><span class="p">,</span> <span class="n">tagged_receivers</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes ``_OutputProcessor``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      window_fn: a windowing function (WindowFn).</span>
+<span class="sd">      main_receivers: a dict of tag name to Receiver objects.</span>
+<span class="sd">      tagged_receivers: main receiver object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">window_fn</span> <span class="o">=</span> <span class="n">window_fn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">main_receivers</span> <span class="o">=</span> <span class="n">main_receivers</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tagged_receivers</span> <span class="o">=</span> <span class="n">tagged_receivers</span>
+
+  <span class="k">def</span> <span class="nf">process_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_input_element</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dispatch the result of process computation to the appropriate receivers.</span>
+
+<span class="sd">    A value wrapped in a TaggedOutput object will be unwrapped and</span>
+<span class="sd">    then dispatched to the appropriate indexed output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span>
+
+    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">TaggedOutput</span><span class="p">):</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">tag</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;In </span><span class="si">%s</span><span class="s1">, tag </span><span class="si">%s</span><span class="s1"> is not a string&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">))</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">value</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">WindowedValue</span><span class="p">):</span>
+        <span class="n">windowed_value</span> <span class="o">=</span> <span class="n">result</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">windowed_input_element</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">windowed_input_element</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">):</span>
+          <span class="n">windowed_value</span><span class="o">.</span><span class="n">windows</span> <span class="o">*=</span> <span class="nb">len</span><span class="p">(</span><span class="n">windowed_input_element</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span>
+      <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">TimestampedValue</span><span class="p">):</span>
+        <span class="n">assign_context</span> <span class="o">=</span> <span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="n">windowed_value</span> <span class="o">=</span> <span class="n">WindowedValue</span><span class="p">(</span>
+            <span class="n">result</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">timestamp</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">window_fn</span><span class="o">.</span><span class="n">assign</span><span class="p">(</span><span class="n">assign_context</span><span class="p">))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">windowed_input_element</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+          <span class="n">windowed_value</span><span class="o">.</span><span class="n">windows</span> <span class="o">*=</span> <span class="nb">len</span><span class="p">(</span><span class="n">windowed_input_element</span><span class="o">.</span><span class="n">windows</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="n">windowed_value</span> <span class="o">=</span> <span class="n">windowed_input_element</span><span class="o">.</span><span class="n">with_value</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">main_receivers</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tagged_receivers</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">start_bundle_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Validate that start_bundle does not output any elements&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+        <span class="s1">&#39;Start Bundle should not output any elements but got </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">results</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">finish_bundle_outputs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Dispatch the result of finish_bundle to the appropriate receivers.</span>
+
+<span class="sd">    A value wrapped in a TaggedOutput object will be unwrapped and</span>
+<span class="sd">    then dispatched to the appropriate indexed output.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">return</span>
+
+    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+      <span class="n">tag</span> <span class="o">=</span> <span class="kc">None</span>
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">TaggedOutput</span><span class="p">):</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">tag</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">basestring</span><span class="p">):</span>
+          <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s1">&#39;In </span><span class="si">%s</span><span class="s1">, tag </span><span class="si">%s</span><span class="s1"> is not a string&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">))</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">value</span>
+
+      <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">WindowedValue</span><span class="p">):</span>
+        <span class="n">windowed_value</span> <span class="o">=</span> <span class="n">result</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s1">&#39;Finish Bundle should only output WindowedValue &#39;</span> <span class="o">+</span>\
+                           <span class="s1">&#39;type but got </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="nb">type</span><span class="p">(</span><span class="n">result</span><span class="p">))</span>
+
+      <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">main_receivers</span><span class="o">.</span><span class="n">receive</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tagged_receivers</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">_NoContext</span><span class="p">(</span><span class="n">WindowFn</span><span class="o">.</span><span class="n">AssignContext</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;An uninspectable WindowFn.AssignContext.&quot;&quot;&quot;</span>
+  <span class="n">NO_VALUE</span> <span class="o">=</span> <span class="nb">object</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">timestamp</span><span class="o">=</span><span class="n">NO_VALUE</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span> <span class="o">=</span> <span class="n">timestamp</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">NO_VALUE</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No timestamp in this context.&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_timestamp</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">existing_windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;No existing_windows in this context.&#39;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="DoFnState"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnState">[docs]</a><span class="k">class</span> <span class="nc">DoFnState</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Keeps track of state that DoFns want, currently, user counters.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counter_factory</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_counter_factory</span> <span class="o">=</span> <span class="n">counter_factory</span>
+
+<div class="viewcode-block" id="DoFnState.counter_for"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnState.counter_for">[docs]</a>  <span class="k">def</span> <span class="nf">counter_for</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">aggregator</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Looks up the counter for this aggregator, creating one if necessary.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_counter_factory</span><span class="o">.</span><span class="n">get_aggregator_counter</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span><span class="p">,</span> <span class="n">aggregator</span><span class="p">)</span></div></div>
+
+
+<span class="c1"># TODO(robertwb): Replace core.DoFnContext with this.</span>
+<div class="viewcode-block" id="DoFnContext"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnContext">[docs]</a><span class="k">class</span> <span class="nc">DoFnContext</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label</span><span class="p">,</span> <span class="n">element</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+    <span class="k">if</span> <span class="n">element</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">set_element</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DoFnContext.set_element"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.DoFnContext.set_element">[docs]</a>  <span class="k">def</span> <span class="nf">set_element</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span> <span class="o">=</span> <span class="n">windowed_value</span></div>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">element</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;element not accessible in this context&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">value</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">timestamp</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;timestamp not accessible in this context&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">timestamp</span>
+
+  <span class="nd">@property</span>
+  <span class="k">def</span> <span class="nf">windows</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="s1">&#39;windows not accessible in this context&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">windowed_value</span><span class="o">.</span><span class="n">windows</span></div>
+
+
+<span class="c1"># TODO(robertwb): Remove all these adapters once service is updated out.</span>
+<span class="k">class</span> <span class="nc">_LoggingContextAdapter</span><span class="p">(</span><span class="n">LoggingContext</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">underlying</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">underlying</span> <span class="o">=</span> <span class="n">underlying</span>
+
+  <span class="k">def</span> <span class="nf">enter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">underlying</span><span class="o">.</span><span class="n">enter</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">exit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">underlying</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="get_logging_context"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.get_logging_context">[docs]</a><span class="k">def</span> <span class="nf">get_logging_context</span><span class="p">(</span><span class="n">maybe_logger</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">maybe_logger</span><span class="p">:</span>
+    <span class="n">maybe_context</span> <span class="o">=</span> <span class="n">maybe_logger</span><span class="o">.</span><span class="n">PerThreadLoggingContext</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_context</span><span class="p">,</span> <span class="n">LoggingContext</span><span class="p">):</span>
+      <span class="k">return</span> <span class="n">maybe_context</span>
+    <span class="k">return</span> <span class="n">_LoggingContextAdapter</span><span class="p">(</span><span class="n">maybe_context</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">LoggingContext</span><span class="p">()</span></div>
+
+
+<span class="k">class</span> <span class="nc">_ReceiverAdapter</span><span class="p">(</span><span class="n">Receiver</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">underlying</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">underlying</span> <span class="o">=</span> <span class="n">underlying</span>
+
+  <span class="k">def</span> <span class="nf">receive</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">windowed_value</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">underlying</span><span class="o">.</span><span class="n">output</span><span class="p">(</span><span class="n">windowed_value</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="as_receiver"><a class="viewcode-back" href="../../../apache_beam.runners.html#apache_beam.runners.common.as_receiver">[docs]</a><span class="k">def</span> <span class="nf">as_receiver</span><span class="p">(</span><span class="n">maybe_receiver</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.&quot;&quot;&quot;</span>
+
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">maybe_receiver</span><span class="p">,</span> <span class="n">Receiver</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">maybe_receiver</span>
+  <span class="k">return</span> <span class="n">_ReceiverAdapter</span><span class="p">(</span><span class="n">maybe_receiver</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,319 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.metrics.execution &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.metrics.execution</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">This module is for internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">The classes in this file keep shared state, and organize metrics information.</span>
+
+<span class="sd">Available classes:</span>
+
+<span class="sd">- MetricKey - Internal key for a metric.</span>
+<span class="sd">- MetricResult - Current status of a metric&#39;s updates/commits.</span>
+<span class="sd">- _MetricsEnvironment - Keeps track of MetricsContainer and other metrics</span>
+<span class="sd">    information for every single execution working thread.</span>
+<span class="sd">- MetricsContainer - Holds the metrics of a single step and a single</span>
+<span class="sd">    unit-of-commit (bundle).</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="k">import</span> <span class="n">defaultdict</span>
+<span class="kn">import</span> <span class="nn">threading</span>
+
+<span class="kn">from</span> <span class="nn">apache_beam.metrics.cells</span> <span class="k">import</span> <span class="n">CounterCell</span><span class="p">,</span> <span class="n">DistributionCell</span>
+
+
+<div class="viewcode-block" id="MetricKey"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricKey">[docs]</a><span class="k">class</span> <span class="nc">MetricKey</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Key used to identify instance of metric cell.</span>
+
+<span class="sd">  Metrics are internally keyed by the step name they associated with and</span>
+<span class="sd">  the name of the metric.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step</span><span class="p">,</span> <span class="n">metric</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes ``MetricKey``.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      step: A string with the step this metric cell is part of.</span>
+<span class="sd">      metric: A ``MetricName`` that identifies a metric.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="n">step</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">metric</span> <span class="o">=</span> <span class="n">metric</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">step</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metric</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">metric</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;MetricKey(step=</span><span class="si">{}</span><span class="s1">, metric=</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__hash__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">hash</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">step</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">metric</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="MetricResult"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricResult">[docs]</a><span class="k">class</span> <span class="nc">MetricResult</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Keeps track of the status of a metric within a single bundle.</span>
+
+<span class="sd">  It contains the physical and logical updates to the metric. Physical updates</span>
+<span class="sd">  are updates that have not necessarily been committed, but that have been made</span>
+<span class="sd">  during pipeline execution. Logical updates are updates that have been</span>
+<span class="sd">  committed.</span>
+
+<span class="sd">  Attributes:</span>
+<span class="sd">    key: A ``MetricKey`` that identifies the metric and bundle of this result.</span>
+<span class="sd">    committed: The committed updates of the metric. This attribute&#39;s type is</span>
+<span class="sd">      that of the underlying cell data (e.g. int, DistributionData).</span>
+<span class="sd">    attempted: The logical updates of the metric. This attribute&#39;s type is that</span>
+<span class="sd">      of the underlying cell data (e.g. int, DistributionData).</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">committed</span><span class="p">,</span> <span class="n">attempted</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Initializes ``MetricResult``.</span>
+<span class="sd">    Args:</span>
+<span class="sd">      key: A ``MetricKey`` object.</span>
+<span class="sd">      committed: Metric data that has been committed (e.g. logical updates)</span>
+<span class="sd">      attempted: Metric data that has been attempted (e.g. physical updates)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">=</span> <span class="n">key</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">committed</span> <span class="o">=</span> <span class="n">committed</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">attempted</span> <span class="o">=</span> <span class="n">attempted</span>
+
+  <span class="k">def</span> <span class="nf">__eq__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">other</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">key</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">key</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">committed</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">committed</span> <span class="ow">and</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">attempted</span> <span class="o">==</span> <span class="n">other</span><span class="o">.</span><span class="n">attempted</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s1">&#39;MetricResult(key=</span><span class="si">{}</span><span class="s1">, committed=</span><span class="si">{}</span><span class="s1">, attempted=</span><span class="si">{}</span><span class="s1">)&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">committed</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">attempted</span><span class="p">))</span></div>
+
+
+<span class="k">class</span> <span class="nc">_MetricsEnvironment</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Holds the MetricsContainer for every thread and other metric information.</span>
+
+<span class="sd">  This class is not meant to be instantiated, instead being used to keep</span>
+<span class="sd">  track of global state.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">METRICS_SUPPORTED</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_METRICS_SUPPORTED_LOCK</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">local</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_container_stack</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">set_container_stack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="p">,</span> <span class="s1">&#39;container&#39;</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="o">.</span><span class="n">container</span> <span class="o">=</span> <span class="p">[]</span>
+
+  <span class="k">def</span> <span class="nf">container_stack</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_container_stack</span><span class="p">()</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="o">.</span><span class="n">container</span>
+
+  <span class="k">def</span> <span class="nf">set_metrics_supported</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">supported</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_container_stack</span><span class="p">()</span>
+    <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_METRICS_SUPPORTED_LOCK</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">METRICS_SUPPORTED</span> <span class="o">=</span> <span class="n">supported</span>
+
+  <span class="k">def</span> <span class="nf">current_container</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_container_stack</span><span class="p">()</span>
+    <span class="n">index</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="o">.</span><span class="n">container</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="o">.</span><span class="n">container</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+
+  <span class="k">def</span> <span class="nf">set_current_container</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">container</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_container_stack</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="o">.</span><span class="n">container</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">container</span><span class="p">)</span>
+
+  <span class="k">def</span> <span class="nf">unset_current_container</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">set_container_stack</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">PER_THREAD</span><span class="o">.</span><span class="n">container</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+
+
+<span class="n">MetricsEnvironment</span> <span class="o">=</span> <span class="n">_MetricsEnvironment</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="MetricsContainer"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricsContainer">[docs]</a><span class="k">class</span> <span class="nc">MetricsContainer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Holds the metrics of a single step and a single bundle.&quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">step_name</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">step_name</span> <span class="o">=</span> <span class="n">step_name</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">counters</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">CounterCell</span><span class="p">())</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">distributions</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="n">DistributionCell</span><span class="p">())</span>
+
+<div class="viewcode-block" id="MetricsContainer.get_counter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricsContainer.get_counter">[docs]</a>  <span class="k">def</span> <span class="nf">get_counter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">counters</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span></div>
+
+<div class="viewcode-block" id="MetricsContainer.get_distribution"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricsContainer.get_distribution">[docs]</a>  <span class="k">def</span> <span class="nf">get_distribution</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">distributions</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span></div>
+
+  <span class="k">def</span> <span class="nf">_get_updates</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return cumulative values of metrics filtered according to a lambda.</span>
+
+<span class="sd">    This returns all the cumulative values for all metrics after filtering</span>
+<span class="sd">    then with the filter parameter lambda function. If None is passed in,</span>
+<span class="sd">    then cumulative values for all metrics are returned.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">filter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+      <span class="nb">filter</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="n">counters</span> <span class="o">=</span> <span class="p">{</span><span class="n">MetricKey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">step_name</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span> <span class="n">v</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">counters</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="nb">filter</span><span class="p">(</span><span class="n">v</span><span class="p">)}</span>
+
+    <span class="n">distributions</span> <span class="o">=</span> <span class="p">{</span><span class="n">MetricKey</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">step_name</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span> <span class="n">v</span><span class="o">.</span><span class="n">get_cumulative</span><span class="p">()</span>
+                     <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">distributions</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                     <span class="k">if</span> <span class="nb">filter</span><span class="p">(</span><span class="n">v</span><span class="p">)}</span>
+
+    <span class="k">return</span> <span class="n">MetricUpdates</span><span class="p">(</span><span class="n">counters</span><span class="p">,</span> <span class="n">distributions</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MetricsContainer.get_updates"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricsContainer.get_updates">[docs]</a>  <span class="k">def</span> <span class="nf">get_updates</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return cumulative values of metrics that changed since the last commit.</span>
+
+<span class="sd">    This returns all the cumulative values for all metrics only if their state</span>
+<span class="sd">    prior to the function call was COMMITTING or DIRTY.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_updates</span><span class="p">(</span><span class="nb">filter</span><span class="o">=</span><span class="k">lambda</span> <span class="n">v</span><span class="p">:</span> <span class="n">v</span><span class="o">.</span><span class="n">commit</span><span class="o">.</span><span class="n">before_commit</span><span class="p">())</span></div>
+
+<div class="viewcode-block" id="MetricsContainer.get_cumulative"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricsContainer.get_cumulative">[docs]</a>  <span class="k">def</span> <span class="nf">get_cumulative</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Return MetricUpdates with cumulative values of all metrics in container.</span>
+
+<span class="sd">    This returns all the cumulative values for all metrics regardless of whether</span>
+<span class="sd">    they have been committed or not.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_updates</span><span class="p">()</span></div></div>
+
+
+<div class="viewcode-block" id="ScopedMetricsContainer"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.ScopedMetricsContainer">[docs]</a><span class="k">class</span> <span class="nc">ScopedMetricsContainer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">container</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span> <span class="o">=</span> <span class="n">MetricsEnvironment</span><span class="o">.</span><span class="n">container_stack</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_container</span> <span class="o">=</span> <span class="n">container</span>
+
+<div class="viewcode-block" id="ScopedMetricsContainer.enter"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.ScopedMetricsContainer.enter">[docs]</a>  <span class="k">def</span> <span class="nf">enter</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_container</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ScopedMetricsContainer.exit"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.ScopedMetricsContainer.exit">[docs]</a>  <span class="k">def</span> <span class="nf">exit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">_stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span></div>
+
+  <span class="k">def</span> <span class="nf">__enter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">enter</span><span class="p">()</span>
+
+  <span class="k">def</span> <span class="nf">__exit__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">type</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">traceback</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">exit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="MetricUpdates"><a class="viewcode-back" href="../../../apache_beam.metrics.html#apache_beam.metrics.execution.MetricUpdates">[docs]</a><span class="k">class</span> <span class="nc">MetricUpdates</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;Contains updates for several metrics.</span>
+
+<span class="sd">  A metric update is an object containing information to update a metric.</span>
+<span class="sd">  For Distribution metrics, it is DistributionData, and for Counter metrics,</span>
+<span class="sd">  it&#39;s an int.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">counters</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">distributions</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Create a MetricUpdates object.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">      counters: Dictionary of MetricKey:MetricUpdate updates.</span>
+<span class="sd">      distributions: Dictionary of MetricKey:MetricUpdate objects.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">counters</span> <span class="o">=</span> <span class="n">counters</span> <span class="ow">or</span> <span class="p">{}</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">distributions</span> <span class="o">=</span> <span class="n">distributions</span> <span class="ow">or</span> <span class="p">{}</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
