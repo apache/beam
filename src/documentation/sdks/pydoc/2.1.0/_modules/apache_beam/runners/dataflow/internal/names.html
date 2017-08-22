@@ -1,0 +1,176 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.runners.dataflow.internal.names &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.runners.dataflow.internal.names</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Various names for properties, transforms, etc.&quot;&quot;&quot;</span>
+
+
+<span class="c1"># Standard file names used for staging files.</span>
+<span class="n">PICKLED_MAIN_SESSION_FILE</span> <span class="o">=</span> <span class="s1">&#39;pickled_main_session&#39;</span>
+<span class="n">DATAFLOW_SDK_TARBALL_FILE</span> <span class="o">=</span> <span class="s1">&#39;dataflow_python_sdk.tar&#39;</span>
+
+<span class="c1"># String constants related to sources framework</span>
+<span class="n">SOURCE_FORMAT</span> <span class="o">=</span> <span class="s1">&#39;custom_source&#39;</span>
+<span class="n">SOURCE_TYPE</span> <span class="o">=</span> <span class="s1">&#39;CustomSourcesType&#39;</span>
+<span class="n">SERIALIZED_SOURCE_KEY</span> <span class="o">=</span> <span class="s1">&#39;serialized_source&#39;</span>
+
+
+<div class="viewcode-block" id="TransformNames"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.names.TransformNames">[docs]</a><span class="k">class</span> <span class="nc">TransformNames</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Transform strings as they are expected in the CloudWorkflow protos.&quot;&quot;&quot;</span>
+  <span class="n">COLLECTION_TO_SINGLETON</span> <span class="o">=</span> <span class="s1">&#39;CollectionToSingleton&#39;</span>
+  <span class="n">COMBINE</span> <span class="o">=</span> <span class="s1">&#39;CombineValues&#39;</span>
+  <span class="n">CREATE_PCOLLECTION</span> <span class="o">=</span> <span class="s1">&#39;CreateCollection&#39;</span>
+  <span class="n">DO</span> <span class="o">=</span> <span class="s1">&#39;ParallelDo&#39;</span>
+  <span class="n">FLATTEN</span> <span class="o">=</span> <span class="s1">&#39;Flatten&#39;</span>
+  <span class="n">GROUP</span> <span class="o">=</span> <span class="s1">&#39;GroupByKey&#39;</span>
+  <span class="n">READ</span> <span class="o">=</span> <span class="s1">&#39;ParallelRead&#39;</span>
+  <span class="n">WRITE</span> <span class="o">=</span> <span class="s1">&#39;ParallelWrite&#39;</span></div>
+
+
+<div class="viewcode-block" id="PropertyNames"><a class="viewcode-back" href="../../../../../apache_beam.runners.dataflow.internal.html#apache_beam.runners.dataflow.internal.names.PropertyNames">[docs]</a><span class="k">class</span> <span class="nc">PropertyNames</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+  <span class="sd">&quot;&quot;&quot;For internal use only; no backwards-compatibility guarantees.</span>
+
+<span class="sd">  Property strings as they are expected in the CloudWorkflow protos.&quot;&quot;&quot;</span>
+  <span class="n">BIGQUERY_CREATE_DISPOSITION</span> <span class="o">=</span> <span class="s1">&#39;create_disposition&#39;</span>
+  <span class="n">BIGQUERY_DATASET</span> <span class="o">=</span> <span class="s1">&#39;dataset&#39;</span>
+  <span class="n">BIGQUERY_QUERY</span> <span class="o">=</span> <span class="s1">&#39;bigquery_query&#39;</span>
+  <span class="n">BIGQUERY_USE_LEGACY_SQL</span> <span class="o">=</span> <span class="s1">&#39;bigquery_use_legacy_sql&#39;</span>
+  <span class="n">BIGQUERY_FLATTEN_RESULTS</span> <span class="o">=</span> <span class="s1">&#39;bigquery_flatten_results&#39;</span>
+  <span class="n">BIGQUERY_EXPORT_FORMAT</span> <span class="o">=</span> <span class="s1">&#39;bigquery_export_format&#39;</span>
+  <span class="n">BIGQUERY_TABLE</span> <span class="o">=</span> <span class="s1">&#39;table&#39;</span>
+  <span class="n">BIGQUERY_PROJECT</span> <span class="o">=</span> <span class="s1">&#39;project&#39;</span>
+  <span class="n">BIGQUERY_SCHEMA</span> <span class="o">=</span> <span class="s1">&#39;schema&#39;</span>
+  <span class="n">BIGQUERY_WRITE_DISPOSITION</span> <span class="o">=</span> <span class="s1">&#39;write_disposition&#39;</span>
+  <span class="n">DISPLAY_DATA</span> <span class="o">=</span> <span class="s1">&#39;display_data&#39;</span>
+  <span class="n">ELEMENT</span> <span class="o">=</span> <span class="s1">&#39;element&#39;</span>
+  <span class="n">ELEMENTS</span> <span class="o">=</span> <span class="s1">&#39;elements&#39;</span>
+  <span class="n">ENCODING</span> <span class="o">=</span> <span class="s1">&#39;encoding&#39;</span>
+  <span class="n">FILE_PATTERN</span> <span class="o">=</span> <span class="s1">&#39;filepattern&#39;</span>
+  <span class="n">FILE_NAME_PREFIX</span> <span class="o">=</span> <span class="s1">&#39;filename_prefix&#39;</span>
+  <span class="n">FILE_NAME_SUFFIX</span> <span class="o">=</span> <span class="s1">&#39;filename_suffix&#39;</span>
+  <span class="n">FORMAT</span> <span class="o">=</span> <span class="s1">&#39;format&#39;</span>
+  <span class="n">INPUTS</span> <span class="o">=</span> <span class="s1">&#39;inputs&#39;</span>
+  <span class="n">NON_PARALLEL_INPUTS</span> <span class="o">=</span> <span class="s1">&#39;non_parallel_inputs&#39;</span>
+  <span class="n">NUM_SHARDS</span> <span class="o">=</span> <span class="s1">&#39;num_shards&#39;</span>
+  <span class="n">OUT</span> <span class="o">=</span> <span class="s1">&#39;out&#39;</span>
+  <span class="n">OUTPUT</span> <span class="o">=</span> <span class="s1">&#39;output&#39;</span>
+  <span class="n">OUTPUT_INFO</span> <span class="o">=</span> <span class="s1">&#39;output_info&#39;</span>
+  <span class="n">OUTPUT_NAME</span> <span class="o">=</span> <span class="s1">&#39;output_name&#39;</span>
+  <span class="n">PARALLEL_INPUT</span> <span class="o">=</span> <span class="s1">&#39;parallel_input&#39;</span>
+  <span class="n">PUBSUB_TOPIC</span> <span class="o">=</span> <span class="s1">&#39;pubsub_topic&#39;</span>
+  <span class="n">PUBSUB_SUBSCRIPTION</span> <span class="o">=</span> <span class="s1">&#39;pubsub_subscription&#39;</span>
+  <span class="n">PUBSUB_ID_LABEL</span> <span class="o">=</span> <span class="s1">&#39;pubsub_id_label&#39;</span>
+  <span class="n">SERIALIZED_FN</span> <span class="o">=</span> <span class="s1">&#39;serialized_fn&#39;</span>
+  <span class="n">SHARD_NAME_TEMPLATE</span> <span class="o">=</span> <span class="s1">&#39;shard_template&#39;</span>
+  <span class="n">SOURCE_STEP_INPUT</span> <span class="o">=</span> <span class="s1">&#39;custom_source_step_input&#39;</span>
+  <span class="n">STEP_NAME</span> <span class="o">=</span> <span class="s1">&#39;step_name&#39;</span>
+  <span class="n">USER_FN</span> <span class="o">=</span> <span class="s1">&#39;user_fn&#39;</span>
+  <span class="n">USER_NAME</span> <span class="o">=</span> <span class="s1">&#39;user_name&#39;</span>
+  <span class="n">VALIDATE_SINK</span> <span class="o">=</span> <span class="s1">&#39;validate_sink&#39;</span>
+  <span class="n">VALIDATE_SOURCE</span> <span class="o">=</span> <span class="s1">&#39;validate_source&#39;</span>
+  <span class="n">VALUE</span> <span class="o">=</span> <span class="s1">&#39;value&#39;</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

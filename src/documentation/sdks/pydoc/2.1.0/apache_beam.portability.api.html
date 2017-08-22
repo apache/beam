@@ -1,0 +1,582 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.portability.api package &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="apache_beam.runners package" href="apache_beam.runners.html" />
+    <link rel="prev" title="apache_beam.portability package" href="apache_beam.portability.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.html" title="apache_beam.runners package"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.portability.html" title="apache_beam.portability package"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.portability.html" accesskey="U">apache_beam.portability package</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">apache_beam.portability.api package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api.beam_fn_api_pb2">apache_beam.portability.api.beam_fn_api_pb2 module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api.beam_fn_api_pb2_grpc">apache_beam.portability.api.beam_fn_api_pb2_grpc module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api.beam_runner_api_pb2">apache_beam.portability.api.beam_runner_api_pb2 module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api.beam_runner_api_pb2_grpc">apache_beam.portability.api.beam_runner_api_pb2_grpc module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api.standard_window_fns_pb2">apache_beam.portability.api.standard_window_fns_pb2 module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api.standard_window_fns_pb2_grpc">apache_beam.portability.api.standard_window_fns_pb2_grpc module</a></li>
+<li><a class="reference internal" href="#module-apache_beam.portability.api">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="apache_beam.portability.html"
+                        title="previous chapter">apache_beam.portability package</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="apache_beam.runners.html"
+                        title="next chapter">apache_beam.runners package</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/apache_beam.portability.api.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="apache-beam-portability-api-package">
+<h1>apache_beam.portability.api package<a class="headerlink" href="#apache-beam-portability-api-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.portability.api.beam_fn_api_pb2">
+<span id="apache-beam-portability-api-beam-fn-api-pb2-module"></span><h2>apache_beam.portability.api.beam_fn_api_pb2 module<a class="headerlink" href="#module-apache_beam.portability.api.beam_fn_api_pb2" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnControlServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnControlServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnControlServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnControlServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Control Plane API</p>
+<p>Progress reporting and splitting still need further vetting. Also, this may change
+with the addition of new types of instructions/responses related to metrics.</p>
+<p>An API that describes the work that a SDK harness is meant to do.
+Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnControlServicer.Control">
+<code class="descname">Control</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnControlServicer.Control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnControlServicer.Control" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instructions sent by the runner to the SDK requesting different types
+of work.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnControlStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnControlStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnControlStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnControlStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Control Plane API</p>
+<p>Progress reporting and splitting still need further vetting. Also, this may change
+with the addition of new types of instructions/responses related to metrics.</p>
+<p>An API that describes the work that a SDK harness is meant to do.
+Stable</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnDataServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnDataServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnDataServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnDataServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnDataServicer.Data">
+<code class="descname">Data</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnDataServicer.Data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnDataServicer.Data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to send data between harnesses.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnDataStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnDataStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnDataStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnDataStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnLoggingServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnLoggingServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnLoggingServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnLoggingServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnLoggingServicer.Logging">
+<code class="descname">Logging</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnLoggingServicer.Logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnLoggingServicer.Logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows for the SDK to emit log entries which the runner can
+associate with the active job.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnLoggingStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnLoggingStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnLoggingStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnLoggingStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnStateServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnStateServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnStateServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnStateServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnStateServicer.State">
+<code class="descname">State</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnStateServicer.State"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnStateServicer.State" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to get/append/clear state stored by the runner on behalf of the SDK.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BeamFnStateStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BeamFnStateStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BeamFnStateStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BeamFnStateStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnControlServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnControlServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlServicer.Control">
+<code class="descname">Control</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnControlServicer.Control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlServicer.Control" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instructions sent by the runner to the SDK requesting different types
+of work.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnControlStub</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnControlStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlStub.Control">
+<code class="descname">Control</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>timeout</em>, <em>metadata=None</em>, <em>with_call=False</em>, <em>protocol_options=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnControlStub.Control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnControlStub.Control" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instructions sent by the runner to the SDK requesting different types
+of work.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnDataServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnDataServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataServicer.Data">
+<code class="descname">Data</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnDataServicer.Data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataServicer.Data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to send data between harnesses.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnDataStub</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnDataStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataStub.Data">
+<code class="descname">Data</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>timeout</em>, <em>metadata=None</em>, <em>with_call=False</em>, <em>protocol_options=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnDataStub.Data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnDataStub.Data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to send data between harnesses.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnLoggingServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnLoggingServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingServicer.Logging">
+<code class="descname">Logging</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnLoggingServicer.Logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingServicer.Logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows for the SDK to emit log entries which the runner can
+associate with the active job.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnLoggingStub</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnLoggingStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingStub.Logging">
+<code class="descname">Logging</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>timeout</em>, <em>metadata=None</em>, <em>with_call=False</em>, <em>protocol_options=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnLoggingStub.Logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnLoggingStub.Logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows for the SDK to emit log entries which the runner can
+associate with the active job.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnStateServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnStateServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateServicer.State">
+<code class="descname">State</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnStateServicer.State"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateServicer.State" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to get/append/clear state stored by the runner on behalf of the SDK.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">BetaBeamFnStateStub</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnStateStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This class was generated
+only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0.</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateStub.State">
+<code class="descname">State</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>timeout</em>, <em>metadata=None</em>, <em>with_call=False</em>, <em>protocol_options=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#BetaBeamFnStateStub.State"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.BetaBeamFnStateStub.State" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to get/append/clear state stored by the runner on behalf of the SDK.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnControlServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">add_BeamFnControlServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#add_BeamFnControlServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnControlServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnDataServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">add_BeamFnDataServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#add_BeamFnDataServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnDataServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnLoggingServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">add_BeamFnLoggingServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#add_BeamFnLoggingServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnLoggingServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnStateServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">add_BeamFnStateServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#add_BeamFnStateServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.add_BeamFnStateServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnControl_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnControl_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>pool=None</em>, <em>pool_size=None</em>, <em>default_timeout=None</em>, <em>maximum_timeout=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnControl_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnControl_server" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnControl_stub">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnControl_stub</code><span class="sig-paren">(</span><em>channel</em>, <em>host=None</em>, <em>metadata_transformer=None</em>, <em>pool=None</em>, <em>pool_size=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnControl_stub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnControl_stub" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnData_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnData_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>pool=None</em>, <em>pool_size=None</em>, <em>default_timeout=None</em>, <em>maximum_timeout=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnData_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnData_server" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnData_stub">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnData_stub</code><span class="sig-paren">(</span><em>channel</em>, <em>host=None</em>, <em>metadata_transformer=None</em>, <em>pool=None</em>, <em>pool_size=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnData_stub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnData_stub" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnLogging_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnLogging_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>pool=None</em>, <em>pool_size=None</em>, <em>default_timeout=None</em>, <em>maximum_timeout=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnLogging_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnLogging_server" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnLogging_stub">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnLogging_stub</code><span class="sig-paren">(</span><em>channel</em>, <em>host=None</em>, <em>metadata_transformer=None</em>, <em>pool=None</em>, <em>pool_size=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnLogging_stub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnLogging_stub" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnState_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnState_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>pool=None</em>, <em>pool_size=None</em>, <em>default_timeout=None</em>, <em>maximum_timeout=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnState_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnState_server" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnState_stub">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2.</code><code class="descname">beta_create_BeamFnState_stub</code><span class="sig-paren">(</span><em>channel</em>, <em>host=None</em>, <em>metadata_transformer=None</em>, <em>pool=None</em>, <em>pool_size=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2.html#beta_create_BeamFnState_stub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2.beta_create_BeamFnState_stub" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Beta API is deprecated for 0.15.0 and later.</p>
+<p>It is recommended to use the GA API (classes and functions in this
+file not marked beta) for all further purposes. This function was
+generated only to ease transition from grpcio&lt;0.15.0 to grpcio&gt;=0.15.0</p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.portability.api.beam_fn_api_pb2_grpc">
+<span id="apache-beam-portability-api-beam-fn-api-pb2-grpc-module"></span><h2>apache_beam.portability.api.beam_fn_api_pb2_grpc module<a class="headerlink" href="#module-apache_beam.portability.api.beam_fn_api_pb2_grpc" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnControlServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnControlServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Control Plane API</p>
+<p>Progress reporting and splitting still need further vetting. Also, this may change
+with the addition of new types of instructions/responses related to metrics.</p>
+<p>An API that describes the work that a SDK harness is meant to do.
+Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer.Control">
+<code class="descname">Control</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnControlServicer.Control"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlServicer.Control" title="Permalink to this definition">¶</a></dt>
+<dd><p>Instructions sent by the runner to the SDK requesting different types
+of work.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnControlStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnControlStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnControlStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Control Plane API</p>
+<p>Progress reporting and splitting still need further vetting. Also, this may change
+with the addition of new types of instructions/responses related to metrics.</p>
+<p>An API that describes the work that a SDK harness is meant to do.
+Stable</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnDataServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnDataServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer.Data">
+<code class="descname">Data</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnDataServicer.Data"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataServicer.Data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to send data between harnesses.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnDataStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnDataStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnDataStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnLoggingServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnLoggingServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer.Logging">
+<code class="descname">Logging</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnLoggingServicer.Logging"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingServicer.Logging" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows for the SDK to emit log entries which the runner can
+associate with the active job.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnLoggingStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnLoggingStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnLoggingStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>Stable</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnStateServicer</code><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnStateServicer"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer.State">
+<code class="descname">State</code><span class="sig-paren">(</span><em>request_iterator</em>, <em>context</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnStateServicer.State"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateServicer.State" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used to get/append/clear state stored by the runner on behalf of the SDK.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateStub">
+<em class="property">class </em><code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">BeamFnStateStub</code><span class="sig-paren">(</span><em>channel</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#BeamFnStateStub"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.BeamFnStateStub" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnControlServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnControlServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnDataServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnDataServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnLoggingServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnLoggingServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server">
+<code class="descclassname">apache_beam.portability.api.beam_fn_api_pb2_grpc.</code><code class="descname">add_BeamFnStateServicer_to_server</code><span class="sig-paren">(</span><em>servicer</em>, <em>server</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/portability/api/beam_fn_api_pb2_grpc.html#add_BeamFnStateServicer_to_server"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.portability.api.beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-apache_beam.portability.api.beam_runner_api_pb2">
+<span id="apache-beam-portability-api-beam-runner-api-pb2-module"></span><h2>apache_beam.portability.api.beam_runner_api_pb2 module<a class="headerlink" href="#module-apache_beam.portability.api.beam_runner_api_pb2" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.portability.api.beam_runner_api_pb2_grpc">
+<span id="apache-beam-portability-api-beam-runner-api-pb2-grpc-module"></span><h2>apache_beam.portability.api.beam_runner_api_pb2_grpc module<a class="headerlink" href="#module-apache_beam.portability.api.beam_runner_api_pb2_grpc" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.portability.api.standard_window_fns_pb2">
+<span id="apache-beam-portability-api-standard-window-fns-pb2-module"></span><h2>apache_beam.portability.api.standard_window_fns_pb2 module<a class="headerlink" href="#module-apache_beam.portability.api.standard_window_fns_pb2" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.portability.api.standard_window_fns_pb2_grpc">
+<span id="apache-beam-portability-api-standard-window-fns-pb2-grpc-module"></span><h2>apache_beam.portability.api.standard_window_fns_pb2_grpc module<a class="headerlink" href="#module-apache_beam.portability.api.standard_window_fns_pb2_grpc" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-apache_beam.portability.api">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-apache_beam.portability.api" title="Permalink to this headline">¶</a></h2>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Automatically generated when running setup.py sdist or build[_py].</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.runners.html" title="apache_beam.runners package"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="apache_beam.portability.html" title="apache_beam.portability package"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="apache_beam.html" >apache_beam package</a> &#187;</li>
+          <li class="nav-item nav-item-2"><a href="apache_beam.portability.html" >apache_beam.portability package</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>

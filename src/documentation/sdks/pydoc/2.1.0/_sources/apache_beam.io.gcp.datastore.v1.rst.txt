@@ -1,0 +1,46 @@
+apache\_beam\.io\.gcp\.datastore\.v1 package
+============================================
+
+Submodules
+----------
+
+apache\_beam\.io\.gcp\.datastore\.v1\.datastoreio module
+--------------------------------------------------------
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.datastoreio
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.gcp\.datastore\.v1\.fake\_datastore module
+------------------------------------------------------------
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.fake_datastore
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.gcp\.datastore\.v1\.helper module
+---------------------------------------------------
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.helper
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+apache\_beam\.io\.gcp\.datastore\.v1\.query\_splitter module
+------------------------------------------------------------
+
+.. automodule:: apache_beam.io.gcp.datastore.v1.query_splitter
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+
+Module contents
+---------------
+
+.. automodule:: apache_beam.io.gcp.datastore.v1
+    :members:
+    :undoc-members:
+    :show-inheritance:

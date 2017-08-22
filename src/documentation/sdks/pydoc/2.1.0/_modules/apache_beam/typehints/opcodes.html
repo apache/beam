@@ -1,0 +1,429 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>apache_beam.typehints.opcodes &#8212; Apache Beam  documentation</title>
+    
+    <link rel="stylesheet" href="../../../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for apache_beam.typehints.opcodes</h1><div class="highlight"><pre>
+<span></span><span class="c1">#</span>
+<span class="c1"># Licensed to the Apache Software Foundation (ASF) under one or more</span>
+<span class="c1"># contributor license agreements.  See the NOTICE file distributed with</span>
+<span class="c1"># this work for additional information regarding copyright ownership.</span>
+<span class="c1"># The ASF licenses this file to You under the Apache License, Version 2.0</span>
+<span class="c1"># (the &quot;License&quot;); you may not use this file except in compliance with</span>
+<span class="c1"># the License.  You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#    http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1">#</span>
+
+<span class="sd">&quot;&quot;&quot;Defines the actions various bytecodes have on the frame.</span>
+
+<span class="sd">Each function here corresponds to a bytecode documented in</span>
+<span class="sd">https://docs.python.org/2/library/dis.html.  The first argument is a (mutable)</span>
+<span class="sd">FrameState object, the second the integer opcode argument.</span>
+
+<span class="sd">Bytecodes with more complicated behavior (e.g. modifying the program counter)</span>
+<span class="sd">are handled inline rather than here.</span>
+
+<span class="sd">For internal use only; no backwards-compatibility guarantees.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span> <span class="nn">types</span>
+
+<span class="kn">from</span> <span class="nn">trivial_inference</span> <span class="k">import</span> <span class="n">union</span><span class="p">,</span> <span class="n">element_type</span><span class="p">,</span> <span class="n">Const</span><span class="p">,</span> <span class="n">BoundMethod</span>
+<span class="kn">import</span> <span class="nn">typehints</span>
+<span class="kn">from</span> <span class="nn">typehints</span> <span class="k">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+
+<div class="viewcode-block" id="pop_one"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.pop_one">[docs]</a><span class="k">def</span> <span class="nf">pop_one</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="k">del</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">:]</span></div>
+
+
+<div class="viewcode-block" id="pop_two"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.pop_two">[docs]</a><span class="k">def</span> <span class="nf">pop_two</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="k">del</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span></div>
+
+
+<div class="viewcode-block" id="pop_three"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.pop_three">[docs]</a><span class="k">def</span> <span class="nf">pop_three</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="k">del</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:]</span></div>
+
+
+<div class="viewcode-block" id="push_value"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.push_value">[docs]</a><span class="k">def</span> <span class="nf">push_value</span><span class="p">(</span><span class="n">v</span><span class="p">):</span>
+
+  <span class="k">def</span> <span class="nf">pusher</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+
+  <span class="k">return</span> <span class="n">pusher</span></div>
+
+
+<div class="viewcode-block" id="nop"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.nop">[docs]</a><span class="k">def</span> <span class="nf">nop</span><span class="p">(</span><span class="n">unused_state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="pop_top"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.pop_top">[docs]</a><span class="k">def</span> <span class="nf">pop_top</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="rot_n"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.rot_n">[docs]</a><span class="k">def</span> <span class="nf">rot_n</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">n</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">+</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">n</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="rot_two"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.rot_two">[docs]</a><span class="k">def</span> <span class="nf">rot_two</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">rot_n</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rot_three"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.rot_three">[docs]</a><span class="k">def</span> <span class="nf">rot_three</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">rot_n</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="rot_four"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.rot_four">[docs]</a><span class="k">def</span> <span class="nf">rot_four</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">rot_n</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="dup_top"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.dup_top">[docs]</a><span class="k">def</span> <span class="nf">dup_top</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="unary"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.unary">[docs]</a><span class="k">def</span> <span class="nf">unary</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span></div>
+
+
+<span class="n">unary_positive</span> <span class="o">=</span> <span class="n">unary_negative</span> <span class="o">=</span> <span class="n">unary_invert</span> <span class="o">=</span> <span class="n">unary</span>
+
+
+<div class="viewcode-block" id="unary_not"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.unary_not">[docs]</a><span class="k">def</span> <span class="nf">unary_not</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">bool</span></div>
+
+
+<div class="viewcode-block" id="unary_convert"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.unary_convert">[docs]</a><span class="k">def</span> <span class="nf">unary_convert</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span></div>
+
+
+<div class="viewcode-block" id="get_iter"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.get_iter">[docs]</a><span class="k">def</span> <span class="nf">get_iter</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Iterable</span><span class="p">[</span><span class="n">element_type</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">())])</span></div>
+
+
+<div class="viewcode-block" id="symmetric_binary_op"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.symmetric_binary_op">[docs]</a><span class="k">def</span> <span class="nf">symmetric_binary_op</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="c1"># TODO(robertwb): This may not be entirely correct...</span>
+  <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">(),</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+  <span class="k">if</span> <span class="n">a</span> <span class="o">==</span> <span class="n">b</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+  <span class="k">elif</span> <span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">==</span> <span class="nb">type</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">SequenceTypeConstraint</span><span class="p">):</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">a</span><span class="p">)(</span><span class="n">union</span><span class="p">(</span><span class="n">element_type</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">element_type</span><span class="p">(</span><span class="n">b</span><span class="p">))))</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Any</span><span class="p">)</span></div>
+
+
+<span class="c1"># Except for int ** -int</span>
+<span class="n">binary_power</span> <span class="o">=</span> <span class="n">inplace_power</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_multiply</span> <span class="o">=</span> <span class="n">inplace_multiply</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_divide</span> <span class="o">=</span> <span class="n">inplace_divide</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_floor_divide</span> <span class="o">=</span> <span class="n">inplace_floor_divide</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+
+
+<div class="viewcode-block" id="binary_true_divide"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.binary_true_divide">[docs]</a><span class="k">def</span> <span class="nf">binary_true_divide</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">u</span> <span class="o">=</span> <span class="n">union</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">(),</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">)</span>
+  <span class="k">if</span> <span class="n">u</span> <span class="o">==</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">u</span><span class="p">)</span></div>
+
+
+<span class="n">inplace_true_divide</span> <span class="o">=</span> <span class="n">binary_true_divide</span>
+
+<span class="n">binary_modulo</span> <span class="o">=</span> <span class="n">inplace_modulo</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="c1"># TODO(robertwb): Tuple add.</span>
+<span class="n">binary_add</span> <span class="o">=</span> <span class="n">inplace_add</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_subtract</span> <span class="o">=</span> <span class="n">inplace_subtract</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+
+
+<div class="viewcode-block" id="binary_subscr"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.binary_subscr">[docs]</a><span class="k">def</span> <span class="nf">binary_subscr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">tos</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+  <span class="k">if</span> <span class="n">tos</span> <span class="ow">in</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">unicode</span><span class="p">):</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">tos</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="n">element_type</span><span class="p">(</span><span class="n">tos</span><span class="p">)</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">out</span><span class="p">)</span></div>
+
+
+<span class="c1"># As far as types are concerned.</span>
+<span class="n">binary_lshift</span> <span class="o">=</span> <span class="n">inplace_lshift</span> <span class="o">=</span> <span class="n">binary_rshift</span> <span class="o">=</span> <span class="n">inplace_rshift</span> <span class="o">=</span> <span class="n">pop_top</span>
+
+<span class="n">binary_and</span> <span class="o">=</span> <span class="n">inplace_and</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_xor</span> <span class="o">=</span> <span class="n">inplace_xor</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_or</span> <span class="o">=</span> <span class="n">inpalce_or</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+
+<span class="c1"># As far as types are concerned.</span>
+<span class="n">slice_0</span> <span class="o">=</span> <span class="n">nop</span>
+<span class="n">slice_1</span> <span class="o">=</span> <span class="n">slice_2</span> <span class="o">=</span> <span class="n">pop_top</span>
+<span class="n">slice_3</span> <span class="o">=</span> <span class="n">pop_two</span>
+<span class="n">store_slice_0</span> <span class="o">=</span> <span class="n">store_slice_1</span> <span class="o">=</span> <span class="n">store_slice_2</span> <span class="o">=</span> <span class="n">store_slice_3</span> <span class="o">=</span> <span class="n">nop</span>
+<span class="n">delete_slice_0</span> <span class="o">=</span> <span class="n">delete_slice_1</span> <span class="o">=</span> <span class="n">delete_slice_2</span> <span class="o">=</span> <span class="n">delete_slice_3</span> <span class="o">=</span> <span class="n">nop</span>
+
+
+<div class="viewcode-block" id="store_subscr"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.store_subscr">[docs]</a><span class="k">def</span> <span class="nf">store_subscr</span><span class="p">(</span><span class="n">unused_state</span><span class="p">,</span> <span class="n">unused_args</span><span class="p">):</span>
+  <span class="c1"># TODO(robertwb): Update element/value type of iterable/dict.</span>
+  <span class="k">pass</span></div>
+
+
+<span class="n">binary_divide</span> <span class="o">=</span> <span class="n">binary_floor_divide</span> <span class="o">=</span> <span class="n">binary_modulo</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_divide</span> <span class="o">=</span> <span class="n">binary_floor_divide</span> <span class="o">=</span> <span class="n">binary_modulo</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+<span class="n">binary_divide</span> <span class="o">=</span> <span class="n">binary_floor_divide</span> <span class="o">=</span> <span class="n">binary_modulo</span> <span class="o">=</span> <span class="n">symmetric_binary_op</span>
+
+<span class="c1"># print_expr</span>
+<span class="n">print_item</span> <span class="o">=</span> <span class="n">pop_top</span>
+<span class="c1"># print_item_to</span>
+<span class="n">print_newline</span> <span class="o">=</span> <span class="n">nop</span>
+
+<span class="c1"># print_newline_to</span>
+
+
+<span class="c1"># break_loop</span>
+<span class="c1"># continue_loop</span>
+<div class="viewcode-block" id="list_append"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.list_append">[docs]</a><span class="k">def</span> <span class="nf">list_append</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">element_type</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">]),</span>
+                                 <span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">())]]</span></div>
+
+
+<span class="n">load_locals</span> <span class="o">=</span> <span class="n">push_value</span><span class="p">(</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span>
+
+<span class="c1"># return_value</span>
+<span class="c1"># yield_value</span>
+<span class="c1"># import_star</span>
+<span class="n">exec_stmt</span> <span class="o">=</span> <span class="n">pop_three</span>
+<span class="c1"># pop_block</span>
+<span class="c1"># end_finally</span>
+<span class="n">build_class</span> <span class="o">=</span> <span class="n">pop_three</span>
+
+<span class="c1"># setup_with</span>
+<span class="c1"># with_cleanup</span>
+
+
+<span class="c1"># store_name</span>
+<span class="c1"># delete_name</span>
+<div class="viewcode-block" id="unpack_sequence"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.unpack_sequence">[docs]</a><span class="k">def</span> <span class="nf">unpack_sequence</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">t</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">Const</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="n">unpacked</span> <span class="o">=</span> <span class="p">[</span><span class="n">Const</span><span class="p">(</span><span class="n">ti</span><span class="p">)</span> <span class="k">for</span> <span class="n">ti</span> <span class="ow">in</span> <span class="n">t</span><span class="o">.</span><span class="n">value</span><span class="p">]</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unpacked</span><span class="p">)</span> <span class="o">!=</span> <span class="n">arg</span><span class="p">:</span>
+        <span class="n">unpacked</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">*</span> <span class="n">arg</span>
+    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+      <span class="n">unpacked</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">*</span> <span class="n">arg</span>
+  <span class="k">elif</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">typehints</span><span class="o">.</span><span class="n">TupleHint</span><span class="o">.</span><span class="n">TupleConstraint</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span> <span class="o">==</span> <span class="n">arg</span><span class="p">):</span>
+    <span class="n">unpacked</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">tuple_types</span><span class="p">)</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">unpacked</span> <span class="o">=</span> <span class="p">[</span><span class="n">element_type</span><span class="p">(</span><span class="n">t</span><span class="p">)]</span> <span class="o">*</span> <span class="n">arg</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span> <span class="o">+=</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">unpacked</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="dup_topx"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.dup_topx">[docs]</a><span class="k">def</span> <span class="nf">dup_topx</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span> <span class="o">+=</span> <span class="n">state</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">:]</span></div>
+
+
+<span class="n">store_attr</span> <span class="o">=</span> <span class="n">pop_top</span>
+<span class="n">delete_attr</span> <span class="o">=</span> <span class="n">nop</span>
+<span class="n">store_global</span> <span class="o">=</span> <span class="n">pop_top</span>
+<span class="n">delete_global</span> <span class="o">=</span> <span class="n">nop</span>
+
+
+<div class="viewcode-block" id="load_const"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.load_const">[docs]</a><span class="k">def</span> <span class="nf">load_const</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">const_type</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span></div>
+
+
+<span class="n">load_name</span> <span class="o">=</span> <span class="n">push_value</span><span class="p">(</span><span class="n">Any</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="build_tuple"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.build_tuple">[docs]</a><span class="k">def</span> <span class="nf">build_tuple</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">arg</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Tuple</span><span class="p">[()])</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Tuple</span><span class="p">[[</span><span class="n">Const</span><span class="o">.</span><span class="n">unwrap</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">:]]]]</span></div>
+
+
+<div class="viewcode-block" id="build_list"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.build_list">[docs]</a><span class="k">def</span> <span class="nf">build_list</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="k">if</span> <span class="n">arg</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">List</span><span class="p">[</span><span class="n">Union</span><span class="p">[()]])</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">reduce</span><span class="p">(</span><span class="n">union</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">:],</span> <span class="n">Union</span><span class="p">[()])]]</span></div>
+
+
+<span class="n">build_map</span> <span class="o">=</span> <span class="n">push_value</span><span class="p">(</span><span class="n">Dict</span><span class="p">[</span><span class="n">Any</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="load_attr"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.load_attr">[docs]</a><span class="k">def</span> <span class="nf">load_attr</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">o</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+  <span class="n">name</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get_name</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span>
+  <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">Const</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Const</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">o</span><span class="o">.</span><span class="n">value</span><span class="p">,</span> <span class="n">name</span><span class="p">)))</span>
+  <span class="k">elif</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="p">(</span><span class="nb">type</span><span class="p">,</span> <span class="n">types</span><span class="o">.</span><span class="n">ClassType</span><span class="p">))</span>
+        <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span> <span class="n">types</span><span class="o">.</span><span class="n">MethodType</span><span class="p">)):</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Const</span><span class="p">(</span><span class="n">BoundMethod</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">o</span><span class="p">,</span> <span class="n">name</span><span class="p">))))</span>
+  <span class="k">else</span><span class="p">:</span>
+    <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Any</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="compare_op"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.compare_op">[docs]</a><span class="k">def</span> <span class="nf">compare_op</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="c1"># Could really be anything...</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="nb">bool</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="import_name"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.import_name">[docs]</a><span class="k">def</span> <span class="nf">import_name</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span></div>
+
+
+<span class="n">import_from</span> <span class="o">=</span> <span class="n">push_value</span><span class="p">(</span><span class="n">Any</span><span class="p">)</span>
+
+<span class="c1"># jump</span>
+
+<span class="c1"># for_iter</span>
+
+
+<div class="viewcode-block" id="load_global"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.load_global">[docs]</a><span class="k">def</span> <span class="nf">load_global</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">get_global</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span></div>
+
+
+<span class="c1"># setup_loop</span>
+<span class="c1"># setup_except</span>
+<span class="c1"># setup_finally</span>
+<span class="n">store_map</span> <span class="o">=</span> <span class="n">pop_two</span>
+
+
+<div class="viewcode-block" id="load_fast"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.load_fast">[docs]</a><span class="k">def</span> <span class="nf">load_fast</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">vars</span><span class="p">[</span><span class="n">arg</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="store_fast"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.store_fast">[docs]</a><span class="k">def</span> <span class="nf">store_fast</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">vars</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="delete_fast"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.delete_fast">[docs]</a><span class="k">def</span> <span class="nf">delete_fast</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">vars</span><span class="p">[</span><span class="n">arg</span><span class="p">]</span> <span class="o">=</span> <span class="n">Any</span>  <span class="c1"># really an error</span></div>
+
+
+<div class="viewcode-block" id="load_closure"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.load_closure">[docs]</a><span class="k">def</span> <span class="nf">load_closure</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">unused_arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">Any</span><span class="p">)</span>  <span class="c1"># really a Cell</span></div>
+
+
+<div class="viewcode-block" id="load_deref"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.load_deref">[docs]</a><span class="k">def</span> <span class="nf">load_deref</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">closure_type</span><span class="p">(</span><span class="n">arg</span><span class="p">))</span></div>
+<span class="c1"># raise_varargs</span>
+
+
+<div class="viewcode-block" id="call_function"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.call_function">[docs]</a><span class="k">def</span> <span class="nf">call_function</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">has_var</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">has_kw</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+  <span class="c1"># TODO(robertwb): Recognize builtins and dataflow objects</span>
+  <span class="c1"># (especially special return values).</span>
+  <span class="n">pop_count</span> <span class="o">=</span> <span class="p">(</span><span class="n">arg</span> <span class="o">&amp;</span> <span class="mh">0xF</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="n">arg</span> <span class="o">&amp;</span> <span class="mh">0xF0</span><span class="p">)</span> <span class="o">/</span> <span class="mi">8</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">has_var</span> <span class="o">+</span> <span class="n">has_kw</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">pop_count</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="make_function"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.make_function">[docs]</a><span class="k">def</span> <span class="nf">make_function</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span>  <span class="c1"># a callable</span></div>
+
+
+<div class="viewcode-block" id="make_closure"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.make_closure">[docs]</a><span class="k">def</span> <span class="nf">make_closure</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span> <span class="o">-</span> <span class="mi">2</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span>  <span class="c1"># a callable</span></div>
+
+
+<div class="viewcode-block" id="build_slice"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.build_slice">[docs]</a><span class="k">def</span> <span class="nf">build_slice</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">state</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="o">-</span><span class="n">arg</span><span class="p">:]</span> <span class="o">=</span> <span class="p">[</span><span class="n">Any</span><span class="p">]</span>  <span class="c1"># a slice object</span></div>
+
+
+<div class="viewcode-block" id="call_function_var"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.call_function_var">[docs]</a><span class="k">def</span> <span class="nf">call_function_var</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">call_function</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">has_var</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="call_function_kw"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.call_function_kw">[docs]</a><span class="k">def</span> <span class="nf">call_function_kw</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">call_function</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">has_kw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="call_function_var_wk"><a class="viewcode-back" href="../../../apache_beam.typehints.html#apache_beam.typehints.opcodes.call_function_var_wk">[docs]</a><span class="k">def</span> <span class="nf">call_function_var_wk</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">):</span>
+  <span class="n">call_function</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">arg</span><span class="p">,</span> <span class="n">has_var</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">has_kw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">Apache Beam  documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright .
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.5.5.
+    </div>
+  </body>
+</html>
