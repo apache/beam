@@ -21,6 +21,7 @@ package org.apache.beam.runners.gearpump.translators.io;
 import java.io.IOException;
 import java.time.Instant;
 
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.gearpump.translators.utils.TranslatorUtils;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -39,13 +40,13 @@ import org.apache.gearpump.streaming.task.TaskContext;
  */
 public abstract class GearpumpSource<T> implements DataSource {
 
-  private final byte[] serializedOptions;
+  private final SerializablePipelineOptions serializedOptions;
 
   private Source.Reader<T> reader;
   private boolean available = false;
 
   GearpumpSource(PipelineOptions options) {
-    this.serializedOptions = TranslatorUtils.serializePipelineOptions(options);
+    this.serializedOptions = new SerializablePipelineOptions(options);
   }
 
   protected abstract Source.Reader<T> createReader(PipelineOptions options) throws IOException;
@@ -53,7 +54,7 @@ public abstract class GearpumpSource<T> implements DataSource {
   @Override
   public void open(TaskContext context, Instant startTime) {
     try {
-      PipelineOptions options = TranslatorUtils.deserializePipelineOptions(serializedOptions);
+      PipelineOptions options = serializedOptions.get();
       this.reader = createReader(options);
       this.available = reader.start();
     } catch (Exception e) {
