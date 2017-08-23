@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.translation.streaming;
 
+import static com.google.common.base.Preconditions.checkState;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.Uninterruptibles;
 import java.util.Queue;
@@ -79,6 +80,12 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     while (!isFirstBatch() && watermarkOutOfSync(batchTime)) {
       Uninterruptibles.sleepUninterruptibly(SLEEP_DURATION_MILLIS, TimeUnit.MILLISECONDS);
     }
+
+    checkState(
+        isFirstBatch() || watermarkIsOneBatchBehind(batchTime),
+        String.format(
+            "Watermark batch time:[%d] should be exactly one batch behind current batch time:[%d]",
+            GlobalWatermarkHolder.getLastWatermarkedBatchTime(), batchTime));
   }
 
   private boolean watermarkOutOfSync(final long batchTime) {
@@ -93,6 +100,10 @@ class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
     return rdds.size() > 0
         ? rdds.poll().rdd()
         : ssc().sparkContext().emptyRDD(JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag());
+  }
+
+  private boolean watermarkIsOneBatchBehind(final long batchTime) {
+    return GlobalWatermarkHolder.getLastWatermarkedBatchTime() == batchTime - batchDuration;
   }
 
   @Override
