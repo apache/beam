@@ -442,11 +442,19 @@ public final class StreamingTransformTranslator {
                             false));
                   }
                 });
+
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
-          // cache the DStream if we're going to filter it more than once.
-          all.cache();
+          // Caching can cause Serialization, we need to code to bytes
+          // more details in https://issues.apache.org/jira/browse/BEAM-2669
+          Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
+              TranslationUtils.getTupleTagCoders(outputs);
+          all = all
+              .mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+              .cache()
+              .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
         }
+
         for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
           @SuppressWarnings("unchecked")
           JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered =
@@ -458,7 +466,8 @@ public final class StreamingTransformTranslator {
                   (JavaDStream<?>) TranslationUtils.dStreamValues(filtered);
           context.putDataset(
               output.getValue(),
-              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()));
+              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()),
+              false);
         }
       }
 
