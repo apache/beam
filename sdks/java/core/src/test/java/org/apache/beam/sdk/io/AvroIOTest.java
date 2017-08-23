@@ -48,6 +48,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import org.apache.avro.Schema;
+import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileStream;
@@ -611,6 +612,38 @@ public class AvroIOTest {
           null,
           false);
     }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testOutputViaValueProvider() throws Exception {
+    String outputPrefix =
+        Files.createTempDirectory(tmpFolder.getRoot().toPath(), "testValueProvider").toString()
+            + "/output.avro";
+    Schema schema = SchemaBuilder.record("testschema").fields().nullableInt("num", 0).endRecord();
+    List<GenericRecord> records = new ArrayList<>();
+    for (int i = 0; i < 10; ++i) {
+      GenericRecord record = new GenericData.Record(schema);
+      record.put("num", i);
+      records.add(record);
+    }
+    PCollection<GenericRecord> input =
+        writePipeline.apply(Create.of(records).withCoder(AvroCoder.of(schema)));
+    input.apply(
+        AvroIO.writeGenericRecords(schema)
+            .to(StaticValueProvider.of(outputPrefix))
+            .withSchema(schema)
+            .withoutSharding());
+    writePipeline.run();
+    File expectedFile = new File(outputPrefix);
+    assertTrue("Expected output file " + expectedFile.getAbsolutePath(), expectedFile.exists());
+    List<GenericRecord> actualElements = new ArrayList<>();
+    try (DataFileReader<GenericRecord> reader =
+        new DataFileReader<>(expectedFile, new GenericDatumReader<GenericRecord>(schema))) {
+      Iterators.addAll(actualElements, reader);
+    }
+    expectedFile.delete();
+    assertThat(actualElements, containsInAnyOrder(records.toArray()));
   }
 
   @Test
