@@ -21,39 +21,11 @@ from __future__ import absolute_import
 
 import unittest
 
+from apache_beam.utils import counters
 from apache_beam.utils.counters import CounterName
-from apache_beam.utils.counters import IOTargetName
 
 
 class CounterNameTest(unittest.TestCase):
-
-  def test_find_counter(self):
-    c1 = object()
-    cn1 = CounterName('cname1', 'stage1', 'step1')
-    c2 = object()
-    cn2 = CounterName('cname2', 'stage2', 'step2')
-
-    index = {cn1: c1, cn2: c2}
-    self.assertEqual(c1, index[cn1])
-    self.assertEqual(c2, index[cn2])
-
-  def test_iotarget_counter_names(self):
-    self.assertEqual(CounterName('counter_name',
-                                 'stage_name',
-                                 'step_name',
-                                 io_target=IOTargetName(1, 's9')),
-                     CounterName('counter_name',
-                                 'stage_name',
-                                 'step_name',
-                                 io_target=IOTargetName(1, 's9')))
-    self.assertNotEqual(CounterName('counter_name',
-                                    'stage_name',
-                                    'step_name',
-                                    io_target=IOTargetName(1, 's')),
-                        CounterName('counter_name',
-                                    'stage_name',
-                                    'step_name',
-                                    io_target=IOTargetName(1, 's9')))
 
   def test_equal_objects(self):
     self.assertEqual(CounterName('counter_name',
@@ -68,6 +40,25 @@ class CounterNameTest(unittest.TestCase):
                         CounterName('counter_name',
                                     'stage_name',
                                     'step_nam'))
+
+    # Testing objects with an IOTarget.
+    self.assertEqual(CounterName('counter_name',
+                                 'stage_name',
+                                 'step_name',
+                                 io_target=counters.side_input_id(1, 's9')),
+                     CounterName('counter_name',
+                                 'stage_name',
+                                 'step_name',
+                                 io_target=counters.side_input_id(1, 's9')))
+    self.assertNotEqual(CounterName('counter_name',
+                                    'stage_name',
+                                    'step_name',
+                                    io_target=counters.side_input_id(1, 's')),
+                        CounterName('counter_name',
+                                    'stage_name',
+                                    'step_name',
+                                    io_target=counters.side_input_id(1, 's9')))
+
 
   def test_hash_two_objects(self):
     self.assertEqual(hash(CounterName('counter_name',

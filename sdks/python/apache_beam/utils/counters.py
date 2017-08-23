@@ -23,42 +23,26 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from collections import namedtuple
 import threading
 
 from apache_beam.transforms import cy_combiners
 
 
-class IOTargetName(object):
+"""Information identifying the IO being measured by a counter."""
+IOTargetName = namedtuple('IOTargetName', ['side_input_step_name',
+                                           'side_input_index',
+                                           'original_shuffle_step_name'])
 
-  def __init__(self,
-               side_input_step_name=None,
-               side_input_index=None,
-               original_shuffle_step_name=None):
-    self.side_input_step_name = side_input_step_name,
-    self.side_input_index = side_input_index
-    self.original_shuffle_step_name = original_shuffle_step_name
 
-  @staticmethod
-  def side_input_id(step_name, input_index):
-    return IOTargetName(step_name, input_index)
+def side_input_id(step_name, input_index):
+  """Create an IOTargetName that identifies the reading of a side input."""
+  return IOTargetName(step_name, input_index, None)
 
-  @staticmethod
-  def shuffle_id(step_name):
-    return IOTargetName(original_shuffle_step_name=step_name)
 
-  def _tupl_internal(self):
-    return (self.side_input_step_name,
-            self.side_input_index,
-            self.original_shuffle_step_name)
-
-  def __hash__(self):
-    return hash(self._tupl_internal())
-
-  def __eq__(self, other):
-    return self._tupl_internal() == other._tupl_internal()
-
-  def __ne__(self, other):
-    return not self._tupl_internal() == other._tupl_internal()
+def shuffle_id(step_name):
+  """Create an IOTargetName that identifies a GBK step."""
+  return IOTargetName(None, None, step_name)
 
 
 class CounterName(object):
