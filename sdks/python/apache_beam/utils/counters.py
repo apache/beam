@@ -54,6 +54,7 @@ _CounterName = namedtuple('_CounterName', ['name',
                                            'output_index',
                                            'io_target'])
 
+
 class CounterName(_CounterName):
   """Naming information for a counter."""
   SYSTEM = object()

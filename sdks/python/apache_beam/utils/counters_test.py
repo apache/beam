@@ -59,7 +59,6 @@ class CounterNameTest(unittest.TestCase):
                                     'step_name',
                                     io_target=counters.side_input_id(1, 's9')))
 
-
   def test_hash_two_objects(self):
     self.assertEqual(hash(CounterName('counter_name',
                                       'stage_name',
