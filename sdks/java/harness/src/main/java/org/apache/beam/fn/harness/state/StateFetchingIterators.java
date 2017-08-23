@@ -105,7 +105,7 @@ public class StateFetchingIterators {
           continuationToken = stateResponse.getGet().getContinuationToken();
           next = stateResponse.getGet().getData();
           currentState = State.HAS_NEXT;
-          // fall through expected
+          return true;
         case HAS_NEXT:
           return true;
       }
