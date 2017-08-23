@@ -34,18 +34,27 @@ import org.slf4j.LoggerFactory;
 
 /**
  * An {@link InputDStream} that keeps track of the {@link GlobalWatermarkHolder} status and only
- * generates RDDs when they are in sync. If an RDD for time <code>T1</code> is requested,
- * this input source will wait until {@link GlobalWatermarkHolder#getLastWatermarkedBatchTime()}
- * has caught up and the following holds:
- * <p>
- *   {@code T1 - GlobalWatermarkHolder.getLastWatermarkedBatchTime() <= batchDuration}.
- * </p>
- * In other words, this input source will stall and will NOT generate RDDs when the watermark is
- * too far behind. Once the watermark has caught up with the current batch time, an RDD will be
+ * generates RDDs when they are in sync. If an RDD for time <code>CURRENT_BATCH_TIME</code> is
+ * requested, this input source will wait until the time of the batch which set the watermark has
+ * caught up and the following holds:
+ *
+ * <pre>{@code
+ * CURRENT_BATCH_TIME - TIME_OF_BATCH_WHICH_SET_THE_WATERMARK <= BATCH_DURATION
+ * }</pre>
+ *
+ * In other words, this input source will stall and will NOT generate RDDs when the watermark is too
+ * far behind. Once the watermark has caught up with the current batch time, an RDD will be
  * generated and emitted downstream.
- * <p>
- *   NOTE: This input source is intended for use in tests only.
- * </p>
+ *
+ * <p>NOTE: This input source is intended for test-use only, where one needs to be able to simulate
+ * non-trivial scenarios under a deterministic execution even at the cost incorporating test-only
+ * code. Unlike tests, in production <code>InputDStream</code>s will not be synchronous with the
+ * watermark, and the watermark is allowed to lag behind in a non-deterministic manner (since at
+ * this point in time we are reluctant to apply complex and possibly overly synchronous mechanisms
+ * at large scale).
+ *
+ * <p>See also <a href="https://issues.apache.org/jira/browse/BEAM-2671">BEAM-2671</a>, <a
+ * href="https://issues.apache.org/jira/browse/BEAM-2789">BEAM-2789</a>.
  */
 class WatermarkSyncedDStream<T> extends InputDStream<WindowedValue<T>> {
 
