@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,7 +49,7 @@ import org.joda.time.Instant;
  *
  * @param <T> the type of the value
  */
-public abstract class WindowedValue<T> {
+public abstract class WindowedValue<T>  implements Serializable {
 
   /**
    * Returns a {@code WindowedValue} with the given value, timestamp,
