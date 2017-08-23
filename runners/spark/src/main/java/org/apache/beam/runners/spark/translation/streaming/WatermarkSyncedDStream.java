@@ -38,12 +38,12 @@ import org.slf4j.LoggerFactory;
  * requested, this input source will wait until the time of the batch which set the watermark has
  * caught up and the following holds:
  *
- * <pre>{@code
+ * {@code
  * CURRENT_BATCH_TIME - TIME_OF_BATCH_WHICH_SET_THE_WATERMARK <= BATCH_DURATION
- * }</pre>
+ * }
  *
- * In other words, this input source will stall and will NOT generate RDDs when the watermark is too
- * far behind. Once the watermark has caught up with the current batch time, an RDD will be
+ * <p>In other words, this input source will stall and will NOT generate RDDs when the watermark is
+ * too far behind. Once the watermark has caught up with the current batch time, an RDD will be
  * generated and emitted downstream.
  *
  * <p>NOTE: This input source is intended for test-use only, where one needs to be able to simulate
