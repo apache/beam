@@ -762,15 +762,22 @@ public class AvroIO {
       return toResource(StaticValueProvider.of(outputPrefix));
     }
 
+    private static class OutputPrefixToResourceId
+        implements SerializableFunction<String, ResourceId> {
+      @Override
+      public ResourceId apply(String input) {
+        return FileBasedSink.convertToFileResourceIfPossible(input);
+      }
+    }
+
     /** Like {@link #to(String)}. */
     public TypedWrite<UserT, OutputT> to(ValueProvider<String> outputPrefix) {
-      return toResource(NestedValueProvider.of(outputPrefix,
-          new SerializableFunction<String, ResourceId>() {
-            @Override
-            public ResourceId apply(String input) {
-              return FileBasedSink.convertToFileResourceIfPossible(input);
-            }
-          }));
+      return toResource(
+          NestedValueProvider.of(
+              outputPrefix,
+              // The function cannot be created as an anonymous class here since the enclosed class
+              // may contain unserializable members.
+              new OutputPrefixToResourceId()));
     }
 
     /** Like {@link #to(ResourceId)}. */
