@@ -91,7 +91,7 @@ import scala.runtime.AbstractFunction1;
  * a (state, output) tuple is used, filtering the state (and output if no firing)
  * in the following steps.
  */
-public class SparkGroupAlsoByWindowViaWindowSet {
+public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(
       SparkGroupAlsoByWindowViaWindowSet.class);
 
@@ -375,7 +375,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         });
   }
 
-  private static class StateAndTimers {
+  private static class StateAndTimers implements Serializable {
     //Serializable state for internals (namespace to state tag to coded value).
     private final Table<String, String, byte[]> state;
     private final Collection<byte[]> serTimers;
