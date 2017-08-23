@@ -639,7 +639,16 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testTimePartitioning() throws Exception {
+  public void testTimePartitioningStreamingInserts() throws Exception {
+    testTimePartitioning(Method.STREAMING_INSERTS);
+  }
+
+  @Test
+  public void testTimePartitioningBatchLoads() throws Exception {
+    testTimePartitioning(Method.FILE_LOADS);
+  }
+
+  public void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("project-id");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
@@ -667,7 +676,7 @@ public class BigQueryIOTest implements Serializable {
             BigQueryIO.writeTableRows()
                 .to("project-id:dataset-id.table-id")
                 .withTestServices(fakeBqServices)
-                .withMethod(Method.STREAMING_INSERTS)
+                .withMethod(insertMethod)
                 .withSchema(schema)
                 .withTimePartitioning(timePartitioning)
                 .withoutValidation());
