@@ -41,7 +41,13 @@ public class TableDestination implements Serializable {
   }
 
   public TableDestination(TableReference tableReference, @Nullable String tableDescription) {
-    this(BigQueryHelpers.toTableSpec(tableReference), tableDescription, (String) null);
+    this(tableReference, tableDescription, null);
+  }
+
+  public TableDestination(TableReference tableReference, @Nullable String tableDescription,
+      TimePartitioning timePartitioning) {
+    this(BigQueryHelpers.toTableSpec(tableReference), tableDescription,
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null);
   }
 
   public TableDestination(String tableSpec, @Nullable String tableDescription,
