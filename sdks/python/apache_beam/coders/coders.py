@@ -257,7 +257,7 @@ class Coder(object):
         ())
 
   @staticmethod
-  def register_simple_urn(urn, cls):
+  def register_structured_urn(urn, cls):
     """Register a coder that's completely defined by its urn and its
     component(s), if any, which are passed to construct the instance.
     """
@@ -352,7 +352,7 @@ class BytesCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_simple_urn(urns.BYTES_CODER, BytesCoder)
+Coder.register_structured_urn(urns.BYTES_CODER, BytesCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -371,7 +371,7 @@ class VarIntCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_simple_urn(urns.VAR_INT_CODER, VarIntCoder)
+Coder.register_structured_urn(urns.VAR_INT_CODER, VarIntCoder)
 
 
 class FloatCoder(FastCoder):
@@ -778,7 +778,7 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
-Coder.register_simple_urn(urns.ITERABLE_CODER, IterableCoder)
+Coder.register_structured_urn(urns.ITERABLE_CODER, IterableCoder)
 
 
 class GlobalWindowCoder(SingletonCoder):
@@ -794,7 +794,7 @@ class GlobalWindowCoder(SingletonCoder):
     }
 
 
-Coder.register_simple_urn(urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
+Coder.register_structured_urn(urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -818,7 +818,7 @@ class IntervalWindowCoder(FastCoder):
     return hash(type(self))
 
 
-Coder.register_simple_urn(urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
+Coder.register_structured_urn(urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -877,7 +877,7 @@ class WindowedValueCoder(FastCoder):
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
 
 
-Coder.register_simple_urn(urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+Coder.register_structured_urn(urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
 
 
 class LengthPrefixCoder(FastCoder):
@@ -921,4 +921,4 @@ class LengthPrefixCoder(FastCoder):
     return hash((type(self), self._value_coder))
 
 
-Coder.register_simple_urn(urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
+Coder.register_structured_urn(urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)
