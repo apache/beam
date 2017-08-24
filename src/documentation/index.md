@@ -42,7 +42,7 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 * [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink/): Runs on [Apache Flink](http://flink.apache.org).
 * [SparkRunner]({{ site.baseurl }}/documentation/runners/spark/): Runs on [Apache Spark](http://spark.apache.org).
 * [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow/): Runs on [Google Cloud Dataflow](https://cloud.google.com/dataflow), a fully managed service within [Google Cloud Platform](https://cloud.google.com/).
-* _[Under Development]_ [GearpumpRunner]({{ site.baseurl }}/contribute/work-in-progress/#feature-branches): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org). 
+* [GearpumpRunner]({{ site.baseurl }}/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org). 
 
 ### Choosing a Runner
 

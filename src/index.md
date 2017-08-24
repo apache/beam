@@ -15,6 +15,9 @@ logos:
 - title: Google Cloud Dataflow
   image_url: /images/logo_google_cloud.png
   url: https://cloud.google.com/dataflow/
+- title: Gearpump
+  image_url: /images/logo_gearpump.png
+  url: http://gearpump.apache.org/  
 
 pillars:
 - title: Unified
