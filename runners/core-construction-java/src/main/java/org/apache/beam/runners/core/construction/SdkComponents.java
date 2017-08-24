@@ -50,7 +50,7 @@ public class SdkComponents {
   // TODO: Specify environments
 
   /** Create a new {@link SdkComponents} with no components. */
-  static SdkComponents create() {
+  public static SdkComponents create() {
     return new SdkComponents();
   }
 
@@ -69,7 +69,7 @@ public class SdkComponents {
    *
    * <p>All of the children must already be registered within this {@link SdkComponents}.
    */
-  String registerPTransform(
+  public String registerPTransform(
       AppliedPTransform<?, ?, ?> appliedPTransform, List<AppliedPTransform<?, ?, ?>> children)
       throws IOException {
     String name = getApplicationName(appliedPTransform);
@@ -118,7 +118,7 @@ public class SdkComponents {
    * ID for the {@link PCollection}. Multiple registrations of the same {@link PCollection} will
    * return the same unique ID.
    */
-  String registerPCollection(PCollection<?> pCollection) throws IOException {
+  public String registerPCollection(PCollection<?> pCollection) throws IOException {
     String existing = pCollectionIds.get(pCollection);
     if (existing != null) {
       return existing;
@@ -135,7 +135,8 @@ public class SdkComponents {
    * unique ID for the {@link WindowingStrategy}. Multiple registrations of the same {@link
    * WindowingStrategy} will return the same unique ID.
    */
-  String registerWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy) throws IOException {
+  public String registerWindowingStrategy(WindowingStrategy<?, ?> windowingStrategy)
+      throws IOException {
     String existing = windowingStrategyIds.get(windowingStrategy);
     if (existing != null) {
       return existing;
@@ -162,7 +163,7 @@ public class SdkComponents {
    * #equals(Object)} and {@link #hashCode()} but incompatible binary formats are not considered the
    * same coder.
    */
-  String registerCoder(Coder<?> coder) throws IOException {
+  public String registerCoder(Coder<?> coder) throws IOException {
     String existing = coderIds.get(Equivalence.identity().wrap(coder));
     if (existing != null) {
       return existing;
@@ -191,7 +192,7 @@ public class SdkComponents {
    * PCollection PCollections}, and {@link PTransform PTransforms}.
    */
   @Experimental
-  RunnerApi.Components toComponents() {
+  public RunnerApi.Components toComponents() {
     return componentsBuilder.build();
   }
 }
