@@ -17,14 +17,6 @@ The Gearpump Runner and Gearpump are suitable for large scale, continuous jobs, 
 
 The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability-matrix/) documents the currently supported capabilities of the Gearpump Runner.
 
-## Building Gearpump Runner
-Currently Gearpump Runner is on a [feature branch](https://github.com/apache/beam/tree/gearpump-runner) and in order to run your Beam pipeline with Gearpump runner, you should build out the corresponding artifacts first.
-```
-git checkout gearpump-runner
-mvn install
-```
-
-
 ## Writing Beam Pipeline with Gearpump Runner
 To use the Gearpump Runner in a distributed mode, you have to setup a Gearpump cluster first by following the Gearpump [setup quickstart](http://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html).
 

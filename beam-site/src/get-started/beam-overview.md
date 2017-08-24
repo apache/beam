@@ -41,11 +41,7 @@ Beam currently supports Runners that work with the following distributed process
 * Google Cloud Dataflow <img src="{{ site.baseurl }}/images/logos/runners/dataflow.png"
          alt="Google Cloud Dataflow">
     
-**Note:** 
-
-1. You can always execute your pipeline locally for testing and debugging purposes.
-
-2. Gearpump Runner is under development and for more details please refer to [Ongoing Projects]({{ site.baseurl }}/contribute/work-in-progress)         
+**Note:** You can always execute your pipeline locally for testing and debugging purposes.
 
 ## Get Started
 
