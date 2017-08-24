@@ -87,7 +87,7 @@ class DataflowRunner(PipelineRunner):
     return 's%s' % self._unique_step_id
 
   @staticmethod
-  def poll_for_job_completion(runner, result):
+  def poll_for_job_completion(runner, result, duration):
     """Polls for the specified job to finish running (successfully or not)."""
     last_message_time = None
     last_message_hash = None
@@ -108,6 +108,10 @@ class DataflowRunner(PipelineRunner):
       elif 'Traceback' in msg:
         return 1
       return 0
+
+    if duration:
+      start_secs = time.time()
+      duration_secs = duration / 1000
 
     job_id = result.job_id()
     while True:
@@ -159,6 +163,13 @@ class DataflowRunner(PipelineRunner):
               last_error_rank = rank_error(m.messageText)
               last_error_msg = m.messageText
         if not page_token:
+          break
+
+      if duration:
+        passed_secs = time.time() - start_secs
+        if duration_secs > passed_secs:
+          logging.info('Timing out on waiting for job %s after %d seconds',
+                       job_id, passed_secs)
           break
 
     result._job = response
@@ -843,6 +854,12 @@ class DataflowPipelineResult(PipelineResult):
     self._runner = runner
     self.metric_results = None
 
+  def _update_job(self):
+    # We need the job id to be able to update job information. There is no need
+    # to update the job if we are in a known terminal state.
+    if self.has_job and not self._is_in_terminal_state():
+      self._job = self._runner.dataflow_client.get_job(self.job_id)
+
   def job_id(self):
     return self._job.id
 
@@ -862,6 +879,8 @@ class DataflowPipelineResult(PipelineResult):
     """
     if not self.has_job:
       return PipelineState.UNKNOWN
+
+    self._update_job()
 
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
     api_jobstate_map = {
@@ -883,21 +902,20 @@ class DataflowPipelineResult(PipelineResult):
     if not self.has_job:
       return True
 
-    return self.state in [
-        PipelineState.STOPPED, PipelineState.DONE, PipelineState.FAILED,
-        PipelineState.CANCELLED, PipelineState.DRAINED]
+    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    return self._job.currentState in [
+        values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
+        values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
+        values_enum.JOB_STATE_DRAINED]
 
   def wait_until_finish(self, duration=None):
     if not self._is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
-      if duration:
-        raise NotImplementedError(
-            'DataflowRunner does not support duration argument.')
 
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
-          args=(self._runner, self))
+          args=(self._runner, self, duration))
 
       # Mark the thread as a daemon thread so a keyboard interrupt on the main
       # thread will terminate everything. This is also the reason we will not
@@ -907,11 +925,33 @@ class DataflowPipelineResult(PipelineResult):
       while thread.isAlive():
         time.sleep(5.0)
       if self.state != PipelineState.DONE:
-        # TODO(BEAM-1290): Consider converting this to an error log based on the
-        # resolution of the issue.
-        raise DataflowRuntimeException(
-            'Dataflow pipeline failed. State: %s, Error:\n%s' %
-            (self.state, getattr(self._runner, 'last_error_msg', None)), self)
+        if not duration:
+          # TODO(BEAM-1290): Consider converting this to an error log based on
+          # theresolution of the issue.
+          raise DataflowRuntimeException(
+              'Dataflow pipeline failed. State: %s, Error:\n%s' %
+              (self.state, getattr(self._runner, 'last_error_msg', None)), self)
+    return self.state
+
+  def cancel(self):
+    if not self.has_job:
+      raise IOError('Failed to get the Dataflow job id.')
+
+    self._update_job()
+
+    if self._is_in_terminal_state():
+      logging.warning(
+          'Cancel failed because job %s is already terminated in state %s.',
+          self.job.id, self.state)
+
+    if not self._runner.dataflow_client.modify_job_state(
+        self.job.id, 'JOB_STATE_CANCELLED'):
+      cancel_failed_message = (
+          'Failed to cancel job %s, please go to the Developers Console to '
+          'cancel it manually.') % self.job_id
+      logging.error(cancel_failed_message)
+      raise DataflowRuntimeException(cancel_failed_message)
+
     return self.state
 
   def __str__(self):
