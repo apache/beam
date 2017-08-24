@@ -924,13 +924,17 @@ class DataflowPipelineResult(PipelineResult):
       thread.start()
       while thread.isAlive():
         time.sleep(5.0)
-      if self.state != PipelineState.DONE:
-        if not duration:
-          # TODO(BEAM-1290): Consider converting this to an error log based on
-          # theresolution of the issue.
-          raise DataflowRuntimeException(
-              'Dataflow pipeline failed. State: %s, Error:\n%s' %
-              (self.state, getattr(self._runner, 'last_error_msg', None)), self)
+
+      terminated = self._is_in_terminal_state()
+      assert duration or terminated, (
+          'Job did not reach to a terminal state after waiting indefinitely.')
+
+      if terminated and self.state != PipelineState.DONE:
+        # TODO(BEAM-1290): Consider converting this to an error log based on
+        # theresolution of the issue.
+        raise DataflowRuntimeException(
+            'Dataflow pipeline failed. State: %s, Error:\n%s' %
+            (self.state, getattr(self._runner, 'last_error_msg', None)), self)
     return self.state
 
   def cancel(self):
@@ -942,15 +946,15 @@ class DataflowPipelineResult(PipelineResult):
     if self._is_in_terminal_state():
       logging.warning(
           'Cancel failed because job %s is already terminated in state %s.',
-          self.job.id, self.state)
-
-    if not self._runner.dataflow_client.modify_job_state(
-        self.job.id, 'JOB_STATE_CANCELLED'):
-      cancel_failed_message = (
-          'Failed to cancel job %s, please go to the Developers Console to '
-          'cancel it manually.') % self.job_id
-      logging.error(cancel_failed_message)
-      raise DataflowRuntimeException(cancel_failed_message)
+          self.job_id, self.state)
+    else:
+      if not self._runner.dataflow_client.modify_job_state(
+          self.job_id, 'JOB_STATE_CANCELLED'):
+        cancel_failed_message = (
+            'Failed to cancel job %s, please go to the Developers Console to '
+            'cancel it manually.') % self.job_id
+        logging.error(cancel_failed_message)
+        raise DataflowRuntimeException(cancel_failed_message, self)
 
     return self.state
 

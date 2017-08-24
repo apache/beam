@@ -64,7 +64,6 @@ class DataflowRunnerTest(unittest.TestCase):
       '--dry_run=True']
 
   @mock.patch('time.sleep', return_value=None)
-  @mock.patch('time.time', mock.MagicMock(side_effect=[1, 2, 3, 13]))
   def test_wait_until_finish(self, patched_time_sleep):
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
 
@@ -100,21 +99,69 @@ class DataflowRunnerTest(unittest.TestCase):
     result = succeeded_result.wait_until_finish()
     self.assertEqual(result, PipelineState.DONE)
 
-    duration_succeeded_runner = MockDataflowRunner(
-        [values_enum.JOB_STATE_RUNNING, values_enum.JOB_STATE_DONE,
-         values_enum.JOB_STATE_DONE])
-    duration_succeeded_result = DataflowPipelineResult(
-        duration_succeeded_runner.job, duration_succeeded_runner)
-    result = duration_succeeded_result.wait_until_finish(5)
-    self.assertEqual(result, PipelineState.DONE)
+    @mock.patch('time.time', mock.MagicMock(side_effect=[1, 2, 3]))
+    def _duration_succeeded():
+      duration_succeeded_runner = MockDataflowRunner(
+          [values_enum.JOB_STATE_RUNNING, values_enum.JOB_STATE_DONE])
+      duration_succeeded_result = DataflowPipelineResult(
+          duration_succeeded_runner.job, duration_succeeded_runner)
+      result = duration_succeeded_result.wait_until_finish(5)
+      self.assertEqual(result, PipelineState.DONE)
+    _duration_succeeded()
 
-    duration_timedout_runner = MockDataflowRunner(
-        [values_enum.JOB_STATE_RUNNING, values_enum.JOB_STATE_RUNNING,
-         values_enum.JOB_STATE_DONE])
-    duration_timedout_result = DataflowPipelineResult(
-        duration_timedout_runner.job, duration_timedout_runner)
-    result = duration_timedout_result.wait_until_finish(5)
-    self.assertEqual(result, PipelineState.RUNNING)
+    @mock.patch('time.time', mock.MagicMock(side_effect=[1, 10, 20]))
+    def _duration_timedout():
+      duration_timedout_runner = MockDataflowRunner(
+          [values_enum.JOB_STATE_RUNNING])
+      duration_timedout_result = DataflowPipelineResult(
+          duration_timedout_runner.job, duration_timedout_runner)
+      result = duration_timedout_result.wait_until_finish(5)
+      self.assertEqual(result, PipelineState.RUNNING)
+    _duration_timedout()
+
+    @mock.patch('time.time', mock.MagicMock(side_effect=[1, 2, 3]))
+    def _duration_failed():
+      with self.assertRaisesRegexp(
+          DataflowRuntimeException, 'Dataflow pipeline failed. State: FAILED'):
+        duration_failed_runner = MockDataflowRunner(
+            [values_enum.JOB_STATE_FAILED])
+        duration_failed_result = DataflowPipelineResult(
+            duration_failed_runner.job, duration_failed_runner)
+        duration_failed_result.wait_until_finish(5)
+    _duration_failed()
+
+  @mock.patch('time.sleep', return_value=None)
+  def test_cancel(self, patched_time_sleep):
+    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+
+    class MockDataflowRunner(object):
+
+      def __init__(self, state, cancel_result):
+        self.dataflow_client = mock.MagicMock()
+        self.job = mock.MagicMock()
+        self.job.currentState = state
+
+        self.dataflow_client.get_job = mock.MagicMock(return_value=self.job)
+        self.dataflow_client.modify_job_state = mock.MagicMock(
+            return_value=cancel_result)
+        self.dataflow_client.list_messages = mock.MagicMock(
+            return_value=([], None))
+
+    with self.assertRaisesRegexp(
+        DataflowRuntimeException, 'Failed to cancel job'):
+      failed_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, False)
+      failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
+      failed_result.cancel()
+
+    succeeded_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, True)
+    succeeded_result = DataflowPipelineResult(
+        succeeded_runner.job, succeeded_runner)
+    succeeded_result.cancel()
+
+    terminal_runner = MockDataflowRunner(values_enum.JOB_STATE_DONE, False)
+    terminal_result = DataflowPipelineResult(
+        terminal_runner.job, terminal_runner)
+    terminal_result.cancel()
 
   def test_create_runner(self):
     self.assertTrue(
