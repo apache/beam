@@ -153,6 +153,8 @@ Do not:
 
 Data processing is tricky, full of corner cases, and difficult to debug, because pipelines take a long time to run, it's hard to check if the output is correct, you can't attach a debugger, and you often can't log as much as you wish to, due to high volume of data. Because of that, testing is particularly important.
 
+#### Testing the transform's run-time behavior
+
 * Unit-test the overall semantics of the transform using `TestPipeline` and `PAssert`. Start with testing against the direct runner. Assertions on `PCollection` contents should be strict: e.g. when a read from a database is expected to read the numbers 1 through 10, assert not just that there are 10 elements in the output `PCollection`, or that each element is in the range [1, 10] - but assert that each number 1 through 10 appears exactly once.
 * Identify non-trivial sequential logic in the transform that is prone to corner cases which are difficult to reliably simulate using a `TestPipeline`, extract this logic into unit-testable functions, and unit-test them. Common corner cases are:
     * `DoFn`s processing empty bundles
@@ -162,10 +164,24 @@ Data processing is tricky, full of corner cases, and difficult to debug, because
     * Leaks of `Closeable`/`AutoCloseable` resources in failure cases
     * Common corner cases when developing sources: complicated arithmetic in `BoundedSource.split` (e.g. splitting key or offset ranges), iteration over empty data sources or composite data sources that have some empty components.
 * Mock out the interactions with third-party systems, or better, use ["fake"](http://martinfowler.com/articles/mocksArentStubs.html) implementations when available. Make sure that the mocked-out interactions are representative of all interesting cases of the actual behavior of these systems.
-* To unit test `DoFn`s, `CombineFn`s, and `BoundedSource`s, consider using `DoFnTester`, `CombineFnTester`, and `SourceTestUtils` respectively which can exercise the code in non-trivial ways to flesh out potential bugs. 
+* To unit test `DoFn`s, `CombineFn`s, and `BoundedSource`s, consider using `DoFnTester`, `CombineFnTester`, and `SourceTestUtils` respectively which can exercise the code in non-trivial ways to flesh out potential bugs.
 * For transforms that work over unbounded collections, test their behavior in the presence of late or out-of-order data using `TestStream`.
 * Tests must pass 100% of the time, including in hostile, CPU- or network-constrained environments (continuous integration servers). Never put timing-dependent code (e.g. sleeps) into tests. Experience shows that no reasonable amount of sleeping is enough - code can be suspended for more than several seconds.
 * For detailed instructions on test code organization, see the [Beam Testing Guide]({{ site.baseurl }}/contribute/testing/).
+
+#### Testing transform construction and validation
+
+The code for constructing and validating a transform is usually trivial and mostly boilerplate. However, minor mistakes or typos in it can have serious consequences (e.g. ignoring a property that the user has set), so it needs to be tested as well. Yet, an excessive amount of trivial tests can be hard to maintain and give a false impression that the transform is well-tested.
+
+Do:
+* Test non-trivial validation code, where missing/incorrect/uninformative validation may lead to serious problems: data loss, counter-intuitive behavior, value of a property being silently ignored, or other hard-to-debug errors. Create 1 test per non-trivial class of validation error. Some examples of validation that should be tested:
+    * If properties `withFoo()` and `withBar()` cannot both be specified at the same time, test that a transform specifying both of them is rejected, rather than one of the properties being silently ignored at runtime.
+    * If the transform is known to behave incorrectly or counter-intuitively for a particular configuration, test that this configuration is rejected, rather than producing wrong results at runtime. For example, a transform might work properly only for bounded collections, or only for globally-windowed collections. Or, suppose a streaming system supports several levels of "quality of service", one of which is "exactly once delivery". However, a transform that writes to this system might be unable to provide exactly-once due to retries in case of failures. In that case, test that the transform disallows specifying exactly-once QoS, rather than failing to provide the expected end-to-end semantics at runtime.
+* Test that each `withFoo()` method (including each overload) has effect (is not ignored), using `TestPipeline` and `PAssert` to create tests where the expected test results depend on the value of `withFoo()`.
+
+Do not:
+* Do not test successful validation (e.g. "validation does not fail when the transform is configured correctly")
+* Do not test trivial validation errors (e.g. "validation fails when a property is unset/null/empty/negative/...")
 
 ### Compatibility
 
