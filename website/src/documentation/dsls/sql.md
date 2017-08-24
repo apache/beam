@@ -52,10 +52,6 @@ Explicitly:
         .apply(Create.of(row)
                      .withCoder(nameType.getRecordCoder()));
     ```
-  * **From an external source**, if the external data are already encoded with the appropriate `BeamRecordCoder`.
-    ```
-    TODO: example. Is this even possible currently?
-    ```
   * **From a `PCollection<T>`** where `T` is not already a `BeamRecord`, by applying a `PTransform` that converts input records to `BeamRecord` format:
     ```
     // An example POJO class.
