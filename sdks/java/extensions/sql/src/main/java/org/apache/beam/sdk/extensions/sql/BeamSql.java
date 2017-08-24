@@ -55,14 +55,14 @@ PCollection<BeamSqlRow> inputTableB = p.apply(TextIO.read().from("/my/input/path
 //run a simple query, and register the output as a table in BeamSql;
 String sql1 = "select MY_FUNC(c1), c2 from PCOLLECTION";
 PCollection<BeamSqlRow> outputTableA = inputTableA.apply(
-    BeamSql.simpleQuery(sql1)
+    BeamSql.query(sql1)
     .withUdf("MY_FUNC", MY_FUNC.class, "FUNC"));
 
 //run a JOIN with one table from TextIO, and one table from another query
 PCollection<BeamSqlRow> outputTableB = PCollectionTuple.of(
     new TupleTag<BeamSqlRow>("TABLE_O_A"), outputTableA)
                 .and(new TupleTag<BeamSqlRow>("TABLE_B"), inputTableB)
-    .apply(BeamSql.query("select * from TABLE_O_A JOIN TABLE_B where ..."));
+    .apply(BeamSql.queryMulti("select * from TABLE_O_A JOIN TABLE_B where ..."));
 
 //output the final result with TextIO
 outputTableB.apply(...).apply(TextIO.write().to("/my/output/path"));
@@ -91,19 +91,19 @@ public class BeamSql {
    *     of the current query call.</li>
    * </ul>
    */
-  public static QueryTransform query(String sqlQuery) {
+  public static QueryTransform queryMulti(String sqlQuery) {
     return new QueryTransform(sqlQuery);
   }
 
   /**
    * Transforms a SQL query into a {@link PTransform} representing an equivalent execution plan.
    *
-   * <p>This is a simplified form of {@link #query(String)} where the query must reference
+   * <p>This is a simplified form of {@link #queryMulti(String)} where the query must reference
    * a single input table.
    *
    * <p>Make sure to query it from a static table name <em>PCOLLECTION</em>.
    */
-  public static SimpleQueryTransform simpleQuery(String sqlQuery) {
+  public static SimpleQueryTransform query(String sqlQuery) {
     return new SimpleQueryTransform(sqlQuery);
   }
 
