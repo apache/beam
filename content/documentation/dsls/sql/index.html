@@ -147,9 +147,8 @@
   <li><a href="#functionality">3. Functionality in Beam SQL</a>
     <ul>
       <li><a href="#features">3.1. Supported Features</a></li>
-      <li><a href="#beamsqlrow">3.2. Intro of BeamSqlRow</a></li>
-      <li><a href="#data-type">3.3. Data Types</a></li>
-      <li><a href="#built-in-functions">3.4. built-in SQL functions</a></li>
+      <li><a href="#data-type">3.2. Data Types</a></li>
+      <li><a href="#built-in-functions">3.3. built-in SQL functions</a></li>
     </ul>
   </li>
   <li><a href="#internal-of-sql">4. The Internal of Beam SQL</a></li>
@@ -162,37 +161,109 @@
 </blockquote>
 
 <h1 id="a-nameoverviewa1-overview"><a name="overview"></a>1. Overview</h1>
-<p>SQL is a well-adopted standard to process data with concise syntax. With DSL APIs, now <code class="highlighter-rouge">PCollection</code>s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage <a href="http://calcite.apache.org/">Apache Calcite</a> to parse and optimize SQL queries, then translate into a composite Beam <code class="highlighter-rouge">PTransform</code>. In this way, both SQL and normal Beam <code class="highlighter-rouge">PTransform</code>s can be mixed in the same pipeline.</p>
+<p>SQL is a well-adopted standard to process data with concise syntax. With DSL APIs (currently available only in Java), now <code class="highlighter-rouge">PCollection</code>s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage <a href="http://calcite.apache.org/">Apache Calcite</a> to parse and optimize SQL queries, then translate into a composite Beam <code class="highlighter-rouge">PTransform</code>. In this way, both SQL and normal Beam <code class="highlighter-rouge">PTransform</code>s can be mixed in the same pipeline.</p>
+
+<p>There are two main pieces to the SQL DSL API:</p>
+
+<ul>
+  <li><a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/values/BeamRecord.html">BeamRecord</a>: a new data type used to define composite records (i.e., rows) that consist of multiple, named columns of primitive data types. All SQL DSL queries must be made against collections of type <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code>. Note that <code class="highlighter-rouge">BeamRecord</code> itself is not SQL-specific, however, and may also be used in pipelines that do not utilize SQL.</li>
+  <li><a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/extensions/sql/BeamSql.html">BeamSql</a>: the interface for creating <code class="highlighter-rouge">PTransforms</code> from SQL queries.</li>
+</ul>
+
+<p>We’ll look at each of these below.</p>
 
 <h1 id="a-nameusagea2-usage-of-dsl-apis"><a name="usage"></a>2. Usage of DSL APIs</h1>
-<p><code class="highlighter-rouge">BeamSql</code> is the only interface(with two methods <code class="highlighter-rouge">BeamSql.query()</code> and <code class="highlighter-rouge">BeamSql.simpleQuery()</code>) for developers. It wraps the back-end details of parsing/validation/assembling, and deliver a Beam SDK style API that can take either simple TABLE_FILTER queries or complex queries containing JOIN/GROUP_BY etc.</p>
 
-<p><em>Note</em>, the two methods are equivalent in functionality, <code class="highlighter-rouge">BeamSql.query()</code> applies on a <code class="highlighter-rouge">PCollectionTuple</code> with one or many input <code class="highlighter-rouge">PCollection</code>s; <code class="highlighter-rouge">BeamSql.simpleQuery()</code> is a simplified API which applies on single <code class="highlighter-rouge">PCollection</code>.</p>
+<h2 id="beamrecord">BeamRecord</h2>
 
-<p><a href="https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a> in code repository shows the usage of both APIs:</p>
+<p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must be in <code class="highlighter-rouge">BeamRecord</code> format. A <code class="highlighter-rouge">BeamRecord</code> represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the record are defined by its associated <a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/values/BeamRecordType.html">BeamRecordType</a>; for SQL queries, you should use the <a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/extensions/sql/BeamRecordSqlType.html">BeamRecordSqlType</a> subclass (see <a href="#data-type">Data Types</a> for more details on supported primitive data types).</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>//Step 1. create a source PCollection with Create.of();
-BeamRecordSqlType type = BeamRecordSqlType.create(fieldNames, fieldTypes);
-...
+<p>A <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> can be created explicitly or implicitly:</p>
 
-PCollection&lt;BeamRecord&gt; inputTable = PBegin.in(p).apply(Create.of(row...)
-    .withCoder(type.getRecordCoder()));
+<p>Explicitly:</p>
+<ul>
+  <li><strong>From in-memory data</strong> (typically for unit testing). In this case, the record type and coder must be specified explicitly:
+    <div class="highlighter-rouge"><pre class="highlight"><code>// Define the record type (i.e., schema).
+List&lt;String&gt; fieldNames = Arrays.asList("appId", "description", "rowtime");
+List&lt;Integer&gt; fieldTypes = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.TIMESTAMP);
+BeamRecordSqlType appType = BeamRecordSqlType.create(fieldNames, fieldTypes);
 
-//Step 2. (Case 1) run a simple SQL query over input PCollection with BeamSql.simpleQuery;
-PCollection&lt;BeamRecord&gt; outputStream = inputTable.apply(
-    BeamSql.simpleQuery("select c1, c2, c3 from PCOLLECTION where c1=1"));
+// Create a concrete row with that type.
+BeamRecord row = new BeamRecord(nameType, 1, "Some cool app", new Date());
 
-
-//Step 2. (Case 2) run the query with BeamSql.query over result PCollection of (case 1);
-PCollection&lt;BeamRecord&gt; outputStream2 =
-    PCollectionTuple.of(new TupleTag&lt;BeamRecord&gt;("CASE1_RESULT"), outputStream)
-        .apply(BeamSql.query("select c2, sum(c3) from CASE1_RESULT group by c2"));
+//create a source PCollection containing only that row.
+PCollection&lt;BeamRecord&gt; testApps = PBegin
+    .in(p)
+    .apply(Create.of(row)
+                 .withCoder(nameType.getRecordCoder()));
 </code></pre>
-</div>
+    </div>
+  </li>
+  <li><strong>From a <code class="highlighter-rouge">PCollection&lt;T&gt;</code></strong> where <code class="highlighter-rouge">T</code> is not already a <code class="highlighter-rouge">BeamRecord</code>, by applying a <code class="highlighter-rouge">PTransform</code> that converts input records to <code class="highlighter-rouge">BeamRecord</code> format:
+    <div class="highlighter-rouge"><pre class="highlight"><code>// An example POJO class.
+class AppPojo {
+  ...
+  public final Integer appId;
+  public final String description;
+  public final Date timestamp;
+}
 
-<p>In Step 1, a <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> is prepared as the source dataset. The work to generate a queriable <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> is beyond the scope of Beam SQL DSL.</p>
+// Acquire a collection of Pojos somehow.
+PCollection&lt;AppPojo&gt; pojos = ...
 
-<p>Step 2(Case 1) shows the usage to run a query with <code class="highlighter-rouge">BeamSql.simpleQuery()</code>, be aware that the input <code class="highlighter-rouge">PCollection</code> is named with a fixed table name <strong>PCOLLECTION</strong>. Step 2(Case 2) is another example to run a query with <code class="highlighter-rouge">BeamSql.query()</code>. A Table name is specified when adding <code class="highlighter-rouge">PCollection</code> to <code class="highlighter-rouge">PCollectionTuple</code>. As each call of either <code class="highlighter-rouge">BeamSql.query()</code> or <code class="highlighter-rouge">BeamSql.simpleQuery()</code> has its own schema repository, developers need to include all <code class="highlighter-rouge">PCollection</code>s that would be used in your query.</p>
+// Convert them to BeamRecords with the same schema as defined above via a DoFn.
+PCollection&lt;BeamRecord&gt; apps = pojos.apply(
+    ParDo.of(new DoFn&lt;AppPojo, BeamRecord&gt;() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        c.output(new BeamRecord(appType, pojo.appId, pojo.description, pojo.timestamp));
+      }
+    }));
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>Implicitly:</p>
+<ul>
+  <li><strong>As the result of a <code class="highlighter-rouge">BeamSql</code> <code class="highlighter-rouge">PTransform</code></strong> applied to a <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> (details in the next section).</li>
+</ul>
+
+<p>Once you have a <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> in hand, you may use the <code class="highlighter-rouge">BeamSql</code> APIs to apply SQL queries to it.</p>
+
+<h2 id="beamsql">BeamSql</h2>
+
+<p><code class="highlighter-rouge">BeamSql</code> provides two methods for generating a <code class="highlighter-rouge">PTransform</code> from a SQL query, both of which are equivalent except for the number of inputs they support:</p>
+
+<ul>
+  <li><code class="highlighter-rouge">BeamSql.query()</code>, which may be applied to a single <code class="highlighter-rouge">PCollection</code>. The input collection must be referenced via the table name <code class="highlighter-rouge">PCOLLECTION</code> in the query:
+    <div class="highlighter-rouge"><pre class="highlight"><code>PCollection&lt;BeamRecord&gt; filteredNames = testApps.apply(
+    BeamSql.query("SELECT appId, description, rowtime FROM PCOLLECTION WHERE id=1"));
+</code></pre>
+    </div>
+  </li>
+  <li><code class="highlighter-rouge">BeamSql.queryMulti()</code>, which may be applied to a <code class="highlighter-rouge">PCollectionTuple</code> containing one or more tagged <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code>s. The tuple tag for each <code class="highlighter-rouge">PCollection</code> in the tuple defines the table name that may used to query it. Note that table names are bound to the specific <code class="highlighter-rouge">PCollectionTuple</code>, and thus are only valid in the context of queries applied to it.
+    <div class="highlighter-rouge"><pre class="highlight"><code>// Create a reviews PCollection to join to our apps PCollection.
+BeamRecordSqlType reviewType = BeamRecordSqlType.create(
+  Arrays.asList("appId", "reviewerId", "rating", "rowtime"),
+  Arrays.asList(Types.INTEGER, Types.INTEGER, Types.FLOAT, Types.TIMESTAMP));
+PCollection&lt;BeamRecord&gt; reviews = ... [records w/ reviewType schema] ...
+
+// Compute the # of reviews and average rating per app via a JOIN.
+PCollectionTuple namesAndFoods = PCollectionTuple.of(
+    new TupleTag&lt;BeamRecord&gt;("Apps"), apps),
+    new TupleTag&lt;BeamRecord&gt;("Reviews"), reviews));
+PCollection&lt;BeamRecord&gt; output = namesAndFoods.apply(
+    BeamSql.queryMulti("SELECT Names.appId, COUNT(Reviews.rating), AVG(Reviews.rating)
+                        FROM Apps INNER JOIN Reviews ON Apps.appId == Reviews.appId"));
+</code></pre>
+    </div>
+  </li>
+</ul>
+
+<p>Both methods wrap the back-end details of parsing/validation/assembling, and deliver a Beam SDK style API that can express simple TABLE_FILTER queries up to complex queries containing JOIN/GROUP_BY etc.</p>
+
+<p><a href="https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a> in the code repository shows basic usage of both APIs.</p>
 
 <h1 id="a-namefunctionalitya3-functionality-in-beam-sql"><a name="functionality"></a>3. Functionality in Beam SQL</h1>
 <p>Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded <code class="highlighter-rouge">PCollection</code> as well.</p>
@@ -331,23 +402,6 @@ String sql = "SELECT f_int1, squaresum(f_int2) AS `squaresum` FROM PCOLLECTION G
 PCollection&lt;BeamSqlRow&gt; result =
     input.apply("udafExample",
         BeamSql.simpleQuery(sql).withUdaf("squaresum", new SquareSum()));
-</code></pre>
-</div>
-
-<h2 id="a-namebeamsqlrowa32-intro-of-beamrecord"><a name="beamsqlrow"></a>3.2. Intro of BeamRecord</h2>
-<p><code class="highlighter-rouge">BeamRecord</code>, described by <code class="highlighter-rouge">BeamRecordType</code>(extended <code class="highlighter-rouge">BeamRecordSqlType</code> in Beam SQL) and encoded/decoded by <code class="highlighter-rouge">BeamRecordCoder</code>, represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. Similar as <em>row</em> in relational database, each <code class="highlighter-rouge">BeamRecord</code> consists of named columns with fixed types(see <a href="#data-type">4.3. Data Types</a>).</p>
-
-<p>A Beam SQL <code class="highlighter-rouge">PCollection</code> can be created from an external source, in-memory data or derive from another SQL query. For <code class="highlighter-rouge">PCollection</code>s from external source or in-memory data, it’s required to specify coder explcitly; <code class="highlighter-rouge">PCollection</code> derived from SQL query has the coder set already. Below is one example:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>//define the input row format
-List&lt;String&gt; fieldNames = Arrays.asList("c1", "c2", "c3");
-List&lt;Integer&gt; fieldTypes = Arrays.asList(Types.INTEGER, Types.VARCHAR, Types.DOUBLE);
-BeamRecordSqlType type = BeamRecordSqlType.create(fieldNames, fieldTypes);
-BeamRecord row = new BeamRecord(type, 1, "row", 1.0);
-
-//create a source PCollection with Create.of();
-PCollection&lt;BeamRecord&gt; inputTable = PBegin.in(p).apply(Create.of(row)
-    .withCoder(type.getRecordCoder()));
 </code></pre>
 </div>
 
