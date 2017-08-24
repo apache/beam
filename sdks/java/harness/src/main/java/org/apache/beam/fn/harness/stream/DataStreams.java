@@ -153,7 +153,7 @@ public class DataStreams {
           } catch (IOException e) {
             throw new IllegalStateException(e);
           }
-          // fall through expected
+          return true;
         case HAS_NEXT:
           return true;
       }
