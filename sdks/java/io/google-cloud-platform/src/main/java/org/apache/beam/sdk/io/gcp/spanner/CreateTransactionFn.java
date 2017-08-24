@@ -17,12 +17,14 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import org.apache.beam.sdk.transforms.DoFn;
 
 /** Creates a batch transaction. */
-class CreateTransactionFn extends AbstractSpannerFn<Object, Transaction> {
+class CreateTransactionFn extends DoFn<Object, Transaction> {
 
   private final SpannerIO.CreateTransaction config;
 
@@ -30,10 +32,22 @@ class CreateTransactionFn extends AbstractSpannerFn<Object, Transaction> {
     this.config = config;
   }
 
+  private transient SpannerAccessor spannerAccessor;
+
+  @Setup
+  public void setup() throws Exception {
+    spannerAccessor = config.getSpannerConfig().connectToSpanner();
+  }
+  @Teardown
+  public void teardown() throws Exception {
+    spannerAccessor.close();
+  }
+
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
+    DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
     try (ReadOnlyTransaction readOnlyTransaction =
-        databaseClient().readOnlyTransaction(config.getTimestampBound())) {
+        databaseClient.readOnlyTransaction(config.getTimestampBound())) {
       // Run a dummy sql statement to force the RPC and obtain the timestamp from the server.
       ResultSet resultSet = readOnlyTransaction.executeQuery(Statement.of("SELECT 1"));
       while (resultSet.next()) {
@@ -44,8 +58,4 @@ class CreateTransactionFn extends AbstractSpannerFn<Object, Transaction> {
     }
   }
 
-  @Override
-  SpannerConfig getSpannerConfig() {
-    return config.getSpannerConfig();
-  }
 }

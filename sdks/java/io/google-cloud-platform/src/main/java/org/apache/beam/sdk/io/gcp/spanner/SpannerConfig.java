@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.ServiceFactory;
+import com.google.cloud.spanner.DatabaseClient;
+import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
@@ -29,10 +31,13 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.ReleaseInfo;
 
 /** Configuration for a Cloud Spanner client. */
 @AutoValue
 public abstract class SpannerConfig implements Serializable {
+  // A common user agent token that indicates that this request was originated from Apache Beam.
+  private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
 
   @Nullable
   abstract ValueProvider<String> getProjectId();
@@ -121,6 +126,23 @@ public abstract class SpannerConfig implements Serializable {
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
+  }
+
+  public SpannerAccessor connectToSpanner() {
+    SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+    if (getProjectId() != null) {
+      builder.setProjectId(getProjectId().get());
+    }
+    if (getServiceFactory() != null) {
+      builder.setServiceFactory(this.getServiceFactory());
+    }
+    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
+    builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
+    SpannerOptions options = builder.build();
+    Spanner spanner = options.getService();
+    DatabaseClient databaseClient = spanner.getDatabaseClient(
+        DatabaseId.of(options.getProjectId(), getInstanceId().get(), getDatabaseId().get()));
+    return new SpannerAccessor(spanner, databaseClient);
   }
 
 }
