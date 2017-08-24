@@ -206,9 +206,9 @@ class Coder(object):
 
   @classmethod
   def register_urn(cls, urn, parameter_type, fn=None):
-    """Registeres a urn with a constructor.
+    """Registers a urn with a constructor.
 
-    For example, if 'beam:fn:foo' had paramter type FooPayload, one could
+    For example, if 'beam:fn:foo' had parameter type FooPayload, one could
     write `RunnerApiFn.register_urn('bean:fn:foo', FooPayload, foo_from_proto)`
     where foo_from_proto took as arguments a FooPayload and a PipelineContext.
     This function can also be used as a decorator rather than passing the
