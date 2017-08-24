@@ -82,6 +82,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -899,7 +900,7 @@ public class KafkaIO {
     private transient ConsumerSpEL consumerSpEL;
 
     /** watermark before any records have been read. */
-    private static Instant initialWatermark = new Instant(Long.MIN_VALUE);
+    private static Instant initialWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
     @Override
     public String toString() {
