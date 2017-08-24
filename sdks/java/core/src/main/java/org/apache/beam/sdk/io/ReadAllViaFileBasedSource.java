@@ -39,7 +39,7 @@ import org.apache.beam.sdk.values.PCollection;
  * input {@link PCollection} must not contain {@link ResourceId#isDirectory directories}.
  *
  * <p>To obtain the collection of {@link Metadata} from a filepattern, use {@link
- * Match#filepatterns()}.
+ * FileIO#match} or {@link FileIO#matchAll}.
  */
 class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<Metadata>, PCollection<T>> {
   private final SerializableFunction<String, Boolean> isSplittable;

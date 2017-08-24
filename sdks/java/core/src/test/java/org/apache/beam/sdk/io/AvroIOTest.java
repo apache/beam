@@ -335,7 +335,7 @@ public class AvroIOTest {
                     .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
                     .watchForNewFiles(
                         Duration.millis(100),
-                        Watch.Growth.<Void>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
+                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
         .containsInAnyOrder(firstValues);
     PAssert.that(
             readPipeline.apply(
@@ -344,7 +344,7 @@ public class AvroIOTest {
                     .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
                     .watchForNewFiles(
                         Duration.millis(100),
-                        Watch.Growth.<Void>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
+                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
         .containsInAnyOrder(firstValues);
 
     PCollection<String> paths =
