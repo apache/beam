@@ -41,34 +41,34 @@ import org.joda.time.Instant;
 /**
  * Create an input stream from Queue. For SparkRunner tests only.
  *
- * <p>To properly compose a stream of micro-batches with their Watermarks, please keep in mind
- * that eventually there a two queues here - one for batches and another for Watermarks.
+ * <p>To properly compose a stream of micro-batches with their Watermarks, please keep in mind that
+ * eventually there a two queues here - one for batches and another for Watermarks.
  *
- * <p>While both queues advance according to Spark's batch-interval, there is a slight difference
- * in how data is pushed into the stream compared to the advancement of Watermarks since Watermarks
+ * <p>While both queues advance according to Spark's batch-interval, there is a slight difference in
+ * how data is pushed into the stream compared to the advancement of Watermarks since Watermarks
  * advance onBatchCompleted hook call so if you'd want to set the watermark advance for a specific
- * batch it should be called before that batch.
- * Also keep in mind that being a queue that is polled per batch interval, if there is a need to
- * "hold" the same Watermark without advancing it it should be stated explicitly or the Watermark
- * will advance as soon as it can (in the next batch completed hook).
+ * batch it should be called before that batch. Also keep in mind that being a queue that is polled
+ * per batch interval, if there is a need to "hold" the same Watermark without advancing it it
+ * should be stated explicitly or the Watermark will advance as soon as it can (in the next batch
+ * completed hook).
  *
  * <p>Example 1:
  *
- * {@code
- * CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
- *     .nextBatch(
- *         TimestampedValue.of("foo", endOfGlobalWindow),
- *         TimestampedValue.of("bar", endOfGlobalWindow))
- *     .advanceNextBatchWatermarkToInfinity();
- * }
- * The first batch will see the default start-of-time WM of
- * {@link BoundedWindow#TIMESTAMP_MIN_VALUE} and any following batch will see
- * the end-of-time WM {@link BoundedWindow#TIMESTAMP_MAX_VALUE}.
+ * <pre>{@code
+ * CreateStream.of(StringUtf8Coder.of(), batchDuration)
+ *   .nextBatch(
+ *     TimestampedValue.of("foo", endOfGlobalWindow),
+ *     TimestampedValue.of("bar", endOfGlobalWindow))
+ *   .advanceNextBatchWatermarkToInfinity();
+ * }</pre>
+ * The first batch will see the default start-of-time WM of {@link
+ * BoundedWindow#TIMESTAMP_MIN_VALUE} and any following batch will see the end-of-time WM {@link
+ * BoundedWindow#TIMESTAMP_MAX_VALUE}.
  *
  * <p>Example 2:
  *
- * {@code
- * CreateStream.<TimestampedValue<String>>withBatchInterval(batchDuration)
+ * <pre>{@code
+ * CreateStream.of(VarIntCoder.of(), batchDuration)
  *     .nextBatch(
  *         TimestampedValue.of(1, instant))
  *     .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(20)))
@@ -77,32 +77,59 @@ import org.joda.time.Instant;
  *     .nextBatch(
  *         TimestampedValue.of(3, instant))
  *     .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(30)))
- * }
- * The first batch will see the start-of-time WM and the second will see the advanced (+20 min.) WM.
- * The third WM will see the WM advanced to +30 min, because this is the next advancement of the WM
- * regardless of where it ws called in the construction of CreateStream.
- * //TODO: write a proper Builder enforcing all those rules mentioned.
- * @param <T> stream type.
+ * }</pre>
+ *
+ * <p>
+ *   The first batch will see the start-of-time WM and the second will see the advanced (+20 min.)
+ *   WM. The third WM will see the WM advanced to +30 min, because this is the next advancement
+ *   of the WM regardless of where it ws called in the construction of CreateStream.
+ * </p>
+ *
+ * @param <T> The type of the element in this stream.
  */
+//TODO: write a proper Builder enforcing all those rules mentioned.
 public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
 
-  private final Duration batchInterval;
+  private final Duration batchDuration;
   private final Queue<Iterable<TimestampedValue<T>>> batches = new LinkedList<>();
   private final Deque<SparkWatermarks> times = new LinkedList<>();
   private final Coder<T> coder;
   private Instant initialSystemTime;
+  private final boolean forceWatermarkSync;
 
   private Instant lowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE; //for test purposes.
 
-  private CreateStream(Duration batchInterval, Instant initialSystemTime, Coder<T> coder) {
-    this.batchInterval = batchInterval;
+  private CreateStream(Duration batchDuration,
+                       Instant initialSystemTime,
+                       Coder<T> coder,
+                       boolean forceWatermarkSync) {
+    this.batchDuration = batchDuration;
     this.initialSystemTime = initialSystemTime;
     this.coder = coder;
+    this.forceWatermarkSync = forceWatermarkSync;
   }
 
-  /** Set the batch interval for the stream. */
-  public static <T> CreateStream<T> of(Coder<T> coder, Duration batchInterval) {
-    return new CreateStream<>(batchInterval, new Instant(0), coder);
+  /**
+   * Creates a new Spark based stream intended for test purposes.
+   *
+   * @param batchDuration the batch duration (interval) to be used for creating this stream.
+   * @param coder the coder to be used for this stream.
+   * @param forceWatermarkSync whether this stream should be synced with the advancement of the
+   *                           watermark maintained by the
+   *                           {@link org.apache.beam.runners.spark.util.GlobalWatermarkHolder}.
+   */
+  public static <T> CreateStream<T> of(Coder<T> coder,
+                                       Duration batchDuration,
+                                       boolean forceWatermarkSync) {
+    return new CreateStream<>(batchDuration, new Instant(0), coder, forceWatermarkSync);
+  }
+
+  /**
+   * Creates a new Spark based stream without forced watermark sync, intended for test purposes.
+   * See also {@link CreateStream#of(Coder, Duration, boolean)}.
+   */
+  public static <T> CreateStream<T> of(Coder<T> coder, Duration batchDuration) {
+    return of(coder, batchDuration, true);
   }
 
   /**
@@ -112,8 +139,7 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
   @SafeVarargs
   public final CreateStream<T> nextBatch(TimestampedValue<T>... batchElements) {
     // validate timestamps if timestamped elements.
-    for (TimestampedValue<T> element: batchElements) {
-      TimestampedValue timestampedValue = (TimestampedValue) element;
+    for (final TimestampedValue<T> timestampedValue: batchElements) {
       checkArgument(
           timestampedValue.getTimestamp().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE),
           "Elements must have timestamps before %s. Got: %s",
@@ -177,13 +203,17 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
     // advance the system time.
     Instant currentSynchronizedProcessingTime = times.peekLast() == null ? initialSystemTime
         : times.peekLast().getSynchronizedProcessingTime();
-    Instant nextSynchronizedProcessingTime = currentSynchronizedProcessingTime.plus(batchInterval);
+    Instant nextSynchronizedProcessingTime = currentSynchronizedProcessingTime.plus(batchDuration);
     checkArgument(
         nextSynchronizedProcessingTime.isAfter(currentSynchronizedProcessingTime),
         "Synchronized processing time must always advance.");
     times.offer(new SparkWatermarks(lowWatermark, newWatermark, nextSynchronizedProcessingTime));
     lowWatermark = newWatermark;
     return this;
+  }
+
+  public long getBatchDuration() {
+    return batchDuration.getMillis();
   }
 
   /** Get the underlying queue representing the mock stream of micro-batches. */
@@ -197,6 +227,10 @@ public final class CreateStream<T> extends PTransform<PBegin, PCollection<T>> {
    */
   public Queue<SparkWatermarks> getTimes() {
     return times;
+  }
+
+  public boolean isForceWatermarkSync() {
+    return forceWatermarkSync;
   }
 
   @Override

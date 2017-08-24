@@ -188,4 +188,10 @@ public class SparkTimerInternals implements TimerInternals {
     return CoderHelpers.fromByteArrays(serTimers, timerDataCoder);
   }
 
+  @Override
+  public String toString() {
+    return "SparkTimerInternals{" + "highWatermark=" + highWatermark
+        + ", synchronizedProcessingTime=" + synchronizedProcessingTime + ", timers=" + timers
+        + ", inputWatermark=" + inputWatermark + '}';
+  }
 }
