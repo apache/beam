@@ -152,7 +152,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
           values.add(pair.getValue());
         }
 
-        PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.simpleQuery(getSql()));
+        PCollection<BeamRecord> rows = inputCollection.apply(BeamSql.query(getSql()));
         PAssert.that(rows).containsInAnyOrder(
             TestUtils.RowsBuilder
                 .of(BeamRecordSqlType.create(names, types))
