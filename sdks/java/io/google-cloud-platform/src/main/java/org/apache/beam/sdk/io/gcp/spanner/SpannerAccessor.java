@@ -27,17 +27,13 @@ public class SpannerAccessor {
   private final Spanner spanner;
   private final DatabaseClient databaseClient;
 
-  public SpannerAccessor(Spanner spanner, DatabaseClient databaseClient) {
+  SpannerAccessor(Spanner spanner, DatabaseClient databaseClient) {
     this.spanner = spanner;
     this.databaseClient = databaseClient;
   }
 
   public DatabaseClient getDatabaseClient() {
     return databaseClient;
-  }
-
-  public Spanner getSpanner() {
-    return spanner;
   }
 
   public void close() {
