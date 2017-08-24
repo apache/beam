@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.gcp.spanner;
 
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
@@ -35,7 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Batches together and writes mutations to Google Cloud Spanner. */
-@VisibleForTesting class SpannerWriteGroupFn extends AbstractSpannerFn<MutationGroup, Void> {
+@VisibleForTesting
+class SpannerWriteGroupFn extends DoFn<MutationGroup, Void> {
   private static final Logger LOG = LoggerFactory.getLogger(SpannerWriteGroupFn.class);
   private final SpannerIO.Write spec;
   // Current batch of mutations to be written.
@@ -48,20 +51,23 @@ import org.slf4j.LoggerFactory;
           .withMaxRetries(MAX_RETRIES)
           .withInitialBackoff(Duration.standardSeconds(5));
 
-  @VisibleForTesting SpannerWriteGroupFn(SpannerIO.Write spec) {
-    this.spec = spec;
-  }
+  private transient SpannerAccessor spannerAccessor;
 
-  @Override
-  protected SpannerConfig getSpannerConfig() {
-    return spec.getSpannerConfig();
+  @VisibleForTesting
+  SpannerWriteGroupFn(SpannerIO.Write spec) {
+    this.spec = spec;
   }
 
   @Setup
   public void setup() throws Exception {
-    super.setup();
+    spannerAccessor = spec.getSpannerConfig().connectToSpanner();
     mutations = new ArrayList<>();
     batchSizeBytes = 0;
+  }
+
+  @Teardown
+  public void teardown() throws Exception {
+    spannerAccessor.close();
   }
 
   @ProcessElement
@@ -95,10 +101,11 @@ import org.slf4j.LoggerFactory;
     Sleeper sleeper = Sleeper.DEFAULT;
     BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
 
+    DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
     while (true) {
       // Batch upsert rows.
       try {
-        databaseClient().writeAtLeastOnce(Iterables.concat(mutations));
+        databaseClient.writeAtLeastOnce(Iterables.concat(mutations));
 
         // Break if the commit threw no exception.
         break;
