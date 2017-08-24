@@ -48,7 +48,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int = 1";
 
     PCollection<BeamRecord> result =
-        input.apply("testSingleFilter", BeamSql.simpleQuery(sql));
+        input.apply("testSingleFilter", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
 
@@ -77,7 +77,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testCompositeFilter", BeamSql.query(sql));
+        .apply("testCompositeFilter", BeamSql.queryMulti(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(1), recordsInTableA.get(2));
 
@@ -105,7 +105,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testNoReturnFilter", BeamSql.query(sql));
+        .apply("testNoReturnFilter", BeamSql.queryMulti(sql));
 
     PAssert.that(result).empty();
 
@@ -122,7 +122,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
-        .apply("testFromInvalidTableName1", BeamSql.query(sql));
+        .apply("testFromInvalidTableName1", BeamSql.queryMulti(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -135,7 +135,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION_NA";
 
-    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.simpleQuery(sql));
+    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }
@@ -148,7 +148,7 @@ public class BeamSqlDslFilterTest extends BeamSqlDslBase {
 
     String sql = "SELECT * FROM PCOLLECTION WHERE f_int_na = 0";
 
-    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.simpleQuery(sql));
+    PCollection<BeamRecord> result = boundedInput1.apply(BeamSql.query(sql));
 
     pipeline.run().waitUntilFinish();
   }

@@ -50,7 +50,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
     String sql = "SELECT * FROM PCOLLECTION";
 
     PCollection<BeamRecord> result =
-        input.apply("testSelectAll", BeamSql.simpleQuery(sql));
+        input.apply("testSelectAll", BeamSql.query(sql));
 
     PAssert.that(result).containsInAnyOrder(recordsInTableA.get(0));
 
@@ -78,7 +78,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testPartialFields", BeamSql.query(sql));
+        .apply("testPartialFields", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -112,7 +112,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testPartialFieldsInMultipleRow", BeamSql.query(sql));
+        .apply("testPartialFieldsInMultipleRow", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -155,7 +155,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testPartialFieldsInRows", BeamSql.query(sql));
+        .apply("testPartialFieldsInRows", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("f_int", "f_long"),
         Arrays.asList(Types.INTEGER, Types.BIGINT));
@@ -198,7 +198,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
-        .apply("testLiteralField", BeamSql.query(sql));
+        .apply("testLiteralField", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(Arrays.asList("literal_field"),
         Arrays.asList(Types.INTEGER));
@@ -220,7 +220,7 @@ public class BeamSqlDslProjectTest extends BeamSqlDslBase {
 
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), boundedInput1)
-        .apply("testProjectUnknownField", BeamSql.query(sql));
+        .apply("testProjectUnknownField", BeamSql.queryMulti(sql));
 
     pipeline.run().waitUntilFinish();
   }
