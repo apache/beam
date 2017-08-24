@@ -57,8 +57,8 @@ class Mean(object):
 
   class Globally(ptransform.PTransform):
     """combiners.Mean.Globally computes the arithmetic mean of the elements."""
-    def __init__(self, label=None, as_view=False, has_defaults=True):
-      super(self.__class__, self).__init__(label)
+    def __init__(self, as_view=False, has_defaults=True):
+      super(self.__class__, self).__init__()
       self.as_view = as_view
       self.has_defaults = has_defaults
 
@@ -111,8 +111,8 @@ class Count(object):
 
   class Globally(ptransform.PTransform):
     """combiners.Count.Globally counts the total number of elements."""
-    def __init__(self, label=None, as_view=False, has_defaults=True):
-      super(self.__class__, self).__init__(label)
+    def __init__(self, as_view=False, has_defaults=True):
+      super(self.__class__, self).__init__()
       self.as_view = as_view
       self.has_defaults = has_defaults
 
@@ -488,8 +488,8 @@ class ToList(ptransform.PTransform):
   """A global CombineFn that condenses a PCollection into a single list."""
 
   # pylint: disable=useless-super-delegation
-  def __init__(self, label='ToList', as_view=False, has_defaults=True):
-    super(ToList, self).__init__(label)
+  def __init__(self, as_view=False, has_defaults=True):
+    super(ToList, self).__init__()
     self.as_view = as_view
     self.has_defaults = has_defaults
 
@@ -529,8 +529,8 @@ class ToDict(ptransform.PTransform):
   """
 
   # pylint: disable=useless-super-delegation
-  def __init__(self, label='ToDict', as_view=False, has_defaults=True):
-    super(ToDict, self).__init__(label)
+  def __init__(self, as_view=False, has_defaults=True):
+    super(ToDict, self).__init__()
     self.as_view = as_view
     self.has_defaults = has_defaults
 
