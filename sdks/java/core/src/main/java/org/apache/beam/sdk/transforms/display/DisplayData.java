@@ -796,8 +796,9 @@ public class DisplayData implements Serializable {
         // Don't re-wrap exceptions recursively.
         throw e;
       } catch (Throwable e) {
-        String msg = String.format("Error while populating display data for component: %s",
-            namespace.getName());
+        String msg = String.format(
+            "Error while populating display data for component '%s': %s",
+            namespace.getName(), e.getMessage());
         throw new PopulateDisplayDataException(msg, e);
       }
 

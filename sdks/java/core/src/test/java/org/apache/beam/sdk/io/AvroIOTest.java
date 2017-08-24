@@ -64,7 +64,6 @@ import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -222,14 +221,19 @@ public class AvroIOTest {
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
-    ValueProvider<String> pathProvider = StaticValueProvider.of(outputFile.getAbsolutePath());
-
     writePipeline
         .apply(Create.of(values))
-        .apply(AvroIO.write(GenericClass.class).to(pathProvider).withoutSharding());
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
     writePipeline.run().waitUntilFinish();
 
-    PAssert.that(readPipeline.apply("Read", AvroIO.read(GenericClass.class).from(pathProvider)))
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.read(GenericClass.class)
+                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
         .containsInAnyOrder(values);
 
     readPipeline.run();

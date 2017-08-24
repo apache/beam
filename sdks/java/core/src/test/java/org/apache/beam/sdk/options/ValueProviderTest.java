@@ -23,8 +23,8 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -193,16 +193,16 @@ public class ValueProviderTest {
     StaticValueProvider<String> provider = options.getBar();
   }
 
+
   @Test
   public void testSerializeDeserializeNoArg() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.as(TestOptions.class);
     assertFalse(submitOptions.getFoo().isAccessible());
-    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
 
-    String runnerString = ValueProviders.updateSerializedOptions(
-      serializedOptions, ImmutableMap.of("foo", "quux"));
-    TestOptions runtime = MAPPER.readValue(runnerString, PipelineOptions.class)
-      .as(TestOptions.class);
+    ObjectNode root = MAPPER.valueToTree(submitOptions);
+    ((ObjectNode) root.get("options")).put("foo", "quux");
+    TestOptions runtime =
+        MAPPER.convertValue(root, PipelineOptions.class).as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
     assertTrue(vp.isAccessible());
@@ -213,14 +213,13 @@ public class ValueProviderTest {
   @Test
   public void testSerializeDeserializeWithArg() throws Exception {
     TestOptions submitOptions = PipelineOptionsFactory.fromArgs("--foo=baz").as(TestOptions.class);
-    assertEquals("baz", submitOptions.getFoo().get());
     assertTrue(submitOptions.getFoo().isAccessible());
-    String serializedOptions = MAPPER.writeValueAsString(submitOptions);
+    assertEquals("baz", submitOptions.getFoo().get());
 
-    String runnerString = ValueProviders.updateSerializedOptions(
-      serializedOptions, ImmutableMap.of("foo", "quux"));
-    TestOptions runtime = MAPPER.readValue(runnerString, PipelineOptions.class)
-      .as(TestOptions.class);
+    ObjectNode root = MAPPER.valueToTree(submitOptions);
+    ((ObjectNode) root.get("options")).put("foo", "quux");
+    TestOptions runtime =
+        MAPPER.convertValue(root, PipelineOptions.class).as(TestOptions.class);
 
     ValueProvider<String> vp = runtime.getFoo();
     assertTrue(vp.isAccessible());
