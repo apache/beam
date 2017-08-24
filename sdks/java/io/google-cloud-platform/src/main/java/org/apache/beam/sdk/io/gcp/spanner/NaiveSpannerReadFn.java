@@ -17,19 +17,22 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.common.annotations.VisibleForTesting;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
 /** A simplest read function implementation. Parallelism support is coming. */
 @VisibleForTesting
-class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
+class NaiveSpannerReadFn extends DoFn<ReadOperation, Struct> {
   private final SpannerConfig config;
   @Nullable private final PCollectionView<Transaction> transaction;
+  private transient SpannerAccessor spannerAccessor;
 
   NaiveSpannerReadFn(SpannerConfig config, @Nullable PCollectionView<Transaction> transaction) {
     this.config = config;
@@ -40,8 +43,14 @@ class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
     this(config, null);
   }
 
-  SpannerConfig getSpannerConfig() {
-    return config;
+
+  @Setup
+  public void setup() throws Exception {
+    spannerAccessor = config.connectToSpanner();
+  }
+  @Teardown
+  public void teardown() throws Exception {
+    spannerAccessor.close();
   }
 
   @ProcessElement
@@ -52,8 +61,9 @@ class NaiveSpannerReadFn extends AbstractSpannerFn<ReadOperation, Struct> {
       timestampBound = TimestampBound.ofReadTimestamp(transaction.timestamp());
     }
     ReadOperation op = c.element();
+    DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
     try (ReadOnlyTransaction readOnlyTransaction =
-        databaseClient().readOnlyTransaction(timestampBound)) {
+        databaseClient.readOnlyTransaction(timestampBound)) {
       ResultSet resultSet = execute(op, readOnlyTransaction);
       while (resultSet.next()) {
         c.output(resultSet.getCurrentRowAsStruct());
