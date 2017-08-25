@@ -1102,7 +1102,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       @ProcessElement
       public void processElement(ProcessContext context) throws IOException {
         for (byte[] element : elements) {
-          context.output(CoderUtils.decodeFromByteArray(coder, element));
+          context.output(CoderUtils.decodeFromByteArray(getCoder(), element));
         }
       }
     }
