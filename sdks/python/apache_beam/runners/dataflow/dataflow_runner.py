@@ -88,7 +88,17 @@ class DataflowRunner(PipelineRunner):
 
   @staticmethod
   def poll_for_job_completion(runner, result, duration):
-    """Polls for the specified job to finish running (successfully or not)."""
+    """Polls for the specified job to finish running (successfully or not).
+
+    Updates the result with the new job information before returning.
+
+    Args:
+      runner: DataflowRunner instance to use for polling job state.
+      result: DataflowPipelineResult instance used for job information.
+      duration (int): The time to wait (in milliseconds) for job to finish.
+        If it is set to :data:`None`, it will wait indefinitely until the job
+        is finished.
+    """
     last_message_time = None
     last_message_hash = None
 
@@ -168,8 +178,8 @@ class DataflowRunner(PipelineRunner):
       if duration:
         passed_secs = time.time() - start_secs
         if duration_secs > passed_secs:
-          logging.info('Timing out on waiting for job %s after %d seconds',
-                       job_id, passed_secs)
+          logging.warning('Timing out on waiting for job %s after %d seconds',
+                          job_id, passed_secs)
           break
 
     result._job = response
@@ -858,7 +868,7 @@ class DataflowPipelineResult(PipelineResult):
     # We need the job id to be able to update job information. There is no need
     # to update the job if we are in a known terminal state.
     if self.has_job and not self._is_in_terminal_state():
-      self._job = self._runner.dataflow_client.get_job(self.job_id)
+      self._job = self._runner.dataflow_client.get_job(self.job_id())
 
   def job_id(self):
     return self._job.id
@@ -883,6 +893,9 @@ class DataflowPipelineResult(PipelineResult):
     self._update_job()
 
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+
+    # TODO: Move this table to a another location.
+    # Ordered by the enum values.
     api_jobstate_map = {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
@@ -893,6 +906,8 @@ class DataflowPipelineResult(PipelineResult):
         values_enum.JOB_STATE_UPDATED: PipelineState.UPDATED,
         values_enum.JOB_STATE_DRAINING: PipelineState.DRAINING,
         values_enum.JOB_STATE_DRAINED: PipelineState.DRAINED,
+        values_enum.JOB_STATE_PENDING: PipelineState.PENDING,
+        values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
     }
 
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
@@ -946,13 +961,13 @@ class DataflowPipelineResult(PipelineResult):
     if self._is_in_terminal_state():
       logging.warning(
           'Cancel failed because job %s is already terminated in state %s.',
-          self.job_id, self.state)
+          self.job_id(), self.state)
     else:
       if not self._runner.dataflow_client.modify_job_state(
-          self.job_id, 'JOB_STATE_CANCELLED'):
+          self.job_id(), 'JOB_STATE_CANCELLED'):
         cancel_failed_message = (
             'Failed to cancel job %s, please go to the Developers Console to '
-            'cancel it manually.') % self.job_id
+            'cancel it manually.') % self.job_id()
         logging.error(cancel_failed_message)
         raise DataflowRuntimeException(cancel_failed_message, self)
 
