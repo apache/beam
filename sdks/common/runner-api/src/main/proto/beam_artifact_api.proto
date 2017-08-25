@@ -48,7 +48,7 @@ service ArtifactStagingService {
 // A service to retrieve artifacts for use in a Job.
 service ArtifactRetrievalService {
   // Get the manifest for the job
-  rpc GetManifest(GetManifestRequest) returns (Manifest);
+  rpc GetManifest(GetManifestRequest) returns (GetManifestResponse);
 
   // Get an artifact staged for the job. The requested artifact must be within the manifest
   rpc GetArtifact(GetArtifactRequest) returns (stream ArtifactChunk);
