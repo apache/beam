@@ -41,14 +41,12 @@ class HBaseResultCoder extends AtomicCoder<Result> implements Serializable {
   }
 
   @Override
-  public void encode(Result value, OutputStream outputStream)
-          throws IOException {
+  public void encode(Result value, OutputStream outputStream) throws IOException {
     ProtobufUtil.toResult(value).writeDelimitedTo(outputStream);
   }
 
   @Override
-  public Result decode(InputStream inputStream)
-      throws IOException {
+  public Result decode(InputStream inputStream) throws IOException {
     return ProtobufUtil.toResult(ClientProtos.Result.parseDelimitedFrom(inputStream));
   }
 }
