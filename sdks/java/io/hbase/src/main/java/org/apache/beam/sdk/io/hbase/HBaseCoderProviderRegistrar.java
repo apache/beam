@@ -26,15 +26,13 @@ import org.apache.beam.sdk.coders.CoderProviders;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.hadoop.hbase.client.Result;
 
-/**
- * A {@link CoderProviderRegistrar} for standard types used with {@link HBaseIO}.
- */
+/** A {@link CoderProviderRegistrar} for standard types used with {@link HBaseIO}. */
 @AutoService(CoderProviderRegistrar.class)
 public class HBaseCoderProviderRegistrar implements CoderProviderRegistrar {
   @Override
   public List<CoderProvider> getCoderProviders() {
     return ImmutableList.of(
-      HBaseMutationCoder.getCoderProvider(),
-      CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()));
+        HBaseMutationCoder.getCoderProvider(),
+        CoderProviders.forCoder(TypeDescriptor.of(Result.class), HBaseResultCoder.of()));
   }
 }
