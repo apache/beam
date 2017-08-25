@@ -213,6 +213,45 @@ public class TextIOReadTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testReadStringsWithCustomSeparator() throws Exception {
+    final String[] inputStrings = new String[] {
+        // incomplete separator
+        "To be, or not to be: that |is the question: ",
+        // complete separator
+        "Whether 'tis nobler in the mind to suffer ||",
+        //truncated separator
+        "The slings and arrows of outrageous fortune,|" };
+
+    File tmpFile = Files.createTempFile(tempFolder, "file", "txt").toFile();
+    String filename = tmpFile.getPath();
+
+    try (PrintStream writer = new PrintStream(new FileOutputStream(tmpFile))) {
+      for (String elem : inputStrings) {
+        byte[] encodedElem = CoderUtils.encodeToByteArray(StringUtf8Coder.of(), elem);
+        String line = new String(encodedElem);
+        writer.print(line);
+      }
+    }
+    String[] expected = new String[] {
+        "To be, or not to be: that |is the question: Whether 'tis nobler in the mind to suffer ",
+        "The slings and arrows of outrageous fortune,|" };
+    TextIO.Read read = TextIO.read().from(filename).withSeparator(new byte[] {'|', '|'});
+
+    PCollection<String> output = p.apply(read);
+
+    PAssert.that(output).containsInAnyOrder(expected);
+    p.run();
+  }
+
+  @Test
+  public void testSplittingSourceWithCustomSeparator() throws Exception {
+    TextSource source = prepareSource("asdf||hjkl||xyz".getBytes(StandardCharsets.UTF_8),
+        new byte[] { '|', '|' });
+    SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testReadStrings() throws Exception {
     runTestRead(LINES_ARRAY);
   }
@@ -555,7 +594,7 @@ public class TextIOReadTest {
   @Test
   public void testProgressEmptyFile() throws IOException {
     try (BoundedReader<String> reader =
-        prepareSource(new byte[0]).createReader(PipelineOptionsFactory.create())) {
+        prepareSource(new byte[0], null).createReader(PipelineOptionsFactory.create())) {
       // Check preconditions before starting.
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
       assertEquals(0, reader.getSplitPointsConsumed());
@@ -575,7 +614,7 @@ public class TextIOReadTest {
   public void testProgressTextFile() throws IOException {
     String file = "line1\nline2\nline3";
     try (BoundedReader<String> reader =
-        prepareSource(file.getBytes()).createReader(PipelineOptionsFactory.create())) {
+        prepareSource(file.getBytes(), null).createReader(PipelineOptionsFactory.create())) {
       // Check preconditions before starting
       assertEquals(0.0, reader.getFractionConsumed(), 1e-6);
       assertEquals(0, reader.getSplitPointsConsumed());
@@ -607,7 +646,7 @@ public class TextIOReadTest {
   @Test
   public void testProgressAfterSplitting() throws IOException {
     String file = "line1\nline2\nline3";
-    BoundedSource<String> source = prepareSource(file.getBytes());
+    BoundedSource<String> source = prepareSource(file.getBytes(), null);
     BoundedSource<String> remainder;
 
     // Create the remainder, verifying properties pre- and post-splitting.
@@ -726,72 +765,73 @@ public class TextIOReadTest {
   }
 
   private void runTestReadWithData(byte[] data, List<String> expectedResults) throws Exception {
-    TextSource source = prepareSource(data);
+    TextSource source = prepareSource(data, null);
     List<String> actual = SourceTestUtils.readFromSource(source, PipelineOptionsFactory.create());
     assertThat(actual, containsInAnyOrder(new ArrayList<>(expectedResults).toArray(new String[0])));
   }
 
   @Test
   public void testSplittingSourceWithEmptyLines() throws Exception {
-    TextSource source = prepareSource("\n\n\n".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("\n\n\n".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithLineFeedDelimiter() throws Exception {
-    TextSource source = prepareSource("asdf\nhjkl\nxyz\n".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\nhjkl\nxyz\n".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnDelimiter() throws Exception {
-    TextSource source = prepareSource("asdf\rhjkl\rxyz\r".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\rxyz\r".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnAndLineFeedDelimiter() throws Exception {
-    TextSource source = prepareSource("asdf\r\nhjkl\r\nxyz\r\n".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\r\nhjkl\r\nxyz\r\n".getBytes(StandardCharsets.UTF_8),
+        null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithMixedDelimiters() throws Exception {
-    TextSource source = prepareSource("asdf\rhjkl\r\nxyz\n".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\r\nxyz\n".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithLineFeedDelimiterAndNonEmptyBytesAtEnd() throws Exception {
-    TextSource source = prepareSource("asdf\nhjkl\nxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\nhjkl\nxyz".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnDelimiterAndNonEmptyBytesAtEnd()
       throws Exception {
-    TextSource source = prepareSource("asdf\rhjkl\rxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\rxyz".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithCarriageReturnAndLineFeedDelimiterAndNonEmptyBytesAtEnd()
       throws Exception {
-    TextSource source = prepareSource("asdf\r\nhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\r\nhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
   @Test
   public void testSplittingSourceWithMixedDelimitersAndNonEmptyBytesAtEnd() throws Exception {
-    TextSource source = prepareSource("asdf\rhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8));
+    TextSource source = prepareSource("asdf\rhjkl\r\nxyz".getBytes(StandardCharsets.UTF_8), null);
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 
-  private TextSource prepareSource(byte[] data) throws IOException {
+  private TextSource prepareSource(byte[] data, byte[] separator) throws IOException {
     Path path = Files.createTempFile(tempFolder, "tempfile", "ext");
     Files.write(path, data);
-    return new TextSource(
-        ValueProvider.StaticValueProvider.of(path.toString()), EmptyMatchTreatment.DISALLOW);
+    return new TextSource(ValueProvider.StaticValueProvider.of(path.toString()),
+        EmptyMatchTreatment.DISALLOW, separator);
   }
 
   @Test

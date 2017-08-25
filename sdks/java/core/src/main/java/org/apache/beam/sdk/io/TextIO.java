@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -63,7 +64,8 @@ import org.joda.time.Duration;
  * PCollection}, apply {@link TextIO#readAll()}.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
- * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n').
+ * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n',
+ * or specified separator see {@link TextIO.Read#withSeparator}).
  *
  * <h3>Filepattern expansion and watching</h3>
  *
@@ -255,7 +257,8 @@ public class TextIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
-    @Nullable abstract ValueProvider<String> getFilepattern();
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
     abstract Compression getCompression();
 
     @Nullable
@@ -266,6 +269,8 @@ public class TextIO {
 
     abstract boolean getHintMatchesManyFiles();
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    @Nullable
+    abstract byte[] getSeparator();
 
     abstract Builder toBuilder();
 
@@ -278,6 +283,7 @@ public class TextIO {
               TerminationCondition<?, ?> condition);
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
+      abstract Builder setSeparator(byte[] separator);
 
       abstract Read build();
     }
@@ -360,6 +366,13 @@ public class TextIO {
       return toBuilder().setEmptyMatchTreatment(treatment).build();
     }
 
+    /**
+     * Set the custom separator to be used in place of the default ones ('\r', '\n' or '\r\n').
+     */
+    public Read withSeparator(byte[] separator) {
+      return toBuilder().setSeparator(separator).build();
+    }
+
     @Override
     public PCollection<String> expand(PBegin input) {
       checkNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
@@ -370,7 +383,8 @@ public class TextIO {
       ReadAll readAll =
           readAll()
               .withCompression(getCompression())
-              .withEmptyMatchTreatment(getEmptyMatchTreatment());
+              .withEmptyMatchTreatment(getEmptyMatchTreatment())
+              .withSeparator(getSeparator());
       if (getWatchForNewFilesInterval() != null) {
         TerminationCondition<String, ?> readAllCondition =
             ignoreInput(getWatchForNewFilesTerminationCondition());
@@ -383,7 +397,7 @@ public class TextIO {
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      return CompressedSource.from(new TextSource(getFilepattern(), getEmptyMatchTreatment()))
+      return CompressedSource.from(new TextSource(getFilepattern(), getEmptyMatchTreatment(), getSeparator()))
           .withCompression(getCompression());
     }
 
@@ -401,7 +415,11 @@ public class TextIO {
                   .withLabel("Treatment of filepatterns that match no files"))
           .addIfNotNull(
               DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
-                  .withLabel("Interval to watch for new files"));
+                  .withLabel("Interval to watch for new files"))
+          .addIfNotNull(
+              DisplayData.item("separator", Arrays.toString(getSeparator()))
+              .withLabel("Custom separator to split records"));
+
     }
   }
 
@@ -421,6 +439,8 @@ public class TextIO {
 
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
     abstract long getDesiredBundleSizeBytes();
+    @Nullable
+    abstract byte[] getSeparator();
 
     abstract Builder toBuilder();
 
@@ -432,7 +452,7 @@ public class TextIO {
           TerminationCondition<String, ?> condition);
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
       abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
-
+      abstract Builder setSeparator(byte[] separator);
       abstract ReadAll build();
     }
 
@@ -471,6 +491,10 @@ public class TextIO {
       return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
     }
 
+    ReadAll withSeparator(byte[] separator) {
+      return toBuilder().setSeparator(separator).build();
+    }
+
     @Override
     public PCollection<String> expand(PCollection<String> input) {
       Match.Filepatterns matchFilepatterns =
@@ -487,34 +511,40 @@ public class TextIO {
               new ReadAllViaFileBasedSource<>(
                   new IsSplittableFn(getCompression()),
                   getDesiredBundleSizeBytes(),
-                  new CreateTextSourceFn(getCompression(), getEmptyMatchTreatment())))
-          .setCoder(StringUtf8Coder.of());
+                  new CreateTextSourceFn(getCompression(), getEmptyMatchTreatment(),
+                      getSeparator()))).setCoder(StringUtf8Coder.of());
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(
+      builder
+          .add(
           DisplayData.item("compressionType", getCompression().toString())
-              .withLabel("Compression Type"));
+              .withLabel("Compression Type"))
+          .addIfNotNull(
+          DisplayData.item("separator", Arrays.toString(getSeparator()))
+              .withLabel("Custom separator to split records"));
     }
 
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
       private final Compression compression;
       private final EmptyMatchTreatment emptyMatchTreatment;
+      private byte[] separator;
 
       private CreateTextSourceFn(
-          Compression compression, EmptyMatchTreatment emptyMatchTreatment) {
+          Compression compression, EmptyMatchTreatment emptyMatchTreatment, byte[] separator) {
         this.compression = compression;
         this.emptyMatchTreatment = emptyMatchTreatment;
+        this.separator = separator;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
         return CompressedSource.from(
-                new TextSource(StaticValueProvider.of(input), emptyMatchTreatment))
+                new TextSource(StaticValueProvider.of(input), emptyMatchTreatment, separator))
             .withCompression(compression);
       }
     }
