@@ -415,6 +415,7 @@ class _ExecutorServiceParallelExecutor(object):
         raise t, v, tb
     finally:
       self.executor_service.shutdown()
+      self.executor_service.await_completion()
 
   def schedule_consumers(self, committed_bundle):
     if committed_bundle.pcollection in self.value_to_consumers:
