@@ -122,7 +122,7 @@ query:
       |   query MINUS [ ALL ] query
       |   query INTERSECT [ ALL ] query
 	}
-    [ ORDER BY orderItem [, orderItem ]* LIMIT [offset] count ]
+    [ ORDER BY orderItem [, orderItem ]* LIMIT count [OFFSET offset] ]
 
 orderItem:
       expression [ ASC | DESC ]
