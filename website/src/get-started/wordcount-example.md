@@ -509,26 +509,26 @@ instrumenting your pipeline code.
 {:.runner-direct}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts" -Pdirect-runner
+     -Dexec.args="--output=counts" -Pdirect-runner
 ```
 
 {:.runner-apex}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
+     -Dexec.args="--output=counts --runner=ApexRunner" -Papex-runner
 ```
 
 {:.runner-flink-local}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
+     -Dexec.args="--runner=FlinkRunner --output=counts" -Pflink-runner
 ```
 
 {:.runner-flink-cluster}
 ```
 $ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
      -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
+                  --output=/tmp/counts" -Pflink-runner
 
 You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
 ```
@@ -536,7 +536,7 @@ You can monitor the running job by visiting the Flink dashboard at http://<flink
 {:.runner-spark}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
+     -Dexec.args="--runner=SparkRunner --output=counts" -Pspark-runner
 ```
 
 {:.runner-dataflow}
