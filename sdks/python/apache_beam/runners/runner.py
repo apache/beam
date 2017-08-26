@@ -298,6 +298,9 @@ class PipelineState(object):
   UPDATED = 'UPDATED'  # replaced by another job (terminal state)
   DRAINING = 'DRAINING'  # still processing, no longer reading data
   DRAINED = 'DRAINED'  # draining completed (terminal state)
+  PENDING = 'PENDING' # the job has been created but is not yet running.
+  CANCELLING = 'CANCELLING' # job has been explicitly cancelled and is
+                            # in the process of stopping
 
 
 class PipelineResult(object):
