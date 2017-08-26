@@ -301,7 +301,10 @@ class DataflowRunner(PipelineRunner):
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
 
-    # Create the job
+    # Create the job description and send a request to the service. The result
+    # can be None if there is no need to send a request to the service (e.g.
+    # template creation). If a request was sent and failed then the call will
+    # raise an exception.
     result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
@@ -859,7 +862,13 @@ class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
 
   def __init__(self, job, runner):
-    """Job is a Job message from the Dataflow API."""
+    """Initialize a new DataflowPipelineResult instance.
+
+    Args:
+      job: Job message from the Dataflow API. Could be :data:`None` if a job
+        request was not sent to Dataflow service (e.g. template jobs).
+      runner: DataflowRunner instance.
+    """
     self._job = job
     self._runner = runner
     self.metric_results = None
