@@ -112,18 +112,65 @@ Both methods wrap the back-end details of parsing/validation/assembling, and del
 [BeamSqlExample](https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java) in the code repository shows basic usage of both APIs.
 
 # <a name="functionality"></a>3. Functionality in Beam SQL
-Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded `PCollection` as well. 
+Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded `PCollection` as well. Here's the supported SQL grammar supported in [BNF](http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)-like form. An `UnsupportedOperationException` is thrown for unsupported features.
 
-Note that, SQL support is not fully completed. Queries that include unsupported features would cause an `UnsupportedOperationException`.
+```
+query:
+	{
+          select
+      |   query UNION [ ALL ] query
+      |   query MINUS [ ALL ] query
+      |   query INTERSECT [ ALL ] query
+	}
+    [ ORDER BY orderItem [, orderItem ]* LIMIT count [OFFSET offset] ]
+
+orderItem:
+      expression [ ASC | DESC ]
+
+select:
+      SELECT
+          { * | projectItem [, projectItem ]* }
+      FROM tableExpression
+      [ WHERE booleanExpression ]
+      [ GROUP BY { groupItem [, groupItem ]* } ]
+      [ HAVING booleanExpression ]
+
+projectItem:
+      expression [ [ AS ] columnAlias ]
+  |   tableAlias . *
+
+tableExpression:
+      tableReference [, tableReference ]*
+  |   tableExpression [ ( LEFT | RIGHT ) [ OUTER ] ] JOIN tableExpression [ joinCondition ]
+
+booleanExpression:
+    expression [ IS NULL | IS NOT NULL ]
+  | expression [ > | >= | = | < | <= | <> ] expression
+  | booleanExpression [ AND | OR ] booleanExpression 
+  | NOT booleanExpression
+  | '(' booleanExpression ')'
+
+joinCondition:
+      ON booleanExpression
+
+tableReference:
+      tableName [ [ AS ] alias ]
+
+values:
+      VALUES expression [, expression ]*
+
+groupItem:
+      expression
+  |   '(' expression [, expression ]* ')'
+  |   HOP '(' expression [, expression ]* ')'
+  |   TUMBLE '(' expression [, expression ]* ')'
+  |   SESSION '(' expression [, expression ]* ')'
+
+```
 
 ## <a name="features"></a>3.1. Supported Features
-The following features are supported in current repository:
 
-**1. filter clauses;**
-
-**2. data field projections;**
-
-**3. aggregations;**
+**1. aggregations;**
 
 Beam SQL supports aggregation functions with group_by in global_window, fixed_window, sliding_window and session_window. A field with type `TIMESTAMP` is required to specify fixed_window/sliding_window/session_window. The field is used as event timestamp for rows. See below for several examples:
 
@@ -149,7 +196,7 @@ Repeatedly.forever(AfterWatermark.pastEndOfWindow().withLateFirings(AfterProcess
         .pastFirstElementInPane().plusDelayOf(Duration.millis(delayTime.getTimeInMillis()))));
 ```		
 
-**4. Join (inner, left_outer, right_outer);**
+**2. Join (inner, left_outer, right_outer);**
 
 The scenarios of join can be categorized into 3 cases:
 
@@ -164,9 +211,7 @@ For case 1 and case 2, a standard join is utilized as long as the windowFn of th
 * If it's a LEFT OUTER JOIN, the unbounded table should on the left side; If it's a RIGHT OUTER JOIN, the unbounded table should on the right side;
 * window/trigger is inherented from upstreams, which should be consistent;
 
-**5. built-in SQL functions**
-
-**6. User Defined Function (UDF) and User Defined Aggregate Function (UDAF);**
+**3. User Defined Function (UDF) and User Defined Aggregate Function (UDAF);**
 
 If the required function is not available, developers can register their own UDF(for scalar function) and UDAF(for aggregation function).
 
@@ -245,7 +290,7 @@ PCollection<BeamSqlRow> result =
         BeamSql.simpleQuery(sql).withUdaf("squaresum", new SquareSum()));
 ```
   
-## <a name="data-type"></a>3.3. Data Types
+## <a name="data-type"></a>3.2. Data Types
 Each type in Beam SQL maps to a Java class to holds the value in `BeamRecord`. The following table lists the relation between SQL types and Java classes, which are supported in current repository:
 
 | SQL Type | Java class |
@@ -261,7 +306,7 @@ Each type in Beam SQL maps to a Java class to holds the value in `BeamRecord`. T
 | Types.TIMESTAMP | java.util.Date |
 {:.table}
 
-## <a name="built-in-functions"></a>3.4. built-in SQL functions
+## <a name="built-in-functions"></a>3.3. built-in SQL functions
 
 Beam SQL has implemented lots of build-in functions defined in [Apache Calcite](http://calcite.apache.org). The available functions are listed as below:
 
