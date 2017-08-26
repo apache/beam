@@ -34,36 +34,60 @@ import "google/protobuf/struct.proto";
 
 // Job Service for running RunnerAPI pipelines
 service JobService {
+  // Prepare a job for execution. The job will not be executed until a call is made to run with the
+  // returned preparationId.
+  rpc prepare (PrepareJobRequest) returns (PrepareJobResponse);
+
   // Submit the job for execution
-  rpc run (SubmitJobRequest) returns (SubmitJobResponse) {}
+  rpc run (RunJobRequest) returns (RunJobResponse);
 
   // Get the current state of the job
-  rpc getState (GetJobStateRequest) returns (GetJobStateResponse) {}
+  rpc getState (GetJobStateRequest) returns (GetJobStateResponse);
 
   // Cancel the job
-  rpc cancel (CancelJobRequest) returns (CancelJobResponse) {}
+  rpc cancel (CancelJobRequest) returns (CancelJobResponse);
 
   // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
-  rpc getStateStream (GetJobStateRequest) returns (stream GetJobStateResponse) {}
+  rpc getStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
 
   // Subscribe to a stream of state changes and messages from the job
-  rpc getMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse) {}
+  rpc getMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
 }
 
 
-// Submit is a synchronus request that returns a jobId back
+// Prepare is a synchronous request that returns a preparationId back
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
-// Throws error ALREADY_EXISTS if the jobName is reused as runners are permitted to deduplicate based on the name of the job.
+// Throws error ALREADY_EXISTS if the jobName is reused. Runners are permitted to deduplicate based on the name of the job.
 // Throws error UNKNOWN for all other issues
-message SubmitJobRequest {
+message PrepareJobRequest {
   org.apache.beam.runner_api.v1.Pipeline pipeline = 1; // (required)
   google.protobuf.Struct pipelineOptions = 2; // (required)
   string jobName = 3;  // (required)
 }
 
-message SubmitJobResponse {
-  // JobId is used as an identifier for the job in all future calls.
-  string jobId = 1; // (required)
+message PrepareJobResponse {
+  // (required) The ID used to associate calls made while preparing the job. preparationId is used
+  // to run the job, as well as in other pre-execution APIs such as Artifact staging.
+  string preparationId = 1;
+}
+
+
+// Run is a synchronous request that returns a jobId back.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the preparation ID does not exist
+// Throws error UNKNOWN for all other issues
+message RunJobRequest {
+  // (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
+  // must have been completed.
+  string preparationId = 1;
+  // (optional) If any artifacts have been staged for this job, contains the staging_token returned
+  // from the CommitManifestResponse.
+  string stagingToken = 2;
+}
+
+
+message RunJobResponse {
+  string jobId = 1; // (required) The ID for the executing job
 }
 
 
