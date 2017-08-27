@@ -174,7 +174,7 @@ public class View {
    * {@link PCollectionView} mapping each window to a {@link List} containing
    * all of the elements in the window.
    *
-   * <p>The resulting list is required to fit in memory.
+   * <p>Unlike with {@link #asIterable}, the resulting list is required to fit in memory.
    */
   public static <T> AsList<T> asList() {
     return new AsList<>();
