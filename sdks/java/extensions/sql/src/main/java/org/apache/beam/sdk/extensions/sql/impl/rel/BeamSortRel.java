@@ -56,7 +56,7 @@ import org.apache.calcite.sql.type.SqlTypeName;
 
  * <pre>{@code
  *     select * from t order by id desc limit 10;
- *     select * from t order by id desc limit 10, 5;
+ *     select * from t order by id desc limit 10 offset 5;
  * }</pre>
  *
  * <p>but Order BY without a limit is NOT supported:
