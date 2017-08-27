@@ -320,6 +320,7 @@ class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
+    # TODO(holden before merge): Do we just want to send everything to UTF-8?
     if isinstance(value, str):
       return value.encode('utf-8')
     elif isinstance(value, str):

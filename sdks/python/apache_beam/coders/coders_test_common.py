@@ -94,14 +94,14 @@ class CodersTest(unittest.TestCase):
     for v in values:
       try:
         encoded = coder.encode(v)
-      except TypeError as e:
-        raise TypeError("Error encoding value " + str(v))
-      except Exception as e:
-        raise Exception("Error encoding value " + str(v))
+      except Exception:
+        print("Error encoding {0}".format(str(v)))
+        raise
       try:
         decoded = coder.decode(encoded)
-      except Exception as e:
-        raise Exception("Error decoding value " + str(v) + " from " + decoded)
+      except Exception:
+        print("Error decoding {0}".format(str(v)))
+        raise e
       if isinstance(v, str) and isinstance(decoded, bytes):
         self.assertEqual(v, decoded.decode("utf-8"))
       else:
