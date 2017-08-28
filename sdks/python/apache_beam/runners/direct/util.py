@@ -28,7 +28,8 @@ class TransformResult(object):
 
   def __init__(self, applied_ptransform, uncommitted_output_bundles,
                unprocessed_bundles, counters, keyed_watermark_holds,
-               undeclared_tag_values=None):
+               undeclared_tag_values=None,
+               keyed_state={}, changed_keyed_state={}):
     self.transform = applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
@@ -46,6 +47,10 @@ class TransformResult(object):
     self.undeclared_tag_values = undeclared_tag_values
     # Populated by the TransformExecutor.
     self.logical_metric_updates = None
+    # TODO: these two fields are actually not necessary if I do the copy-over
+    # of the state in finish_bundle, which is probably not the right way.
+    self.keyed_state = keyed_state
+    self.changed_keyed_state = changed_keyed_state
 
 
 class TimerFiring(object):

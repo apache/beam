@@ -29,6 +29,7 @@ from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
+import copy
 
 
 class _ExecutionContext(object):
@@ -316,16 +317,20 @@ class DirectUnmergedState(InMemoryUnmergedState):
   def __init__(self):
     super(DirectUnmergedState, self).__init__(defensive_copy=False)
 
+  def clone(self):
+    return copy.deepcopy(self)
 
 class DirectStepContext(object):
   """Context for the currently-executing step."""
 
   def __init__(self, keyed_existing_state):
     self.keyed_existing_state = keyed_existing_state
+    self.changed_keyed_existing_state = copy.deepcopy(keyed_existing_state)
 
   def get_keyed_state(self, key):
     # TODO(ccy): consider implementing transactional copy on write semantics
     # for state so that work items can be safely retried.
-    if not self.keyed_existing_state.get(key):
-      self.keyed_existing_state[key] = DirectUnmergedState()
-    return self.keyed_existing_state[key]
+    if not self.changed_keyed_existing_state.get(key):
+      self.changed_keyed_existing_state[key] = DirectUnmergedState()
+
+    return self.changed_keyed_existing_state[key]

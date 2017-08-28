@@ -22,6 +22,7 @@ from __future__ import absolute_import
 import collections
 import random
 import time
+import copy
 
 from apache_beam import coders
 from apache_beam import pvalue
@@ -621,7 +622,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         gbk_result = []
         # TODO(ccy): perhaps we can clean this up to not use this
         # internal attribute of the DirectStepContext.
-        for encoded_k in self.step_context.keyed_existing_state:
+        for encoded_k in self.step_context.changed_keyed_existing_state:
           # Ignore global state.
           if encoded_k is None:
             continue
@@ -647,8 +648,16 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       self.global_state.set_timer(
           None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
 
+    # TODO: this works, but it's not a solution. This should happen in handle_result
+    # but not doing this here makes the pipeline stall, probably due to watermark management.
+    # Copying just the global_state does prevent a pipeline stall, but the final
+    # result is not correct.
+    for key, val in self.step_context.changed_keyed_existing_state.items():
+      self.step_context.keyed_existing_state[key] = val
+
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, {None: hold})
+        self._applied_ptransform, bundles, [], None, {None: hold},
+        self.step_context.keyed_existing_state, self.step_context.changed_keyed_existing_state)
 
 
 class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
