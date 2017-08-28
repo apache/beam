@@ -25,28 +25,37 @@ import json
 import logging
 import os
 import re
+import sys
 import time
-from StringIO import StringIO
+from builtins import object
 from datetime import datetime
 
-from apitools.base.py import encoding
-from apitools.base.py import exceptions
+from apitools.base.py import encoding, exceptions
+from future import standard_library
 
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.options.pipeline_options import (DebugOptions,
+                                                  GoogleCloudOptions,
+                                                  StandardOptions,
+                                                  WorkerOptions)
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
+from apache_beam.runners.dataflow.internal.dependency import \
+    get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
-from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import WorkerOptions
+
+standard_library.install_aliases()
+
+if sys.version_info[0] >= 3:
+  from io import StringIO
+else:
+  from StringIO import StringIO
 
 
 # Environment version information. It is passed to the service during a
@@ -241,7 +250,7 @@ class Environment(object):
           dataflow.Environment.SdkPipelineOptionsValue())
 
       options_dict = {k: v
-                      for k, v in sdk_pipeline_options.iteritems()
+                      for k, v in sdk_pipeline_options.items()
                       if v is not None}
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
@@ -276,7 +285,7 @@ class Job(object):
     def decode_shortstrings(input_buffer, errors='strict'):
       """Decoder (to Unicode) that suppresses long base64 strings."""
       shortened, length = encode_shortstrings(input_buffer, errors)
-      return unicode(shortened), length
+      return str(shortened), length
 
     def shortstrings_registerer(encoding_name):
       if encoding_name == 'shortstrings':
@@ -290,8 +299,10 @@ class Job(object):
     # Use json "dump string" method to get readable formatting;
     # further modify it to not output too-long strings, aimed at the
     # 10,000+ character hex-encoded "serialized_fn" values.
+    encoded_proto = encoding.MessageToJson(self.proto)
     return json.dumps(
-        json.loads(encoding.MessageToJson(self.proto), encoding='shortstrings'),
+        json.loads(encoded_proto.encode("utf-8").decode("utf-8"),
+                   encoding='shortstrings'),
         indent=2, sort_keys=True)
 
   @staticmethod
@@ -462,7 +473,12 @@ class DataflowApplicationClient(object):
     job.proto.environment = Environment(
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
-    logging.debug('JOB: %s', job)
+    if sys.version_info[0] >= 3:
+      logging.debug('JOB: %s', job)
+    else:
+      # Dumping to JSON after 2/3 can cause problems, skip for now.
+      logging.debug("JOB pkgs %s opts %s env version %s",
+                    resources, job.options, self.environment_version)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):

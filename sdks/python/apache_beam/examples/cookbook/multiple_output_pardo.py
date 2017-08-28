@@ -57,10 +57,8 @@ import re
 
 import apache_beam as beam
 from apache_beam import pvalue
-from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToText
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.io import ReadFromText, WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 
 
 class SplitLinesToWordsFn(beam.DoFn):
@@ -119,11 +117,17 @@ class CountWords(beam.PTransform):
   """
 
   def expand(self, pcoll):
+    def sum_word_counts(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
+
+    def format_result(word_c):
+      return '%s: %s' % (word_c[0], word_c[1])
+
     return (pcoll
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c)))
+            | 'count' >> beam.Map(sum_word_counts)
+            | 'format' >> beam.Map(format_result))
 
 
 def run(argv=None):
@@ -163,7 +167,7 @@ def run(argv=None):
     (character_count
      | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
      | beam.GroupByKey()
-     | 'count chars' >> beam.Map(lambda (_, counts): sum(counts))
+     | 'count chars' >> beam.Map(lambda __counts: sum(__counts[1]))
      | 'write chars' >> WriteToText(known_args.output + '-chars'))
 
     # pylint: disable=expression-not-assigned

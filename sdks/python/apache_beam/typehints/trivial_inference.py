@@ -19,15 +19,23 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
-import __builtin__
+from __future__ import absolute_import, division, print_function
+
+import builtins
+from builtins import object, zip
 import collections
 import dis
 import pprint
 import sys
 import types
+from functools import reduce
 
-from apache_beam.typehints import Any
-from apache_beam.typehints import typehints
+from future import standard_library
+from past.utils import old_div
+
+from apache_beam.typehints import Any, typehints
+
+standard_library.install_aliases()
 
 
 class TypeInferenceError(ValueError):
@@ -103,7 +111,10 @@ class FrameState(object):
 
   def __init__(self, f, local_vars=None, stack=()):
     self.f = f
-    self.co = f.func_code
+    if sys.version_info >= 3:
+      self.co = f.__code__
+    else:
+      self.co = f.func_code
     self.vars = list(local_vars)
     self.stack = list(stack)
 
@@ -120,14 +131,14 @@ class FrameState(object):
     ncellvars = len(self.co.co_cellvars)
     if i < ncellvars:
       return Any
-    return Const(self.f.func_closure[i - ncellvars].cell_contents)
+    return Const(self.f.__closure__[i - ncellvars].cell_contents)
 
   def get_global(self, i):
     name = self.get_name(i)
-    if name in self.f.func_globals:
-      return Const(self.f.func_globals[name])
-    if name in __builtin__.__dict__:
-      return Const(__builtin__.__dict__[name])
+    if name in self.f.__globals__:
+      return Const(self.f.__globals__[name])
+    if name in builtins.__dict__:
+      return Const(builtins.__dict__[name])
     return Any
 
   def get_name(self, i):
@@ -221,20 +232,22 @@ def infer_return_type(c, input_types, debug=False, depth=5):
     A TypeConstraint that that the return value of this function will (likely)
     satisfy given the specified inputs.
   """
+  if debug:
+    print("Infering type on {0} for inputs {1}".format(c, input_types))
   try:
     if hashable(c) and c in known_return_types:
       return known_return_types[c]
     elif isinstance(c, types.FunctionType):
       return infer_return_type_func(c, input_types, debug, depth)
     elif isinstance(c, types.MethodType):
-      if c.im_self is not None:
-        input_types = [Const(c.im_self)] + input_types
-      return infer_return_type_func(c.im_func, input_types, debug, depth)
+      if c.__self__ is not None:
+        input_types = [Const(c.__self__)] + input_types
+      return infer_return_type_func(c.__func__, input_types, debug, depth)
     elif isinstance(c, BoundMethod):
-      input_types = [c.unbound.im_class] + input_types
+      input_types = [c.unbound.__self__.__class__] + input_types
       return infer_return_type_func(
-          c.unbound.im_func, input_types, debug, depth)
-    elif isinstance(c, (type, types.ClassType)):
+          c.unbound.__func__, input_types, debug, depth)
+    elif isinstance(c, type):
       if c in typehints.DISALLOWED_PRIMITIVE_TYPES:
         return {
             list: typehints.List[Any],
@@ -244,10 +257,16 @@ def infer_return_type(c, input_types, debug=False, depth=5):
         }[c]
       return c
     else:
+      if debug:
+        print("Concrete type {0} fell through.".format(c))
       return Any
-  except TypeInferenceError:
+  except TypeInferenceError as e:
+    if debug:
+      print("Had type inference error {0}".format(e))
     return Any
-  except Exception:
+  except Exception as e:
+    if debug:
+      print("Had more general error during inference {0}".format(e))
     if debug:
       sys.stdout.flush()
       raise
@@ -272,12 +291,14 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     TypeInferenceError: if no type can be inferred.
   """
   if debug:
-    print
-    print f, id(f), input_types
-  import opcodes
-  simple_ops = dict((k.upper(), v) for k, v in opcodes.__dict__.items())
+    print()
+    print("Infering return type function {0} id {1} with input {2}"
+          .format(f, id(f), input_types))
+    print()
+  from . import opcodes
+  simple_ops = dict((k.upper(), v) for k, v in list(opcodes.__dict__.items()))
 
-  co = f.func_code
+  co = f.__code__
   code = co.co_code
   end = len(code)
   pc = 0
@@ -299,45 +320,45 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     op = ord(code[pc])
 
     if debug:
-      print '-->' if pc == last_pc else '    ',
-      print repr(pc).rjust(4),
-      print dis.opname[op].ljust(20),
+      print('-->' if pc == last_pc else '    ', end=' ')
+      print(repr(pc).rjust(4), end=' ')
+      print(dis.opname[op].ljust(20), end=' ')
     pc += 1
     if op >= dis.HAVE_ARGUMENT:
       arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
       extended_arg = 0
       pc += 2
       if op == dis.EXTENDED_ARG:
-        extended_arg = arg * 65536L
+        extended_arg = arg * 65536
       if debug:
-        print str(arg).rjust(5),
+        print(str(arg).rjust(5), end=' ')
         if op in dis.hasconst:
-          print '(' + repr(co.co_consts[arg]) + ')',
+          print('(' + repr(co.co_consts[arg]) + ')', end=' ')
         elif op in dis.hasname:
-          print '(' + co.co_names[arg] + ')',
+          print('(' + co.co_names[arg] + ')', end=' ')
         elif op in dis.hasjrel:
-          print '(to ' + repr(pc + arg) + ')',
+          print('(to ' + repr(pc + arg) + ')', end=' ')
         elif op in dis.haslocal:
-          print '(' + co.co_varnames[arg] + ')',
+          print('(' + co.co_varnames[arg] + ')', end=' ')
         elif op in dis.hascompare:
-          print '(' + dis.cmp_op[arg] + ')',
+          print('(' + dis.cmp_op[arg] + ')', end=' ')
         elif op in dis.hasfree:
           if free is None:
             free = co.co_cellvars + co.co_freevars
-          print '(' + free[arg] + ')',
+          print('(' + free[arg] + ')', end=' ')
 
     # Acutally emulate the op.
     if state is None and states[start] is None:
       # No control reaches here (yet).
       if debug:
-        print
+        print()
       continue
     state |= states[start]
 
     opname = dis.opname[op]
     jmp = jmp_state = None
     if opname.startswith('CALL_FUNCTION'):
-      standard_args = (arg & 0xF) + (arg & 0xF0) / 8
+      standard_args = (arg & 0xF) + old_div((arg & 0xF0), 8)
       var_args = 'VAR' in opname
       kw_args = 'KW' in opname
       pop_count = standard_args + var_args + kw_args + 1
@@ -358,7 +379,22 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       else:
         return_type = Any
       state.stack[-pop_count:] = [return_type]
+    elif (opname == 'BINARY_SUBSCR'
+          and isinstance(state.stack[1], Const)
+          and isinstance(state.stack[0], typehints.IndexableTypeConstraint)):
+      if debug:
+        print("Executing special case binary subscript")
+      idx = state.stack.pop()
+      src = state.stack.pop()
+      try:
+        state.stack.append(src._constraint_for_index(idx.value))
+      except Exception as e:
+        if debug:
+          print("Exception {0} during special case indexing".format(e))
+        state.stack.append(Any)
     elif opname in simple_ops:
+      if debug:
+        print("Executing simple op " + opname)
       simple_ops[opname](state, arg)
     elif opname == 'RETURN_VALUE':
       returns.add(state.stack[-1])
@@ -387,6 +423,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
     else:
+      if debug:
+        print("unable to handle opname {0}".format(opname))
       raise TypeInferenceError('unable to handle %s' % opname)
 
     if jmp is not None:
@@ -398,9 +436,9 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       states[jmp] = new_state
 
     if debug:
-      print
-      print state
-      pprint.pprint(dict(item for item in states.items() if item[1]))
+      print()
+      print(state)
+      pprint.pprint(dict(item for item in list(states.items()) if item[1]))
 
   if yields:
     result = typehints.Iterable[reduce(union, Const.unwrap_all(yields))]
@@ -408,5 +446,5 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     result = reduce(union, Const.unwrap_all(returns))
 
   if debug:
-    print f, id(f), input_types, '->', result
+    print(f, id(f), input_types, '->', result)
   return result

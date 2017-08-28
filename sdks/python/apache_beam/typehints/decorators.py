@@ -85,14 +85,13 @@ defined, or before importing a module containing type-hinted functions.
 
 import inspect
 import types
+from builtins import next, object, zip
 
-from apache_beam.typehints import native_type_compatibility
-from apache_beam.typehints import typehints
-from apache_beam.typehints.typehints import check_constraint
-from apache_beam.typehints.typehints import CompositeTypeHintError
-from apache_beam.typehints.typehints import SimpleTypeHintError
-from apache_beam.typehints.typehints import validate_composite_type_param
-
+from apache_beam.typehints import native_type_compatibility, typehints
+from apache_beam.typehints.typehints import (CompositeTypeHintError,
+                                             SimpleTypeHintError,
+                                             check_constraint,
+                                             validate_composite_type_param)
 
 __all__ = [
     'with_input_types',
@@ -118,7 +117,7 @@ def getargspec(func):
   try:
     return _original_getargspec(func)
   except TypeError:
-    if isinstance(func, (type, types.ClassType)):
+    if isinstance(func, type):
       argspec = getargspec(func.__init__)
       del argspec.args[0]
       return argspec
@@ -176,7 +175,7 @@ class IOTypeHints(object):
     return IOTypeHints(self.input_types or hints.input_types,
                        self.output_types or hints.output_types)
 
-  def __nonzero__(self):
+  def __bool__(self):
     return bool(self.input_types or self.output_types)
 
   def __repr__(self):
@@ -262,7 +261,7 @@ def getcallargs_forhints(func, *typeargs, **typekwargs):
   packed_typeargs += list(typeargs[len(packed_typeargs):])
   try:
     callargs = inspect.getcallargs(func, *packed_typeargs, **typekwargs)
-  except TypeError, e:
+  except TypeError as e:
     raise TypeCheckError(e)
   if argspec.defaults:
     # Declare any default arguments to be Any.
@@ -568,7 +567,7 @@ class GeneratorWrapper(object):
       return self.__iter__()
     return getattr(self.internal_gen, attr)
 
-  def next(self):
+  def __next__(self):
     next_val = next(self.internal_gen)
     self.interleave_func(next_val)
     return next_val

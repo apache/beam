@@ -21,13 +21,11 @@ responding to queries of current metrics by going to the dataflow
 service.
 """
 
-from collections import defaultdict
 import numbers
+from collections import defaultdict
 
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.cells import DistributionData, DistributionResult
+from apache_beam.metrics.execution import MetricKey, MetricResult
 from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 
@@ -145,7 +143,7 @@ class DataflowMetrics(MetricResults):
 
     # Now we create the MetricResult elements.
     result = []
-    for metric_key, metric in metrics_by_name.iteritems():
+    for metric_key, metric in metrics_by_name.items():
       attempted = self._get_metric_value(metric['tentative'])
       committed = self._get_metric_value(metric['committed'])
       if attempted is None or committed is None:

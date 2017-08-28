@@ -18,12 +18,12 @@
 
 """Unit tests for LocalFileSystem."""
 
-import unittest
-
 import filecmp
 import os
 import shutil
 import tempfile
+import unittest
+
 import mock
 
 from apache_beam.io import localfilesystem
@@ -124,7 +124,7 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.match([None])
     self.assertTrue(
         error.exception.message.startswith('Unable to get the Filesystem'))
-    self.assertEqual(error.exception.exception_details.keys(), [None])
+    self.assertEqual(list(error.exception.exception_details.keys()), [None])
 
   def test_match_directory(self):
     path1 = os.path.join(self.tmpdir, 'f1')
@@ -159,7 +159,8 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.copy([path1], [path2])
     self.assertTrue(
         error.exception.message.startswith('Copy operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -192,7 +193,8 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.rename([path1], [path2])
     self.assertTrue(
         error.exception.message.startswith('Rename operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -234,4 +236,4 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.delete([path1])
     self.assertTrue(
         error.exception.message.startswith('Delete operation failed'))
-    self.assertEqual(error.exception.exception_details.keys(), [path1])
+    self.assertEqual(list(error.exception.exception_details.keys()), [path1])

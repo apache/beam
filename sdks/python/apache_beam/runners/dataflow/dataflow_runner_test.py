@@ -19,28 +19,26 @@
 
 import json
 import unittest
+from builtins import object, range
 from datetime import datetime
 
 import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
-
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.pipeline import Pipeline, AppliedPTransform
+from apache_beam.pipeline import AppliedPTransform, Pipeline
 from apache_beam.pvalue import PCollection
-from apache_beam.runners import create_runner
-from apache_beam.runners import DataflowRunner
-from apache_beam.runners import TestDataflowRunner
-from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
-from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
-from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
-from apache_beam.runners.runner import PipelineState
+from apache_beam.runners import (DataflowRunner, PipelineState,
+                                 TestDataflowRunner, create_runner)
+from apache_beam.runners.dataflow.dataflow_runner import (
+    DataflowPipelineResult, DataflowRuntimeException)
+from apache_beam.runners.dataflow.internal.clients import \
+    dataflow as dataflow_api
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.core import _GroupByKeyOnly
-from apache_beam.transforms.core import Windowing
 from apache_beam.transforms import window
+from apache_beam.transforms.core import Windowing, _GroupByKeyOnly
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import typehints
 
 # Protect against environments where apitools library is not available.
@@ -352,10 +350,9 @@ class DataflowRunnerTest(unittest.TestCase):
     # This just tests the basic path; more complete tests
     # are in window_test.py.
     strategy = Windowing(window.FixedWindows(10))
-    self.assertEqual(
-        strategy,
-        DataflowRunner.deserialize_windowing_strategy(
-            DataflowRunner.serialize_windowing_strategy(strategy)))
+    serialized = DataflowRunner.serialize_windowing_strategy(strategy)
+    deserialized = DataflowRunner.deserialize_windowing_strategy(serialized)
+    self.assertEqual(strategy, deserialized)
 
 
 if __name__ == '__main__':

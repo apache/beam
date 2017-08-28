@@ -22,12 +22,11 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
+from builtins import range
 
 import apache_beam as beam
-from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToText
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.io import ReadFromText, WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 
 
 def run(argv=None):
@@ -44,14 +43,17 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
+
+  def format_result(prefix_candidates):
+    return '%s: %s' % (prefix_candidates[0], prefix_candidates[1])
+
   with beam.Pipeline(options=pipeline_options) as p:
 
     (p  # pylint: disable=expression-not-assigned
      | 'read' >> ReadFromText(known_args.input)
      | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
      | 'TopPerPrefix' >> TopPerPrefix(5)
-     | 'format' >> beam.Map(
-         lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
+     | 'format' >> beam.Map(format_result)
      | 'write' >> WriteToText(known_args.output))
 
 

@@ -21,18 +21,14 @@ import logging
 import unittest
 
 from apache_beam import pvalue
-from apache_beam.io import iobase
-from apache_beam.io import Read
+from apache_beam.io import Read, iobase
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
 from apache_beam.runners.direct import DirectRunner
-from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
-from apache_beam.transforms import CoGroupByKey
-from apache_beam.transforms import Create
-from apache_beam.transforms import DoFn
-from apache_beam.transforms import FlatMap
-from apache_beam.transforms import Flatten
-from apache_beam.transforms import ParDo
+from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import \
+    ConsumerTrackingPipelineVisitor
+from apache_beam.transforms import (CoGroupByKey, Create, DoFn, FlatMap,
+                                    Flatten, ParDo)
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned

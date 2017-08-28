@@ -50,22 +50,20 @@ WindowFn.
 from __future__ import absolute_import
 
 import abc
+from builtins import object, range
 
-from google.protobuf import duration_pb2
-from google.protobuf import timestamp_pb2
+from future.utils import with_metaclass
+from google.protobuf import duration_pb2, timestamp_pb2
+from past.builtins import cmp
 
 from apache_beam.coders import coders
-from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.portability.api import standard_window_fns_pb2
+from apache_beam.portability.api import (beam_runner_api_pb2,
+                                         standard_window_fns_pb2)
 from apache_beam.transforms import timeutil
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
-from apache_beam.utils.timestamp import Duration
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils.timestamp import Timestamp
+from apache_beam.utils import proto_utils, urns
+from apache_beam.utils.timestamp import (MAX_TIMESTAMP, MIN_TIMESTAMP,
+                                         Duration, Timestamp)
 from apache_beam.utils.windowed_value import WindowedValue
-
 
 __all__ = [
     'TimestampCombiner',
@@ -107,10 +105,8 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""

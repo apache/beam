@@ -20,13 +20,12 @@ the DataflowMetrics class.
 """
 import types
 import unittest
+from builtins import object
 
 import mock
 
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.cells import DistributionData, DistributionResult
+from apache_beam.metrics.execution import MetricKey, MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
 
@@ -34,7 +33,7 @@ from apache_beam.runners.dataflow import dataflow_metrics
 class DictToObject(object):
   """Translate from a dict(list()) structure to an object structure"""
   def __init__(self, data):
-    for name, value in data.iteritems():
+    for name, value in data.items():
       setattr(self, name, self._wrap(value))
 
   def _wrap(self, value):

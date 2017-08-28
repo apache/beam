@@ -18,8 +18,9 @@
 
 import logging
 import unittest
-
+from builtins import range
 from concurrent import futures
+
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
@@ -99,7 +100,7 @@ def _create_test(name, num_logs):
 
 
 if __name__ == '__main__':
-  for test_name, num_logs_entries in data.iteritems():
+  for test_name, num_logs_entries in data.items():
     _create_test(test_name, num_logs_entries)
 
   unittest.main()

@@ -17,21 +17,22 @@
 
 """Unit tests for coders that must be consistent across all Beam SDKs.
 """
+from __future__ import print_function
 
 import json
 import logging
 import os.path
 import sys
 import unittest
+from builtins import map
 
 import yaml
 
-from apache_beam.coders import coders
-from apache_beam.coders import coder_impl
+from apache_beam.coders import coder_impl, coders
+from apache_beam.transforms import window
+from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import Timestamp
-from apache_beam.transforms.window import IntervalWindow
-from apache_beam.transforms import window
 
 STANDARD_CODERS_YAML = os.path.join(
     os.path.dirname(__file__), '..', 'testing', 'data', 'standard_coders.yaml')
@@ -73,7 +74,7 @@ class StandardCodersTest(unittest.TestCase):
           lambda x: IntervalWindow(
               start=Timestamp(micros=(x['end'] - x['span']) * 1000),
               end=Timestamp(micros=x['end'] * 1000)),
-      'urn:beam:coders:stream:0.1': lambda x, parser: map(parser, x),
+      'urn:beam:coders:stream:0.1': lambda x, parser: list(map(parser, x)),
       'urn:beam:coders:global_window:0.1': lambda x: window.GlobalWindow(),
       'urn:beam:coders:windowed_value:0.1':
           lambda x, value_parser, window_parser: windowed_value.create(
@@ -91,7 +92,7 @@ class StandardCodersTest(unittest.TestCase):
     parse_value = self.json_value_parser(spec['coder'])
     nested_list = [spec['nested']] if 'nested' in spec else [True, False]
     for nested in nested_list:
-      for expected_encoded, json_value in spec['examples'].items():
+      for expected_encoded, json_value in list(spec['examples'].items()):
         value = parse_value(json_value)
         expected_encoded = expected_encoded.encode('latin1')
         if not spec['coder'].get('non_deterministic', False):
@@ -125,14 +126,14 @@ class StandardCodersTest(unittest.TestCase):
   @classmethod
   def tearDownClass(cls):
     if cls.fix and cls.to_fix:
-      print "FIXING", len(cls.to_fix), "TESTS"
+      print("FIXING", len(cls.to_fix), "TESTS")
       doc_sep = '\n---\n'
       docs = open(STANDARD_CODERS_YAML).read().split(doc_sep)
 
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
       for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
-        print quote(expected_encoded), "->", quote(actual_encoded)
+        print(quote(expected_encoded), "->", quote(actual_encoded))
         docs[doc_ix] = docs[doc_ix].replace(
             quote(expected_encoded) + ':', quote(actual_encoded) + ':')
       open(STANDARD_CODERS_YAML, 'w').write(doc_sep.join(docs))

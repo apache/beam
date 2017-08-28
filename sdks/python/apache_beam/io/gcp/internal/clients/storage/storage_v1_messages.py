@@ -23,9 +23,7 @@ Stores and retrieves potentially large, immutable data objects.
 
 from apitools.base.protorpclite import message_types as _message_types
 from apitools.base.protorpclite import messages as _messages
-from apitools.base.py import encoding
-from apitools.base.py import extra_types
-
+from apitools.base.py import encoding, extra_types
 
 package = 'storage'
 
@@ -1916,5 +1914,3 @@ class StorageObjectsWatchAllRequest(_messages.Message):
   prefix = _messages.StringField(6)
   projection = _messages.EnumField('ProjectionValueValuesEnum', 7)
   versions = _messages.BooleanField(8)
-
-

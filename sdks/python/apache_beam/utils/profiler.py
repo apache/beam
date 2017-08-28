@@ -21,14 +21,19 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import cProfile
+import io
 import logging
 import os
 import pstats
-import StringIO
 import tempfile
 import time
 import warnings
+from builtins import object
 from threading import Timer
+
+from future import standard_library
+
+standard_library.install_aliases()
 
 
 class Profile(object):
@@ -66,7 +71,7 @@ class Profile(object):
       os.remove(filename)
 
     if self.log_results:
-      s = StringIO.StringIO()
+      s = io.StringIO()
       self.stats = pstats.Stats(
           self.profile, stream=s).sort_stats(Profile.SORTBY)
       self.stats.print_stats()

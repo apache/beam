@@ -20,18 +20,17 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from abc import ABCMeta
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
+from builtins import object
 
-from apache_beam import coders
-from apache_beam import core
-from apache_beam import pvalue
-from apache_beam.transforms import PTransform
-from apache_beam.transforms import window
+from future.utils import with_metaclass
+from past.builtins import cmp
+
+from apache_beam import coders, core, pvalue
+from apache_beam.transforms import PTransform, window
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-
 
 __all__ = [
     'Event',
@@ -42,10 +41,8 @@ __all__ = [
     ]
 
 
-class Event(object):
+class Event(with_metaclass(ABCMeta, object)):
   """Test stream event to be emitted during execution of a TestStream."""
-
-  __metaclass__ = ABCMeta
 
   def __cmp__(self, other):
     if type(self) is not type(other):

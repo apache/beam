@@ -1,3 +1,14 @@
+from __future__ import division
+
+import unittest
+from builtins import range
+
+from mock import patch
+from past.utils import old_div
+
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import \
+    AdaptiveThrottler
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -14,11 +25,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import unittest
-from mock import patch
-
-from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
 
 
 class AdaptiveThrottlerTest(unittest.TestCase):
@@ -70,7 +76,8 @@ class AdaptiveThrottlerTest(unittest.TestCase):
 
   @patch('random.Random')
   def test_throttling_after_errors(self, mock_random):
-    mock_random().uniform.side_effect = [x/10.0 for x in range(0, 10)]*2
+    mock_random().uniform.side_effect = [old_div(x, 10.0)
+                                         for x in range(0, 10)]*2
     self._throttler = AdaptiveThrottler(
         AdaptiveThrottlerTest.SAMPLE_PERIOD, AdaptiveThrottlerTest.BUCKET,
         AdaptiveThrottlerTest.OVERLOAD_RATIO)

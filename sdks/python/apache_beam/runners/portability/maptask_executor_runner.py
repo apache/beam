@@ -21,6 +21,7 @@
 import collections
 import logging
 import time
+from builtins import object, zip
 
 import apache_beam as beam
 from apache_beam.internal import pickler
@@ -28,21 +29,21 @@ from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options import pipeline_options
 from apache_beam.runners import DataflowRunner
-from apache_beam.runners.dataflow.internal.dependency import _dependency_file_copy
+from apache_beam.runners.dataflow.internal.dependency import \
+    _dependency_file_copy
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.runner import PipelineRunner
-from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import operations
+from apache_beam.runners.runner import (PipelineResult, PipelineRunner,
+                                        PipelineState)
+from apache_beam.runners.worker import operation_specs, operations
+from apache_beam.typehints import typehints
+from apache_beam.utils import profiler
+from apache_beam.utils.counters import CounterFactory
+
 try:
   from apache_beam.runners.worker import statesampler
 except ImportError:
   from apache_beam.runners.worker import statesampler_fake as statesampler
-from apache_beam.typehints import typehints
-from apache_beam.utils import profiler
-from apache_beam.utils.counters import CounterFactory
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -90,7 +91,7 @@ class MapTaskExecutorRunner(PipelineRunner):
           memoized[x] = 1 + max([-1] + [compute_depth(y) for y in deps[x]])
         return memoized[x]
 
-      return {x: compute_depth(x) for x in deps.keys()}
+      return {x: compute_depth(x) for x in list(deps.keys())}
 
     map_task_depths = compute_depth_map(self.dependencies)
     ordered_map_tasks = sorted((map_task_depths.get(ix, -1), map_task)
@@ -119,7 +120,7 @@ class MapTaskExecutorRunner(PipelineRunner):
     for ix, (_, map_task) in enumerate(ordered_map_tasks):
       logging.info('Running %s', map_task)
       t = time.time()
-      stage_names, all_operations = zip(*map_task)
+      stage_names, all_operations = list(zip(*map_task))
       # TODO(robertwb): The DataflowRunner worker receives system step names
       # (e.g. "s3") that are used to label the output msec counters.  We use the
       # operation names here, but this is not the same scheme used by the
@@ -394,7 +395,7 @@ class GroupingOutputBuffer(object):
   def freeze(self):
     if not self.frozen:
       self._encoded_elements = [self.grouped_coder.encode(kv)
-                                for kv in self.elements.iteritems()]
+                                for kv in self.elements.items()]
     self.frozen = True
     return self._encoded_elements
 
@@ -417,7 +418,7 @@ class GroupedOutputBuffer(object):
   def __len__(self):
     return len(self.buffer.freeze())
 
-  def __nonzero__(self):
+  def __bool__(self):
     return True
 
 
@@ -434,7 +435,7 @@ class PartialGroupByKeyCombineValues(beam.PTransform):
       def to_accumulator(v):
         return self.combine_fn.add_input(
             self.combine_fn.create_accumulator(), v)
-      return input | beam.Map(lambda (k, v): (k, to_accumulator(v)))
+      return input | beam.Map(lambda k_v: (k_v[0], to_accumulator(k_v[1])))
 
 
 class MergeAccumulators(beam.PTransform):
@@ -448,7 +449,11 @@ class MergeAccumulators(beam.PTransform):
       return beam.pvalue.PCollection(input.pipeline)
     else:
       merge_accumulators = self.combine_fn.merge_accumulators
-      return input | beam.Map(lambda (k, vs): (k, merge_accumulators(vs)))
+
+      def combine_local(k_vs):
+        return (k_vs[0], merge_accumulators(k_vs[1]))
+
+      return input | beam.Map(combine_local)
 
 
 class ExtractOutputs(beam.PTransform):
@@ -462,7 +467,7 @@ class ExtractOutputs(beam.PTransform):
       return beam.pvalue.PCollection(input.pipeline)
     else:
       extract_output = self.combine_fn.extract_output
-      return input | beam.Map(lambda (k, v): (k, extract_output(v)))
+      return input | beam.Map(lambda k_v1: (k_v1[0], extract_output(k_v1[1])))
 
 
 class WorkerRunnerResult(PipelineResult):

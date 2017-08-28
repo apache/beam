@@ -19,17 +19,16 @@
 
 from __future__ import absolute_import
 
-from datetime import datetime
 import unittest
+from datetime import datetime
 
 import hamcrest as hc
 from hamcrest.core.base_matcher import BaseMatcher
 
 import apache_beam as beam
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.display import DisplayData
-from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.transforms.display import (DisplayData, DisplayDataItem,
+                                            HasDisplayData)
 
 
 class DisplayDataItemMatcher(BaseMatcher):
@@ -161,13 +160,13 @@ class DisplayDataTest(unittest.TestCase):
   def test_unicode_type_display_data(self):
     class MyDoFn(beam.DoFn):
       def display_data(self):
-        return {'unicode_string': unicode('my string'),
+        return {'unicode_string': str('my string'),
                 'unicode_literal_string': u'my literal string'}
 
     fn = MyDoFn()
     dd = DisplayData.create_from(fn)
     for item in dd.items:
-      self.assertEqual(item.type, 'STRING')
+      self.assertEqual(item.type, 'STRING', repr(item) + "should be string")
 
   def test_base_cases(self):
     """ Tests basic display data cases (key:value, key:dict)

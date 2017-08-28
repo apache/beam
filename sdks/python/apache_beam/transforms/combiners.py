@@ -17,25 +17,18 @@
 
 """A library of basic combiner PTransform subclasses."""
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 import operator
 import random
+from builtins import object, zip
 
-from apache_beam.transforms import core
-from apache_beam.transforms import cy_combiners
-from apache_beam.transforms import ptransform
+from past.utils import old_div
+
+from apache_beam.transforms import core, cy_combiners, ptransform
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.typehints import Any
-from apache_beam.typehints import Dict
-from apache_beam.typehints import KV
-from apache_beam.typehints import List
-from apache_beam.typehints import Tuple
-from apache_beam.typehints import TypeVariable
-from apache_beam.typehints import Union
-from apache_beam.typehints import with_input_types
-from apache_beam.typehints import with_output_types
-
+from apache_beam.typehints import (KV, Any, Dict, List, Tuple, TypeVariable,
+                                   Union, with_input_types, with_output_types)
 
 __all__ = [
     'Count',
@@ -70,7 +63,7 @@ class Mean(object):
 
 # TODO(laolu): This type signature is overly restrictive. This should be
 # more general.
-@with_input_types(Union[float, int, long])
+@with_input_types(Union[float, int, int])
 @with_output_types(float)
 class MeanCombineFn(core.CombineFn):
   """CombineFn for computing an arithmetic mean."""
@@ -78,17 +71,19 @@ class MeanCombineFn(core.CombineFn):
   def create_accumulator(self):
     return (0, 0)
 
-  def add_input(self, (sum_, count), element):
+  def add_input(self, xxx_todo_changeme, element):
+    (sum_, count) = xxx_todo_changeme
     return sum_ + element, count + 1
 
   def merge_accumulators(self, accumulators):
-    sums, counts = zip(*accumulators)
+    sums, counts = list(zip(*accumulators))
     return sum(sums), sum(counts)
 
-  def extract_output(self, (sum_, count)):
+  def extract_output(self, xxx_todo_changeme1):
+    (sum_, count) = xxx_todo_changeme1
     if count == 0:
       return float('NaN')
-    return sum_ / float(count)
+    return old_div(sum_, float(count))
 
   def for_input_type(self, input_type):
     if input_type is int:
@@ -432,7 +427,7 @@ class _TupleCombineFnBase(core.CombineFn):
 
   def merge_accumulators(self, accumulators):
     return [c.merge_accumulators(a)
-            for c, a in zip(self._combiners, zip(*accumulators))]
+            for c, a in zip(self._combiners, list(zip(*accumulators)))]
 
   def extract_output(self, accumulator):
     return tuple([c.extract_output(a)

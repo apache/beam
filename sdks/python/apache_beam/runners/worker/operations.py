@@ -20,26 +20,23 @@
 """Worker operations executor."""
 
 import collections
-import itertools
 import logging
+from builtins import object
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
-from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.metrics.execution import (MetricsContainer,
+                                           ScopedMetricsContainer)
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
-from apache_beam.runners.worker import opcounters
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import sideinputs
-from apache_beam.transforms import combiners
-from apache_beam.transforms import core
+from apache_beam.runners.worker import (logger, opcounters, operation_specs,
+                                        sideinputs)
 from apache_beam.transforms import sideinputs as apache_sideinputs
-from apache_beam.transforms.combiners import curry_combine_fn
-from apache_beam.transforms.combiners import PhasedCombineFnExecutor
+from apache_beam.transforms import combiners, core
+from apache_beam.transforms.combiners import (PhasedCombineFnExecutor,
+                                              curry_combine_fn)
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 
@@ -273,8 +270,8 @@ class DoOperation(Operation):
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      for si in itertools.ifilter(
-          lambda o: o.tag == side_tag, self.spec.side_inputs):
+      filtered_tags = [o for o in self.spec.side_inputs if o.tag == side_tag]
+      for si in filtered_tags:
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
@@ -434,7 +431,7 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.im_func):
+        is core.CombineFn.add_input.__func__):
       # Old versions of the SDK have CombineFns that don't implement add_input.
       self.combine_fn_add_input = (
           lambda a, e: self.combine_fn.add_inputs(a, [e]))
@@ -467,7 +464,7 @@ class PGBKCVOperation(Operation):
         target = self.key_count * 9 // 10
         old_wkeys = []
         # TODO(robertwb): Use an LRU cache?
-        for old_wkey, old_wvalue in self.table.iteritems():
+        for old_wkey, old_wvalue in self.table.items():
           old_wkeys.append(old_wkey)  # Can't mutate while iterating.
           self.output_key(old_wkey, old_wvalue[0])
           self.key_count -= 1
@@ -482,7 +479,7 @@ class PGBKCVOperation(Operation):
     entry[0] = self.combine_fn_add_input(entry[0], value)
 
   def finish(self):
-    for wkey, value in self.table.iteritems():
+    for wkey, value in self.table.items():
       self.output_key(wkey, value[0])
     self.table = {}
     self.key_count = 0

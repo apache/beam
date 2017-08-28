@@ -25,16 +25,17 @@ import inspect
 import sys
 import types
 
+from past.builtins import basestring
+
 from apache_beam.pvalue import TaggedOutput
 from apache_beam.transforms.core import DoFn
 from apache_beam.transforms.window import WindowedValue
-from apache_beam.typehints.decorators import _check_instance_type
-from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import GeneratorWrapper
-from apache_beam.typehints.decorators import TypeCheckError
-from apache_beam.typehints.typehints import check_constraint
-from apache_beam.typehints.typehints import CompositeTypeHintError
-from apache_beam.typehints.typehints import SimpleTypeHintError
+from apache_beam.typehints.decorators import (GeneratorWrapper, TypeCheckError,
+                                              _check_instance_type,
+                                              getcallargs_forhints)
+from apache_beam.typehints.typehints import (CompositeTypeHintError,
+                                             SimpleTypeHintError,
+                                             check_constraint)
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -126,7 +127,7 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
   def process(self, *args, **kwargs):
     if self._input_hints:
       actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)
-      for var, hint in self._input_hints.items():
+      for var, hint in list(self._input_hints.items()):
         if hint is actual_inputs[var]:
           # self parameter
           continue

@@ -20,12 +20,12 @@
 import logging
 import unittest
 
-from hamcrest.core.base_matcher import BaseMatcher
 from hamcrest.core.assert_that import assert_that as hc_assert_that
+from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
-from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 
 
 # A simple matcher that is ued for testing extra options appending.

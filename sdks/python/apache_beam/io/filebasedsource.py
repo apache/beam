@@ -27,23 +27,19 @@ For an example implementation of :class:`FileBasedSource` see
 """
 import uuid
 
-from apache_beam.transforms.core import DoFn
-from apache_beam.transforms.core import ParDo
-from apache_beam.transforms.core import GroupByKey
-from apache_beam.transforms.core import PTransform
-from apache_beam.transforms.core import FlatMap
-from apache_beam.transforms.core import Map
+from past.builtins import basestring
+
 from apache_beam.internal import pickler
-from apache_beam.io import concat_source
-from apache_beam.io import iobase
-from apache_beam.io import range_trackers
+from apache_beam.io import concat_source, iobase, range_trackers
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.range_trackers import OffsetRange
+from apache_beam.options.value_provider import (StaticValueProvider,
+                                                ValueProvider,
+                                                check_accessible)
+from apache_beam.transforms.core import (DoFn, FlatMap, GroupByKey, Map, ParDo,
+                                         PTransform)
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.options.value_provider import ValueProvider
-from apache_beam.options.value_provider import StaticValueProvider
-from apache_beam.options.value_provider import check_accessible
 from apache_beam.transforms.trigger import DefaultTrigger
 
 MAX_NUM_THREADS_FOR_SIZE_ESTIMATION = 25
@@ -236,11 +232,11 @@ class _SingleFileSource(iobase.BoundedSource):
 
   def __init__(self, file_based_source, file_name, start_offset, stop_offset,
                min_bundle_size=0, splittable=True):
-    if not isinstance(start_offset, (int, long)):
+    if not isinstance(start_offset, int):
       raise TypeError(
           'start_offset must be a number. Received: %r' % start_offset)
     if stop_offset != range_trackers.OffsetRangeTracker.OFFSET_INFINITY:
-      if not isinstance(stop_offset, (int, long)):
+      if not isinstance(stop_offset, int):
         raise TypeError(
             'stop_offset must be a number. Received: %r' % stop_offset)
       if start_offset >= stop_offset:
@@ -370,7 +366,7 @@ class _Reshard(PTransform):
 
     return (keyed_pc | 'GroupByKey' >> GroupByKey()
             # Using FlatMap below due to the possibility of key collisions.
-            | 'DropKey' >> FlatMap(lambda (k, values): values))
+            | 'DropKey' >> FlatMap(lambda k_values: k_values[1]))
 
 
 class _ReadRange(DoFn):

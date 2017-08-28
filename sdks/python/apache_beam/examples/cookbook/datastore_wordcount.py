@@ -65,20 +65,21 @@ import argparse
 import logging
 import re
 import uuid
+from builtins import object
 
-from google.cloud.proto.datastore.v1 import entity_pb2
-from google.cloud.proto.datastore.v1 import query_pb2
-from googledatastore import helper as datastore_helper, PropertyFilter
+from google.cloud.proto.datastore.v1 import entity_pb2, query_pb2
+from googledatastore import helper as datastore_helper
+from googledatastore import PropertyFilter
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+from apache_beam.io.gcp.datastore.v1.datastoreio import (ReadFromDatastore,
+                                                         WriteToDatastore)
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import (GoogleCloudOptions,
+                                                  PipelineOptions,
+                                                  SetupOptions)
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -129,7 +130,7 @@ class EntityWrapper(object):
     datastore_helper.add_key_path(entity.key, self._kind, self._ancestor,
                                   self._kind, str(uuid.uuid4()))
 
-    datastore_helper.add_properties(entity, {"content": unicode(content)})
+    datastore_helper.add_properties(entity, {"content": str(content)})
     return entity
 
 
@@ -178,15 +179,21 @@ def read_from_datastore(project, user_options, pipeline_options):
       project, query, user_options.namespace)
 
   # Count the occurrences of each word.
+  def sum_word_counts(word_ones):
+    return (word_ones[0], sum(word_ones[1]))
+
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
-                          .with_output_types(unicode))
+                          .with_output_types(str))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(sum_word_counts))
 
   # Format the counts into a PCollection of strings.
-  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+  def format_result(word_c):
+    return '%s: %s' % (word_c[0], word_c[1])
+
+  output = counts | 'format' >> beam.Map(format_result)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned

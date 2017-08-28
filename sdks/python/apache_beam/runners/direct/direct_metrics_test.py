@@ -19,12 +19,10 @@ import unittest
 
 import hamcrest as hc
 
+from apache_beam.metrics.cells import DistributionData, DistributionResult
+from apache_beam.metrics.execution import (MetricKey, MetricResult,
+                                           MetricUpdates)
 from apache_beam.metrics.metricbase import MetricName
-from apache_beam.metrics.execution import MetricUpdates
-from apache_beam.metrics.execution import MetricResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
 
 

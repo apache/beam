@@ -43,13 +43,17 @@ For example usages, see the unit tests of modules such as
  * apache_beam.io.source_test_utils_test.py
  * apache_beam.io.avroio_test.py
 """
+from __future__ import division
 
-from collections import namedtuple
 import logging
 import threading
 import weakref
-
+from builtins import next, object, range
+from collections import namedtuple
 from multiprocessing.pool import ThreadPool
+
+from past.utils import old_div
+
 from apache_beam.io import iobase
 
 __all__ = ['read_from_source', 'assert_sources_equal_reference_source',
@@ -459,7 +463,7 @@ def assert_split_at_fraction_binary(
     # This prevents infinite recursion.
     return
 
-  middle_fraction = (left_fraction + right_fraction) / 2
+  middle_fraction = old_div((left_fraction + right_fraction), 2)
 
   if left_result is None:
     left_result = _assert_split_at_fraction_behavior(

@@ -27,14 +27,13 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
-from apache_beam.io.gcp.bigquery import RowAsDictJsonCoder
-from apache_beam.io.gcp.bigquery import TableRowJsonCoder
-from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
-from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.gcp.bigquery import (RowAsDictJsonCoder, TableRowJsonCoder,
+                                         parse_table_schema_from_json)
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -706,7 +705,7 @@ class TestBigQueryWriter(unittest.TestCase):
     sample_row = {'i': 1, 'b': True, 's': 'abc', 'f': 3.14}
     expected_rows = []
     json_object = bigquery.JsonObject()
-    for k, v in sample_row.iteritems():
+    for k, v in sample_row.items():
       json_object.additionalProperties.append(
           bigquery.JsonObject.AdditionalProperty(
               key=k, value=to_json_value(v)))

@@ -1,3 +1,17 @@
+from __future__ import division, print_function
+
+import unittest
+from builtins import map, range, zip
+
+from mock import MagicMock, call, patch
+from past.utils import old_div
+
+from apache_beam.io.gcp.datastore.v1 import (fake_datastore, helper,
+                                             query_splitter)
+from apache_beam.io.gcp.datastore.v1.datastoreio import (ReadFromDatastore,
+                                                         WriteToDatastore,
+                                                         _Mutate)
+
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -15,16 +29,6 @@
 # limitations under the License.
 #
 
-import unittest
-
-from mock import MagicMock, call, patch
-
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
-from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
-from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -174,7 +178,8 @@ class DatastoreioTest(unittest.TestCase):
       entities = [e.entity for e in
                   fake_datastore.create_entities(num_entities)]
 
-      expected_mutations = map(WriteToDatastore.to_upsert_mutation, entities)
+      expected_mutations = list(
+          map(WriteToDatastore.to_upsert_mutation, entities))
       actual_mutations = []
 
       self._mock_datastore.commit.side_effect = (
@@ -190,7 +195,7 @@ class DatastoreioTest(unittest.TestCase):
 
       self.assertEqual(actual_mutations, expected_mutations)
       self.assertEqual(
-          (num_entities - 1) / _Mutate._WRITE_BATCH_INITIAL_SIZE + 1,
+          old_div((num_entities - 1), _Mutate._WRITE_BATCH_INITIAL_SIZE) + 1,
           self._mock_datastore.commit.call_count)
 
   def test_DatastoreWriteLargeEntities(self):
@@ -212,7 +217,7 @@ class DatastoreioTest(unittest.TestCase):
 
   def verify_unique_keys(self, queries):
     """A helper function that verifies if all the queries have unique keys."""
-    keys, _ = zip(*queries)
+    keys, _ = list(zip(*queries))
     keys = set(keys)
     self.assertEqual(len(keys), len(queries))
 
@@ -236,7 +241,7 @@ class DatastoreioTest(unittest.TestCase):
       elif req == kind_stat_req:
         return kind_stat_resp
       else:
-        print kind_stat_req
+        print(kind_stat_req)
         raise ValueError("Unknown req: %s" % req)
 
     self._mock_datastore.run_query.side_effect = fake_run_query

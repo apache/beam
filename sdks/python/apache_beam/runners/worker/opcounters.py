@@ -19,9 +19,13 @@
 
 """Counters collect the progress of the Worker for reporting to the service."""
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division
+
 import math
 import random
+from builtins import hex, object
+
+from past.utils import old_div
 
 from apache_beam.utils.counters import Counter
 
@@ -100,7 +104,9 @@ class OperationCounters(object):
 
   def _compute_next_sample(self, i):
     # https://en.wikipedia.org/wiki/Reservoir_sampling#Fast_Approximation
-    gap = math.log(1.0 - random.random()) / math.log(1.0 - 10.0/i)
+    gap = old_div(
+        math.log(1.0 - random.random()),
+        math.log(1.0 - old_div(10.0, i)))
     return i + math.floor(gap)
 
   def _should_sample(self):

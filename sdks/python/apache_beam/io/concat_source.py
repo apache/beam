@@ -19,9 +19,13 @@
 
 Concat Source, which reads the union of several other sources.
 """
+from __future__ import division
 
 import bisect
 import threading
+from builtins import range
+
+from past.utils import old_div
 
 from apache_beam.io import iobase
 
@@ -136,7 +140,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
     # Substitute average weights for those whose weights are
     # unspecified (or 1.0 for everything if none are known).
     known = [s.weight for s in source_bundles if s.weight is not None]
-    avg = sum(known) / len(known) if known else 1.0
+    avg = old_div(sum(known), len(known)) if known else 1.0
     weights = [s.weight or avg for s in source_bundles]
 
     # Now compute running totals of the percent done upon reaching
@@ -147,7 +151,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
     running_total = [0]
     for w in weights:
       running_total.append(
-          max(min_diff, min(1, running_total[-1] + w / total)))
+          max(min_diff, min(1, running_total[-1] + old_div(w, total))))
     running_total[-1] = 1  # In case of rounding error.
     # There are issues if, due to rouding error or greatly differing sizes,
     # two adjacent running total weights are equal. Normalize this things so
@@ -206,7 +210,7 @@ class ConcatRangeTracker(iobase.RangeTracker):
           ratio = self.local_to_global(source_ix, frac)
 
         self._end = source_ix, split_pos
-        self._cumulative_weights = [min(w / ratio, 1)
+        self._cumulative_weights = [min(old_div(w, ratio), 1)
                                     for w in self._cumulative_weights]
         return (source_ix, split_pos), ratio
 
@@ -248,7 +252,8 @@ class ConcatRangeTracker(iobase.RangeTracker):
       # this source into a value in [0.0, 1.0) representing how far we are
       # towards the next source.
       return (source_ix,
-              (frac - cw[source_ix]) / (cw[source_ix + 1] - cw[source_ix]))
+              old_div((frac - cw[source_ix]),
+                      (cw[source_ix + 1] - cw[source_ix])))
 
   def sub_range_tracker(self, source_ix):
     assert self._start[0] <= source_ix <= self._end[0]

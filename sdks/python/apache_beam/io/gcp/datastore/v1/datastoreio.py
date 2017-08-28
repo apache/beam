@@ -16,9 +16,21 @@
 #
 
 """A connector for reading from and writing to Google Cloud Datastore"""
+from __future__ import division
 
 import logging
 import time
+from builtins import object
+
+from past.utils import old_div
+
+from apache_beam.io.gcp.datastore.v1 import helper, query_splitter, util
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import \
+    AdaptiveThrottler
+from apache_beam.metrics.metric import Metrics
+from apache_beam.transforms import (Create, DoFn, FlatMap, GroupByKey, Map,
+                                    ParDo, PTransform)
+from apache_beam.transforms.util import Values
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -29,19 +41,6 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1 import util
-from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
-from apache_beam.transforms import Create
-from apache_beam.transforms import DoFn
-from apache_beam.transforms import FlatMap
-from apache_beam.transforms import GroupByKey
-from apache_beam.transforms import Map
-from apache_beam.transforms import PTransform
-from apache_beam.transforms import ParDo
-from apache_beam.transforms.util import Values
-from apache_beam.metrics.metric import Metrics
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -299,8 +298,8 @@ class ReadFromDatastore(PTransform):
           project, namespace, query, datastore)
       logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
       num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
-          (float(estimated_size_bytes) /
-           ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES))))
+          (old_div(float(estimated_size_bytes),
+                   ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)))))
 
     except Exception as e:
       logging.warning('Failed to fetch estimated size bytes: %s', e)
@@ -360,12 +359,13 @@ class _Mutate(PTransform):
       if not self._commit_time_per_entity_ms.has_data(now):
         return _Mutate._WRITE_BATCH_INITIAL_SIZE
 
-      recent_mean_latency_ms = (self._commit_time_per_entity_ms.sum(now)
-                                / self._commit_time_per_entity_ms.count(now))
+      recent_mean_latency_ms = (
+          old_div(self._commit_time_per_entity_ms.sum(now),
+                  self._commit_time_per_entity_ms.count(now)))
       return max(_Mutate._WRITE_BATCH_MIN_SIZE,
                  min(_Mutate._WRITE_BATCH_MAX_SIZE,
-                     _Mutate._WRITE_BATCH_TARGET_LATENCY_MS
-                     / max(recent_mean_latency_ms, 1)
+                     old_div(_Mutate._WRITE_BATCH_TARGET_LATENCY_MS,
+                             max(recent_mean_latency_ms, 1))
                     ))
 
     def report_latency(self, now, latency_ms, num_mutations):
@@ -376,7 +376,8 @@ class _Mutate(PTransform):
         latency_ms: double, the observed latency in milliseconds for this RPC.
         num_mutations: int, number of mutations contained in the RPC.
       """
-      self._commit_time_per_entity_ms.add(now, latency_ms / num_mutations)
+      self._commit_time_per_entity_ms.add(now,
+                                          old_div(latency_ms, num_mutations))
 
   class DatastoreWriteFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
@@ -443,7 +444,7 @@ class _Mutate(PTransform):
       _, latency_ms = helper.write_mutations(
           self._datastore, self._project, self._mutations,
           self._throttler, self._update_rpc_stats,
-          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS/1000)
+          throttle_delay=old_div(_Mutate._WRITE_BATCH_TARGET_LATENCY_MS, 1000))
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 

@@ -22,14 +22,13 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
-from apache_beam.io.gcp.pubsub import _PubSubPayloadSource
-from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
-from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
+from apache_beam.io.gcp.pubsub import (ReadStringsFromPubSub,
+                                       WriteStringsToPubSub,
+                                       _PubSubPayloadSink,
+                                       _PubSubPayloadSource)
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
 
 # Protect against environments where the PubSub library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -47,7 +46,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     pcoll = p | ReadStringsFromPubSub('projects/fakeprj/topics/a_topic',
                                       None, 'a_label')
     # Ensure that the output type is str
-    self.assertEqual(unicode, pcoll.element_type)
+    self.assertEqual(str, pcoll.element_type)
 
     # Ensure that the properties passed through correctly
     source = pcoll.producer.transform._source
@@ -59,7 +58,7 @@ class TestReadStringsFromPubSub(unittest.TestCase):
     pcoll = p | ReadStringsFromPubSub(
         None, 'projects/fakeprj/subscriptions/a_subscription', 'a_label')
     # Ensure that the output type is str
-    self.assertEqual(unicode, pcoll.element_type)
+    self.assertEqual(str, pcoll.element_type)
 
     # Ensure that the properties passed through correctly
     source = pcoll.producer.transform._source

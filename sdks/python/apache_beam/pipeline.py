@@ -51,23 +51,28 @@ import collections
 import logging
 import os
 import shutil
+import sys
 import tempfile
+from builtins import object
+
+from future.utils import with_metaclass
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.options.pipeline_options import (PipelineOptions,
+                                                  SetupOptions,
+                                                  StandardOptions, TypeOptions)
+from apache_beam.options.pipeline_options_validator import \
+    PipelineOptionsValidator
 from apache_beam.pvalue import PCollection
-from apache_beam.runners import create_runner
-from apache_beam.runners import PipelineRunner
+from apache_beam.runners import PipelineRunner, create_runner
 from apache_beam.transforms import ptransform
-from apache_beam.typehints import typehints
-from apache_beam.typehints import TypeCheckError
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TypeOptions
-from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
-from apache_beam.utils.annotations import deprecated
+from apache_beam.typehints import TypeCheckError, typehints
 from apache_beam.utils import urns
+from apache_beam.utils.annotations import deprecated
+
+if sys.version_info[0] >= 3:
+  basestring = str
 
 
 __all__ = ['Pipeline']
@@ -132,11 +137,12 @@ class Pipeline(object):
         logging.info(('Missing pipeline option (runner). Executing pipeline '
                       'using the default runner: %s.'), runner)
 
-    if isinstance(runner, str):
+    if isinstance(runner, basestring):
       runner = create_runner(runner)
     elif not isinstance(runner, PipelineRunner):
-      raise TypeError('Runner must be a PipelineRunner object or the '
-                      'name of a registered runner.')
+      raise TypeError('Runner {0}  of type {1}  must be a PipelineRunner'
+                      ' object or the name of a registered runner.'
+                      .format(runner, type(runner)))
 
     # Validate pipeline options
     errors = PipelineOptionsValidator(self._options, runner).validate()
@@ -549,7 +555,7 @@ class Pipeline(object):
         context.transforms.get_by_id(root_transform_id)]
     # TODO(robertwb): These are only needed to continue construction. Omit?
     p.applied_labels = set([
-        t.unique_name for t in proto.components.transforms.values()])
+        t.unique_name for t in list(proto.components.transforms.values())])
     for id in proto.components.pcollections:
       pcollection = context.pcollections.get_by_id(id)
       pcollection.pipeline = p
@@ -679,7 +685,7 @@ class AppliedPTransform(object):
     is not a producer is one that returns its inputs instead.)
     """
     return bool(self.parts) or all(
-        pval.producer is not self for pval in self.outputs.values())
+        pval.producer is not self for pval in list(self.outputs.values()))
 
   def visit(self, visitor, pipeline, visited):
     """Visits all nodes reachable from the current node."""
@@ -719,7 +725,7 @@ class AppliedPTransform(object):
     # output of such a transform is the containing DoOutputsTuple, not the
     # PCollection inside it. Without the code below a tagged PCollection will
     # not be marked as visited while visiting its producer.
-    for pval in self.outputs.values():
+    for pval in list(self.outputs.values()):
       if isinstance(pval, pvalue.DoOutputsTuple):
         pvals = (v for v in pval)
       else:
@@ -735,7 +741,7 @@ class AppliedPTransform(object):
             if isinstance(input, pvalue.PCollection)}
 
   def named_outputs(self):
-    return {str(tag): output for tag, output in self.outputs.items()
+    return {str(tag): output for tag, output in list(self.outputs.items())
             if isinstance(output, pvalue.PCollection)}
 
   def to_runner_api(self, context):
@@ -753,9 +759,9 @@ class AppliedPTransform(object):
                        for part in self.parts],
         # TODO(BEAM-115): Side inputs.
         inputs={tag: context.pcollections.get_id(pc)
-                for tag, pc in self.named_inputs().items()},
+                for tag, pc in list(self.named_inputs().items())},
         outputs={str(tag): context.pcollections.get_id(out)
-                 for tag, out in self.named_outputs().items()},
+                 for tag, out in list(self.named_outputs().items())},
         # TODO(BEAM-115): display_data
         display_data=None)
 
@@ -771,13 +777,13 @@ class AppliedPTransform(object):
         context.transforms.get_by_id(id) for id in proto.subtransforms]
     result.outputs = {
         None if tag == 'None' else tag: context.pcollections.get_by_id(id)
-        for tag, id in proto.outputs.items()}
+        for tag, id in list(proto.outputs.items())}
     # This annotation is expected by some runners.
     if proto.spec.urn == urns.PARDO_TRANSFORM:
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
-      for tag, pc in result.outputs.items():
+      for tag, pc in list(result.outputs.items()):
         if pc not in result.inputs:
           pc.producer = result
           pc.tag = tag
@@ -785,7 +791,7 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(object):
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.
@@ -793,7 +799,6 @@ class PTransformOverride(object):
   TODO: Update this to support cases where input and/our output types are
   different.
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def get_matcher(self):

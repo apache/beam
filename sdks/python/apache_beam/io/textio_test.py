@@ -16,6 +16,7 @@
 #
 
 """Tests for textio module."""
+from __future__ import division
 
 import bz2
 import glob
@@ -25,28 +26,22 @@ import os
 import shutil
 import tempfile
 import unittest
+from builtins import range
+
+from past.utils import old_div
 
 import apache_beam as beam
-from apache_beam.io import iobase, ReadAllFromText
 import apache_beam.io.source_test_utils as source_test_utils
-
-# Importing following private classes for testing.
+from apache_beam import coders
+from apache_beam.io import ReadAllFromText, iobase
+from apache_beam.io.filebasedsource_test import EOL, write_data, write_pattern
+from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
-
-from apache_beam.io.textio import ReadFromText
-from apache_beam.io.textio import WriteToText
-
-from apache_beam import coders
-from apache_beam.io.filebasedsource_test import EOL
-from apache_beam.io.filebasedsource_test import write_data
-from apache_beam.io.filebasedsource_test import write_pattern
-from apache_beam.io.filesystem import CompressionTypes
-
+# Importing following private classes for testing.
+from apache_beam.io.textio import ReadFromText, WriteToText
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms.core import Create
 
 
@@ -275,7 +270,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
       split_points_report.append(range_tracker.split_points())
 
     self.assertEqual(
-        [float(i) / 10 for i in range(0, 10)], fraction_consumed_report)
+        [old_div(float(i), 10) for i in range(0, 10)], fraction_consumed_report)
     expected_split_points_report = [
         ((i - 1), iobase.RangeTracker.SPLIT_POINTS_UNKNOWN)
         for i in range(1, 10)]

@@ -21,6 +21,11 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import struct
+import sys
+from builtins import chr, object
+
+if sys.version_info[0] >= 3:
+  basestring = str
 
 
 class OutputStream(object):
@@ -32,13 +37,16 @@ class OutputStream(object):
     self.data = []
 
   def write(self, b, nested=False):
-    assert isinstance(b, str)
+    assert isinstance(b, (bytes, basestring))
     if nested:
       self.write_var_int64(len(b))
-    self.data.append(b)
+    if isinstance(b, bytes):
+      self.data.append(b)
+    else:
+      self.data.append(b.encode("latin-1"))
 
   def write_byte(self, val):
-    self.data.append(chr(val))
+    self.write(chr(val))
 
   def write_var_int64(self, v):
     if v < 0:
@@ -67,7 +75,7 @@ class OutputStream(object):
     self.write(struct.pack('>d', v))
 
   def get(self):
-    return ''.join(self.data)
+    return b''.join(self.data)
 
   def size(self):
     return len(self.data)
@@ -123,7 +131,8 @@ class InputStream(object):
 
   def read_byte(self):
     self.pos += 1
-    return ord(self.data[self.pos - 1])
+    elem = self.data[self.pos - 1:self.pos]
+    return ord(elem)
 
   def read_var_int64(self):
     shift = 0
@@ -135,7 +144,7 @@ class InputStream(object):
 
       bits = byte & 0x7F
       if shift >= 64 or (shift >= 63 and bits > 1):
-        raise RuntimeError('VarLong too long.')
+        raise RuntimeError('VarLong of size ' + str(shift) + ' too long.')
       result |= bits << shift
       shift += 7
       if not byte & 0x80:

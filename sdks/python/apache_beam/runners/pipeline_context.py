@@ -21,11 +21,10 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 
-from apache_beam import pipeline
-from apache_beam import pvalue
-from apache_beam import coders
-from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.portability.api import beam_runner_api_pb2
+from builtins import object
+
+from apache_beam import coders, pipeline, pvalue
+from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
 from apache_beam.transforms import core
 
 
@@ -49,7 +48,7 @@ class _PipelineContextMap(object):
         self._obj_type.__name__, label or type(obj).__name__, self._counter)
 
   def populate_map(self, proto_map):
-    for id, proto in self._id_to_proto.items():
+    for id, proto in list(self._id_to_proto.items()):
       proto_map[id].CopyFrom(proto)
 
   def get_id(self, obj, label=None):
@@ -90,10 +89,10 @@ class PipelineContext(object):
   def __init__(self, proto=None):
     if isinstance(proto, beam_fn_api_pb2.ProcessBundleDescriptor):
       proto = beam_runner_api_pb2.Components(
-          coders=dict(proto.coders.items()),
-          windowing_strategies=dict(proto.windowing_strategies.items()),
-          environments=dict(proto.environments.items()))
-    for name, cls in self._COMPONENT_TYPES.items():
+          coders=dict(list(proto.coders.items())),
+          windowing_strategies=dict(list(proto.windowing_strategies.items())),
+          environments=dict(list(proto.environments.items())))
+    for name, cls in list(self._COMPONENT_TYPES.items()):
       setattr(
           self, name, _PipelineContextMap(
               self, cls, getattr(proto, name, None)))

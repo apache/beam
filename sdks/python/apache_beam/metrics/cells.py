@@ -23,11 +23,14 @@ context.
 Cells depend on a 'dirty-bit' in the CellCommitState class that tracks whether
 a cell's updates have been committed.
 """
+from __future__ import division
 
 import threading
+from builtins import object
 
-from apache_beam.metrics.metricbase import Counter
-from apache_beam.metrics.metricbase import Distribution
+from past.utils import old_div
+
+from apache_beam.metrics.metricbase import Counter, Distribution
 
 __all__ = ['DistributionResult']
 
@@ -234,7 +237,7 @@ class DistributionResult(object):
     """
     if self.data.count == 0:
       return None
-    return float(self.data.sum)/self.data.count
+    return old_div(float(self.data.sum), self.data.count)
 
 
 class DistributionData(object):

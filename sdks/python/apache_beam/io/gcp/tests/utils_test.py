@@ -19,6 +19,7 @@
 
 import logging
 import unittest
+
 from mock import Mock, patch
 
 from apache_beam.io.gcp.tests import utils

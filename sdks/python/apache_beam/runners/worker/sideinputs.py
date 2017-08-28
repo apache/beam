@@ -19,12 +19,18 @@
 
 import collections
 import logging
-import Queue
+import queue
 import threading
 import traceback
+from builtins import object, range
+
+from future import standard_library
 
 from apache_beam.io import iobase
 from apache_beam.transforms import window
+
+standard_library.install_aliases()
+
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -56,13 +62,13 @@ class PrefetchingSourceSetIterable(object):
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
     # Queue for sources that are to be read.
-    self.sources_queue = Queue.Queue()
+    self.sources_queue = queue.Queue()
     for source in sources:
       self.sources_queue.put(source)
     # Queue for elements that have been read.
-    self.element_queue = Queue.Queue(ELEMENT_QUEUE_SIZE)
+    self.element_queue = queue.Queue(ELEMENT_QUEUE_SIZE)
     # Queue for exceptions encountered in reader threads; to be rethrown.
-    self.reader_exceptions = Queue.Queue()
+    self.reader_exceptions = queue.Queue()
     # Whether we have already iterated; this iterable can only be used once.
     self.already_iterated = False
     # Whether an error was encountered in any source reader.
@@ -105,7 +111,7 @@ class PrefetchingSourceSetIterable(object):
                   self.element_queue.put(value)
                 else:
                   self.element_queue.put(_globally_windowed(value))
-        except Queue.Empty:
+        except queue.Empty:
           return
     except Exception as e:  # pylint: disable=broad-except
       logging.error('Encountered exception in PrefetchingSourceSetIterable '

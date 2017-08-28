@@ -24,16 +24,18 @@ import os
 import re
 import time
 import uuid
+from builtins import range, zip
+
+from past.builtins import basestring
 
 from apache_beam.internal import util
 from apache_beam.io import iobase
-from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import BeamIOError, CompressionTypes
 from apache_beam.io.filesystems import FileSystems
+from apache_beam.options.value_provider import (StaticValueProvider,
+                                                ValueProvider,
+                                                check_accessible)
 from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.options.value_provider import ValueProvider
-from apache_beam.options.value_provider import StaticValueProvider
-from apache_beam.options.value_provider import check_accessible
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
@@ -197,12 +199,12 @@ class FileBasedSink(iobase.Sink):
       source_files.append(shard)
       destination_files.append(final_name)
 
-    source_file_batch = [source_files[i:i + chunk_size]
-                         for i in xrange(0, len(source_files),
-                                         chunk_size)]
-    destination_file_batch = [destination_files[i:i + chunk_size]
-                              for i in xrange(0, len(destination_files),
-                                              chunk_size)]
+    source_file_batch = [
+        source_files[i:i + chunk_size]
+        for i in range(0, len(source_files), chunk_size)]
+    destination_file_batch = [
+        destination_files[i:i + chunk_size]
+        for i in range(0, len(destination_files), chunk_size)]
 
     logging.info(
         'Starting finalize_write threads with num_shards: %d, '
@@ -221,7 +223,7 @@ class FileBasedSink(iobase.Sink):
       except BeamIOError as exp:
         if exp.exception_details is None:
           raise
-        for (src, dest), exception in exp.exception_details.iteritems():
+        for (src, dest), exception in exp.exception_details.items():
           if exception:
             logging.warning('Rename not successful: %s -> %s, %s', src, dest,
                             exception)
@@ -243,7 +245,7 @@ class FileBasedSink(iobase.Sink):
         return exceptions
 
     exception_batches = util.run_using_threadpool(
-        _rename_batch, zip(source_file_batch, destination_file_batch),
+        _rename_batch, list(zip(source_file_batch, destination_file_batch)),
         num_threads)
 
     all_exceptions = [e for exception_batch in exception_batches

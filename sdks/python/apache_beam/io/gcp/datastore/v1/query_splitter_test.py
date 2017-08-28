@@ -19,11 +19,9 @@
 
 import unittest
 
-from mock import MagicMock
-from mock import call
+from mock import MagicMock, call
 
-from apache_beam.io.gcp.datastore.v1 import fake_datastore
-from apache_beam.io.gcp.datastore.v1 import query_splitter
+from apache_beam.io.gcp.datastore.v1 import fake_datastore, query_splitter
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

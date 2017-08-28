@@ -21,6 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import uuid
+from builtins import range
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

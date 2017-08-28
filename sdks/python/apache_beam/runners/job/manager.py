@@ -21,6 +21,7 @@
 import logging
 import subprocess
 import time
+from builtins import object
 
 import grpc
 

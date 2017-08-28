@@ -22,37 +22,32 @@ from __future__ import absolute_import
 import collections
 import random
 import time
+from builtins import object
 
-from apache_beam import coders
-from apache_beam import pvalue
-from apache_beam.internal import pickler
 import apache_beam.io as io
-from apache_beam.runners.common import DoFnRunner
-from apache_beam.runners.common import DoFnState
-from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
-from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
-from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.direct.util import KeyedWorkItem
-from apache_beam.runners.direct.util import TransformResult
-from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
-from apache_beam.testing.test_stream import TestStream
-from apache_beam.testing.test_stream import ElementEvent
-from apache_beam.testing.test_stream import WatermarkEvent
-from apache_beam.testing.test_stream import ProcessingTimeEvent
-from apache_beam.transforms import core
-from apache_beam.transforms.window import GlobalWindows
-from apache_beam.transforms.window import WindowedValue
-from apache_beam.transforms.trigger import create_trigger_driver
-from apache_beam.transforms.trigger import _CombiningValueStateTag
-from apache_beam.transforms.trigger import _ListStateTag
-from apache_beam.transforms.trigger import TimeDomain
-from apache_beam.typehints.typecheck import OutputCheckWrapperDoFn
-from apache_beam.typehints.typecheck import TypeCheckError
-from apache_beam.typehints.typecheck import TypeCheckWrapperDoFn
-from apache_beam.utils import counters
-from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam import coders, pvalue
+from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.runners.common import DoFnRunner, DoFnState
+from apache_beam.runners.dataflow.native_io.iobase import \
+    _NativeWrite  # pylint: disable=protected-access
+from apache_beam.runners.direct.direct_runner import (_StreamingGroupAlsoByWindow,
+                                                      _StreamingGroupByKeyOnly)
+from apache_beam.runners.direct.util import KeyedWorkItem, TransformResult
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.testing.test_stream import (ElementEvent, ProcessingTimeEvent,
+                                             TestStream, WatermarkEvent)
+from apache_beam.transforms import core
+from apache_beam.transforms.trigger import (TimeDomain,
+                                            _CombiningValueStateTag,
+                                            _ListStateTag,
+                                            create_trigger_driver)
+from apache_beam.transforms.window import GlobalWindows, WindowedValue
+from apache_beam.typehints.typecheck import (OutputCheckWrapperDoFn,
+                                             TypeCheckError,
+                                             TypeCheckWrapperDoFn)
+from apache_beam.utils import counters
+from apache_beam.utils.timestamp import MIN_TIMESTAMP, Timestamp
 
 
 class TransformEvaluatorRegistry(object):
@@ -137,7 +132,7 @@ class TransformEvaluatorRegistry(object):
                       (core._GroupByKeyOnly,
                        _StreamingGroupByKeyOnly,
                        _StreamingGroupAlsoByWindow,
-                       _NativeWrite,))
+                       _NativeWrite))
 
 
 class RootBundleProvider(object):
@@ -196,7 +191,7 @@ class _TransformEvaluator(object):
 
   def _expand_outputs(self):
     outputs = set()
-    for pval in self._applied_ptransform.outputs.values():
+    for pval in list(self._applied_ptransform.outputs.values()):
       if isinstance(pval, pvalue.DoOutputsTuple):
         pvals = (v for v in pval)
       else:
@@ -421,7 +416,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     with pubsub.subscription.AutoAck(
         self._subscription, return_immediately=True,
         max_messages=10) as results:
-      return [message.data for unused_ack_id, message in results.items()]
+      return [message.data for unused_ack_id, message in list(results.items())]
 
   def finish_bundle(self):
     data = self._read_from_pubsub()
@@ -554,7 +549,7 @@ class _ParDoEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     self.runner.finish()
-    bundles = self._tagged_receivers.values()
+    bundles = list(self._tagged_receivers.values())
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
         self._applied_ptransform, bundles, [], result_counters, None,
@@ -693,7 +688,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
   def finish_bundle(self):
     bundles = []
     bundle = None
-    for encoded_k, vs in self.gbk_items.iteritems():
+    for encoded_k, vs in self.gbk_items.items():
       if not bundle:
         bundle = self._evaluation_context.create_bundle(
             self.output_pcollection)

@@ -26,13 +26,12 @@ import argparse
 import logging
 
 import apache_beam as beam
-from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToText
+from apache_beam.io import ReadFromText, WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
-
 
 # pylint doesn't understand our pipeline syntax:
 # pylint:disable=expression-not-assigned
+
 
 class Count1(beam.PTransform):
   """Count as a subclass of PTransform, with an apply method."""

@@ -25,10 +25,10 @@ and displayed as part of their pipeline execution.
     metric objects such as counters, distributions, etc.
 """
 import inspect
+from builtins import object
 
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.metricbase import Counter, Distribution
-from apache_beam.metrics.metricbase import MetricName
+from apache_beam.metrics.metricbase import Counter, Distribution, MetricName
 
 __all__ = ['Metrics', 'MetricsFilter']
 

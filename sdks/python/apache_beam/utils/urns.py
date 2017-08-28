@@ -19,12 +19,12 @@
 
 import abc
 import inspect
+from builtins import object
 
 from google.protobuf import wrappers_pb2
 
 from apache_beam.internal import pickler
 from apache_beam.utils import proto_utils
-
 
 PICKLED_WINDOW_FN = "beam:windowfn:pickled_python:v0.1"
 GLOBAL_WINDOWS_FN = "beam:windowfn:global_windows:v0.1"

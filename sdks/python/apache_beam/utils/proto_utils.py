@@ -17,8 +17,7 @@
 
 """For internal use only; no backwards-compatibility guarantees."""
 
-from google.protobuf import any_pb2
-from google.protobuf import struct_pb2
+from google.protobuf import any_pb2, struct_pb2
 
 
 def pack_Any(msg):
@@ -61,7 +60,7 @@ def pack_Struct(**kwargs):
   """Returns a struct containing the values indicated by kwargs.
   """
   msg = struct_pb2.Struct()
-  for key, value in kwargs.items():
+  for key, value in list(kwargs.items()):
     msg[key] = value  # pylint: disable=unsubscriptable-object, unsupported-assignment-operation
   return msg
 

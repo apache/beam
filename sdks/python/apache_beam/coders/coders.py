@@ -19,21 +19,32 @@
 
 Only those coders listed in __all__ are part of the public API of this module.
 """
+from __future__ import absolute_import
 
 import base64
-import cPickle as pickle
+import sys
+from builtins import object
+
 import google.protobuf
+from future import standard_library
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.utils import urns
-from apache_beam.utils import proto_utils
+from apache_beam.utils import proto_utils, urns
+
+standard_library.install_aliases()
+
+if sys.version_info[0] >= 3:
+  import pickle as pickle
+else:
+  import cPickle as pickle
+
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from stream import get_varint_size
+  from .stream import get_varint_size
 except ImportError:
-  from slow_stream import get_varint_size
+  from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -52,7 +63,7 @@ except ImportError:
 __all__ = ['Coder',
            'BytesCoder', 'DillCoder', 'FastPrimitivesCoder', 'FloatCoder',
            'IterableCoder', 'PickleCoder', 'ProtoCoder', 'SingletonCoder',
-           'StrUtf8Coder', 'TimestampCoder', 'TupleCoder',
+           'StrUtf8Coder', 'StrUtf8StrCoder', 'TimestampCoder', 'TupleCoder',
            'TupleSequenceCoder', 'VarIntCoder', 'WindowedValueCoder']
 
 
@@ -291,11 +302,26 @@ class StrUtf8Coder(Coder):
     return True
 
 
+class StrUtf8StrCoder(Coder):
+  """A coder used for reading and writing strings as UTF-8.
+     Used for Python 2 to force into string rather than unicode on decode."""
+
+  def encode(self, value):
+    return value.encode('utf-8')
+
+  def decode(self, value):
+    return str(value.decode('utf-8'))
+
+  def is_deterministic(self):
+    return True
+
+
 class ToStringCoder(Coder):
   """A default string coder used if no sink coder is specified."""
 
   def encode(self, value):
-    if isinstance(value, unicode):
+    # TODO(holden before merge): Do we just want to send everything to UTF-8?
+    if isinstance(value, str):
       return value.encode('utf-8')
     elif isinstance(value, str):
       return value

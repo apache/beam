@@ -27,9 +27,11 @@ This module is experimental. No backwards-compatibility guarantees.
 
 #cython: profile=True
 
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils.timestamp import Timestamp
+from builtins import object
+
+from past.builtins import cmp
+
+from apache_beam.utils.timestamp import MAX_TIMESTAMP, MIN_TIMESTAMP, Timestamp
 
 
 class WindowedValue(object):

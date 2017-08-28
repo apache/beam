@@ -16,9 +16,9 @@
 #
 
 import binascii
-import cStringIO
 import glob
 import gzip
+import io
 import logging
 import os
 import pickle
@@ -26,19 +26,21 @@ import random
 import shutil
 import tempfile
 import unittest
+from builtins import chr, range
+
+import crcmod
+from future import standard_library
 
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.tfrecordio import _TFRecordSink
-from apache_beam.io.tfrecordio import _TFRecordSource
-from apache_beam.io.tfrecordio import _TFRecordUtil
-from apache_beam.io.tfrecordio import ReadFromTFRecord
-from apache_beam.io.tfrecordio import WriteToTFRecord
+from apache_beam.io.tfrecordio import (ReadFromTFRecord, WriteToTFRecord,
+                                       _TFRecordSink, _TFRecordSource,
+                                       _TFRecordUtil)
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-import crcmod
+from apache_beam.testing.util import assert_that, equal_to
+
+standard_library.install_aliases()
 
 
 try:
@@ -68,14 +70,14 @@ class TestTFRecordUtil(unittest.TestCase):
     self.record = binascii.a2b_base64(FOO_RECORD_BASE64)
 
   def _as_file_handle(self, contents):
-    result = cStringIO.StringIO()
-    result.write(contents)
-    result.reset()
+    result = io.StringIO()
+    result.write(contents.decode("latin-1"))
+    result.seek(0)
     return result
 
   def _increment_value_at_index(self, value, index):
     l = list(value)
-    l[index] = chr(ord(l[index]) + 1)
+    l[index] = chr(ord(l[index]) + 1).encode("latin-1")
     return ''.join(l)
 
   def _test_error(self, record, error_text):
@@ -110,7 +112,7 @@ class TestTFRecordUtil(unittest.TestCase):
             '\x03\x00\x00\x00\x00\x00\x00\x00', crc32c_fn=crc32c_fn))
 
   def test_write_record(self):
-    file_handle = cStringIO.StringIO()
+    file_handle = io.StringIO()
     _TFRecordUtil.write_record(file_handle, 'foo')
     self.assertEqual(self.record, file_handle.getvalue())
 
@@ -131,9 +133,9 @@ class TestTFRecordUtil(unittest.TestCase):
 
   def test_compatibility_read_write(self):
     for record in ['', 'blah', 'another blah']:
-      file_handle = cStringIO.StringIO()
+      file_handle = io.StringIO()
       _TFRecordUtil.write_record(file_handle, record)
-      file_handle.reset()
+      file_handle.seek(0)
       actual = _TFRecordUtil.read_record(file_handle)
       self.assertEqual(record, actual)
 
@@ -322,9 +324,9 @@ class TestReadFromTFRecordSource(TestTFRecordSource):
 class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
 
   def create_inputs(self):
-    input_array = [[random.random() - 0.5 for _ in xrange(15)]
-                   for _ in xrange(12)]
-    memfile = cStringIO.StringIO()
+    input_array = [[random.random() - 0.5 for _ in range(15)]
+                   for _ in range(12)]
+    memfile = io.BytesIO()
     pickle.dump(input_array, memfile)
     return memfile.getvalue()
 
@@ -374,7 +376,7 @@ class TestEnd2EndWriteAndRead(_TestCaseWithTempDirCleanUp):
     file_path_prefix = os.path.join(self._new_tempdir(), 'result')
 
     example = tf.train.Example()
-    example.features.feature['int'].int64_list.value.extend(range(3))
+    example.features.feature['int'].int64_list.value.extend(list(range(3)))
     example.features.feature['bytes'].bytes_list.value.extend(
         [b'foo', b'bar'])
 

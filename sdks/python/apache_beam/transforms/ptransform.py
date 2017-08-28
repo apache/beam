@@ -41,24 +41,20 @@ import inspect
 import operator
 import os
 import sys
+from builtins import hex, object, zip
+from functools import reduce
 
 from google.protobuf import wrappers_pb2
 
-from apache_beam import error
-from apache_beam import pvalue
-from apache_beam.internal import pickler
-from apache_beam.internal import util
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.transforms.display import DisplayDataItem
+from apache_beam import error, pvalue
+from apache_beam.internal import pickler, util
+from apache_beam.transforms.display import DisplayDataItem, HasDisplayData
 from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import TypeCheckError
-from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import (TypeCheckError, WithTypeHints,
+                                              getcallargs_forhints)
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
-from apache_beam.utils import proto_utils
-from apache_beam.utils import urns
-
+from apache_beam.utils import proto_utils, urns
 
 __all__ = [
     'PTransform',
@@ -171,10 +167,10 @@ class _ZipPValues(_PValueishTransform):
 
   def visit_dict(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, dict):
-      for key, p in pvalueish.items():
+      for key, p in list(pvalueish.items()):
         self.visit(p, sibling.get(key), pairs, key)
     else:
-      for p in pvalueish.values():
+      for p in list(pvalueish.values()):
         self.visit(p, sibling, pairs, context)
 
 
@@ -422,7 +418,7 @@ class PTransform(WithTypeHints, HasDisplayData):
           for p in _dict_tuple_leaves(a):
             yield p
       elif isinstance(pvalueish, dict):
-        for a in pvalueish.values():
+        for a in list(pvalueish.values()):
           for p in _dict_tuple_leaves(a):
             yield p
       else:
@@ -518,7 +514,7 @@ class PTransformWithSideInputs(PTransform):
     super(PTransformWithSideInputs, self).__init__()
 
     if (any([isinstance(v, pvalue.PCollection) for v in args]) or
-        any([isinstance(v, pvalue.PCollection) for v in kwargs.itervalues()])):
+        any([isinstance(v, pvalue.PCollection) for v in kwargs.values()])):
       raise error.SideInputError(
           'PCollection used directly as side input argument. Specify '
           'AsIter(pcollection) or AsSingleton(pcollection) to indicate how the '
@@ -571,7 +567,7 @@ class PTransformWithSideInputs(PTransform):
 
     for si in side_inputs_arg_hints:
       validate_composite_type_param(si, 'Type hints for a PTransform')
-    for si in side_input_kwarg_hints.values():
+    for si in list(side_input_kwarg_hints.values()):
       validate_composite_type_param(si, 'Type hints for a PTransform')
 
     self.side_inputs_types = side_inputs_arg_hints
@@ -589,11 +585,11 @@ class PTransformWithSideInputs(PTransform):
         return instance_to_type(side_input)
 
       arg_types = [pvalueish.element_type] + [element_type(v) for v in args]
-      kwargs_types = {k: element_type(v) for (k, v) in kwargs.items()}
+      kwargs_types = {k: element_type(v) for (k, v) in list(kwargs.items())}
       argspec_fn = self._process_argspec_fn()
       bindings = getcallargs_forhints(argspec_fn, *arg_types, **kwargs_types)
       hints = getcallargs_forhints(argspec_fn, *type_hints[0], **type_hints[1])
-      for arg, hint in hints.items():
+      for arg, hint in list(hints.items()):
         if arg.startswith('%unknown%'):
           continue
         if hint is None:
@@ -711,8 +707,8 @@ def label_from_callable(fn):
   elif hasattr(fn, '__name__'):
     if fn.__name__ == '<lambda>':
       return '<lambda at %s:%s>' % (
-          os.path.basename(fn.func_code.co_filename),
-          fn.func_code.co_firstlineno)
+          os.path.basename(fn.__code__.co_filename),
+          fn.__code__.co_firstlineno)
     return fn.__name__
   return str(fn)
 

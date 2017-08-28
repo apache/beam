@@ -19,10 +19,11 @@
 """Unit tests for GCS File System."""
 
 import unittest
+from builtins import zip
 
 import mock
-from apache_beam.io.filesystem import BeamIOError
-from apache_beam.io.filesystem import FileMetadata
+
+from apache_beam.io.filesystem import BeamIOError, FileMetadata
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

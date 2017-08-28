@@ -26,7 +26,6 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-
 import apache_beam as beam
 import apache_beam.transforms.window as window
 
@@ -70,13 +69,16 @@ def run(argv=None):
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
+    def sum_word_counts(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
+
     transformed = (lines
                    | 'Split' >> (beam.FlatMap(find_words)
-                                 .with_output_types(unicode))
+                                 .with_output_types(str))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(2*60, 0))
                    | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                   | 'Count' >> beam.Map(sum_word_counts)
                    | 'Format' >> beam.ParDo(FormatDoFn()))
 
     # Write to BigQuery.

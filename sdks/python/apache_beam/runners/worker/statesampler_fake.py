@@ -18,6 +18,9 @@
 # This module is experimental. No backwards-compatibility guarantees.
 
 
+from builtins import object
+
+
 class StateSampler(object):
 
   def __init__(self, *args, **kwargs):

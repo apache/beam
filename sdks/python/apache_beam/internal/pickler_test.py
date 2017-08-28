@@ -18,10 +18,10 @@
 """Unit tests for the pickler module."""
 
 import unittest
+from builtins import range
 
 from apache_beam.internal import module_test
-from apache_beam.internal.pickler import dumps
-from apache_beam.internal.pickler import loads
+from apache_beam.internal.pickler import dumps, loads
 
 
 class PicklerTest(unittest.TestCase):

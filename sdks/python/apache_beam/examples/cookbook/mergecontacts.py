@@ -34,14 +34,12 @@ from __future__ import absolute_import
 import argparse
 import logging
 import re
+from builtins import next
 
 import apache_beam as beam
-from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToText
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.io import ReadFromText, WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
+from apache_beam.testing.util import assert_that, equal_to
 
 
 def run(argv=None, assert_results=None):
@@ -96,19 +94,28 @@ def run(argv=None, assert_results=None):
     # Prepare tab-delimited output; something like this:
     # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
     tsv_lines = grouped | beam.Map(
-        lambda (name, (email, phone, snailmail)): '\t'.join(
-            ['"%s"' % name,
-             '"%s"' % ','.join(email),
-             '"%s"' % ','.join(phone),
-             '"%s"' % next(iter(snailmail), '')]))
+        lambda name_email_phone_snailmail: '\t'.join(
+            ['"%s"' % name_email_phone_snailmail[0],
+             '"%s"' % ','.join(name_email_phone_snailmail[1][0]),
+             '"%s"' % ','.join(name_email_phone_snailmail[1][1]),
+             '"%s"' % next(iter(name_email_phone_snailmail[1][2]), '')]))
 
     # Compute some stats about our database of people.
+    def without_email(name_email_phone_snailmail1):
+      return not next(iter(name_email_phone_snailmail1[1][0]), None)
+
+    def without_phones(name_email_phone_snailmail2):
+      return not next(iter(name_email_phone_snailmail2[1][1]), None)
+
+    def without_address(name_e_p_snailmail):
+      return not next(iter(name_e_p_snailmail[1][2]), None)
+
     luddites = grouped | beam.Filter(  # People without email.
-        lambda (name, (email, phone, snailmail)): not next(iter(email), None))
+        without_email)
     writers = grouped | beam.Filter(   # People without phones.
-        lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
+        without_phones)
     nomads = grouped | beam.Filter(    # People without addresses.
-        lambda (name, (e, p, snailmail)): not next(iter(snailmail), None))
+        without_address)
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()

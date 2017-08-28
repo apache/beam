@@ -15,32 +15,15 @@
 # limitations under the License.
 #
 
-
-"""Observable base class for iterables.
-
-For internal use only; no backwards-compatibility guarantees.
-"""
+"""Basic test utils"""
+import re
 
 
-from builtins import object
-
-
-class ObservableMixin(object):
-  """For internal use only; no backwards-compatibility guarantees.
-
-  An observable iterable.
-
-  Subclasses need to call self.notify_observers with any object yielded.
-  """
-
-  def __init__(self):
-    self.observers = []
-
-  def register_observer(self, callback):
-    self.observers.append(callback)
-
-  def notify_observers(self, value, **kwargs):
-    # self.observers is almost always empty
-    if self.observers:
-      for o in self.observers:
-        o(value, **kwargs)
+def _rewrite_typehint_string(type_hint_string):
+  first_pass = re.sub(r"class future.types.new(str|int).new(str|int)",
+                      r'type \1',
+                      type_hint_string)
+  second_pass = re.sub(r"future.types.new(str|int).new(str|int)",
+                       r'\1',
+                       first_pass)
+  return re.sub(r"new(str|int)", r'\1', second_pass)

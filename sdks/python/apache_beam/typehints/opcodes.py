@@ -26,11 +26,16 @@ are handled inline rather than here.
 
 For internal use only; no backwards-compatibility guarantees.
 """
-import types
+from __future__ import absolute_import, division
 
-from trivial_inference import union, element_type, Const, BoundMethod
-import typehints
-from typehints import Any, Dict, Iterable, List, Tuple, Union
+import types
+from functools import reduce
+
+from past.utils import old_div
+
+from . import typehints
+from .trivial_inference import BoundMethod, Const, element_type, union
+from .typehints import Any, Dict, Iterable, List, Tuple, Union
 
 
 def pop_one(state, unused_arg):
@@ -136,7 +141,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 def binary_subscr(state, unused_arg):
   tos = state.stack.pop()
-  if tos in (str, unicode):
+  if tos in (str, str):
     out = tos
   else:
     out = element_type(tos)
@@ -254,7 +259,7 @@ def load_attr(state, arg):
   name = state.get_name(arg)
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
-  elif (isinstance(o, (type, types.ClassType))
+  elif (isinstance(o, type)
         and isinstance(getattr(o, name, None), types.MethodType)):
     state.stack.append(Const(BoundMethod(getattr(o, name))))
   else:
@@ -311,7 +316,7 @@ def load_deref(state, arg):
 def call_function(state, arg, has_var=False, has_kw=False):
   # TODO(robertwb): Recognize builtins and dataflow objects
   # (especially special return values).
-  pop_count = (arg & 0xF) + (arg & 0xF0) / 8 + 1 + has_var + has_kw
+  pop_count = (arg & 0xF) + old_div((arg & 0xF0), 8) + 1 + has_var + has_kw
   state.stack[-pop_count:] = [Any]
 
 

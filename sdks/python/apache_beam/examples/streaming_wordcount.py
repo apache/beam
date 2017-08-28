@@ -26,11 +26,10 @@ from __future__ import absolute_import
 import argparse
 import logging
 
-
 import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import StandardOptions
 import apache_beam.transforms.window as window
+from apache_beam.options.pipeline_options import (PipelineOptions,
+                                                  StandardOptions)
 
 
 def split_fn(lines):
@@ -59,14 +58,16 @@ def run(argv=None):
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
+    def sum_word_counts(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
     transformed = (lines
                    # Use a pre-defined function that imports the re package.
                    | 'Split' >> (
-                       beam.FlatMap(split_fn).with_output_types(unicode))
+                       beam.FlatMap(split_fn).with_output_types(str))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(15, 0))
                    | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                   | 'Count' >> beam.Map(sum_word_counts)
                    | 'Format' >> beam.Map(lambda tup: '%s: %d' % tup))
 
     # Write to PubSub.

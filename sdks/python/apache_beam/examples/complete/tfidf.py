@@ -21,19 +21,19 @@ For an explanation of the TF-IDF algorithm see the following link:
 http://en.wikipedia.org/wiki/Tf-idf
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 
 import argparse
 import glob
 import math
 import re
 
+from past.utils import old_div
+
 import apache_beam as beam
-from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToText
+from apache_beam.io import ReadFromText, WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
 from apache_beam.pvalue import AsSingleton
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 
 
 def read_documents(pipeline, uris):
@@ -68,7 +68,8 @@ class TfIdf(beam.PTransform):
     # Create a collection of pairs mapping a URI to each of the words
     # in the document associated with that that URI.
 
-    def split_into_words((uri, line)):
+    def split_into_words(xxx_todo_changeme):
+      (uri, line) = xxx_todo_changeme
       return [(uri, w.lower()) for w in re.findall(r'[A-Za-z\']+', line)]
 
     uri_to_words = (
@@ -99,10 +100,12 @@ class TfIdf(beam.PTransform):
     # Adjust the above collection to a mapping from (URI, word) pairs to counts
     # into an isomorphic mapping from URI to (word, count) pairs, to prepare
     # for a join by the URI key.
+    def shift_keys(uri_word_count):
+      return (uri_word_count[0][0], (uri_word_count[0][1], uri_word_count[1]))
+
     uri_to_word_and_count = (
         uri_and_word_to_count
-        | 'ShiftKeys' >> beam.Map(
-            lambda ((uri, word), count): (uri, (word, count))))
+        | 'ShiftKeys' >> beam.Map(shift_keys))
 
     # Perform a CoGroupByKey (a sort of pre-join) on the prepared
     # uri_to_word_total and uri_to_word_and_count tagged by 'word totals' and
@@ -125,12 +128,13 @@ class TfIdf(beam.PTransform):
     # that word occurs in the document divided by the total number of words in
     # the document.
 
-    def compute_term_frequency((uri, count_and_total)):
+    def compute_term_frequency(xxx_todo_changeme1):
+      (uri, count_and_total) = xxx_todo_changeme1
       word_and_count = count_and_total['word counts']
       # We have an iterable for one element that we want extracted.
       [word_total] = count_and_total['word totals']
       for word, count in word_and_count:
-        yield word, (uri, float(count) / word_total)
+        yield word, (uri, old_div(float(count), word_total))
 
     word_to_uri_and_tf = (
         uri_to_word_and_count_and_total
@@ -150,7 +154,7 @@ class TfIdf(beam.PTransform):
     word_to_df = (
         word_to_doc_count
         | 'ComputeDocFrequencies' >> beam.Map(
-            lambda (word, count), total: (word, float(count) / total),
+            lambda (word, count), total: (word, old_div(float(count), total)),
             AsSingleton(total_documents)))
 
     # Join the term frequency and document frequency collections,
@@ -165,10 +169,11 @@ class TfIdf(beam.PTransform):
     # basic version that is the term frequency divided by the log of the
     # document frequency.
 
-    def compute_tf_idf((word, tf_and_df)):
+    def compute_tf_idf(xxx_todo_changeme2):
+      (word, tf_and_df) = xxx_todo_changeme2
       [docf] = tf_and_df['df']
       for uri, tf in tf_and_df['tf']:
-        yield word, (uri, tf * math.log(1 / docf))
+        yield word, (uri, tf * math.log(old_div(1, docf)))
 
     word_to_uri_and_tfidf = (
         word_to_uri_and_tf_and_df

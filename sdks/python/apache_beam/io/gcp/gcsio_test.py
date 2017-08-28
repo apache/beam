@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 """Tests for Google Cloud Storage client."""
+from __future__ import division
 
 import errno
 import logging
@@ -24,9 +25,11 @@ import random
 import threading
 import time
 import unittest
+from builtins import object, range
 
 import httplib2
 import mock
+from past.utils import old_div
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -117,7 +120,7 @@ class FakeGcsObjects(object):
       if not data:
         break
       data_list.append(data)
-    f.contents = ''.join(data_list)
+    f.contents = ''.join(data_list).decode('latin-1').encode('latin-1')
 
     self.add_file(f)
 
@@ -225,7 +228,8 @@ class TestGCSIO(unittest.TestCase):
 
   def _insert_random_file(self, client, path, size, generation=1):
     bucket, name = gcsio.parse_gcs_path(path)
-    f = FakeFile(bucket, name, os.urandom(size), generation)
+    random_contents = os.urandom(size).decode('latin-1').encode('latin-1')
+    f = FakeFile(bucket, name, random_contents, generation)
     client.objects.add_file(f)
     return f
 
@@ -486,8 +490,10 @@ class TestGCSIO(unittest.TestCase):
       start, end = min(a, b), max(a, b)
       f.seek(start)
       self.assertEqual(f.tell(), start)
-      self.assertEqual(
-          f.read(end - start + 1), random_file.contents[start:end + 1])
+      read_result = f.read(end - start + 1)
+      file_contents = random_file.contents[start:end + 1]
+      self.assertEqual(type(read_result), type(file_contents))
+      self.assertEqual(read_result, file_contents)
       self.assertEqual(f.tell(), end + 1)
 
   def test_file_iterator(self):
@@ -499,7 +505,7 @@ class TestGCSIO(unittest.TestCase):
       line = os.urandom(line_length).replace('\n', ' ') + '\n'
       lines.append(line)
 
-    contents = ''.join(lines)
+    contents = ''.join(lines).decode('latin-1').encode('latin-1')
     bucket, name = gcsio.parse_gcs_path(file_name)
     self.client.objects.add_file(FakeFile(bucket, name, contents, 1))
 
@@ -625,7 +631,7 @@ class TestGCSIO(unittest.TestCase):
     # Test that exceptions are not swallowed by the context manager.
     with self.assertRaises(ZeroDivisionError):
       with self.gcs.open(file_name) as f:
-        f.read(0 / 0)
+        f.read(old_div(0, 0))
 
   def test_glob(self):
     bucket_name = 'gcsio-test'
