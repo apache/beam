@@ -36,22 +36,22 @@ import "google/protobuf/struct.proto";
 service JobService {
   // Prepare a job for execution. The job will not be executed until a call is made to run with the
   // returned preparationId.
-  rpc prepare (PrepareJobRequest) returns (PrepareJobResponse);
+  rpc Prepare (PrepareJobRequest) returns (PrepareJobResponse);
 
   // Submit the job for execution
-  rpc run (RunJobRequest) returns (RunJobResponse);
+  rpc Run (RunJobRequest) returns (RunJobResponse);
 
   // Get the current state of the job
-  rpc getState (GetJobStateRequest) returns (GetJobStateResponse);
+  rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
 
   // Cancel the job
-  rpc cancel (CancelJobRequest) returns (CancelJobResponse);
+  rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
 
   // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
-  rpc getStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
+  rpc GetStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
 
   // Subscribe to a stream of state changes and messages from the job
-  rpc getMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+  rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
 }
 
 
@@ -61,14 +61,14 @@ service JobService {
 // Throws error UNKNOWN for all other issues
 message PrepareJobRequest {
   org.apache.beam.runner_api.v1.Pipeline pipeline = 1; // (required)
-  google.protobuf.Struct pipelineOptions = 2; // (required)
-  string jobName = 3;  // (required)
+  google.protobuf.Struct pipeline_options = 2; // (required)
+  string job_name = 3;  // (required)
 }
 
 message PrepareJobResponse {
   // (required) The ID used to associate calls made while preparing the job. preparationId is used
   // to run the job, as well as in other pre-execution APIs such as Artifact staging.
-  string preparationId = 1;
+  string preparation_id = 1;
 }
 
 
@@ -79,15 +79,15 @@ message PrepareJobResponse {
 message RunJobRequest {
   // (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
   // must have been completed.
-  string preparationId = 1;
+  string preparation_id = 1;
   // (optional) If any artifacts have been staged for this job, contains the staging_token returned
   // from the CommitManifestResponse.
-  string stagingToken = 2;
+  string staging_token = 2;
 }
 
 
 message RunJobResponse {
-  string jobId = 1; // (required) The ID for the executing job
+  string job_id = 1; // (required) The ID for the executing job
 }
 
 
@@ -95,7 +95,7 @@ message RunJobResponse {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 message CancelJobRequest {
-  string jobId = 1; // (required)
+  string job_id = 1; // (required)
 
 }
 
@@ -109,7 +109,7 @@ message CancelJobResponse {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 // Throws error NOT_FOUND if the jobId is not found
 message GetJobStateRequest {
-  string jobId = 1; // (required)
+  string job_id = 1; // (required)
 
 }
 
@@ -123,15 +123,15 @@ message GetJobStateResponse {
 // and job messages back; one is used for logging and the other for detecting
 // the job ended.
 message JobMessagesRequest {
-  string jobId = 1; // (required)
+  string job_id = 1; // (required)
 
 }
 
 message JobMessage {
-  string messageId = 1;
+  string message_id = 1;
   string time = 2;
   MessageImportance importance = 3;
-  string messageText = 4;
+  string message_text = 4;
 
   enum MessageImportance {
     JOB_MESSAGE_DEBUG = 0;
@@ -144,8 +144,8 @@ message JobMessage {
 
 message JobMessagesResponse {
   oneof response {
-    JobMessage messageResponse = 1;
-    GetJobStateResponse stateResponse = 2;
+    JobMessage message_response = 1;
+    GetJobStateResponse state_response = 2;
   }
 }
 
