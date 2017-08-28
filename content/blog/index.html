@@ -146,6 +146,43 @@
 <p>This is the blog for the Apache Beam project. This blog contains news and updates
 for the project.</p>
 
+<h3 id="a-classpost-link-hrefblog20170828timely-processinghtmltimely-and-stateful-processing-with-apache-beama"><a class="post-link" href="/blog/2017/08/28/timely-processing.html">Timely (and Stateful) Processing with Apache Beam</a></h3>
+<p><i>Aug 28, 2017 •  Kenneth Knowles [<a href="https://twitter.com/KennKnowles">@KennKnowles</a>]
+</i></p>
+
+<p>In a <a href="/blog/2017/02/13/stateful-processing.html">prior blog
+post</a>, I
+introduced the basics of stateful processing in Apache Beam, focusing on the
+addition of state to per-element processing. So-called <em>timely</em> processing
+complements stateful processing in Beam by letting you set timers to request a
+(stateful) callback at some point in the future.</p>
+
+<p>What can you do with timers in Beam? Here are some examples:</p>
+
+<ul>
+  <li>You can output data buffered in state after some amount of processing time.</li>
+  <li>You can take special action when the watermark estimates that you have
+received all data up to a specified point in event time.</li>
+  <li>You can author workflows with timeouts that alter state and emit output in
+response to the absence of additional input for some period of time.</li>
+</ul>
+
+<p>These are just a few possibilities. State and timers together form a powerful
+programming paradigm for fine-grained control to express a huge variety of
+workflows.  Stateful and timely processing in Beam is portable across data
+processing engines and integrated with Beam’s unified model of event time
+windowing in both streaming and batch processing.</p>
+
+<!-- Render a "read more" button if the post is longer than the excerpt -->
+
+<p>
+<a class="btn btn-default btn-sm" href="/blog/2017/08/28/timely-processing.html" role="button">
+Read more&nbsp;<span class="glyphicon glyphicon-menu-right" aria-hidden="true"></span>
+</a>
+</p>
+
+<hr />
+
 <h3 id="a-classpost-link-hrefblog20170816splittable-do-fnhtmlpowerful-and-modular-io-connectors-with-splittable-dofn-in-apache-beama"><a class="post-link" href="/blog/2017/08/16/splittable-do-fn.html">Powerful and modular IO connectors with Splittable DoFn in Apache Beam</a></h3>
 <p><i>Aug 16, 2017 •  Eugene Kirpichov 
 </i></p>
