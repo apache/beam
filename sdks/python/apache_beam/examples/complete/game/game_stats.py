@@ -200,6 +200,7 @@ class WriteToBigQuery(beam.PTransform):
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
 
 
+# [START abuse_detect]
 class CalculateSpammyUsers(beam.PTransform):
   """Filter out all but those users with a high clickrate, which we will
   consider as 'spammy' uesrs.
@@ -232,6 +233,7 @@ class CalculateSpammyUsers(beam.PTransform):
                 score > global_mean * self.SCORE_WEIGHT,
             global_mean_score))
     return filtered
+# [END abuse_detect]
 
 
 class UserSessionActivity(beam.DoFn):
@@ -325,16 +327,11 @@ def run(argv=None):
         | 'CreateSpammersView' >> beam.CombineGlobally(
             beam.combiners.ToDictCombineFn()).as_singleton_view())
 
+    # [START filter_and_calc]
     # Calculate the total score per team over fixed windows, and emit cumulative
     # updates for late data. Uses the side input derived above --the set of
     # suspected robots-- to filter out scores from those users from the sum.
     # Write the results to BigQuery.
-    teams_schema = {
-        'team': 'STRING',
-        'total_score': 'INTEGER',
-        'window_start': 'STRING',
-        'processing_time': 'STRING',
-    }
     (raw_events  # pylint: disable=expression-not-assigned
      | 'WindowIntoFixedWindows' >> beam.WindowInto(
          beam.window.FixedWindows(fixed_window_duration))
@@ -345,17 +342,21 @@ def run(argv=None):
          spammers_view)
      # Extract and sum teamname/score pairs from the event data.
      | 'ExtractAndSumScore' >> ExtractAndSumScore('team')
+     # [END filter_and_calc]
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
      | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name + '_teams', args.dataset, teams_schema))
+         args.table_name + '_teams', args.dataset, {
+             'team': 'STRING',
+             'total_score': 'INTEGER',
+             'window_start': 'STRING',
+             'processing_time': 'STRING',
+         }))
 
+    # [START session_calc]
     # Detect user sessions-- that is, a burst of activity separated by a gap
     # from further activity. Find and record the mean session lengths.
     # This information could help the game designers track the changing user
     # engagement as their set of game changes.
-    sessions_schema = {
-        'mean_duration': 'FLOAT',
-    }
     (user_events  # pylint: disable=expression-not-assigned
      | 'WindowIntoSessions' >> beam.WindowInto(
          beam.window.Sessions(session_gap),
@@ -368,7 +369,9 @@ def run(argv=None):
 
      # Get the duration of the session
      | 'UserSessionActivity' >> beam.ParDo(UserSessionActivity())
+     # [END session_calc]
 
+     # [START rewindow]
      # Re-window to process groups of session sums according to when the
      # sessions complete
      | 'WindowToExtractSessionMean' >> beam.WindowInto(
@@ -379,7 +382,10 @@ def run(argv=None):
      | 'FormatAvgSessionLength' >> beam.Map(
          lambda elem: {'mean_duration': float(elem)})
      | 'WriteAvgSessionLength' >> WriteToBigQuery(
-         args.table_name + '_sessions', args.dataset, sessions_schema))
+         args.table_name + '_sessions', args.dataset, {
+             'mean_duration': 'FLOAT',
+         }))
+     # [END rewindow]
 
 
 if __name__ == '__main__':
