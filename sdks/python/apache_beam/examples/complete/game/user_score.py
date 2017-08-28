@@ -93,6 +93,7 @@ class ParseGameEventFn(beam.DoFn):
       logging.error('Parse error on "%s"', elem)
 
 
+# [START extract_and_sum_score]
 class ExtractAndSumScore(beam.PTransform):
   """A transform to extract key/score information and sum the scores.
   The constructor argument `field` determines whether 'team' or 'user' info is
@@ -106,6 +107,7 @@ class ExtractAndSumScore(beam.PTransform):
     return (pcoll
             | beam.Map(lambda elem: (elem[self.field], elem['score']))
             | beam.CombinePerKey(sum))
+# [END extract_and_sum_score]
 
 
 class UserScore(beam.PTransform):
@@ -117,6 +119,7 @@ class UserScore(beam.PTransform):
         | 'ExtractAndSumScore' >> ExtractAndSumScore('user'))
 
 
+# [START main]
 def run(argv=None):
   """Main entry point; defines and runs the user_score pipeline."""
   parser = argparse.ArgumentParser()
@@ -141,6 +144,7 @@ def run(argv=None):
      | 'FormatUserScoreSums' >> beam.Map(
          lambda (user, score): 'user: %s, total_score: %s' % (user, score))
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
+# [END main]
 
 
 if __name__ == '__main__':
