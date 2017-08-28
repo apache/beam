@@ -68,7 +68,9 @@ class AdaptiveThrottler(object):
     all_requests = self._all_requests.sum(now)
     successful_requests = self._successful_requests.sum(now)
     return max(
-        0, old_div((all_requests - self._overload_ratio * successful_requests), (all_requests + AdaptiveThrottler.MIN_REQUESTS)))
+        0,
+        old_div((all_requests - self._overload_ratio * successful_requests),
+                (all_requests + AdaptiveThrottler.MIN_REQUESTS)))
 
   def throttle_request(self, now):
     """Determines whether one RPC attempt should be throttled.

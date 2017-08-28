@@ -132,7 +132,7 @@ class StandardCodersTest(unittest.TestCase):
 
       def quote(s):
         return json.dumps(s.decode('latin1')).replace(r'\u0000', r'\0')
-      for (doc_ix, expected_encoded), actual_encoded in list(cls.to_fix.items()):
+      for (doc_ix, expected_encoded), actual_encoded in cls.to_fix.items():
         print(quote(expected_encoded), "->", quote(actual_encoded))
         docs[doc_ix] = docs[doc_ix].replace(
             quote(expected_encoded) + ':', quote(actual_encoded) + ':')

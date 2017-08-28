@@ -20,7 +20,6 @@
 """Worker operations executor."""
 
 import collections
-import itertools
 import logging
 from builtins import object
 
@@ -271,8 +270,8 @@ class DoOperation(Operation):
       # while the variable has the value assigned by the current iteration of
       # the for loop.
       # pylint: disable=cell-var-from-loop
-      for si in filter(
-          lambda o: o.tag == side_tag, self.spec.side_inputs):
+      filtered_tags = filter(lambda o: o.tag == side_tag, self.spec.side_inputs)
+      for si in filtered_tags:
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)

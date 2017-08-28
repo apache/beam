@@ -809,7 +809,9 @@ class MergeableStateAdapter(SimpleState):
     if not self.window_ids:
       self.counter = 0
     elif self.counter is None:
-      self.counter = max(k for ids in list(self.window_ids.values()) for k in ids)
+      self.counter = max(k
+                         for ids in list(self.window_ids.values())
+                         for k in ids)
     self.counter += 1
     return self.counter
 

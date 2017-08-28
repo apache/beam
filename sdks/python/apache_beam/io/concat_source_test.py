@@ -119,7 +119,8 @@ class ConcatSourceTest(unittest.TestCase):
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(9), True)
 
     self.assertEqual(range_tracker.try_split((2, 8)), None)
-    self.assertEqual(range_tracker.try_split((2, 11)), ((2, 11), old_div(11., 12)))
+    self.assertEqual(range_tracker.try_split((2, 11)),
+                     ((2, 11), old_div(11., 12)))
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(10), True)
     self.assertEqual(range_tracker.sub_range_tracker(2).try_claim(11), False)
 
@@ -132,10 +133,10 @@ class ConcatSourceTest(unittest.TestCase):
 
   def test_position_at_fration(self):
     ranges = [(0, 4), (4, 16), (16, 24), (24, 32)]
-    source = ConcatSource([iobase.SourceBundle(old_div((range[1] - range[0]), 32.),
-                                               RangeSource(*range),
-                                               None, None)
-                           for range in ranges])
+    source = ConcatSource([
+        iobase.SourceBundle(old_div((range[1] - range[0]), 32.),
+                            RangeSource(*range), None, None)
+        for range in ranges])
 
     range_tracker = source.get_range_tracker()
     self.assertEquals(range_tracker.position_at_fraction(0), (0, 0))
@@ -177,8 +178,10 @@ class ConcatSourceTest(unittest.TestCase):
     read_all = source_test_utils.read_from_source
 
     range10 = RangeSource(0, 10)
-    self.assertEquals(read_all(ConcatSource([range10])), list(range(10)))
-    self.assertEquals(read_all(ConcatSource([range10]), (0, 5)), list(range(5, 10)))
+    self.assertEquals(read_all(ConcatSource([range10])),
+                      list(range(10)))
+    self.assertEquals(read_all(ConcatSource([range10]), (0, 5)),
+                      list(range(5, 10)))
     self.assertEquals(read_all(ConcatSource([range10]), None, (0, 5)),
                       list(range(5)))
 

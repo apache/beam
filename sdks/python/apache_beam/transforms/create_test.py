@@ -103,7 +103,7 @@ class CreateTest(unittest.TestCase):
 
   def test_create_source_progress(self):
     num_values = 10
-    source = Create._create_source_from_iterable(list(range(num_values)), self.coder)
+    source = Create._create_source_from_iterable(range(num_values), self.coder)
     splits = [split for split in source.split(desired_bundle_size=100)]
     assert len(splits) == 1
     fraction_consumed_report = []

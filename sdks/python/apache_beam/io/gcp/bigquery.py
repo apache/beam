@@ -191,7 +191,7 @@ class TableRowJsonCoder(coders.Coder):
       return json.dumps(
           collections.OrderedDict(
               list(zip(self.field_names,
-                  [from_json_value(f.v) for f in table_row.f]))),
+                       [from_json_value(f.v) for f in table_row.f]))),
           allow_nan=False)
     except ValueError as e:
       raise ValueError('%s. %s' % (e, JSON_COMPLIANCE_ERROR))

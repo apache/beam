@@ -486,8 +486,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
       # Everything that was originally a stage or a replacement, but wasn't
       # replaced, should be in the final graph.
-      final_stages = frozenset(stages).union(list(replacements.values())).difference(
-          list(replacements.keys()))
+      final_stages = frozenset(stages).union(
+          list(replacements.values())).difference(
+              list(replacements.keys()))
 
       for stage in final_stages:
         # Update all references to their final values before throwing
@@ -534,7 +535,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     # Initial set of stages are singleton transforms.
     stages = [
         Stage(name, [transform])
-        for name, transform in list(pipeline_proto.components.transforms.items())
+        for name, transform in pipeline_proto.components.transforms.items()
         if not transform.subtransforms]
 
     # Apply each phase in order.
@@ -821,7 +822,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         transforms=transform_protos,
         pcollections=pcollection_protos,
         coders=dict(list(context_proto.coders.items())),
-        windowing_strategies=dict(list(context_proto.windowing_strategies.items())),
+        windowing_strategies=dict(context_proto.windowing_strategies.items()),
         environments=dict(list(context_proto.environments.items())))
     return input_data, side_input_data, runner_sinks, process_bundle_descriptor
 

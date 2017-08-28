@@ -21,7 +21,6 @@ from __future__ import division
 
 import bz2
 import gzip
-import io
 import os
 import sys
 import tempfile
@@ -36,9 +35,9 @@ from apache_beam.io.filesystem import CompressedFile, CompressionTypes
 standard_library.install_aliases()
 
 if sys.version_info[0] >= 3:
-    from io import StringIO
+  from io import StringIO
 else:
-    from StringIO import StringIO
+  from StringIO import StringIO
 
 
 class TestCompressedFile(unittest.TestCase):

@@ -237,7 +237,7 @@ class DistributionResult(object):
     """
     if self.data.count == 0:
       return None
-    return old_div(float(self.data.sum),self.data.count)
+    return old_div(float(self.data.sum), self.data.count)
 
 
 class DistributionData(object):

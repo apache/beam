@@ -83,7 +83,7 @@ class _PValueishTransform(object):
     return tuple(self.visit(x, *args) for x in node)
 
   def visit_dict(self, node, *args):
-    return {key: self.visit(value, *args) for (key, value) in list(node.items())}
+    return {key: self.visit(value, *args) for (key, value) in node.items()}
 
 
 class _SetInputPValues(_PValueishTransform):

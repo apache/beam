@@ -20,22 +20,20 @@ This library evolved from the Google App Engine GCS client available at
 https://github.com/GoogleCloudPlatform/appengine-gcs-client.
 """
 
-import cStringIO
 import errno
 import fnmatch
-import io
 import logging
 import multiprocessing
 import os
 import queue
 import re
-import six
 import threading
 import time
 import traceback
 from builtins import object
 
 import httplib2
+import six
 from future import standard_library
 
 from apache_beam.utils import retry
@@ -477,10 +475,10 @@ class GcsBufferedReader(object):
   def __iter__(self):
     return self
 
-  def __next__(self):
+  def next(self):
     """Read one line delimited by '\\n' from the file.
     """
-    return next(self)
+    return self.__next__()
 
   def __next__(self):
     """Read one line delimited by '\\n' from the file.
@@ -646,8 +644,7 @@ class GcsBufferedReader(object):
     value = download_stream.getvalue()
     # Clear the IO object after we've read its contents.
     download_stream.truncate(0)
-    assert(len(value) == size,
-           "Value was of size {0} expected {1}".format(len(value), size))
+    assert len(value) == size
     return value
 
   def __enter__(self):

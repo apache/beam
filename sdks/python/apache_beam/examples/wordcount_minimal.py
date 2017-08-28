@@ -104,7 +104,9 @@ def run(argv=None):
         | 'GroupAndSum' >> beam.CombinePerKey(sum))
 
     # Format the counts into a PCollection of strings.
-    output = counts | 'Format' >> beam.Map(lambda w_c: '%s: %s' % (w_c[0], w_c[1]))
+    def format_result(w_c):
+      return '%s: %s' % (w_c[0], w_c[1])
+    output = counts | 'Format' >> beam.Map(format_result)
 
     # Write the output using a "Write" transform that has side effects.
     # pylint: disable=expression-not-assigned

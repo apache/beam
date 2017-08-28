@@ -191,7 +191,7 @@ def with_exponential_backoff(
                 raise exn
               else:
                 exn.msg = 'Error during {0} caused by {1}'.format(
-                  repr(inner), repr(exn))
+                    repr(inner), repr(exn))
                 raise exn # pylint: disable=raising-bad-type
 
             logger(

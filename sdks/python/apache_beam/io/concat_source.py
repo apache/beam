@@ -252,7 +252,8 @@ class ConcatRangeTracker(iobase.RangeTracker):
       # this source into a value in [0.0, 1.0) representing how far we are
       # towards the next source.
       return (source_ix,
-              old_div((frac - cw[source_ix]), (cw[source_ix + 1] - cw[source_ix])))
+              old_div((frac - cw[source_ix]),
+                      (cw[source_ix + 1] - cw[source_ix])))
 
   def sub_range_tracker(self, source_ix):
     assert self._start[0] <= source_ix <= self._end[0]

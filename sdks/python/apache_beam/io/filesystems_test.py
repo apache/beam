@@ -159,7 +159,8 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.copy([path1], [path2])
     self.assertTrue(
         error.exception.message.startswith('Copy operation failed'))
-    self.assertEqual(list(error.exception.exception_details.keys()), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_copy_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')
@@ -192,7 +193,8 @@ class FileSystemsTest(unittest.TestCase):
       FileSystems.rename([path1], [path2])
     self.assertTrue(
         error.exception.message.startswith('Rename operation failed'))
-    self.assertEqual(list(error.exception.exception_details.keys()), [(path1, path2)])
+    self.assertEqual(list(error.exception.exception_details.keys()),
+                     [(path1, path2)])
 
   def test_rename_directory(self):
     path_t1 = os.path.join(self.tmpdir, 't1')

@@ -345,7 +345,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 class BytesCoderImpl(CoderImpl):
   """For internal use only; no backwards-compatibility guarantees.
 
-  A coder for bytes/str objects. In Python3 this will return bytes not strings."""
+  A coder for bytes/str objects. In Python3 this will return bytes not strs."""
 
   def encode_to_stream(self, value, out, nested):
     out.write(value, nested)
@@ -354,8 +354,7 @@ class BytesCoderImpl(CoderImpl):
     return in_stream.read_all(nested)
 
   def encode(self, value):
-    assert(isinstance(value, bytes) or isinstance(value, str),
-           (value, type(value)))
+    assert isinstance(value, (bytes, str))
     if isinstance(value, bytes):
       return value
     elif isinstance(value, str):
@@ -394,7 +393,8 @@ class IntervalWindowCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, out, nested):
     span_micros = value.end.micros - value.start.micros
-    out.write_bigendian_uint64(self._from_normal_time(old_div(value.end.micros, 1000)))
+    out.write_bigendian_uint64(self._from_normal_time(
+        old_div(value.end.micros, 1000)))
     out.write_var_int64(old_div(span_micros, 1000))
 
   def decode_from_stream(self, in_, nested):

@@ -19,7 +19,6 @@
 """
 import time
 import uuid
-from concurrent import futures
 
 from concurrent import futures
 import grpc

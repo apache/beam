@@ -338,14 +338,11 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
-  if sys.version_info[0] >= 3:
-    is_not_type_constraint = (
-      not isinstance(type_param, (type, TypeConstraint))
-      and type_param is not None)
-  else:
-    is_not_type_constraint = (
-      not isinstance(type_param, (type, types.ClassType, TypeConstraint))
-      and type_param is not None)
+  possible_classes = [type, TypeConstraint]
+  if sys.version_info[0] == 2:
+    possible_classes.append(types.ClassType)
+  is_not_type_constraint = (not isinstance(type_param, tuple(possible_classes))
+                            and type_param is not None)
   is_forbidden_type = (isinstance(type_param, type) and
                        type_param in DISALLOWED_PRIMITIVE_TYPES)
 
@@ -995,7 +992,8 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)):
+class WindowedTypeConstraint(
+    with_metaclass(GetitemConstructor, TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -1013,7 +1011,7 @@ class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint))
 
   def __str__(self):
     return "WindowedTypeConstraint {0} of type {1}".format(
-      self.__hash__(), self.inner_type)
+        self.__hash__(), self.inner_type)
 
   def __hash__(self):
     return hash(self.inner_type) ^ 13 * hash(type(self))

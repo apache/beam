@@ -100,10 +100,12 @@ class TfIdf(beam.PTransform):
     # Adjust the above collection to a mapping from (URI, word) pairs to counts
     # into an isomorphic mapping from URI to (word, count) pairs, to prepare
     # for a join by the URI key.
+    def shift_keys(uri_word_count):
+      return (uri_word_count[0][0], (uri_word_count[0][1], uri_word_count[1]))
+
     uri_to_word_and_count = (
         uri_and_word_to_count
-        | 'ShiftKeys' >> beam.Map(
-            lambda uri_word_count: (uri_word_count[0][0], (uri_word_count[0][1], uri_word_count[1]))))
+        | 'ShiftKeys' >> beam.Map(shift_keys))
 
     # Perform a CoGroupByKey (a sort of pre-join) on the prepared
     # uri_to_word_total and uri_to_word_and_count tagged by 'word totals' and

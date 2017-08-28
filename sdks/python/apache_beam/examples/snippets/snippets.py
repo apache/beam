@@ -536,14 +536,19 @@ def examples_wordcount_templated(renames):
   lines = p | 'Read' >> ReadFromText(wordcount_options.input)
   # [END example_wordcount_templated]
 
+  def sum_word_counts(word_ones):
+    return (word_ones[0], sum(word_ones[1]))
+
+  def format_result(word_c2):
+    return '%s: %s' % (word_c2[0], word_c2[1])
   (
       lines
       | 'ExtractWords' >> beam.FlatMap(
           lambda x: re.findall(r'[A-Za-z\']+', x))
       | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
       | 'Group' >> beam.GroupByKey()
-      | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-      | 'Format' >> beam.Map(lambda word_c2: '%s: %s' % (word_c2[0], word_c2[1]))
+      | 'Sum' >> beam.Map(sum_word_counts)
+      | 'Format' >> beam.Map(format_result)
       | 'Write' >> WriteToText(wordcount_options.output)
   )
 
@@ -612,8 +617,11 @@ def examples_wordcount_debugging(renames):
             [('Flourish', 3), ('stomach', 1)]))
     # [END example_wordcount_debugging_assert]
 
+    def format_result(word_c1):
+      return '%s: %s' % (word_c1[0], word_c1[1])
+
     output = (filtered_words
-              | 'format' >> beam.Map(lambda word_c1: '%s: %s' % (word_c1[0], word_c1[1]))
+              | 'format' >> beam.Map(format_result)
               | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
     p.visit(SnippetUtils.RenameFiles(renames))
@@ -1133,8 +1141,11 @@ def model_group_by_key(contents, output_path):
     # [START model_group_by_key_transform]
     grouped_words = words_and_counts | beam.GroupByKey()
     # [END model_group_by_key_transform]
+    def sum_word_counts(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
+
     (grouped_words
-     | 'count words' >> beam.Map(lambda word_counts: (word_counts[0], sum(word_counts[1])))
+     | 'count words' >> beam.Map(sum_word_counts)
      | beam.io.WriteToText(output_path))
 
 

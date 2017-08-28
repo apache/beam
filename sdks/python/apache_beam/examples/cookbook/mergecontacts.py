@@ -101,12 +101,21 @@ def run(argv=None, assert_results=None):
              '"%s"' % next(iter(name_email_phone_snailmail[1][2]), '')]))
 
     # Compute some stats about our database of people.
+    def without_email(name_email_phone_snailmail1):
+      return not next(iter(name_email_phone_snailmail1[1][0]), None)
+
+    def without_phones(name_email_phone_snailmail2):
+      return not next(iter(name_email_phone_snailmail2[1][1]), None)
+
+    def without_address(name_e_p_snailmail):
+      return not next(iter(name_e_p_snailmail[1][2]), None)
+
     luddites = grouped | beam.Filter(  # People without email.
-        lambda name_email_phone_snailmail1: not next(iter(name_email_phone_snailmail1[1][0]), None))
+        without_email)
     writers = grouped | beam.Filter(   # People without phones.
-        lambda name_email_phone_snailmail2: not next(iter(name_email_phone_snailmail2[1][1]), None))
+        without_phones)
     nomads = grouped | beam.Filter(    # People without addresses.
-        lambda name_e_p_snailmail: not next(iter(name_e_p_snailmail[1][2]), None))
+        without_address)
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()

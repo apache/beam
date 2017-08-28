@@ -135,7 +135,8 @@ class CombineTest(unittest.TestCase):
       final_accumulator = combine_fn.merge_accumulators(accumulators)
       self.assertEqual(combine_fn.extract_output(final_accumulator), expected)
 
-    test_combine_fn(combine.TopCombineFn(3), [list(range(10)), list(range(10))], [9, 9, 8])
+    test_combine_fn(combine.TopCombineFn(3),
+                    [list(range(10)), list(range(10))], [9, 9, 8])
     test_combine_fn(combine.TopCombineFn(5),
                     [list(range(1000)), list(range(100)), list(range(1001))],
                     [1000, 999, 999, 998, 998])

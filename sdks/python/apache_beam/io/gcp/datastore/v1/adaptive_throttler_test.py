@@ -76,7 +76,8 @@ class AdaptiveThrottlerTest(unittest.TestCase):
 
   @patch('random.Random')
   def test_throttling_after_errors(self, mock_random):
-    mock_random().uniform.side_effect = [old_div(x,10.0) for x in range(0, 10)]*2
+    mock_random().uniform.side_effect = [old_div(x, 10.0)
+                                         for x in range(0, 10)]*2
     self._throttler = AdaptiveThrottler(
         AdaptiveThrottlerTest.SAMPLE_PERIOD, AdaptiveThrottlerTest.BUCKET,
         AdaptiveThrottlerTest.OVERLOAD_RATIO)

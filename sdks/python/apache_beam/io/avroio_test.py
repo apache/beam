@@ -21,10 +21,10 @@ import os
 import tempfile
 import unittest
 from builtins import range
+import hamcrest as hc
 
 import avro.datafile
 import avro.schema
-import hamcrest as hc
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 

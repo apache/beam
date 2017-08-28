@@ -33,7 +33,7 @@ from apache_beam.internal.gcp import auth
 from apache_beam.utils import retry
 
 # Protect against environments where datastore library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
   from google.cloud.proto.datastore.v1 import datastore_pb2
   from google.cloud.proto.datastore.v1 import entity_pb2
@@ -45,7 +45,7 @@ try:
   from googledatastore.connection import RPCError
 except ImportError:
   pass
-# pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
 def key_comparator(k1, k2):

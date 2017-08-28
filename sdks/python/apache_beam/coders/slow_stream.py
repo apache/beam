@@ -37,8 +37,7 @@ class OutputStream(object):
     self.data = []
 
   def write(self, b, nested=False):
-    assert((isinstance(b, bytes) or isinstance(b, basestring)),
-           (b, type(b)))
+    assert isinstance(b, (bytes, basestring))
     if nested:
       self.write_var_int64(len(b))
     if isinstance(b, bytes):
@@ -133,10 +132,7 @@ class InputStream(object):
   def read_byte(self):
     self.pos += 1
     elem = self.data[self.pos - 1:self.pos]
-    try:
-      return ord(elem)
-    except Exception as e:
-      raise Exception("failed to ninja "+str(elem))
+    return ord(elem)
 
   def read_var_int64(self):
     shift = 0

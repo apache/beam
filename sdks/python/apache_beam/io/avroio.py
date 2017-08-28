@@ -41,6 +41,7 @@ Additionally, this module provides a write ``PTransform`` ``WriteToAvro``
 that can be used to write a given ``PCollection`` of Python objects to an
 Avro file.
 """
+from __future__ import print_function
 
 import io
 import os
@@ -48,9 +49,15 @@ import zlib
 from builtins import object
 from functools import partial
 
-import avro
-from avro import io as avroio
-from avro import schema
+try:
+  import avro
+  from avro import datafile
+  from avro import io as avroio
+  from avro import schema
+except ImportError as e:
+  print("There as an error importing avro. Verify avro-python3 is installed")
+  raise e
+
 from future import standard_library
 
 import apache_beam as beam
@@ -60,12 +67,6 @@ from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform
 
 standard_library.install_aliases()
-
-try:
-  from avro import datafile
-except ImportError as e:
-  print("There as an error importing avro. Verify avro-python3 is installed")
-  raise e
 
 
 __all__ = ['ReadFromAvro', 'ReadAllFromAvro', 'WriteToAvro']

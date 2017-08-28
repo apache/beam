@@ -360,15 +360,17 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self.assertEqual(computed_key, key, str(locals()))
 
   def test_key_to_fraction_no_endpoints(self):
-    self._check(key='\x07', fraction=old_div(7,256.))
-    self._check(key='\xFF', fraction=old_div(255,256.))
-    self._check(key='\x01\x02\x03', fraction=old_div((2**16 + 2**9 + 3), (2.0**24)))
+    self._check(key='\x07', fraction=old_div(7, 256.))
+    self._check(key='\xFF', fraction=old_div(255, 256.))
+    self._check(key='\x01\x02\x03',
+                fraction=old_div((2**16 + 2**9 + 3), (2.0**24)))
 
   def test_key_to_fraction(self):
-    self._check(key='\x87', start='\x80', fraction=old_div(7,128.))
-    self._check(key='\x07', end='\x10', fraction=old_div(7,16.))
-    self._check(key='\x47', start='\x40', end='\x80', fraction=old_div(7,64.))
-    self._check(key='\x47\x80', start='\x40', end='\x80', fraction=old_div(15,128.))
+    self._check(key='\x87', start='\x80', fraction=old_div(7, 128.))
+    self._check(key='\x07', end='\x10', fraction=old_div(7, 16.))
+    self._check(key='\x47', start='\x40', end='\x80', fraction=old_div(7, 64.))
+    self._check(key='\x47\x80', start='\x40', end='\x80',
+                fraction=old_div(15, 128.))
 
   def test_key_to_fraction_common_prefix(self):
     self._check(
@@ -399,7 +401,7 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
     self._check(fraction=.5**100, key='\0' * 12 + '\x10')
 
   def test_lots(self):
-    for fraction in (0, 1, .5, .75, old_div(7.,512), 1 - old_div(7.,4096)):
+    for fraction in (0, 1, .5, .75, old_div(7., 512), 1 - old_div(7., 4096)):
       self._check(fraction)
       self._check(fraction, start='\x01')
       self._check(fraction, end='\xF0')
@@ -409,7 +411,8 @@ class LexicographicKeyRangeTrackerTest(unittest.TestCase):
       self._check(fraction, start='a' * 100 + '\x80', end='a' * 100 + '\x81')
       self._check(fraction, start='a' * 101 + '\x80', end='a' * 101 + '\x81')
       self._check(fraction, start='a' * 102 + '\x80', end='a' * 102 + '\x81')
-    for fraction in (.3, old_div(1,3.), old_div(1,math.e), .001, 1e-30, .99, .999999):
+    for fraction in (
+        .3, old_div(1, 3.), old_div(1, math.e), .001, 1e-30, .99, .999999):
       self._check(fraction, delta=1e-14)
       self._check(fraction, start='\x01', delta=1e-14)
       self._check(fraction, end='\xF0', delta=1e-14)

@@ -53,9 +53,9 @@ from apache_beam.utils import retry
 standard_library.install_aliases()
 
 if sys.version_info[0] >= 3:
-    from io import StringIO
+  from io import StringIO
 else:
-    from StringIO import StringIO
+  from StringIO import StringIO
 
 
 # Environment version information. It is passed to the service during a
@@ -474,11 +474,11 @@ class DataflowApplicationClient(object):
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     if sys.version_info[0] >= 3:
-        logging.debug('JOB: %s', job)
+      logging.debug('JOB: %s', job)
     else:
-        # Dumping to JSON after 2/3 can cause problems, skip for now.
-        logging.debug("JOB pkgs {0} opts {1} env version {2}"
-                      .format(resources, job.options, self.environment_version))
+      # Dumping to JSON after 2/3 can cause problems, skip for now.
+      logging.debug("JOB pkgs %s opts %s env version %s",
+                    resources, job.options, self.environment_version)
 
   @retry.with_exponential_backoff(num_retries=3, initial_delay_secs=3)
   def get_job_metrics(self, job_id):

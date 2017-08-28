@@ -58,6 +58,8 @@ def run(argv=None):
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
+    def sum_word_counts(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
     transformed = (lines
                    # Use a pre-defined function that imports the re package.
                    | 'Split' >> (
@@ -65,7 +67,7 @@ def run(argv=None):
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(15, 0))
                    | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+                   | 'Count' >> beam.Map(sum_word_counts)
                    | 'Format' >> beam.Map(lambda tup: '%s: %d' % tup))
 
     # Write to PubSub.

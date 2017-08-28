@@ -299,7 +299,7 @@ class ReadFromDatastore(PTransform):
       logging.info('Estimated size bytes for query: %s', estimated_size_bytes)
       num_splits = int(min(ReadFromDatastore._NUM_QUERY_SPLITS_MAX, round(
           (old_div(float(estimated_size_bytes),
-           ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)))))
+                   ReadFromDatastore._DEFAULT_BUNDLE_SIZE_BYTES)))))
 
     except Exception as e:
       logging.warning('Failed to fetch estimated size bytes: %s', e)
@@ -359,10 +359,13 @@ class _Mutate(PTransform):
       if not self._commit_time_per_entity_ms.has_data(now):
         return _Mutate._WRITE_BATCH_INITIAL_SIZE
 
-      recent_mean_latency_ms = (old_div(self._commit_time_per_entity_ms.sum(now), self._commit_time_per_entity_ms.count(now)))
+      recent_mean_latency_ms = (
+          old_div(self._commit_time_per_entity_ms.sum(now),
+                  self._commit_time_per_entity_ms.count(now)))
       return max(_Mutate._WRITE_BATCH_MIN_SIZE,
                  min(_Mutate._WRITE_BATCH_MAX_SIZE,
-                     old_div(_Mutate._WRITE_BATCH_TARGET_LATENCY_MS, max(recent_mean_latency_ms, 1))
+                     old_div(_Mutate._WRITE_BATCH_TARGET_LATENCY_MS,
+                             max(recent_mean_latency_ms, 1))
                     ))
 
     def report_latency(self, now, latency_ms, num_mutations):
@@ -373,7 +376,8 @@ class _Mutate(PTransform):
         latency_ms: double, the observed latency in milliseconds for this RPC.
         num_mutations: int, number of mutations contained in the RPC.
       """
-      self._commit_time_per_entity_ms.add(now, old_div(latency_ms, num_mutations))
+      self._commit_time_per_entity_ms.add(now,
+                                          old_div(latency_ms, num_mutations))
 
   class DatastoreWriteFn(DoFn):
     """A ``DoFn`` that write mutations to Datastore.
@@ -440,7 +444,7 @@ class _Mutate(PTransform):
       _, latency_ms = helper.write_mutations(
           self._datastore, self._project, self._mutations,
           self._throttler, self._update_rpc_stats,
-          throttle_delay=old_div(_Mutate._WRITE_BATCH_TARGET_LATENCY_MS,1000))
+          throttle_delay=old_div(_Mutate._WRITE_BATCH_TARGET_LATENCY_MS, 1000))
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 

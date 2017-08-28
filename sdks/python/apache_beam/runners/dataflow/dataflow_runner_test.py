@@ -31,8 +31,8 @@ from apache_beam.pipeline import AppliedPTransform, Pipeline
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import (DataflowRunner, PipelineState,
                                  TestDataflowRunner, create_runner)
-from apache_beam.runners.dataflow.dataflow_runner import (DataflowPipelineResult,
-                                                          DataflowRuntimeException)
+from apache_beam.runners.dataflow.dataflow_runner import (
+    DataflowPipelineResult, DataflowRuntimeException)
 from apache_beam.runners.dataflow.internal.clients import \
     dataflow as dataflow_api
 from apache_beam.testing.test_pipeline import TestPipeline

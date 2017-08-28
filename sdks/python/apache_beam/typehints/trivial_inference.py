@@ -22,12 +22,12 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import, division, print_function
 
 import builtins
+from builtins import object, zip
 import collections
 import dis
 import pprint
 import sys
 import types
-from builtins import object, zip
 from functools import reduce
 
 from future import standard_library
@@ -382,18 +382,18 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     elif (opname == 'BINARY_SUBSCR'
           and isinstance(state.stack[1], Const)
           and isinstance(state.stack[0], typehints.IndexableTypeConstraint)):
-      if (debug):
+      if debug:
         print("Executing special case binary subscript")
       idx = state.stack.pop()
       src = state.stack.pop()
       try:
         state.stack.append(src._constraint_for_index(idx.value))
       except Exception as e:
-        if (debug):
-          print("Exception {0} during special case indexing")
+        if debug:
+          print("Exception {0} during special case indexing".format(e))
         state.stack.append(Any)
     elif opname in simple_ops:
-      if (debug):
+      if debug:
         print("Executing simple op " + opname)
       simple_ops[opname](state, arg)
     elif opname == 'RETURN_VALUE':

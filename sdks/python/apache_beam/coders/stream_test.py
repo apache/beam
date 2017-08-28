@@ -92,7 +92,7 @@ class StreamTest(unittest.TestCase):
     self.run_read_write_var_int64([0, 2**63 - 1, -2**63, 2**63 - 3])
 
   def test_read_write_double(self):
-    values = 0, 1, -1, 1e100, old_div(1.0,3), math.pi, float('inf')
+    values = 0, 1, -1, 1e100, old_div(1.0, 3), math.pi, float('inf')
     out_s = self.OutputStream()
     for v in values:
       out_s.write_bigendian_double(v)

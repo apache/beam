@@ -178,7 +178,8 @@ class DatastoreioTest(unittest.TestCase):
       entities = [e.entity for e in
                   fake_datastore.create_entities(num_entities)]
 
-      expected_mutations = list(map(WriteToDatastore.to_upsert_mutation, entities))
+      expected_mutations = list(
+          map(WriteToDatastore.to_upsert_mutation, entities))
       actual_mutations = []
 
       self._mock_datastore.commit.side_effect = (

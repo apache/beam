@@ -104,7 +104,9 @@ class OperationCounters(object):
 
   def _compute_next_sample(self, i):
     # https://en.wikipedia.org/wiki/Reservoir_sampling#Fast_Approximation
-    gap = old_div(math.log(1.0 - random.random()), math.log(1.0 - old_div(10.0,i)))
+    gap = old_div(
+        math.log(1.0 - random.random()),
+        math.log(1.0 - old_div(10.0, i)))
     return i + math.floor(gap)
 
   def _should_sample(self):

@@ -73,17 +73,11 @@ import sys
 import time
 from datetime import datetime
 
-from past.utils import old_div
-
 import apache_beam as beam
-from apache_beam import typehints
-from apache_beam.io import ReadFromText
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import (GoogleCloudOptions,
                                                   PipelineOptions,
                                                   SetupOptions)
-from apache_beam.transforms.window import FixedWindows, TimestampedValue
-from apache_beam.typehints import with_input_types, with_output_types
 
 
 def str2timestamp(s, fmt='%Y-%m-%d-%H-%M'):

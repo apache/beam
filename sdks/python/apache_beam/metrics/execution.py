@@ -30,7 +30,7 @@ Available classes:
     unit-of-commit (bundle).
 """
 import threading
-from builtins import filter, object
+from builtins import object
 from collections import defaultdict
 
 from apache_beam.metrics.cells import CounterCell, DistributionCell

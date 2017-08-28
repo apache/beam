@@ -689,7 +689,8 @@ class ParDo(PTransformWithSideInputs):
     """
     main_tag = main_kw.pop('main', None)
     if main_kw:
-      raise ValueError('Unexpected keyword arguments: %s' % list(main_kw.keys()))
+      raise ValueError(
+          'Unexpected keyword arguments: %s' % list(main_kw.keys()))
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
@@ -1628,7 +1629,8 @@ class Create(PTransform):
           if stop_position is None:
             stop_position = len(self._serialized_values)
 
-          avg_size_per_value = old_div(self._total_size, len(self._serialized_values))
+          avg_size_per_value = old_div(self._total_size,
+                                       len(self._serialized_values))
           num_values_per_split = max(
               int(old_div(desired_bundle_size, avg_size_per_value)), 1)
 

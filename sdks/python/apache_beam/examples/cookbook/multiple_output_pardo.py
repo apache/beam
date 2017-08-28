@@ -117,11 +117,17 @@ class CountWords(beam.PTransform):
   """
 
   def expand(self, pcoll):
+    def sum_word_counts(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
+
+    def format_result(word_c):
+      return '%s: %s' % (word_c[0], word_c[1])
+
     return (pcoll
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-            | 'format' >> beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1])))
+            | 'count' >> beam.Map(sum_word_counts)
+            | 'format' >> beam.Map(format_result))
 
 
 def run(argv=None):
