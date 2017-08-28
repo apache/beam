@@ -449,6 +449,7 @@ class MergeAccumulators(beam.PTransform):
       return beam.pvalue.PCollection(input.pipeline)
     else:
       merge_accumulators = self.combine_fn.merge_accumulators
+
       def combine_local(k_vs):
         return (k_vs[0], merge_accumulators(k_vs[1]))
 

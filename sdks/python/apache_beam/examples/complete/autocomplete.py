@@ -43,6 +43,7 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
+
   def format_result(prefix_candidates):
     return '%s: %s' % (prefix_candidates[0], prefix_candidates[1])
 

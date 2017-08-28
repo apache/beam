@@ -77,6 +77,7 @@ if sys.version_info[0] >= 3:
 
 __all__ = ['Pipeline']
 
+
 class Pipeline(object):
   """A pipeline object that manages a DAG of
   :class:`~apache_beam.pvalue.PValue` s and their

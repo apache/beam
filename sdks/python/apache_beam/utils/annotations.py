@@ -109,6 +109,7 @@ deprecated = partial(annotate, label='deprecated',
 experimental = partial(annotate, label='experimental',
                        current=None, since=None, extra_message=None)
 
+
 def ignore_unicode_prefix(f):
   """
   Ignore the 'u' prefix of string in doc tests, to make it works

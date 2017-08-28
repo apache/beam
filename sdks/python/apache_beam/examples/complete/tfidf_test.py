@@ -53,6 +53,7 @@ class TfIdfTest(unittest.TestCase):
           [('1.txt', 'abc def ghi'),
            ('2.txt', 'abc def'),
            ('3.txt', 'abc')])
+
       def re_key(word_uri_tfidf):
         return (word_uri_tfidf[0], word_uri_tfidf[1][0], word_uri_tfidf[1][1])
 

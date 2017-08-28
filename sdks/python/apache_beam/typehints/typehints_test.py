@@ -98,6 +98,7 @@ class TypeHintTestCase(unittest.TestCase):
         is_consistent_with(sub, base),
         '%s is consistent with %s' % (sub, base))
 
+
 class AnyTypeConstraintTestCase(TypeHintTestCase):
 
   def test_any_compatibility(self):

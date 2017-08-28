@@ -1141,6 +1141,7 @@ def model_group_by_key(contents, output_path):
     # [START model_group_by_key_transform]
     grouped_words = words_and_counts | beam.GroupByKey()
     # [END model_group_by_key_transform]
+
     def sum_word_counts(word_ones):
       return (word_ones[0], sum(word_ones[1]))
 
