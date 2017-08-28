@@ -707,6 +707,16 @@ class TupleCoder(FastCoder):
   def __hash__(self):
     return hash(self._coders)
 
+  def to_runner_api_parameter(self, context):
+    if self.is_kv_coder():
+      return urns.KV_CODER, None, self.coders()
+    else:
+      return super(TupleCoder, self).to_runner_api_parameter(context)
+
+  @Coder.register_urn(urns.KV_CODER, None)
+  def from_runner_api_parameter(unused_payload, components, unused_context):
+    return TupleCoder(components)
+
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
