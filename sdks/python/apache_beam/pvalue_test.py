@@ -19,6 +19,7 @@
 
 import unittest
 
+from apache_beam.pvalue import AsSingleton
 from apache_beam.pvalue import PValue
 from apache_beam.testing.test_pipeline import TestPipeline
 
@@ -29,6 +30,13 @@ class PValueTest(unittest.TestCase):
     pipeline = TestPipeline()
     value = PValue(pipeline)
     self.assertEqual(pipeline, value.pipeline)
+
+  def test_assingleton_multi_element(self):
+    with self.assertRaisesRegexp(
+        ValueError,
+        'PCollection of size 2 with more than one element accessed as a '
+        'singleton view. First two elements encountered are \"1\", \"2\".'):
+      AsSingleton._from_runtime_iterable([1, 2], {})
 
 
 if __name__ == '__main__':
