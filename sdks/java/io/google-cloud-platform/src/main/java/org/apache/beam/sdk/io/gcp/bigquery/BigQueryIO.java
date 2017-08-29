@@ -451,8 +451,7 @@ public class BigQueryIO {
 
     private BigQuerySourceBase createSource(String jobUuid) {
       BigQuerySourceBase source;
-      if (getQuery() == null
-          || (getQuery().isAccessible() && Strings.isNullOrEmpty(getQuery().get()))) {
+      if (getQuery() == null) {
         source = BigQueryTableSource.create(jobUuid, getTableProvider(), getBigQueryServices());
       } else {
         source =
@@ -517,26 +516,30 @@ public class BigQueryIO {
       // Note that a table or query check can fail if the table or dataset are created by
       // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
       // For these cases the withoutValidation method can be used to disable the check.
-      if (getValidate() && table != null && table.isAccessible()
-          && table.get().getProjectId() != null) {
-        checkState(table.isAccessible(), "Cannot call validate if table is dynamically set.");
-        // Check for source table presence for early failure notification.
-        DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
-        BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
-        BigQueryHelpers.verifyTablePresence(datasetService, table.get());
-      } else if (getValidate() && getQuery() != null) {
-        checkState(getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
-        JobService jobService = getBigQueryServices().getJobService(bqOptions);
-        try {
-          jobService.dryRunQuery(
-              bqOptions.getProject(),
-              new JobConfigurationQuery()
-                  .setQuery(getQuery().get())
-                  .setFlattenResults(getFlattenResults())
-                  .setUseLegacySql(getUseLegacySql()));
-        } catch (Exception e) {
-          throw new IllegalArgumentException(
-              String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+      if (getValidate()) {
+        if (table != null) {
+          checkState(table.isAccessible(), "Cannot call validate if table is dynamically set.");
+        }
+        if (table != null && table.get().getProjectId() != null) {
+          // Check for source table presence for early failure notification.
+          DatasetService datasetService = getBigQueryServices().getDatasetService(bqOptions);
+          BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
+          BigQueryHelpers.verifyTablePresence(datasetService, table.get());
+        } else if (getQuery() != null) {
+          checkState(
+              getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
+          JobService jobService = getBigQueryServices().getJobService(bqOptions);
+          try {
+            jobService.dryRunQuery(
+                bqOptions.getProject(),
+                new JobConfigurationQuery()
+                    .setQuery(getQuery().get())
+                    .setFlattenResults(getFlattenResults())
+                    .setUseLegacySql(getUseLegacySql()));
+          } catch (Exception e) {
+            throw new IllegalArgumentException(
+                String.format(QUERY_VALIDATION_FAILURE_ERROR, getQuery().get()), e);
+          }
         }
       }
     }

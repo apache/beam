@@ -211,10 +211,6 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // This implementation of method getEstimatedSizeBytes is provided to simplify subclasses. Here
     // we perform the size estimation of files and file patterns using the interface provided by
     // FileSystem.
-    checkState(
-        fileOrPatternSpec.isAccessible(),
-        "Cannot estimate size of a FileBasedSource with inaccessible file pattern: {}.",
-        fileOrPatternSpec);
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
@@ -240,10 +236,9 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public void populateDisplayData(DisplayData.Builder builder) {
     super.populateDisplayData(builder);
     if (mode == Mode.FILEPATTERN) {
-      String patternDisplay = getFileOrPatternSpecProvider().isAccessible()
-          ? getFileOrPatternSpecProvider().get()
-          : getFileOrPatternSpecProvider().toString();
-      builder.add(DisplayData.item("filePattern", patternDisplay).withLabel("File Pattern"));
+      builder.add(
+          DisplayData.item("filePattern", getFileOrPatternSpecProvider())
+              .withLabel("File Pattern"));
     }
   }
 
@@ -254,10 +249,6 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
     // split a FileBasedSource based on a file pattern to FileBasedSources based on full single
     // files. For files that can be efficiently seeked, we further split FileBasedSources based on
     // those files to FileBasedSources based on sub ranges of single files.
-    checkState(
-        fileOrPatternSpec.isAccessible(),
-        "Cannot split a FileBasedSource without access to the file or pattern specification: {}.",
-        fileOrPatternSpec);
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
@@ -326,10 +317,6 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
   public final BoundedReader<T> createReader(PipelineOptions options) throws IOException {
     // Validate the current source prior to creating a reader for it.
     this.validate();
-    checkState(
-        fileOrPatternSpec.isAccessible(),
-        "Cannot create a file reader without access to the file or pattern specification: {}.",
-        fileOrPatternSpec);
     String fileOrPattern = fileOrPatternSpec.get();
 
     if (mode == Mode.FILEPATTERN) {
@@ -358,13 +345,11 @@ public abstract class FileBasedSource<T> extends OffsetBasedSource<T> {
 
   @Override
   public String toString() {
-    String fileString = fileOrPatternSpec.isAccessible()
-        ? fileOrPatternSpec.get() : fileOrPatternSpec.toString();
     switch (mode) {
       case FILEPATTERN:
-        return fileString;
+        return fileOrPatternSpec.toString();
       case SINGLE_FILE_OR_SUBRANGE:
-        return fileString + " range " + super.toString();
+        return fileOrPatternSpec + " range " + super.toString();
       default:
         throw new IllegalStateException("Unexpected mode: " + mode);
     }

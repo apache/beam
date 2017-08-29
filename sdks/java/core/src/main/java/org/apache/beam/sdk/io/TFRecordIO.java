@@ -195,15 +195,12 @@ public class TFRecordIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
-      String filepatternDisplay = getFilepattern().isAccessible()
-          ? getFilepattern().get() : getFilepattern().toString();
       builder
           .add(DisplayData.item("compressionType", getCompressionType().toString())
               .withLabel("Compression Type"))
           .addIfNotDefault(DisplayData.item("validation", getValidate())
               .withLabel("Validation Enabled"), true)
-          .addIfNotNull(DisplayData.item("filePattern", filepatternDisplay)
+          .addIfNotNull(DisplayData.item("filePattern", getFilepattern())
               .withLabel("File Pattern"));
     }
   }
@@ -360,16 +357,8 @@ public class TFRecordIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
-      String outputPrefixString = null;
-      if (getOutputPrefix().isAccessible()) {
-        ResourceId dir = getOutputPrefix().get();
-        outputPrefixString = dir.toString();
-      } else {
-        outputPrefixString = getOutputPrefix().toString();
-      }
       builder
-          .add(DisplayData.item("filePrefix", outputPrefixString)
+          .add(DisplayData.item("filePrefix", getOutputPrefix())
               .withLabel("Output File Prefix"))
           .addIfNotNull(DisplayData.item("fileSuffix", getFilenameSuffix())
               .withLabel("Output File Suffix"))

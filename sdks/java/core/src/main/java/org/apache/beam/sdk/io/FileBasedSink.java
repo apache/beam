@@ -747,12 +747,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     @Override
     public String toString() {
-      String tempDirectoryStr =
-          tempDirectory.isAccessible() ? tempDirectory.get().toString() : tempDirectory.toString();
       return getClass().getSimpleName()
           + "{"
           + "tempDirectory="
-          + tempDirectoryStr
+          + tempDirectory
           + ", windowedWrites="
           + windowedWrites
           + '}';

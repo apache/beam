@@ -88,7 +88,7 @@ public class ValueProviderTest {
     ValueProvider<String> provider = StaticValueProvider.of("foo");
     assertEquals("foo", provider.get());
     assertTrue(provider.isAccessible());
-    assertEquals("StaticValueProvider{value=foo}", provider.toString());
+    assertEquals("foo", provider.toString());
   }
 
   @Test
@@ -97,8 +97,9 @@ public class ValueProviderTest {
     ValueProvider<String> provider = options.getFoo();
     assertFalse(provider.isAccessible());
 
-    expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Not called from a runtime context");
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Value only available at runtime");
+    expectedException.expectMessage("foo");
     provider.get();
   }
 
@@ -108,7 +109,7 @@ public class ValueProviderTest {
     ValueProvider<String> provider = options.getFoo();
     assertEquals("foo", ((RuntimeValueProvider) provider).propertyName());
     assertEquals(
-        "RuntimeValueProvider{propertyName=foo, default=null, value=null}",
+        "RuntimeValueProvider{propertyName=foo, default=null}",
         provider.toString());
   }
 
@@ -239,9 +240,7 @@ public class ValueProviderTest {
       });
     assertTrue(nvp.isAccessible());
     assertEquals("foobar", nvp.get());
-    assertEquals(
-        "NestedValueProvider{value=StaticValueProvider{value=foo}}",
-        nvp.toString());
+    assertEquals("foobar", nvp.toString());
   }
 
   @Test
@@ -266,7 +265,7 @@ public class ValueProviderTest {
     assertEquals("bar", ((NestedValueProvider) doubleNvp).propertyName());
     assertFalse(nvp.isAccessible());
     expectedException.expect(RuntimeException.class);
-    expectedException.expectMessage("Not called from a runtime context");
+    expectedException.expectMessage("Value only available at runtime");
     nvp.get();
   }
 
