@@ -949,7 +949,9 @@ class DataflowPipelineResult(PipelineResult):
       while thread.isAlive():
         time.sleep(5.0)
 
-      terminated = self._is_in_terminal_state()
+      # TODO: Merge the termination code in poll_for_job_completion and
+      # _is_in_terminal_state.
+      terminated = (str(self._job.currentState) != 'JOB_STATE_RUNNING')
       assert duration or terminated, (
           'Job did not reach to a terminal state after waiting indefinitely.')
 
