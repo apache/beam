@@ -73,7 +73,7 @@ public class CreateTables<DestinationT>
   }
 
   CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-    return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations);
+    return new CreateTables<>(createDisposition, bqServices, dynamicDestinations);
   }
 
   @Override
@@ -124,11 +124,14 @@ public class CreateTables<DestinationT>
         DatasetService datasetService = bqServices.getDatasetService(options);
         if (!createdTables.contains(tableSpec)) {
           if (datasetService.getTable(tableReference) == null) {
-            datasetService.createTable(
-                new Table()
-                    .setTableReference(tableReference)
-                    .setSchema(tableSchema)
-                    .setDescription(tableDescription));
+            Table table = new Table()
+                .setTableReference(tableReference)
+                .setSchema(tableSchema)
+                .setDescription(tableDescription);
+            if (tableDestination.getTimePartitioning() != null) {
+              table.setTimePartitioning(tableDestination.getTimePartitioning());
+            }
+            datasetService.createTable(table);
           }
           createdTables.add(tableSpec);
         }
