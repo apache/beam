@@ -107,8 +107,8 @@ class MetricsReporter {
 
   private String getMetricNameString(String prefix, MetricResult<?> metricResult) {
     return prefix
-        + METRIC_KEY_SEPARATOR + metricResult.step()
-        + METRIC_KEY_SEPARATOR + metricResult.name().namespace()
-        + METRIC_KEY_SEPARATOR + metricResult.name().name();
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.step()
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.name().namespace()
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.name().name();
   }
 }
