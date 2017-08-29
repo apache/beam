@@ -45,7 +45,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.
 

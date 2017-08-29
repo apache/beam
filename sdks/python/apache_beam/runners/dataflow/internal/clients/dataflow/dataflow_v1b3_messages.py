@@ -3067,7 +3067,6 @@ class ResourceUtilizationReportResponse(_messages.Message):
   """
 
 
-
 class RuntimeEnvironment(_messages.Message):
   """The environment values to set at runtime.
 

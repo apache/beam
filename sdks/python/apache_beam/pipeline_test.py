@@ -40,7 +40,6 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 # from nose.plugins.attrib import attr
 
 
-
 class FakeSource(NativeSource):
   """Fake source returning a fixed list of values."""
 
