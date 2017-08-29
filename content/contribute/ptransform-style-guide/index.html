@@ -73,12 +73,12 @@
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">SDKs</li>
             <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.0.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
                                                                                                                                                width="14" height="14"
                                                                                                                                                           alt="External link."></a>
             </li>
             <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.0.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
                                                                                                                                                width="14" height="14"
                                                                                                                                                           alt="External link."></a>
             </li>
@@ -409,7 +409,7 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 
 <p>Do:</p>
 <ul>
-  <li>Test non-trivial validation code: where missing/incorrect/uninformative validation may lead to serious problems: data loss, counter-intuitive behavior, value of a property being silently ignored, or other hard-to-debug errors. Create 1 test per non-trivial class of validation error. Some examples of validation that should be tested:
+  <li>Test non-trivial validation code, where missing/incorrect/uninformative validation may lead to serious problems: data loss, counter-intuitive behavior, value of a property being silently ignored, or other hard-to-debug errors. Create 1 test per non-trivial class of validation error. Some examples of validation that should be tested:
     <ul>
       <li>If properties <code class="highlighter-rouge">withFoo()</code> and <code class="highlighter-rouge">withBar()</code> cannot both be specified at the same time, test that a transform specifying both of them is rejected, rather than one of the properties being silently ignored at runtime.</li>
       <li>If the transform is known to behave incorrectly or counter-intuitively for a particular configuration, test that this configuration is rejected, rather than producing wrong results at runtime. For example, a transform might work properly only for bounded collections, or only for globally-windowed collections. Or, suppose a streaming system supports several levels of “quality of service”, one of which is “exactly once delivery”. However, a transform that writes to this system might be unable to provide exactly-once due to retries in case of failures. In that case, test that the transform disallows specifying exactly-once QoS, rather than failing to provide the expected end-to-end semantics at runtime.</li>
@@ -430,8 +430,8 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 
 <ul>
   <li>Generally, follow the rules of <a href="http://semver.org/">semantic versioning</a>.</li>
-  <li>If the API of the transform is not yet stable, annotate it as <code class="highlighter-rouge">@Experimental</code> (Java) or <code class="highlighter-rouge">@experimental</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
-  <li>If the API deprecated, annotate it as <code class="highlighter-rouge">@Deprecated</code> (Java) or <code class="highlighter-rouge">@deprecated</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
+  <li>If the API of the transform is not yet stable, annotate it as <code class="highlighter-rouge">@Experimental</code> (Java) or <code class="highlighter-rouge">@experimental</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.1.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
+  <li>If the API deprecated, annotate it as <code class="highlighter-rouge">@Deprecated</code> (Java) or <code class="highlighter-rouge">@deprecated</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.1.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
   <li>Pay attention to the stability and versioning of third-party classes exposed by the transform’s API: if they are unstable or improperly versioned (do not obey <a href="http://semver.org/">semantic versioning</a>), it is better to wrap them in your own classes.</li>
 </ul>
 
