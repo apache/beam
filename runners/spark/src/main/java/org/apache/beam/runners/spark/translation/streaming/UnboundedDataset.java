@@ -60,20 +60,19 @@ public class UnboundedDataset<T> implements Dataset {
     return streamSources;
   }
 
+  @Override
   @SuppressWarnings("unchecked")
-  public void cache(Coder<?> coder) {
+  public void cache(String storageLevel, Coder<?> coder) {
+    // we "force" MEMORY storage level in streaming
+    LOG.warn("Provided StorageLevel ignored for stream, using default level");
+
     // Caching can cause Serialization, we need to code to bytes
+    // more details in https://issues.apache.org/jira/browse/BEAM-2669
     Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
     JavaDStream<byte[]> bytesDStream = dStream.map(CoderHelpers.toByteFunction(wc));
     bytesDStream.cache();
     this.dStream = bytesDStream.map(CoderHelpers.fromByteFunction(wc));
-  }
 
-  @Override
-  public void cache(String storageLevel, Coder<?> coder) {
-    // we "force" MEMORY storage level in streaming
-    LOG.warn("Provided StorageLevel ignored for stream, using default level");
-    cache(coder);
   }
 
   @Override

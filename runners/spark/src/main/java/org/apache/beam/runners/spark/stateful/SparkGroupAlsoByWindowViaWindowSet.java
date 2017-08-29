@@ -21,6 +21,10 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -478,8 +482,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   }
 
   private static class OutputWindowedValueHolder<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>> {
-    private List<byte[]> windowedByteValues = new ArrayList<>();
+      implements OutputWindowedValue<KV<K, Iterable<V>>>, Serializable {
+    private transient List<WindowedValue<KV<K, Iterable<V>>>> windowedValues = new ArrayList<>();
     private final Coder<WindowedValue<KV<K, Iterable<V>>>> wvKvIterCoder;
 
     private OutputWindowedValueHolder(Coder<WindowedValue<KV<K, Iterable<V>>>> wvKvIterCoder) {
@@ -492,17 +496,15 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      windowedByteValues.add(
-          CoderHelpers.toByteArray(
-              WindowedValue.of(output, timestamp, windows, pane), wvKvIterCoder));
+      windowedValues.add(WindowedValue.of(output, timestamp, windows, pane));
     }
 
     private List<WindowedValue<KV<K, Iterable<V>>>> get() {
-      return Lists.newArrayList(CoderHelpers.fromByteArrays(windowedByteValues, wvKvIterCoder));
+      return windowedValues;
     }
 
     private void clear() {
-      windowedByteValues.clear();
+      windowedValues.clear();
     }
 
     @Override
@@ -515,5 +517,19 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       throw new UnsupportedOperationException(
           "Tagged outputs are not allowed in GroupAlsoByWindow.");
     }
+
+    private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+      is.defaultReadObject();
+      List<byte[]> bytesList = (List<byte[]>) is.readObject();
+      windowedValues = Lists.newArrayList(CoderHelpers.fromByteArrays(bytesList, wvKvIterCoder));
+    }
+
+    private void writeObject(ObjectOutputStream aOutputStream) throws IOException {
+      //perform the default serialization for all non-transient, non-static fields
+      aOutputStream.defaultWriteObject();
+      List<byte[]> bytesList = CoderHelpers.toByteArrays(windowedValues, wvKvIterCoder);
+      aOutputStream.writeObject(bytesList);
+    }
+
   }
 }
