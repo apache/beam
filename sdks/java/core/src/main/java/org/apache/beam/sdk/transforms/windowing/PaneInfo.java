@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.Serializable;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -42,7 +41,7 @@ import org.apache.beam.sdk.util.VarInt;
  *
  * <p>Note: This does not uniquely identify a pane, and should not be used for comparisons.
  */
-public final class PaneInfo implements Serializable {
+public final class PaneInfo {
   /**
    * Enumerates the possibilities for the timing of this pane firing related to the
    * input and output watermarks for its computation.
