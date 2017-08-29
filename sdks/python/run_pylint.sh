@@ -64,5 +64,8 @@ echo "Running pycodestyle for module $MODULE:"
 pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
 echo "Running isort for module $MODULE:"
 pushd $MODULE
-isort -p apache_beam -w 79 -y -c
+# Skip two files where isort is behaving weirdly
+isort -p apache_beam -w 79 -y -c -ot -cs --skip avroio_test.py \
+      --skip dataflow_runner_test.py --skip iobase_test.py \
+      --skip helper_test.py --skip helper.py --skip custom_ptransform.py
 popd
