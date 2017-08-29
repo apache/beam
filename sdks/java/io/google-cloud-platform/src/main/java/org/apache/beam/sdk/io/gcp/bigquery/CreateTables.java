@@ -73,7 +73,7 @@ public class CreateTables<DestinationT>
   }
 
   CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-    return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations);
+    return new CreateTables<>(createDisposition, bqServices, dynamicDestinations);
   }
 
   @Override

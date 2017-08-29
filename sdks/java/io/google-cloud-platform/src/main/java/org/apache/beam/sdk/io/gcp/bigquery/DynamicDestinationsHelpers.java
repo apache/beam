@@ -108,7 +108,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoder.of();
+      return TableDestinationCoderV2.of();
     }
   }
 
@@ -181,6 +181,11 @@ class DynamicDestinationsHelpers {
       TableDestination destination = super.getDestination(element);
       return new TableDestination(destination.getTableSpec(), destination.getTableDescription(),
           jsonTimePartitioning.get());
+    }
+
+    @Override
+    public Coder<TableDestination> getDestinationCoder() {
+      return TableDestinationCoderV2.of();
     }
   }
 
