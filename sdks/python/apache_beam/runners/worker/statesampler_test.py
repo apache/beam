@@ -70,15 +70,14 @@ class StateSamplerTest(unittest.TestCase):
 
     # Verify that active transition counters are 0 at the end of execution.
     expected_active_counter_values = {
-      'basic-statea-active-msecs': 0,
-      'basic-stateb-active-msecs': 0,
-      'basic-statec-active-msecs': 0,
+        'basic-statea-active-msecs': 0,
+        'basic-stateb-active-msecs': 0,
+        'basic-statec-active-msecs': 0,
     }
 
     for name, expected_value in expected_active_counter_values.items():
       actual_value = next(c for c in counters if c.name == name).value()
       self.assertEqual(actual_value, expected_value)
-
 
   def test_sampler_transition_overhead(self):
     # Set up state sampler.
