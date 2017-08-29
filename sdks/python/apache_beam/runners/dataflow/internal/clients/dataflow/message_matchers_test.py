@@ -15,11 +15,13 @@
 # limitations under the License.
 #
 import unittest
-import hamcrest as hc
-import apache_beam.runners.dataflow.internal.clients.dataflow as dataflow
 
+import hamcrest as hc
+
+import apache_beam.runners.dataflow.internal.clients.dataflow as dataflow
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.runners.dataflow.internal.clients.dataflow import message_matchers
+from apache_beam.runners.dataflow.internal.clients.dataflow import \
+    message_matchers
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

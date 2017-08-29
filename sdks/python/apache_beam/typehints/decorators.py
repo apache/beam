@@ -86,13 +86,11 @@ defined, or before importing a module containing type-hinted functions.
 import inspect
 import types
 
-from apache_beam.typehints import native_type_compatibility
-from apache_beam.typehints import typehints
-from apache_beam.typehints.typehints import check_constraint
-from apache_beam.typehints.typehints import CompositeTypeHintError
-from apache_beam.typehints.typehints import SimpleTypeHintError
-from apache_beam.typehints.typehints import validate_composite_type_param
-
+from apache_beam.typehints import native_type_compatibility, typehints
+from apache_beam.typehints.typehints import (CompositeTypeHintError,
+                                             SimpleTypeHintError,
+                                             check_constraint,
+                                             validate_composite_type_param)
 
 __all__ = [
     'with_input_types',

@@ -29,10 +29,8 @@ For internal use only; no backwards-compatibility guarantees.
 from types import NoneType
 
 from apache_beam.coders import observable
-from apache_beam.utils.timestamp import Timestamp
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import MAX_TIMESTAMP, MIN_TIMESTAMP, Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:

@@ -39,10 +39,9 @@ Available classes:
 from __future__ import absolute_import
 
 import calendar
-from datetime import datetime, timedelta
 import inspect
 import json
-
+from datetime import datetime, timedelta
 
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 

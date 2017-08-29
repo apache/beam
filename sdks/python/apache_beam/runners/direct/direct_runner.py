@@ -31,19 +31,14 @@ from google.protobuf import wrappers_pb2
 import apache_beam as beam
 from apache_beam import typehints
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import DirectOptions, StandardOptions
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.runner import PipelineRunner
-from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.runner import PValueCache
+from apache_beam.runners.runner import (PipelineResult, PipelineRunner,
+                                        PipelineState, PValueCache)
+from apache_beam.transforms.core import _GroupAlsoByWindow, _GroupByKeyOnly
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.transforms.core import _GroupAlsoByWindow
-from apache_beam.transforms.core import _GroupByKeyOnly
-from apache_beam.options.pipeline_options import DirectOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.value_provider import RuntimeValueProvider
-
 
 __all__ = ['DirectRunner']
 

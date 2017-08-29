@@ -17,9 +17,7 @@
 
 """Implementation of DataChannels for communicating across the data plane."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 import abc
 import collections
@@ -27,9 +25,10 @@ import logging
 import Queue as queue
 import threading
 
+import grpc
+
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
-import grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
 

@@ -19,6 +19,8 @@
 
 import unittest
 
+from apache_beam.utils import retry
+
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 # TODO(sourabhbajaj): Remove the GCP specific error code to a submodule
@@ -29,7 +31,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-from apache_beam.utils import retry
 
 
 class FakeClock(object):

@@ -17,13 +17,11 @@
 
 """Unit tests for the type-hint objects and decorators."""
 import inspect
+import typing
 import unittest
 
-import typing
-
 import apache_beam as beam
-from apache_beam import pvalue
-from apache_beam import typehints
+from apache_beam import pvalue, typehints
 from apache_beam.options.pipeline_options import OptionsContext
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to

@@ -44,12 +44,12 @@ For example usages, see the unit tests of modules such as
  * apache_beam.io.avroio_test.py
 """
 
-from collections import namedtuple
 import logging
 import threading
 import weakref
-
+from collections import namedtuple
 from multiprocessing.pool import ThreadPool
+
 from apache_beam.io import iobase
 
 __all__ = ['read_from_source', 'assert_sources_equal_reference_source',

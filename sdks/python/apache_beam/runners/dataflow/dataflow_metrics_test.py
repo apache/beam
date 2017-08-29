@@ -23,10 +23,8 @@ import unittest
 
 import mock
 
-from apache_beam.metrics.cells import DistributionData
-from apache_beam.metrics.cells import DistributionResult
-from apache_beam.metrics.execution import MetricKey
-from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.cells import DistributionData, DistributionResult
+from apache_beam.metrics.execution import MetricKey, MetricResult
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.runners.dataflow import dataflow_metrics
 

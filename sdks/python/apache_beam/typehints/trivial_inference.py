@@ -26,8 +26,7 @@ import pprint
 import sys
 import types
 
-from apache_beam.typehints import Any
-from apache_beam.typehints import typehints
+from apache_beam.typehints import Any, typehints
 
 
 class TypeInferenceError(ValueError):

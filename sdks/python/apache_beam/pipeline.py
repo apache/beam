@@ -55,20 +55,16 @@ import tempfile
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
+from apache_beam.options.pipeline_options import (PipelineOptions, SetupOptions,
+                                                  StandardOptions, TypeOptions)
+from apache_beam.options.pipeline_options_validator import \
+    PipelineOptionsValidator
 from apache_beam.pvalue import PCollection
-from apache_beam.runners import create_runner
-from apache_beam.runners import PipelineRunner
+from apache_beam.runners import PipelineRunner, create_runner
 from apache_beam.transforms import ptransform
-from apache_beam.typehints import typehints
-from apache_beam.typehints import TypeCheckError
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TypeOptions
-from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
-from apache_beam.utils.annotations import deprecated
+from apache_beam.typehints import TypeCheckError, typehints
 from apache_beam.utils import urns
-
+from apache_beam.utils.annotations import deprecated
 
 __all__ = ['Pipeline']
 

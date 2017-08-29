@@ -62,3 +62,7 @@ echo "Running pylint for module $MODULE:"
 pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
 pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
+echo "Running isort for module $MODULE:"
+pushd $MODULE
+isort -w 80 -y -c
+popd

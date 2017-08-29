@@ -23,11 +23,9 @@ import logging
 import os
 import urllib2
 
-from oauth2client.client import GoogleCredentials
-from oauth2client.client import OAuth2Credentials
+from oauth2client.client import GoogleCredentials, OAuth2Credentials
 
 from apache_beam.utils import retry
-
 
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False

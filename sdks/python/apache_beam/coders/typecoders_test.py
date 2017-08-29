@@ -19,8 +19,7 @@
 
 import unittest
 
-from apache_beam.coders import coders
-from apache_beam.coders import typecoders
+from apache_beam.coders import coders, typecoders
 from apache_beam.internal import pickler
 from apache_beam.typehints import typehints
 

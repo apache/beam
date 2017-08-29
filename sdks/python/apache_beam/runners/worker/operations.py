@@ -26,20 +26,17 @@ import logging
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
-from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.metrics.execution import (MetricsContainer,
+                                           ScopedMetricsContainer)
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
-from apache_beam.runners.worker import opcounters
-from apache_beam.runners.worker import operation_specs
-from apache_beam.runners.worker import sideinputs
-from apache_beam.transforms import combiners
-from apache_beam.transforms import core
+from apache_beam.runners.worker import (logger, opcounters, operation_specs,
+                                        sideinputs)
 from apache_beam.transforms import sideinputs as apache_sideinputs
-from apache_beam.transforms.combiners import curry_combine_fn
-from apache_beam.transforms.combiners import PhasedCombineFnExecutor
+from apache_beam.transforms import combiners, core
+from apache_beam.transforms.combiners import (PhasedCombineFnExecutor,
+                                              curry_combine_fn)
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 

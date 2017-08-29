@@ -28,8 +28,8 @@ For internal use only; no backwards-compatibility guarantees.
 """
 import types
 
-from trivial_inference import union, element_type, Const, BoundMethod
 import typehints
+from trivial_inference import BoundMethod, Const, element_type, union
 from typehints import Any, Dict, Iterable, List, Tuple, Union
 
 

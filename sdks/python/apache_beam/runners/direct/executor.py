@@ -28,8 +28,8 @@ import threading
 import traceback
 from weakref import WeakValueDictionary
 
-from apache_beam.metrics.execution import MetricsContainer
-from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.metrics.execution import (MetricsContainer,
+                                           ScopedMetricsContainer)
 from apache_beam.options.pipeline_options import DirectOptions
 
 

@@ -18,9 +18,7 @@
 """Tests for apache_beam.typehints.trivial_inference."""
 import unittest
 
-
-from apache_beam.typehints import trivial_inference
-from apache_beam.typehints import typehints
+from apache_beam.typehints import trivial_inference, typehints
 
 global_int = 1
 

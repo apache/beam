@@ -21,36 +21,31 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
-from collections import defaultdict
 import logging
 import threading
 import time
 import traceback
 import urllib
+from collections import defaultdict
 
 import apache_beam as beam
-from apache_beam import error
-from apache_beam import coders
-from apache_beam import pvalue
+from apache_beam import coders, error, pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.options.pipeline_options import (SetupOptions, StandardOptions,
+                                                  TestOptions)
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
-from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
-from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.dataflow.internal.names import TransformNames
-from apache_beam.runners.runner import PValueCache
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.runner import PipelineRunner
-from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.dataflow.internal.clients import \
+    dataflow as dataflow_api
+from apache_beam.runners.dataflow.internal.names import (PropertyNames,
+                                                         TransformNames)
+from apache_beam.runners.runner import (PipelineResult, PipelineRunner,
+                                        PipelineState, PValueCache)
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.utils.plugin import BeamPlugin
-
 
 __all__ = ['DataflowRunner']
 

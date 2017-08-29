@@ -20,7 +20,6 @@
 import logging
 import unittest
 
-
 from apache_beam.coders import observable
 
 

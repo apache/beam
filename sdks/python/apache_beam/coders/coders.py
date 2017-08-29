@@ -22,12 +22,12 @@ Only those coders listed in __all__ are part of the public API of this module.
 
 import base64
 import cPickle as pickle
+
 import google.protobuf
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.utils import urns
-from apache_beam.utils import proto_utils
+from apache_beam.utils import proto_utils, urns
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:

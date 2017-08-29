@@ -23,7 +23,6 @@ import re
 import tempfile
 import unittest
 
-
 from apache_beam.examples.complete.juliaset.juliaset import juliaset
 from apache_beam.testing.util import open_shards
 

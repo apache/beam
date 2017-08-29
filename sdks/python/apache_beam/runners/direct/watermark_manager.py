@@ -21,12 +21,10 @@ from __future__ import absolute_import
 
 import threading
 
-from apache_beam import pipeline
-from apache_beam import pvalue
+from apache_beam import pipeline, pvalue
 from apache_beam.runners.direct.util import TimerFiring
-from apache_beam.utils.timestamp import MAX_TIMESTAMP
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-from apache_beam.utils.timestamp import TIME_GRANULARITY
+from apache_beam.utils.timestamp import (MAX_TIMESTAMP, MIN_TIMESTAMP,
+                                         TIME_GRANULARITY)
 
 
 class WatermarkManager(object):

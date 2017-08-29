@@ -19,10 +19,9 @@ import logging
 import unittest
 
 import apache_beam as beam
-from apache_beam.runners.portability import fn_api_runner
-from apache_beam.runners.portability import maptask_executor_runner_test
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.runners.portability import (fn_api_runner,
+                                             maptask_executor_runner_test)
+from apache_beam.testing.util import assert_that, equal_to
 
 
 class FnApiRunnerTest(

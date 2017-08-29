@@ -26,8 +26,7 @@ a cell's updates have been committed.
 
 import threading
 
-from apache_beam.metrics.metricbase import Counter
-from apache_beam.metrics.metricbase import Distribution
+from apache_beam.metrics.metricbase import Counter, Distribution
 
 __all__ = ['DistributionResult']
 

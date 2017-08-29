@@ -20,29 +20,24 @@ import cStringIO
 import gzip
 import logging
 import math
-import random
 import os
+import random
 import tempfile
 import unittest
 
 import hamcrest as hc
 
 import apache_beam as beam
-from apache_beam.io import filebasedsource
-from apache_beam.io import iobase
-from apache_beam.io import range_trackers
-from apache_beam.io.filesystem import CompressionTypes
-
+from apache_beam.io import filebasedsource, iobase, range_trackers
 # importing following private classes for testing
 from apache_beam.io.concat_source import ConcatSource
 from apache_beam.io.filebasedsource import _SingleFileSource as SingleFileSource
-
 from apache_beam.io.filebasedsource import FileBasedSource
-from apache_beam.options.value_provider import StaticValueProvider
-from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.options.value_provider import (RuntimeValueProvider,
+                                                StaticValueProvider)
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
+from apache_beam.testing.util import assert_that, equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 

@@ -27,19 +27,16 @@ import shutil
 import tempfile
 import unittest
 
+import crcmod
+
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.tfrecordio import _TFRecordSink
-from apache_beam.io.tfrecordio import _TFRecordSource
-from apache_beam.io.tfrecordio import _TFRecordUtil
-from apache_beam.io.tfrecordio import ReadFromTFRecord
-from apache_beam.io.tfrecordio import WriteToTFRecord
+from apache_beam.io.tfrecordio import (ReadFromTFRecord, WriteToTFRecord,
+                                       _TFRecordSink, _TFRecordSource,
+                                       _TFRecordUtil)
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that
-from apache_beam.testing.util import equal_to
-import crcmod
-
+from apache_beam.testing.util import assert_that, equal_to
 
 try:
   import tensorflow as tf  # pylint: disable=import-error

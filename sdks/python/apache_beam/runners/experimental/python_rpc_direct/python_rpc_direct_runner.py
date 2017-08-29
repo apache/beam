@@ -27,9 +27,7 @@ import grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.runners.job import utils as job_utils
 from apache_beam.runners.job.manager import DockerRPCManager
-from apache_beam.runners.runner import PipelineResult
-from apache_beam.runners.runner import PipelineRunner
-
+from apache_beam.runners.runner import PipelineResult, PipelineRunner
 
 __all__ = ['PythonRPCDirectRunner']
 

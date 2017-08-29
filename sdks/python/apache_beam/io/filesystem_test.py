@@ -20,8 +20,8 @@
 import bz2
 import gzip
 import os
-import unittest
 import tempfile
+import unittest
 from StringIO import StringIO
 
 from apache_beam.io.filesystem import CompressedFile, CompressionTypes

@@ -26,28 +26,27 @@ import logging
 import os
 import re
 import time
-from StringIO import StringIO
 from datetime import datetime
+from StringIO import StringIO
 
-from apitools.base.py import encoding
-from apitools.base.py import exceptions
+from apitools.base.py import encoding, exceptions
 
 from apache_beam.internal.gcp.auth import get_service_credentials
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.gcp.internal.clients import storage
+from apache_beam.options.pipeline_options import (DebugOptions,
+                                                  GoogleCloudOptions,
+                                                  StandardOptions,
+                                                  WorkerOptions)
 from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
-from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
+from apache_beam.runners.dataflow.internal.dependency import \
+    get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
-from apache_beam.options.pipeline_options import DebugOptions
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import WorkerOptions
-
 
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
