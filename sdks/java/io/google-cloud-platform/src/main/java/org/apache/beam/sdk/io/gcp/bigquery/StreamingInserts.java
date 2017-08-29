@@ -34,23 +34,26 @@ public class StreamingInserts<DestinationT>
   private final CreateDisposition createDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private InsertRetryPolicy retryPolicy;
-
+  private final String partition;
   /** Constructor. */
   public StreamingInserts(CreateDisposition createDisposition,
-                   DynamicDestinations<?, DestinationT> dynamicDestinations) {
+                   DynamicDestinations<?, DestinationT> dynamicDestinations,
+                   String partition) {
     this(createDisposition, dynamicDestinations, new BigQueryServicesImpl(),
-        InsertRetryPolicy.alwaysRetry());
+        InsertRetryPolicy.alwaysRetry(), partition);
   }
 
   /** Constructor. */
   private StreamingInserts(CreateDisposition createDisposition,
                           DynamicDestinations<?, DestinationT> dynamicDestinations,
                           BigQueryServices bigQueryServices,
-                          InsertRetryPolicy retryPolicy) {
+                          InsertRetryPolicy retryPolicy,
+                          String partition) {
     this.createDisposition = createDisposition;
     this.dynamicDestinations = dynamicDestinations;
     this.bigQueryServices = bigQueryServices;
     this.retryPolicy = retryPolicy;
+    this.partition = partition;
   }
 
   /**
@@ -58,19 +61,19 @@ public class StreamingInserts<DestinationT>
    */
   public StreamingInserts<DestinationT> withInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, partition);
   }
 
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
     return new StreamingInserts<>(
-        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
+        createDisposition, dynamicDestinations, bigQueryServices, retryPolicy, partition);  }
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {
     PCollection<KV<TableDestination, TableRow>> writes =
         input.apply(
             "CreateTables",
-            new CreateTables<>(createDisposition, dynamicDestinations)
+            new CreateTables<>(createDisposition, dynamicDestinations, partition)
                 .withTestServices(bigQueryServices));
 
     return writes.apply(
