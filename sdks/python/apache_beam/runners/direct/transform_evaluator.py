@@ -648,7 +648,9 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
           None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
 
     return TransformResult(
-        self._applied_ptransform, bundles, [], None, {None: hold})
+        self._applied_ptransform, bundles, [], None, {None: hold},
+        partial_keyed_state=self.step_context.partial_keyed_state,
+        keyed_existing_state=self.step_context.keyed_existing_state)
 
 
 class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
@@ -703,7 +705,6 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
 
     return TransformResult(
         self._applied_ptransform, bundles, [], None, None)
-
 
 class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
   """TransformEvaluator for the _StreamingGroupAlsoByWindow transform.

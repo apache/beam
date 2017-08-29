@@ -21,6 +21,7 @@ from __future__ import absolute_import
 
 import collections
 import threading
+import copy
 
 from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
@@ -241,6 +242,9 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
+      # Commit partial GBK states
+      for k, v in result.partial_keyed_state.iteritems():
+        result.keyed_existing_state[k] = v
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -316,16 +320,20 @@ class DirectUnmergedState(InMemoryUnmergedState):
   def __init__(self):
     super(DirectUnmergedState, self).__init__(defensive_copy=False)
 
+  def clone(self):
+    return copy.deepcopy(self)
+
 
 class DirectStepContext(object):
   """Context for the currently-executing step."""
 
   def __init__(self, keyed_existing_state):
     self.keyed_existing_state = keyed_existing_state
+    self.partial_keyed_state = {}
 
   def get_keyed_state(self, key):
-    # TODO(ccy): consider implementing transactional copy on write semantics
-    # for state so that work items can be safely retried.
     if not self.keyed_existing_state.get(key):
       self.keyed_existing_state[key] = DirectUnmergedState()
-    return self.keyed_existing_state[key]
+    if not self.partial_keyed_state.get(key):
+      self.partial_keyed_state[key] = self.keyed_existing_state[key].clone()
+    return self.partial_keyed_state[key]
