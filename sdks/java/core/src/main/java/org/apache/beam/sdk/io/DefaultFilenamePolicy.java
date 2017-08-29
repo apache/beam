@@ -368,26 +368,21 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
 
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
-    String filenamePattern;
-    if (params.baseFilename.isAccessible()) {
-      filenamePattern =
-          String.format("%s%s%s", params.baseFilename.get(), params.shardTemplate, params.suffix);
-    } else {
-      filenamePattern =
-          String.format("%s%s%s", params.baseFilename, params.shardTemplate, params.suffix);
-    }
-
-    String outputPrefixString = null;
-    outputPrefixString =
+    String displayBaseFilename =
         params.baseFilename.isAccessible()
             ? params.baseFilename.get().toString()
-            : params.baseFilename.toString();
-    builder.add(DisplayData.item("filenamePattern", filenamePattern).withLabel("Filename Pattern"));
-    builder.add(DisplayData.item("filePrefix", outputPrefixString).withLabel("Output File Prefix"));
-    builder.add(DisplayData.item("fileSuffix", params.suffix).withLabel("Output file Suffix"));
+            : ("(" + params.baseFilename + ")");
+    builder.add(
+        DisplayData.item(
+                "filenamePattern",
+                String.format("%s%s%s", displayBaseFilename, params.shardTemplate, params.suffix))
+            .withLabel("Filename pattern"));
+    builder.add(
+        DisplayData.item("filePrefix", params.baseFilename).withLabel("Output File Prefix"));
     builder.add(
         DisplayData.item("shardNameTemplate", params.shardTemplate)
             .withLabel("Output Shard Name Template"));
+    builder.add(DisplayData.item("fileSuffix", params.suffix).withLabel("Output file Suffix"));
   }
 
   private static String extractFilename(ResourceId input) {

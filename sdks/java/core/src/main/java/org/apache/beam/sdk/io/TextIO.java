@@ -399,15 +399,12 @@ public class TextIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
-      String filepatternDisplay = getFilepattern().isAccessible()
-        ? getFilepattern().get() : getFilepattern().toString();
       builder
           .add(
               DisplayData.item("compressionType", getCompressionType().toString())
                   .withLabel("Compression Type"))
           .addIfNotNull(
-              DisplayData.item("filePattern", filepatternDisplay).withLabel("File Pattern"))
+              DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"))
           .add(
               DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
                   .withLabel("Treatment of filepatterns that match no files"))
@@ -904,18 +901,11 @@ public class TextIO {
       super.populateDisplayData(builder);
 
       resolveDynamicDestinations().populateDisplayData(builder);
-      String tempDirectory = null;
-      if (getTempDirectory() != null) {
-        tempDirectory =
-            getTempDirectory().isAccessible()
-                ? getTempDirectory().get().toString()
-                : getTempDirectory().toString();
-      }
       builder
           .addIfNotDefault(
               DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
           .addIfNotNull(
-              DisplayData.item("tempDirectory", tempDirectory)
+              DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"))
           .addIfNotNull(DisplayData.item("fileHeader", getHeader()).withLabel("File Header"))
           .addIfNotNull(DisplayData.item("fileFooter", getFooter()).withLabel("File Footer"))

@@ -882,12 +882,12 @@ public class DisplayData implements Serializable {
         return item(key, Type.STRING, null);
       }
       Type type = inferType(got);
-      if (type == null) {
-        throw new RuntimeException(String.format("Unknown value type: %s", got));
+      if (type != null) {
+        return item(key, type, got);
       }
-      return item(key, type, got);
     }
-    return item(key, Type.STRING, value.toString());
+    // General case: not null and type not inferable. Fall back to toString of the VP itself.
+    return item(key, Type.STRING, String.valueOf(value));
   }
 
   /**

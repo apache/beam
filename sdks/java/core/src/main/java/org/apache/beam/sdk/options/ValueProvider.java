@@ -101,9 +101,7 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("value", value)
-          .toString();
+      return String.valueOf(value);
     }
   }
 
@@ -160,8 +158,12 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public String toString() {
+      if (isAccessible()) {
+        return String.valueOf(get());
+      }
       return MoreObjects.toStringHelper(this)
           .add("value", value)
+          .add("translator", translator.getClass().getSimpleName())
           .toString();
     }
   }
@@ -226,7 +228,8 @@ public interface ValueProvider<T> extends Serializable {
     public T get() {
       PipelineOptions options = optionsMap.get(optionsId);
       if (options == null) {
-        throw new RuntimeException("Not called from a runtime context.");
+        throw new IllegalStateException(
+            "Value only available at runtime, but accessed from a non-runtime context: " + this);
       }
       try {
         Method method = klass.getMethod(methodName);
@@ -249,8 +252,7 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public boolean isAccessible() {
-      PipelineOptions options = optionsMap.get(optionsId);
-      return options != null;
+      return optionsMap.get(optionsId) != null;
     }
 
     /**
@@ -262,10 +264,12 @@ public interface ValueProvider<T> extends Serializable {
 
     @Override
     public String toString() {
+      if (isAccessible()) {
+        return String.valueOf(get());
+      }
       return MoreObjects.toStringHelper(this)
           .add("propertyName", propertyName)
           .add("default", defaultValue)
-          .add("value", isAccessible() ? get() : null)
           .toString();
     }
   }

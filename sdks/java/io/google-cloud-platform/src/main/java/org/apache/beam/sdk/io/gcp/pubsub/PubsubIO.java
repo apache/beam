@@ -146,17 +146,11 @@ public class PubsubIO {
   private static void populateCommonDisplayData(DisplayData.Builder builder,
       String timestampAttribute, String idAttribute, ValueProvider<PubsubTopic> topic) {
     builder
-        .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute)
-            .withLabel("Timestamp Attribute"))
-        .addIfNotNull(DisplayData.item("idAttribute", idAttribute)
-            .withLabel("ID Attribute"));
-
-    if (topic != null) {
-      String topicString = topic.isAccessible() ? topic.get().asPath()
-          : topic.toString();
-      builder.add(DisplayData.item("topic", topicString)
-          .withLabel("Pubsub Topic"));
-    }
+        .addIfNotNull(
+            DisplayData.item("timestampAttribute", timestampAttribute)
+                .withLabel("Timestamp Attribute"))
+        .addIfNotNull(DisplayData.item("idAttribute", idAttribute).withLabel("ID Attribute"))
+        .addIfNotNull(DisplayData.item("topic", topic).withLabel("Pubsub Topic"));
   }
 
   /**
@@ -262,6 +256,11 @@ public class PubsubIO {
       } else {
         return subscription;
       }
+    }
+
+    @Override
+    public String toString() {
+      return asPath();
     }
   }
 
@@ -427,6 +426,11 @@ public class PubsubIO {
       } else {
         return topic;
       }
+    }
+
+    @Override
+    public String toString() {
+      return asPath();
     }
   }
 
@@ -734,13 +738,8 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-
-      if (getSubscriptionProvider() != null) {
-        String subscriptionString = getSubscriptionProvider().isAccessible()
-            ? getSubscriptionProvider().get().asPath() : getSubscriptionProvider().toString();
-        builder.add(DisplayData.item("subscription", subscriptionString)
-            .withLabel("Pubsub Subscription"));
-      }
+      builder.addIfNotNull(DisplayData.item("subscription", getSubscriptionProvider())
+          .withLabel("Pubsub Subscription"));
     }
   }
 
