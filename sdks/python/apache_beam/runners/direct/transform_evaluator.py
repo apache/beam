@@ -302,8 +302,7 @@ class _BoundedReadEvaluator(_TransformEvaluator):
       with self._source.reader() as reader:
         bundles = _read_values_to_bundles(reader)
 
-    return TransformResult(
-        self._applied_ptransform, bundles, [], None, None)
+    return TransformResult(self, bundles, [], None, None)
 
 
 class _TestStreamEvaluator(_TransformEvaluator):
@@ -356,9 +355,9 @@ class _TestStreamEvaluator(_TransformEvaluator):
           self.current_index + 1, timestamp=self.watermark))
       unprocessed_bundles.append(unprocessed_bundle)
       hold = self.watermark
+
     return TransformResult(
-        self._applied_ptransform, self.bundles, unprocessed_bundles, None,
-        {None: hold})
+        self, self.bundles, unprocessed_bundles, None, {None: hold})
 
 
 class _PubSubSubscriptionWrapper(object):
@@ -442,9 +441,9 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       input_pvalue = pvalue.PBegin(self._applied_ptransform.transform.pipeline)
     unprocessed_bundle = self._evaluation_context.create_bundle(
         input_pvalue)
-    return TransformResult(
-        self._applied_ptransform, bundles,
-        [unprocessed_bundle], None, {None: Timestamp.of(time.time())})
+
+    return TransformResult(self, bundles, [unprocessed_bundle], None,
+                           {None: Timestamp.of(time.time())})
 
 
 class _FlattenEvaluator(_TransformEvaluator):
@@ -467,8 +466,7 @@ class _FlattenEvaluator(_TransformEvaluator):
 
   def finish_bundle(self):
     bundles = [self.bundle]
-    return TransformResult(
-        self._applied_ptransform, bundles, [], None, None)
+    return TransformResult(self, bundles, [], None, None)
 
 
 class _TaggedReceivers(dict):
@@ -557,7 +555,7 @@ class _ParDoEvaluator(_TransformEvaluator):
     bundles = self._tagged_receivers.values()
     result_counters = self._counter_factory.get_counters()
     return TransformResult(
-        self._applied_ptransform, bundles, [], result_counters, None,
+        self, bundles, [], result_counters, None,
         self._tagged_receivers.undeclared_in_memory_tag_values)
 
 
@@ -621,7 +619,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         gbk_result = []
         # TODO(ccy): perhaps we can clean this up to not use this
         # internal attribute of the DirectStepContext.
-        for encoded_k in self.step_context.keyed_existing_state:
+        for encoded_k in self.step_context.existing_keyed_state:
           # Ignore global state.
           if encoded_k is None:
             continue
@@ -647,8 +645,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
       self.global_state.set_timer(
           None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
 
-    return TransformResult(
-        self._applied_ptransform, bundles, [], None, {None: hold})
+    return TransformResult(self, bundles, [], None, {None: hold})
 
 
 class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
@@ -701,8 +698,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
       kwi = KeyedWorkItem(encoded_k, elements=vs)
       bundle.add(GlobalWindows.windowed_value(kwi))
 
-    return TransformResult(
-        self._applied_ptransform, bundles, [], None, None)
+    return TransformResult(self, bundles, [], None, None)
 
 
 class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
@@ -762,8 +758,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
         bundle.add(item)
       bundles.append(bundle)
 
-    return TransformResult(
-        self._applied_ptransform, bundles, [], None, self.keyed_holds)
+    return TransformResult(self, bundles, [], None, self.keyed_holds)
 
 
 class _NativeWriteEvaluator(_TransformEvaluator):
@@ -827,5 +822,4 @@ class _NativeWriteEvaluator(_TransformEvaluator):
       self.global_state.set_timer(
           None, '', TimeDomain.WATERMARK, WatermarkManager.WATERMARK_POS_INF)
 
-    return TransformResult(
-        self._applied_ptransform, [], [], None, {None: hold})
+    return TransformResult(self, [], [], None, {None: hold})
