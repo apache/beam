@@ -61,12 +61,24 @@ class StateSamplerTest(unittest.TestCase):
         'basic-stateb-msecs': 200,
         'basic-statec-msecs': 300,
     }
-    for counter in counter_factory.get_counters():
-      self.assertIn(counter.name, expected_counter_values)
-      expected_value = expected_counter_values[counter.name]
-      actual_value = counter.value()
+
+    counters = counter_factory.get_counters()
+    for name, expected_value in expected_counter_values.items():
+      actual_value = next(c for c in counters if c.name == name).value()
       self.assertGreater(actual_value, expected_value * 0.75)
       self.assertLess(actual_value, expected_value * 1.25)
+
+    # Verify that active transition counters are 0 at the end of execution.
+    expected_active_counter_values = {
+      'basic-statea-active-msecs': 0,
+      'basic-stateb-active-msecs': 0,
+      'basic-statec-active-msecs': 0,
+    }
+
+    for name, expected_value in expected_active_counter_values.items():
+      actual_value = next(c for c in counters if c.name == name).value()
+      self.assertEqual(actual_value, expected_value)
+
 
   def test_sampler_transition_overhead(self):
     # Set up state sampler.
