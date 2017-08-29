@@ -73,12 +73,12 @@
             <li role="separator" class="divider"></li>
             <li class="dropdown-header">SDKs</li>
             <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+            <li><a href="/documentation/sdks/javadoc/2.0.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
                                                                                                                                                width="14" height="14"
                                                                                                                                                           alt="External link."></a>
             </li>
             <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+            <li><a href="/documentation/sdks/pydoc/2.0.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
                                                                                                                                                width="14" height="14"
                                                                                                                                                           alt="External link."></a>
             </li>
@@ -163,7 +163,11 @@
       <li><a href="#performance" id="markdown-toc-performance">Performance</a></li>
       <li><a href="#documentation" id="markdown-toc-documentation">Documentation</a></li>
       <li><a href="#logging" id="markdown-toc-logging">Logging</a></li>
-      <li><a href="#testing" id="markdown-toc-testing">Testing</a></li>
+      <li><a href="#testing" id="markdown-toc-testing">Testing</a>        <ul>
+          <li><a href="#testing-the-transforms-run-time-behavior" id="markdown-toc-testing-the-transforms-run-time-behavior">Testing the transform’s run-time behavior</a></li>
+          <li><a href="#testing-transform-construction-and-validation" id="markdown-toc-testing-transform-construction-and-validation">Testing transform construction and validation</a></li>
+        </ul>
+      </li>
       <li><a href="#compatibility" id="markdown-toc-compatibility">Compatibility</a></li>
     </ul>
   </li>
@@ -378,6 +382,8 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
 
 <p>Data processing is tricky, full of corner cases, and difficult to debug, because pipelines take a long time to run, it’s hard to check if the output is correct, you can’t attach a debugger, and you often can’t log as much as you wish to, due to high volume of data. Because of that, testing is particularly important.</p>
 
+<h4 id="testing-the-transforms-run-time-behavior">Testing the transform’s run-time behavior</h4>
+
 <ul>
   <li>Unit-test the overall semantics of the transform using <code class="highlighter-rouge">TestPipeline</code> and <code class="highlighter-rouge">PAssert</code>. Start with testing against the direct runner. Assertions on <code class="highlighter-rouge">PCollection</code> contents should be strict: e.g. when a read from a database is expected to read the numbers 1 through 10, assert not just that there are 10 elements in the output <code class="highlighter-rouge">PCollection</code>, or that each element is in the range [1, 10] - but assert that each number 1 through 10 appears exactly once.</li>
   <li>Identify non-trivial sequential logic in the transform that is prone to corner cases which are difficult to reliably simulate using a <code class="highlighter-rouge">TestPipeline</code>, extract this logic into unit-testable functions, and unit-test them. Common corner cases are:
@@ -397,14 +403,35 @@ E.g. when expanding a filepattern into files, log what the filepattern was and h
   <li>For detailed instructions on test code organization, see the <a href="/contribute/testing/">Beam Testing Guide</a>.</li>
 </ul>
 
+<h4 id="testing-transform-construction-and-validation">Testing transform construction and validation</h4>
+
+<p>The code for constructing and validating a transform is usually trivial and mostly boilerplate. However, minor mistakes or typos in it can have serious consequences (e.g. ignoring a property that the user has set), so it needs to be tested as well. Yet, an excessive amount of trivial tests can be hard to maintain and give a false impression that the transform is well-tested.</p>
+
+<p>Do:</p>
+<ul>
+  <li>Test non-trivial validation code: where missing/incorrect/uninformative validation may lead to serious problems: data loss, counter-intuitive behavior, value of a property being silently ignored, or other hard-to-debug errors. Create 1 test per non-trivial class of validation error. Some examples of validation that should be tested:
+    <ul>
+      <li>If properties <code class="highlighter-rouge">withFoo()</code> and <code class="highlighter-rouge">withBar()</code> cannot both be specified at the same time, test that a transform specifying both of them is rejected, rather than one of the properties being silently ignored at runtime.</li>
+      <li>If the transform is known to behave incorrectly or counter-intuitively for a particular configuration, test that this configuration is rejected, rather than producing wrong results at runtime. For example, a transform might work properly only for bounded collections, or only for globally-windowed collections. Or, suppose a streaming system supports several levels of “quality of service”, one of which is “exactly once delivery”. However, a transform that writes to this system might be unable to provide exactly-once due to retries in case of failures. In that case, test that the transform disallows specifying exactly-once QoS, rather than failing to provide the expected end-to-end semantics at runtime.</li>
+    </ul>
+  </li>
+  <li>Test that each <code class="highlighter-rouge">withFoo()</code> method (including each overload) has effect (is not ignored), using <code class="highlighter-rouge">TestPipeline</code> and <code class="highlighter-rouge">PAssert</code> to create tests where the expected test results depend on the value of <code class="highlighter-rouge">withFoo()</code>.</li>
+</ul>
+
+<p>Do not:</p>
+<ul>
+  <li>Do not test successful validation (e.g. “validation does not fail when the transform is configured correctly”)</li>
+  <li>Do not test trivial validation errors (e.g. “validation fails when a property is unset/null/empty/negative/…”)</li>
+</ul>
+
 <h3 id="compatibility">Compatibility</h3>
 
 <p>Do:</p>
 
 <ul>
   <li>Generally, follow the rules of <a href="http://semver.org/">semantic versioning</a>.</li>
-  <li>If the API of the transform is not yet stable, annotate it as <code class="highlighter-rouge">@Experimental</code> (Java) or <code class="highlighter-rouge">@experimental</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.1.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
-  <li>If the API deprecated, annotate it as <code class="highlighter-rouge">@Deprecated</code> (Java) or <code class="highlighter-rouge">@deprecated</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.1.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
+  <li>If the API of the transform is not yet stable, annotate it as <code class="highlighter-rouge">@Experimental</code> (Java) or <code class="highlighter-rouge">@experimental</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
+  <li>If the API deprecated, annotate it as <code class="highlighter-rouge">@Deprecated</code> (Java) or <code class="highlighter-rouge">@deprecated</code> (<a href="https://beam.apache.org/documentation/sdks/pydoc/2.0.0/apache_beam.utils.html#module-apache_beam.utils.annotations">Python</a>).</li>
   <li>Pay attention to the stability and versioning of third-party classes exposed by the transform’s API: if they are unstable or improperly versioned (do not obey <a href="http://semver.org/">semantic versioning</a>), it is better to wrap them in your own classes.</li>
 </ul>
 
