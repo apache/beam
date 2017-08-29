@@ -48,7 +48,6 @@ except ImportError:
 # pylint: enable=ungrouped-imports
 
 
-
 def key_comparator(k1, k2):
   """A comparator for Datastore keys.
 

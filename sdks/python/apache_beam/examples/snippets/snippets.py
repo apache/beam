@@ -659,8 +659,6 @@ def examples_ptransforms_templated(renames):
   result.wait_until_finish()
 
 
-
-
 # Defining a new source.
 # [START model_custom_source_new_source]
 class CountingSource(iobase.BoundedSource):

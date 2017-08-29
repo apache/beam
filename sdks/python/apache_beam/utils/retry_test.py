@@ -31,8 +31,6 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
-
-
 class FakeClock(object):
   """A fake clock object implementing sleep() and recording calls."""
 
