@@ -77,7 +77,8 @@ from apache_beam.io.gcp.datastore.v1.datastoreio import (ReadFromDatastore,
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  PipelineOptions, SetupOptions)
+                                                  PipelineOptions,
+                                                  SetupOptions)
 
 
 class WordExtractingDoFn(beam.DoFn):

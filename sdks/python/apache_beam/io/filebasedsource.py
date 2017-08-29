@@ -33,7 +33,8 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.io.range_trackers import OffsetRange
 from apache_beam.options.value_provider import (StaticValueProvider,
-                                                ValueProvider, check_accessible)
+                                                ValueProvider,
+                                                check_accessible)
 from apache_beam.transforms.core import (DoFn, FlatMap, GroupByKey, Map, ParDo,
                                          PTransform)
 from apache_beam.transforms.display import DisplayDataItem

@@ -23,9 +23,9 @@ import unittest
 
 import avro.datafile
 import avro.schema
+import hamcrest as hc
 from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
-import hamcrest as hc
 
 import apache_beam as beam
 from apache_beam import Create

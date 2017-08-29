@@ -24,9 +24,9 @@ import re
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import (DebugOptions,
                                                   GoogleCloudOptions,
-                                                  SetupOptions, StandardOptions,
-                                                  TestOptions, TypeOptions,
-                                                  WorkerOptions)
+                                                  SetupOptions,
+                                                  StandardOptions, TestOptions,
+                                                  TypeOptions, WorkerOptions)
 
 
 class PipelineOptionsValidator(object):

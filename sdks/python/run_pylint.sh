@@ -64,5 +64,5 @@ echo "Running pycodestyle for module $MODULE:"
 pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
 echo "Running isort for module $MODULE:"
 pushd $MODULE
-isort -w 80 -y -c
+isort -p apache_beam -w 79 -y -c
 popd

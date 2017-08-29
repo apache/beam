@@ -89,7 +89,8 @@ from datetime import datetime
 import apache_beam as beam
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  PipelineOptions, SetupOptions,
+                                                  PipelineOptions,
+                                                  SetupOptions,
                                                   StandardOptions)
 
 

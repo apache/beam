@@ -19,7 +19,8 @@ import unittest
 
 from mock import patch
 
-from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import \
+    AdaptiveThrottler
 
 
 class AdaptiveThrottlerTest(unittest.TestCase):

@@ -58,8 +58,8 @@ from apache_beam.portability.api import (beam_runner_api_pb2,
                                          standard_window_fns_pb2)
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils, urns
-from apache_beam.utils.timestamp import (MAX_TIMESTAMP, MIN_TIMESTAMP, Duration,
-                                         Timestamp)
+from apache_beam.utils.timestamp import (MAX_TIMESTAMP, MIN_TIMESTAMP,
+                                         Duration, Timestamp)
 from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = [

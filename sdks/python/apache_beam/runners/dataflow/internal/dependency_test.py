@@ -25,7 +25,8 @@ import unittest
 
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  PipelineOptions, SetupOptions)
+                                                  PipelineOptions,
+                                                  SetupOptions)
 from apache_beam.runners.dataflow.internal import dependency, names
 
 # Protect against environments where GCS library is not available.

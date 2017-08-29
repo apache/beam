@@ -55,7 +55,8 @@ import tempfile
 
 from apache_beam import pvalue
 from apache_beam.internal import pickler
-from apache_beam.options.pipeline_options import (PipelineOptions, SetupOptions,
+from apache_beam.options.pipeline_options import (PipelineOptions,
+                                                  SetupOptions,
                                                   StandardOptions, TypeOptions)
 from apache_beam.options.pipeline_options_validator import \
     PipelineOptionsValidator

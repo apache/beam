@@ -32,8 +32,8 @@ import apache_beam as beam
 from apache_beam import coders, error, pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
-from apache_beam.options.pipeline_options import (SetupOptions, StandardOptions,
-                                                  TestOptions)
+from apache_beam.options.pipeline_options import (SetupOptions,
+                                                  StandardOptions, TestOptions)
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names

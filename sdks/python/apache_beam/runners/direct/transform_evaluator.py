@@ -37,7 +37,8 @@ from apache_beam.runners.direct.watermark_manager import WatermarkManager
 from apache_beam.testing.test_stream import (ElementEvent, ProcessingTimeEvent,
                                              TestStream, WatermarkEvent)
 from apache_beam.transforms import core
-from apache_beam.transforms.trigger import (TimeDomain, _CombiningValueStateTag,
+from apache_beam.transforms.trigger import (TimeDomain,
+                                            _CombiningValueStateTag,
                                             _ListStateTag,
                                             create_trigger_driver)
 from apache_beam.transforms.window import GlobalWindows, WindowedValue

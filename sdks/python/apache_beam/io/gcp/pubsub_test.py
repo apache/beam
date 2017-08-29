@@ -23,7 +23,8 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.io.gcp.pubsub import (ReadStringsFromPubSub,
-                                       WriteStringsToPubSub, _PubSubPayloadSink,
+                                       WriteStringsToPubSub,
+                                       _PubSubPayloadSink,
                                        _PubSubPayloadSource)
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData

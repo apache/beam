@@ -31,8 +31,8 @@ from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that, equal_to
-from apache_beam.transforms import (CombineGlobally, Create, DoFn, FlatMap, Map,
-                                    ParDo, PTransform, WindowInto)
+from apache_beam.transforms import (CombineGlobally, Create, DoFn, FlatMap,
+                                    Map, ParDo, PTransform, WindowInto)
 from apache_beam.transforms.window import SlidingWindows, TimestampedValue
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
