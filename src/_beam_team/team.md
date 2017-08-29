@@ -92,6 +92,12 @@ members:
     organization: data Artisans
     roles: committer, PMC
     time_zone: "+1"
+  - name: Reuven Lax
+    apache_id: reuvenlax
+    email: reuvenlax [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Jingsong Lee
     apache_id: lzljs3620320
     email: lzljs3620320 [at] apache [dot] org
