@@ -27,7 +27,6 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -41,7 +40,6 @@ import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.CombineWithContext;
@@ -531,32 +529,6 @@ public final class TransformTranslator {
     };
   }
 
-  private static TransformEvaluator<StorageLevelPTransform> storageLevel() {
-    return new TransformEvaluator<StorageLevelPTransform>() {
-      @Override
-      public void evaluate(StorageLevelPTransform transform, EvaluationContext context) {
-        JavaRDD rdd = ((BoundedDataset) (context).borrowDataset(transform)).getRDD();
-        JavaSparkContext javaSparkContext = context.getSparkContext();
-
-        WindowedValue.ValueOnlyWindowedValueCoder<String> windowCoder =
-            WindowedValue.getValueOnlyCoder(StringUtf8Coder.of());
-        JavaRDD output =
-            javaSparkContext.parallelize(
-                CoderHelpers.toByteArrays(
-                    Collections.singletonList(rdd.getStorageLevel().description()),
-                    StringUtf8Coder.of()))
-            .map(CoderHelpers.fromByteFunction(windowCoder));
-
-        context.putDataset(transform, new BoundedDataset<String>(output));
-      }
-
-      @Override
-      public String toNativeString() {
-        return "sparkContext.parallelize(rdd.getStorageLevel().description())";
-      }
-    };
-  }
-
   private static <K, V, W extends BoundedWindow> TransformEvaluator<Reshuffle<K, V>> reshuffle() {
     return new TransformEvaluator<Reshuffle<K, V>>() {
       @Override public void evaluate(Reshuffle<K, V> transform, EvaluationContext context) {
@@ -605,8 +577,6 @@ public final class TransformTranslator {
     EVALUATORS.put(View.CreatePCollectionView.class, createPCollView());
     EVALUATORS.put(Window.Assign.class, window());
     EVALUATORS.put(Reshuffle.class, reshuffle());
-    // mostly test evaluators
-    EVALUATORS.put(StorageLevelPTransform.class, storageLevel());
   }
 
   /**

@@ -20,8 +20,11 @@ package org.apache.beam.runners.spark.translation.streaming;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.translation.Dataset;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.VoidFunction;
@@ -37,7 +40,7 @@ public class UnboundedDataset<T> implements Dataset {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedDataset.class);
 
-  private final JavaDStream<WindowedValue<T>> dStream;
+  private JavaDStream<WindowedValue<T>> dStream;
   // points to the input streams that created this UnboundedDataset,
   // should be greater > 1 in case of Flatten for example.
   // when using GlobalWatermarkHolder this information helps to take only the relevant watermarks
@@ -57,15 +60,20 @@ public class UnboundedDataset<T> implements Dataset {
     return streamSources;
   }
 
-  public void cache() {
-    dStream.cache();
+  @SuppressWarnings("unchecked")
+  public void cache(Coder<?> coder) {
+    // Caching can cause Serialization, we need to code to bytes
+    Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
+    JavaDStream<byte[]> bytesDStream = dStream.map(CoderHelpers.toByteFunction(wc));
+    bytesDStream.cache();
+    this.dStream = bytesDStream.map(CoderHelpers.fromByteFunction(wc));
   }
 
   @Override
-  public void cache(String storageLevel) {
+  public void cache(String storageLevel, Coder<?> coder) {
     // we "force" MEMORY storage level in streaming
     LOG.warn("Provided StorageLevel ignored for stream, using default level");
-    cache();
+    cache(coder);
   }
 
   @Override

@@ -98,9 +98,19 @@ public class BoundedDataset<T> implements Dataset {
   }
 
   @Override
-  public void cache(String storageLevel) {
-    // populate the rdd if needed
-    getRDD().persist(StorageLevel.fromString(storageLevel));
+  @SuppressWarnings("unchecked")
+  public void cache(String storageLevel, Coder<?> coder) {
+    StorageLevel level = StorageLevel.fromString(storageLevel);
+    if (level.equals(StorageLevel.MEMORY_ONLY())) {
+      // if it is memory only reduce the overhead of moving t bytes
+      getRDD().persist(level);
+    } else {
+      // Caching can cause Serialization, we need to code to bytes
+      Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
+      JavaRDD<byte[]> bytesRDD = getRDD().map(CoderHelpers.toByteFunction(wc));
+      bytesRDD.persist(level);
+      this.rdd = bytesRDD.map(CoderHelpers.fromByteFunction(wc));
+    }
   }
 
   @Override

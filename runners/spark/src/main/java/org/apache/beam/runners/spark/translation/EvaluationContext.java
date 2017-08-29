@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -148,7 +149,13 @@ public class EvaluationContext {
       // name not set, ignore
     }
     if (shouldCache(pvalue)) {
-      dataset.cache(storageLevel());
+      // we cache only PCollection
+      if (pvalue instanceof PCollection) {
+        Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
+        Coder<? extends BoundedWindow> wCoder =
+            ((PCollection<?>) pvalue).getWindowingStrategy().getWindowFn().windowCoder();
+        dataset.cache(storageLevel(), WindowedValue.getFullCoder(coder, wCoder));
+      }
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);

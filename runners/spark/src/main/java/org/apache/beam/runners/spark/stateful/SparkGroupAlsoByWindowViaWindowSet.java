@@ -227,7 +227,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             SystemReduceFn.buffering(
                 ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder());
         final OutputWindowedValueHolder<K, InputT> outputHolder =
-            new OutputWindowedValueHolder<>();
+            new OutputWindowedValueHolder<>(wvKvIterCoder);
         // use in memory Aggregators since Spark Accumulators are not resilient
         // in stateful operators, once done with this partition.
         final MetricsContainerImpl cellProvider = new MetricsContainerImpl("cellProvider");
@@ -479,7 +479,12 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
   private static class OutputWindowedValueHolder<K, V>
       implements OutputWindowedValue<KV<K, Iterable<V>>> {
-    private List<WindowedValue<KV<K, Iterable<V>>>> windowedValues = new ArrayList<>();
+    private List<byte[]> windowedByteValues = new ArrayList<>();
+    private final Coder<WindowedValue<KV<K, Iterable<V>>>> wvKvIterCoder;
+
+    private OutputWindowedValueHolder(Coder<WindowedValue<KV<K, Iterable<V>>>> wvKvIterCoder) {
+      this.wvKvIterCoder = wvKvIterCoder;
+    }
 
     @Override
     public void outputWindowedValue(
@@ -487,15 +492,17 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
         Instant timestamp,
         Collection<? extends BoundedWindow> windows,
         PaneInfo pane) {
-      windowedValues.add(WindowedValue.of(output, timestamp, windows, pane));
+      windowedByteValues.add(
+          CoderHelpers.toByteArray(
+              WindowedValue.of(output, timestamp, windows, pane), wvKvIterCoder));
     }
 
     private List<WindowedValue<KV<K, Iterable<V>>>> get() {
-      return windowedValues;
+      return Lists.newArrayList(CoderHelpers.fromByteArrays(windowedByteValues, wvKvIterCoder));
     }
 
     private void clear() {
-      windowedValues.clear();
+      windowedByteValues.clear();
     }
 
     @Override
