@@ -62,3 +62,23 @@ echo "Running pylint for module $MODULE:"
 pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
 pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
+echo "Running isort for module $MODULE:"
+# Skip files where isort is behaving weirdly
+ISORT_EXCLUDED=(
+  "apiclient.py"
+  "avroio_test.py"
+  "datastore_wordcount.py"
+  "iobase_test.py"
+  "fast_coders_test.py"
+  "slow_coders_test.py"
+)
+SKIP_PARAM=""
+for file in "${ISORT_EXCLUDED[@]}"; do
+  SKIP_PARAM="$SKIP_PARAM --skip $file"
+done
+for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
+  SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
+done
+pushd $MODULE
+isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
+popd

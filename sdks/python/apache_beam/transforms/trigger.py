@@ -20,13 +20,14 @@
 Triggers control when in processing time windows get emitted.
 """
 
-from abc import ABCMeta
-from abc import abstractmethod
 import collections
 import copy
 import itertools
+from abc import ABCMeta
+from abc import abstractmethod
 
 from apache_beam.coders import observable
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms.timeutil import TimeDomain
@@ -34,7 +35,6 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import WindowedValue
 from apache_beam.transforms.window import WindowFn
-from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY

@@ -27,7 +27,6 @@ except ImportError:
 
 from apache_beam.options.value_provider import ValueProvider
 
-
 _MAXINT64 = (1 << 63) - 1
 _MININT64 = - (1 << 63)
 

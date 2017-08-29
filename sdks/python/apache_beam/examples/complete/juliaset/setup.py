@@ -25,8 +25,8 @@ This behavior is triggered by specifying the --setup_file command line option
 when running the workflow for remote execution.
 """
 
-from distutils.command.build import build as _build
 import subprocess
+from distutils.command.build import build as _build
 
 import setuptools
 

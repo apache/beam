@@ -17,14 +17,16 @@
 
 import unittest
 
-from mock import MagicMock, call, patch
+from mock import MagicMock
+from mock import call
+from mock import patch
 
 from apache_beam.io.gcp.datastore.v1 import fake_datastore
 from apache_beam.io.gcp.datastore.v1 import helper
 from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
 from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
 from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
+from apache_beam.io.gcp.datastore.v1.datastoreio import _Mutate
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports

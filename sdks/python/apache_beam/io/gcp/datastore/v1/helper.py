@@ -21,10 +21,14 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import errno
-from socket import error as SocketError
 import logging
 import sys
 import time
+from socket import error as SocketError
+
+# pylint: disable=ungrouped-imports
+from apache_beam.internal.gcp import auth
+from apache_beam.utils import retry
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -41,8 +45,8 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.internal.gcp import auth
-from apache_beam.utils import retry
+# pylint: enable=ungrouped-imports
+
 
 
 def key_comparator(k1, k2):

@@ -21,9 +21,9 @@ For internal use only. No backwards compatibility guarantees.
 """
 
 import logging
-from multiprocessing.pool import ThreadPool
 import threading
 import weakref
+from multiprocessing.pool import ThreadPool
 
 
 class ArgumentPlaceholder(object):

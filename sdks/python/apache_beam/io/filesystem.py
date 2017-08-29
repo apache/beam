@@ -21,10 +21,10 @@ from __future__ import absolute_import
 import abc
 import bz2
 import cStringIO
-import os
-import zlib
 import logging
+import os
 import time
+import zlib
 
 from apache_beam.utils.plugin import BeamPlugin
 

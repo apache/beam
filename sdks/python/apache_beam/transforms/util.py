@@ -27,7 +27,6 @@ from apache_beam.transforms.core import Map
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
 
-
 __all__ = [
     'CoGroupByKey',
     'Keys',

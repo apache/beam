@@ -29,14 +29,14 @@ import logging
 from google.protobuf import wrappers_pb2
 
 import apache_beam as beam
-from apache_beam.coders import coder_impl
 from apache_beam.coders import WindowedValueCoder
+from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.utils import counters

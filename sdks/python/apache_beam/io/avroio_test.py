@@ -21,28 +21,25 @@ import os
 import tempfile
 import unittest
 
+import avro.datafile
+import avro.schema
+from avro.datafile import DataFileWriter
+from avro.io import DatumWriter
+import hamcrest as hc
+
 import apache_beam as beam
 from apache_beam import Create
-from apache_beam.io import iobase
 from apache_beam.io import avroio
 from apache_beam.io import filebasedsource
+from apache_beam.io import iobase
 from apache_beam.io import source_test_utils
+from apache_beam.io.avroio import _AvroSink as AvroSink # For testing
+from apache_beam.io.avroio import _AvroSource as AvroSource # For testing
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
-# Importing following private class for testing purposes.
-from apache_beam.io.avroio import _AvroSource as AvroSource
-from apache_beam.io.avroio import _AvroSink as AvroSink
-
-import avro.datafile
-from avro.datafile import DataFileWriter
-from avro.io import DatumWriter
-import avro.schema
-import hamcrest as hc
-
 
 # Import snappy optionally; some tests will be skipped when import fails.
 try:

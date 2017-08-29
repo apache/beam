@@ -21,6 +21,7 @@
 import unittest
 
 import mock
+
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import FileMetadata
 

@@ -27,10 +27,9 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import WindowInto
-from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.utils.annotations import experimental
-
 
 __all__ = [
     'assert_that',
