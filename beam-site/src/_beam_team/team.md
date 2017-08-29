@@ -146,6 +146,12 @@ members:
     organization: Slack
     roles: committer, PMC
     time_zone: "-8"
+  - name: Mingmin Xu
+    apache_id: mingmxu
+    email: mingmxu [at] apache [dot] org
+    organization: eBay
+    roles: committer
+    time_zone: "-8"
   - name: Manu Zhang
     apache_id: mauzhang
     email: mauzhang [at] apache [dot] org
