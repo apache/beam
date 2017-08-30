@@ -23,6 +23,7 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import com.alibaba.jstorm.utils.JStormUtils;
 import java.io.IOException;
+import org.apache.beam.runners.jstorm.translation.JStormMetricResults;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.joda.time.Duration;
@@ -102,7 +103,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
 
     @Override
     public MetricResults metrics() {
-      throw new UnsupportedOperationException("This method is not yet supported.");
+      return new JStormMetricResults();
     }
   }
 }
