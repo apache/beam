@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.transforms.Watch.Growth.ignoreInput;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
@@ -47,22 +49,40 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
+import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.joda.time.Duration;
 
 /**
  * {@link PTransform}s for reading and writing Avro files.
  *
+ * <h2>Reading Avro files</h2>
+ *
  * <p>To read a {@link PCollection} from one or more Avro files with the same schema known at
- * pipeline construction time, use {@code AvroIO.read()}, using {@link AvroIO.Read#from} to specify
- * the filename or filepattern to read from. Alternatively, if the filepatterns to be read are
- * themselves in a {@link PCollection}, apply {@link #readAll}.
+ * pipeline construction time, use {@link #read}, using {@link AvroIO.Read#from} to specify the
+ * filename or filepattern to read from. If the filepatterns to be read are themselves in a {@link
+ * PCollection}, apply {@link #readAll}. If the schema is unknown at pipeline construction time, use
+ * {@link #parseGenericRecords} or {@link #parseAllGenericRecords}.
+ *
+ * <p>Many configuration options below apply to several or all of these transforms.
  *
  * <p>See {@link FileSystems} for information on supported file systems and filepatterns.
+ *
+ * <h3>Filepattern expansion and watching</h3>
+ *
+ * <p>By default, {@link #read} prohibits filepatterns that match no files, and {@link #readAll}
+ * allows them in case the filepattern contains a glob wildcard character. Use {@link
+ * Read#withEmptyMatchTreatment} to configure this behavior.
+ *
+ * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles}
+ * allows streaming of new files matching the filepattern(s).
+ *
+ * <h3>Reading records of a known schema</h3>
  *
  * <p>To read specific records, such as Avro-generated classes, use {@link #read(Class)}. To read
  * {@link GenericRecord GenericRecords}, use {@link #readGenericRecords(Schema)} which takes a
@@ -70,6 +90,24 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
  * schema. Likewise, to read a {@link PCollection} of filepatterns, apply {@link
  * #readAllGenericRecords}.
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // Read Avro-generated classes from files on GCS
+ * PCollection<AvroAutoGenClass> records =
+ *     p.apply(AvroIO.read(AvroAutoGenClass.class).from("gs://my_bucket/path/to/records-*.avro"));
+ *
+ * // Read GenericRecord's of the given schema from files on GCS
+ * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
+ * PCollection<GenericRecord> records =
+ *     p.apply(AvroIO.readGenericRecords(schema)
+ *                .from("gs://my_bucket/path/to/records-*.avro"));
+ * }</pre>
+ *
+ * <h3>Reading records of an unknown schema</h3>
  *
  * <p>To read records from files whose schema is unknown at pipeline construction time or differs
  * between files, use {@link #parseGenericRecords} - in this case, you will need to specify a
@@ -82,16 +120,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * <pre>{@code
  * Pipeline p = ...;
  *
- * // A simple Read of a local file (only runs locally):
- * PCollection<AvroAutoGenClass> records =
- *     p.apply(AvroIO.read(AvroAutoGenClass.class).from("/path/to/file.avro"));
- *
- * // A Read from a GCS file (runs locally and using remote execution):
- * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
- * PCollection<GenericRecord> records =
- *     p.apply(AvroIO.readGenericRecords(schema)
- *                .from("gs://my_bucket/path/to/records-*.avro"));
- *
  * PCollection<Foo> records =
  *     p.apply(AvroIO.parseGenericRecords(new SerializableFunction<GenericRecord, Foo>() {
  *       public Foo apply(GenericRecord record) {
@@ -101,12 +129,7 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     }));
  * }</pre>
  *
- * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
- * thousands or more), use {@link Read#withHintMatchesManyFiles} or {@link
- * Parse#withHintMatchesManyFiles} for better performance and scalability. Note that it may decrease
- * performance if the filepattern matches only a small number of files.
- *
- * <p>Reading from a {@link PCollection} of filepatterns:
+ * <h3>Reading from a {@link PCollection} of filepatterns</h3>
  *
  * <pre>{@code
  * Pipeline p = ...;
@@ -120,6 +143,29 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     filepatterns.apply(AvroIO.parseAllGenericRecords(new SerializableFunction...);
  * }</pre>
  *
+ * <h3>Streaming new files matching a filepattern</h3>
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<AvroAutoGenClass> lines = p.apply(AvroIO
+ *     .read(AvroAutoGenClass.class)
+ *     .from("gs://my_bucket/path/to/records-*.avro")
+ *     .watchForNewFiles(
+ *       // Check for new files every minute
+ *       Duration.standardMinutes(1),
+ *       // Stop watching the filepattern if no new files appear within an hour
+ *       afterTimeSinceNewOutput(Duration.standardHours(1))));
+ * }</pre>
+ *
+ * <h3>Reading a very large number of files</h3>
+ *
+ * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
+ * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
+ * scalability. Note that it may decrease performance if the filepattern matches only a small number
+ * of files.
+ *
+ * <h2>Writing Avro files</h2>
+ *
  * <p>To write a {@link PCollection} to one or more Avro files, use {@link AvroIO.Write}, using
  * {@code AvroIO.write().to(String)} to specify the output filename prefix. The default {@link
  * DefaultFilenamePolicy} will use this prefix, in conjunction with a {@link ShardNameTemplate} (set
@@ -128,13 +174,11 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * default write filename policy using {@link Write#to(FileBasedSink.FilenamePolicy)} to specify a
  * custom file naming policy.
  *
- * <p>By default, all input is put into the global window before writing. If per-window writes are
- * desired - for example, when using a streaming runner - {@link AvroIO.Write#withWindowedWrites()}
- * will cause windowing and triggering to be preserved. When producing windowed writes with a
- * streaming runner that supports triggers, the number of output shards must be set explicitly using
- * {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
- * value, so you may need not set it yourself. A {@link FileBasedSink.FilenamePolicy} must be set,
- * and unique windows and triggers must produce unique filenames.
+ * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
+ * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
+ * overridden using {@link AvroIO.Write#withCodec}.
+ *
+ * <h3>Writing specific or generic records</h3>
  *
  * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}. To write
  * {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)} which takes
@@ -156,6 +200,18 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  *     .to("gs://my_bucket/path/to/numbers")
  *     .withSuffix(".avro"));
  * }</pre>
+ *
+ * <h3>Writing windowed or unbounded data</h3>
+ *
+ * <p>By default, all input is put into the global window before writing. If per-window writes are
+ * desired - for example, when using a streaming runner - {@link AvroIO.Write#withWindowedWrites()}
+ * will cause windowing and triggering to be preserved. When producing windowed writes with a
+ * streaming runner that supports triggers, the number of output shards must be set explicitly using
+ * {@link AvroIO.Write#withNumShards(int)}; some runners may set this for you to a runner-chosen
+ * value, so you may need not set it yourself. A {@link FileBasedSink.FilenamePolicy} must be set,
+ * and unique windows and triggers must produce unique filenames.
+ *
+ * <h3>Writing data to multiple destinations</h3>
  *
  * <p>The following shows a more-complex example of AvroIO.Write usage, generating dynamic file
  * destinations as well as a dynamic Avro schema per file. In this example, a PCollection of user
@@ -201,10 +257,6 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
  *     .to(new UserDynamicAvros()));
  * }</pre>
- *
- * <p>By default, {@link AvroIO.Write} produces output files that are compressed using the {@link
- * org.apache.avro.file.Codec CodecFactory.deflateCodec(6)}. This default can be changed or
- * overridden using {@link AvroIO.Write#withCodec}.
  */
 public class AvroIO {
   /**
@@ -214,6 +266,7 @@ public class AvroIO {
    */
   public static <T> Read<T> read(Class<T> recordClass) {
     return new AutoValue_AvroIO_Read.Builder<T>()
+        .setEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW)
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         .setHintMatchesManyFiles(false)
@@ -223,6 +276,7 @@ public class AvroIO {
   /** Like {@link #read}, but reads each filepattern in the input {@link PCollection}. */
   public static <T> ReadAll<T> readAll(Class<T> recordClass) {
     return new AutoValue_AvroIO_ReadAll.Builder<T>()
+        .setEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)
         .setRecordClass(recordClass)
         .setSchema(ReflectData.get().getSchema(recordClass))
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
@@ -235,6 +289,7 @@ public class AvroIO {
   /** Reads Avro file(s) containing records of the specified schema. */
   public static Read<GenericRecord> readGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_Read.Builder<GenericRecord>()
+        .setEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW)
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setHintMatchesManyFiles(false)
@@ -247,6 +302,7 @@ public class AvroIO {
    */
   public static ReadAll<GenericRecord> readAllGenericRecords(Schema schema) {
     return new AutoValue_AvroIO_ReadAll.Builder<GenericRecord>()
+        .setEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)
         .setRecordClass(GenericRecord.class)
         .setSchema(schema)
         .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
@@ -275,6 +331,7 @@ public class AvroIO {
    */
   public static <T> Parse<T> parseGenericRecords(SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_AvroIO_Parse.Builder<T>()
+        .setEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW)
         .setParseFn(parseFn)
         .setHintMatchesManyFiles(false)
         .build();
@@ -287,6 +344,7 @@ public class AvroIO {
   public static <T> ParseAll<T> parseAllGenericRecords(
       SerializableFunction<GenericRecord, T> parseFn) {
     return new AutoValue_AvroIO_ParseAll.Builder<T>()
+        .setEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)
         .setParseFn(parseFn)
         .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
         .build();
@@ -367,6 +425,9 @@ public class AvroIO {
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
+    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    @Nullable abstract Duration getWatchForNewFilesInterval();
+    @Nullable abstract TerminationCondition<?, ?> getWatchForNewFilesTerminationCondition();
     @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
     abstract boolean getHintMatchesManyFiles();
@@ -376,6 +437,10 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
+      abstract Builder<T> setEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment);
+      abstract Builder<T> setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder<T> setWatchForNewFilesTerminationCondition(
+              TerminationCondition<?, ?> condition);
       abstract Builder<T> setRecordClass(Class<T> recordClass);
       abstract Builder<T> setSchema(Schema schema);
       abstract Builder<T> setHintMatchesManyFiles(boolean hintManyFiles);
@@ -399,6 +464,31 @@ public class AvroIO {
     }
 
     /**
+     * Configures whether or not a filepattern matching no files is allowed.
+     */
+    public Read<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return toBuilder().setEmptyMatchTreatment(treatment).build();
+    }
+
+    /**
+     * Continuously watches for new files matching the filepattern, polling it at the given
+     * interval, until the given termination condition is reached. The returned {@link PCollection}
+     * is unbounded.
+     *
+     * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
+     *
+     * @see TerminationCondition
+     */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public Read<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<?, ?> terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
+    }
+
+    /**
      * Hints that the filepattern specified in {@link #from(String)} matches a very large number of
      * files.
      *
@@ -415,37 +505,56 @@ public class AvroIO {
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getFilepattern(), "filepattern");
       checkNotNull(getSchema(), "schema");
-      if (getHintMatchesManyFiles()) {
-        ReadAll<T> readAll =
-            (getRecordClass() == GenericRecord.class)
-                ? (ReadAll<T>) readAllGenericRecords(getSchema())
-                : readAll(getRecordClass());
-        return input
-            .apply(Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-            .apply(readAll);
-      } else {
-        return input
-            .getPipeline()
-            .apply(
-                "Read",
-                org.apache.beam.sdk.io.Read.from(
-                    createSource(getFilepattern(), getRecordClass(), getSchema())));
+
+      if (getWatchForNewFilesInterval() == null && !getHintMatchesManyFiles()) {
+        return input.apply(
+            "Read",
+            org.apache.beam.sdk.io.Read.from(
+                createSource(
+                    getFilepattern(), getEmptyMatchTreatment(), getRecordClass(), getSchema())));
       }
+      // All other cases go through ReadAll.
+
+      ReadAll<T> readAll =
+          (getRecordClass() == GenericRecord.class)
+              ? (ReadAll<T>) readAllGenericRecords(getSchema())
+              : readAll(getRecordClass());
+      readAll = readAll.withEmptyMatchTreatment(getEmptyMatchTreatment());
+      if (getWatchForNewFilesInterval() != null) {
+        TerminationCondition<String, ?> readAllCondition =
+            ignoreInput(getWatchForNewFilesTerminationCondition());
+        readAll = readAll.watchForNewFiles(getWatchForNewFilesInterval(), readAllCondition);
+      }
+      return input
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Via ReadAll", readAll);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.addIfNotNull(
-          DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"));
+      builder
+          .addIfNotNull(
+              DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
+          .add(
+              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+                  .withLabel("Treatment of filepatterns that match no files"))
+          .addIfNotNull(
+              DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
+                  .withLabel("Interval to watch for new files"));
     }
 
     @SuppressWarnings("unchecked")
     private static <T> AvroSource<T> createSource(
-        ValueProvider<String> filepattern, Class<T> recordClass, Schema schema) {
+        ValueProvider<String> filepattern,
+        EmptyMatchTreatment emptyMatchTreatment,
+        Class<T> recordClass,
+        Schema schema) {
+      AvroSource<?> source =
+          AvroSource.from(filepattern).withEmptyMatchTreatment(emptyMatchTreatment);
       return recordClass == GenericRecord.class
-          ? (AvroSource<T>) AvroSource.from(filepattern).withSchema(schema)
-          : AvroSource.from(filepattern).withSchema(recordClass);
+          ? (AvroSource<T>) source.withSchema(schema)
+          : source.withSchema(recordClass);
     }
   }
 
@@ -454,6 +563,9 @@ public class AvroIO {
   /** Implementation of {@link #readAll}. */
   @AutoValue
   public abstract static class ReadAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
+    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    @Nullable abstract Duration getWatchForNewFilesInterval();
+    @Nullable abstract TerminationCondition<String, ?> getWatchForNewFilesTerminationCondition();
     @Nullable abstract Class<T> getRecordClass();
     @Nullable abstract Schema getSchema();
     abstract long getDesiredBundleSizeBytes();
@@ -462,11 +574,30 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+      abstract Builder<T> setEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment);
+      abstract Builder<T> setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder<T> setWatchForNewFilesTerminationCondition(
+              TerminationCondition<String, ?> condition);
       abstract Builder<T> setRecordClass(Class<T> recordClass);
       abstract Builder<T> setSchema(Schema schema);
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ReadAll<T> build();
+    }
+
+    /** Like {@link Read#withEmptyMatchTreatment}. */
+    public ReadAll<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return toBuilder().setEmptyMatchTreatment(treatment).build();
+    }
+
+    /** Like {@link Read#watchForNewFiles}. */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public ReadAll<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return toBuilder()
+              .setWatchForNewFilesInterval(pollInterval)
+              .setWatchForNewFilesTerminationCondition(terminationCondition)
+              .build();
     }
 
     @VisibleForTesting
@@ -477,24 +608,48 @@ public class AvroIO {
     @Override
     public PCollection<T> expand(PCollection<String> input) {
       checkNotNull(getSchema(), "schema");
+      Match.Filepatterns matchFilepatterns =
+          Match.filepatterns().withEmptyMatchTreatment(getEmptyMatchTreatment());
+      if (getWatchForNewFilesInterval() != null) {
+        matchFilepatterns =
+            matchFilepatterns.continuously(
+                getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
+      }
+
       return input
-          .apply(Match.filepatterns())
+          .apply(matchFilepatterns)
           .apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
                   SerializableFunctions.<String, Boolean>constant(true) /* isSplittable */,
                   getDesiredBundleSizeBytes(),
-                  new CreateSourceFn<>(getRecordClass(), getSchema().toString())))
+                  new CreateSourceFn<>(
+                      getEmptyMatchTreatment(), getRecordClass(), getSchema().toString())))
           .setCoder(AvroCoder.of(getRecordClass(), getSchema()));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder
+          .add(
+              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+                  .withLabel("Treatment of filepatterns that match no files"))
+          .addIfNotNull(
+              DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
+                  .withLabel("Interval to watch for new files"));
     }
   }
 
   private static class CreateSourceFn<T>
       implements SerializableFunction<String, FileBasedSource<T>> {
+    private final EmptyMatchTreatment emptyMatchTreatment;
     private final Class<T> recordClass;
     private final Supplier<Schema> schemaSupplier;
 
-    public CreateSourceFn(Class<T> recordClass, String jsonSchema) {
+    public CreateSourceFn(
+        EmptyMatchTreatment emptyMatchTreatment, Class<T> recordClass, String jsonSchema) {
+      this.emptyMatchTreatment = emptyMatchTreatment;
       this.recordClass = recordClass;
       this.schemaSupplier = AvroUtils.serializableSchemaSupplier(jsonSchema);
     }
@@ -502,7 +657,7 @@ public class AvroIO {
     @Override
     public FileBasedSource<T> apply(String input) {
       return Read.createSource(
-          StaticValueProvider.of(input), recordClass, schemaSupplier.get());
+          StaticValueProvider.of(input), emptyMatchTreatment, recordClass, schemaSupplier.get());
     }
   }
 
@@ -512,6 +667,9 @@ public class AvroIO {
   @AutoValue
   public abstract static class Parse<T> extends PTransform<PBegin, PCollection<T>> {
     @Nullable abstract ValueProvider<String> getFilepattern();
+    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    @Nullable abstract Duration getWatchForNewFilesInterval();
+    @Nullable abstract TerminationCondition<?, ?> getWatchForNewFilesTerminationCondition();
     abstract SerializableFunction<GenericRecord, T> getParseFn();
     @Nullable abstract Coder<T> getCoder();
     abstract boolean getHintMatchesManyFiles();
@@ -521,6 +679,10 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<T> {
       abstract Builder<T> setFilepattern(ValueProvider<String> filepattern);
+      abstract Builder<T> setEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment);
+      abstract Builder<T> setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder<T> setWatchForNewFilesTerminationCondition(
+              TerminationCondition<?, ?> condition);
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
       abstract Builder<T> setCoder(Coder<T> coder);
       abstract Builder<T> setHintMatchesManyFiles(boolean hintMatchesManyFiles);
@@ -538,6 +700,21 @@ public class AvroIO {
       return toBuilder().setFilepattern(filepattern).build();
     }
 
+    /** Like {@link Read#withEmptyMatchTreatment}. */
+    public Parse<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return toBuilder().setEmptyMatchTreatment(treatment).build();
+    }
+
+    /** Like {@link Read#watchForNewFiles}. */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public Parse<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<?, ?> terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
+    }
+
     /** Sets a coder for the result of the parse function. */
     public Parse<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
@@ -552,14 +729,25 @@ public class AvroIO {
     public PCollection<T> expand(PBegin input) {
       checkNotNull(getFilepattern(), "filepattern");
       Coder<T> coder = inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
-      if (getHintMatchesManyFiles()) {
-        return input
-            .apply(Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-            .apply(parseAllGenericRecords(getParseFn()).withCoder(getCoder()));
+
+      if (getWatchForNewFilesInterval() == null && !getHintMatchesManyFiles()) {
+        return input.apply(
+                org.apache.beam.sdk.io.Read.from(
+                        AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
       }
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(
-              AvroSource.from(getFilepattern()).withParseFn(getParseFn(), coder)));
+      // All other cases go through ParseAllGenericRecords.
+      ParseAll<T> parseAll =
+          parseAllGenericRecords(getParseFn())
+              .withCoder(coder)
+              .withEmptyMatchTreatment(getEmptyMatchTreatment());
+      if (getWatchForNewFilesInterval() != null) {
+        TerminationCondition<String, ?> parseAllCondition =
+            ignoreInput(getWatchForNewFilesTerminationCondition());
+        parseAll = parseAll.watchForNewFiles(getWatchForNewFilesInterval(), parseAllCondition);
+      }
+      return input
+          .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
+          .apply("Via ParseAll", parseAll);
     }
 
     private static <T> Coder<T> inferCoder(
@@ -587,7 +775,13 @@ public class AvroIO {
       builder
           .addIfNotNull(
               DisplayData.item("filePattern", getFilepattern()).withLabel("Input File Pattern"))
-          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
+          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
+          .add(
+              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+                  .withLabel("Treatment of filepatterns that match no files"))
+          .addIfNotNull(
+              DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
+                  .withLabel("Interval to watch for new files"));
     }
   }
 
@@ -596,6 +790,9 @@ public class AvroIO {
   /** Implementation of {@link #parseAllGenericRecords}. */
   @AutoValue
   public abstract static class ParseAll<T> extends PTransform<PCollection<String>, PCollection<T>> {
+    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+    @Nullable abstract Duration getWatchForNewFilesInterval();
+    @Nullable abstract TerminationCondition<String, ?> getWatchForNewFilesTerminationCondition();
     abstract SerializableFunction<GenericRecord, T> getParseFn();
     @Nullable abstract Coder<T> getCoder();
     abstract long getDesiredBundleSizeBytes();
@@ -604,11 +801,30 @@ public class AvroIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+      abstract Builder<T> setEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment);
+      abstract Builder<T> setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
+      abstract Builder<T> setWatchForNewFilesTerminationCondition(
+          TerminationCondition<String, ?> condition);
       abstract Builder<T> setParseFn(SerializableFunction<GenericRecord, T> parseFn);
       abstract Builder<T> setCoder(Coder<T> coder);
       abstract Builder<T> setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
 
       abstract ParseAll<T> build();
+    }
+
+    /** Like {@link Read#withEmptyMatchTreatment}. */
+    public ParseAll<T> withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
+      return toBuilder().setEmptyMatchTreatment(treatment).build();
+    }
+
+    /** Like {@link Read#watchForNewFiles}. */
+    @Experimental(Kind.SPLITTABLE_DO_FN)
+    public ParseAll<T> watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return toBuilder()
+          .setWatchForNewFilesInterval(pollInterval)
+          .setWatchForNewFilesTerminationCondition(terminationCondition)
+          .build();
     }
 
     /** Specifies the coder for the result of the {@code parseFn}. */
@@ -625,15 +841,26 @@ public class AvroIO {
     public PCollection<T> expand(PCollection<String> input) {
       final Coder<T> coder =
           Parse.inferCoder(getCoder(), getParseFn(), input.getPipeline().getCoderRegistry());
-      SerializableFunction<String, FileBasedSource<T>> createSource =
+      final SerializableFunction<GenericRecord, T> parseFn = getParseFn();
+      final EmptyMatchTreatment emptyMatchTreatment = getEmptyMatchTreatment();
+      final SerializableFunction<String, FileBasedSource<T>> createSource =
           new SerializableFunction<String, FileBasedSource<T>>() {
             @Override
             public FileBasedSource<T> apply(String input) {
-              return AvroSource.from(input).withParseFn(getParseFn(), coder);
+              return AvroSource.from(input)
+                  .withParseFn(parseFn, coder)
+                  .withEmptyMatchTreatment(emptyMatchTreatment);
             }
           };
+      Match.Filepatterns matchFilepatterns =
+              Match.filepatterns().withEmptyMatchTreatment(emptyMatchTreatment);
+      if (getWatchForNewFilesInterval() != null) {
+        matchFilepatterns =
+                matchFilepatterns.continuously(
+                        getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
+      }
       return input
-          .apply(Match.filepatterns())
+          .apply(matchFilepatterns)
           .apply(
               "Parse all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
@@ -646,7 +873,14 @@ public class AvroIO {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"));
+      builder
+          .add(DisplayData.item("parseFn", getParseFn().getClass()).withLabel("Parse function"))
+          .add(
+              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
+                  .withLabel("Treatment of filepatterns that match no files"))
+          .addIfNotNull(
+              DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
+                  .withLabel("Interval to watch for new files"));
     }
   }
 
