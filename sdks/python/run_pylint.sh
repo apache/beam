@@ -66,13 +66,6 @@ echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
   "avroio_test.py"
-  "dataflow_runner_test.py"
-  "iobase_test.py"
-  "helper_test.py"
-  "helper.py"
-  "custom_ptransform.py"
-  "apiclient.py"
-  "datastore_wordcount.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
