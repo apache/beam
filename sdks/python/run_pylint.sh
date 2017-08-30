@@ -70,7 +70,10 @@ ISORT_EXCLUDED=(
   "iobase_test.py"
   "helper_test.py"
   "helper.py"
-  "custom_ptransform.py")
+  "custom_ptransform.py"
+  "apiclient.py"
+  "datastore_wordcount.py"
+)
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $file"
