@@ -66,6 +66,7 @@ echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
   "avroio_test.py"
+  "fast_coders_test.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
