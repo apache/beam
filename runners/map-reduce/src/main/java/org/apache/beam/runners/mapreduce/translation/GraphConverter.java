@@ -70,7 +70,8 @@ public class GraphConverter extends Pipeline.PipelineVisitor.Defaults {
   @Override
   public void leaveCompositeTransform(TransformHierarchy.Node node) {
     if (node.getTransform() != null) {
-      if (enclosedTransformCounts.get(node) > 1) {
+      Integer enclosedTransformCount = enclosedTransformCounts.get(node);
+      if (enclosedTransformCount != null && enclosedTransformCount > 1) {
         dotfileNodesBuilders.peek().insert(0, new StringBuilder()
             .append(getIndent()).append(
                 String.format("subgraph \"cluster_%s\" {", node.getFullName()))
