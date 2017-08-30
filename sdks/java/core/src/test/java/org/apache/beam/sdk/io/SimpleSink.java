@@ -36,12 +36,19 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
     super(StaticValueProvider.of(tempDirectory), dynamicDestinations, writableByteChannelFactory);
   }
 
+  public SimpleSink(
+      ResourceId tempDirectory,
+      DynamicDestinations<String, DestinationT, String> dynamicDestinations,
+      Compression compression) {
+    super(StaticValueProvider.of(tempDirectory), dynamicDestinations, compression);
+  }
+
   public static SimpleSink<Void> makeSimpleSink(
       ResourceId tempDirectory, FilenamePolicy filenamePolicy) {
     return new SimpleSink<>(
         tempDirectory,
         DynamicFileDestinations.<String>constant(filenamePolicy),
-        CompressionType.UNCOMPRESSED);
+        Compression.UNCOMPRESSED);
   }
 
   public static SimpleSink<Void> makeSimpleSink(
@@ -59,6 +66,20 @@ class SimpleSink<DestinationT> extends FileBasedSink<String, DestinationT, Strin
                     .withShardTemplate(shardTemplate)
                     .withSuffix(suffix)));
     return new SimpleSink<>(baseDirectory, dynamicDestinations, writableByteChannelFactory);
+  }
+
+  public static SimpleSink<Void> makeSimpleSink(
+      ResourceId baseDirectory,
+      String prefix,
+      String shardTemplate,
+      String suffix,
+      Compression compression) {
+    return makeSimpleSink(
+        baseDirectory,
+        prefix,
+        shardTemplate,
+        suffix,
+        FileBasedSink.CompressionType.fromCanonical(compression));
   }
 
   @Override

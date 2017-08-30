@@ -48,7 +48,6 @@ import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
-import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
 import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -229,7 +228,7 @@ public class FileBasedSinkTest {
     String prefix = "file";
     SimpleSink<Void> sink =
         SimpleSink.makeSimpleSink(
-            getBaseOutputDirectory(), prefix, "", "", CompressionType.UNCOMPRESSED);
+            getBaseOutputDirectory(), prefix, "", "", Compression.UNCOMPRESSED);
 
     WriteOperation<Void, String> writeOp =
         new SimpleSink.SimpleWriteOperation<>(sink, tempDirectory);
@@ -320,7 +319,7 @@ public class FileBasedSinkTest {
 
     SimpleSink<Void> sink =
         SimpleSink.makeSimpleSink(
-            root, "file", ".SSSSS.of.NNNNN", ".test", CompressionType.UNCOMPRESSED);
+            root, "file", ".SSSSS.of.NNNNN", ".test", Compression.UNCOMPRESSED);
     FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected =
@@ -347,7 +346,7 @@ public class FileBasedSinkTest {
   public void testCollidingOutputFilenames() throws IOException {
     ResourceId root = getBaseOutputDirectory();
     SimpleSink<Void> sink =
-        SimpleSink.makeSimpleSink(root, "file", "-NN", "test", CompressionType.UNCOMPRESSED);
+        SimpleSink.makeSimpleSink(root, "file", "-NN", "test", Compression.UNCOMPRESSED);
     SimpleSink.SimpleWriteOperation<Void> writeOp = new SimpleSink.SimpleWriteOperation<>(sink);
 
     ResourceId temp1 = root.resolve("temp1", StandardResolveOptions.RESOLVE_FILE);
@@ -376,7 +375,7 @@ public class FileBasedSinkTest {
     ResourceId root = getBaseOutputDirectory();
     SimpleSink<Void> sink =
         SimpleSink.makeSimpleSink(
-            root, "file", "-SSSSS-of-NNNNN", "", CompressionType.UNCOMPRESSED);
+            root, "file", "-SSSSS-of-NNNNN", "", Compression.UNCOMPRESSED);
     FilenamePolicy policy = sink.getDynamicDestinations().getFilenamePolicy(null);
 
     expected =
@@ -398,11 +397,11 @@ public class FileBasedSinkTest {
     assertEquals(expected, actual);
   }
 
-  /** {@link CompressionType#BZIP2} correctly writes BZip2 data. */
+  /** {@link Compression#BZIP2} correctly writes BZip2 data. */
   @Test
-  public void testCompressionTypeBZIP2() throws FileNotFoundException, IOException {
+  public void testCompressionBZIP2() throws FileNotFoundException, IOException {
     final File file =
-        writeValuesWithWritableByteChannelFactory(CompressionType.BZIP2, "abc", "123");
+        writeValuesWithCompression(Compression.BZIP2, "abc", "123");
     // Read Bzip2ed data back in using Apache commons API (de facto standard).
     assertReadValues(
         new BufferedReader(
@@ -413,10 +412,10 @@ public class FileBasedSinkTest {
         "123");
   }
 
-  /** {@link CompressionType#GZIP} correctly writes Gzipped data. */
+  /** {@link Compression#GZIP} correctly writes Gzipped data. */
   @Test
-  public void testCompressionTypeGZIP() throws FileNotFoundException, IOException {
-    final File file = writeValuesWithWritableByteChannelFactory(CompressionType.GZIP, "abc", "123");
+  public void testCompressionGZIP() throws FileNotFoundException, IOException {
+    final File file = writeValuesWithCompression(Compression.GZIP, "abc", "123");
     // Read Gzipped data back in using standard API.
     assertReadValues(
         new BufferedReader(
@@ -426,11 +425,11 @@ public class FileBasedSinkTest {
         "123");
   }
 
-  /** {@link CompressionType#DEFLATE} correctly writes deflate data. */
+  /** {@link Compression#DEFLATE} correctly writes deflate data. */
   @Test
-  public void testCompressionTypeDEFLATE() throws FileNotFoundException, IOException {
+  public void testCompressionDEFLATE() throws FileNotFoundException, IOException {
     final File file =
-        writeValuesWithWritableByteChannelFactory(CompressionType.DEFLATE, "abc", "123");
+        writeValuesWithCompression(Compression.DEFLATE, "abc", "123");
     // Read Gzipped data back in using standard API.
     assertReadValues(
         new BufferedReader(
@@ -441,11 +440,11 @@ public class FileBasedSinkTest {
         "123");
   }
 
-  /** {@link CompressionType#UNCOMPRESSED} correctly writes uncompressed data. */
+  /** {@link Compression#UNCOMPRESSED} correctly writes uncompressed data. */
   @Test
-  public void testCompressionTypeUNCOMPRESSED() throws FileNotFoundException, IOException {
+  public void testCompressionUNCOMPRESSED() throws FileNotFoundException, IOException {
     final File file =
-        writeValuesWithWritableByteChannelFactory(CompressionType.UNCOMPRESSED, "abc", "123");
+        writeValuesWithCompression(Compression.UNCOMPRESSED, "abc", "123");
     // Read uncompressed data back in using standard API.
     assertReadValues(
         new BufferedReader(
@@ -462,11 +461,11 @@ public class FileBasedSinkTest {
     }
   }
 
-  private File writeValuesWithWritableByteChannelFactory(
-      final WritableByteChannelFactory factory, String... values) throws IOException {
+  private File writeValuesWithCompression(
+      Compression compression, String... values) throws IOException {
     final File file = tmpFolder.newFile("test.gz");
     final WritableByteChannel channel =
-        factory.create(Channels.newChannel(new FileOutputStream(file)));
+        compression.writeCompressed(Channels.newChannel(new FileOutputStream(file)));
     for (String value : values) {
       channel.write(ByteBuffer.wrap((value + "\n").getBytes(StandardCharsets.UTF_8)));
     }
@@ -512,7 +511,7 @@ public class FileBasedSinkTest {
   /** Build a SimpleSink with default options. */
   private SimpleSink<Void> buildSink() {
     return SimpleSink.makeSimpleSink(
-        getBaseOutputDirectory(), "file", "-SS-of-NN", ".test", CompressionType.UNCOMPRESSED);
+        getBaseOutputDirectory(), "file", "-SS-of-NN", ".test", Compression.UNCOMPRESSED);
   }
 
   /** Build a SimpleWriteOperation with default options and the given temporary directory. */
