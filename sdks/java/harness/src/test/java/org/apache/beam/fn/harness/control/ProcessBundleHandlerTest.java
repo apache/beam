@@ -21,14 +21,21 @@ package org.apache.beam.fn.harness.control;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.when;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.protobuf.Message;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
@@ -36,7 +43,11 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor;
+import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
+import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -50,7 +61,10 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 /** Tests for {@link ProcessBundleHandler}. */
 @RunWith(JUnit4.class)
@@ -150,7 +164,7 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
-        null /* beamFnStateClient */,
+        null /* beamFnStateGrpcClientCache */,
         ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
           @Override
           public Object createRunnerForPTransform(
@@ -190,7 +204,7 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
-        null /* beamFnStateClient */,
+        null /* beamFnStateGrpcClientCache */,
         ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
           @Override
           public Object createRunnerForPTransform(
@@ -231,7 +245,7 @@ public class ProcessBundleHandlerTest {
         PipelineOptionsFactory.create(),
         fnApiRegistry::get,
         beamFnDataClient,
-        null /* beamFnStateClient */,
+        null /* beamFnStateGrpcClientCache */,
         ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
           @Override
           public Object createRunnerForPTransform(
@@ -257,6 +271,139 @@ public class ProcessBundleHandlerTest {
             BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
             .build());
   }
+
+  @Test
+  public void testPendingStateCallsBlockTillCompletion() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
+                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                .build())
+            .setStateApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
+            .build();
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+
+    CompletableFuture<StateResponse> successfulResponse = new CompletableFuture<>();
+    CompletableFuture<StateResponse> unsuccessfulResponse = new CompletableFuture<>();
+
+    BeamFnStateGrpcClientCache mockBeamFnStateGrpcClient =
+        Mockito.mock(BeamFnStateGrpcClientCache.class);
+    BeamFnStateClient mockBeamFnStateClient = Mockito.mock(BeamFnStateClient.class);
+    when(mockBeamFnStateGrpcClient.forApiServiceDescriptor(any()))
+        .thenReturn(mockBeamFnStateClient);
+
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) throws Throwable {
+        StateRequest.Builder stateRequestBuilder =
+            (StateRequest.Builder) invocation.getArguments()[0];
+        CompletableFuture<StateResponse> completableFuture =
+            (CompletableFuture<StateResponse>) invocation.getArguments()[1];
+        new Thread() {
+          @Override
+          public void run() {
+            // Simulate sleeping which introduces a race which most of the time requires
+            // the ProcessBundleHandler to block.
+            Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
+            switch (stateRequestBuilder.getInstructionReference()) {
+              case "SUCCESS":
+                completableFuture.complete(StateResponse.getDefaultInstance());
+                break;
+              case "FAIL":
+                completableFuture.completeExceptionally(new RuntimeException("TEST ERROR"));
+            }
+          }
+        }.start();
+        return null;
+      }
+    }).when(mockBeamFnStateClient).handle(any(), any());
+
+    ProcessBundleHandler handler = new ProcessBundleHandler(
+        PipelineOptionsFactory.create(),
+        fnApiRegistry::get,
+        beamFnDataClient,
+        mockBeamFnStateGrpcClient,
+        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
+          @Override
+          public Object createRunnerForPTransform(
+              PipelineOptions pipelineOptions,
+              BeamFnDataClient beamFnDataClient,
+              BeamFnStateClient beamFnStateClient,
+              String pTransformId,
+              RunnerApi.PTransform pTransform,
+              Supplier<String> processBundleInstructionId,
+              Map<String, RunnerApi.PCollection> pCollections,
+              Map<String, RunnerApi.Coder> coders,
+              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Consumer<ThrowingRunnable> addStartFunction,
+              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+            addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
+            return null;
+          }
+
+          private void doStateCalls(BeamFnStateClient beamFnStateClient) {
+            beamFnStateClient.handle(StateRequest.newBuilder().setInstructionReference("SUCCESS"),
+                successfulResponse);
+            beamFnStateClient.handle(StateRequest.newBuilder().setInstructionReference("FAIL"),
+                unsuccessfulResponse);
+          }
+        }));
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
+            BeamFnApi.ProcessBundleRequest.newBuilder()
+                .setProcessBundleDescriptorReference("1L"))
+            .build());
+
+    assertTrue(successfulResponse.isDone());
+    assertTrue(unsuccessfulResponse.isDone());
+  }
+
+  @Test
+  public void testStateCallsFailIfNoStateApiServiceDescriptorSpecified() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms("2L", RunnerApi.PTransform.newBuilder()
+                .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                .build())
+            .build();
+    Map<String, Message> fnApiRegistry = ImmutableMap.of("1L", processBundleDescriptor);
+
+    ProcessBundleHandler handler = new ProcessBundleHandler(
+        PipelineOptionsFactory.create(),
+        fnApiRegistry::get,
+        beamFnDataClient,
+        null /* beamFnStateGrpcClientCache */,
+        ImmutableMap.of(DATA_INPUT_URN, new PTransformRunnerFactory<Object>() {
+          @Override
+          public Object createRunnerForPTransform(
+              PipelineOptions pipelineOptions,
+              BeamFnDataClient beamFnDataClient,
+              BeamFnStateClient beamFnStateClient,
+              String pTransformId,
+              RunnerApi.PTransform pTransform,
+              Supplier<String> processBundleInstructionId,
+              Map<String, RunnerApi.PCollection> pCollections,
+              Map<String, RunnerApi.Coder> coders,
+              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Consumer<ThrowingRunnable> addStartFunction,
+              Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
+            addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
+            return null;
+          }
+
+          private void doStateCalls(BeamFnStateClient beamFnStateClient) {
+            thrown.expect(IllegalStateException.class);
+            thrown.expectMessage("State API calls are unsupported");
+            beamFnStateClient.handle(StateRequest.newBuilder().setInstructionReference("SUCCESS"),
+                new CompletableFuture<>());
+          }
+        }));
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder().setProcessBundle(
+            BeamFnApi.ProcessBundleRequest.newBuilder().setProcessBundleDescriptorReference("1L"))
+            .build());
+  }
+
 
   private static void throwException() {
     throw new IllegalStateException("TestException");

@@ -168,6 +168,11 @@ message ProcessBundleDescriptor {
 
   // (Required) A map from pipeline-scoped id to Environment.
   map<string, org.apache.beam.runner_api.v1.Environment> environments = 6;
+
+  // A descriptor describing the end point to use for State API
+  // calls. Required if the Runner intends to send remote references over the
+  // data plane or if any of the transforms rely on user state or side inputs.
+  ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
 // A request to process a given bundle.
