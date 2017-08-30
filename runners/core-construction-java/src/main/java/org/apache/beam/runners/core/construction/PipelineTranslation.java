@@ -155,27 +155,21 @@ public class PipelineTranslation {
     // Only ParDo really separates main from side inputs
     Map<TupleTag<?>, PValue> additionalInputs = Collections.emptyMap();
 
-    // TODO: ParDoTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
+    // TODO: ParDoTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
     if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
-      RunnerApi.ParDoPayload payload =
-          RunnerApi.ParDoPayload.parseFrom(transformSpec.getPayload());
+      RunnerApi.ParDoPayload payload = RunnerApi.ParDoPayload.parseFrom(transformSpec.getPayload());
+      additionalInputs =
+          sideInputMapToAdditionalInputs(
+              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
+    }
 
-      List<PCollectionView<?>> views = new ArrayList<>();
-      for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry :
-          payload.getSideInputsMap().entrySet()) {
-        String localName = sideInputEntry.getKey();
-        RunnerApi.SideInput sideInput = sideInputEntry.getValue();
-        PCollection<?> pCollection =
-            (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
-        views.add(
-            ParDoTranslation.viewFromProto(
-                sideInputEntry.getValue(),
-                sideInputEntry.getKey(),
-                pCollection,
-                transformProto,
-                rehydratedComponents));
-      }
-      additionalInputs = PCollectionViews.toAdditionalInputs(views);
+    // TODO: WriteFilesTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
+    if (transformSpec.getUrn().equals(PTransformTranslation.WRITE_FILES_TRANSFORM_URN)) {
+      RunnerApi.WriteFilesPayload payload =
+          RunnerApi.WriteFilesPayload.parseFrom(transformSpec.getPayload());
+      additionalInputs =
+          sideInputMapToAdditionalInputs(
+              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
     }
 
     // TODO: CombineTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
@@ -214,6 +208,25 @@ public class PipelineTranslation {
 
       transforms.popNode();
     }
+  }
+
+  private static Map<TupleTag<?>, PValue> sideInputMapToAdditionalInputs(
+      RunnerApi.PTransform transformProto,
+      RehydratedComponents rehydratedComponents,
+      Map<TupleTag<?>, PValue> rehydratedInputs,
+      Map<String, RunnerApi.SideInput> sideInputsMap)
+      throws IOException {
+    List<PCollectionView<?>> views = new ArrayList<>();
+    for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry : sideInputsMap.entrySet()) {
+      String localName = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> pCollection =
+          (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
+      views.add(
+          ParDoTranslation.viewFromProto(
+              sideInput, localName, pCollection, transformProto, rehydratedComponents));
+    }
+    return PCollectionViews.toAdditionalInputs(views);
   }
 
   // A primitive transform is one with outputs that are not in its input and also

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
+import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
@@ -28,13 +29,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -63,7 +65,6 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
-import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -525,7 +526,7 @@ public class AvroIOTest {
               outputFileHints.getSuggestedFilenameSuffix());
       return outputFilePrefix
           .getCurrentDirectory()
-          .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+          .resolve(filename, RESOLVE_FILE);
     }
 
     @Override
@@ -709,16 +710,14 @@ public class AvroIOTest {
     public FilenamePolicy getFilenamePolicy(String destination) {
       return DefaultFilenamePolicy.fromStandardParameters(
           StaticValueProvider.of(
-              baseDir.resolve("file_" + destination + ".txt", StandardResolveOptions.RESOLVE_FILE)),
+              baseDir.resolve("file_" + destination + ".txt", RESOLVE_FILE)),
           null,
           null,
           false);
     }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testDynamicDestinations() throws Exception {
+  private void testDynamicDestinationsWithSharding(Integer numShards) throws Exception {
     ResourceId baseDir =
         FileSystems.matchNewResource(
             Files.createTempDirectory(tmpFolder.getRoot().toPath(), "testDynamicDestinations")
@@ -726,13 +725,14 @@ public class AvroIOTest {
             true);
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
-    List<GenericRecord> expectedElements = Lists.newArrayListWithExpectedSize(elements.size());
+    Multimap<String, GenericRecord> expectedElements = ArrayListMultimap.create();
     Map<String, String> schemaMap = Maps.newHashMap();
     for (String element : elements) {
       String prefix = element.substring(0, 1);
       String jsonSchema = schemaFromPrefix(prefix);
       schemaMap.put(prefix, jsonSchema);
-      expectedElements.add(createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
+      expectedElements.put(
+          prefix, createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
     }
     PCollectionView<Map<String, String>> schemaView =
         writePipeline
@@ -741,38 +741,61 @@ public class AvroIOTest {
 
     PCollection<String> input =
         writePipeline.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(
+    AvroIO.TypedWrite<String, GenericRecord> write =
         AvroIO.<String>writeCustomTypeToGenericRecords()
             .to(new TestDynamicDestinations(baseDir, schemaView))
-            .withoutSharding()
-            .withTempDirectory(baseDir));
+            .withTempDirectory(baseDir);
+
+    if (numShards == null) {
+      // runner-determined sharding: leave as is.
+    } else if (numShards == -1) {
+      write = write.withoutSharding();
+    } else {
+      write = write.withNumShards(numShards);
+    }
+
+    input.apply(write);
     writePipeline.run();
 
     // Validate that the data written matches the expected elements in the expected order.
 
-    List<String> prefixes = Lists.newArrayList();
-    for (String element : elements) {
-      prefixes.add(element.substring(0, 1));
-    }
-    prefixes = ImmutableSet.copyOf(prefixes).asList();
-
-    List<GenericRecord> actualElements = new ArrayList<>();
-    for (String prefix : prefixes) {
-      File expectedFile =
-          new File(
-              baseDir
-                  .resolve(
-                      "file_" + prefix + ".txt-00000-of-00001", StandardResolveOptions.RESOLVE_FILE)
-                  .toString());
-      assertTrue("Expected output file " + expectedFile.getAbsolutePath(), expectedFile.exists());
-      Schema schema = new Schema.Parser().parse(schemaFromPrefix(prefix));
-      try (DataFileReader<GenericRecord> reader =
-          new DataFileReader<>(expectedFile, new GenericDatumReader<GenericRecord>(schema))) {
-        Iterators.addAll(actualElements, reader);
+    for (String prefix : expectedElements.keySet()) {
+      String shardPattern;
+      if (numShards == null) {
+        shardPattern = "*";
+      } else if (numShards == -1) {
+        shardPattern = "00000-of-00001";
+      } else {
+        shardPattern = "*-of-0000" + numShards;
       }
-      expectedFile.delete();
+      String expectedFilepattern =
+          baseDir.resolve("file_" + prefix + ".txt-" + shardPattern, RESOLVE_FILE).toString();
+
+      PCollection<GenericRecord> records =
+          readPipeline.apply(
+              "read_" + prefix,
+              AvroIO.readGenericRecords(schemaFromPrefix(prefix)).from(expectedFilepattern));
+      PAssert.that(records).containsInAnyOrder(expectedElements.get(prefix));
     }
-    assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsRunnerDeterminedSharding() throws Exception {
+    testDynamicDestinationsWithSharding(null);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsWithoutSharding() throws Exception {
+    testDynamicDestinationsWithSharding(-1);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsWithNumShards() throws Exception {
+    testDynamicDestinationsWithSharding(3);
   }
 
   @Test
