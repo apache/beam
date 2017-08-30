@@ -832,7 +832,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
                     @Override
                     public <T> T sideInput(PCollectionView<T> view) {
-                      return sideInput(view);
+                      return processBundleContext.sideInput(view);
                     }
 
                     @Override
