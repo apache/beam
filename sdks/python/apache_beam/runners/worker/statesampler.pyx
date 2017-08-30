@@ -34,10 +34,17 @@ thread queries the current state, the time spent since the previous sample is
 attributed to that state and accumulated.  Over time, this allows a granular
 runtime profile to be produced.
 
-Also measures time spent for the current active transition. For shorter
-transitions (comparable to the sampling period), this may not be
+Also measures time spent for the current active transition. We keep track of
+the number of completed transitions for every sample period and use it to
+attribute the fraction of the time spent in the active transition for a sample:
+
+  active_transition_time = elapsed_time * (1 / (1 + #completed transitions))
+
+For shorter transitions (comparable to the sampling period), this may not be
 accurate since there aren't enough samples, but provides a good estimate for
 longer transitions.
+
+The active transition time is mainly useful for progress reporting purposes.
 """
 
 import threading
@@ -157,7 +164,9 @@ cdef class StateSampler(object):
           nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
               self.scoped_states_by_index, self.current_state_index)).nsecs
           nsecs_ptr[0] += elapsed_nsecs
+          last_nsecs += elapsed_nsecs
 
+          ###### Compute and set time for active transition. ############
           active_nsecs_ptr = &(<ScopedState>PyList_GET_ITEM(
                  self.scoped_states_by_index,
                  self.current_state_index)).active_nsecs
@@ -175,13 +184,13 @@ cdef class StateSampler(object):
               self.scoped_states_by_index, self.current_state_index)).is_active
 
           if is_active:
-             # Fraction of the time spent in active transition.
+             # Fraction of the state time spent in active transition.
              active_elapsed_nsecs = elapsed_nsecs / (1 + completed_ptr[0])
              active_nsecs_ptr[0] += active_elapsed_nsecs
 
           # reset the completed count
           completed_ptr[0] = 0
-          last_nsecs += elapsed_nsecs
+
         finally:
           pythread.PyThread_release_lock(self.lock)
 
@@ -237,12 +246,14 @@ cdef class StateSampler(object):
     for state in self.scoped_states_by_name.values():
       state_msecs = int(1e-6 * state.nsecs)
       state.counter.update(state_msecs - state.counter.value())
+
+      # Resets the active counter if there is no active transition.
+      active_state_msecs = 0
       if (<ScopedState>state).is_active:
-        state_msecs = int(1e-6 * state.active_nsecs)
-      else:
-        # Resets the active counter to 0.
-        state_msecs = 0
-      state.active_counter.update(state_msecs - state.active_counter.value())
+        active_state_msecs = int(1e-6 * state.active_nsecs)
+
+      state.active_counter.update(
+          active_state_msecs - state.active_counter.value())
 
 
 cdef class ScopedState(object):
@@ -258,6 +269,8 @@ cdef class ScopedState(object):
   cdef int32_t old_state_index
 
   # Number of completed transitions (entered and exited) since the last sample.
+  # This is used by the sampling thread to compute the fraction of the time
+  # spent in active transition. This value itself is not reported.
   cdef int32_t completed
 
   # True if there is an active transition (entered but not exited).
