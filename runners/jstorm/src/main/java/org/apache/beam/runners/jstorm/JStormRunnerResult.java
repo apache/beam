@@ -64,8 +64,8 @@ public abstract class JStormRunnerResult implements PipelineResult {
 
   private static class LocalJStormPipelineResult extends JStormRunnerResult {
 
-    private LocalCluster localCluster;
-    private long localModeExecuteTimeSecs;
+    private final LocalCluster localCluster;
+    private final long localModeExecuteTimeSecs;
 
     LocalJStormPipelineResult(
         String topologyName,
@@ -74,6 +74,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
         long localModeExecuteTimeSecs) {
       super(topologyName, config);
       this.localCluster = checkNotNull(localCluster, "localCluster");
+      this.localModeExecuteTimeSecs = localModeExecuteTimeSecs;
     }
 
     @Override
