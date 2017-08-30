@@ -63,9 +63,21 @@ pylint $MODULE --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
 pycodestyle $MODULE --exclude="$FILES_TO_IGNORE"
 echo "Running isort for module $MODULE:"
+# Skip files where isort is behaving weirdly
+ISORT_EXCLUDED=(
+  "avroio_test.py"
+  "dataflow_runner_test.py"
+  "iobase_test.py"
+  "helper_test.py"
+  "helper.py"
+  "custom_ptransform.py")
+SKIP_PARAM=""
+for file in "${ISORT_EXCLUDED[@]}"; do
+  SKIP_PARAM="$SKIP_PARAM --skip $file"
+done
+for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
+  SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
+done
 pushd $MODULE
-# Skip two files where isort is behaving weirdly
-isort -p apache_beam -w 79 -y -c -ot -cs --skip avroio_test.py \
-      --skip dataflow_runner_test.py --skip iobase_test.py \
-      --skip helper_test.py --skip helper.py --skip custom_ptransform.py
+isort -p apache_beam -w 79 -y -c -ot -cs ${SKIP_PARAM}
 popd
