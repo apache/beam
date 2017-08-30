@@ -22,9 +22,12 @@ import glob
 import os
 import shutil
 
-from apache_beam.io.filesystem import (BeamIOError, CompressedFile,
-                                       CompressionTypes, FileMetadata,
-                                       FileSystem, MatchResult)
+from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import CompressedFile
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileMetadata
+from apache_beam.io.filesystem import FileSystem
+from apache_beam.io.filesystem import MatchResult
 
 __all__ = ['LocalFileSystem']
 

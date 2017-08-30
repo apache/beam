@@ -27,19 +27,29 @@ import yaml
 import apache_beam as beam
 from apache_beam.runners import pipeline_context
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import trigger
 from apache_beam.transforms.core import Windowing
-from apache_beam.transforms.trigger import (AccumulationMode, AfterAll,
-                                            AfterAny, AfterCount, AfterEach,
-                                            AfterWatermark, DefaultTrigger,
-                                            GeneralTriggerDriver,
-                                            InMemoryUnmergedState, Repeatedly,
-                                            TriggerFn)
-from apache_beam.transforms.window import (MIN_TIMESTAMP, FixedWindows,
-                                           IntervalWindow, Sessions,
-                                           TimestampCombiner, TimestampedValue,
-                                           WindowedValue, WindowFn)
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterAll
+from apache_beam.transforms.trigger import AfterAny
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.trigger import AfterEach
+from apache_beam.transforms.trigger import AfterWatermark
+from apache_beam.transforms.trigger import DefaultTrigger
+from apache_beam.transforms.trigger import GeneralTriggerDriver
+from apache_beam.transforms.trigger import InMemoryUnmergedState
+from apache_beam.transforms.trigger import Repeatedly
+from apache_beam.transforms.trigger import TriggerFn
+from apache_beam.transforms.window import MIN_TIMESTAMP
+from apache_beam.transforms.window import FixedWindows
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import Sessions
+from apache_beam.transforms.window import TimestampCombiner
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.transforms.window import WindowedValue
+from apache_beam.transforms.window import WindowFn
 
 
 class CustomTimestampingFixedWindowsWindowFn(FixedWindows):

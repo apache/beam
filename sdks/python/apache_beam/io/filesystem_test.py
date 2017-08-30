@@ -24,7 +24,8 @@ import tempfile
 import unittest
 from StringIO import StringIO
 
-from apache_beam.io.filesystem import CompressedFile, CompressionTypes
+from apache_beam.io.filesystem import CompressedFile
+from apache_beam.io.filesystem import CompressionTypes
 
 
 class TestCompressedFile(unittest.TestCase):

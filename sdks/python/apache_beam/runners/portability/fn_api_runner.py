@@ -29,20 +29,25 @@ import grpc
 from google.protobuf import wrappers_pb2
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
-from apache_beam.coders import WindowedValueCoder, registry
-from apache_beam.coders.coder_impl import (create_InputStream,
-                                           create_OutputStream)
+from apache_beam.coders import WindowedValueCoder
+from apache_beam.coders import registry
+from apache_beam.coders.coder_impl import create_InputStream
+from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.runners.runner import PipelineState
-from apache_beam.runners.worker import (bundle_processor, data_plane,
-                                        operation_specs, sdk_worker)
+from apache_beam.runners.worker import bundle_processor
+from apache_beam.runners.worker import data_plane
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.utils import proto_utils, urns
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 # This module is experimental. No backwards-compatibility guarantees.
 

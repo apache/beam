@@ -19,9 +19,9 @@
 
 import argparse
 
-from apache_beam.options.value_provider import (RuntimeValueProvider,
-                                                StaticValueProvider,
-                                                ValueProvider)
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import ValueProvider
 from apache_beam.transforms.display import HasDisplayData
 
 __all__ = [

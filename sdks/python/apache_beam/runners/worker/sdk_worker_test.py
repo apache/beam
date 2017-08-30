@@ -17,7 +17,9 @@
 
 """Tests for apache_beam.runners.worker.sdk_worker."""
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import logging
 import unittest
@@ -25,7 +27,8 @@ from concurrent import futures
 
 import grpc
 
-from apache_beam.portability.api import beam_fn_api_pb2, beam_runner_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
 
 

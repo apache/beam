@@ -27,8 +27,9 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.transforms.display import (DisplayData, DisplayDataItem,
-                                            HasDisplayData)
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
 
 
 class DisplayDataItemMatcher(BaseMatcher):

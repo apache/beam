@@ -20,7 +20,8 @@
 import unittest
 
 from apache_beam.internal import module_test
-from apache_beam.internal.pickler import dumps, loads
+from apache_beam.internal.pickler import dumps
+from apache_beam.internal.pickler import loads
 
 
 class PicklerTest(unittest.TestCase):

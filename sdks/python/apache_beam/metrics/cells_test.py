@@ -18,8 +18,10 @@
 import threading
 import unittest
 
-from apache_beam.metrics.cells import (CellCommitState, CounterCell,
-                                       DistributionCell, DistributionData)
+from apache_beam.metrics.cells import CellCommitState
+from apache_beam.metrics.cells import CounterCell
+from apache_beam.metrics.cells import DistributionCell
+from apache_beam.metrics.cells import DistributionData
 
 
 class TestCounterCell(unittest.TestCase):

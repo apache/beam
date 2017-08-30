@@ -22,11 +22,13 @@ For internal use only; no backwards-compatibility guarantees.
 import re
 
 from apache_beam.internal import pickler
-from apache_beam.options.pipeline_options import (DebugOptions,
-                                                  GoogleCloudOptions,
-                                                  SetupOptions,
-                                                  StandardOptions, TestOptions,
-                                                  TypeOptions, WorkerOptions)
+from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TestOptions
+from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.options.pipeline_options import WorkerOptions
 
 
 class PipelineOptionsValidator(object):

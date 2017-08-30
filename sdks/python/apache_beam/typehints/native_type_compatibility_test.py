@@ -20,7 +20,8 @@
 import typing
 import unittest
 
-from apache_beam.typehints import native_type_compatibility, typehints
+from apache_beam.typehints import native_type_compatibility
+from apache_beam.typehints import typehints
 
 _TestNamedTuple = typing.NamedTuple('_TestNamedTuple',
                                     [('age', int), ('name', bytes)])

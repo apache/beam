@@ -29,7 +29,8 @@ from apache_beam.coders import coders
 from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
 from apache_beam.transforms.window import GlobalWindow
-from apache_beam.utils import timestamp, windowed_value
+from apache_beam.utils import timestamp
+from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 

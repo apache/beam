@@ -32,7 +32,8 @@ Available classes:
 import threading
 from collections import defaultdict
 
-from apache_beam.metrics.cells import CounterCell, DistributionCell
+from apache_beam.metrics.cells import CounterCell
+from apache_beam.metrics.cells import DistributionCell
 
 
 class MetricKey(object):

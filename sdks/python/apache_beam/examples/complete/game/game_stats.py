@@ -77,7 +77,8 @@ NOTE [BEAM-2354]: This example is not yet runnable by DataflowRunner.
 --------------------------------------------------------------------------------
 """
 
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import
+from __future__ import print_function
 
 import argparse
 import csv
@@ -88,10 +89,10 @@ from datetime import datetime
 
 import apache_beam as beam
 from apache_beam.metrics.metric import Metrics
-from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  PipelineOptions,
-                                                  SetupOptions,
-                                                  StandardOptions)
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
 
 
 def timestamp2str(t, fmt='%Y-%m-%d %H:%M:%S.000'):

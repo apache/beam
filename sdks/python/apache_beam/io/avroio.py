@@ -49,10 +49,13 @@ from functools import partial
 
 import avro
 from avro import io as avroio
-from avro import datafile, schema
+from avro import datafile
+from avro import schema
 
 import apache_beam as beam
-from apache_beam.io import filebasedsink, filebasedsource, iobase
+from apache_beam.io import filebasedsink
+from apache_beam.io import filebasedsource
+from apache_beam.io import iobase
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.transforms import PTransform

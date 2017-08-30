@@ -27,7 +27,8 @@ import google.protobuf
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_runner_api_pb2
-from apache_beam.utils import proto_utils, urns
+from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:

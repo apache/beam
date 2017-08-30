@@ -32,9 +32,11 @@ from apache_beam.runners.dataflow.internal.dependency import \
     _dependency_file_copy
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
-from apache_beam.runners.runner import (PipelineResult, PipelineRunner,
-                                        PipelineState)
-from apache_beam.runners.worker import operation_specs, operations
+from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.runner import PipelineRunner
+from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import operations
 from apache_beam.typehints import typehints
 from apache_beam.utils import profiler
 from apache_beam.utils.counters import CounterFactory

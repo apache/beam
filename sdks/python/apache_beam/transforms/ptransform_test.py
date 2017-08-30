@@ -35,12 +35,15 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
 from apache_beam.transforms.core import _GroupByKeyOnly
-from apache_beam.transforms.display import DisplayData, DisplayDataItem
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
-from apache_beam.typehints import with_input_types, with_output_types
+from apache_beam.typehints import with_input_types
+from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.windowed_value import WindowedValue
 

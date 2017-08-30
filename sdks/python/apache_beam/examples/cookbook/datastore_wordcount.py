@@ -66,19 +66,20 @@ import logging
 import re
 import uuid
 
-from google.cloud.proto.datastore.v1 import entity_pb2, query_pb2
+from google.cloud.proto.datastore.v1 import entity_pb2
+from google.cloud.proto.datastore.v1 import query_pb2
 from googledatastore import helper as datastore_helper
 from googledatastore import PropertyFilter
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
-from apache_beam.io.gcp.datastore.v1.datastoreio import (ReadFromDatastore,
-                                                         WriteToDatastore)
+from apache_beam.io.gcp.datastore.v1.datastoreio import ReadFromDatastore
+from apache_beam.io.gcp.datastore.v1.datastoreio import WriteToDatastore
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.options.pipeline_options import (GoogleCloudOptions,
-                                                  PipelineOptions,
-                                                  SetupOptions)
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class WordExtractingDoFn(beam.DoFn):

@@ -23,8 +23,8 @@ import unittest
 import hamcrest as hc
 
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.value_provider import (RuntimeValueProvider,
-                                                StaticValueProvider)
+from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
 

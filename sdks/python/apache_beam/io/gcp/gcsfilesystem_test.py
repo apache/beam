@@ -22,7 +22,8 @@ import unittest
 
 import mock
 
-from apache_beam.io.filesystem import BeamIOError, FileMetadata
+from apache_beam.io.filesystem import BeamIOError
+from apache_beam.io.filesystem import FileMetadata
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

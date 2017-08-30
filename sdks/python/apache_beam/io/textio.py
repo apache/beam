@@ -24,10 +24,13 @@ import logging
 from functools import partial
 
 from apache_beam.coders import coders
-from apache_beam.io import filebasedsink, filebasedsource, iobase
+from apache_beam.io import filebasedsink
+from apache_beam.io import filebasedsource
+from apache_beam.io import iobase
 from apache_beam.io.filebasedsource import ReadAllFiles
 from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.iobase import Read, Write
+from apache_beam.io.iobase import Read
+from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 

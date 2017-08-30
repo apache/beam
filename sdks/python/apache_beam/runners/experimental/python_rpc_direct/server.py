@@ -25,7 +25,8 @@ import grpc
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
-from apache_beam.portability.api import beam_job_api_pb2, beam_job_api_pb2_grpc
+from apache_beam.portability.api import beam_job_api_pb2
+from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners.runner import PipelineState
 
 _ONE_DAY_IN_SECONDS = 60 * 60 * 24

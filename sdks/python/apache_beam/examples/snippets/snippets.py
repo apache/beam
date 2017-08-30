@@ -36,7 +36,8 @@ from apache_beam.io.range_trackers import OffsetRangeTracker
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import PTransform
 
 # Quiet some pylint warnings that happen because of the somewhat special

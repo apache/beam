@@ -28,8 +28,9 @@ import mock
 
 import apache_beam as beam
 from apache_beam.internal.gcp.json_value import to_json_value
-from apache_beam.io.gcp.bigquery import (RowAsDictJsonCoder, TableRowJsonCoder,
-                                         parse_table_schema_from_json)
+from apache_beam.io.gcp.bigquery import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery import TableRowJsonCoder
+from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData

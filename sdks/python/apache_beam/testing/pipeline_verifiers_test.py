@@ -22,10 +22,12 @@ import tempfile
 import unittest
 
 from hamcrest import assert_that as hc_assert_that
-from mock import Mock, patch
+from mock import Mock
+from mock import patch
 
 from apache_beam.io.localfilesystem import LocalFileSystem
-from apache_beam.runners.runner import PipelineResult, PipelineState
+from apache_beam.runners.runner import PipelineResult
+from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import pipeline_verifiers as verifiers
 from apache_beam.testing.test_utils import patch_retry
 

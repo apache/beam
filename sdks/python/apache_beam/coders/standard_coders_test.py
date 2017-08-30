@@ -26,7 +26,8 @@ import unittest
 
 import yaml
 
-from apache_beam.coders import coder_impl, coders
+from apache_beam.coders import coder_impl
+from apache_beam.coders import coders
 from apache_beam.transforms import window
 from apache_beam.transforms.window import IntervalWindow
 from apache_beam.utils import windowed_value

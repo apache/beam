@@ -20,12 +20,19 @@
 import logging
 import time
 
-from apache_beam.io.gcp.datastore.v1 import helper, query_splitter, util
+from apache_beam.io.gcp.datastore.v1 import helper
+from apache_beam.io.gcp.datastore.v1 import query_splitter
+from apache_beam.io.gcp.datastore.v1 import util
 from apache_beam.io.gcp.datastore.v1.adaptive_throttler import \
     AdaptiveThrottler
 from apache_beam.metrics.metric import Metrics
-from apache_beam.transforms import (Create, DoFn, FlatMap, GroupByKey, Map,
-                                    ParDo, PTransform)
+from apache_beam.transforms import Create
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import FlatMap
+from apache_beam.transforms import GroupByKey
+from apache_beam.transforms import Map
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.util import Values
 
 # Protect against environments where datastore library is not available.

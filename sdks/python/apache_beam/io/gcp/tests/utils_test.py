@@ -20,7 +20,8 @@
 import logging
 import unittest
 
-from mock import Mock, patch
+from mock import Mock
+from mock import patch
 
 from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.test_utils import patch_retry

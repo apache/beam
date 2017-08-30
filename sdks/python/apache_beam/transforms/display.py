@@ -41,7 +41,8 @@ from __future__ import absolute_import
 import calendar
 import inspect
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 
 __all__ = ['HasDisplayData', 'DisplayDataItem', 'DisplayData']
 

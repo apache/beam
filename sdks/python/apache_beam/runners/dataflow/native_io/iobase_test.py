@@ -20,11 +20,21 @@
 
 import unittest
 
-from apache_beam import Create, error, pvalue
+from apache_beam import Create
+from apache_beam import error
+from apache_beam import pvalue
+from apache_beam.runners.dataflow.native_io.iobase import ConcatPosition
+from apache_beam.runners.dataflow.native_io.iobase import DynamicSplitRequest
 from apache_beam.runners.dataflow.native_io.iobase import \
-  ConcatPosition, DynamicSplitRequest, DynamicSplitResultWithPosition, \
-  NativeSink, NativeSinkWriter, NativeSource, ReaderPosition, ReaderProgress, \
-  _dict_printable_fields, _NativeWrite
+    DynamicSplitResultWithPosition
+from apache_beam.runners.dataflow.native_io.iobase import NativeSink
+from apache_beam.runners.dataflow.native_io.iobase import NativeSinkWriter
+from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.runners.dataflow.native_io.iobase import ReaderPosition
+from apache_beam.runners.dataflow.native_io.iobase import ReaderProgress
+from apache_beam.runners.dataflow.native_io.iobase import \
+    _dict_printable_fields
+from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite
 from apache_beam.testing.test_pipeline import TestPipeline
 
 
