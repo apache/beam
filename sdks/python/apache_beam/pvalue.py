@@ -329,8 +329,9 @@ class AsSingleton(AsSideInput):
     elif len(head) == 1:
       return head[0]
     raise ValueError(
-        'PCollection with more than one element accessed as '
-        'a singleton view.')
+        'PCollection of size %d with more than one element accessed as a '
+        'singleton view. First two elements encountered are "%s", "%s".' % (
+            len(head), str(head[0]), str(head[1])))
 
   @property
   def element_type(self):
