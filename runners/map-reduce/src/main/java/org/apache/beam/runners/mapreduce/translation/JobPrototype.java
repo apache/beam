@@ -24,10 +24,12 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.runners.mapreduce.MapReducePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -139,7 +141,7 @@ public class JobPrototype {
 
       // Setup BeamReducer
       Graphs.Step reducerStartStep = gabwStep;
-      chainOperations(reducerStartStep, fusedStep);
+      chainOperations(reducerStartStep, fusedStep, Sets.<Graphs.Step>newHashSet());
       conf.set(
           BeamReducer.BEAM_REDUCER_KV_CODER,
           Base64.encodeBase64String(SerializableUtils.serializeToByteArray(
@@ -152,7 +154,7 @@ public class JobPrototype {
     }
 
     // Setup DoFns in BeamMapper.
-    chainOperations(startStep, fusedStep);
+    chainOperations(startStep, fusedStep, Sets.<Graphs.Step>newHashSet());
 
     job.setMapOutputKeyClass(BytesWritable.class);
     job.setMapOutputValueClass(byte[].class);
@@ -177,7 +179,8 @@ public class JobPrototype {
     return job;
   }
 
-  private void chainOperations(Graphs.Step current, Graphs.FusedStep fusedStep) {
+  private void chainOperations(
+      Graphs.Step current, Graphs.FusedStep fusedStep, Set<Graphs.Step> visited) {
     Operation<?> operation = current.getOperation();
     List<Graphs.Tag> outputTags = fusedStep.getOutputTags(current);
     for (Graphs.Tag outTag : outputTags) {
@@ -185,9 +188,12 @@ public class JobPrototype {
         operation.attachConsumer(outTag.getTupleTag(), consumer.getOperation());
       }
     }
+    visited.add(current);
     for (Graphs.Tag outTag : outputTags) {
       for (Graphs.Step consumer : fusedStep.getConsumers(outTag)) {
-        chainOperations(consumer, fusedStep);
+        if (!visited.contains(consumer)) {
+          chainOperations(consumer, fusedStep, visited);
+        }
       }
     }
   }
