@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 /**
  * A cache of {@link BeamFnStateClient}s which handle Beam Fn State requests using gRPC.
  *
- * <p>TODO: Add the ability to close which cancels and pending and stops and future requests.
+ * <p>TODO: Add the ability to close which cancels any pending and stops any future requests.
  */
 public class BeamFnStateGrpcClientCache {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
