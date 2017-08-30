@@ -74,6 +74,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
         long localModeExecuteTimeSecs) {
       super(topologyName, config);
       this.localCluster = checkNotNull(localCluster, "localCluster");
+      this.localModeExecuteTimeSecs = localModeExecuteTimeSecs;
     }
 
     @Override
