@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.io.WriteFiles;
 import org.apache.beam.sdk.io.WriteFilesResult;
@@ -86,6 +87,8 @@ class WriteWithShardingFactory<InputT>
       Map<TupleTag<?>, PValue> outputs, WriteFilesResult newOutput) {
     // We must connect the new output from WriteFilesResult to the outputs provided by the original
     // transform.
+    return ReplacementOutputs.tagged(outputs, newOutput);
+    /*
     Map.Entry<TupleTag<?>, PValue> original = Iterables.getOnlyElement(outputs.entrySet());
     Map.Entry<TupleTag<?>, PValue> replacement =
         Iterables.getOnlyElement(newOutput.expand().entrySet());
@@ -94,6 +97,7 @@ class WriteWithShardingFactory<InputT>
         ReplacementOutput.of(
             TaggedPValue.of(original.getKey(), original.getValue()),
             TaggedPValue.of(replacement.getKey(), replacement.getValue())));
+            */
   }
 
   private static class LogElementShardsWithDrift<T>
