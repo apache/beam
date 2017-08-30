@@ -22,17 +22,19 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.sdk.testing.TestPipeline;
 
-/**
- * Utilities for working with the {@link ValueProvider} interface.
- */
+/** Utilities for working with the {@link ValueProvider} interface. */
 public class ValueProviders {
   private ValueProviders() {}
 
   /**
-   * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates
-   * the values according to the provided values in {@code runtimeValues}.
+   * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates the
+   * values according to the provided values in {@code runtimeValues}.
+   *
+   * @deprecated Use {@link TestPipeline#newProvider} for testing {@link ValueProvider} code.
    */
+  @Deprecated
   public static String updateSerializedOptions(
       String serializedOptions, Map<String, String> runtimeValues) {
     ObjectNode root, options;
@@ -41,8 +43,7 @@ public class ValueProviders {
       options = (ObjectNode) root.get("options");
       checkNotNull(options, "Unable to locate 'options' in %s", serializedOptions);
     } catch (IOException e) {
-      throw new RuntimeException(
-        String.format("Unable to parse %s", serializedOptions), e);
+      throw new RuntimeException(String.format("Unable to parse %s", serializedOptions), e);
     }
 
     for (Map.Entry<String, String> entry : runtimeValues.entrySet()) {

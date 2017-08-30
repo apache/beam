@@ -31,15 +31,19 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -49,7 +53,10 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
@@ -341,7 +348,12 @@ public class TestPipeline extends Pipeline implements TestRule {
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
-      pipelineResult = super.run(options);
+      PipelineOptions updatedOptions =
+          MAPPER.convertValue(MAPPER.valueToTree(options), PipelineOptions.class);
+      updatedOptions
+          .as(TestValueProviderOptions.class)
+          .setProviderRuntimeValues(StaticValueProvider.of(providerRuntimeValues));
+      pipelineResult = super.run(updatedOptions);
       verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
@@ -356,6 +368,41 @@ public class TestPipeline extends Pipeline implements TestRule {
     // its execution.
     enforcement.get().afterPipelineExecution();
     return pipelineResult;
+  }
+
+  /** Implementation detail of {@link #newProvider}, do not use. */
+  @Internal
+  public interface TestValueProviderOptions extends PipelineOptions {
+    ValueProvider<Map<String, Object>> getProviderRuntimeValues();
+    void setProviderRuntimeValues(ValueProvider<Map<String, Object>> runtimeValues);
+  }
+
+  /**
+   * Returns a new {@link ValueProvider} that is inaccessible before {@link #run}, but will be
+   * accessible while the pipeline runs.
+   */
+  public <T> ValueProvider<T> newProvider(T runtimeValue) {
+    String uuid = UUID.randomUUID().toString();
+    providerRuntimeValues.put(uuid, runtimeValue);
+    return ValueProvider.NestedValueProvider.of(
+        options.as(TestValueProviderOptions.class).getProviderRuntimeValues(),
+        new GetFromRuntimeValues<T>(uuid));
+  }
+
+  private final Map<String, Object> providerRuntimeValues = Maps.newHashMap();
+
+  private static class GetFromRuntimeValues<T>
+      implements SerializableFunction<Map<String, Object>, T> {
+    private final String key;
+
+    private GetFromRuntimeValues(String key) {
+      this.key = key;
+    }
+
+    @Override
+    public T apply(Map<String, Object> input) {
+      return (T) input.get(key);
+    }
   }
 
   /**

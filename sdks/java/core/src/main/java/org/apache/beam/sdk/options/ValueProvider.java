@@ -41,6 +41,7 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -54,18 +55,21 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>A common task is to create a {@link PCollection} containing the value of this
  * {@link ValueProvider} regardless of whether it's accessible at construction time or not.
  * For that, use {@link Create#ofProvider}.
+ *
+ * <p>For unit-testing a transform against a {@link ValueProvider} that only becomes available
+ * at runtime, use {@link TestPipeline#newProvider}.
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
 public interface ValueProvider<T> extends Serializable {
   /**
-   * Return the value wrapped by this {@link ValueProvider}.
+   * Returns the runtime value wrapped by this {@link ValueProvider} in case it is {@link
+   * #isAccessible}, otherwise fails.
    */
   T get();
 
   /**
-   * Whether the contents of this {@link ValueProvider} is available to
-   * routines that run at graph construction time.
+   * Whether the contents of this {@link ValueProvider} is currently available via {@link #get}.
    */
   boolean isAccessible();
 
