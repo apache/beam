@@ -20,6 +20,8 @@
 import logging
 import unittest
 
+
+# Run all the standard coder test cases.
 from apache_beam.coders.coders_test_common import *
 
 
