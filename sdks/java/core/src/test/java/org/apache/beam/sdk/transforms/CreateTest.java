@@ -25,9 +25,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,7 +50,6 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.options.ValueProviders;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -60,7 +57,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
@@ -355,9 +351,6 @@ public class CreateTest {
     p.run();
   }
 
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-
   /** Testing options for {@link #testCreateOfProvider()}. */
   public interface CreateOfProviderOptions extends PipelineOptions {
     ValueProvider<String> getFoo();
@@ -385,19 +378,12 @@ public class CreateTest {
                         }),
                     StringUtf8Coder.of())))
         .containsInAnyOrder("foobar");
-    CreateOfProviderOptions submitOptions =
-        p.getOptions().as(CreateOfProviderOptions.class);
     PAssert.that(
-            p.apply("Runtime", Create.ofProvider(submitOptions.getFoo(), StringUtf8Coder.of())))
-        .containsInAnyOrder("runtime foo");
+            p.apply(
+                "Runtime", Create.ofProvider(p.newProvider("runtimeFoo"), StringUtf8Coder.of())))
+        .containsInAnyOrder("runtimeFoo");
 
-    String serializedOptions = MAPPER.writeValueAsString(p.getOptions());
-    String runnerString = ValueProviders.updateSerializedOptions(
-        serializedOptions, ImmutableMap.of("foo", "runtime foo"));
-    CreateOfProviderOptions runtimeOptions =
-        MAPPER.readValue(runnerString, PipelineOptions.class).as(CreateOfProviderOptions.class);
-
-    p.run(runtimeOptions);
+    p.run();
   }
 
 
