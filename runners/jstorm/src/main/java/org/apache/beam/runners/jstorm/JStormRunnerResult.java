@@ -78,6 +78,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
 
     private final LocalCluster localCluster;
     private final long localModeExecuteTimeSecs;
+    private boolean cancelled;
 
     LocalJStormPipelineResult(
         String topologyName,
@@ -87,6 +88,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
       super(topologyName, config);
       this.localCluster = checkNotNull(localCluster, "localCluster");
       this.localModeExecuteTimeSecs = localModeExecuteTimeSecs;
+      this.cancelled = false;
     }
 
     @Override
@@ -94,11 +96,15 @@ public abstract class JStormRunnerResult implements PipelineResult {
       localCluster.killTopology(getTopologyName());
       localCluster.shutdown();
       JStormUtils.sleepMs(1000);
+      cancelled = true;
       return State.CANCELLED;
     }
 
     @Override
     public State waitUntilFinish(Duration duration) {
+      if (cancelled) {
+        return State.CANCELLED;
+      }
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backOff = FluentBackoff.DEFAULT.withMaxCumulativeBackoff(duration).backoff();
       try {
