@@ -20,6 +20,8 @@ package org.apache.beam.runners.mapreduce;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Throwables;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.runners.mapreduce.translation.DotfileWriter;
 import org.apache.beam.runners.mapreduce.translation.GraphConverter;
 import org.apache.beam.runners.mapreduce.translation.GraphPlanner;
@@ -76,6 +78,7 @@ public class MapReduceRunner extends PipelineRunner<PipelineResult> {
 
     fusedGraph.getFusedSteps();
 
+    List<Job> jobs = new ArrayList<>();
     int stageId = 0;
     for (Graphs.FusedStep fusedStep : fusedGraph.getFusedSteps()) {
       Configuration config = new Configuration();
@@ -87,11 +90,12 @@ public class MapReduceRunner extends PipelineRunner<PipelineResult> {
       try {
         Job job = jobPrototype.build(options.getJarClass(), config);
         job.waitForCompletion(true);
+        jobs.add(job);
       } catch (Exception e) {
         Throwables.throwIfUnchecked(e);
         throw new RuntimeException(e);
       }
     }
-    return null;
+    return new MapReducePipelineResult(jobs);
   }
 }

@@ -21,6 +21,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.Maps;
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -28,6 +30,7 @@ import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
@@ -41,6 +44,7 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
  * Operation for ParDo.
  */
 public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> {
+  private final String stepName;
   protected final SerializedPipelineOptions options;
   protected final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
@@ -48,17 +52,19 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
   private final List<Graphs.Tag> sideInputTags;
   private Map<TupleTag<?>, String> tupleTagToFilePath;
 
-
+  private MetricsReporter metricsReporter;
   protected DoFnInvoker<InputT, OutputT> doFnInvoker;
   private DoFnRunner<InputT, OutputT> fnRunner;
 
   public ParDoOperation(
+      String stepName,
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       List<Graphs.Tag> sideInputTags,
       WindowingStrategy<?, ?> windowingStrategy) {
     super(1 + sideOutputTags.size());
+    this.stepName = checkNotNull(stepName, "stepName");
     this.options = new SerializedPipelineOptions(checkNotNull(options, "options"));
     this.mainOutputTag = checkNotNull(mainOutputTag, "mainOutputTag");
     this.sideOutputTags = checkNotNull(sideOutputTags, "sideOutputTags");
@@ -74,6 +80,8 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
   @Override
   public void start(TaskInputOutputContext<Object, Object, Object, Object> taskContext) {
     super.start(taskContext);
+    this.metricsReporter = new MetricsReporter(taskContext);
+
     DoFn<InputT, OutputT> doFn = getDoFn();
     // Process user's setup
     doFnInvoker = DoFnInvokers.invokerFor(doFn);
@@ -94,7 +102,13 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
         sideOutputTags,
         null,
         windowingStrategy);
-    fnRunner.startBundle();
+
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(
+        metricsReporter.getMetricsContainer(stepName))) {
+      fnRunner.startBundle();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -102,12 +116,23 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
    */
   @Override
   public void process(WindowedValue<InputT> elem) {
-    fnRunner.processElement(elem);
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(
+        metricsReporter.getMetricsContainer(stepName))) {
+      fnRunner.processElement(elem);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public void finish() {
-    fnRunner.finishBundle();
+    try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(
+        metricsReporter.getMetricsContainer(stepName))) {
+      fnRunner.finishBundle();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    metricsReporter.updateMetrics();
     doFnInvoker.invokeTeardown();
     super.finish();
   }

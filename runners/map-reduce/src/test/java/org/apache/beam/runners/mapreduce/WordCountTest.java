@@ -18,9 +18,13 @@
 package org.apache.beam.runners.mapreduce;
 
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -51,11 +55,14 @@ public class WordCountTest {
    */
   static class ExtractWordsFn extends DoFn<String, String> {
     private final Counter emptyLines = Metrics.counter(ExtractWordsFn.class, "emptyLines");
+    private final Counter nonEmptyLines = Metrics.counter(ExtractWordsFn.class, "nonEmptyLines");
 
     @ProcessElement
     public void processElement(ProcessContext c) {
       if (c.element().trim().isEmpty()) {
         emptyLines.inc();
+      } else {
+        nonEmptyLines.inc();
       }
 
       // Split the line into words.
@@ -98,6 +105,13 @@ public class WordCountTest {
         .apply(MapElements.via(new FormatAsTextFn()))
         .apply("WriteCounts", TextIO.write().to(output));
 
-    p.run();
+    PipelineResult result = p.run();
+    Iterable<MetricResult<Long>> counters = result.metrics()
+        .queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.named(ExtractWordsFn.class, "emptyLines"))
+                .build())
+        .counters();
+    System.out.println(counters.iterator().next());
   }
 }

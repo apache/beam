@@ -33,13 +33,14 @@ public class NormalParDoOperation<InputT, OutputT> extends ParDoOperation<InputT
   private final DoFn<InputT, OutputT> doFn;
 
   public NormalParDoOperation(
+      String stepName,
       DoFn<InputT, OutputT> doFn,
       PipelineOptions options,
       TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> sideOutputTags,
       List<Graphs.Tag> sideInputTags,
       WindowingStrategy<?, ?> windowingStrategy) {
-    super(options, mainOutputTag, sideOutputTags, sideInputTags, windowingStrategy);
+    super(stepName, options, mainOutputTag, sideOutputTags, sideInputTags, windowingStrategy);
     this.doFn = checkNotNull(doFn, "doFn");
   }
 

@@ -31,6 +31,7 @@ class ParDoTranslator<InputT, OutputT>
       ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
     NormalParDoOperation operation = new NormalParDoOperation(
+        transform.getName(),
         transform.getFn(),
         userGraphContext.getOptions(),
         transform.getMainOutputTag(),

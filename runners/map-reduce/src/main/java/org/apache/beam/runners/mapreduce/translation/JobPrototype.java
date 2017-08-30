@@ -117,15 +117,17 @@ public class JobPrototype {
       Graphs.Step reifyStep = Graphs.Step.of(
           reifyStepName,
           new ReifyTimestampAndWindowsParDoOperation(
-              options, operation.getWindowingStrategy(), reifyOutputTag));
+              reifyStepName, options, operation.getWindowingStrategy(), reifyOutputTag));
 
       Graphs.Step writeStep = Graphs.Step.of(
           groupByKey.getFullName() + "-Write",
           new ShuffleWriteOperation(kvCoder.getKeyCoder(), reifyValueCoder));
 
+      String gabwStepName = groupByKey.getFullName() + "-GroupAlsoByWindows";
       Graphs.Step gabwStep = Graphs.Step.of(
-          groupByKey.getFullName() + "-GroupAlsoByWindows",
-          new GroupAlsoByWindowsParDoOperation(options, windowingStrategy, kvCoder, gbkOutTag));
+          gabwStepName,
+          new GroupAlsoByWindowsParDoOperation(
+              gabwStepName, options, windowingStrategy, kvCoder, gbkOutTag));
 
       fusedStep.addStep(
           reifyStep, fusedStep.getInputTags(groupByKey), ImmutableList.of(reifyOutputTag));

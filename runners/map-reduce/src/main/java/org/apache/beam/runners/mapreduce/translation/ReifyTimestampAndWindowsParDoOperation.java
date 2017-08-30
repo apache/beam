@@ -32,10 +32,11 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 public class ReifyTimestampAndWindowsParDoOperation extends ParDoOperation {
 
   public ReifyTimestampAndWindowsParDoOperation(
+      String stepName,
       PipelineOptions options,
       WindowingStrategy<?, ?> windowingStrategy,
       Graphs.Tag outTag) {
-    super(options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(),
+    super(stepName, options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(),
         ImmutableList.<Graphs.Tag>of(), windowingStrategy);
   }
 

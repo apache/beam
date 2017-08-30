@@ -35,11 +35,12 @@ public class GroupAlsoByWindowsParDoOperation extends ParDoOperation {
   private final Coder<?> inputCoder;
 
   public GroupAlsoByWindowsParDoOperation(
+      String stepName,
       PipelineOptions options,
       WindowingStrategy<?, ?> windowingStrategy,
       Coder<?> inputCoder,
       Graphs.Tag outTag) {
-    super(options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(),
+    super(stepName, options, outTag.getTupleTag(), ImmutableList.<TupleTag<?>>of(),
         ImmutableList.<Graphs.Tag>of(), windowingStrategy);
     this.inputCoder = checkNotNull(inputCoder, "inputCoder");
   }
