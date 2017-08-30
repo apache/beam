@@ -69,9 +69,9 @@ public class UnboundedDataset<T> implements Dataset {
     // Caching can cause Serialization, we need to code to bytes
     // more details in https://issues.apache.org/jira/browse/BEAM-2669
     Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
-    JavaDStream<byte[]> bytesDStream = dStream.map(CoderHelpers.toByteFunction(wc));
-    bytesDStream.cache();
-    this.dStream = bytesDStream.map(CoderHelpers.fromByteFunction(wc));
+    this.dStream = dStream.map(CoderHelpers.toByteFunction(wc))
+        .cache()
+        .map(CoderHelpers.fromByteFunction(wc));
 
   }
 

@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,9 @@ import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.spark.SparkRunner;
+import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
@@ -39,7 +42,9 @@ import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -413,4 +418,64 @@ public final class TranslationUtils {
       }
     };
   }
+
+  /**
+   * Utility to get mapping between TupleTag and a coder.
+   * @param outputs - A map of tuple tags and pcollections
+   * @return mapping between TupleTag and a coder
+   */
+  public static Map<TupleTag, Coder<WindowedValue<?>>> getTupleTagCoders(
+      Map<TupleTag<?>, PValue> outputs) {
+    Map<TupleTag, Coder<WindowedValue<?>>> coderMap = new HashMap<>(outputs.size());
+
+    for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
+      // we get the first PValue as all of them are fro the same type.
+      PCollection<?> pCollection = (PCollection<?>) output.getValue();
+      Coder<?> coder = pCollection.getCoder();
+      Coder<? extends BoundedWindow> wCoder =
+          pCollection.getWindowingStrategy().getWindowFn().windowCoder();
+      @SuppressWarnings("unchecked")
+      Coder<WindowedValue<?>> wc =
+          (Coder<WindowedValue<?>>) (Coder<?>) WindowedValue.getFullCoder(coder, wCoder);
+      coderMap.put(output.getKey(), wc);
+    }
+    return coderMap;
+  }
+
+  /**
+   * Returns a pair function to convert value to bytes via coder.
+   * @param coderMap - mapping between TupleTag and a coder
+   * @return a pair function to convert value to bytes via coder
+   */
+  public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>
+      getTupleTagEncodeFunction(final Map<TupleTag, Coder<WindowedValue<?>>> coderMap) {
+    return new PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>() {
+
+      @Override public Tuple2<TupleTag<?>, byte[]>
+      call(Tuple2<TupleTag<?>, WindowedValue<?>> tuple2) throws Exception {
+        return new Tuple2<TupleTag<?>, byte[]>
+            (tuple2._1, CoderHelpers.toByteArray(tuple2._2, coderMap.get(tuple2._1)));
+      }
+    };
+  }
+
+  /**
+   * Returns a pair function to convert bytes to value via coder.
+   * @param coderMap - mapping between TupleTag and a coder
+   * @return a pair function to convert bytes to value via coder
+   * */
+  public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
+      getTupleTagDecodeFunction(final Map<TupleTag, Coder<WindowedValue<?>>> coderMap) {
+    return new PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>() {
+
+      @Override public Tuple2<TupleTag<?>, WindowedValue<?>>
+      call(Tuple2<TupleTag<?>, byte[]> tuple2) throws Exception {
+        return new Tuple2<TupleTag<?>, WindowedValue<?>>
+            (tuple2._1, CoderHelpers.fromByteArray(tuple2._2, coderMap.get(tuple2._1)));
+      }
+    };
+  }
+
+
+
 }

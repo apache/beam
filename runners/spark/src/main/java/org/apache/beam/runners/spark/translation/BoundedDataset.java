@@ -108,9 +108,9 @@ public class BoundedDataset<T> implements Dataset {
       // Caching can cause Serialization, we need to code to bytes
       // more details in https://issues.apache.org/jira/browse/BEAM-2669
       Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;
-      JavaRDD<byte[]> bytesRDD = getRDD().map(CoderHelpers.toByteFunction(wc));
-      bytesRDD.persist(level);
-      this.rdd = bytesRDD.map(CoderHelpers.fromByteFunction(wc));
+      this.rdd = getRDD().map(CoderHelpers.toByteFunction(wc))
+          .persist(level)
+          .map(CoderHelpers.fromByteFunction(wc));
     }
   }
 

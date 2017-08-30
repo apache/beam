@@ -70,7 +70,6 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 
-
 /**
  * Supports translation between a Beam transform, and Spark's operations on RDDs.
  */
@@ -391,8 +390,14 @@ public final class TransformTranslator {
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
-          // cache the RDD if we're going to filter it more than once.
-          all.cache();
+          // Caching can cause Serialization, we need to code to bytes
+          // more details in https://issues.apache.org/jira/browse/BEAM-2669
+          Map<TupleTag, Coder<WindowedValue<?>>> coderMap =
+              TranslationUtils.getTupleTagCoders(outputs);
+          all = all
+              .mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+              .cache()
+              .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
         }
         for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
           JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
@@ -400,7 +405,7 @@ public final class TransformTranslator {
           // Object is the best we can do since different outputs can have different tags
           JavaRDD<WindowedValue<Object>> values =
               (JavaRDD<WindowedValue<Object>>) (JavaRDD<?>) filtered.values();
-          context.putDataset(output.getValue(), new BoundedDataset<>(values));
+          context.putDataset(output.getValue(), new BoundedDataset<>(values), false);
         }
       }
 
@@ -454,7 +459,7 @@ public final class TransformTranslator {
                     jsc.sc(), transform.getSource(), context.getSerializableOptions(), stepName)
                 .toJavaRDD();
         // cache to avoid re-evaluation of the source by Spark's lazy DAG evaluation.
-        context.putDataset(transform, new BoundedDataset<>(input.cache()));
+        context.putDataset(transform, new BoundedDataset<>(input), true);
       }
 
       @Override
