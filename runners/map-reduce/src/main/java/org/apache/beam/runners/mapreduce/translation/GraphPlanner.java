@@ -36,10 +36,11 @@ import org.apache.beam.sdk.values.WindowingStrategy;
  */
 public class GraphPlanner {
 
-  private final MapReducePipelineOptions options;
+  private final ConfigurationUtils configUtils;
 
   public GraphPlanner(MapReducePipelineOptions options) {
-    this.options = checkNotNull(options, "options");
+    checkNotNull(options, "options");
+    this.configUtils = new ConfigurationUtils(options);
   }
 
   public Graphs.FusedGraph plan(Graphs.FusedGraph fusedGraph) {
@@ -79,8 +80,7 @@ public class GraphPlanner {
           }
           consumer.removeTag(tag);
 
-          String filePath = ConfigurationUtils.getFileOutputPath(
-              options.getFileOutputDir(), fusedStep.getStageId(), fileName);
+          String filePath = configUtils.getFileOutputPath(fusedStep.getStageId(), fileName);
           consumer.addStep(
               Graphs.Step.of(
                   readStepName,
@@ -133,8 +133,7 @@ public class GraphPlanner {
         for (Graphs.Tag sideInTag : sideInputTags) {
           tupleTagToFilePath.put(
               sideInTag.getTupleTag(),
-              ConfigurationUtils.getFileOutputPath(
-                  options.getFileOutputDir(),
+              configUtils.getFileOutputPath(
                   fusedGraph.getProducer(sideInTag).getStageId(),
                   ConfigurationUtils.toFileName(sideInTag.getName())));
         }

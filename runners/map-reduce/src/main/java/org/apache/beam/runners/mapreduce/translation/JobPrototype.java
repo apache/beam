@@ -60,11 +60,13 @@ public class JobPrototype {
   private final int stageId;
   private final Graphs.FusedStep fusedStep;
   private final MapReducePipelineOptions options;
+  private final ConfigurationUtils configUtils;
 
   private JobPrototype(int stageId, Graphs.FusedStep fusedStep, MapReducePipelineOptions options) {
     this.stageId = stageId;
     this.fusedStep = checkNotNull(fusedStep, "fusedStep");
     this.options = checkNotNull(options, "options");
+    this.configUtils = new ConfigurationUtils(options);
   }
 
   public Job build(Class<?> jarClass, Configuration initConf) throws IOException {
@@ -79,7 +81,7 @@ public class JobPrototype {
     //TODO: config out dir with PipelineOptions.
     conf.set(
         FileOutputFormat.OUTDIR,
-        ConfigurationUtils.getFileOutputDir(options.getFileOutputDir(), fusedStep.getStageId()));
+        configUtils.getFileOutputDir(fusedStep.getStageId()));
 
     // Setup BoundedSources in BeamInputFormat.
     Graphs.Step startStep = Iterables.getOnlyElement(fusedStep.getStartSteps());

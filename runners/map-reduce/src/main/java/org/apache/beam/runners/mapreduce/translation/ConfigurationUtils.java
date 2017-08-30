@@ -17,9 +17,13 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import org.apache.beam.runners.mapreduce.MapReducePipelineOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
@@ -28,21 +32,28 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
  */
 public class ConfigurationUtils {
 
+  private final MapReducePipelineOptions options;
+
+  public ConfigurationUtils(MapReducePipelineOptions options) {
+    this.options = checkNotNull(options, "options");
+  }
+
   public static ResourceId getResourceIdForOutput(String fileName, Configuration conf) {
     ResourceId outDir = FileSystems.matchNewResource(conf.get(FileOutputFormat.OUTDIR), true);
     return outDir.resolve(fileName, ResolveOptions.StandardResolveOptions.RESOLVE_FILE);
   }
 
-  public static String getFileOutputDir(String baseFileOutputDir, int stageId) {
-    if (baseFileOutputDir.endsWith("/")) {
-      return String.format("%sstage-%d", baseFileOutputDir, stageId);
+  public String getFileOutputDir(int stageId) {
+    String fileOutputDir = options.getFileOutputDir();
+    if (fileOutputDir.endsWith("/")) {
+      return String.format("%s%s/stage-%d", fileOutputDir, options.getJobName(), stageId);
     } else {
-      return String.format("%s/stage-%d", baseFileOutputDir, stageId);
+      return String.format("%s/%s/stage-%d", fileOutputDir, options.getJobName(), stageId);
     }
   }
 
-  public static String getFileOutputPath(String baseFileOutputDir, int stageId, String fileName) {
-    return String.format("%s/%s", getFileOutputDir(baseFileOutputDir, stageId), fileName);
+  public String getFileOutputPath(int stageId, String fileName) {
+    return String.format("%s/%s", getFileOutputDir(stageId), fileName);
   }
 
   public static String toFileName(String tagName) {
