@@ -125,12 +125,16 @@ public class TranslationContext {
               if (pValue instanceof PCollection) {
                 PCollection<?> pc = (PCollection<?>) pValue;
                 return Graphs.Tag.of(
-                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder());
-              } else {
+                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder(), pc.getWindowingStrategy());
+              } else if (pValue instanceof PCollectionView){
+                PCollectionView pView = (PCollectionView) pValue;
                 return Graphs.Tag.of(
                     pValue.getName(),
                     pValueToTupleTag.get(pValue),
-                    ((PCollectionView) pValue).getCoderInternal());
+                    pView.getCoderInternal(),
+                    pView.getWindowingStrategyInternal());
+              } else {
+                throw new RuntimeException("Unexpected PValue: " + pValue.getClass());
               }
             }})
           .toList();
@@ -150,12 +154,17 @@ public class TranslationContext {
               if (pValue instanceof PCollection) {
                 PCollection<?> pc = (PCollection<?>) pValue;
                 return Graphs.Tag.of(
-                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder());
-              } else {
+                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder(),
+                    pc.getWindowingStrategy());
+              } else if (pValue instanceof PCollectionView){
+                PCollectionView pView = (PCollectionView) pValue;
                 return Graphs.Tag.of(
                     pValue.getName(),
                     pValueToTupleTag.get(pValue),
-                    ((PCollectionView) pValue).getCoderInternal());
+                    pView.getCoderInternal(),
+                    pView.getWindowingStrategyInternal());
+              } else {
+                throw new RuntimeException("Unexpected PValue: " + pValue.getClass());
               }
             }})
           .toList();
@@ -165,14 +174,16 @@ public class TranslationContext {
       if (currentNode.getTransform() instanceof View.CreatePCollectionView) {
         PCollectionView view = ((View.CreatePCollectionView) currentNode.getTransform()).getView();
         return ImmutableList.of(
-            Graphs.Tag.of(view.getName(), view.getTagInternal(), view.getCoderInternal()));
+            Graphs.Tag.of(view.getName(), view.getTagInternal(), view.getCoderInternal(),
+                view.getWindowingStrategyInternal()));
       } else {
         return FluentIterable.from(currentNode.getOutputs().entrySet())
             .transform(new Function<Map.Entry<TupleTag<?>, PValue>, Graphs.Tag>() {
               @Override
               public Graphs.Tag apply(Map.Entry<TupleTag<?>, PValue> entry) {
                 PCollection<?> pc = (PCollection<?>) entry.getValue();
-                return Graphs.Tag.of(pc.getName(), entry.getKey(), pc.getCoder());
+                return Graphs.Tag.of(
+                    pc.getName(), entry.getKey(), pc.getCoder(), pc.getWindowingStrategy());
               }})
             .toList();
       }

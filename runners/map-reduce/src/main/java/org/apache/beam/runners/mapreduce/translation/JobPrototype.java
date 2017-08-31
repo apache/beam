@@ -117,7 +117,7 @@ public class JobPrototype {
       String reifyStepName = groupByKey.getFullName() + "-Reify";
       Coder<?> reifyValueCoder = getReifyValueCoder(kvCoder.getValueCoder(), windowingStrategy);
       Graphs.Tag reifyOutputTag = Graphs.Tag.of(
-          reifyStepName + ".out", new TupleTag<>(), reifyValueCoder);
+          reifyStepName + ".out", new TupleTag<>(), reifyValueCoder, windowingStrategy);
       Graphs.Step reifyStep = Graphs.Step.of(
           reifyStepName,
           new ReifyTimestampAndWindowsParDoOperation(

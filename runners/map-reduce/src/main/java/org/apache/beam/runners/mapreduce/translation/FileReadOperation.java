@@ -47,12 +47,12 @@ import org.apache.hadoop.io.SequenceFile;
 public class FileReadOperation<T> extends ReadOperation<WindowedValue<T>> {
 
   private final String fileName;
-  private final Coder<?> coder;
+  private final Coder<WindowedValue<T>> coder;
   private final TupleTag<?> tupleTag;
 
   public FileReadOperation(
       String fileName,
-      Coder<T> coder,
+      Coder<WindowedValue<T>> coder,
       TupleTag<?> tupleTag) {
     super();
     this.fileName = checkNotNull(fileName, "fileName");
@@ -73,11 +73,10 @@ public class FileReadOperation<T> extends ReadOperation<WindowedValue<T>> {
     private final Coder<WindowedValue<T>> coder;
     private final SerializableConfiguration conf;
 
-    FileBoundedSource(String fileName, Coder<T> coder, SerializableConfiguration conf) {
+    FileBoundedSource(
+        String fileName, Coder<WindowedValue<T>> coder, SerializableConfiguration conf) {
       this.fileName = checkNotNull(fileName, "fileName");
-      checkNotNull(coder, "coder");
-      this.coder = WindowedValue.getFullCoder(
-          coder, WindowingStrategy.globalDefault().getWindowFn().windowCoder());
+      this.coder = checkNotNull(coder, "coder");
       this.conf = checkNotNull(conf, "conf");
     }
 

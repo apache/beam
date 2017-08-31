@@ -58,9 +58,8 @@ public class GraphPlanner {
         String tagName = tag.getName();
         String fileName = ConfigurationUtils.toFileName(tagName);
 
-        // TODO: should not hard-code windows coder.
         WindowedValue.WindowedValueCoder<?> writeValueCoder = WindowedValue.getFullCoder(
-            tag.getCoder(), WindowingStrategy.globalDefault().getWindowFn().windowCoder());
+            tag.getCoder(), tag.getWindowingStrategy().getWindowFn().windowCoder());
 
         fusedStep.addStep(
             Graphs.Step.of(
@@ -71,7 +70,7 @@ public class GraphPlanner {
 
         String readStepName = tagName + "/Read";
         Graphs.Tag readOutput = Graphs.Tag.of(
-            readStepName + ".out", tag.getTupleTag(), tag.getCoder());
+            readStepName + ".out", tag.getTupleTag(), tag.getCoder(), tag.getWindowingStrategy());
         for (Graphs.FusedStep consumer : consumers) {
           // Re-direct tag to readOutput.
           List<Graphs.Step> receivers = consumer.getConsumers(tag);
@@ -84,7 +83,7 @@ public class GraphPlanner {
           consumer.addStep(
               Graphs.Step.of(
                   readStepName,
-                  new FileReadOperation(filePath, tag.getCoder(), tag.getTupleTag())),
+                  new FileReadOperation(filePath, writeValueCoder, tag.getTupleTag())),
               ImmutableList.<Graphs.Tag>of(),
               ImmutableList.of(readOutput));
         }

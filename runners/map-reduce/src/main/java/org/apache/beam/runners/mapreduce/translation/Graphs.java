@@ -25,6 +25,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.WindowingStrategy;
 
 /**
  * Class that defines graph vertices.
@@ -234,15 +235,20 @@ public class Graphs {
     abstract String getName();
     abstract TupleTag<?> getTupleTag();
     abstract Coder<?> getCoder();
+    abstract WindowingStrategy<?, ?> getWindowingStrategy();
 
     @Override
     public String toString() {
       return getName();
     }
 
-    public static Tag of(String name, TupleTag<?> tupleTag, Coder<?> coder) {
+    public static Tag of(
+        String name,
+        TupleTag<?> tupleTag,
+        Coder<?> coder,
+        WindowingStrategy<?, ?> windowingStrategy) {
       return new org.apache.beam.runners.mapreduce.translation.AutoValue_Graphs_Tag(
-          name, tupleTag, coder);
+          name, tupleTag, coder, windowingStrategy);
     }
   }
 }
