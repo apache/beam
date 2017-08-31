@@ -27,6 +27,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -36,15 +37,20 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.commons.dbcp2.BasicDataSource;
 
@@ -330,20 +336,7 @@ public class JdbcIO {
       return input
           .apply(Create.ofProvider(getQuery(), StringUtf8Coder.of()))
           .apply(ParDo.of(new ReadFn<>(this))).setCoder(getCoder())
-          .apply(ParDo.of(new DoFn<T, KV<Integer, T>>() {
-            private Random random;
-            @Setup
-            public void setup() {
-              random = new Random();
-            }
-            @ProcessElement
-            public void processElement(ProcessContext context) {
-              context.output(KV.of(random.nextInt(), context.element()));
-            }
-          }))
-          .apply(GroupByKey.<Integer, T>create())
-          .apply(Values.<Iterable<T>>create())
-          .apply(Flatten.<T>iterables());
+          .apply(new Reparallelize<T>());
     }
 
     @Override
@@ -533,6 +526,57 @@ public class JdbcIO {
           }
         }
       }
+    }
+  }
+
+  private static class Reparallelize<T> extends PTransform<PCollection<T>, PCollection<T>> {
+    @Override
+    public PCollection<T> expand(PCollection<T> input) {
+      // See https://issues.apache.org/jira/browse/BEAM-2803
+      // We use a combined approach to "break fusion" here:
+      // (see https://cloud.google.com/dataflow/service/dataflow-service-desc#preventing-fusion)
+      // 1) force the data to be materialized by passing it as a side input to an identity fn,
+      // then 2) reshuffle it with a random key. Initial materialization provides some parallelism
+      // and ensures that data to be shuffled can be generated in parallel, while reshuffling
+      // provides perfect parallelism.
+      // In most cases where a "fusion break" is needed, a simple reshuffle would be sufficient.
+      // The current approach is necessary only to support the particular case of JdbcIO where
+      // a single query may produce many gigabytes of query results.
+      PCollectionView<Iterable<T>> empty =
+          input
+              .apply("Consume", Filter.by(SerializableFunctions.<T, Boolean>constant(false)))
+              .apply(View.<T>asIterable());
+      PCollection<T> materialized =
+          input.apply(
+              "Identity",
+              ParDo.of(
+                      new DoFn<T, T>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output(c.element());
+                        }
+                      })
+                  .withSideInputs(empty));
+      return materialized
+          .apply(
+              "Pair with random key",
+              ParDo.of(
+                  new DoFn<T, KV<Integer, T>>() {
+                    private int shard;
+
+                    @Setup
+                    public void setup() {
+                      shard = ThreadLocalRandom.current().nextInt();
+                    }
+
+                    @ProcessElement
+                    public void processElement(ProcessContext context) {
+                      context.output(KV.of(++shard, context.element()));
+                    }
+                  }))
+          .apply(Reshuffle.<Integer, T>of())
+          .apply(Values.<T>create());
+
     }
   }
 }
