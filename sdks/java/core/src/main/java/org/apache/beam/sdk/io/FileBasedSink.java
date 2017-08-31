@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,7 +46,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.zip.GZIPOutputStream;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -79,8 +77,6 @@ import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
-import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
 import org.joda.time.Instant;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -128,56 +124,66 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     implements Serializable, HasDisplayData {
   private static final Logger LOG = LoggerFactory.getLogger(FileBasedSink.class);
 
-  /** Directly supported file output compression types. */
+  /** @deprecated use {@link Compression}. */
+  @Deprecated
   public enum CompressionType implements WritableByteChannelFactory {
-    /** No compression, or any other transformation, will be used. */
-    UNCOMPRESSED("", null) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return channel;
-      }
-    },
-    /** Provides GZip output transformation. */
-    GZIP(".gz", MimeTypes.BINARY) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels.newChannel(new GZIPOutputStream(Channels.newOutputStream(channel), true));
-      }
-    },
-    /** Provides BZip2 output transformation. */
-    BZIP2(".bz2", MimeTypes.BINARY) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels.newChannel(
-            new BZip2CompressorOutputStream(Channels.newOutputStream(channel)));
-      }
-    },
-    /** Provides deflate output transformation. */
-    DEFLATE(".deflate", MimeTypes.BINARY) {
-      @Override
-      public WritableByteChannel create(WritableByteChannel channel) throws IOException {
-        return Channels.newChannel(
-            new DeflateCompressorOutputStream(Channels.newOutputStream(channel)));
-      }
-    };
+    /** @see Compression#UNCOMPRESSED */
+    UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    private String filenameSuffix;
-    @Nullable private String mimeType;
+    /** @see Compression#GZIP */
+    GZIP(Compression.GZIP),
 
-    CompressionType(String suffix, @Nullable String mimeType) {
-      this.filenameSuffix = suffix;
-      this.mimeType = mimeType;
+    /** @see Compression#BZIP2 */
+    BZIP2(Compression.BZIP2),
+
+    /** @see Compression#DEFLATE */
+    DEFLATE(Compression.DEFLATE);
+
+    private Compression canonical;
+
+    CompressionType(Compression canonical) {
+      this.canonical = canonical;
     }
 
     @Override
     public String getSuggestedFilenameSuffix() {
-      return filenameSuffix;
+      return canonical.getSuggestedSuffix();
     }
 
     @Override
     @Nullable
     public String getMimeType() {
-      return mimeType;
+      return (canonical == Compression.UNCOMPRESSED) ? null : MimeTypes.BINARY;
+    }
+
+    @Override
+    public WritableByteChannel create(WritableByteChannel channel) throws IOException {
+      return canonical.writeCompressed(channel);
+    }
+
+    public static CompressionType fromCanonical(Compression canonical) {
+      switch(canonical) {
+        case AUTO:
+          throw new IllegalArgumentException("AUTO is not supported for writing");
+
+        case UNCOMPRESSED:
+          return UNCOMPRESSED;
+
+        case GZIP:
+          return GZIP;
+
+        case BZIP2:
+          return BZIP2;
+
+        case ZIP:
+          throw new IllegalArgumentException("ZIP is unsupported");
+
+        case DEFLATE:
+          return DEFLATE;
+
+        default:
+          throw new UnsupportedOperationException("Unsupported compression type: " + canonical);
+      }
     }
   }
 
@@ -208,7 +214,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   /**
    * The {@link WritableByteChannelFactory} that is used to wrap the raw data output to the
    * underlying channel. The default is to not compress the output using {@link
-   * CompressionType#UNCOMPRESSED}.
+   * Compression#UNCOMPRESSED}.
    */
   private final WritableByteChannelFactory writableByteChannelFactory;
 
@@ -328,7 +334,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * When a sink has requested windowed or triggered output, this method will be invoked to return
      * the file {@link ResourceId resource} to be created given the base output directory and a
      * {@link OutputFileHints} containing information about the file, including a suggested
-     * extension (e.g. coming from {@link CompressionType}).
+     * extension (e.g. coming from {@link Compression}).
      *
      * <p>The policy must return unique and consistent filenames for different windows and panes.
      */
@@ -344,7 +350,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * When a sink has not requested windowed or triggered output, this method will be invoked to
      * return the file {@link ResourceId resource} to be created given the base output directory and
      * a {@link OutputFileHints} containing information about the file, including a suggested (e.g.
-     * coming from {@link CompressionType}).
+     * coming from {@link Compression}).
      *
      * <p>The shardNumber and numShards parameters, should be used by the policy to generate unique
      * and consistent filenames.
@@ -375,7 +381,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   public FileBasedSink(
       ValueProvider<ResourceId> tempDirectoryProvider,
       DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations) {
-    this(tempDirectoryProvider, dynamicDestinations, CompressionType.UNCOMPRESSED);
+    this(tempDirectoryProvider, dynamicDestinations, Compression.UNCOMPRESSED);
   }
 
   /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
@@ -388,6 +394,15 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         NestedValueProvider.of(tempDirectoryProvider, new ExtractDirectory());
     this.dynamicDestinations = checkNotNull(dynamicDestinations);
     this.writableByteChannelFactory = writableByteChannelFactory;
+  }
+
+  /** Construct a {@link FileBasedSink} with the given temp directory and output channel type. */
+  @Experimental(Kind.FILESYSTEM)
+  public FileBasedSink(
+      ValueProvider<ResourceId> tempDirectoryProvider,
+      DynamicDestinations<?, DestinationT, OutputT> dynamicDestinations,
+      Compression compression) {
+    this(tempDirectoryProvider, dynamicDestinations, CompressionType.fromCanonical(compression));
   }
 
   /** Return the {@link DynamicDestinations} used. */
@@ -799,7 +814,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      *
      * <p>This is the default for the sink, but it may be overridden by a supplied {@link
      * WritableByteChannelFactory}. For example, {@link TextIO.Write} uses {@link MimeTypes#TEXT} by
-     * default but if {@link CompressionType#BZIP2} is set then the MIME type will be overridden to
+     * default but if {@link Compression#BZIP2} is set then the MIME type will be overridden to
      * {@link MimeTypes#BINARY}.
      */
     private final String mimeType;
@@ -1134,7 +1149,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /**
      * Returns the MIME type that should be used for the files that will hold the output data. May
      * return {@code null} if this {@code WritableByteChannelFactory} does not meaningfully change
-     * the MIME type (e.g., for {@link CompressionType#UNCOMPRESSED}).
+     * the MIME type (e.g., for {@link Compression#UNCOMPRESSED}).
      *
      * @see MimeTypes
      * @see <a href=
@@ -1144,7 +1159,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     String getMimeType();
 
     /**
-     * @return an optional filename suffix, eg, ".gz" is returned by {@link CompressionType#GZIP}
+     * @return an optional filename suffix, eg, ".gz" is returned for {@link Compression#GZIP}
      */
     @Nullable
     String getSuggestedFilenameSuffix();

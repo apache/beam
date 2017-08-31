@@ -29,6 +29,7 @@ import javax.xml.bind.ValidationEventHandler;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CompressedSource;
+import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -113,7 +114,7 @@ public class XmlIO {
   public static <T> Read<T> read() {
     return new AutoValue_XmlIO_Read.Builder<T>()
         .setMinBundleSize(Read.DEFAULT_MIN_BUNDLE_SIZE)
-        .setCompressionType(Read.CompressionType.AUTO)
+        .setCompression(Compression.AUTO)
         .setCharset("UTF-8")
         .build();
   }
@@ -247,7 +248,7 @@ public class XmlIO {
     @Nullable
     abstract Class<T> getRecordClass();
 
-    abstract CompressionType getCompressionType();
+    abstract Compression getCompression();
 
     abstract long getMinBundleSize();
 
@@ -271,7 +272,7 @@ public class XmlIO {
 
       abstract Builder<T> setMinBundleSize(long minBundleSize);
 
-      abstract Builder<T> setCompressionType(CompressionType compressionType);
+      abstract Builder<T> setCompression(Compression compression);
 
       abstract Builder<T> setCharset(String charset);
 
@@ -280,35 +281,36 @@ public class XmlIO {
       abstract Read<T> build();
     }
 
-    /** Strategy for determining the compression type of XML files being read. */
+    /** @deprecated Use {@link Compression} instead. */
+    @Deprecated
     public enum CompressionType {
-      /** Automatically determine the compression type based on filename extension. */
-      AUTO(""),
-      /** Uncompressed (i.e., may be split). */
-      UNCOMPRESSED(""),
-      /** GZipped. */
-      GZIP(".gz"),
-      /** BZipped. */
-      BZIP2(".bz2"),
-      /** Zipped. */
-      ZIP(".zip"),
-      /** Deflate compressed. */
-      DEFLATE(".deflate");
+      /** @see Compression#AUTO */
+      AUTO(Compression.AUTO),
 
-      private String filenameSuffix;
+      /** @see Compression#UNCOMPRESSED */
+      UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-      CompressionType(String suffix) {
-        this.filenameSuffix = suffix;
+      /** @see Compression#GZIP */
+      GZIP(Compression.GZIP),
+
+      /** @see Compression#BZIP2 */
+      BZIP2(Compression.BZIP2),
+
+      /** @see Compression#ZIP */
+      ZIP(Compression.ZIP),
+
+      /** @see Compression#DEFLATE */
+      DEFLATE(Compression.DEFLATE);
+
+      private Compression canonical;
+
+      CompressionType(Compression canonical) {
+        this.canonical = canonical;
       }
 
-      /**
-       * Determine if a given filename matches a compression type based on its extension.
-       *
-       * @param filename the filename to match
-       * @return true iff the filename ends with the compression type's known extension.
-       */
+      /** @see Compression#matches */
       public boolean matches(String filename) {
-        return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
+        return canonical.matches(filename);
       }
     }
 
@@ -355,15 +357,15 @@ public class XmlIO {
       return toBuilder().setMinBundleSize(minBundleSize).build();
     }
 
-    /**
-     * Decompresses all input files using the specified compression type.
-     *
-     * <p>If no compression type is specified, the default is {@link CompressionType#AUTO}. In this
-     * mode, the compression type of the file is determined by its extension. Supports .gz, .bz2,
-     * .zip and .deflate compression.
-     */
+    /** @deprecated use {@link #withCompression}. */
+    @Deprecated
     public Read<T> withCompressionType(CompressionType compressionType) {
-      return toBuilder().setCompressionType(compressionType).build();
+      return withCompression(compressionType.canonical);
+    }
+
+    /** Decompresses all input files using the specified compression type. */
+    public Read<T> withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     /**
@@ -417,27 +419,7 @@ public class XmlIO {
 
     @VisibleForTesting
     BoundedSource<T> createSource() {
-      XmlSource<T> source = new XmlSource<>(this);
-      switch (getCompressionType()) {
-        case UNCOMPRESSED:
-          return source;
-        case AUTO:
-          return CompressedSource.from(source);
-        case BZIP2:
-          return CompressedSource.from(source)
-              .withDecompression(CompressedSource.CompressionMode.BZIP2);
-        case GZIP:
-          return CompressedSource.from(source)
-              .withDecompression(CompressedSource.CompressionMode.GZIP);
-        case ZIP:
-          return CompressedSource.from(source)
-              .withDecompression(CompressedSource.CompressionMode.ZIP);
-        case DEFLATE:
-          return CompressedSource.from(source)
-              .withDecompression(CompressedSource.CompressionMode.DEFLATE);
-        default:
-          throw new IllegalArgumentException("Unknown compression type: " + getCompressionType());
-      }
+        return CompressedSource.from(new XmlSource<>(this)).withCompression(getCompression());
     }
 
     @Override
