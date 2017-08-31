@@ -76,14 +76,15 @@ public class FileSideInputReader implements SideInputReader {
     try {
       FileSystem fs = pattern.getFileSystem(conf);
       FileStatus[] files = fs.globStatus(pattern);
-      // TODO: handle empty views which may result in no files case.
-      SequenceFile.Reader reader = new SequenceFile.Reader(fs, files[0].getPath(), conf);
 
       List<WindowedValue<?>> availableSideInputs = new ArrayList<>();
-      BytesWritable value = new BytesWritable();
-      while (reader.next(NullWritable.get(), value)) {
-        ByteArrayInputStream inStream = new ByteArrayInputStream(value.getBytes());
-        availableSideInputs.add(elemCoder.decode(inStream));
+      if (files.length > 0) {
+        SequenceFile.Reader reader = new SequenceFile.Reader(fs, files[0].getPath(), conf);
+        BytesWritable value = new BytesWritable();
+        while (reader.next(NullWritable.get(), value)) {
+          ByteArrayInputStream inStream = new ByteArrayInputStream(value.getBytes());
+          availableSideInputs.add(elemCoder.decode(inStream));
+        }
       }
       Iterable<WindowedValue<?>> sideInputForWindow =
           Iterables.filter(availableSideInputs, new Predicate<WindowedValue<?>>() {
