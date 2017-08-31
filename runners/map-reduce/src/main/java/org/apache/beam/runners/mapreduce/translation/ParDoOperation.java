@@ -28,7 +28,12 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.InMemoryStateInternals;
+import org.apache.beam.runners.core.InMemoryTimerInternals;
 import org.apache.beam.runners.core.NullSideInputReader;
+import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StepContext;
+import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -91,6 +96,18 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
     for (Graphs.Tag tag : sideInputTags) {
       tupleTagToCoder.put(tag.getTupleTag(), tag.getCoder());
     }
+
+    final StateInternals stateInternals;
+    try {
+      stateInternals = InMemoryStateInternals.forKey(taskContext.getCurrentKey());
+    } catch (IOException | InterruptedException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new RuntimeException(e);
+    }
+    final TimerInternals timerInternals = new InMemoryTimerInternals();
+
     fnRunner = DoFnRunners.simpleRunner(
         options.getPipelineOptions(),
         getDoFn(),
@@ -100,7 +117,17 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
         createOutputManager(),
         mainOutputTag,
         sideOutputTags,
-        null,
+        new StepContext() {
+          @Override
+          public StateInternals stateInternals() {
+            return stateInternals;
+          }
+
+          @Override
+          public TimerInternals timerInternals() {
+            return timerInternals;
+          }
+        },
         windowingStrategy);
 
     try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(
