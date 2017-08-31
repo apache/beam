@@ -712,10 +712,10 @@ class SnippetsTest(unittest.TestCase):
     snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
     # [START model_group_by_key_cogroupbykey_tuple_outputs]
     contact_lines = [
-        'amy; amy@example.com; 111-222-3333,333-444-5555',
-        'carl; carl@example.com,carl@email.com; 444-555-6666',
-        'james; ; 222-333-4444',
-        'julia; julia@example.com; ',
+        "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
+        "carl; ['carl@example.com', 'carl@email.com']; ['444-555-6666']",
+        "james; []; ['222-333-4444']",
+        "julia; ['julia@example.com']; []",
     ]
     # [END model_group_by_key_cogroupbykey_tuple_outputs]
     self.assertEqual(contact_lines, self.get_output(result_path))
