@@ -700,6 +700,7 @@ class _StreamingGroupByKeyOnlyEvaluator(_TransformEvaluator):
 
     return TransformResult(self, bundles, [], None, None)
 
+
 class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
   """TransformEvaluator for the _StreamingGroupAlsoByWindow transform.
 
