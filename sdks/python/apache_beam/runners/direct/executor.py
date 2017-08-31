@@ -280,7 +280,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._retry_count = 0
     # Switch to turn on/off the retry of bundles.
     pipeline_options = self._evaluation_context.pipeline_options
-    # TODO(mariagh): Remove if once "bundle retry" is no longer experimental.
+    # TODO(mariagh): Remove once "bundle retry" is no longer experimental.
     if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
       self._max_retries_per_bundle = 1
     else:
@@ -320,9 +320,10 @@ class TransformExecutor(_ExecutorService.CallableTask):
           logging.error('Giving up after %s attempts.',
                         self._max_retries_per_bundle)
           if self._retry_count == 1:
-            logging.warning('To apply bundle retry up to %s times, use flag'
-                            ' --direct_runner_bundle_retry',
-                            TransformExecutor._MAX_RETRY_PER_BUNDLE)
+            logging.info(
+                'Use the experimental flag --direct_runner_bundle_retry'
+                ' to retry failed bundles (up to %d times).',
+                TransformExecutor._MAX_RETRY_PER_BUNDLE)
           self._completion_callback.handle_exception(self, e)
 
     self._evaluation_context.metrics().commit_physical(
