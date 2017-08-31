@@ -1148,8 +1148,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
     # multiple possible values for each key.
     # The phone_list contains values such as: ('mary': '111-222-3333') with
     # multiple possible values for each key.
-    emails_pcoll = p | beam.Create(email_list)
-    phones_pcoll = p | beam.Create(phone_list)
+    emails_pcoll = p | 'create emails' >> beam.Create(email_list)
+    phones_pcoll = p | 'create phones' >> beam.Create(phone_list)
 
     # The result PCollection contains one key-value element for each key in the
     # input PCollections. The key of the pair will be the key from the input and
