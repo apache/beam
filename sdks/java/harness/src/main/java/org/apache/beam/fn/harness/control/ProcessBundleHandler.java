@@ -31,6 +31,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Phaser;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -40,7 +42,13 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor;
+import org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
+import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -84,7 +92,7 @@ public class ProcessBundleHandler {
   private final PipelineOptions options;
   private final Function<String, Message> fnApiRegistry;
   private final BeamFnDataClient beamFnDataClient;
-  private final BeamFnStateClient beamFnStateClient;
+  private final BeamFnStateGrpcClientCache beamFnStateGrpcClientCache;
   private final Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap;
   private final PTransformRunnerFactory defaultPTransformRunnerFactory;
 
@@ -93,8 +101,12 @@ public class ProcessBundleHandler {
       PipelineOptions options,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
-      BeamFnStateClient beamFnStateClient) {
-    this(options, fnApiRegistry, beamFnDataClient, beamFnStateClient, REGISTERED_RUNNER_FACTORIES);
+      BeamFnStateGrpcClientCache beamFnStateGrpcClientCache) {
+    this(options,
+        fnApiRegistry,
+        beamFnDataClient,
+        beamFnStateGrpcClientCache,
+        REGISTERED_RUNNER_FACTORIES);
   }
 
   @VisibleForTesting
@@ -102,12 +114,12 @@ public class ProcessBundleHandler {
       PipelineOptions options,
       Function<String, Message> fnApiRegistry,
       BeamFnDataClient beamFnDataClient,
-      BeamFnStateClient beamFnStateClient,
+      BeamFnStateGrpcClientCache beamFnStateGrpcClientCache,
       Map<String, PTransformRunnerFactory> urnToPTransformRunnerFactoryMap) {
     this.options = options;
     this.fnApiRegistry = fnApiRegistry;
     this.beamFnDataClient = beamFnDataClient;
-    this.beamFnStateClient = beamFnStateClient;
+    this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
     this.defaultPTransformRunnerFactory = new PTransformRunnerFactory<Object>() {
       @Override
@@ -132,6 +144,7 @@ public class ProcessBundleHandler {
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
+      BeamFnStateClient beamFnStateClient,
       String pTransformId,
       RunnerApi.PTransform pTransform,
       Supplier<String> processBundleInstructionId,
@@ -152,6 +165,7 @@ public class ProcessBundleHandler {
 
       for (String consumingPTransformId : pCollectionIdsToConsumingPTransforms.get(pCollectionId)) {
         createRunnerAndConsumersForPTransformRecursively(
+            beamFnStateClient,
             consumingPTransformId,
             processBundleDescriptor.getTransformsMap().get(consumingPTransformId),
             processBundleInstructionId,
@@ -204,39 +218,110 @@ public class ProcessBundleHandler {
       }
     }
 
-    //
-    for (Map.Entry<String, RunnerApi.PTransform> entry
-        : bundleDescriptor.getTransformsMap().entrySet()) {
-      // Skip anything which isn't a root
-      // TODO: Remove source as a root and have it be triggered by the Runner.
-      if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-          && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())) {
-        continue;
+    // Instantiate a State API call handler depending on whether a State Api service descriptor
+    // was specified.
+    try (HandleStateCallsForBundle beamFnStateClient =
+        bundleDescriptor.hasStateApiServiceDescriptor()
+        ? new BlockTillStateCallsFinish(beamFnStateGrpcClientCache.forApiServiceDescriptor(
+            bundleDescriptor.getStateApiServiceDescriptor()))
+        : new FailAllStateCallsForBundle(request.getProcessBundle())) {
+      // Create a BeamFnStateClient
+      for (Map.Entry<String, RunnerApi.PTransform> entry
+          : bundleDescriptor.getTransformsMap().entrySet()) {
+        // Skip anything which isn't a root
+        // TODO: Remove source as a root and have it be triggered by the Runner.
+        if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
+            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())) {
+          continue;
+        }
+
+        createRunnerAndConsumersForPTransformRecursively(
+            beamFnStateClient,
+            entry.getKey(),
+            entry.getValue(),
+            request::getInstructionId,
+            bundleDescriptor,
+            pCollectionIdsToConsumingPTransforms,
+            pCollectionIdsToConsumers,
+            startFunctions::add,
+            finishFunctions::add);
       }
 
-      createRunnerAndConsumersForPTransformRecursively(
-          entry.getKey(),
-          entry.getValue(),
-          request::getInstructionId,
-          bundleDescriptor,
-          pCollectionIdsToConsumingPTransforms,
-          pCollectionIdsToConsumers,
-          startFunctions::add,
-          finishFunctions::add);
-    }
+      // Already in reverse topological order so we don't need to do anything.
+      for (ThrowingRunnable startFunction : startFunctions) {
+        LOG.debug("Starting function {}", startFunction);
+        startFunction.run();
+      }
 
-    // Already in reverse topological order so we don't need to do anything.
-    for (ThrowingRunnable startFunction : startFunctions) {
-      LOG.debug("Starting function {}", startFunction);
-      startFunction.run();
-    }
-
-    // Need to reverse this since we want to call finish in topological order.
-    for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
-      LOG.debug("Finishing function {}", finishFunction);
-      finishFunction.run();
+      // Need to reverse this since we want to call finish in topological order.
+      for (ThrowingRunnable finishFunction : Lists.reverse(finishFunctions)) {
+        LOG.debug("Finishing function {}", finishFunction);
+        finishFunction.run();
+      }
     }
 
     return response;
+  }
+
+  /**
+   * A {@link BeamFnStateClient} which counts the number of outstanding {@link StateRequest}s and
+   * blocks till they are all finished.
+   */
+  private class BlockTillStateCallsFinish extends HandleStateCallsForBundle {
+    private final BeamFnStateClient beamFnStateClient;
+    private final Phaser phaser;
+    private int currentPhase;
+
+    private BlockTillStateCallsFinish(BeamFnStateClient beamFnStateClient) {
+      this.beamFnStateClient = beamFnStateClient;
+      this.phaser  = new Phaser(1 /* initial party is the process bundle handler */);
+      this.currentPhase = phaser.getPhase();
+    }
+
+    @Override
+    public void close() throws Exception {
+      int unarrivedParties = phaser.getUnarrivedParties();
+      if (unarrivedParties > 0) {
+        LOG.debug("Waiting for {} parties to arrive before closing, current phase {}.",
+            unarrivedParties, currentPhase);
+      }
+      currentPhase = phaser.arriveAndAwaitAdvance();
+    }
+
+    @Override
+    public void handle(StateRequest.Builder requestBuilder,
+        CompletableFuture<StateResponse> response) {
+      // Register each request with the phaser and arrive and deregister each time a request
+      // completes.
+      phaser.register();
+      response.whenComplete((stateResponse, throwable) -> phaser.arriveAndDeregister());
+      beamFnStateClient.handle(requestBuilder, response);
+    }
+  }
+
+  /**
+   * A {@link BeamFnStateClient} which fails all requests because the {@link ProcessBundleRequest}
+   * does not contain a State API {@link ApiServiceDescriptor}.
+   */
+  private class FailAllStateCallsForBundle extends HandleStateCallsForBundle {
+    private final ProcessBundleRequest request;
+
+    private FailAllStateCallsForBundle(ProcessBundleRequest request) {
+      this.request = request;
+    }
+
+    @Override
+    public void close() throws Exception {
+      // no-op
+    }
+
+    @Override
+    public void handle(Builder requestBuilder, CompletableFuture<StateResponse> response) {
+      throw new IllegalStateException(String.format("State API calls are unsupported because the "
+          + "ProcessBundleRequest %s does not support state.", request));
+    }
+  }
+
+  private abstract class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {
   }
 }
