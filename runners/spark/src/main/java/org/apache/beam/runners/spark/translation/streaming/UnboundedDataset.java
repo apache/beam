@@ -28,6 +28,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,8 +65,11 @@ public class UnboundedDataset<T> implements Dataset {
   @SuppressWarnings("unchecked")
   public void cache(String storageLevel, Coder<?> coder) {
     // we "force" MEMORY storage level in streaming
-    LOG.warn("Provided StorageLevel ignored for stream, using default level");
-
+    if (!StorageLevel.fromString(storageLevel).equals(StorageLevel.MEMORY_ONLY_SER())) {
+      LOG.warn("Provided StorageLevel: {} is ignored for streams, using the default level: {}",
+          storageLevel,
+          StorageLevel.MEMORY_ONLY_SER());
+    }
     // Caching can cause Serialization, we need to code to bytes
     // more details in https://issues.apache.org/jira/browse/BEAM-2669
     Coder<WindowedValue<T>> wc = (Coder<WindowedValue<T>>) coder;

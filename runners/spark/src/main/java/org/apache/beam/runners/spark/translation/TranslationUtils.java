@@ -424,9 +424,9 @@ public final class TranslationUtils {
    * @param outputs - A map of tuple tags and pcollections
    * @return mapping between TupleTag and a coder
    */
-  public static Map<TupleTag, Coder<WindowedValue<?>>> getTupleTagCoders(
+  public static Map<TupleTag<?>, Coder<WindowedValue<?>>> getTupleTagCoders(
       Map<TupleTag<?>, PValue> outputs) {
-    Map<TupleTag, Coder<WindowedValue<?>>> coderMap = new HashMap<>(outputs.size());
+    Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap = new HashMap<>(outputs.size());
 
     for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
       // we get the first PValue as all of them are fro the same type.
@@ -435,9 +435,9 @@ public final class TranslationUtils {
       Coder<? extends BoundedWindow> wCoder =
           pCollection.getWindowingStrategy().getWindowFn().windowCoder();
       @SuppressWarnings("unchecked")
-      Coder<WindowedValue<?>> wc =
+      Coder<WindowedValue<?>> windowedValueCoder =
           (Coder<WindowedValue<?>>) (Coder<?>) WindowedValue.getFullCoder(coder, wCoder);
-      coderMap.put(output.getKey(), wc);
+      coderMap.put(output.getKey(), windowedValueCoder);
     }
     return coderMap;
   }
@@ -448,13 +448,15 @@ public final class TranslationUtils {
    * @return a pair function to convert value to bytes via coder
    */
   public static PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>
-      getTupleTagEncodeFunction(final Map<TupleTag, Coder<WindowedValue<?>>> coderMap) {
+      getTupleTagEncodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return new PairFunction<Tuple2<TupleTag<?>, WindowedValue<?>>, TupleTag<?>, byte[]>() {
 
       @Override public Tuple2<TupleTag<?>, byte[]>
       call(Tuple2<TupleTag<?>, WindowedValue<?>> tuple2) throws Exception {
+        TupleTag<?> tupleTag = tuple2._1;
+        WindowedValue<?> windowedValue = tuple2._2;
         return new Tuple2<TupleTag<?>, byte[]>
-            (tuple2._1, CoderHelpers.toByteArray(tuple2._2, coderMap.get(tuple2._1)));
+            (tupleTag, CoderHelpers.toByteArray(windowedValue, coderMap.get(tupleTag)));
       }
     };
   }
@@ -465,13 +467,15 @@ public final class TranslationUtils {
    * @return a pair function to convert bytes to value via coder
    * */
   public static PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>
-      getTupleTagDecodeFunction(final Map<TupleTag, Coder<WindowedValue<?>>> coderMap) {
+      getTupleTagDecodeFunction(final Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap) {
     return new PairFunction<Tuple2<TupleTag<?>, byte[]>, TupleTag<?>, WindowedValue<?>>() {
 
       @Override public Tuple2<TupleTag<?>, WindowedValue<?>>
       call(Tuple2<TupleTag<?>, byte[]> tuple2) throws Exception {
+        TupleTag<?> tupleTag = tuple2._1;
+        byte[] windowedByteValue = tuple2._2;
         return new Tuple2<TupleTag<?>, WindowedValue<?>>
-            (tuple2._1, CoderHelpers.fromByteArray(tuple2._2, coderMap.get(tuple2._1)));
+            (tupleTag, CoderHelpers.fromByteArray(windowedByteValue, coderMap.get(tupleTag)));
       }
     };
   }

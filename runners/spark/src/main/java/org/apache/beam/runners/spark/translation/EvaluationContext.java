@@ -139,8 +139,8 @@ public class EvaluationContext {
   }
 
   public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset,
-      boolean mustCache) {
-    putDataset(getOutput(transform), dataset, mustCache);
+      boolean forceCache) {
+    putDataset(getOutput(transform), dataset, forceCache);
   }
 
 
@@ -148,13 +148,13 @@ public class EvaluationContext {
     putDataset(transform, dataset,  false);
   }
 
-  public void putDataset(PValue pvalue, Dataset dataset, boolean mustCache) {
+  public void putDataset(PValue pvalue, Dataset dataset, boolean forceCache) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (mustCache || shouldCache(pvalue)) {
+    if (forceCache || shouldCache(pvalue)) {
       // we cache only PCollection
       if (pvalue instanceof PCollection) {
         Coder<?> coder = ((PCollection<?>) pvalue).getCoder();

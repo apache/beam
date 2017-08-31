@@ -447,7 +447,7 @@ public final class StreamingTransformTranslator {
         if (outputs.size() > 1) {
           // Caching can cause Serialization, we need to code to bytes
           // more details in https://issues.apache.org/jira/browse/BEAM-2669
-          Map<TupleTag, Coder<WindowedValue<?>>> coderMap =
+          Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
               TranslationUtils.getTupleTagCoders(outputs);
           all = all
               .mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
