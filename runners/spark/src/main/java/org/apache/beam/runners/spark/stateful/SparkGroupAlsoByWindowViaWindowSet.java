@@ -94,11 +94,11 @@ import scala.runtime.AbstractFunction1;
  * bounds the types of state and output to be the same, a (state, output) tuple is used, filtering
  * the state (and output if no firing) in the following steps.
  */
-public class SparkGroupAlsoByWindowViaWindowSet {
+public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG =
       LoggerFactory.getLogger(SparkGroupAlsoByWindowViaWindowSet.class);
 
-  private static class StateAndTimers {
+  private static class StateAndTimers implements Serializable {
     //Serializable state for internals (namespace to state tag to coded value).
     private final Table<String, String, byte[]> state;
     private final Collection<byte[]> serTimers;
@@ -230,13 +230,13 @@ public class SparkGroupAlsoByWindowViaWindowSet {
           final SparkStateInternals<K> stateInternals =
               processPreviousState(prevStateAndTimersOpt, key, timerInternals);
 
-          final OutputWindowedValueHolder<K, InputT> outputHolder =
-              new OutputWindowedValueHolder<>();
-
           final ExecutableTriggerStateMachine triggerStateMachine =
               ExecutableTriggerStateMachine.create(
                   TriggerStateMachines.stateMachineForTrigger(
                       TriggerTranslation.toProto(windowingStrategy.getTrigger())));
+
+          final OutputWindowedValueHolder<K, InputT> outputHolder =
+              new OutputWindowedValueHolder<>();
 
           final ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =
               new ReduceFnRunner<>(
