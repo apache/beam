@@ -32,7 +32,6 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -104,39 +103,18 @@ public class FileIO {
   }
 
   /** A utility class for accessing a potentially compressed file. */
-  public final static class ReadableFile {
-    private final ResourceId resourceId;
-    private final long sizeBytes;
-    private final boolean isSeekable;
+  public static final class ReadableFile {
+    private final MatchResult.Metadata metadata;
     private final Compression compression;
 
-    ReadableFile(
-        ResourceId resourceId,
-        long sizeBytes,
-        boolean isSeekable,
-        Compression compression) {
-      this.resourceId = resourceId;
-      this.sizeBytes = sizeBytes;
-      this.isSeekable = isSeekable;
+    ReadableFile(MatchResult.Metadata metadata, Compression compression) {
+      this.metadata = metadata;
       this.compression = compression;
     }
 
-    /** Returns the {@link ResourceId} of the file. */
-    public ResourceId getResourceId() {
-      return resourceId;
-    }
-
-    /** Returns the size of the file in bytes (before decompression). */
-    public long getSizeBytes() {
-      return sizeBytes;
-    }
-
-    /**
-     * Returns whether or not the channel returned by {@link #open} can be efficiently seeked.
-     * If true, then {@link #open} will return a {@link SeekableByteChannel}.
-     */
-    public boolean isSeekable() {
-      return isSeekable;
+    /** Returns the {@link MatchResult.Metadata} of the file. */
+    public MatchResult.Metadata getMetadata() {
+      return metadata;
     }
 
     /** Returns the method with which this file will be decompressed in {@link #open}. */
@@ -149,15 +127,18 @@ public class FileIO {
      * decompressing it using {@link #getCompression}.
      */
     public ReadableByteChannel open() throws IOException {
-      return compression.readDecompressed(FileSystems.open(resourceId));
+      return compression.readDecompressed(FileSystems.open(metadata.resourceId()));
     }
 
     /**
      * Returns a {@link SeekableByteChannel} equivalent to {@link #open}, but fails if this file is
-     * not {@link #isSeekable() seekable}.
+     * not {@link MatchResult.Metadata#isReadSeekEfficient seekable}.
      */
     public SeekableByteChannel openSeekable() throws IOException {
-      checkState(isSeekable(), "The file %s is not seekable", resourceId);
+      checkState(
+          getMetadata().isReadSeekEfficient(),
+          "The file %s is not seekable",
+          metadata.resourceId());
       return ((SeekableByteChannel) open());
     }
 
@@ -173,8 +154,8 @@ public class FileIO {
   }
 
   /**
-   * Describes configuration for matching filepatterns, such as {@link EmptyMatchTreatment}
-   * and continuous watching for matching files.
+   * Describes configuration for matching filepatterns, such as {@link EmptyMatchTreatment} and
+   * continuous watching for matching files.
    */
   @AutoValue
   public abstract static class MatchConfiguration implements HasDisplayData, Serializable {
@@ -186,16 +167,23 @@ public class FileIO {
     }
 
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
-    @Nullable abstract Duration getWatchInterval();
-    @Nullable abstract TerminationCondition<String, ?> getWatchTerminationCondition();
+
+    @Nullable
+    abstract Duration getWatchInterval();
+
+    @Nullable
+    abstract TerminationCondition<String, ?> getWatchTerminationCondition();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
+
       abstract Builder setWatchInterval(Duration watchInterval);
+
       abstract Builder setWatchTerminationCondition(TerminationCondition<String, ?> condition);
+
       abstract MatchConfiguration build();
     }
 
@@ -228,14 +216,19 @@ public class FileIO {
   /** Implementation of {@link #match}. */
   @AutoValue
   public abstract static class Match extends PTransform<PBegin, PCollection<MatchResult.Metadata>> {
-    @Nullable abstract ValueProvider<String> getFilepattern();
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
+
     abstract MatchConfiguration getConfiguration();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder setConfiguration(MatchConfiguration configuration);
+
       abstract Match build();
     }
 
@@ -283,11 +276,13 @@ public class FileIO {
   public abstract static class MatchAll
       extends PTransform<PCollection<String>, PCollection<MatchResult.Metadata>> {
     abstract MatchConfiguration getConfiguration();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfiguration(MatchConfiguration configuration);
+
       abstract MatchAll build();
     }
 
@@ -363,6 +358,7 @@ public class FileIO {
     }
 
     abstract Compression getCompression();
+
     abstract DirectoryTreatment getDirectoryTreatment();
 
     abstract Builder toBuilder();
@@ -370,6 +366,7 @@ public class FileIO {
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setCompression(Compression compression);
+
       abstract Builder setDirectoryTreatment(DirectoryTreatment directoryTreatment);
 
       abstract ReadMatches build();
@@ -412,7 +409,7 @@ public class FileIO {
       public void process(ProcessContext c) {
         MatchResult.Metadata metadata = c.element();
         if (metadata.resourceId().isDirectory()) {
-          switch(spec.getDirectoryTreatment()) {
+          switch (spec.getDirectoryTreatment()) {
             case SKIP:
               return;
 
@@ -432,9 +429,12 @@ public class FileIO {
                 : spec.getCompression();
         c.output(
             new ReadableFile(
-                metadata.resourceId(),
-                metadata.sizeBytes(),
-                metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED,
+                MatchResult.Metadata.builder()
+                    .setResourceId(metadata.resourceId())
+                    .setSizeBytes(metadata.sizeBytes())
+                    .setIsReadSeekEfficient(
+                        metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
+                    .build(),
                 compression));
       }
     }

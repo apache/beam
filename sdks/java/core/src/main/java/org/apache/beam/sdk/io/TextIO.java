@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.*;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -483,12 +484,15 @@ public class TextIO {
       return input
           .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
+              FileIO.readMatches()
+                  .withCompression(getCompression())
+                  .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
-                  new IsSplittableFn(getCompression()),
                   getDesiredBundleSizeBytes(),
-                  new CreateTextSourceFn(getCompression(), getDelimiter())))
-          .setCoder(StringUtf8Coder.of());
+                  new CreateTextSourceFn(getDelimiter()),
+                  StringUtf8Coder.of()));
     }
 
     @Override
@@ -507,34 +511,16 @@ public class TextIO {
 
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
-      private final Compression compression;
       private byte[] delimiter;
 
-      private CreateTextSourceFn(
-          Compression compression, byte[] delimiter) {
-        this.compression = compression;
+      private CreateTextSourceFn(byte[] delimiter) {
         this.delimiter = delimiter;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
-        return CompressedSource.from(
-                new TextSource(
-                    StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter))
-            .withCompression(compression);
-      }
-    }
-
-    private static class IsSplittableFn implements SerializableFunction<String, Boolean> {
-      private final Compression compression;
-
-      private IsSplittableFn(Compression compression) {
-        this.compression = compression;
-      }
-
-      @Override
-      public Boolean apply(String filename) {
-        return !compression.isCompressed(filename);
+        return new TextSource(
+            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter);
       }
     }
   }

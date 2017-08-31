@@ -257,10 +257,10 @@ public class FileIOTest implements Serializable {
               new SerializableFunction<FileIO.ReadableFile, Void>() {
                 @Override
                 public Void apply(FileIO.ReadableFile input) {
-                  assertEquals(path, input.getResourceId().toString());
-                  assertEquals("Hello world".length(), input.getSizeBytes());
+                  assertEquals(path, input.getMetadata().resourceId().toString());
+                  assertEquals("Hello world".length(), input.getMetadata().sizeBytes());
                   assertEquals(Compression.UNCOMPRESSED, input.getCompression());
-                  assertTrue(input.isSeekable());
+                  assertTrue(input.getMetadata().isReadSeekEfficient());
                   try {
                     assertEquals("Hello world", input.readFullyAsUTF8String());
                   } catch (IOException e) {
@@ -286,10 +286,10 @@ public class FileIOTest implements Serializable {
               new SerializableFunction<FileIO.ReadableFile, Void>() {
                 @Override
                 public Void apply(FileIO.ReadableFile input) {
-                  assertEquals(pathGZ, input.getResourceId().toString());
-                  assertFalse(input.getSizeBytes() == "Hello world".length());
+                  assertEquals(pathGZ, input.getMetadata().resourceId().toString());
+                  assertFalse(input.getMetadata().sizeBytes() == "Hello world".length());
                   assertEquals(Compression.GZIP, input.getCompression());
-                  assertFalse(input.isSeekable());
+                  assertFalse(input.getMetadata().isReadSeekEfficient());
                   try {
                     assertEquals("Hello world", input.readFullyAsUTF8String());
                   } catch (IOException e) {
