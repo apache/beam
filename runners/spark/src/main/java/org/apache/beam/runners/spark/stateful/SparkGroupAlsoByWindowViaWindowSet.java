@@ -295,8 +295,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                               reduceFn,
                               options.get());
 
-                      outputHolder.clear(); // clear before potential use.
-
                       if (!seq.isEmpty()) {
                         // new input for key.
                         try {
@@ -479,7 +477,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   }
 
   private static class OutputWindowedValueHolder<K, V>
-      implements OutputWindowedValue<KV<K, Iterable<V>>>, Serializable {
+      implements OutputWindowedValue<KV<K, Iterable<V>>> {
     private List<WindowedValue<KV<K, Iterable<V>>>> windowedValues = new ArrayList<>();
 
     @Override
