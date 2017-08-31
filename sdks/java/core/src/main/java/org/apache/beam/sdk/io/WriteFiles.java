@@ -45,6 +45,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -683,7 +684,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
     if (computeNumShards == null && numShardsProvider == null) {
       numShardsView = null;
-      TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecordsTag");
+      TupleTag<FileResult<DestinationT>> writtenRecordsTag =
+          new TupleTag<>("writtenRecordsTag");
       TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittedRecordsTag =
           new TupleTag<>("unwrittenRecordsTag");
       String writeName = windowedWrites ? "WriteWindowedBundles" : "WriteBundles";
@@ -748,7 +750,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     }
     results.setCoder(FileResultCoder.of(shardedWindowCoder, destinationCoder));
 
-    PCollection<String> outputFilenames;
+    PCollection<KV<DestinationT, String>> outputFilenames;
     if (windowedWrites) {
       // When processing streaming windowed writes, results will arrive multiple times. This
       // means we can't share the below implementation that turns the results into a side input,
@@ -767,7 +769,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           .apply(
               "FinalizeWindowed",
               ParDo.of(
-                  new DoFn<KV<Void, Iterable<FileResult<DestinationT>>>, String>() {
+                  new DoFn<KV<Void, Iterable<FileResult<DestinationT>>>,
+                      KV<DestinationT, String>>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       Set<ResourceId> tempFiles = Sets.newHashSet();
@@ -784,7 +787,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                             entry.getValue());
                         tempFiles.addAll(finalizeMap.keySet());
                         for (ResourceId outputFile : finalizeMap.values()) {
-                          c.output(outputFile.toString());
+                          c.output(KV.of(entry.getKey(), outputFile.toString()));
                         }
                         LOG.debug("Done finalizing write operation for {}.", entry.getKey());
                       }
@@ -814,13 +817,12 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       outputFilenames = singletonCollection.apply(
           "FinalizeUnwindowed",
           ParDo.of(
-                  new DoFn<Void, String>() {
+                  new DoFn<Void, KV<DestinationT, String>>() {
                     @ProcessElement
                     public void processElement(ProcessContext c) throws Exception {
                       sink.getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
                       // We must always output at least 1 shard, and honor user-specified numShards
-                      // if
-                      // set.
+                      // if set.
                       int minShardsNeeded;
                       if (numShardsView != null) {
                         minShardsNeeded = c.sideInput(numShardsView);
@@ -829,35 +831,46 @@ public class WriteFiles<UserT, DestinationT, OutputT>
                       } else {
                         minShardsNeeded = 1;
                       }
-                      Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
+                      Set<ResourceId> tempFiles = Sets.newHashSet();
                       Multimap<DestinationT, FileResult<DestinationT>> perDestination =
                           perDestinationResults(c.sideInput(resultsView));
                       for (Map.Entry<DestinationT, Collection<FileResult<DestinationT>>> entry :
                           perDestination.asMap().entrySet()) {
+                        Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
                         finalizeMap.putAll(
                             finalizeForDestinationFillEmptyShards(
                                 entry.getKey(), entry.getValue(), minShardsNeeded));
+                        tempFiles.addAll(finalizeMap.keySet());
+                        for (ResourceId outputFile :finalizeMap.values()) {
+                          c.output(KV.of(entry.getKey(), outputFile.toString()));
+                        }
                       }
                       if (perDestination.isEmpty()) {
                         // If there is no input at all, write empty files to the default
                         // destination.
+                        Map<ResourceId, ResourceId> finalizeMap = Maps.newHashMap();
+                        DestinationT destination =
+                            getSink().getDynamicDestinations().getDefaultDestination();
                         finalizeMap.putAll(
                             finalizeForDestinationFillEmptyShards(
-                                getSink().getDynamicDestinations().getDefaultDestination(),
+                                destination,
                                 Lists.<FileResult<DestinationT>>newArrayList(),
                                 minShardsNeeded));
+                        tempFiles.addAll(finalizeMap.keySet());
+                        for (ResourceId outputFile :finalizeMap.values()) {
+                          c.output(KV.of(destination, outputFile.toString()));
+                        }
                       }
-                      writeOperation.removeTemporaryFiles(finalizeMap.keySet());
-                      for (ResourceId outputFile :finalizeMap.values()) {
-                        c.output(outputFile.toString());
-                      }
+                      writeOperation.removeTemporaryFiles(tempFiles);
                     }
                   })
               .withSideInputs(finalizeSideInputs.build()));
     }
 
-    TupleTag<String> outputFilenamesTag = new TupleTag<>("outputFilenames");
-    return WriteFilesResult.in(input.getPipeline(), outputFilenamesTag, outputFilenames);
+    TupleTag<KV<?, String>> outputFilenamesTag = new TupleTag<>("outputFilenames");
+    outputFilenames = outputFilenames.setCoder(KvCoder.of(destinationCoder, StringUtf8Coder.of()));
+    return WriteFilesResult.in(input.getPipeline(), outputFilenamesTag,
+        (PCollection) outputFilenames);
   }
 
   /**

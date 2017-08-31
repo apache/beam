@@ -66,6 +66,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -354,16 +355,11 @@ public class TextIOWriteTest {
     public Void apply(Iterable<String> values) {
       try {
         String pattern = baseFilename.toString() + "*";
-        Iterable<String> matches =
-            Iterables.transform(
-                Iterables.getOnlyElement(FileSystems.match(Collections.singletonList(pattern)))
-                    .metadata(),
-                new Function<Metadata, String>() {
-                  @Override
-                  public String apply(@Nullable Metadata input) {
-                    return input.resourceId().toString();
-                  }
-                });
+        List<String> matches = Lists.newArrayList();
+        for (Metadata match :Iterables.getOnlyElement(
+            FileSystems.match(Collections.singletonList(pattern))).metadata()) {
+          matches.add(match.resourceId().toString());
+        }
         assertThat(values, containsInAnyOrder(Iterables.toArray(matches, String.class)));
       } catch (Exception e) {
         fail("Exception caught " + e);
@@ -380,7 +376,7 @@ public class TextIOWriteTest {
         FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
 
     PCollection<String> input =
-        p.apply(Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
+        p.apply("CreateInput", Create.of(Arrays.asList(elems)).withCoder(StringUtf8Coder.of()));
 
     TextIO.TypedWrite<String> write =
         TextIO.write().to(baseFilename).withHeader(header).withFooter(footer).withOutputFilenames();
@@ -391,8 +387,12 @@ public class TextIOWriteTest {
       write = write.withNumShards(numShards).withShardNameTemplate(ShardNameTemplate.INDEX_OF_MAX);
     }
 
-    PCollection<String> outputFilenames = input.apply(write).getOutputFilenames();
-    PAssert.that(outputFilenames).satisfies(new MatchesFilesystem(baseFilename));
+    WriteFilesResult result = input.apply(write);
+    PAssert.that(result.getOutputFilenames())
+        .satisfies(new MatchesFilesystem(baseFilename));
+    PAssert.that(result.<Void>getPerDestinationOutputFilenames()
+        .apply("GetFilenames", Values.<String>create()))
+        .satisfies(new MatchesFilesystem(baseFilename));
     p.run();
 
     assertOutputFiles(
