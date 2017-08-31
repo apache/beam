@@ -538,7 +538,7 @@ class _ExecutorServiceParallelExecutor(object):
                 update.unprocessed_bundle)
           else:
             assert update.exception
-            logging.warning('A task failed with exception.\n %s',
+            logging.warning('A task failed with exception: %s',
                             update.exception)
             self._executor.visible_updates.offer(
                 _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(

@@ -26,11 +26,11 @@ from __future__ import absolute_import
 class TransformResult(object):
   """Result of evaluating an AppliedPTransform with a TransformEvaluator."""
 
-  def __init__(self, applied_ptransform, uncommitted_output_bundles,
+  def __init__(self, transform_evaluator, uncommitted_output_bundles,
                unprocessed_bundles, counters, keyed_watermark_holds,
                undeclared_tag_values=None,
-               partial_keyed_state={}, keyed_existing_state={}):
-    self.transform = applied_ptransform
+               partial_keyed_state=None, keyed_existing_state=None):
+    self.transform = transform_evaluator._applied_ptransform # mgh
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
     self.counters = counters
@@ -47,8 +47,12 @@ class TransformResult(object):
     self.undeclared_tag_values = undeclared_tag_values
     # Populated by the TransformExecutor.
     self.logical_metric_updates = None
-    self.partial_keyed_state = partial_keyed_state
-    self.keyed_existing_state = keyed_existing_state
+
+    self.step_context = (
+        transform_evaluator._execution_context.get_step_context()
+        )
+    self.partial_keyed_state = self.step_context.partial_keyed_state or {}
+    self.keyed_existing_state = self.step_context.keyed_existing_state or {}
 
 
 class TimerFiring(object):
