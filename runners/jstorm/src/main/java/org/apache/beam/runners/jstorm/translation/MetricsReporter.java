@@ -22,9 +22,13 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import com.alibaba.jstorm.common.metric.AsmCounter;
 import com.alibaba.jstorm.metric.MetricClient;
+import com.alibaba.jstorm.metrics.Gauge;
 import com.google.common.collect.Maps;
 import java.util.Map;
+import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.metrics.GaugeResult;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricResults;
@@ -37,7 +41,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 class MetricsReporter {
 
   private static final String METRIC_KEY_SEPARATOR = "__";
-  private static final String COUNTER_PREFIX = "__counter";
+  private static final String COUNTER_PREFIX = "__metrics";
 
   private final MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
   private final Map<String, Long> reportedCounters = Maps.newHashMap();
@@ -45,6 +49,18 @@ class MetricsReporter {
 
   public static MetricsReporter create(MetricClient metricClient) {
     return new MetricsReporter(metricClient);
+  }
+
+  /**
+   * Converts JStorm metric name to {@link MetricKey}.
+   */
+  public static MetricKey toMetricKey(String jstormMetricName) {
+    String[] nameSplits = jstormMetricName.split(METRIC_KEY_SEPARATOR);
+    int length = nameSplits.length;
+    String stepName = length > 2 ? nameSplits[length - 3] : "";
+    String namespace = length > 1 ? nameSplits[length - 2] : "";
+    String counterName = length > 0 ? nameSplits[length - 1] : "";
+    return MetricKey.create(stepName, MetricName.named(namespace, counterName));
   }
 
   private MetricsReporter(MetricClient metricClient) {
@@ -60,6 +76,7 @@ class MetricsReporter {
     MetricQueryResults metricQueryResults =
         metricResults.queryMetrics(MetricsFilter.builder().build());
     updateCounters(metricQueryResults.counters());
+    updateGauges(metricQueryResults.gauges());
   }
 
   private void updateCounters(Iterable<MetricResult<Long>> counters) {
@@ -77,10 +94,21 @@ class MetricsReporter {
     }
   }
 
+  private void updateGauges(Iterable<MetricResult<GaugeResult>> gauges) {
+    for (final MetricResult<GaugeResult> gaugeResult : gauges) {
+      String metricName = getMetricNameString(COUNTER_PREFIX, gaugeResult);
+      metricClient.registerGauge(metricName, new Gauge<Double>() {
+        @Override
+        public Double getValue() {
+          return (double) gaugeResult.attempted().value();
+        }});
+    }
+  }
+
   private String getMetricNameString(String prefix, MetricResult<?> metricResult) {
     return prefix
-        + METRIC_KEY_SEPARATOR + metricResult.step()
-        + METRIC_KEY_SEPARATOR + metricResult.name().namespace()
-        + METRIC_KEY_SEPARATOR + metricResult.name().name();
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.step()
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.name().namespace()
+        + CommonInstance.METRIC_KEY_SEPARATOR + metricResult.name().name();
   }
 }

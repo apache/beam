@@ -23,6 +23,8 @@ import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Values;
+import com.alibaba.jstorm.metric.MetricClient;
+import com.alibaba.jstorm.metrics.Gauge;
 import com.alibaba.jstorm.utils.KryoSerializer;
 import java.io.IOException;
 import java.util.Map;
@@ -115,26 +117,30 @@ public class UnboundedSourceSpout extends AbstractComponent implements IRichSpou
 
   @Override
   public synchronized void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+    this.collector = collector;
+    this.pipelineOptions =
+        this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
+    this.serializer = new KryoSerializer<>(conf);
+    createSourceReader(null);
+    new MetricClient(context).registerGauge(
+        context.getThisComponentId() + CommonInstance.BEAM_SOURCE_WATERMARK_METRICS,
+        new Gauge<Double>() {
+          @Override
+          public Double getValue() {
+            return (double) reader.getWatermark().getMillis();
+          }});
+  }
+
+  public synchronized void createSourceReader(UnboundedSource.CheckpointMark checkpointMark) {
     try {
-      this.collector = collector;
-      this.pipelineOptions =
-          this.serializedOptions.getPipelineOptions().as(JStormPipelineOptions.class);
-
-      createSourceReader(null);
-
-      this.serializer = new KryoSerializer<>(conf);
+      if (reader != null) {
+        reader.close();
+      }
+        reader = this.source.createReader(this.pipelineOptions, checkpointMark);
+      hasNextRecord = this.reader.start();
     } catch (IOException e) {
       throw new RuntimeException("Unable to create unbounded reader.", e);
     }
-  }
-
-  public synchronized void createSourceReader(UnboundedSource.CheckpointMark checkpointMark)
-      throws IOException {
-    if (reader != null) {
-      reader.close();
-    }
-    reader = this.source.createReader(this.pipelineOptions, checkpointMark);
-    hasNextRecord = this.reader.start();
   }
 
   @Override

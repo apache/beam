@@ -21,7 +21,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.alibaba.jstorm.cache.IKvStoreManager;
-import com.alibaba.jstorm.metric.MetricClient;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -120,7 +119,6 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
   protected transient StateTag<WatermarkHoldState> watermarkHoldTag;
   protected transient IKvStoreManager kvStoreManager;
   protected transient DefaultStepContext stepContext;
-  protected transient MetricClient metricClient;
 
   public DoFnExecutor(
       String stepName,
@@ -159,7 +157,7 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
             this.sideOutputTags,
             this.stepContext,
             this.windowingStrategy),
-        MetricsReporter.create(metricClient));
+        MetricsReporter.create(executorsBolt.metricClient()));
   }
 
   protected void initService(ExecutorContext context) {
@@ -170,7 +168,6 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
     stepContext = new DefaultStepContext(timerInternals,
         new JStormStateInternals(
             null, kvStoreManager, executorsBolt.timerService(), internalDoFnExecutorId));
-    metricClient = new MetricClient(executorContext.getTopologyContext());
   }
 
   @Override

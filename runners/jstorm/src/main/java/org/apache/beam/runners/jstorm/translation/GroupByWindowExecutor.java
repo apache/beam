@@ -132,7 +132,7 @@ class GroupByWindowExecutor<K, V>
             this.stepContext,
             this.windowingStrategy);
     return new DoFnRunnerWithMetrics<>(
-        stepName, doFnRunner, MetricsReporter.create(metricClient));
+        stepName, doFnRunner, MetricsReporter.create(executorsBolt.metricClient()));
   }
 
   @Override
