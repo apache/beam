@@ -53,6 +53,7 @@ import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
@@ -480,6 +481,14 @@ public final class TranslationUtils {
     };
   }
 
+  /**
+   * checking if we can avoid Serialization - relevant to RDDs. DStreams are memory ser in spark.
+   * @param level StorageLevel required
+   * @return
+   */
+  public static boolean avoidRddSerialization(StorageLevel level) {
+    return level.equals(StorageLevel.MEMORY_ONLY()) || level.equals(StorageLevel.MEMORY_ONLY_2());
+  }
 
 
 }

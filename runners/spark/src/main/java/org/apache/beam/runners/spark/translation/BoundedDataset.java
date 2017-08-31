@@ -101,9 +101,9 @@ public class BoundedDataset<T> implements Dataset {
   @SuppressWarnings("unchecked")
   public void cache(String storageLevel, Coder<?> coder) {
     StorageLevel level = StorageLevel.fromString(storageLevel);
-    if (avoidRddSerialization(level)) {
+    if (TranslationUtils.avoidRddSerialization(level)) {
       // if it is memory only reduce the overhead of moving to bytes
-      getRDD().persist(level);
+      this.rdd = getRDD().persist(level);
     } else {
       // Caching can cause Serialization, we need to code to bytes
       // more details in https://issues.apache.org/jira/browse/BEAM-2669
@@ -112,10 +112,6 @@ public class BoundedDataset<T> implements Dataset {
           .persist(level)
           .map(CoderHelpers.fromByteFunction(windowedValueCoder));
     }
-  }
-
-  private boolean avoidRddSerialization(StorageLevel level) {
-    return level.equals(StorageLevel.MEMORY_ONLY()) || level.equals(StorageLevel.MEMORY_ONLY_2());
   }
 
   @Override

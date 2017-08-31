@@ -493,10 +493,6 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
       return windowedValues;
     }
 
-    private void clear() {
-      windowedValues.clear();
-    }
-
     @Override
     public <AdditionalOutputT> void outputWindowedValue(
         TupleTag<AdditionalOutputT> tag,

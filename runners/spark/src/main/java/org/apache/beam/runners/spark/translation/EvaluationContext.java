@@ -267,7 +267,7 @@ public class EvaluationContext {
     return boundedDataset.getValues(pcollection);
   }
 
-  private String storageLevel() {
+  public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
   }
 

@@ -20,6 +20,7 @@ package org.apache.beam.runners.spark.translation;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.runners.spark.translation.TranslationUtils.avoidRddSerialization;
 import static org.apache.beam.runners.spark.translation.TranslationUtils.rejectSplittable;
 
 import com.google.common.base.Optional;
@@ -69,6 +70,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
+import org.apache.spark.storage.StorageLevel;
 
 /**
  * Supports translation between a Beam transform, and Spark's operations on RDDs.
@@ -390,14 +392,20 @@ public final class TransformTranslator {
 
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
-          // Caching can cause Serialization, we need to code to bytes
-          // more details in https://issues.apache.org/jira/browse/BEAM-2669
-          Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
-              TranslationUtils.getTupleTagCoders(outputs);
-          all = all
-              .mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
-              .cache()
-              .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
+          StorageLevel level = StorageLevel.fromString(context.storageLevel());
+          if (avoidRddSerialization(level)) {
+            // if it is memory only reduce the overhead of moving to bytes
+            all = all.persist(level);
+          } else {
+            // Caching can cause Serialization, we need to code to bytes
+            // more details in https://issues.apache.org/jira/browse/BEAM-2669
+            Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
+                TranslationUtils.getTupleTagCoders(outputs);
+            all = all
+                .mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+                .persist(level)
+                .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
+          }
         }
         for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
           JavaPairRDD<TupleTag<?>, WindowedValue<?>> filtered =
