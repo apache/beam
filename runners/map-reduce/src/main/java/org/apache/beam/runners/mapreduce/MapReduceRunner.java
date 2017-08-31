@@ -41,7 +41,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link PipelineRunner} for MapReduce.
+ * {@link PipelineRunner} for Hadoop MapReduce.
+ *
+ * <p>It translates a Beam {@link Pipeline} to a series of MapReduce {@link Job jobs}, and executes
+ * them locally or on a Hadoop cluster.
  */
 public class MapReduceRunner extends PipelineRunner<PipelineResult> {
 

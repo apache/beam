@@ -27,6 +27,12 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.hadoop.mapreduce.Job;
 import org.joda.time.Duration;
 
+/**
+ * A {@link PipelineResult} of executing {@link org.apache.beam.sdk.Pipeline Pipelines} using
+ * {@link MapReduceRunner}.
+ *
+ * <p>It is synchronous (returned after the pipeline is finished), and is used for querying metrics.
+ */
 public class MapReducePipelineResult implements PipelineResult {
 
   private final List<Job> jobs;

@@ -29,9 +29,7 @@ import com.google.common.graph.GraphBuilder;
 import com.google.common.graph.MutableGraph;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.Objects;
 import java.util.Set;
 
@@ -206,9 +204,15 @@ public class Graph<StepT extends Graph.AbstractStep, TagT extends Graph.Abstract
   interface Vertex {
   }
 
+  /**
+   * Step {@link Vertex}.
+   */
   public abstract static class AbstractStep implements Vertex {
   }
 
+  /**
+   * Tag {@link Vertex}.
+   */
   public abstract static class AbstractTag implements Vertex {
   }
 }

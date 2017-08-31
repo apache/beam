@@ -45,7 +45,7 @@ public class ReifyTimestampAndWindowsParDoOperation extends ParDoOperation {
     return (DoFn) new ReifyTimestampAndWindowsDoFn<>();
   }
 
-  public class ReifyTimestampAndWindowsDoFn<K, V>
+  private static class ReifyTimestampAndWindowsDoFn<K, V>
       extends DoFn<KV<K, V>, KV<K, WindowedValue<V>>> {
     @ProcessElement
     public void processElement(ProcessContext c, BoundedWindow window) throws Exception {

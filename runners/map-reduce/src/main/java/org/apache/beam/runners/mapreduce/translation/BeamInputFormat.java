@@ -117,7 +117,7 @@ public class BeamInputFormat<T> extends InputFormat {
     return ((BeamInputSplit) split).createReader();
   }
 
-  public static class BeamInputSplit<T> extends InputSplit implements Writable {
+  private static class BeamInputSplit<T> extends InputSplit implements Writable {
     private String stepName;
     private BoundedSource<T> boundedSource;
     private SerializedPipelineOptions options;

@@ -30,7 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Adapter for executing Beam transforms in {@link Mapper}.
+ * Adapter for executing {@link Operation operations} in {@link Mapper}.
  */
 public class BeamMapper<ValueInT, ValueOutT>
     extends Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>> {
@@ -58,6 +58,8 @@ public class BeamMapper<ValueInT, ValueOutT>
       Mapper<Object, WindowedValue<ValueInT>, Object, WindowedValue<ValueOutT>>.Context context)
       throws IOException, InterruptedException {
     LOG.info("key: {} value: {}.", key, value);
+    // Only needs to pass KV to the following PartitionOperation. However, we have to wrap it in a
+    // global window because of the method signature.
     operation.process(WindowedValue.valueInGlobalWindow(KV.of(key, value)));
   }
 

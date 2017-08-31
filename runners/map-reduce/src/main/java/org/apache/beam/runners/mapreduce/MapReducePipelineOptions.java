@@ -48,6 +48,9 @@ public interface MapReducePipelineOptions extends PipelineOptions {
   String getFileOutputDir();
   void setFileOutputDir(String fileOutputDir);
 
+  /**
+   * Returns the {@link Class} that constructs MapReduce job through Beam.
+   */
   class JarClassInstanceFactory implements DefaultValueFactory<Class<?>> {
     @Override
     public Class<?> create(PipelineOptions options) {

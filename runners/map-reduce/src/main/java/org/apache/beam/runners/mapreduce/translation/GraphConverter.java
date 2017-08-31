@@ -123,7 +123,7 @@ public class GraphConverter extends Pipeline.PipelineVisitor.Defaults {
 
   public String getDotfile() {
     return String.format(
-        "\ndigraph G {\n%s%s}\n",
+        "%ndigraph G {%n%s%s}%n",
         dotfileNodesBuilders.peek().toString(),
         dotfileEdgesBuilder.toString());
   }

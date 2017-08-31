@@ -19,7 +19,6 @@ package org.apache.beam.runners.mapreduce.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.base.Throwables;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;

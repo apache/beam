@@ -31,6 +31,9 @@ public class MapReduceRegistrar {
   private MapReduceRegistrar() {
   }
 
+  /**
+   * Registers the {@link MapReduceRunner}.
+   */
   @AutoService(PipelineRunnerRegistrar.class)
   public static class Runner implements PipelineRunnerRegistrar {
     @Override
@@ -39,6 +42,9 @@ public class MapReduceRegistrar {
     }
   }
 
+  /**
+   * Registers the {@link MapReducePipelineOptions}.
+   */
   @AutoService(PipelineOptionsRegistrar.class)
   public static class Options implements PipelineOptionsRegistrar {
     @Override

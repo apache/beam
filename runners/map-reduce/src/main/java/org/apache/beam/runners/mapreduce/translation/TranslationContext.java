@@ -86,7 +86,7 @@ public class TranslationContext {
       this.currentNode = node;
       for (Map.Entry<TupleTag<?>, PValue> entry : currentNode.getOutputs().entrySet()) {
         pValueToTupleTag.put(entry.getValue(), entry.getKey());
-        // TODO: this is a hack to get around that ViewAsXXX.expand() return wrong output PValue.
+        // TODO: this is a hack to get around that ViewAsXYZ.expand() return wrong output PValue.
         if (node.getTransform() instanceof View.CreatePCollectionView) {
           View.CreatePCollectionView view = (View.CreatePCollectionView) node.getTransform();
           pValueToTupleTag.put(view.getView(), view.getView().getTagInternal());
@@ -125,7 +125,10 @@ public class TranslationContext {
               if (pValue instanceof PCollection) {
                 PCollection<?> pc = (PCollection<?>) pValue;
                 return Graphs.Tag.of(
-                    pc.getName(), pValueToTupleTag.get(pValue), pc.getCoder(), pc.getWindowingStrategy());
+                    pc.getName(),
+                    pValueToTupleTag.get(pValue),
+                    pc.getCoder(),
+                    pc.getWindowingStrategy());
               } else if (pValue instanceof PCollectionView){
                 PCollectionView pView = (PCollectionView) pValue;
                 return Graphs.Tag.of(

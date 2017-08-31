@@ -20,8 +20,6 @@ package org.apache.beam.runners.mapreduce.translation;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.util.WindowedValue;

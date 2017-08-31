@@ -33,15 +33,13 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 /**
- * Adapter for executing Beam transforms in {@link Reducer}.
+ * Adapter for executing {@link Operation operations} in {@link Reducer}.
  */
 public class BeamReducer<ValueInT, ValueOutT>
     extends Reducer<BytesWritable, byte[], Object, WindowedValue<ValueOutT>> {
@@ -92,6 +90,8 @@ public class BeamReducer<ValueInT, ValueOutT>
           }}));
     Object decodedKey = keyCoder.decode(new ByteArrayInputStream(key.getBytes()));
     LOG.info("key: {} value: {}.", decodedKey, decodedValues);
+    // Only needs to pass KV to the following GABW operation. However, we have to wrap it in a
+    // global window because of the method signature.
     operation.process(
         WindowedValue.valueInGlobalWindow(KV.of(decodedKey, decodedValues)));
   }

@@ -16,6 +16,6 @@
  * limitations under the License.
  */
 /**
- * MapReduce runner implementation.
+ * Implementation of the Beam runner for Apache Hadoop MapReduce.
  */
 package org.apache.beam.runners.mapreduce;
