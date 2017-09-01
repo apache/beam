@@ -503,7 +503,8 @@ public class XmlIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      return input.apply(org.apache.beam.sdk.io.WriteFiles.to(createSink()));
+      input.apply(org.apache.beam.sdk.io.WriteFiles.to(createSink()));
+      return PDone.in(input.getPipeline());
     }
 
     @VisibleForTesting

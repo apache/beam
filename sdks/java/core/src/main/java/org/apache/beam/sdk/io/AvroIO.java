@@ -390,7 +390,7 @@ public class AvroIO {
    * <p>If the output type is {@link GenericRecord} use {@link #writeCustomTypeToGenericRecords()}
    * instead.
    */
-  public static <UserT, OutputT> TypedWrite<UserT, OutputT> writeCustomType() {
+  public static <UserT, OutputT> TypedWrite<UserT, Void, OutputT> writeCustomType() {
     return AvroIO.<UserT, OutputT>defaultWriteBuilder().setGenericRecords(false).build();
   }
 
@@ -400,7 +400,7 @@ public class AvroIO {
    * DynamicAvroDestinations#getSchema} or if not using dynamic destinations, by using {@link
    * TypedWrite#withSchema(Schema)}.
    */
-  public static <UserT> TypedWrite<UserT, GenericRecord> writeCustomTypeToGenericRecords() {
+  public static <UserT> TypedWrite<UserT, Void, GenericRecord> writeCustomTypeToGenericRecords() {
     return AvroIO.<UserT, GenericRecord>defaultWriteBuilder().setGenericRecords(true).build();
   }
 
@@ -411,8 +411,8 @@ public class AvroIO {
     return writeGenericRecords(new Schema.Parser().parse(schema));
   }
 
-  private static <UserT, OutputT> TypedWrite.Builder<UserT, OutputT> defaultWriteBuilder() {
-    return new AutoValue_AvroIO_TypedWrite.Builder<UserT, OutputT>()
+  private static <UserT, OutputT> TypedWrite.Builder<UserT, Void, OutputT> defaultWriteBuilder() {
+    return new AutoValue_AvroIO_TypedWrite.Builder<UserT, Void, OutputT>()
         .setFilenameSuffix(null)
         .setShardTemplate(null)
         .setNumShards(0)
@@ -888,8 +888,8 @@ public class AvroIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class TypedWrite<UserT, OutputT>
-      extends PTransform<PCollection<UserT>, PDone> {
+  public abstract static class TypedWrite<UserT, DestinationT, OutputT>
+      extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     static final CodecFactory DEFAULT_CODEC = CodecFactory.deflateCodec(6);
     static final SerializableAvroCodecFactory DEFAULT_SERIALIZABLE_CODEC =
         new SerializableAvroCodecFactory(DEFAULT_CODEC);
@@ -913,7 +913,7 @@ public class AvroIO {
     @Nullable abstract FilenamePolicy getFilenamePolicy();
 
     @Nullable
-    abstract DynamicAvroDestinations<UserT, ?, OutputT> getDynamicDestinations();
+    abstract DynamicAvroDestinations<UserT, DestinationT, OutputT> getDynamicDestinations();
 
     /**
      * The codec used to encode the blocks in the Avro file. String value drawn from those in
@@ -923,39 +923,43 @@ public class AvroIO {
     /** Avro file metadata. */
     abstract ImmutableMap<String, Object> getMetadata();
 
-    abstract Builder<UserT, OutputT> toBuilder();
+    abstract Builder<UserT, DestinationT, OutputT> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<UserT, OutputT> {
-      abstract Builder<UserT, OutputT> setFormatFunction(
+    abstract static class Builder<UserT, DestinationT, OutputT> {
+      abstract Builder<UserT, DestinationT, OutputT> setFormatFunction(
           SerializableFunction<UserT, OutputT> formatFunction);
 
-      abstract Builder<UserT, OutputT> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenamePrefix(
+          ValueProvider<ResourceId> filenamePrefix);
 
-      abstract Builder<UserT, OutputT> setFilenameSuffix(String filenameSuffix);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenameSuffix(String filenameSuffix);
 
-      abstract Builder<UserT, OutputT> setTempDirectory(ValueProvider<ResourceId> tempDirectory);
+      abstract Builder<UserT, DestinationT, OutputT> setTempDirectory(
+          ValueProvider<ResourceId> tempDirectory);
 
-      abstract Builder<UserT, OutputT> setNumShards(int numShards);
+      abstract Builder<UserT, DestinationT, OutputT> setNumShards(int numShards);
 
-      abstract Builder<UserT, OutputT> setShardTemplate(String shardTemplate);
+      abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(String shardTemplate);
 
-      abstract Builder<UserT, OutputT> setGenericRecords(boolean genericRecords);
+      abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
 
-      abstract Builder<UserT, OutputT> setSchema(Schema schema);
+      abstract Builder<UserT, DestinationT, OutputT> setSchema(Schema schema);
 
-      abstract Builder<UserT, OutputT> setWindowedWrites(boolean windowedWrites);
+      abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
 
-      abstract Builder<UserT, OutputT> setFilenamePolicy(FilenamePolicy filenamePolicy);
+      abstract Builder<UserT, DestinationT, OutputT> setFilenamePolicy(
+          FilenamePolicy filenamePolicy);
 
-      abstract Builder<UserT, OutputT> setCodec(SerializableAvroCodecFactory codec);
+      abstract Builder<UserT, DestinationT, OutputT> setCodec(SerializableAvroCodecFactory codec);
 
-      abstract Builder<UserT, OutputT> setMetadata(ImmutableMap<String, Object> metadata);
+      abstract Builder<UserT, DestinationT, OutputT> setMetadata(
+          ImmutableMap<String, Object> metadata);
 
-      abstract Builder<UserT, OutputT> setDynamicDestinations(
-          DynamicAvroDestinations<UserT, ?, OutputT> dynamicDestinations);
+      abstract Builder<UserT, DestinationT, OutputT> setDynamicDestinations(
+          DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations);
 
-      abstract TypedWrite<UserT, OutputT> build();
+      abstract TypedWrite<UserT, DestinationT, OutputT> build();
     }
 
     /**
@@ -969,7 +973,7 @@ public class AvroIO {
      * common suffix (if supplied using {@link #withSuffix(String)}). This default can be overridden
      * using {@link #to(FilenamePolicy)}.
      */
-    public TypedWrite<UserT, OutputT> to(String outputPrefix) {
+    public TypedWrite<UserT, DestinationT, OutputT> to(String outputPrefix) {
       return to(FileBasedSink.convertToFileResourceIfPossible(outputPrefix));
     }
 
@@ -992,7 +996,7 @@ public class AvroIO {
      * infer a directory for temporary files.
      */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, OutputT> to(ResourceId outputPrefix) {
+    public TypedWrite<UserT, DestinationT, OutputT> to(ResourceId outputPrefix) {
       return toResource(StaticValueProvider.of(outputPrefix));
     }
 
@@ -1005,7 +1009,7 @@ public class AvroIO {
     }
 
     /** Like {@link #to(String)}. */
-    public TypedWrite<UserT, OutputT> to(ValueProvider<String> outputPrefix) {
+    public TypedWrite<UserT, DestinationT, OutputT> to(ValueProvider<String> outputPrefix) {
       return toResource(
           NestedValueProvider.of(
               outputPrefix,
@@ -1016,7 +1020,8 @@ public class AvroIO {
 
     /** Like {@link #to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, OutputT> toResource(ValueProvider<ResourceId> outputPrefix) {
+    public TypedWrite<UserT, DestinationT, OutputT> toResource(
+        ValueProvider<ResourceId> outputPrefix) {
       return toBuilder().setFilenamePrefix(outputPrefix).build();
     }
 
@@ -1025,7 +1030,7 @@ public class AvroIO {
      * directory for temporary files must be specified using {@link #withTempDirectory}.
      */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, OutputT> to(FilenamePolicy filenamePolicy) {
+    public TypedWrite<UserT, DestinationT, OutputT> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
@@ -1035,16 +1040,18 @@ public class AvroIO {
      * temporary files must be specified using {@link #withTempDirectory}.
      */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, OutputT> to(
-        DynamicAvroDestinations<UserT, ?, OutputT> dynamicDestinations) {
-      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
+    public <NewDestinationT> TypedWrite<UserT, NewDestinationT, OutputT> to(
+        DynamicAvroDestinations<UserT, NewDestinationT, OutputT> dynamicDestinations) {
+      return toBuilder()
+          .setDynamicDestinations((DynamicAvroDestinations) dynamicDestinations)
+          .build();
     }
 
     /**
      * Sets the the output schema. Can only be used when the output type is {@link GenericRecord}
      * and when not using {@link #to(DynamicAvroDestinations)}.
      */
-    public TypedWrite<UserT, OutputT> withSchema(Schema schema) {
+    public TypedWrite<UserT, DestinationT, OutputT> withSchema(Schema schema) {
       return toBuilder().setSchema(schema).build();
     }
 
@@ -1053,20 +1060,21 @@ public class AvroIO {
      * #to(DynamicAvroDestinations)} is used, {@link DynamicAvroDestinations#formatRecord} must be
      * used instead.
      */
-    public TypedWrite<UserT, OutputT> withFormatFunction(
+    public TypedWrite<UserT, DestinationT, OutputT> withFormatFunction(
         SerializableFunction<UserT, OutputT> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
     /** Set the base directory used to generate temporary files. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, OutputT> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+    public TypedWrite<UserT, DestinationT, OutputT> withTempDirectory(
+        ValueProvider<ResourceId> tempDirectory) {
       return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /** Set the base directory used to generate temporary files. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT, OutputT> withTempDirectory(ResourceId tempDirectory) {
+    public TypedWrite<UserT, DestinationT, OutputT> withTempDirectory(ResourceId tempDirectory) {
       return withTempDirectory(StaticValueProvider.of(tempDirectory));
     }
 
@@ -1077,7 +1085,7 @@ public class AvroIO {
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
      */
-    public TypedWrite<UserT, OutputT> withShardNameTemplate(String shardTemplate) {
+    public TypedWrite<UserT, DestinationT, OutputT> withShardNameTemplate(String shardTemplate) {
       return toBuilder().setShardTemplate(shardTemplate).build();
     }
 
@@ -1088,7 +1096,7 @@ public class AvroIO {
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
      */
-    public TypedWrite<UserT, OutputT> withSuffix(String filenameSuffix) {
+    public TypedWrite<UserT, DestinationT, OutputT> withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
     }
 
@@ -1102,7 +1110,7 @@ public class AvroIO {
      *
      * @param numShards the number of shards to use, or 0 to let the system decide.
      */
-    public TypedWrite<UserT, OutputT> withNumShards(int numShards) {
+    public TypedWrite<UserT, DestinationT, OutputT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
       return toBuilder().setNumShards(numShards).build();
     }
@@ -1117,7 +1125,7 @@ public class AvroIO {
      *
      * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */
-    public TypedWrite<UserT, OutputT> withoutSharding() {
+    public TypedWrite<UserT, DestinationT, OutputT> withoutSharding() {
       return withNumShards(1).withShardNameTemplate("");
     }
 
@@ -1127,12 +1135,12 @@ public class AvroIO {
      * <p>If using {@link #to(FileBasedSink.FilenamePolicy)}. Filenames will be generated using
      * {@link FilenamePolicy#windowedFilename}. See also {@link WriteFiles#withWindowedWrites()}.
      */
-    public TypedWrite<UserT, OutputT> withWindowedWrites() {
+    public TypedWrite<UserT, DestinationT, OutputT> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
     }
 
     /** Writes to Avro file(s) compressed using specified codec. */
-    public TypedWrite<UserT, OutputT> withCodec(CodecFactory codec) {
+    public TypedWrite<UserT, DestinationT, OutputT> withCodec(CodecFactory codec) {
       return toBuilder().setCodec(new SerializableAvroCodecFactory(codec)).build();
     }
 
@@ -1141,7 +1149,7 @@ public class AvroIO {
      *
      * <p>Supported value types are String, Long, and byte[].
      */
-    public TypedWrite<UserT, OutputT> withMetadata(Map<String, Object> metadata) {
+    public TypedWrite<UserT, DestinationT, OutputT> withMetadata(Map<String, Object> metadata) {
       Map<String, String> badKeys = Maps.newLinkedHashMap();
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();
@@ -1156,9 +1164,11 @@ public class AvroIO {
       return toBuilder().setMetadata(ImmutableMap.copyOf(metadata)).build();
     }
 
-    DynamicAvroDestinations<UserT, ?, OutputT> resolveDynamicDestinations() {
-      DynamicAvroDestinations<UserT, ?, OutputT> dynamicDestinations = getDynamicDestinations();
+    DynamicAvroDestinations<UserT, DestinationT, OutputT> resolveDynamicDestinations() {
+      DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations =
+          getDynamicDestinations();
       if (dynamicDestinations == null) {
+        // In this case DestinationT is Void.
         FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
         if (usedFilenamePolicy == null) {
           usedFilenamePolicy =
@@ -1169,18 +1179,19 @@ public class AvroIO {
                   getWindowedWrites());
         }
         dynamicDestinations =
-            constantDestinations(
-                usedFilenamePolicy,
-                getSchema(),
-                getMetadata(),
-                getCodec().getCodec(),
-                getFormatFunction());
+            (DynamicAvroDestinations<UserT, DestinationT, OutputT>)
+                constantDestinations(
+                    usedFilenamePolicy,
+                    getSchema(),
+                    getMetadata(),
+                    getCodec().getCodec(),
+                    getFormatFunction());
       }
       return dynamicDestinations;
     }
 
     @Override
-    public PDone expand(PCollection<UserT> input) {
+    public WriteFilesResult<DestinationT> expand(PCollection<UserT> input) {
       checkArgument(
           getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
@@ -1198,18 +1209,13 @@ public class AvroIO {
                 + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
       }
 
-      return expandTyped(input, resolveDynamicDestinations());
-    }
-
-    public <DestinationT> PDone expandTyped(
-        PCollection<UserT> input,
-        DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations) {
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
       if (tempDirectory == null) {
         tempDirectory = getFilenamePrefix();
       }
       WriteFiles<UserT, DestinationT, OutputT> write =
-          WriteFiles.to(new AvroSink<>(tempDirectory, dynamicDestinations, getGenericRecords()));
+          WriteFiles.to(
+              new AvroSink<>(tempDirectory, resolveDynamicDestinations(), getGenericRecords()));
       if (getNumShards() > 0) {
         write = write.withNumShards(getNumShards());
       }
@@ -1239,9 +1245,9 @@ public class AvroIO {
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
   public static class Write<T> extends PTransform<PCollection<T>, PDone> {
-    @VisibleForTesting TypedWrite<T, T> inner;
+    @VisibleForTesting TypedWrite<T, ?, T> inner;
 
-    Write(TypedWrite<T, T> inner) {
+    Write(TypedWrite<T, ?, T> inner) {
       this.inner = inner;
     }
 
@@ -1329,6 +1335,20 @@ public class AvroIO {
       return new Write<>(inner.withCodec(codec));
     }
 
+    /** Specify that output filenames are wanted.
+     *
+     * <p>The nested {@link TypedWrite}transform always has access to output filenames, however
+     * due to backwards-compatibility concerns, {@link Write} cannot return them. This method
+     * simply returns the inner {@link TypedWrite} transform which has {@link WriteFilesResult} as
+     * its output type, allowing access to output files.
+     *
+     * <p>The supplied {@code DestinationT} type must be: the same as that supplied in {@link
+     * #to(DynamicAvroDestinations)} if that method was used, or {@code Void} otherwise.
+     */
+    public <DestinationT> TypedWrite<T, DestinationT, T> withOutputFilenames() {
+      return (TypedWrite) inner;
+    }
+
     /** See {@link TypedWrite#withMetadata} . */
     public Write withMetadata(Map<String, Object> metadata) {
       return new Write<>(inner.withMetadata(metadata));
@@ -1336,7 +1356,8 @@ public class AvroIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      return inner.expand(input);
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
     }
 
     @Override

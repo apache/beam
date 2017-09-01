@@ -562,17 +562,17 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * idempotent, as it may be executed multiple times in the case of failure or for redundancy. It
      * is a best practice to attempt to try to make this method atomic.
      *
-     * <p>Returns the set of temporary files generated. Callers must call {@link
-     * #removeTemporaryFiles(Set)} to cleanup these files.
+     * <p>Returns the map of temporary files generated to final filenames. Callers must call {@link
+     * #removeTemporaryFiles(Set)} to cleanup the temporary files.
      *
      * @param writerResults the results of writes (FileResult).
      */
-    public Set<ResourceId> finalize(Iterable<FileResult<DestinationT>> writerResults)
+    public Map<ResourceId, ResourceId> finalize(Iterable<FileResult<DestinationT>> writerResults)
         throws Exception {
       // Collect names of temporary files and copies them.
       Map<ResourceId, ResourceId> outputFilenames = buildOutputFilenames(writerResults);
       copyToOutputFiles(outputFilenames);
-      return outputFilenames.keySet();
+      return outputFilenames;
     }
 
     /*
