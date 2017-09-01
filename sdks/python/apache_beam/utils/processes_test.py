@@ -18,7 +18,6 @@
 
 import unittest
 
-
 import mock
 
 from apache_beam.utils import processes

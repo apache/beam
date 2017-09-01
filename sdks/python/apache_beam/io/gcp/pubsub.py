@@ -30,12 +30,11 @@ from apache_beam import coders
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
-from apache_beam.transforms import core
-from apache_beam.transforms import PTransform
 from apache_beam.transforms import Map
+from apache_beam.transforms import PTransform
+from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
-
 
 __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 

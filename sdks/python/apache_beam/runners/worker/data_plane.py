@@ -27,9 +27,10 @@ import logging
 import Queue as queue
 import threading
 
+import grpc
+
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
-import grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
 

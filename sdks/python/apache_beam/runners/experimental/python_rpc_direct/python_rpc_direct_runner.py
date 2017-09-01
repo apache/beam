@@ -30,7 +30,6 @@ from apache_beam.runners.job.manager import DockerRPCManager
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 
-
 __all__ = ['PythonRPCDirectRunner']
 
 

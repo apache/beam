@@ -17,8 +17,8 @@
 
 import unittest
 
-from apache_beam.transforms.core import DoFn
 from apache_beam.runners.common import DoFnSignature
+from apache_beam.transforms.core import DoFn
 
 
 class DoFnSignatureTest(unittest.TestCase):

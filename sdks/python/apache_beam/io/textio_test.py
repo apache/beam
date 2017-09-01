@@ -27,26 +27,22 @@ import tempfile
 import unittest
 
 import apache_beam as beam
-from apache_beam.io import iobase, ReadAllFromText
 import apache_beam.io.source_test_utils as source_test_utils
-
-# Importing following private classes for testing.
-from apache_beam.io.textio import _TextSink as TextSink
-from apache_beam.io.textio import _TextSource as TextSource
-
-from apache_beam.io.textio import ReadFromText
-from apache_beam.io.textio import WriteToText
-
 from apache_beam import coders
+from apache_beam.io import ReadAllFromText
+from apache_beam.io import iobase
 from apache_beam.io.filebasedsource_test import EOL
 from apache_beam.io.filebasedsource_test import write_data
 from apache_beam.io.filebasedsource_test import write_pattern
 from apache_beam.io.filesystem import CompressionTypes
-
+from apache_beam.io.textio import _TextSink as TextSink
+from apache_beam.io.textio import _TextSource as TextSource
+# Importing following private classes for testing.
+from apache_beam.io.textio import ReadFromText
+from apache_beam.io.textio import WriteToText
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
 from apache_beam.transforms.core import Create
 
 

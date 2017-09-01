@@ -35,11 +35,11 @@ from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
+from apache_beam.transforms import sideinputs as apache_sideinputs
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
-from apache_beam.transforms import sideinputs as apache_sideinputs
-from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
+from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.windowed_value import WindowedValue
 

@@ -20,6 +20,7 @@
 """Counters collect the progress of the Worker for reporting to the service."""
 
 from __future__ import absolute_import
+
 import math
 import random
 

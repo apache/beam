@@ -23,14 +23,14 @@ import copy
 import logging
 import Queue as queue
 import threading
-
 from concurrent import futures
-from google.protobuf import wrappers_pb2
+
 import grpc
+from google.protobuf import wrappers_pb2
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
-from apache_beam.coders import registry
 from apache_beam.coders import WindowedValueCoder
+from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
@@ -48,7 +48,6 @@ from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-
 
 # This module is experimental. No backwards-compatibility guarantees.
 

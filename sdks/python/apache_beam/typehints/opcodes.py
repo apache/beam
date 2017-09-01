@@ -28,9 +28,17 @@ For internal use only; no backwards-compatibility guarantees.
 """
 import types
 
-from trivial_inference import union, element_type, Const, BoundMethod
 import typehints
-from typehints import Any, Dict, Iterable, List, Tuple, Union
+from trivial_inference import BoundMethod
+from trivial_inference import Const
+from trivial_inference import element_type
+from trivial_inference import union
+from typehints import Any
+from typehints import Dict
+from typehints import Iterable
+from typehints import List
+from typehints import Tuple
+from typehints import Union
 
 
 def pop_one(state, unused_arg):

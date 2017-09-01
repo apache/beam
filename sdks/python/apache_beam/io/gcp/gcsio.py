@@ -31,6 +31,7 @@ import re
 import threading
 import time
 import traceback
+
 import httplib2
 
 from apache_beam.utils import retry

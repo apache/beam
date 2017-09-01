@@ -20,8 +20,8 @@ import itertools
 
 import apache_beam as beam
 from apache_beam import typehints
-from apache_beam.utils.windowed_value import WindowedValue
 from apache_beam.internal.util import ArgumentPlaceholder
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class LiftedCombinePerKey(beam.PTransform):

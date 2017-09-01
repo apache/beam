@@ -19,12 +19,13 @@
 
 
 from __future__ import absolute_import
-from functools import partial
+
 import logging
+from functools import partial
 
 from apache_beam.coders import coders
-from apache_beam.io import filebasedsource
 from apache_beam.io import filebasedsink
+from apache_beam.io import filebasedsource
 from apache_beam.io import iobase
 from apache_beam.io.filebasedsource import ReadAllFiles
 from apache_beam.io.filesystem import CompressionTypes

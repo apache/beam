@@ -26,16 +26,15 @@ from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.typehints import KV
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
-from apache_beam.typehints import KV
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-
 
 __all__ = [
     'Count',

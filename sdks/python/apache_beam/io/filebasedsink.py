@@ -30,10 +30,10 @@ from apache_beam.io import iobase
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import StaticValueProvider
+from apache_beam.options.value_provider import ValueProvider
 from apache_beam.options.value_provider import check_accessible
+from apache_beam.transforms.display import DisplayDataItem
 
 DEFAULT_SHARD_NAME_TEMPLATE = '-SSSSS-of-NNNNN'
 
