@@ -397,7 +397,8 @@ public class TextIO {
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      return CompressedSource.from(new TextSource(getFilepattern(), getEmptyMatchTreatment(), getSeparator()))
+      return CompressedSource
+          .from(new TextSource(getFilepattern(), getEmptyMatchTreatment(), getSeparator()))
           .withCompression(getCompression());
     }
 
