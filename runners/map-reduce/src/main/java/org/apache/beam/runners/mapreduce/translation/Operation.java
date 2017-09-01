@@ -31,12 +31,16 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 public abstract class Operation<T> implements Serializable {
   private final OutputReceiver[] receivers;
   private SerializableConfiguration conf;
+  private boolean started;
+  private boolean finished;
 
   public Operation(int numOutputs) {
     this.receivers = new OutputReceiver[numOutputs];
     for (int i = 0; i < numOutputs; ++i) {
       receivers[i] = new OutputReceiver();
     }
+    this.started = false;
+    this.finished = false;
   }
 
   /**
@@ -45,6 +49,10 @@ public abstract class Operation<T> implements Serializable {
    * <p>Called after all successors consuming operations have been started.
    */
   public void start(TaskInputOutputContext<Object, Object, Object, Object> taskContext) {
+    if (started) {
+      return;
+    }
+    started = true;
     conf = new SerializableConfiguration(taskContext.getConfiguration());
     for (OutputReceiver receiver : receivers) {
       if (receiver == null) {
@@ -67,6 +75,10 @@ public abstract class Operation<T> implements Serializable {
    * <p>Called after all predecessors producing operations have been finished.
    */
   public void finish() {
+    if (finished) {
+      return;
+    }
+    finished = true;
     for (OutputReceiver receiver : receivers) {
       if (receiver == null) {
         continue;
