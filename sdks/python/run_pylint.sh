@@ -69,6 +69,7 @@ ISORT_EXCLUDED=(
   "fast_coders_test.py"
   "apiclient.py"
   "datastore_wordcount.py"
+  "slow_coders_test.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
