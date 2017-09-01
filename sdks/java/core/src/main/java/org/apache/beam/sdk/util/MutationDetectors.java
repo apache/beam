@@ -84,14 +84,14 @@ public class MutationDetectors {
      * A saved encoded copy of the same value as {@link #possiblyModifiedObject}. Naturally, it
      * will not change if {@link #possiblyModifiedObject} is mutated.
      */
-      private final byte[] encodedOriginalObject;
+    private final byte[] encodedOriginalObject;
 
     /**
      * The object decoded from {@link #encodedOriginalObject}. It will be used during every call to
      * {@link #verifyUnmodified}, which could be called many times throughout the lifetime of this
      * {@link CodedValueMutationDetector}.
      */
-      private final T clonedOriginalObject;
+    private final T clonedOriginalObject;
     /**
      * The structural value from {@link #possiblyModifiedObject}.
      * It will be used during every call to
@@ -140,7 +140,7 @@ public class MutationDetectors {
     }
 
     private void illegalMutation(T previousValue, T newValue) throws CoderException {
-        throw new IllegalMutationException(
+      throw new IllegalMutationException(
                 String.format("Value %s mutated illegally, new value was %s."
                                 + " Encoding was %s, now %s.",
                         previousValue, newValue,
