@@ -21,7 +21,8 @@ import logging
 import unittest
 
 from hamcrest import assert_that as hc_assert_that
-from mock import Mock, patch
+from mock import Mock
+from mock import patch
 
 from apache_beam.io.gcp.tests import bigquery_matcher as bq_verifier
 from apache_beam.testing.test_utils import patch_retry

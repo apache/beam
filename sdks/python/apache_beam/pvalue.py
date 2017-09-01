@@ -30,7 +30,6 @@ import itertools
 
 from apache_beam import typehints
 
-
 __all__ = [
     'PCollection',
     'TaggedOutput',

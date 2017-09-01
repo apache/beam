@@ -19,6 +19,7 @@
 
 import collections
 import typing
+
 from apache_beam.typehints import typehints
 
 # Describes an entry in the type map in convert_to_beam_type.

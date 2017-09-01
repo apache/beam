@@ -23,11 +23,10 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
-from collections import namedtuple
 import threading
+from collections import namedtuple
 
 from apache_beam.transforms import cy_combiners
-
 
 # Information identifying the IO being measured by a counter.
 IOTargetName = namedtuple('IOTargetName', ['side_input_step_name',

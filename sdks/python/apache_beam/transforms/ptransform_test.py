@@ -27,24 +27,25 @@ import hamcrest as hc
 from nose.plugins.attrib import attr
 
 import apache_beam as beam
+import apache_beam.pvalue as pvalue
+import apache_beam.transforms.combiners as combine
+import apache_beam.typehints as typehints
+from apache_beam.io.iobase import Read
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.io.iobase import Read
 from apache_beam.options.pipeline_options import TypeOptions
-import apache_beam.pvalue as pvalue
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
 from apache_beam.transforms.core import _GroupByKeyOnly
-import apache_beam.transforms.combiners as combine
-from apache_beam.transforms.display import DisplayData, DisplayDataItem
+from apache_beam.transforms.display import DisplayData
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.ptransform import PTransform
-import apache_beam.typehints as typehints
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.windowed_value import WindowedValue
-
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned

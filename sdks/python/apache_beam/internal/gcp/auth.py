@@ -28,7 +28,6 @@ from oauth2client.client import OAuth2Credentials
 
 from apache_beam.utils import retry
 
-
 # When we are running in GCE, we can authenticate with VM credentials.
 is_running_in_gce = False
 

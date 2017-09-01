@@ -21,7 +21,6 @@ import logging
 import unittest
 
 import apache_beam as beam
-
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
 from apache_beam.io import source_test_utils

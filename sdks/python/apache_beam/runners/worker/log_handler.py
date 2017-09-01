@@ -21,8 +21,9 @@ import math
 import Queue as queue
 import threading
 
-from apache_beam.portability.api import beam_fn_api_pb2
 import grpc
+
+from apache_beam.portability.api import beam_fn_api_pb2
 
 # This module is experimental. No backwards-compatibility guarantees.
 

@@ -32,12 +32,11 @@ import logging
 from random import randrange
 
 import apache_beam as beam
-
 from apache_beam.io import WriteToText
-from apache_beam.pvalue import AsList
-from apache_beam.pvalue import AsSingleton
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.pvalue import AsList
+from apache_beam.pvalue import AsSingleton
 
 
 def create_groups(group_ids, corpus, word, ignore_corpus, ignore_word):

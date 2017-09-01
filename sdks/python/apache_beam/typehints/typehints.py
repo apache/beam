@@ -67,7 +67,6 @@ import collections
 import copy
 import types
 
-
 __all__ = [
     'Any',
     'Union',

@@ -23,8 +23,8 @@ from __future__ import print_function
 
 import logging
 import unittest
-
 from concurrent import futures
+
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2

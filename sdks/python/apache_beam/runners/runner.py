@@ -25,7 +25,6 @@ import shelve
 import shutil
 import tempfile
 
-
 __all__ = ['PipelineRunner', 'PipelineState', 'PipelineResult']
 
 
