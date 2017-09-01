@@ -17,15 +17,22 @@
  */
 package org.apache.beam.runners.mapreduce.translation;
 
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Flatten;
+import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Translates a {@link Flatten} to a {@link FlattenOperation}.
@@ -34,18 +41,62 @@ public class FlattenTranslator<T> extends TransformTranslator.Default<Flatten.PC
   @Override
   public void translateNode(Flatten.PCollections<T> transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
-    List<Graphs.Tag> inputTags = userGraphContext.getInputTags();
-    Operation<?> operation;
-    if (inputTags.isEmpty()) {
-      // Create a empty source
-      operation = new SourceReadOperation(new EmptySource(), userGraphContext.getOnlyOutputTag());
-    } else {
-      operation = new FlattenOperation();
+
+    Map<Graphs.Tag, Integer> inputTagToCount = Maps.newHashMap();
+    boolean containsDuplicates = false;
+    for (Graphs.Tag inputTag : userGraphContext.getInputTags()) {
+      Integer count = inputTagToCount.get(inputTag);
+      if (count == null) {
+        count = Integer.valueOf(0);
+      }
+      inputTagToCount.put(inputTag, ++count);
+      if (count > 1) {
+        containsDuplicates = true;
+      }
     }
-    context.addInitStep(
-        Graphs.Step.of(userGraphContext.getStepName(), operation),
-        inputTags,
-        userGraphContext.getOutputTags());
+
+    if (inputTagToCount.isEmpty()) {
+      // Create a empty source
+      Operation<?> operation =
+          new SourceReadOperation(new EmptySource(), userGraphContext.getOnlyOutputTag());
+      context.addInitStep(
+          Graphs.Step.of(userGraphContext.getStepName(), operation),
+          userGraphContext.getInputTags(),
+          userGraphContext.getOutputTags());
+    } else if (!containsDuplicates) {
+      Operation<?> operation = new FlattenOperation(1);
+      context.addInitStep(
+          Graphs.Step.of(userGraphContext.getStepName(), operation),
+          userGraphContext.getInputTags(),
+          userGraphContext.getOutputTags());
+    } else {
+      List<Graphs.Tag> intermediateTags = new ArrayList<>();
+      for (Map.Entry<Graphs.Tag, Integer> entry : inputTagToCount.entrySet()) {
+        Integer dupFactor = entry.getValue();
+        Graphs.Tag inTag = entry.getKey();
+        checkState(
+            dupFactor > 0, "dupFactor should be positive, but was: " + dupFactor);
+        if (dupFactor == 1) {
+          intermediateTags.add(inTag);
+        } else {
+          String dupStepName = userGraphContext.getStepName() + "/Dup-" + dupFactor;
+          Graphs.Tag outTag = Graphs.Tag.of(
+              dupStepName + ".out",
+              new TupleTag<T>(),
+              inTag.getCoder(),
+              inTag.getWindowingStrategy());
+          context.addInitStep(
+              Graphs.Step.of(dupStepName, new FlattenOperation(dupFactor)),
+              ImmutableList.of(inTag),
+              ImmutableList.of(outTag));
+          intermediateTags.add(outTag);
+        }
+      }
+      context.addInitStep(
+          Graphs.Step.of(userGraphContext.getStepName(), new FlattenOperation(1)),
+          intermediateTags,
+          userGraphContext.getOutputTags());
+    }
   }
 
   private static class EmptySource extends BoundedSource<Void> {

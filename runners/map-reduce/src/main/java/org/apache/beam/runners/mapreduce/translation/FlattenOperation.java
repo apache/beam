@@ -24,14 +24,19 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class FlattenOperation<T> extends Operation<T> {
 
-  public FlattenOperation() {
+  private final int duplicateFactor;
+
+  public FlattenOperation(int duplicateFactor) {
     super(1);
+    this.duplicateFactor = duplicateFactor;
   }
 
   @Override
   public void process(WindowedValue elem) {
     for (OutputReceiver receiver : getOutputReceivers()) {
-      receiver.process(elem);
+      for (int i = 0; i < duplicateFactor; ++i) {
+        receiver.process(elem);
+      }
     }
   }
 }
