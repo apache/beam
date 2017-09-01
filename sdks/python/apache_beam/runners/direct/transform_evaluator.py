@@ -30,10 +30,8 @@ from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import TypeOptions
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
-from apache_beam.runners.dataflow.native_io.iobase import \
-    _NativeWrite  # pylint: disable=protected-access
-from apache_beam.runners.direct.direct_runner import \
-    _StreamingGroupAlsoByWindow
+from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
+from apache_beam.runners.direct.direct_runner import _StreamingGroupAlsoByWindow
 from apache_beam.runners.direct.direct_runner import _StreamingGroupByKeyOnly
 from apache_beam.runners.direct.util import KeyedWorkItem
 from apache_beam.runners.direct.util import TransformResult

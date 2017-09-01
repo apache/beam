@@ -24,8 +24,7 @@ from hamcrest.core.base_matcher import BaseMatcher
 
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options_validator import \
-    PipelineOptionsValidator
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 
 
 # Mock runners to use for validations.

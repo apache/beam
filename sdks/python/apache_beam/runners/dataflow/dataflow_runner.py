@@ -40,8 +40,7 @@ from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
-from apache_beam.runners.dataflow.internal.clients import \
-    dataflow as dataflow_api
+from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
 from apache_beam.runners.runner import PipelineResult

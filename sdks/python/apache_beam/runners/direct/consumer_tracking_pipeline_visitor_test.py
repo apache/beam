@@ -26,8 +26,7 @@ from apache_beam.io import iobase
 from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import AsList
 from apache_beam.runners.direct import DirectRunner
-from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import \
-    ConsumerTrackingPipelineVisitor
+from apache_beam.runners.direct.consumer_tracking_pipeline_visitor import ConsumerTrackingPipelineVisitor
 from apache_beam.transforms import CoGroupByKey
 from apache_beam.transforms import Create
 from apache_beam.transforms import DoFn

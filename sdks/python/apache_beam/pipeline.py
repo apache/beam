@@ -59,8 +59,7 @@ from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import TypeOptions
-from apache_beam.options.pipeline_options_validator import \
-    PipelineOptionsValidator
+from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
 from apache_beam.pvalue import PCollection
 from apache_beam.runners import PipelineRunner
 from apache_beam.runners import create_runner

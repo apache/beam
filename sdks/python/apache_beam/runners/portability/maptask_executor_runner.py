@@ -28,8 +28,7 @@ from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.options import pipeline_options
 from apache_beam.runners import DataflowRunner
-from apache_beam.runners.dataflow.internal.dependency import \
-    _dependency_file_copy
+from apache_beam.runners.dataflow.internal.dependency import _dependency_file_copy
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.runner import PipelineResult
