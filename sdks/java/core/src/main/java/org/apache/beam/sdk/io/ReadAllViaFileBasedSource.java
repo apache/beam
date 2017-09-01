@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import java.io.IOException;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
@@ -34,21 +35,23 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
 /**
- * Reads each file in the input {@link PCollection} of {@link Metadata} using given parameters for
- * splitting files into offset ranges and for creating a {@link FileBasedSource} for a file. The
+ * Reads each file in the input {@link PCollection} of {@link ReadableFile} using given parameters
+ * for splitting files into offset ranges and for creating a {@link FileBasedSource} for a file. The
  * input {@link PCollection} must not contain {@link ResourceId#isDirectory directories}.
  *
- * <p>To obtain the collection of {@link Metadata} from a filepattern, use {@link FileIO#match} or
- * {@link FileIO#matchAll}.
+ * <p>To obtain the collection of {@link ReadableFile} from a filepattern, use {@link
+ * FileIO#readMatches()}.
  */
-class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
+@Experimental(Experimental.Kind.SOURCE_SINK)
+public class ReadAllViaFileBasedSource<T>
+    extends PTransform<PCollection<ReadableFile>, PCollection<T>> {
   private final long desiredBundleSizeBytes;
-  private final SerializableFunction<String, FileBasedSource<T>> createSource;
+  private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
   private final Coder<T> coder;
 
   public ReadAllViaFileBasedSource(
       long desiredBundleSizeBytes,
-      SerializableFunction<String, FileBasedSource<T>> createSource,
+      SerializableFunction<String, ? extends FileBasedSource<T>> createSource,
       Coder<T> coder) {
     this.desiredBundleSizeBytes = desiredBundleSizeBytes;
     this.createSource = createSource;
@@ -111,9 +114,10 @@ class ReadAllViaFileBasedSource<T> extends PTransform<PCollection<ReadableFile>,
   }
 
   private static class ReadFileRangesFn<T> extends DoFn<KV<ReadableFile, OffsetRange>, T> {
-    private final SerializableFunction<String, FileBasedSource<T>> createSource;
+    private final SerializableFunction<String, ? extends FileBasedSource<T>> createSource;
 
-    private ReadFileRangesFn(SerializableFunction<String, FileBasedSource<T>> createSource) {
+    private ReadFileRangesFn(
+        SerializableFunction<String, ? extends FileBasedSource<T>> createSource) {
       this.createSource = createSource;
     }
 
