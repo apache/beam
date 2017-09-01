@@ -27,10 +27,11 @@ class ReadBoundedTranslator<T> extends TransformTranslator.Default<Read.Bounded<
   public void translateNode(Read.Bounded transform, TranslationContext context) {
     TranslationContext.UserGraphContext userGraphContext = context.getUserGraphContext();
 
-    ReadOperation operation =
-        new SourceReadOperation(transform.getSource(), userGraphContext.getOnlyOutputTag());
+    String stepName = userGraphContext.getStepName();
+    ReadOperation operation = new SourceReadOperation(
+        stepName, transform.getSource(), userGraphContext.getOnlyOutputTag());
     context.addInitStep(
-        Graphs.Step.of(userGraphContext.getStepName(), operation),
+        Graphs.Step.of(stepName, operation),
         userGraphContext.getInputTags(),
         userGraphContext.getOutputTags());
   }

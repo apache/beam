@@ -46,12 +46,13 @@ abstract class ReadOperation<T> extends Operation<T> {
 
   @AutoValue
   abstract static class TaggedSource implements Serializable {
+    abstract String getStepName();
     abstract BoundedSource<?> getSource();
     abstract TupleTag<?> getTag();
 
-    static TaggedSource of(BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
+    static TaggedSource of(String stepName, BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
       return new org.apache.beam.runners.mapreduce.translation
-          .AutoValue_ReadOperation_TaggedSource(boundedSource, tupleTag);
+          .AutoValue_ReadOperation_TaggedSource(stepName, boundedSource, tupleTag);
     }
   }
 }

@@ -26,12 +26,15 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -87,7 +90,8 @@ public class BeamInputFormat<T> extends InputFormat {
                         .transform(new Function<BoundedSource<?>, ReadOperation.TaggedSource>() {
                           @Override
                           public ReadOperation.TaggedSource apply(BoundedSource<?> input) {
-                            return ReadOperation.TaggedSource.of(input, taggedSource.getTag());
+                            return ReadOperation.TaggedSource.of(
+                                taggedSource.getStepName(), input, taggedSource.getTag());
                           }});
                   } catch (Exception e) {
                     Throwables.throwIfUnchecked(e);
@@ -98,7 +102,8 @@ public class BeamInputFormat<T> extends InputFormat {
           .transform(new Function<ReadOperation.TaggedSource, InputSplit>() {
             @Override
             public InputSplit apply(ReadOperation.TaggedSource taggedSource) {
-              return new BeamInputSplit(taggedSource.getSource(), options, taggedSource.getTag());
+              return new BeamInputSplit(taggedSource.getStepName(), taggedSource.getSource(),
+                  options, taggedSource.getTag());
             }})
           .toList();
     } catch (Exception e) {
@@ -113,6 +118,7 @@ public class BeamInputFormat<T> extends InputFormat {
   }
 
   public static class BeamInputSplit<T> extends InputSplit implements Writable {
+    private String stepName;
     private BoundedSource<T> boundedSource;
     private SerializedPipelineOptions options;
     private TupleTag<?> tupleTag;
@@ -121,9 +127,11 @@ public class BeamInputFormat<T> extends InputFormat {
     }
 
     public BeamInputSplit(
+        String stepName,
         BoundedSource<T> boundedSource,
         SerializedPipelineOptions options,
         TupleTag<?> tupleTag) {
+      this.stepName = checkNotNull(stepName, "stepName");
       this.boundedSource = checkNotNull(boundedSource, "boundedSources");
       this.options = checkNotNull(options, "options");
       this.tupleTag = checkNotNull(tupleTag, "tupleTag");
@@ -131,7 +139,7 @@ public class BeamInputFormat<T> extends InputFormat {
 
     public BeamRecordReader<T> createReader() throws IOException {
       return new BeamRecordReader<>(
-          boundedSource.createReader(options.getPipelineOptions()), tupleTag);
+          stepName, boundedSource.createReader(options.getPipelineOptions()), tupleTag);
     }
 
     @Override
@@ -154,6 +162,7 @@ public class BeamInputFormat<T> extends InputFormat {
     @Override
     public void write(DataOutput out) throws IOException {
       ByteArrayOutputStream stream = new ByteArrayOutputStream();
+      StringUtf8Coder.of().encode(stepName, stream);
       SerializableCoder.of(BoundedSource.class).encode(boundedSource, stream);
       SerializableCoder.of(SerializedPipelineOptions.class).encode(options, stream);
       SerializableCoder.of(TupleTag.class).encode(tupleTag, stream);
@@ -170,6 +179,7 @@ public class BeamInputFormat<T> extends InputFormat {
       in.readFully(bytes);
 
       ByteArrayInputStream inStream = new ByteArrayInputStream(bytes);
+      stepName = StringUtf8Coder.of().decode(inStream);
       boundedSource = SerializableCoder.of(BoundedSource.class).decode(inStream);
       options = SerializableCoder.of(SerializedPipelineOptions.class).decode(inStream);
       tupleTag = SerializableCoder.of(TupleTag.class).decode(inStream);
@@ -178,11 +188,15 @@ public class BeamInputFormat<T> extends InputFormat {
 
   private static class BeamRecordReader<T> extends RecordReader {
 
+    private final String stepName;
     private final BoundedSource.BoundedReader<T> reader;
-    private TupleTag<?> tupleTag;
+    private final TupleTag<?> tupleTag;
+    private MetricsReporter metricsReporter;
     private boolean started;
 
-    public BeamRecordReader(BoundedSource.BoundedReader<T> reader, TupleTag<?> tupleTag) {
+    public BeamRecordReader(
+        String stepName, BoundedSource.BoundedReader<T> reader, TupleTag<?> tupleTag) {
+      this.stepName = checkNotNull(stepName, "stepName");
       this.reader = checkNotNull(reader, "reader");
       this.tupleTag = checkNotNull(tupleTag, "tupleTag");
       this.started = false;
@@ -191,15 +205,19 @@ public class BeamInputFormat<T> extends InputFormat {
     @Override
     public void initialize(
         InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException {
+      this.metricsReporter = new MetricsReporter(context);
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException {
-      if (!started) {
-        started = true;
-        return reader.start();
-      } else {
-        return reader.advance();
+      try (Closeable ignored = MetricsEnvironment.scopedMetricsContainer(
+          metricsReporter.getMetricsContainer(stepName))) {
+        if (!started) {
+          started = true;
+          return reader.start();
+        } else {
+          return reader.advance();
+        }
       }
     }
 
@@ -233,6 +251,7 @@ public class BeamInputFormat<T> extends InputFormat {
     @Override
     public void close() throws IOException {
       reader.close();
+      metricsReporter.updateMetrics();
     }
   }
 }

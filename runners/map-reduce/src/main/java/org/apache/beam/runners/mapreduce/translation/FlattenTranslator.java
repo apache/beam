@@ -55,18 +55,20 @@ public class FlattenTranslator<T> extends TransformTranslator.Default<Flatten.PC
       }
     }
 
+    String stepName = userGraphContext.getStepName();
     if (inputTagToCount.isEmpty()) {
       // Create a empty source
       Operation<?> operation =
-          new SourceReadOperation(new EmptySource(), userGraphContext.getOnlyOutputTag());
+          new SourceReadOperation(
+              stepName, new EmptySource(), userGraphContext.getOnlyOutputTag());
       context.addInitStep(
-          Graphs.Step.of(userGraphContext.getStepName(), operation),
+          Graphs.Step.of(stepName, operation),
           userGraphContext.getInputTags(),
           userGraphContext.getOutputTags());
     } else if (!containsDuplicates) {
       Operation<?> operation = new FlattenOperation(1);
       context.addInitStep(
-          Graphs.Step.of(userGraphContext.getStepName(), operation),
+          Graphs.Step.of(stepName, operation),
           userGraphContext.getInputTags(),
           userGraphContext.getOutputTags());
     } else {
@@ -79,7 +81,7 @@ public class FlattenTranslator<T> extends TransformTranslator.Default<Flatten.PC
         if (dupFactor == 1) {
           intermediateTags.add(inTag);
         } else {
-          String dupStepName = userGraphContext.getStepName() + "/Dup-" + dupFactor;
+          String dupStepName = stepName + "/Dup-" + dupFactor;
           Graphs.Tag outTag = Graphs.Tag.of(
               dupStepName + ".out",
               new TupleTag<T>(),
@@ -93,7 +95,7 @@ public class FlattenTranslator<T> extends TransformTranslator.Default<Flatten.PC
         }
       }
       context.addInitStep(
-          Graphs.Step.of(userGraphContext.getStepName(), new FlattenOperation(1)),
+          Graphs.Step.of(stepName, new FlattenOperation(1)),
           intermediateTags,
           userGraphContext.getOutputTags());
     }

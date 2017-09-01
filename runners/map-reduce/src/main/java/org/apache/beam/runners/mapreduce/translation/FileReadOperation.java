@@ -46,15 +46,18 @@ import org.apache.hadoop.io.SequenceFile;
  */
 public class FileReadOperation<T> extends ReadOperation<WindowedValue<T>> {
 
+  private final String stepName;
   private final String fileName;
   private final Coder<WindowedValue<T>> coder;
   private final TupleTag<?> tupleTag;
 
   public FileReadOperation(
+      String stepName,
       String fileName,
       Coder<WindowedValue<T>> coder,
       TupleTag<?> tupleTag) {
     super();
+    this.stepName = checkNotNull(stepName, "stepName");
     this.fileName = checkNotNull(fileName, "fileName");
     this.coder = checkNotNull(coder, "coder");
     this.tupleTag = checkNotNull(tupleTag, "tupleTag");
@@ -63,6 +66,7 @@ public class FileReadOperation<T> extends ReadOperation<WindowedValue<T>> {
   @Override
   TaggedSource getTaggedSource(Configuration conf) {
     return TaggedSource.of(
+        stepName,
         new FileBoundedSource<>(fileName, coder, new SerializableConfiguration(conf)),
         tupleTag);
   }

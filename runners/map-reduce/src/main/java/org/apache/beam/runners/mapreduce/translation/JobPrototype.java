@@ -42,6 +42,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.counters.Limits;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MultipleOutputs;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
@@ -77,8 +78,9 @@ public class JobPrototype {
         "io.serializations",
         "org.apache.hadoop.io.serializer.WritableSerialization,"
             + "org.apache.hadoop.io.serializer.JavaSerialization");
+    conf.set("mapreduce.job.counters.group.name.max", "512");
+    Limits.init(conf);
 
-    //TODO: config out dir with PipelineOptions.
     conf.set(
         FileOutputFormat.OUTDIR,
         configUtils.getFileOutputDir(fusedStep.getStageId()));

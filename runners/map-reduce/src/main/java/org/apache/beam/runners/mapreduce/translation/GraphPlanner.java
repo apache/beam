@@ -83,7 +83,8 @@ public class GraphPlanner {
           consumer.addStep(
               Graphs.Step.of(
                   readStepName,
-                  new FileReadOperation(filePath, writeValueCoder, tag.getTupleTag())),
+                  new FileReadOperation(
+                      readStepName, filePath, writeValueCoder, tag.getTupleTag())),
               ImmutableList.<Graphs.Tag>of(),
               ImmutableList.of(readOutput));
         }

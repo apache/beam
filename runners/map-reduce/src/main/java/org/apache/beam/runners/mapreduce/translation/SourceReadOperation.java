@@ -27,12 +27,14 @@ import org.apache.hadoop.conf.Configuration;
  * Operation that reads from {@link BoundedSource}.
  */
 public class SourceReadOperation extends ReadOperation {
+  private final String stepName;
   private final TaggedSource source;
 
-  SourceReadOperation(BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
+  SourceReadOperation(String stepName, BoundedSource<?> boundedSource, TupleTag<?> tupleTag) {
+    this.stepName = checkNotNull(stepName, "stepName");
     checkNotNull(boundedSource, "boundedSource");
     checkNotNull(tupleTag, "tupleTag");
-    this.source = TaggedSource.of(boundedSource, tupleTag);
+    this.source = TaggedSource.of(stepName, boundedSource, tupleTag);
   }
 
   @Override
