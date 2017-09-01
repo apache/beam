@@ -212,13 +212,24 @@ public class TextIOReadTest {
   }
 
   @Test
+  public void testSeparatorSelfOverlaps(){
+    assertFalse(TextIO.Read.separatorSelfOverlaps(new byte[]{'a', 'b', 'c'}));
+    assertFalse(TextIO.Read.separatorSelfOverlaps(new byte[]{'c', 'a', 'b', 'd', 'a', 'b'}));
+    assertFalse(TextIO.Read.separatorSelfOverlaps(new byte[]{'a', 'b', 'c', 'a', 'b', 'd'}));
+    assertTrue(TextIO.Read.separatorSelfOverlaps(new byte[]{'a', 'b', 'a'}));
+    assertTrue(TextIO.Read.separatorSelfOverlaps(new byte[]{'a', 'b', 'c', 'a', 'b'}));
+  }
+
+  @Test
   @Category(NeedsRunner.class)
   public void testReadStringsWithCustomSeparator() throws Exception {
     final String[] inputStrings = new String[] {
         // incomplete separator
         "To be, or not to be: that |is the question: ",
+        // incomplete separator
+        "To be, or not to be: that *is the question: ",
         // complete separator
-        "Whether 'tis nobler in the mind to suffer ||",
+        "Whether 'tis nobler in the mind to suffer |*",
         //truncated separator
         "The slings and arrows of outrageous fortune,|" };
 
@@ -233,9 +244,10 @@ public class TextIOReadTest {
       }
     }
     String[] expected = new String[] {
-        "To be, or not to be: that |is the question: Whether 'tis nobler in the mind to suffer ",
+        "To be, or not to be: that |is the question: To be, or not to be: that *is the question: "
+            + "Whether 'tis nobler in the mind to suffer ",
         "The slings and arrows of outrageous fortune,|" };
-    TextIO.Read read = TextIO.read().from(filename).withSeparator(new byte[] {'|', '|'});
+    TextIO.Read read = TextIO.read().from(filename).withSeparator(new byte[] {'|', '*'});
 
     PCollection<String> output = p.apply(read);
 
@@ -245,8 +257,8 @@ public class TextIOReadTest {
 
   @Test
   public void testSplittingSourceWithCustomSeparator() throws Exception {
-    TextSource source = prepareSource("asdf||hjkl||xyz".getBytes(StandardCharsets.UTF_8),
-        new byte[] { '|', '|' });
+    TextSource source = prepareSource("asdf|*hjkl|*xyz".getBytes(StandardCharsets.UTF_8),
+        new byte[] { '|', '*' });
     SourceTestUtils.assertSplitAtFractionExhaustive(source, PipelineOptionsFactory.create());
   }
 

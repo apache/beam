@@ -370,7 +370,31 @@ public class TextIO {
      * Set the custom separator to be used in place of the default ones ('\r', '\n' or '\r\n').
      */
     public Read withSeparator(byte[] separator) {
+      checkNotNull(separator,
+          "need to provide a non null separator to TextIO.Read.withSeparator()");
+      checkArgument(!separatorSelfOverlaps(separator),
+          "separator that can self overlap are not supported");
       return toBuilder().setSeparator(separator).build();
+    }
+
+    static boolean separatorSelfOverlaps(byte[] separator) {
+      int i = 1;
+      // s self-overlaps if v exists such as s = vu = wv with u and w non empty
+      // search for the first byte of v in wv
+      while (i < separator.length && separator[i] != separator[0]) {
+        i++;
+      }
+      if (i < separator.length) {
+        // found, compare next possible v bytes
+        int j = i + 1;
+        while (j < separator.length && (separator[j] == separator[j - i])) {
+          j++;
+        }
+        if (j >= separator.length) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override
