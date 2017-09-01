@@ -189,6 +189,7 @@ message ProcessBundleRequest {
 
 // Stable
 message ProcessBundleResponse {
+  Metrics metrics = 1;
 }
 
 message ProcessBundleProgressRequest {
@@ -197,15 +198,86 @@ message ProcessBundleProgressRequest {
   string instruction_reference = 1;
 }
 
-message ProcessBundleProgressResponse {
-  // (Required) The finished amount of work. A monotonically increasing
-  // unitless measure of work finished.
-  double finished_work = 1;
+message Metrics {
+  // PTransform level metrics.
+  // These metrics are split into processed and active element groups for
+  // progress reporting purposes. This allows a Runner to see what is measured,
+  // what is estimated and what can be extrapolated to be able to accurately
+  // estimate the backlog of remaining work.
+  message PTransform {
+    // Metrics that are measured for processed and active element groups.
+    message Measured {
+      // (Required) Map from local input name to number of elements processed
+      // from this input.
+      map<string, int64> input_element_counts = 1;
 
-  // (Required) The known amount of backlog for the process bundle request.
-  // Computed as:
-  //   (estimated known work - finish work) / finished work
-  double backlog = 2;
+      // (Required) Map from local output name to number of elements produced
+      // for this output.
+      map<string, int64> output_element_counts = 2;
+
+      // (Optional) The total time spent so far in processing the elements in
+      // this group.
+      int64 total_time_spent = 3;
+
+      // TODO: Add other element group level metrics.
+    }
+
+    // Metrics for fully processed elements.
+    message ProcessedElements {
+      // (Required)
+      Measured measured = 1;
+    }
+
+    // Metrics for active elements.
+    // An element is considered active if the SDK has started but not finished
+    // processing it yet.
+    message ActiveElements {
+      // (Required)
+      Measured measured = 1;
+
+      // Estimated metrics.
+
+      // (Optional) Sum of estimated fraction of known work remaining for all
+      // active elements, as reported by this transform.
+      // If not reported, a Runner could extrapolate this from the processed
+      // elements.
+      // TODO: Handle the case when known work is infinite.
+      double fractions_remaining = 2;
+
+      // (Optional) Map from local output name to sum of estimated number
+      // of elements remaining for this output from all active elements,
+      // as reported by this transform.
+      // If not reported, a Runner could extrapolate this from the processed
+      // elements.
+      map<string, int64> output_elements_remaining = 3;
+    }
+
+    // (Required): Metrics for processed elements.
+    ProcessedElements processed_elements = 1;
+    // (Required): Metrics for active elements.
+    ActiveElements active_elements = 2;
+
+    // (Optional): Map from local output name to its watermark.
+    // The watermarks reported are tentative, to get a better sense of progress
+    // while processing a bundle but before it is committed. At bundle commit
+    // time, a Runner needs to also take into account the timers set to compute
+    // the actual watermarks.
+    map<string, int64> watermarks = 3;
+
+    // TODO: Define other transform level system metrics.
+  }
+
+  // User defined metrics
+  message User {
+    // TODO: Define it.
+  }
+
+  map<string, PTransform> ptransforms = 1;
+  map<string, User> user = 2;
+}
+
+message ProcessBundleProgressResponse {
+  Metrics metrics = 1;
 }
 
 message ProcessBundleSplitRequest {
