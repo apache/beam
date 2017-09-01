@@ -67,6 +67,8 @@ echo "Running isort for module $MODULE:"
 ISORT_EXCLUDED=(
   "avroio_test.py"
   "fast_coders_test.py"
+  "apiclient.py"
+  "datastore_wordcount.py"
 )
 SKIP_PARAM=""
 for file in "${ISORT_EXCLUDED[@]}"; do
