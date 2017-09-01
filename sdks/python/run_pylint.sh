@@ -79,5 +79,5 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
 pushd $MODULE
-isort -p apache_beam -w 79 -y -c -ot -cs -sl ${SKIP_PARAM}
+isort -p apache_beam -w 80 -y -c -ot -cs -sl ${SKIP_PARAM}
 popd
