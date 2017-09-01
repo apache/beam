@@ -23,12 +23,13 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Count;
@@ -40,7 +41,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -52,13 +52,15 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 class WriteWithShardingFactory<InputT>
     implements PTransformOverrideFactory<
-        PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>> {
+        PCollection<InputT>, WriteFilesResult, PTransform<PCollection<InputT>, WriteFilesResult>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
-      AppliedPTransform<PCollection<InputT>, PDone, PTransform<PCollection<InputT>, PDone>>
+  public PTransformReplacement<PCollection<InputT>, WriteFilesResult> getReplacementTransform(
+      AppliedPTransform<
+              PCollection<InputT>, WriteFilesResult,
+              PTransform<PCollection<InputT>, WriteFilesResult>>
           transform) {
     try {
       WriteFiles<InputT, ?, ?> replacement =
@@ -75,10 +77,13 @@ class WriteWithShardingFactory<InputT>
     }
   }
 
+
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
-    return Collections.emptyMap();
+      Map<TupleTag<?>, PValue> outputs, WriteFilesResult newOutput) {
+    // We must connect the new output from WriteFilesResult to the outputs provided by the original
+    // transform.
+    return ReplacementOutputs.tagged(outputs, newOutput);
   }
 
   private static class LogElementShardsWithDrift<T>

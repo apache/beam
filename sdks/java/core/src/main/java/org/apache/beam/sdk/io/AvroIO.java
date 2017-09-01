@@ -889,7 +889,7 @@ public class AvroIO {
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class TypedWrite<UserT, OutputT>
-      extends PTransform<PCollection<UserT>, PDone> {
+      extends PTransform<PCollection<UserT>, WriteFilesResult> {
     static final CodecFactory DEFAULT_CODEC = CodecFactory.deflateCodec(6);
     static final SerializableAvroCodecFactory DEFAULT_SERIALIZABLE_CODEC =
         new SerializableAvroCodecFactory(DEFAULT_CODEC);
@@ -1180,7 +1180,7 @@ public class AvroIO {
     }
 
     @Override
-    public PDone expand(PCollection<UserT> input) {
+    public WriteFilesResult expand(PCollection<UserT> input) {
       checkArgument(
           getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a AvroIO.Write "
@@ -1201,7 +1201,7 @@ public class AvroIO {
       return expandTyped(input, resolveDynamicDestinations());
     }
 
-    public <DestinationT> PDone expandTyped(
+    public <DestinationT> WriteFilesResult expandTyped(
         PCollection<UserT> input,
         DynamicAvroDestinations<UserT, DestinationT, OutputT> dynamicDestinations) {
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
@@ -1329,6 +1329,17 @@ public class AvroIO {
       return new Write<>(inner.withCodec(codec));
     }
 
+    /** Specify that output filenames are wanted.
+     *
+     * <p>The nested {@link TypedWrite}transform always has access to output filenames, however
+     * due to backwards-compatibility concerns, {@link Write} cannot return them. This method
+     * simply returns the inner {@link TypedWrite} transform which has {@link WriteFilesResult} as
+     * its output type, allowing access to output files.
+     */
+    public TypedWrite<T, T> withOutputFilenames() {
+      return inner;
+    }
+
     /** See {@link TypedWrite#withMetadata} . */
     public Write withMetadata(Map<String, Object> metadata) {
       return new Write<>(inner.withMetadata(metadata));
@@ -1336,7 +1347,8 @@ public class AvroIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
-      return inner.expand(input);
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
     }
 
     @Override

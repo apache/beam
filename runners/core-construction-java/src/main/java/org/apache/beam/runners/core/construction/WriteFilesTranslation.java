@@ -39,12 +39,12 @@ import org.apache.beam.sdk.common.runner.v1.RunnerApi.SideInput;
 import org.apache.beam.sdk.common.runner.v1.RunnerApi.WriteFilesPayload;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -104,7 +104,8 @@ public class WriteFilesTranslation {
   }
 
   public static <UserT, DestinationT, OutputT> FileBasedSink<UserT, DestinationT, OutputT> getSink(
-      AppliedPTransform<PCollection<UserT>, PDone, ? extends PTransform<PCollection<UserT>, PDone>>
+      AppliedPTransform<PCollection<UserT>, WriteFilesResult,
+          ? extends PTransform<PCollection<UserT>, WriteFilesResult>>
           transform)
       throws IOException {
     return (FileBasedSink<UserT, DestinationT, OutputT>)
@@ -114,7 +115,8 @@ public class WriteFilesTranslation {
   public static <UserT, DestinationT, OutputT>
       List<PCollectionView<?>> getDynamicDestinationSideInputs(
           AppliedPTransform<
-                  PCollection<UserT>, PDone, ? extends PTransform<PCollection<UserT>, PDone>>
+                  PCollection<UserT>, WriteFilesResult,
+              ? extends PTransform<PCollection<UserT>, WriteFilesResult>>
               transform)
           throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
@@ -139,21 +141,27 @@ public class WriteFilesTranslation {
   }
 
   public static <T> boolean isWindowedWrites(
-      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+      AppliedPTransform<
+              PCollection<T>, WriteFilesResult,
+              ? extends PTransform<PCollection<T>, WriteFilesResult>>
           transform)
       throws IOException {
     return getWriteFilesPayload(transform).getWindowedWrites();
   }
 
   public static <T> boolean isRunnerDeterminedSharding(
-      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+      AppliedPTransform<
+              PCollection<T>, WriteFilesResult,
+              ? extends PTransform<PCollection<T>, WriteFilesResult>>
           transform)
       throws IOException {
     return getWriteFilesPayload(transform).getRunnerDeterminedSharding();
   }
 
   private static <T> WriteFilesPayload getWriteFilesPayload(
-      AppliedPTransform<PCollection<T>, PDone, ? extends PTransform<PCollection<T>, PDone>>
+      AppliedPTransform<
+              PCollection<T>, WriteFilesResult,
+              ? extends PTransform<PCollection<T>, WriteFilesResult>>
           transform)
       throws IOException {
     return WriteFilesPayload.parseFrom(

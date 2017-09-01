@@ -46,6 +46,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.LocalResources;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -61,7 +62,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -140,7 +140,7 @@ public class WriteWithShardingFactoryTest implements Serializable {
   public void withNoShardingSpecifiedReturnsNewTransform() {
     ResourceId outputDirectory = LocalResources.fromString("/foo", true /* isDirectory */);
 
-    PTransform<PCollection<Object>, PDone> original =
+    PTransform<PCollection<Object>, WriteFilesResult> original =
         WriteFiles.to(
             new FileBasedSink<Object, Void, Object>(
                 StaticValueProvider.of(outputDirectory),
@@ -153,7 +153,9 @@ public class WriteWithShardingFactoryTest implements Serializable {
     @SuppressWarnings("unchecked")
     PCollection<Object> objs = (PCollection) p.apply(Create.empty(VoidCoder.of()));
 
-    AppliedPTransform<PCollection<Object>, PDone, PTransform<PCollection<Object>, PDone>>
+    AppliedPTransform<
+            PCollection<Object>, WriteFilesResult,
+            PTransform<PCollection<Object>, WriteFilesResult>>
         originalApplication =
             AppliedPTransform.of(
                 "write", objs.expand(), Collections.<TupleTag<?>, PValue>emptyMap(), original, p);
