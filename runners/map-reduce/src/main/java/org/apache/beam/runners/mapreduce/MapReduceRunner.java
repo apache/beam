@@ -35,6 +35,7 @@ import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.log4j.BasicConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -95,6 +96,9 @@ public class MapReduceRunner extends PipelineRunner<PipelineResult> {
       try {
         Job job = jobPrototype.build(options.getJarClass(), config);
         job.waitForCompletion(true);
+        if (!job.getStatus().getState().equals(JobStatus.State.SUCCEEDED)) {
+          throw new RuntimeException("MapReduce job failed: " + job.getJobID());
+        }
         jobs.add(job);
       } catch (Exception e) {
         Throwables.throwIfUnchecked(e);
