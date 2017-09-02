@@ -319,7 +319,8 @@ public class ElasticsearchIO {
         try {
           KeyStore keyStore = KeyStore.getInstance("jks");
           try (InputStream is = new FileInputStream(new File(getKeystorePath()))) {
-            keyStore.load(is, getKeystorePassword().toCharArray());
+            String keystorePassword = getKeystorePassword();
+            keyStore.load(is, (keystorePassword == null) ? null : keystorePassword.toCharArray());
           }
           final SSLContext sslContext = SSLContexts.custom()
               .loadTrustMaterial(keyStore, new TrustSelfSignedStrategy()).build();
