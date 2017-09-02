@@ -107,7 +107,10 @@ class FrameState(object):
 
   def __init__(self, f, local_vars=None, stack=()):
     self.f = f
-    self.co = f.__code__
+    if sys.version_info[0] >= 3:
+      self.co = f.__code__
+    else:
+      self.co = f.func_code
     self.vars = list(local_vars)
     self.stack = list(stack)
 
@@ -362,7 +365,22 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       else:
         return_type = Any
       state.stack[-pop_count:] = [return_type]
+    elif (opname == 'BINARY_SUBSCR'
+          and isinstance(state.stack[1], Const)
+          and isinstance(state.stack[0], typehints.IndexableTypeConstraint)):
+      if debug:
+        print("Executing special case binary subscript")
+      idx = state.stack.pop()
+      src = state.stack.pop()
+      try:
+        state.stack.append(src._constraint_for_index(idx.value))
+      except Exception as e:
+        if debug:
+          print("Exception {0} during special case indexing".format(e))
+        state.stack.append(Any)
     elif opname in simple_ops:
+      if debug:
+        print("Executing simple op " + opname)
       simple_ops[opname](state, arg)
     elif opname == 'RETURN_VALUE':
       returns.add(state.stack[-1])
