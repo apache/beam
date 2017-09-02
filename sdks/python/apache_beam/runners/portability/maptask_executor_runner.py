@@ -449,7 +449,11 @@ class MergeAccumulators(beam.PTransform):
       return beam.pvalue.PCollection(input.pipeline)
     else:
       merge_accumulators = self.combine_fn.merge_accumulators
-      return input | beam.Map(lambda k_vs: (k_vs[0], merge_accumulators(k_vs[1])))
+
+      def merge_with_existing_key(k_vs):
+        return (k_vs[0], merge_accumulators(k_vs[1]))
+
+      return input | beam.Map(merge_with_existing_key)
 
 
 class ExtractOutputs(beam.PTransform):

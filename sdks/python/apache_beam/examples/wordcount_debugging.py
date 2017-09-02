@@ -93,12 +93,15 @@ class CountWords(beam.PTransform):
   PCollection of (word, count) tuples.
   """
   def expand(self, pcoll):
+    def count_ones(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
+
     return (pcoll
             | 'split' >> (beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
                           .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))
+            | 'count' >> beam.Map(count_ones))
 
 
 def run(argv=None):
@@ -141,8 +144,11 @@ def run(argv=None):
     # Format the counts into a PCollection of strings and write the output using
     # a "Write" transform that has side effects.
     # pylint: disable=unused-variable
+    def format_result(w_c):
+      return '%s: %s' % (w_c[0], w_c[1])
+
     output = (filtered_words
-              | 'format' >> beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1]))
+              | 'format' >> beam.Map(format_result)
               | 'write' >> WriteToText(known_args.output))
 
 
