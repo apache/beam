@@ -1332,9 +1332,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertStartswith(
         e.exception.message,
         "Runtime type violation detected within ParDo(Add): "
-        "Type-hint for argument: 'y' violated. "
-        "Expected an instance of <type 'int'>, "
-        "instead found 3.0, an instance of <type 'float'>.")
+        "Type-hint for argument: 'x_y' violated: "
+        "Tuple[int, int] hint type-constraint violated. "
+        "The type of element #1 in the passed tuple is incorrect. "
+        "Expected an instance of type int, instead received an instance "
+        "of type float.")
 
   def test_pipeline_runtime_checking_violation_simple_type_output(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1591,8 +1593,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'C' >> beam.Create(range(5)).with_output_types(int)
          | 'Mean' >> combine.Mean.Globally())
 
-    self.assertTrue(d.element_type is float)
     assert_that(d, equal_to([2.0]))
+    self.assertEqual(float, d.element_type)
     self.p.run()
 
   def test_mean_globally_pipeline_checking_violated(self):
@@ -1614,8 +1616,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'C' >> beam.Create(range(5)).with_output_types(int)
          | 'Mean' >> combine.Mean.Globally())
 
-    self.assertTrue(d.element_type is float)
     assert_that(d, equal_to([2.0]))
+    self.assertEqual(float, d.element_type)
     self.p.run()
 
   def test_mean_globally_runtime_checking_violated(self):
@@ -1707,8 +1709,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'P' >> beam.Create(range(5)).with_output_types(int)
          | 'CountInt' >> combine.Count.Globally())
 
-    self.assertTrue(d.element_type is int)
     assert_that(d, equal_to([5]))
+    self.assertEqual(int, d.element_type)
     self.p.run()
 
   def test_count_globally_runtime_type_checking_satisfied(self):
@@ -1718,8 +1720,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'P' >> beam.Create(range(5)).with_output_types(int)
          | 'CountInt' >> combine.Count.Globally())
 
-    self.assertTrue(d.element_type is int)
     assert_that(d, equal_to([5]))
+    self.assertEqual(int, d.element_type)
     self.p.run()
 
   def test_count_perkey_pipeline_type_checking_satisfied(self):
