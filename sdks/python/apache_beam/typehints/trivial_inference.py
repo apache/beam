@@ -19,18 +19,19 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
+
 import __builtin__
 import collections
 import dis
 import pprint
 import sys
 import types
+from functools import reduce
 
 from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
-from functools import reduce
 
 
 class TypeInferenceError(ValueError):
