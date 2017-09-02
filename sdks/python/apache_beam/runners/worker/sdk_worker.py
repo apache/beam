@@ -75,7 +75,7 @@ class SdkHarness(object):
         except Exception as e:  # pylint: disable=broad-except
           traceback_str = traceback.format_exc(e)
           raise Exception("Error processing request. Original traceback "
-                              "is\n%s\n" % traceback_str)
+                          "is\n%s\n" % traceback_str)
 
       def handle_response(request, response_future):
         try:
