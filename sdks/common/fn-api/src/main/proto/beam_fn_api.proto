@@ -189,6 +189,7 @@ message ProcessBundleRequest {
 
 // Stable
 message ProcessBundleResponse {
+  // (Required)
   Metrics metrics = 1;
 }
 
@@ -242,7 +243,7 @@ message Metrics {
       // If not reported, a Runner could extrapolate this from the processed
       // elements.
       // TODO: Handle the case when known work is infinite.
-      double fractions_remaining = 2;
+      double fraction_remaining = 2;
 
       // (Optional) Map from local output name to sum of estimated number
       // of elements remaining for this output from all active elements,
@@ -277,6 +278,7 @@ message Metrics {
 }
 
 message ProcessBundleProgressResponse {
+  // (Required)
   Metrics metrics = 1;
 }
 
