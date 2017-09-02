@@ -436,7 +436,7 @@ def examples_wordcount_minimal(renames):
       # [END examples_wordcount_minimal_count]
 
       # [START examples_wordcount_minimal_map]
-      | beam.Map(lambda (word, count): '%s: %s' % (word, count))
+      | beam.Map(lambda word_count: '%s: %s' % (word_count[0], word_count[1]))
       # [END examples_wordcount_minimal_map]
 
       # [START examples_wordcount_minimal_write]
@@ -541,8 +541,8 @@ def examples_wordcount_templated(renames):
           lambda x: re.findall(r'[A-Za-z\']+', x))
       | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
       | 'Group' >> beam.GroupByKey()
-      | 'Sum' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-      | 'Format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+      | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
+      | 'Format' >> beam.Map(lambda word_c2: '%s: %s' % (word_c2[0], word_c2[1]))
       | 'Write' >> WriteToText(wordcount_options.output)
   )
 
@@ -612,7 +612,7 @@ def examples_wordcount_debugging(renames):
     # [END example_wordcount_debugging_assert]
 
     output = (filtered_words
-              | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+              | 'format' >> beam.Map(lambda word_c1: '%s: %s' % (word_c1[0], word_c1[1]))
               | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
     p.visit(SnippetUtils.RenameFiles(renames))
@@ -1046,7 +1046,7 @@ def model_composite_transform_example(contents, output_path):
       return (pcoll
               | beam.FlatMap(lambda x: re.findall(r'\w+', x))
               | beam.combiners.Count.PerElement()
-              | beam.Map(lambda (word, c): '%s: %s' % (word, c)))
+              | beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1])))
   # [END composite_ptransform_apply_method]
   # [END composite_transform_example]
 
@@ -1133,7 +1133,7 @@ def model_group_by_key(contents, output_path):
     grouped_words = words_and_counts | beam.GroupByKey()
     # [END model_group_by_key_transform]
     (grouped_words
-     | 'count words' >> beam.Map(lambda (word, counts): (word, sum(counts)))
+     | 'count words' >> beam.Map(lambda word_counts: (word_counts[0], sum(word_counts[1])))
      | beam.io.WriteToText(output_path))
 
 
@@ -1162,10 +1162,13 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
     results = ({'emails': emails_pcoll, 'phones': phones_pcoll}
                | beam.CoGroupByKey())
 
-    formatted_results = results | beam.Map(
-        lambda (name, info):\
-           '%s; %s; %s' %\
-           (name, sorted(info['emails']), sorted(info['phones'])))
+    def join_info(xxx_todo_changeme):
+      (name, info) = xxx_todo_changeme
+      return '%s; %s; %s' %\
+        (name, sorted(info['emails']), sorted(info['phones']))
+
+
+    contact_lines = result | beam.Map(join_info)
     # [END model_group_by_key_cogroupbykey_tuple]
     formatted_results | beam.io.WriteToText(output_path)
 
@@ -1211,7 +1214,7 @@ def model_join_using_side_inputs(
 class Keys(beam.PTransform):
 
   def expand(self, pcoll):
-    return pcoll | 'Keys' >> beam.Map(lambda (k, v): k)
+    return pcoll | 'Keys' >> beam.Map(lambda k_v: k_v[0])
 # [END model_library_transforms_keys]
 # pylint: enable=invalid-name
 

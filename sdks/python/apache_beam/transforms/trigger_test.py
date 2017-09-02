@@ -407,11 +407,11 @@ class TriggerPipelineTest(unittest.TestCase):
       result = (p
                 | beam.Create([1, 2, 3, 4, 5, 10, 11])
                 | beam.FlatMap(lambda t: [('A', t), ('B', t + 5)])
-                | beam.Map(lambda (k, t): TimestampedValue((k, t), t))
+                | beam.Map(lambda k_t: TimestampedValue((k_t[0], k_t[1]), k_t[1]))
                 | beam.WindowInto(FixedWindows(10), trigger=AfterCount(3),
                                   accumulation_mode=AccumulationMode.DISCARDING)
                 | beam.GroupByKey()
-                | beam.Map(lambda (k, v): ('%s-%s' % (k, len(v)), set(v))))
+                | beam.Map(lambda k_v: ('%s-%s' % (k_v[0], len(k_v[1])), set(k_v[1]))))
       assert_that(result, equal_to(
           {
               'A-5': {1, 2, 3, 4, 5},

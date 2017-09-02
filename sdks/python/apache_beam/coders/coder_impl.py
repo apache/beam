@@ -26,6 +26,7 @@ coder_impl.pxd file for type hints.
 
 For internal use only; no backwards-compatibility guarantees.
 """
+from __future__ import absolute_import
 from types import NoneType
 
 from apache_beam.coders import observable
@@ -36,18 +37,18 @@ from apache_beam.utils.timestamp import Timestamp
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from stream import InputStream as create_InputStream
-  from stream import OutputStream as create_OutputStream
-  from stream import ByteCountingOutputStream
-  from stream import get_varint_size
+  from .stream import InputStream as create_InputStream
+  from .stream import OutputStream as create_OutputStream
+  from .stream import ByteCountingOutputStream
+  from .stream import get_varint_size
   globals()['create_InputStream'] = create_InputStream
   globals()['create_OutputStream'] = create_OutputStream
   globals()['ByteCountingOutputStream'] = ByteCountingOutputStream
 except ImportError:
-  from slow_stream import InputStream as create_InputStream
-  from slow_stream import OutputStream as create_OutputStream
-  from slow_stream import ByteCountingOutputStream
-  from slow_stream import get_varint_size
+  from .slow_stream import InputStream as create_InputStream
+  from .slow_stream import OutputStream as create_OutputStream
+  from .slow_stream import ByteCountingOutputStream
+  from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 

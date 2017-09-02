@@ -184,10 +184,10 @@ def read_from_datastore(project, user_options, pipeline_options):
                           .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))
 
   # Format the counts into a PCollection of strings.
-  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+  output = counts | 'format' >> beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1]))
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned

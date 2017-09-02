@@ -75,7 +75,7 @@ def run(argv=None):
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(2*60, 0))
                    | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                   | 'Count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
                    | 'Format' >> beam.ParDo(FormatDoFn()))
 
     # Write to BigQuery.

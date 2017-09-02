@@ -358,7 +358,7 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_deterministic_key]
 
       assert_that(
-          totals | beam.Map(lambda (k, v): (k.name, v)),
+          totals | beam.Map(lambda k_v: (k_v[0].name, k_v[1])),
           equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
@@ -882,14 +882,16 @@ class CombineTest(unittest.TestCase):
       def create_accumulator(self):
         return (0.0, 0)
 
-      def add_input(self, (sum, count), input):
+      def add_input(self, xxx_todo_changeme, input):
+        (sum, count) = xxx_todo_changeme
         return sum + input, count + 1
 
       def merge_accumulators(self, accumulators):
         sums, counts = zip(*accumulators)
         return sum(sums), sum(counts)
 
-      def extract_output(self, (sum, count)):
+      def extract_output(self, xxx_todo_changeme1):
+        (sum, count) = xxx_todo_changeme1
         return sum / count if count else float('NaN')
     # [END combine_custom_average_define]
     # [START combine_custom_average_execute]

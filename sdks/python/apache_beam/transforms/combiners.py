@@ -77,14 +77,16 @@ class MeanCombineFn(core.CombineFn):
   def create_accumulator(self):
     return (0, 0)
 
-  def add_input(self, (sum_, count), element):
+  def add_input(self, xxx_todo_changeme, element):
+    (sum_, count) = xxx_todo_changeme
     return sum_ + element, count + 1
 
   def merge_accumulators(self, accumulators):
     sums, counts = zip(*accumulators)
     return sum(sums), sum(counts)
 
-  def extract_output(self, (sum_, count)):
+  def extract_output(self, xxx_todo_changeme1):
+    (sum_, count) = xxx_todo_changeme1
     if count == 0:
       return float('NaN')
     return sum_ / float(count)

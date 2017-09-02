@@ -182,7 +182,7 @@ def with_exponential_backoff(
           exn_traceback = sys.exc_info()[2]
           try:
             try:
-              sleep_interval = retry_intervals.next()
+              sleep_interval = next(retry_intervals)
             except StopIteration:
               # Re-raise the original exception since we finished the retries.
               raise exn, None, exn_traceback  # pylint: disable=raising-bad-type

@@ -333,7 +333,7 @@ def run(argv=None):
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
      | 'FormatUserScoreSums' >> beam.Map(
-         lambda (user, score): {'user': user, 'total_score': score})
+         lambda user_score: {'user': user_score[0], 'total_score': user_score[1]})
      | 'WriteUserScoreSums' >> WriteToBigQuery(
          args.table_name + '_users', args.dataset, {
              'user': 'STRING',
