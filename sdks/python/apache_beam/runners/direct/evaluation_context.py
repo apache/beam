@@ -243,8 +243,9 @@ class EvaluationContext(object):
           merged_counter.accumulator.merge([counter.accumulator])
 
       # Commit partial GBK states
+      existing_keyed_state = self._transform_keyed_states[result.transform]
       for k, v in result.partial_keyed_state.iteritems():
-        result.keyed_existing_state[k] = v
+        existing_keyed_state[k] = v
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -329,13 +330,16 @@ class DirectUnmergedState(InMemoryUnmergedState):
 class DirectStepContext(object):
   """Context for the currently-executing step."""
 
-  def __init__(self, keyed_existing_state):
-    self.keyed_existing_state = keyed_existing_state
+  def __init__(self, existing_keyed_state):
+    self.existing_keyed_state = existing_keyed_state
+    # In order to avoid partial writes of a bundle, every time
+    # existing_keyed_state is accessed, a copy of the state is made
+    # to be transferred to the bundle state once the bundle is committed.
     self.partial_keyed_state = {}
 
   def get_keyed_state(self, key):
-    if not self.keyed_existing_state.get(key):
-      self.keyed_existing_state[key] = DirectUnmergedState()
+    if not self.existing_keyed_state.get(key):
+      self.existing_keyed_state[key] = DirectUnmergedState()
     if not self.partial_keyed_state.get(key):
-      self.partial_keyed_state[key] = self.keyed_existing_state[key].clone()
+      self.partial_keyed_state[key] = self.existing_keyed_state[key].clone()
     return self.partial_keyed_state[key]

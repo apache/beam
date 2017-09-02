@@ -619,7 +619,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
         gbk_result = []
         # TODO(ccy): perhaps we can clean this up to not use this
         # internal attribute of the DirectStepContext.
-        for encoded_k in self.step_context.keyed_existing_state:
+        for encoded_k in self.step_context.existing_keyed_state:
           # Ignore global state.
           if encoded_k is None:
             continue

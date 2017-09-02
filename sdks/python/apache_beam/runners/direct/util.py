@@ -28,9 +28,8 @@ class TransformResult(object):
 
   def __init__(self, transform_evaluator, uncommitted_output_bundles,
                unprocessed_bundles, counters, keyed_watermark_holds,
-               undeclared_tag_values=None,
-               partial_keyed_state=None, keyed_existing_state=None):
-    self.transform = transform_evaluator._applied_ptransform # mgh
+               undeclared_tag_values=None):
+    self.transform = transform_evaluator._applied_ptransform
     self.uncommitted_output_bundles = uncommitted_output_bundles
     self.unprocessed_bundles = unprocessed_bundles
     self.counters = counters
@@ -48,11 +47,8 @@ class TransformResult(object):
     # Populated by the TransformExecutor.
     self.logical_metric_updates = None
 
-    self.step_context = (
-        transform_evaluator._execution_context.get_step_context()
-        )
-    self.partial_keyed_state = self.step_context.partial_keyed_state or {}
-    self.keyed_existing_state = self.step_context.keyed_existing_state or {}
+    step_context = transform_evaluator._execution_context.get_step_context()
+    self.partial_keyed_state = step_context.partial_keyed_state
 
 
 class TimerFiring(object):
