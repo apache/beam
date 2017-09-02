@@ -92,3 +92,4 @@ if [ "$count" != "0" ]; then
   echo "$futurize_filtered"
   exit 1
 fi
+echo "No future changes needed"
