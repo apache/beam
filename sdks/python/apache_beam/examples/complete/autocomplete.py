@@ -51,7 +51,7 @@ def run(argv=None):
      | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
      | 'TopPerPrefix' >> TopPerPrefix(5)
      | 'format' >> beam.Map(
-         lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
+         lambda prefix_candidates: '%s: %s' % (prefix_candidates[0], prefix_candidates[1]))
      | 'write' >> WriteToText(known_args.output))
 
 

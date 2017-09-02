@@ -137,7 +137,7 @@ class TransformEvaluatorRegistry(object):
                       (core._GroupByKeyOnly,
                        _StreamingGroupByKeyOnly,
                        _StreamingGroupAlsoByWindow,
-                       _NativeWrite,))
+                       _NativeWrite))
 
 
 class RootBundleProvider(object):

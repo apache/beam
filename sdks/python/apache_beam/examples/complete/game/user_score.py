@@ -142,7 +142,7 @@ def run(argv=None):
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'UserScore' >> UserScore()
      | 'FormatUserScoreSums' >> beam.Map(
-         lambda (user, score): 'user: %s, total_score: %s' % (user, score))
+         lambda user_score: 'user: %s, total_score: %s' % (user_score[0], user_score[1]))
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
 # [END main]
 

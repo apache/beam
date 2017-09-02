@@ -435,7 +435,7 @@ class PartialGroupByKeyCombineValues(beam.PTransform):
       def to_accumulator(v):
         return self.combine_fn.add_input(
             self.combine_fn.create_accumulator(), v)
-      return input | beam.Map(lambda (k, v): (k, to_accumulator(v)))
+      return input | beam.Map(lambda k_v: (k_v[0], to_accumulator(k_v[1])))
 
 
 class MergeAccumulators(beam.PTransform):
@@ -449,7 +449,7 @@ class MergeAccumulators(beam.PTransform):
       return beam.pvalue.PCollection(input.pipeline)
     else:
       merge_accumulators = self.combine_fn.merge_accumulators
-      return input | beam.Map(lambda (k, vs): (k, merge_accumulators(vs)))
+      return input | beam.Map(lambda k_vs: (k_vs[0], merge_accumulators(k_vs[1])))
 
 
 class ExtractOutputs(beam.PTransform):
@@ -463,7 +463,7 @@ class ExtractOutputs(beam.PTransform):
       return beam.pvalue.PCollection(input.pipeline)
     else:
       extract_output = self.combine_fn.extract_output
-      return input | beam.Map(lambda (k, v): (k, extract_output(v)))
+      return input | beam.Map(lambda k_v1: (k_v1[0], extract_output(k_v1[1])))
 
 
 class WorkerRunnerResult(PipelineResult):

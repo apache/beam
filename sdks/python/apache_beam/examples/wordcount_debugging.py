@@ -98,7 +98,7 @@ class CountWords(beam.PTransform):
                           .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1]))))
 
 
 def run(argv=None):
@@ -142,7 +142,7 @@ def run(argv=None):
     # a "Write" transform that has side effects.
     # pylint: disable=unused-variable
     output = (filtered_words
-              | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+              | 'format' >> beam.Map(lambda word_c: '%s: %s' % (word_c[0], word_c[1]))
               | 'write' >> WriteToText(known_args.output))
 
 

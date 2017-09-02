@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -238,7 +239,7 @@ class DatastoreioTest(unittest.TestCase):
       elif req == kind_stat_req:
         return kind_stat_resp
       else:
-        print kind_stat_req
+        print(kind_stat_req)
         raise ValueError("Unknown req: %s" % req)
 
     self._mock_datastore.run_query.side_effect = fake_run_query

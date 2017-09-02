@@ -16,6 +16,7 @@
 #
 
 """Tests for state sampler."""
+from __future__ import absolute_import
 
 import logging
 import time
@@ -32,7 +33,7 @@ class StateSamplerTest(unittest.TestCase):
     try:
       # pylint: disable=global-variable-not-assigned
       global statesampler
-      import statesampler
+      from . import statesampler
     except ImportError:
       raise SkipTest('State sampler not compiled.')
     super(StateSamplerTest, self).setUp()

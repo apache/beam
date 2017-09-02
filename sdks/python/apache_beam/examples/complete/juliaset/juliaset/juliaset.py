@@ -108,10 +108,10 @@ def run(argv=None):  # pylint: disable=missing-docstring
     # to the output file with an x-coordinate grouping per line.
     # pylint: disable=expression-not-assigned
     (coordinates
-     | 'x coord key' >> beam.Map(lambda (x, y, i): (x, (x, y, i)))
+     | 'x coord key' >> beam.Map(lambda x_y_i: (x_y_i[0], (x_y_i[0], x_y_i[1], x_y_i[2])))
      | 'x coord' >> beam.GroupByKey()
      | 'format' >> beam.Map(
-         lambda (k, coords): ' '.join('(%s, %s, %s)' % c for c in coords))
+         lambda k_coords: ' '.join('(%s, %s, %s)' % c for c in k_coords[1]))
      | WriteToText(known_args.coordinate_output))
 
     # Optionally render the image and save it to a file.
