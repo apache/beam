@@ -41,6 +41,7 @@ import inspect
 import operator
 import os
 import sys
+from functools import reduce
 
 from google.protobuf import wrappers_pb2
 
@@ -58,7 +59,6 @@ from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-from functools import reduce
 
 __all__ = [
     'PTransform',

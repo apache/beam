@@ -24,6 +24,7 @@ import collections
 import operator
 import re
 import unittest
+from functools import reduce
 
 import hamcrest as hc
 from nose.plugins.attrib import attr
@@ -48,7 +49,6 @@ from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 from apache_beam.typehints.typehints_test import TypeHintTestCase
 from apache_beam.utils.windowed_value import WindowedValue
-from functools import reduce
 
 # Disable frequent lint warning due to pipe operator for chaining transforms.
 # pylint: disable=expression-not-assigned

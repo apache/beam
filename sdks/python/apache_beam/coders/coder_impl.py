@@ -27,6 +27,7 @@ coder_impl.pxd file for type hints.
 For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
+
 from types import NoneType
 
 from apache_beam.coders import observable

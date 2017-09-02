@@ -27,7 +27,9 @@ are handled inline rather than here.
 For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
+
 import types
+from functools import reduce
 
 from . import typehints
 from .trivial_inference import BoundMethod
@@ -40,7 +42,6 @@ from .typehints import Iterable
 from .typehints import List
 from .typehints import Tuple
 from .typehints import Union
-from functools import reduce
 
 
 def pop_one(state, unused_arg):
