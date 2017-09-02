@@ -535,6 +535,9 @@ def examples_wordcount_templated(renames):
   lines = p | 'Read' >> ReadFromText(wordcount_options.input)
   # [END example_wordcount_templated]
 
+  def format_result(w_c):
+    return '%s: %s' % (w_c[0], w_c[1])
+
   (
       lines
       | 'ExtractWords' >> beam.FlatMap(
@@ -542,7 +545,7 @@ def examples_wordcount_templated(renames):
       | 'PairWithOnes' >> beam.Map(lambda x: (x, 1))
       | 'Group' >> beam.GroupByKey()
       | 'Sum' >> beam.Map(lambda word_ones: (word_ones[0], sum(word_ones[1])))
-      | 'Format' >> beam.Map(lambda word_c2: '%s: %s' % (word_c2[0], word_c2[1]))
+      | 'Format' >> beam.Map(format_result)
       | 'Write' >> WriteToText(wordcount_options.output)
   )
 
@@ -611,8 +614,11 @@ def examples_wordcount_debugging(renames):
             [('Flourish', 3), ('stomach', 1)]))
     # [END example_wordcount_debugging_assert]
 
+    def format_result(w_c):
+      return '%s: %s' % (w_c[0], w_c[1])
+
     output = (filtered_words
-              | 'format' >> beam.Map(lambda word_c1: '%s: %s' % (word_c1[0], word_c1[1]))
+              | 'format' >> beam.Map(format_result)
               | 'Write' >> beam.io.WriteToText('gs://my-bucket/counts.txt'))
 
     p.visit(SnippetUtils.RenameFiles(renames))
@@ -1119,6 +1125,9 @@ def model_group_by_key(contents, output_path):
 
   import apache_beam as beam
   with TestPipeline() as p:  # Use TestPipeline for testing.
+    def count_ones(word_ones):
+      return (word_ones[0], sum(word_ones[1]))
+
     words_and_counts = (
         p
         | beam.Create(contents)
@@ -1133,7 +1142,7 @@ def model_group_by_key(contents, output_path):
     grouped_words = words_and_counts | beam.GroupByKey()
     # [END model_group_by_key_transform]
     (grouped_words
-     | 'count words' >> beam.Map(lambda word_counts: (word_counts[0], sum(word_counts[1])))
+     | 'count words' >> beam.Map(count_ones)
      | beam.io.WriteToText(output_path))
 
 

@@ -51,6 +51,9 @@ class TfIdfTest(unittest.TestCase):
 
   def test_tfidf_transform(self):
     with TestPipeline() as p:
+      def re_key(word_uri_tfidf):
+        return (word_uri_tfidf[0], word_uri_tfidf[1][0], word_uri_tfidf[1][1])
+
       uri_to_line = p | 'create sample' >> beam.Create(
           [('1.txt', 'abc def ghi'),
            ('2.txt', 'abc def'),
@@ -58,7 +61,7 @@ class TfIdfTest(unittest.TestCase):
       result = (
           uri_to_line
           | tfidf.TfIdf()
-          | beam.Map(lambda word_uri_tfidf: (word_uri_tfidf[0], word_uri_tfidf[1][0], word_uri_tfidf[1][1])))
+          | beam.Map(re_key))
       assert_that(result, equal_to(EXPECTED_RESULTS))
       # Run the pipeline. Note that the assert_that above adds to the pipeline
       # a check that the result PCollection contains expected values.
