@@ -98,6 +98,8 @@ service BeamFnControl {
 }
 
 // A request sent by a runner which it the SDK is asked to fulfill.
+// For any unsupported request type, an error should be returned with a
+// matching instruction id.
 // Stable
 message InstructionRequest {
   // (Required) An unique identifier provided by the runner which represents
@@ -189,10 +191,14 @@ message ProcessBundleRequest {
 
 // Stable
 message ProcessBundleResponse {
-  // (Required)
+  // (Optional) If metrics reporting is supported by the SDK, this represents
+  // the final metrics to record for this bundle.
   Metrics metrics = 1;
 }
 
+// A request to report progress information for a given bundle.
+// This is an optional request to be handled and is used to support advanced
+// SDK features such as SplittableDoFn, user level metrics etc.
 message ProcessBundleProgressRequest {
   // (Required) A reference to an active process bundle request with the given
   // instruction id.
