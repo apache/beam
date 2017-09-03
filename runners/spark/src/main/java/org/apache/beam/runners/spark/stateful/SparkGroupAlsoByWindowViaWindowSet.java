@@ -96,7 +96,7 @@ import scala.runtime.AbstractFunction1;
  * a (state, output) tuple is used, filtering the state (and output if no firing)
  * in the following steps.
  */
-public class SparkGroupAlsoByWindowViaWindowSet {
+public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(
       SparkGroupAlsoByWindowViaWindowSet.class);
 
@@ -226,8 +226,6 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         final SystemReduceFn<K, InputT, Iterable<InputT>, Iterable<InputT>, W> reduceFn =
             SystemReduceFn.buffering(
                 ((FullWindowedValueCoder<InputT>) wvCoder).getValueCoder());
-        final OutputWindowedValueHolder<K, InputT> outputHolder =
-            new OutputWindowedValueHolder<>();
         // use in memory Aggregators since Spark Accumulators are not resilient
         // in stateful operators, once done with this partition.
         final MetricsContainerImpl cellProvider = new MetricsContainerImpl("cellProvider");
@@ -280,6 +278,9 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                             SparkTimerInternals.deserializeTimers(serTimers, timerDataCoder));
                       }
 
+                      final OutputWindowedValueHolder<K, InputT> outputHolder =
+                          new OutputWindowedValueHolder<>();
+
                       ReduceFnRunner<K, InputT, Iterable<InputT>, W> reduceFnRunner =
                           new ReduceFnRunner<>(
                               key,
@@ -293,8 +294,6 @@ public class SparkGroupAlsoByWindowViaWindowSet {
                               new UnsupportedSideInputReader("GroupAlsoByWindow"),
                               reduceFn,
                               options.get());
-
-                      outputHolder.clear(); // clear before potential use.
 
                       if (!seq.isEmpty()) {
                         // new input for key.
@@ -457,7 +456,7 @@ public class SparkGroupAlsoByWindowViaWindowSet {
         });
   }
 
-  private static class StateAndTimers {
+  private static class StateAndTimers implements Serializable {
     //Serializable state for internals (namespace to state tag to coded value).
     private final Table<String, String, byte[]> state;
     private final Collection<byte[]> serTimers;
@@ -492,10 +491,6 @@ public class SparkGroupAlsoByWindowViaWindowSet {
 
     private List<WindowedValue<KV<K, Iterable<V>>>> get() {
       return windowedValues;
-    }
-
-    private void clear() {
-      windowedValues.clear();
     }
 
     @Override

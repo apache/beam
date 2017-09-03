@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -137,18 +138,30 @@ public class EvaluationContext {
     return false;
   }
 
-  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(getOutput(transform), dataset);
+  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset,
+      boolean forceCache) {
+    putDataset(getOutput(transform), dataset, forceCache);
   }
 
-  public void putDataset(PValue pvalue, Dataset dataset) {
+
+  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
+    putDataset(transform, dataset,  false);
+  }
+
+  public void putDataset(PValue pvalue, Dataset dataset, boolean forceCache) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (shouldCache(pvalue)) {
-      dataset.cache(storageLevel());
+    if (forceCache || shouldCache(pvalue)) {
+      // we cache only PCollection
+      if (pvalue instanceof PCollection) {
+        Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
+        Coder<? extends BoundedWindow> wCoder =
+            ((PCollection<?>) pvalue).getWindowingStrategy().getWindowFn().windowCoder();
+        dataset.cache(storageLevel(), WindowedValue.getFullCoder(coder, wCoder));
+      }
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);
@@ -254,7 +267,7 @@ public class EvaluationContext {
     return boundedDataset.getValues(pcollection);
   }
 
-  private String storageLevel() {
+  public String storageLevel() {
     return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
   }
 

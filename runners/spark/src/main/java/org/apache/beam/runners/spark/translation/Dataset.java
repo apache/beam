@@ -19,6 +19,7 @@
 package org.apache.beam.runners.spark.translation;
 
 import java.io.Serializable;
+import org.apache.beam.sdk.coders.Coder;
 
 
 /**
@@ -26,7 +27,7 @@ import java.io.Serializable;
  */
 public interface Dataset extends Serializable {
 
-  void cache(String storageLevel);
+  void cache(String storageLevel, Coder<?> coder);
 
   void action();
 
