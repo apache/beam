@@ -17,8 +17,16 @@
  */
 package org.apache.beam.sdk.io;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.auto.value.AutoValue;
+import java.io.IOException;
 import java.io.Serializable;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -34,6 +42,7 @@ import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.util.StreamUtils;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
@@ -43,7 +52,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Transforms for working with files. Currently includes matching of filepatterns via {@link #match}
- * and {@link #matchAll}.
+ * and {@link #matchAll}, and reading matches via {@link #readMatches}.
  */
 public class FileIO {
   private static final Logger LOG = LoggerFactory.getLogger(FileIO.class);
@@ -83,8 +92,70 @@ public class FileIO {
   }
 
   /**
-   * Describes configuration for matching filepatterns, such as {@link EmptyMatchTreatment}
-   * and continuous watching for matching files.
+   * Converts each result of {@link #match} or {@link #matchAll} to a {@link ReadableFile} which can
+   * be used to read the contents of each file, optionally decompressing it.
+   */
+  public static ReadMatches readMatches() {
+    return new AutoValue_FileIO_ReadMatches.Builder()
+        .setCompression(Compression.AUTO)
+        .setDirectoryTreatment(ReadMatches.DirectoryTreatment.SKIP)
+        .build();
+  }
+
+  /** A utility class for accessing a potentially compressed file. */
+  public static final class ReadableFile {
+    private final MatchResult.Metadata metadata;
+    private final Compression compression;
+
+    ReadableFile(MatchResult.Metadata metadata, Compression compression) {
+      this.metadata = metadata;
+      this.compression = compression;
+    }
+
+    /** Returns the {@link MatchResult.Metadata} of the file. */
+    public MatchResult.Metadata getMetadata() {
+      return metadata;
+    }
+
+    /** Returns the method with which this file will be decompressed in {@link #open}. */
+    public Compression getCompression() {
+      return compression;
+    }
+
+    /**
+     * Returns a {@link ReadableByteChannel} reading the data from this file, potentially
+     * decompressing it using {@link #getCompression}.
+     */
+    public ReadableByteChannel open() throws IOException {
+      return compression.readDecompressed(FileSystems.open(metadata.resourceId()));
+    }
+
+    /**
+     * Returns a {@link SeekableByteChannel} equivalent to {@link #open}, but fails if this file is
+     * not {@link MatchResult.Metadata#isReadSeekEfficient seekable}.
+     */
+    public SeekableByteChannel openSeekable() throws IOException {
+      checkState(
+          getMetadata().isReadSeekEfficient(),
+          "The file %s is not seekable",
+          metadata.resourceId());
+      return ((SeekableByteChannel) open());
+    }
+
+    /** Returns the full contents of the file as bytes. */
+    public byte[] readFullyAsBytes() throws IOException {
+      return StreamUtils.getBytes(Channels.newInputStream(open()));
+    }
+
+    /** Returns the full contents of the file as a {@link String} decoded as UTF-8. */
+    public String readFullyAsUTF8String() throws IOException {
+      return new String(readFullyAsBytes(), StandardCharsets.UTF_8);
+    }
+  }
+
+  /**
+   * Describes configuration for matching filepatterns, such as {@link EmptyMatchTreatment} and
+   * continuous watching for matching files.
    */
   @AutoValue
   public abstract static class MatchConfiguration implements HasDisplayData, Serializable {
@@ -96,16 +167,23 @@ public class FileIO {
     }
 
     abstract EmptyMatchTreatment getEmptyMatchTreatment();
-    @Nullable abstract Duration getWatchInterval();
-    @Nullable abstract TerminationCondition<String, ?> getWatchTerminationCondition();
+
+    @Nullable
+    abstract Duration getWatchInterval();
+
+    @Nullable
+    abstract TerminationCondition<String, ?> getWatchTerminationCondition();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
+
       abstract Builder setWatchInterval(Duration watchInterval);
+
       abstract Builder setWatchTerminationCondition(TerminationCondition<String, ?> condition);
+
       abstract MatchConfiguration build();
     }
 
@@ -138,14 +216,19 @@ public class FileIO {
   /** Implementation of {@link #match}. */
   @AutoValue
   public abstract static class Match extends PTransform<PBegin, PCollection<MatchResult.Metadata>> {
+    @Nullable
     abstract ValueProvider<String> getFilepattern();
+
     abstract MatchConfiguration getConfiguration();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
+
       abstract Builder setConfiguration(MatchConfiguration configuration);
+
       abstract Match build();
     }
 
@@ -193,11 +276,13 @@ public class FileIO {
   public abstract static class MatchAll
       extends PTransform<PCollection<String>, PCollection<MatchResult.Metadata>> {
     abstract MatchConfiguration getConfiguration();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setConfiguration(MatchConfiguration configuration);
+
       abstract MatchAll build();
     }
 
@@ -259,6 +344,98 @@ public class FileIO {
           throws Exception {
         return Watch.Growth.PollResult.incomplete(
             Instant.now(), FileSystems.match(input, EmptyMatchTreatment.ALLOW).metadata());
+      }
+    }
+  }
+
+  /** Implementation of {@link #readMatches}. */
+  @AutoValue
+  public abstract static class ReadMatches
+      extends PTransform<PCollection<MatchResult.Metadata>, PCollection<ReadableFile>> {
+    enum DirectoryTreatment {
+      SKIP,
+      PROHIBIT
+    }
+
+    abstract Compression getCompression();
+
+    abstract DirectoryTreatment getDirectoryTreatment();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setCompression(Compression compression);
+
+      abstract Builder setDirectoryTreatment(DirectoryTreatment directoryTreatment);
+
+      abstract ReadMatches build();
+    }
+
+    /** Reads files using the given {@link Compression}. Default is {@link Compression#AUTO}. */
+    public ReadMatches withCompression(Compression compression) {
+      checkArgument(compression != null, "compression can not be null");
+      return toBuilder().setCompression(compression).build();
+    }
+
+    /**
+     * Controls how to handle directories in the input {@link PCollection}. Default is {@link
+     * DirectoryTreatment#SKIP}.
+     */
+    public ReadMatches withDirectoryTreatment(DirectoryTreatment directoryTreatment) {
+      checkArgument(directoryTreatment != null, "directoryTreatment can not be null");
+      return toBuilder().setDirectoryTreatment(directoryTreatment).build();
+    }
+
+    @Override
+    public PCollection<ReadableFile> expand(PCollection<MatchResult.Metadata> input) {
+      return input.apply(ParDo.of(new ToReadableFileFn(this)));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      builder.add(DisplayData.item("compression", getCompression().toString()));
+      builder.add(DisplayData.item("directoryTreatment", getDirectoryTreatment().toString()));
+    }
+
+    private static class ToReadableFileFn extends DoFn<MatchResult.Metadata, ReadableFile> {
+      private final ReadMatches spec;
+
+      private ToReadableFileFn(ReadMatches spec) {
+        this.spec = spec;
+      }
+
+      @ProcessElement
+      public void process(ProcessContext c) {
+        MatchResult.Metadata metadata = c.element();
+        if (metadata.resourceId().isDirectory()) {
+          switch (spec.getDirectoryTreatment()) {
+            case SKIP:
+              return;
+
+            case PROHIBIT:
+              throw new IllegalArgumentException(
+                  "Trying to read " + metadata.resourceId() + " which is a directory");
+
+            default:
+              throw new UnsupportedOperationException(
+                  "Unknown DirectoryTreatment: " + spec.getDirectoryTreatment());
+          }
+        }
+
+        Compression compression =
+            (spec.getCompression() == Compression.AUTO)
+                ? Compression.detect(metadata.resourceId().getFilename())
+                : spec.getCompression();
+        c.output(
+            new ReadableFile(
+                MatchResult.Metadata.builder()
+                    .setResourceId(metadata.resourceId())
+                    .setSizeBytes(metadata.sizeBytes())
+                    .setIsReadSeekEfficient(
+                        metadata.isReadSeekEfficient() && compression == Compression.UNCOMPRESSED)
+                    .build(),
+                compression));
       }
     }
   }

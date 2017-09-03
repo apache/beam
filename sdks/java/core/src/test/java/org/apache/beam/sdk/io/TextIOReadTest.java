@@ -380,7 +380,7 @@ public class TextIOReadTest {
         .containsInAnyOrder(expected);
 
     TextIO.ReadAll readAll =
-        TextIO.readAll().withCompression(compression).withDesiredBundleSizeBytes(10);
+        TextIO.readAll().withCompression(compression);
     PAssert.that(
             p.apply("Create_" + file + "_" + thisUniquifier, Create.of(file.getPath()))
                 .apply("Read_" + compression.toString() + "_" + thisUniquifier, readAll))
@@ -926,15 +926,34 @@ public class TextIOReadTest {
   @Category(NeedsRunner.class)
   public void testReadAll() throws IOException {
     writeToFile(TINY, "readAllTiny1.zip", ZIP);
-    writeToFile(TINY, "readAllTiny2.zip", ZIP);
+    writeToFile(TINY, "readAllTiny2.txt", UNCOMPRESSED);
     writeToFile(LARGE, "readAllLarge1.zip", ZIP);
-    writeToFile(LARGE, "readAllLarge2.zip", ZIP);
+    writeToFile(LARGE, "readAllLarge2.txt", UNCOMPRESSED);
     PCollection<String> lines =
         p.apply(
                 Create.of(
                     tempFolder.resolve("readAllTiny*").toString(),
                     tempFolder.resolve("readAllLarge*").toString()))
             .apply(TextIO.readAll().withCompression(AUTO));
+    PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testReadFiles() throws IOException {
+    writeToFile(TINY, "readAllTiny1.zip", ZIP);
+    writeToFile(TINY, "readAllTiny2.txt", UNCOMPRESSED);
+    writeToFile(LARGE, "readAllLarge1.zip", ZIP);
+    writeToFile(LARGE, "readAllLarge2.txt", UNCOMPRESSED);
+    PCollection<String> lines =
+        p.apply(
+                Create.of(
+                    tempFolder.resolve("readAllTiny*").toString(),
+                    tempFolder.resolve("readAllLarge*").toString()))
+            .apply(FileIO.matchAll())
+            .apply(FileIO.readMatches().withCompression(AUTO))
+            .apply(TextIO.readFiles().withDesiredBundleSizeBytes(10));
     PAssert.that(lines).containsInAnyOrder(Iterables.concat(TINY, TINY, LARGE, LARGE));
     p.run();
   }

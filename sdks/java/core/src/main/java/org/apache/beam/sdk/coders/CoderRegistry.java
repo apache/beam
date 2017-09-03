@@ -43,6 +43,8 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
+import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.ReadableFileCoder;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MetadataCoder;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -119,6 +121,10 @@ public class CoderRegistry {
           CoderProviders.fromStaticMethods(Metadata.class, MetadataCoder.class));
       builder.put(ResourceId.class,
           CoderProviders.fromStaticMethods(ResourceId.class, ResourceIdCoder.class));
+      builder.put(
+          FileIO.ReadableFile.class,
+          CoderProviders.fromStaticMethods(
+              FileIO.ReadableFile.class, ReadableFileCoder.class));
       builder.put(Set.class,
           CoderProviders.fromStaticMethods(Set.class, SetCoder.class));
       builder.put(String.class,

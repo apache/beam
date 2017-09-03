@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -597,13 +598,13 @@ public class AvroIO {
       checkNotNull(getSchema(), "schema");
       return input
           .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+          .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
           .apply(
               "Read all via FileBasedSource",
               new ReadAllViaFileBasedSource<>(
-                  SerializableFunctions.<String, Boolean>constant(true) /* isSplittable */,
                   getDesiredBundleSizeBytes(),
-                  new CreateSourceFn<>(getRecordClass(), getSchema().toString())))
-          .setCoder(AvroCoder.of(getRecordClass(), getSchema()));
+                  new CreateSourceFn<>(getRecordClass(), getSchema().toString()),
+                  AvroCoder.of(getRecordClass(), getSchema())));
     }
 
     @Override
@@ -804,13 +805,10 @@ public class AvroIO {
               new CreateParseSourceFn<>(parseFn, coder);
       return input
           .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
+          .apply(FileIO.readMatches().withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
           .apply(
               "Parse all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
-                  SerializableFunctions.<String, Boolean>constant(true) /* isSplittable */,
-                  getDesiredBundleSizeBytes(),
-                  createSource))
-          .setCoder(coder);
+              new ReadAllViaFileBasedSource<>(getDesiredBundleSizeBytes(), createSource, coder));
     }
 
     @Override
