@@ -37,7 +37,8 @@
          and other project configuration to be used in all modules.
     <module>build-tools</module> -->
     <module>core</module>
-    <module>io</module>
+    <!--module>io</module-->
+    <module>io/hadoop-file-system</module>
     <module>maven-archetypes</module>
     <module>extensions</module>
     <!-- javadoc runs directly from the root parent as the last module
