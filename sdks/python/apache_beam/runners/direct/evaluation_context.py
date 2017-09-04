@@ -20,8 +20,8 @@
 from __future__ import absolute_import
 
 import collections
-import threading
 import copy
+import threading
 
 from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
