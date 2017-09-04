@@ -28,6 +28,8 @@ import backtype.storm.tuple.Values;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.cluster.Common;
+import com.alibaba.jstorm.metric.MetricClient;
+import com.alibaba.jstorm.metrics.Gauge;
 import com.alibaba.jstorm.utils.KryoSerializer;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
@@ -60,7 +62,9 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   protected transient ExecutorContext executorContext;
 
-  protected transient TimerService timerService;
+  private transient TimerService timerService;
+
+  private transient MetricClient metricClient;
 
   // map from input tag to executor inside bolt
   protected final Map<TupleTag, Executor> inputTagToExecutor = Maps.newHashMap();
@@ -80,7 +84,6 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
   protected KryoSerializer<WindowedValue> serializer;
 
   public ExecutorsBolt() {
-
   }
 
   public void setStatefulBolt(boolean isStateful) {
@@ -150,12 +153,13 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   @Override
   public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-    LOG.info("Start to prepare for task-{}", context.getThisTaskId());
+    int taskId = context.getThisTaskId();
+    LOG.info("Start to prepare for task-{}", taskId);
     try {
       this.collector = collector;
 
       // init kv store manager
-      String storeName = String.format("task-%d", context.getThisTaskId());
+      String storeName = String.format("task-%d", taskId);
       String stateStorePath = String.format("%s/beam/%s", context.getWorkerIdDir(), storeName);
       IKvStoreManager kvStoreManager = isStatefulBolt
               ? KvStoreManagerFactory.getKvStoreManagerWithMonitor(
@@ -167,6 +171,23 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
       // init time service
       timerService = initTimerService();
 
+      // init metrics
+      metricClient = new MetricClient(executorContext.getTopologyContext());
+      metricClient.registerGauge(
+          context.getThisComponentId() + CommonInstance.BEAM_INPUT_WATERMARK_METRICS,
+          new Gauge<Double>() {
+            @Override
+            public Double getValue() {
+              return (double) timerService.currentInputWatermark();
+            }});
+      metricClient.registerGauge(
+          context.getThisComponentId() + CommonInstance.BEAM_OUTPUT_WATERMARK_METRICS,
+          new Gauge<Double>() {
+            @Override
+            public Double getValue() {
+              return (double) timerService.currentOutputWatermark();
+            }});
+
       // init all internal executors
       for (Executor executor : Sets.newHashSet(inputTagToExecutor.values())) {
         executor.init(executorContext);
@@ -175,7 +196,7 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
         }
       }
 
-      this.serializer = new KryoSerializer<WindowedValue>(stormConf);
+      this.serializer = new KryoSerializer<>(stormConf);
 
       LOG.info("ExecutorsBolt finished init. LocalExecutors={}", inputTagToExecutor.values());
       LOG.info("inputTagToExecutor={}", inputTagToExecutor);
@@ -294,6 +315,10 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   public TimerService timerService() {
     return timerService;
+  }
+
+  public MetricClient metricClient() {
+    return metricClient;
   }
 
   public void setTimerService(TimerService service) {

@@ -21,10 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.alibaba.jstorm.common.metric.AsmMetric;
 import com.alibaba.jstorm.metric.AsmMetricRegistry;
-import com.alibaba.jstorm.metric.AsmWindow;
 import com.alibaba.jstorm.metric.JStormMetrics;
-import com.alibaba.jstorm.metric.MetaType;
-import com.alibaba.jstorm.metric.MetricType;
 import com.alibaba.jstorm.task.error.TaskReportErrorAndDie;
 import com.alibaba.jstorm.utils.JStormUtils;
 import com.google.common.base.Optional;
@@ -34,8 +31,13 @@ import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricResults;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,31 +82,32 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
 
       LOG.info("Running JStorm job {} with {} expected assertions.",
                result.getTopologyName(), numberOfAssertions);
-
-      int maxTimeoutMs =
-          numberOfAssertions > 0 ? ASSERTION_WAITING_TIME_MS : RESULT_WAITING_TIME_MS;
-      for (int waitTime = 0; waitTime <= maxTimeoutMs; ) {
-        Optional<Boolean> success = numberOfAssertions > 0
-                ? checkForPAssertSuccess(numberOfAssertions) : Optional.<Boolean>absent();
+      if (numberOfAssertions == 0) {
+        result.waitUntilFinish(Duration.millis(RESULT_WAITING_TIME_MS));
         Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
-        if (success.isPresent() && success.get()) {
-          return result;
-        } else if (success.isPresent() && !success.get()) {
-          throw new AssertionError("Failed assertion checks.");
-        } else if (taskExceptionRec != null) {
+        if (taskExceptionRec != null) {
           LOG.info("Exception was found.", taskExceptionRec);
           throw new RuntimeException(taskExceptionRec.getCause());
-        } else {
-          JStormUtils.sleepMs(RESULT_CHECK_INTERVAL_MS);
-          waitTime += RESULT_CHECK_INTERVAL_MS;
         }
-      }
-
-      if (numberOfAssertions > 0) {
+        return result;
+      } else {
+        for (int waitTime = 0; waitTime <= ASSERTION_WAITING_TIME_MS;) {
+          Optional<Boolean> success = checkForPAssertSuccess(result.metrics(), numberOfAssertions);
+          Exception taskExceptionRec = TaskReportErrorAndDie.getExceptionRecord();
+          if (success.isPresent() && success.get()) {
+            return result;
+          } else if (success.isPresent() && !success.get()) {
+            throw new AssertionError("Failed assertion checks.");
+          } else if (taskExceptionRec != null) {
+            LOG.info("Exception was found.", taskExceptionRec);
+            throw new RuntimeException(taskExceptionRec.getCause());
+          } else {
+            JStormUtils.sleepMs(RESULT_CHECK_INTERVAL_MS);
+            waitTime += RESULT_CHECK_INTERVAL_MS;
+          }
+        }
         LOG.info("Assertion checks timed out.");
         throw new AssertionError("Assertion checks timed out.");
-      } else {
-        return result;
       }
     } finally {
       clearPAssertCount();
@@ -113,31 +116,52 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
     }
   }
 
-  private Optional<Boolean> checkForPAssertSuccess(int expectedNumberOfAssertions) {
-    int successes = 0;
-    for (AsmMetric metric :
-        JStormMetrics.search(PAssert.SUCCESS_COUNTER, MetaType.TASK, MetricType.COUNTER)) {
-      successes += ((Long) metric.getValue(AsmWindow.M1_WINDOW)).intValue();
+  private Optional<Boolean> checkForPAssertSuccess(
+      MetricResults metricResults,
+      int expectedNumberOfAssertions) {
+    Iterable<MetricResult<Long>> successCounterResults = metricResults
+        .queryMetrics(MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.SUCCESS_COUNTER))
+            .build())
+        .counters();
+
+    long successes = 0;
+    for (MetricResult<Long> counter : successCounterResults) {
+      if (counter.attempted() > 0) {
+        successes++;
+      }
     }
-    int failures = 0;
-    for (AsmMetric metric :
-        JStormMetrics.search(PAssert.FAILURE_COUNTER, MetaType.TASK, MetricType.COUNTER)) {
-      failures += ((Long) metric.getValue(AsmWindow.M1_WINDOW)).intValue();
+
+    Iterable<MetricResult<Long>> failureCounterResults = metricResults
+        .queryMetrics(MetricsFilter.builder()
+            .addNameFilter(MetricNameFilter.named(PAssert.class, PAssert.FAILURE_COUNTER))
+            .build())
+        .counters();
+
+    long failures = 0;
+    for (MetricResult<Long> counter : failureCounterResults) {
+      if (counter.attempted() > 0) {
+        failures++;
+      }
     }
 
     if (failures > 0) {
       LOG.info("Found {} success, {} failures out of {} expected assertions.",
-               successes, failures, expectedNumberOfAssertions);
+          successes, failures, expectedNumberOfAssertions);
       return Optional.of(false);
-    } else if (successes >= expectedNumberOfAssertions) {
+    } else if (successes == expectedNumberOfAssertions) {
       LOG.info("Found {} success, {} failures out of {} expected assertions.",
-               successes, failures, expectedNumberOfAssertions);
+          successes, failures, expectedNumberOfAssertions);
       return Optional.of(true);
+    } else if (successes > expectedNumberOfAssertions) {
+      LOG.info("Found {} success, {} failures out of {} expected assertions.",
+          successes, failures, expectedNumberOfAssertions);
+      return Optional.of(false);
+    } else {
+      LOG.info("Found {} success, {} failures out of {} expected assertions.",
+          successes, failures, expectedNumberOfAssertions);
+      return Optional.absent();
     }
-
-    LOG.info("Found {} success, {} failures out of {} expected assertions.",
-             successes, failures, expectedNumberOfAssertions);
-    return Optional.absent();
   }
 
   private void clearPAssertCount() {
