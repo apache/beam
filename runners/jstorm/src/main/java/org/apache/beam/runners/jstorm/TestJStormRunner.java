@@ -126,8 +126,7 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
     }
 
     UserCodeException innermostUserCodeException = null;
-    Throwable current = cause;
-    for (; current.getCause() != null; current = current.getCause()) {
+    for (Throwable current = cause; current.getCause() != null; current = current.getCause()) {
       if (current instanceof UserCodeException) {
         innermostUserCodeException = ((UserCodeException) current);
       }
@@ -135,8 +134,8 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
     if (innermostUserCodeException != null) {
       cause = innermostUserCodeException.getCause();
     }
-    if (current instanceof AssertionError) {
-      throw (AssertionError) current;
+    if (cause instanceof AssertionError) {
+      throw (AssertionError) cause;
     }
     throw new Pipeline.PipelineExecutionException(cause);
   }
