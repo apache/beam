@@ -767,7 +767,11 @@ public class GcsUtil {
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        throw new IOException(String.format("Error trying to delete %s: %s", file, e));
+        if (e.getCode() == 404) {
+          LOG.info("Ignoring failed deletion of file {} which already does not exist: {}", file, e);
+        } else {
+          throw new IOException(String.format("Error trying to delete %s: %s", file, e));
+        }
       }
     });
   }
