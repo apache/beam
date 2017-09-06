@@ -77,6 +77,8 @@ job('beam_PerformanceTests_JDBC'){
 
     steps {
         shell('PATH=/usr/lib/google-cloud-sdk/bin:$PATH')
+        shell('echo $PATH')
+        shell('ls /usr/lib/google-cloud-sdk/bin')
         shell(clean_install_command.join(' '))
         shell(io_it_suite_command.join(' '))
     }
