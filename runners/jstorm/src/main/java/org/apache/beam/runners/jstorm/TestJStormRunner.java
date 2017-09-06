@@ -61,6 +61,7 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
   private TestJStormRunner(JStormPipelineOptions options) {
     this.options = options;
     Map conf = Maps.newHashMap();
+    conf.put("topology.metric.sample.rate", 1);
     // Default state backend is RocksDB, for the users who could not run RocksDB on local testing
     // env, following config is used to configure state backend to memory.
     // conf.put(ConfigExtension.KV_STORE_TYPE, KvStoreManagerFactory.KvStoreType.memory.toString());

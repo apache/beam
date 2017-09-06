@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.alibaba.jstorm.common.metric.AsmCounter;
 import com.alibaba.jstorm.common.metric.AsmGauge;
 import com.alibaba.jstorm.common.metric.AsmHistogram;
+import com.alibaba.jstorm.common.metric.snapshot.AsmHistogramSnapshot;
 import com.alibaba.jstorm.metric.AsmWindow;
+import com.alibaba.jstorm.metrics.Snapshot;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -87,7 +89,33 @@ public class JStormMetricResults extends MetricResults {
                   new Instant(0))));
     }
 
-    return JStormMetricQueryResults.create(counters, gauges);
+    List<MetricResult<DistributionResult>> distributions = new ArrayList<>();
+    for (Map.Entry<String, AsmHistogram> entry : histogramMap.entrySet()) {
+      MetricKey metricKey = MetricsReporter.toMetricKey(entry.getKey());
+      if (!MetricFiltering.matches(filter, metricKey)) {
+        continue;
+      }
+      AsmHistogram histogram = entry.getValue();
+      histogram.forceFlush();
+
+      Snapshot snapshot =
+          ((AsmHistogramSnapshot) histogram.getSnapshots().get(AsmWindow.M10_WINDOW)).getSnapshot();
+      long sum = 0;
+      for (long v : snapshot.getValues()) {
+        sum += v;
+      }
+      distributions.add(
+          JStormMetricResult.create(
+              metricKey.metricName(),
+              metricKey.stepName(),
+              DistributionResult.create(
+                  sum,
+                  snapshot.size(),
+                  snapshot.getMin(),
+                  snapshot.getMax())));
+    }
+
+    return JStormMetricQueryResults.create(counters, gauges, distributions);
   }
 
   @AutoValue
@@ -97,8 +125,10 @@ public class JStormMetricResults extends MetricResults {
 
     public static MetricQueryResults create(
         Iterable<MetricResult<Long>> counters,
-        Iterable<MetricResult<GaugeResult>> gauges) {
-      return new AutoValue_JStormMetricResults_JStormMetricQueryResults(counters, gauges, null);
+        Iterable<MetricResult<GaugeResult>> gauges,
+        Iterable<MetricResult<DistributionResult>> distributions) {
+      return new AutoValue_JStormMetricResults_JStormMetricQueryResults(
+          counters, gauges, distributions);
     }
   }
 
