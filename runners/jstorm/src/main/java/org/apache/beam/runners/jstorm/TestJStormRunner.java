@@ -19,15 +19,11 @@ package org.apache.beam.runners.jstorm;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.alibaba.jstorm.common.metric.AsmMetric;
-import com.alibaba.jstorm.metric.AsmMetricRegistry;
-import com.alibaba.jstorm.metric.JStormMetrics;
 import com.alibaba.jstorm.task.error.TaskReportErrorAndDie;
 import com.alibaba.jstorm.utils.JStormUtils;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
@@ -111,9 +107,7 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
         throw new AssertionError("Assertion checks timed out.");
       }
     } finally {
-      clearPAssertCount();
       cancel(result);
-      TaskReportErrorAndDie.setExceptionRecord(null);
     }
   }
 
@@ -185,18 +179,6 @@ public class TestJStormRunner extends PipelineRunner<JStormRunnerResult> {
       LOG.info("Found {} success, {} failures out of {} expected assertions.",
           successes, failures, expectedNumberOfAssertions);
       return Optional.absent();
-    }
-  }
-
-  private void clearPAssertCount() {
-    String topologyName = options.getJobName();
-    AsmMetricRegistry taskMetrics = JStormMetrics.getTaskMetrics();
-    Iterator<Map.Entry<String, AsmMetric>> itr = taskMetrics.getMetrics().entrySet().iterator();
-    while (itr.hasNext()) {
-      Map.Entry<String, AsmMetric> metric = itr.next();
-      if (metric.getKey().contains(topologyName)) {
-        itr.remove();
-      }
     }
   }
 
