@@ -180,7 +180,7 @@ class DataflowRunner(PipelineRunner):
 
       if duration:
         passed_secs = time.time() - start_secs
-        if duration_secs > passed_secs:
+        if passed_secs > duration_secs:
           logging.warning('Timing out on waiting for job %s after %d seconds',
                           job_id, passed_secs)
           break
