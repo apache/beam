@@ -311,13 +311,33 @@ public class DoFnTesterTest {
   }
 
   @Test
-  public void fnWithSideInputExplicit() throws Exception {
+  public void fnWithSideInputExplicitValue() throws Exception {
     PCollection<Integer> pCollection = p.apply(Create.of(-2));
     final PCollectionView<Integer> value =
         PCollectionViews.singletonView(
             pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
 
     try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new SideInputDoFn(value))) {
+      tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
+      tester.processElement(16);
+      tester.processElement(32);
+      tester.processElement(64);
+      tester.processElement(128);
+      tester.finishBundle();
+
+      assertThat(tester.peekOutputElements(), containsInAnyOrder(-2, -2, -2, -2));
+    }
+  }
+
+  @Test
+  public void fnWithSideInputImplicitAccess() throws Exception {
+    PCollection<Integer> pCollection = p.apply(Create.of(-2));
+    final PCollectionView<Integer> value =
+        PCollectionViews.singletonView(
+            pCollection, WindowingStrategy.globalDefault(), true, 0, VarIntCoder.of());
+
+    DoFn<Integer, Integer> fn = new ImplicitSideInputDoFn(value);
+    try (DoFnTester<Integer, Integer> tester = DoFnTester.of(fn)) {
       tester.setSideInput(value, GlobalWindow.INSTANCE, -2);
       tester.processElement(16);
       tester.processElement(32);
@@ -405,6 +425,18 @@ public class DoFnTesterTest {
     }
   }
 
+  private static class ImplicitSideInputDoFn extends DoFn<Integer, Integer> {
+    private final PCollectionView<Integer> value;
+
+    public ImplicitSideInputDoFn(PCollectionView<Integer> value) {
+      this.value = value;
+    }
+
+    @ProcessElement
+    public void process(ProcessContext c) {
+      c.output(value.get());
+    }
+  }
   /**
    * A {@link DoFn} that adds values to a user metric and converts input to String in
    * {@link DoFn.ProcessElement @ProcessElement}.

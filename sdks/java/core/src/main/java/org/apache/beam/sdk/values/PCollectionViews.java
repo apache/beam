@@ -25,6 +25,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -450,6 +452,11 @@ public class PCollectionViews {
     }
 
     @Override
+    public ViewT get() throws IllegalStateException {
+      return getCurrentSideInputContext().sideInput(this);
+    }
+
+    @Override
     public ViewFn<Iterable<WindowedValue<?>>, ViewT> getViewFn() {
       // Safe cast: it is required that the rest of the SDK maintain the invariant
       // that a PCollectionView is only provided an iterable for the elements of an
@@ -528,5 +535,88 @@ public class PCollectionViews {
     public Map<TupleTag<?>, PValue> expand() {
       return Collections.<TupleTag<?>, PValue>singletonMap(tag, pCollection);
     }
+
+    @Override
+    public void finishSpecifyingOutput(
+        String transformName, PInput input, PTransform<?, ?> transform) {
+      super.finishSpecifyingOutput(
+          // Make our name include both the input collection and how we're viewing it,
+          // for good error messages.
+          Iterables.getOnlyElement(input.expand().values()).getName() + "@" + transformName,
+          input,
+          transform);
+    }
+
+    private void writeObject(ObjectOutputStream os)
+        throws IOException {
+      os.defaultWriteObject();
+      // Preserve name in serialized form so we can refer to it in worker error messages.
+      os.writeUTF(getName());
+    }
+
+    private void readObject(ObjectInputStream is)
+        throws IOException, ClassNotFoundException {
+      is.defaultReadObject();
+      String name = is.readUTF();
+      setName(name);
+    }
+  }
+
+  /** Accessor for the value of a side input in the current context. */
+  @Internal
+  public interface SideInputContext {
+    <T> T sideInput(PCollectionView<T> view);
+  }
+
+  private static class UnavailableSideInputContext implements SideInputContext {
+    @Override
+    public <T> T sideInput(PCollectionView<T> view) {
+      throw new IllegalStateException(
+          "Trying to access side input "
+              + view
+              + ", but this thread is currently not in a context where side inputs are available. "
+              + "Side inputs are available while the current thread is running "
+              + "a @ProcessElement method of a DoFn and in some other situations.");
+    }
+  }
+
+  private static ThreadLocal<SideInputContext> sideInputContextThreadLocal =
+      new ThreadLocal<SideInputContext>() {
+        @Override
+        protected SideInputContext initialValue() {
+          return new UnavailableSideInputContext();
+        }
+      };
+
+  /**
+   * Result of {@link #setCurrentSideInputContext(SideInputContext)}. Should be used only by
+   * runners.
+   */
+  @Internal
+  public interface ScopedSideInputContext extends AutoCloseable {
+    @Override
+    void close();
+  }
+
+  /**
+   * Sets the thread-local {@link SideInputContext} and restores the old one when closed. Should be
+   * used only by runners.
+   */
+  @Internal
+  public static ScopedSideInputContext setCurrentSideInputContext(SideInputContext context) {
+    final SideInputContext old = sideInputContextThreadLocal.get();
+    sideInputContextThreadLocal.set(context);
+    return new ScopedSideInputContext() {
+      @Override
+      public void close() {
+        sideInputContextThreadLocal.set(old);
+      }
+    };
+  }
+
+  /** Returns the current {@link SideInputContext}. Should be used only by runners. */
+  @Internal
+  public static SideInputContext getCurrentSideInputContext() {
+    return sideInputContextThreadLocal.get();
   }
 }

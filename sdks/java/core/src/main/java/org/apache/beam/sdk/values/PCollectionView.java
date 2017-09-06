@@ -24,6 +24,8 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
@@ -52,6 +54,15 @@ import org.apache.beam.sdk.util.WindowedValue;
  * @param <T> the type of the value(s) accessible via this {@link PCollectionView}
  */
 public interface PCollectionView<T> extends PValue, Serializable {
+  /**
+   * When called from user code in a pipeline at execution time, returns the value of the view in
+   * the current context, e.g. in the current {@link ProcessContext} of a {@link DoFn}.
+   *
+   * @throws IllegalStateException if not called from a context where values of side inputs are
+   *     available.
+   */
+  T get() throws IllegalStateException;
+
   /**
    * <b>For internal use only.</b>
    *

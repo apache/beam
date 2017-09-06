@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.testing;
 
+import static org.apache.beam.sdk.values.PCollectionViews.getCurrentSideInputContext;
+
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Iterables;
@@ -293,6 +295,11 @@ public final class PCollectionViewTesting {
       this.windowMappingFn = windowMappingFn;
       this.windowingStrategy = windowingStrategy;
       this.coder = coder;
+    }
+
+    @Override
+    public ViewT get() throws IllegalStateException {
+      return getCurrentSideInputContext().sideInput(this);
     }
 
     @Override

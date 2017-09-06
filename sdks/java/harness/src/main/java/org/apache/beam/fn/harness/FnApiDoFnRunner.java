@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.values.PCollectionViews.setCurrentSideInputContext;
 
 import com.google.auto.service.AutoService;
 import com.google.common.base.Suppliers;
@@ -90,6 +91,8 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.ScopedSideInputContext;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
@@ -272,7 +275,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   @Override
   public void processElement(WindowedValue<InputT> elem) {
     currentElement = elem;
-    try {
+    try (ScopedSideInputContext ignored = setCurrentSideInputContext(processBundleContext)) {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
       while (windowIterator.hasNext()) {
@@ -404,7 +407,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
    */
   private class ProcessBundleContext
       extends DoFn<InputT, OutputT>.ProcessContext
-      implements DoFnInvoker.ArgumentProvider<InputT, OutputT> {
+      implements DoFnInvoker.ArgumentProvider<InputT, OutputT>,
+      PCollectionViews.SideInputContext {
 
     private ProcessBundleContext() {
       doFn.super();

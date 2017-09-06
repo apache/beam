@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.values.PCollectionViews.setCurrentSideInputContext;
 
 import com.google.common.base.Function;
 import com.google.common.base.MoreObjects;
@@ -47,6 +48,8 @@ import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.SideInputContext;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -278,10 +281,11 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     if (state != State.BUNDLE_STARTED) {
       startBundle();
     }
-    try {
-      final DoFn<InputT, OutputT>.ProcessContext processContext =
-          createProcessContext(
-              ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+    final TestProcessContext processContext =
+        createProcessContext(
+            ValueInSingleWindow.of(element, timestamp, window, PaneInfo.NO_FIRING));
+    try (PCollectionViews.ScopedSideInputContext ignored =
+        setCurrentSideInputContext(processContext)) {
       fnInvoker.invokeProcessElement(
           new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
             @Override
@@ -569,12 +573,12 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
     }
   }
 
-  public DoFn<InputT, OutputT>.ProcessContext createProcessContext(
-      ValueInSingleWindow<InputT> element) {
+  private TestProcessContext createProcessContext(ValueInSingleWindow<InputT> element) {
     return new TestProcessContext(element);
   }
 
-  private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
+  private class TestProcessContext extends DoFn<InputT, OutputT>.ProcessContext
+      implements SideInputContext {
     private final ValueInSingleWindow<InputT> element;
 
     private TestProcessContext(ValueInSingleWindow<InputT> element) {
