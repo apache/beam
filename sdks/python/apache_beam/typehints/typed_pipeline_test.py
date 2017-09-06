@@ -103,16 +103,16 @@ class NativeTypesTest(unittest.TestCase):
 
   def test_good_main_input(self):
     @typehints.with_input_types(typing.Tuple[str, int])
-    def munge(xxx_todo_changeme):
-      (s, i) = xxx_todo_changeme
+    def munge(s_i):
+      (s, i) = s_i
       return (s + 's', i * 2)
     result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
     self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
 
   def test_bad_main_input(self):
     @typehints.with_input_types(typing.Tuple[str, str])
-    def munge(xxx_todo_changeme1):
-      (s, i) = xxx_todo_changeme1
+    def munge(s_i):
+      (s, i) = s_i
       return (s + 's', i * 2)
     with self.assertRaises(typehints.TypeCheckError):
       [('apple', 5), ('pear', 3)] | beam.Map(munge)
@@ -120,8 +120,8 @@ class NativeTypesTest(unittest.TestCase):
   def test_bad_main_output(self):
     @typehints.with_input_types(typing.Tuple[int, int])
     @typehints.with_output_types(typing.Tuple[str, str])
-    def munge(xxx_todo_changeme2):
-      (a, b) = xxx_todo_changeme2
+    def munge(a_b):
+      (a, b) = a_b
       return (str(a), str(b))
     with self.assertRaises(typehints.TypeCheckError):
       [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)

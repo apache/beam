@@ -1171,8 +1171,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
     results = ({'emails': emails_pcoll, 'phones': phones_pcoll}
                | beam.CoGroupByKey())
 
-    def join_info(xxx_todo_changeme):
-      (name, info) = xxx_todo_changeme
+    def join_info(name_info):
+      (name, info) = name_info
       return '%s; %s; %s' %\
         (name, sorted(info['emails']), sorted(info['phones']))
 
