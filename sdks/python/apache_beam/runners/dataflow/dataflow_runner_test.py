@@ -99,36 +99,33 @@ class DataflowRunnerTest(unittest.TestCase):
     result = succeeded_result.wait_until_finish()
     self.assertEqual(result, PipelineState.DONE)
 
-    @mock.patch('time.time', mock.MagicMock(side_effect=[1, 2, 3]))
-    def _duration_succeeded():
+    # Time array has duplicate items, because some logging implementations also
+    # call time.
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
       duration_succeeded_runner = MockDataflowRunner(
           [values_enum.JOB_STATE_RUNNING, values_enum.JOB_STATE_DONE])
       duration_succeeded_result = DataflowPipelineResult(
           duration_succeeded_runner.job, duration_succeeded_runner)
-      result = duration_succeeded_result.wait_until_finish(5)
+      result = duration_succeeded_result.wait_until_finish(5000)
       self.assertEqual(result, PipelineState.DONE)
-    _duration_succeeded()
 
-    @mock.patch('time.time', mock.MagicMock(side_effect=[1, 10, 20]))
-    def _duration_timedout():
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 9, 9, 20, 20])):
       duration_timedout_runner = MockDataflowRunner(
           [values_enum.JOB_STATE_RUNNING])
       duration_timedout_result = DataflowPipelineResult(
           duration_timedout_runner.job, duration_timedout_runner)
-      result = duration_timedout_result.wait_until_finish(5)
+      result = duration_timedout_result.wait_until_finish(5000)
       self.assertEqual(result, PipelineState.RUNNING)
-    _duration_timedout()
 
-    @mock.patch('time.time', mock.MagicMock(side_effect=[1, 2, 3]))
-    def _duration_failed():
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
       with self.assertRaisesRegexp(
-          DataflowRuntimeException, 'Dataflow pipeline failed. State: FAILED'):
+          DataflowRuntimeException,
+          'Dataflow pipeline failed. State: CANCELLED'):
         duration_failed_runner = MockDataflowRunner(
-            [values_enum.JOB_STATE_FAILED])
+            [values_enum.JOB_STATE_CANCELLED])
         duration_failed_result = DataflowPipelineResult(
             duration_failed_runner.job, duration_failed_runner)
-        duration_failed_result.wait_until_finish(5)
-    _duration_failed()
+        duration_failed_result.wait_until_finish(5000)
 
   @mock.patch('time.sleep', return_value=None)
   def test_cancel(self, patched_time_sleep):
