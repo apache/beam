@@ -882,16 +882,16 @@ class CombineTest(unittest.TestCase):
       def create_accumulator(self):
         return (0.0, 0)
 
-      def add_input(self, xxx_todo_changeme, input):
-        (sum, count) = xxx_todo_changeme
+      def add_input(self, sum_count, input):
+        (sum, count) = sum_count
         return sum + input, count + 1
 
       def merge_accumulators(self, accumulators):
         sums, counts = zip(*accumulators)
         return sum(sums), sum(counts)
 
-      def extract_output(self, xxx_todo_changeme1):
-        (sum, count) = xxx_todo_changeme1
+      def extract_output(self, sum_count):
+        (sum, count) = sum_count
         return sum / count if count else float('NaN')
     # [END combine_custom_average_define]
     # [START combine_custom_average_execute]

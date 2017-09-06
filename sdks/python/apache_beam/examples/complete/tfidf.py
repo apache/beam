@@ -68,8 +68,8 @@ class TfIdf(beam.PTransform):
     # Create a collection of pairs mapping a URI to each of the words
     # in the document associated with that that URI.
 
-    def split_into_words(xxx_todo_changeme):
-      (uri, line) = xxx_todo_changeme
+    def split_into_words(uri_line):
+      (uri, line) = uri_line
       return [(uri, w.lower()) for w in re.findall(r'[A-Za-z\']+', line)]
 
     uri_to_words = (
@@ -128,8 +128,8 @@ class TfIdf(beam.PTransform):
     # that word occurs in the document divided by the total number of words in
     # the document.
 
-    def compute_term_frequency(xxx_todo_changeme1):
-      (uri, count_and_total) = xxx_todo_changeme1
+    def compute_term_frequency(uri_count_and_total):
+      (uri, count_and_total) = uri_count_and_total
       word_and_count = count_and_total['word counts']
       # We have an iterable for one element that we want extracted.
       [word_total] = count_and_total['word totals']
@@ -169,8 +169,8 @@ class TfIdf(beam.PTransform):
     # basic version that is the term frequency divided by the log of the
     # document frequency.
 
-    def compute_tf_idf(xxx_todo_changeme2):
-      (word, tf_and_df) = xxx_todo_changeme2
+    def compute_tf_idf(word_tf_and_df):
+      (word, tf_and_df) = word_tf_and_df
       [docf] = tf_and_df['df']
       for uri, tf in tf_and_df['tf']:
         yield word, (uri, tf * math.log(1 / docf))

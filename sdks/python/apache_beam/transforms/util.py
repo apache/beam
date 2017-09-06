@@ -98,16 +98,16 @@ class CoGroupByKey(PTransform):
   def expand(self, pcolls):
     """Performs CoGroupByKey on argument pcolls; see class docstring."""
     # For associating values in K-V pairs with the PCollections they came from.
-    def _pair_tag_with_value(xxx_todo_changeme, tag):
-      (key, value) = xxx_todo_changeme
+    def _pair_tag_with_value(k_v, tag):
+      (key, value) = k_v
       return (key, (tag, value))
 
     # Creates the key, value pairs for the output PCollection. Values are either
     # lists or dicts (per the class docstring), initialized by the result of
     # result_ctor(result_ctor_arg).
-    def _merge_tagged_vals_under_key(xxx_todo_changeme3, result_ctor,
+    def _merge_tagged_vals_under_key(k_grouped, result_ctor,
                                      result_ctor_arg):
-      (key, grouped) = xxx_todo_changeme3
+      (key, grouped) = k_grouped
       result_value = result_ctor(result_ctor_arg)
       for tag, value in grouped:
         result_value[tag].append(value)
