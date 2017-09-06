@@ -18,10 +18,9 @@
 """Unittest for testing utilities,"""
 
 import logging
+import os
 import tempfile
 import unittest
-
-from mock import patch
 
 from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystems import FileSystems
@@ -35,20 +34,23 @@ class TestUtilsTest(unittest.TestCase):
     self.tmpdir = tempfile.mkdtemp()
 
   def test_delete_files_succeeds(self):
-    f = tempfile.NamedTemporaryFile(dir=self.tmpdir, delete=False)
-    assert FileSystems.exists(f.name)
-    utils.delete_files([f.name])
-    assert not FileSystems.exists(f.name)
+    path = os.path.join(self.tmpdir, 'f1')
 
-  @patch.object(FileSystems, 'delete', side_effect=BeamIOError(''))
-  def test_delete_files_fails_with_io_error(self, mocked_delete):
-    f = tempfile.NamedTemporaryFile(dir=self.tmpdir, delete=False)
-    assert FileSystems.exists(f.name)
+    with open(path, 'a') as f:
+      f.write('test')
 
-    with self.assertRaises(BeamIOError):
-      utils.delete_files([f.name])
-    self.assertTrue(mocked_delete.called)
-    self.assertEqual(mocked_delete.call_count, 4)
+    assert FileSystems.exists(path)
+    utils.delete_files([path])
+    assert not FileSystems.exists(path)
+
+  def test_delete_files_fails_with_io_error(self):
+    path = os.path.join(self.tmpdir, 'f2')
+
+    with self.assertRaises(BeamIOError) as error:
+      utils.delete_files([path])
+    self.assertTrue(
+        error.exception.message.startswith('Delete operation failed'))
+    self.assertEqual(error.exception.exception_details.keys(), [path])
 
   def test_delete_files_fails_with_invalid_arg(self):
     with self.assertRaises(RuntimeError):
