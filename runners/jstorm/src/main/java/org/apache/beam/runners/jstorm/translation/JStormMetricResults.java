@@ -100,6 +100,8 @@ public class JStormMetricResults extends MetricResults {
 
       Snapshot snapshot =
           ((AsmHistogramSnapshot) histogram.getSnapshots().get(AsmWindow.M10_WINDOW)).getSnapshot();
+      // TODO: Sum and count might be under estimated, because JStorm histogram only store a fixed
+      // number of values.
       long sum = 0;
       for (long v : snapshot.getValues()) {
         sum += v;
