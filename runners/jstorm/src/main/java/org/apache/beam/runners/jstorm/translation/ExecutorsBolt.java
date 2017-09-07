@@ -19,12 +19,14 @@ package org.apache.beam.runners.jstorm.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import backtype.storm.Config;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.IRichBatchBolt;
 import backtype.storm.tuple.ITupleExt;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
+import backtype.storm.utils.TupleUtils;
 import com.alibaba.jstorm.cache.IKvStoreManager;
 import com.alibaba.jstorm.cache.KvStoreManagerFactory;
 import com.alibaba.jstorm.cluster.Common;
@@ -44,6 +46,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -230,20 +233,25 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   @Override
   public void execute(Tuple input) {
-    // process a batch
-    String streamId = input.getSourceStreamId();
-    ITupleExt tuple = (ITupleExt) input;
-    Iterator<List<Object>> valueIterator = tuple.batchValues().iterator();
-    if (CommonInstance.BEAM_WATERMARK_STREAM_ID.equals(streamId)) {
-      while (valueIterator.hasNext()) {
-        processWatermark((Long) valueIterator.next().get(0), input.getSourceTask());
-      }
+    if (TupleUtils.isTick(input)) {
+      // tick to trigger processing timer
+      timerService.fireTimers(Instant.now().getMillis(), TimeDomain.PROCESSING_TIME);
     } else {
-      doFnStartBundle();
-      while (valueIterator.hasNext()) {
-        processElement(valueIterator.next(), streamId);
+      // process a batch
+      String streamId = input.getSourceStreamId();
+      ITupleExt tuple = (ITupleExt) input;
+      Iterator<List<Object>> valueIterator = tuple.batchValues().iterator();
+      if (CommonInstance.BEAM_WATERMARK_STREAM_ID.equals(streamId)) {
+        while (valueIterator.hasNext()) {
+          processWatermark((Long) valueIterator.next().get(0), input.getSourceTask());
+        }
+      } else {
+        doFnStartBundle();
+        while (valueIterator.hasNext()) {
+          processElement(valueIterator.next(), streamId);
+        }
+        doFnFinishBundle();
       }
-      doFnFinishBundle();
     }
   }
 
@@ -256,7 +264,7 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
     if (newWaterMark != 0) {
       // Some buffer windows are going to be triggered.
       doFnStartBundle();
-      timerService.fireTimers(newWaterMark);
+      timerService.fireTimers(newWaterMark, TimeDomain.EVENT_TIME);
 
       // SideInput: If receiving water mark with max timestamp, It means no more data is supposed
       // to be received from now on. So we are going to process all push back data.
@@ -310,7 +318,10 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   @Override
   public Map<String, Object> getComponentConfiguration() {
-    return null;
+    Map conf = Maps.newHashMap();
+    // Add tick tuple for triggering processing timer
+    conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, 1);
+    return conf;
   }
 
   public TimerService timerService() {

@@ -20,6 +20,7 @@ package org.apache.beam.runners.jstorm.translation;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.joda.time.Instant;
 
 /**
@@ -47,7 +48,7 @@ interface TimerService extends Serializable {
 
   void setTimer(Object key, TimerInternals.TimerData timerData, DoFnExecutor doFnExecutor);
 
-  void fireTimers(long newWatermark);
+  void fireTimers(long currentTime, TimeDomain timeDomain);
 
   void deleteTimer(TimerInternals.TimerData timerData);
 }
