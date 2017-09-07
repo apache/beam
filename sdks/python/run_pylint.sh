@@ -59,7 +59,7 @@ done
 echo "Skipping lint for generated files: $FILES_TO_IGNORE"
 
 echo "Running pylint for module $MODULE:"
-pylint "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
+pylint -j8 "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
 pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
 echo "Running isort for module $MODULE:"
