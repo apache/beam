@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.jstorm.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.alibaba.jstorm.utils.Pair;
@@ -48,6 +47,8 @@ class TimerServiceImpl implements TimerService {
   private final PriorityQueue<Instant> watermarkHolds = new PriorityQueue<>();
   private final Map<String, Instant> namespaceToWatermarkHold = new HashMap<>();
   private final PriorityQueue<TimerInternals.TimerData> eventTimeTimersQueue =
+      new PriorityQueue<>();
+  private final PriorityQueue<TimerInternals.TimerData> processTimeTimersQueue =
       new PriorityQueue<>();
   private final Map<TimerInternals.TimerData, Set<Pair<Integer, Object>>>
       timerDataToKeyedExecutors = Maps.newHashMap();
@@ -90,20 +91,6 @@ class TimerServiceImpl implements TimerService {
   }
 
   @Override
-  public void fireTimers(long newWatermark) {
-    TimerInternals.TimerData timerData;
-    while ((timerData = eventTimeTimersQueue.peek()) != null
-        && timerData.getTimestamp().getMillis() <= newWatermark) {
-      for (Pair<Integer, Object> keyedExecutor : timerDataToKeyedExecutors.get(timerData)) {
-        DoFnExecutor executor = idToDoFnExecutor.get(keyedExecutor.getFirst());
-        executor.onTimer(keyedExecutor.getSecond(), timerData);
-      }
-      eventTimeTimersQueue.remove();
-      timerDataToKeyedExecutors.remove(timerData);
-    }
-  }
-
-  @Override
   public long currentInputWatermark() {
     return initialized ? inputWatermarks.peek() : BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
   }
@@ -139,26 +126,47 @@ class TimerServiceImpl implements TimerService {
     }
   }
 
+  private PriorityQueue<TimerInternals.TimerData> getTimerQueue(TimeDomain timeDomain) {
+    switch (timeDomain) {
+      case EVENT_TIME :
+        return eventTimeTimersQueue;
+      case PROCESSING_TIME:
+        return processTimeTimersQueue;
+      default:
+        throw new IllegalArgumentException(
+            String.format("Does not support domain: %s.", timeDomain));
+    }
+  }
+
   @Override
   public void setTimer(Object key, TimerInternals.TimerData timerData, DoFnExecutor doFnExecutor) {
-    checkArgument(
-        TimeDomain.EVENT_TIME.equals(timerData.getDomain()),
-        String.format("Does not support domain: %s.", timerData.getDomain()));
     Set<Pair<Integer, Object>> keyedExecutors = timerDataToKeyedExecutors.get(timerData);
     if (keyedExecutors == null) {
       keyedExecutors = Sets.newHashSet();
-      eventTimeTimersQueue.add(timerData);
+      getTimerQueue(timerData.getDomain()).add(timerData);
     }
     keyedExecutors.add(new Pair<>(doFnExecutor.getInternalDoFnExecutorId(), key));
     timerDataToKeyedExecutors.put(timerData, keyedExecutors);
   }
 
   @Override
+  public void fireTimers(long currentTime, TimeDomain timeDomain) {
+    TimerInternals.TimerData timerData;
+    PriorityQueue<TimerInternals.TimerData> timerQueue = getTimerQueue(timeDomain);
+    while ((timerData = timerQueue.peek()) != null
+        && timerData.getTimestamp().getMillis() <= currentTime) {
+      for (Pair<Integer, Object> keyedExecutor : timerDataToKeyedExecutors.get(timerData)) {
+        DoFnExecutor executor = idToDoFnExecutor.get(keyedExecutor.getFirst());
+        executor.onTimer(keyedExecutor.getSecond(), timerData);
+      }
+      timerQueue.remove();
+      timerDataToKeyedExecutors.remove(timerData);
+    }
+  }
+
+  @Override
   public void deleteTimer(TimerInternals.TimerData timerData) {
-    checkArgument(
-        TimeDomain.EVENT_TIME.equals(timerData.getDomain()),
-        String.format("Does not support domain: %s.", timerData.getDomain()));
-    eventTimeTimersQueue.remove(timerData);
+    getTimerQueue(timerData.getDomain()).remove(timerData);
     timerDataToKeyedExecutors.remove(timerData);
   }
 }
