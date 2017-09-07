@@ -713,7 +713,7 @@ class SnippetsTest(unittest.TestCase):
     # [START model_group_by_key_cogroupbykey_tuple_outputs]
     contact_lines = [
         "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
-        "carl; ['carl@example.com', 'carl@email.com']; ['444-555-6666']",
+        "carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']",
         "james; []; ['222-333-4444']",
         "julia; ['julia@example.com']; []",
     ]

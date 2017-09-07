@@ -1164,7 +1164,8 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
 
     contact_lines = result | beam.Map(
         lambda (name, info):\
-           '%s; %s; %s' % (name, info['emails'], info['phones']))
+           '%s; %s; %s' %\
+           (name, sorted(info['emails']), sorted(info['phones'])))
     # [END model_group_by_key_cogroupbykey_tuple]
     contact_lines | beam.io.WriteToText(output_path)
 
