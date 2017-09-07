@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.apache.beam.sdk.io.tika.TikaSource.TikaReader;
 import org.junit.Test;
 
 /**
