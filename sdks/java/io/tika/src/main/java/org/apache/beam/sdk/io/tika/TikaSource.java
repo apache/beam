@@ -45,7 +45,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.fs.MatchResult;
@@ -70,7 +69,7 @@ import org.xml.sax.helpers.DefaultHandler;
  */
 class TikaSource extends BoundedSource<String> {
   private static final long serialVersionUID = -509574062910491122L;
-  private static final Logger LOG = LoggerFactory.getLogger(FileBasedSource.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TikaSource.class);
 
   @Nullable
   private MatchResult.Metadata singleFileMetadata;
