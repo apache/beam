@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -74,4 +76,10 @@ public interface DirectOptions extends PipelineOptions, ApplicationNameOptions {
       return Math.max(Runtime.getRuntime().availableProcessors(), MIN_PARALLELISM);
     }
   }
+
+  @Experimental(Kind.CORE_RUNNERS_ONLY)
+  @Default.Boolean(false)
+  @Description("Control whether toProto/fromProto translations are applied to original Pipeline")
+  boolean isProtoTranslation();
+  void setProtoTranslation(boolean b);
 }
