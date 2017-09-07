@@ -1064,6 +1064,17 @@ class InMemoryUnmergedState(UnmergedState):
     self.global_state = {}
     self.defensive_copy = defensive_copy
 
+  def custom_copy(self):
+    cloned_object = copy.copy(self)
+    cloned_object.timers = copy.deepcopy(self.timers)
+    cloned_object.global_state = copy.deepcopy(self.global_state)
+    cloned_object.state = copy.copy(self.state)
+    for window in self.state:
+      cloned_object.state[window] = copy.copy(self.state[window])
+      for tag in self.state[window]:
+        cloned_object.state[window][tag] = copy.copy(self.state[window][tag])
+    return cloned_object
+
   def set_global_state(self, tag, value):
     assert isinstance(tag, _ValueStateTag)
     if self.defensive_copy:
