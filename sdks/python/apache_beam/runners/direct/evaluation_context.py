@@ -20,7 +20,6 @@
 from __future__ import absolute_import
 
 import collections
-import copy
 import threading
 
 from apache_beam.runners.direct.clock import Clock
@@ -321,11 +320,6 @@ class DirectUnmergedState(InMemoryUnmergedState):
   def __init__(self):
     super(DirectUnmergedState, self).__init__(defensive_copy=False)
 
-  # TODO(mariagh): make a selective deepcopy of just what is needed
-  # to preserve the state while a bundle is processed.
-  def clone(self):
-    return copy.deepcopy(self)
-
 
 class DirectStepContext(object):
   """Context for the currently-executing step."""
@@ -341,5 +335,6 @@ class DirectStepContext(object):
     if not self.existing_keyed_state.get(key):
       self.existing_keyed_state[key] = DirectUnmergedState()
     if not self.partial_keyed_state.get(key):
-      self.partial_keyed_state[key] = self.existing_keyed_state[key].clone()
+      self.partial_keyed_state[key] = (
+          self.existing_keyed_state[key].copy())
     return self.partial_keyed_state[key]
