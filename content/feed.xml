@@ -975,16 +975,16 @@ to illustrate the approach.&lt;/p&gt;
 &lt;p&gt;This hypothetical &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt; reads records from a single Avro file. Notably missing
 is the code for expanding a filepattern: it no longer needs to be part of this
 &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;! Instead, the SDK includes a
-&lt;a href=&quot;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/Match.java&quot;&gt;Match.filepatterns()&lt;/a&gt;
+&lt;a href=&quot;https://github.com/apache/beam/blob/master/sdks/java/core/src/main/java/org/apache/beam/sdk/io/FileIO.java&quot;&gt;FileIO.matchAll()&lt;/a&gt;
 transform for expanding a filepattern into a &lt;code class=&quot;highlighter-rouge&quot;&gt;PCollection&lt;/code&gt; of filenames, and
 different file format IOs can reuse the same transform, reading the files with
 different &lt;code class=&quot;highlighter-rouge&quot;&gt;DoFn&lt;/code&gt;s.&lt;/p&gt;
 
 &lt;p&gt;This example demonstrates the benefits of increased modularity allowed by SDF:
-&lt;code class=&quot;highlighter-rouge&quot;&gt;Match&lt;/code&gt; supports continuous ingestion of new files in streaming pipelines using
-&lt;code class=&quot;highlighter-rouge&quot;&gt;.continuously()&lt;/code&gt;, and this functionality becomes automatically available to
-various file format IOs. For example, &lt;code class=&quot;highlighter-rouge&quot;&gt;TextIO.read().watchForNewFiles()&lt;/code&gt; &lt;a href=&quot;https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java#L480&quot;&gt;uses
-&lt;code class=&quot;highlighter-rouge&quot;&gt;Match&lt;/code&gt; under the
+&lt;code class=&quot;highlighter-rouge&quot;&gt;FileIO.matchAll()&lt;/code&gt; supports continuous ingestion of new files in streaming
+pipelines using &lt;code class=&quot;highlighter-rouge&quot;&gt;.continuously()&lt;/code&gt;, and this functionality becomes automatically
+available to various file format IOs. For example,
+&lt;code class=&quot;highlighter-rouge&quot;&gt;TextIO.read().watchForNewFiles()&lt;/code&gt; &lt;a href=&quot;https://github.com/apache/beam/blob/3bd68ecfd7d576d78e02deb0476e549f11e1b5ef/sdks/java/core/src/main/java/org/apache/beam/sdk/io/TextIO.java#L486&quot;&gt;uses &lt;code class=&quot;highlighter-rouge&quot;&gt;FileIO.matchAll()&lt;/code&gt; under the
 hood)&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2 id=&quot;current-status&quot;&gt;Current status&lt;/h2&gt;
@@ -1004,9 +1004,10 @@ development&lt;/a&gt;.&lt;/p&gt;
 HEAD and will be included in Beam 2.2.0. &lt;code class=&quot;highlighter-rouge&quot;&gt;TextIO&lt;/code&gt; and &lt;code class=&quot;highlighter-rouge&quot;&gt;AvroIO&lt;/code&gt; finally provide
 continuous ingestion of files (one of the most frequently requested features)
 via &lt;code class=&quot;highlighter-rouge&quot;&gt;.watchForNewFiles()&lt;/code&gt; which is backed by the utility transforms
-&lt;code class=&quot;highlighter-rouge&quot;&gt;Match.filepatterns().continuously()&lt;/code&gt; and the more general
+&lt;code class=&quot;highlighter-rouge&quot;&gt;FileIO.matchAll().continuously()&lt;/code&gt; and the more general
 &lt;a href=&quot;https://github.com/apache/beam/blob/f7e8f886c91ea9d0b51e00331eeb4484e2f6e000/sdks/java/core/src/main/java/org/apache/beam/sdk/transforms/Watch.java&quot;&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;Watch.growthOf()&lt;/code&gt;&lt;/a&gt;.
-These utility transforms are also independently useful for “power user” use cases.&lt;/p&gt;
+These utility transforms are also independently useful for “power user” use
+cases.&lt;/p&gt;
 
 &lt;p&gt;To enable more flexible use cases for IOs currently based on the Source API, we
 will change them to use SDF. This transition is &lt;a href=&quot;http://s.apache.org/textio-sdf&quot;&gt;pioneered by
