@@ -208,6 +208,7 @@ class WriteToBigQuery(beam.PTransform):
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
 
 
+# [START window_and_trigger]
 class CalculateTeamScores(beam.PTransform):
   """Calculates scores for each team within the configured window duration.
 
@@ -234,8 +235,10 @@ class CalculateTeamScores(beam.PTransform):
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum teamname/score pairs from the event data.
         | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
+# [END window_and_trigger]
 
 
+# [START processing_time_trigger]
 class CalculateUserScores(beam.PTransform):
   """Extract user/score pairs from the event stream using processing time, via
   global windowing. Get periodic updates on all users' running scores.
@@ -257,6 +260,7 @@ class CalculateUserScores(beam.PTransform):
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING)
         # Extract and sum username/score pairs from the event data.
         | 'ExtractAndSumScore' >> ExtractAndSumScore('user'))
+# [END processing_time_trigger]
 
 
 def run(argv=None):
@@ -313,30 +317,28 @@ def run(argv=None):
             lambda elem: beam.window.TimestampedValue(elem, elem['timestamp'])))
 
     # Get team scores and write the results to BigQuery
-    teams_schema = {
-        'team': 'STRING',
-        'total_score': 'INTEGER',
-        'window_start': 'STRING',
-        'processing_time': 'STRING',
-    }
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateTeamScores' >> CalculateTeamScores(
          args.team_window_duration, args.allowed_lateness)
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
      | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name + '_teams', args.dataset, teams_schema))
+         args.table_name + '_teams', args.dataset, {
+             'team': 'STRING',
+             'total_score': 'INTEGER',
+             'window_start': 'STRING',
+             'processing_time': 'STRING',
+         }))
 
     # Get user scores and write the results to BigQuery
-    users_schema = {
-        'user': 'STRING',
-        'total_score': 'INTEGER',
-    }
     (events  # pylint: disable=expression-not-assigned
      | 'CalculateUserScores' >> CalculateUserScores(args.allowed_lateness)
      | 'FormatUserScoreSums' >> beam.Map(
          lambda (user, score): {'user': user, 'total_score': score})
      | 'WriteUserScoreSums' >> WriteToBigQuery(
-         args.table_name + '_users', args.dataset, users_schema))
+         args.table_name + '_users', args.dataset, {
+             'user': 'STRING',
+             'total_score': 'INTEGER',
+         }))
 
 
 if __name__ == '__main__':
