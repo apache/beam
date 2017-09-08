@@ -21,12 +21,14 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
 import com.alibaba.jstorm.common.metric.AsmCounter;
+import com.alibaba.jstorm.common.metric.AsmHistogram;
 import com.alibaba.jstorm.metric.MetricClient;
 import com.alibaba.jstorm.metrics.Gauge;
 import com.google.common.collect.Maps;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -45,6 +47,7 @@ class MetricsReporter {
 
   private final MetricsContainerStepMap metricsContainers = new MetricsContainerStepMap();
   private final Map<String, Long> reportedCounters = Maps.newHashMap();
+  private final Map<String, DistributionResult> reportedDistributions = Maps.newHashMap();
   private final MetricClient metricClient;
 
   public static MetricsReporter create(MetricClient metricClient) {
@@ -77,6 +80,7 @@ class MetricsReporter {
         metricResults.queryMetrics(MetricsFilter.builder().build());
     updateCounters(metricQueryResults.counters());
     updateGauges(metricQueryResults.gauges());
+    updateDistributions(metricQueryResults.distributions());
   }
 
   private void updateCounters(Iterable<MetricResult<Long>> counters) {
@@ -102,6 +106,58 @@ class MetricsReporter {
         public Double getValue() {
           return (double) gaugeResult.attempted().value();
         }});
+    }
+  }
+
+  private void updateDistributions(Iterable<MetricResult<DistributionResult>> distributions) {
+    for (final MetricResult<DistributionResult> distributionResult : distributions) {
+      String metricName = getMetricNameString(COUNTER_PREFIX, distributionResult);
+      AsmHistogram histogram = metricClient.registerHistogram(metricName);
+      DistributionResult distribution = distributionResult.attempted();
+      if (distribution.count() == 0) {
+        return;
+      }
+      DistributionResult oldDistribution = reportedDistributions.get(metricName);
+      reportedDistributions.put(metricName, distribution);
+      Long newMin;
+      Long newMax;
+      long restCount;
+      long restSum;
+      if (oldDistribution == null) {
+        newMin = distribution.min();
+        newMax = distribution.min() != distribution.max() ? distribution.max() : null;
+        restCount = distribution.count();
+        restSum = distribution.sum();
+      } else {
+        newMin = distribution.min() < oldDistribution.min() ? distribution.min() : null;
+        newMax =
+            (distribution.max() > oldDistribution.max() && distribution.min() != distribution.max())
+                ? distribution.max() : null;
+        restCount = distribution.count() - oldDistribution.count();
+        restSum = distribution.sum() - oldDistribution.sum();
+      }
+      if (newMin != null) {
+        histogram.update(newMin);
+        restCount--;
+        restSum -= newMin;
+      }
+      if (newMax != null) {
+        histogram.update(newMax);
+        restCount--;
+        restSum -= newMax;
+      }
+      if (restCount == 0) {
+        return;
+      }
+      long restAvg = restSum / restCount;
+      long restMod = restSum % restCount;
+      for (long i = 0; i < restCount; ++i) {
+        if (i == 0) {
+          histogram.update(restAvg + restMod);
+        } else {
+          histogram.update(restAvg);
+        }
+      }
     }
   }
 

@@ -17,11 +17,14 @@
  */
 package org.apache.beam.runners.jstorm.translation;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.alibaba.jstorm.common.metric.AsmCounter;
 import com.alibaba.jstorm.common.metric.AsmGauge;
-import com.alibaba.jstorm.metric.AsmMetricRegistry;
+import com.alibaba.jstorm.common.metric.AsmHistogram;
+import com.alibaba.jstorm.common.metric.snapshot.AsmHistogramSnapshot;
 import com.alibaba.jstorm.metric.AsmWindow;
-import com.alibaba.jstorm.metric.JStormMetrics;
+import com.alibaba.jstorm.metrics.Snapshot;
 import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,12 +45,24 @@ import org.joda.time.Instant;
  * Implementation of {@link MetricResults} for the JStorm Runner.
  */
 public class JStormMetricResults extends MetricResults {
+
+  private final Map<String, AsmCounter> counterMap;
+  private final Map<String, AsmGauge> gaugeMap;
+  private final Map<String, AsmHistogram> histogramMap;
+
+  public JStormMetricResults(
+      Map<String, AsmCounter> counterMap,
+      Map<String, AsmGauge> gaugeMap,
+      Map<String, AsmHistogram> histogramMap) {
+    this.counterMap = checkNotNull(counterMap, "counterMap");
+    this.gaugeMap = checkNotNull(gaugeMap, "gaugeMap");
+    this.histogramMap = checkNotNull(histogramMap, "histogramMap");
+  }
+
   @Override
   public MetricQueryResults queryMetrics(MetricsFilter filter) {
-    AsmMetricRegistry metricRegistry = JStormMetrics.getTaskMetrics();
-
     List<MetricResult<Long>> counters = new ArrayList<>();
-    for (Map.Entry<String, AsmCounter> entry : metricRegistry.getCounters().entrySet()) {
+    for (Map.Entry<String, AsmCounter> entry : counterMap.entrySet()) {
       MetricKey metricKey = MetricsReporter.toMetricKey(entry.getKey());
       if (!MetricFiltering.matches(filter, metricKey)) {
         continue;
@@ -60,7 +75,7 @@ public class JStormMetricResults extends MetricResults {
     }
 
     List<MetricResult<GaugeResult>> gauges = new ArrayList<>();
-    for (Map.Entry<String, AsmGauge> entry : metricRegistry.getGauges().entrySet()) {
+    for (Map.Entry<String, AsmGauge> entry : gaugeMap.entrySet()) {
       MetricKey metricKey = MetricsReporter.toMetricKey(entry.getKey());
       if (!MetricFiltering.matches(filter, metricKey)) {
         continue;
@@ -74,7 +89,35 @@ public class JStormMetricResults extends MetricResults {
                   new Instant(0))));
     }
 
-    return JStormMetricQueryResults.create(counters, gauges);
+    List<MetricResult<DistributionResult>> distributions = new ArrayList<>();
+    for (Map.Entry<String, AsmHistogram> entry : histogramMap.entrySet()) {
+      MetricKey metricKey = MetricsReporter.toMetricKey(entry.getKey());
+      if (!MetricFiltering.matches(filter, metricKey)) {
+        continue;
+      }
+      AsmHistogram histogram = entry.getValue();
+      histogram.forceFlush();
+
+      Snapshot snapshot =
+          ((AsmHistogramSnapshot) histogram.getSnapshots().get(AsmWindow.M10_WINDOW)).getSnapshot();
+      // TODO: Sum and count might be under estimated, because JStorm histogram only store a fixed
+      // number of values.
+      long sum = 0;
+      for (long v : snapshot.getValues()) {
+        sum += v;
+      }
+      distributions.add(
+          JStormMetricResult.create(
+              metricKey.metricName(),
+              metricKey.stepName(),
+              DistributionResult.create(
+                  sum,
+                  snapshot.size(),
+                  snapshot.getMin(),
+                  snapshot.getMax())));
+    }
+
+    return JStormMetricQueryResults.create(counters, gauges, distributions);
   }
 
   @AutoValue
@@ -84,8 +127,10 @@ public class JStormMetricResults extends MetricResults {
 
     public static MetricQueryResults create(
         Iterable<MetricResult<Long>> counters,
-        Iterable<MetricResult<GaugeResult>> gauges) {
-      return new AutoValue_JStormMetricResults_JStormMetricQueryResults(counters, gauges, null);
+        Iterable<MetricResult<GaugeResult>> gauges,
+        Iterable<MetricResult<DistributionResult>> distributions) {
+      return new AutoValue_JStormMetricResults_JStormMetricQueryResults(
+          counters, gauges, distributions);
     }
   }
 

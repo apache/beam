@@ -23,10 +23,13 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import com.alibaba.jstorm.common.metric.AsmGauge;
+import com.alibaba.jstorm.common.metric.AsmMetric;
 import com.alibaba.jstorm.metric.AsmMetricRegistry;
 import com.alibaba.jstorm.metric.JStormMetrics;
+import com.alibaba.jstorm.task.error.TaskReportErrorAndDie;
 import com.alibaba.jstorm.utils.JStormUtils;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 import org.apache.beam.runners.jstorm.translation.CommonInstance;
 import org.apache.beam.runners.jstorm.translation.JStormMetricResults;
@@ -62,6 +65,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
     this.topologyName = checkNotNull(topologyName, "topologyName");
   }
 
+  @Override
   public State getState() {
     return null;
   }
@@ -79,6 +83,7 @@ public abstract class JStormRunnerResult implements PipelineResult {
     private final LocalCluster localCluster;
     private final long localModeExecuteTimeSecs;
     private boolean cancelled;
+    private MetricResults savedMetricResults;
 
     LocalJStormPipelineResult(
         String topologyName,
@@ -89,12 +94,27 @@ public abstract class JStormRunnerResult implements PipelineResult {
       this.localCluster = checkNotNull(localCluster, "localCluster");
       this.localModeExecuteTimeSecs = localModeExecuteTimeSecs;
       this.cancelled = false;
+      this.savedMetricResults = null;
+    }
+
+    @Override
+    public State getState() {
+      if (cancelled) {
+        return State.CANCELLED;
+      } else if (globalWatermark() >= BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis()) {
+        return State.DONE;
+      } else {
+        return State.RUNNING;
+      }
     }
 
     @Override
     public State cancel() throws IOException {
+      savedMetricResults = metrics();
       localCluster.killTopology(getTopologyName());
       localCluster.shutdown();
+      clearPAssertCount();
+      TaskReportErrorAndDie.setExceptionRecord(null);
       JStormUtils.sleepMs(1000);
       cancelled = true;
       return State.CANCELLED;
@@ -129,7 +149,12 @@ public abstract class JStormRunnerResult implements PipelineResult {
 
     @Override
     public MetricResults metrics() {
-      return new JStormMetricResults();
+      if (savedMetricResults != null) {
+        return savedMetricResults;
+      }
+      AsmMetricRegistry metricRegistry = JStormMetrics.getTaskMetrics();
+      return new JStormMetricResults(
+          metricRegistry.getCounters(), metricRegistry.getGauges(), metricRegistry.getHistograms());
     }
 
     private long globalWatermark() {
@@ -149,6 +174,17 @@ public abstract class JStormRunnerResult implements PipelineResult {
         return (long) min;
       } else {
         return BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+      }
+    }
+
+    private void clearPAssertCount() {
+      AsmMetricRegistry taskMetrics = JStormMetrics.getTaskMetrics();
+      Iterator<Map.Entry<String, AsmMetric>> itr = taskMetrics.getMetrics().entrySet().iterator();
+      while (itr.hasNext()) {
+        Map.Entry<String, AsmMetric> metric = itr.next();
+        if (metric.getKey().contains(getTopologyName())) {
+          itr.remove();
+        }
       }
     }
   }
