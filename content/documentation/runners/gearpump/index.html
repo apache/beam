@@ -88,6 +88,7 @@
             <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
             <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
             <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
             <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
             <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
 
@@ -156,13 +157,6 @@ When you are running your pipeline with Gearpump Runner you just need to create 
 </ul>
 
 <p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the currently supported capabilities of the Gearpump Runner.</p>
-
-<h2 id="building-gearpump-runner">Building Gearpump Runner</h2>
-<p>Currently Gearpump Runner is on a <a href="https://github.com/apache/beam/tree/gearpump-runner">feature branch</a> and in order to run your Beam pipeline with Gearpump runner, you should build out the corresponding artifacts first.</p>
-<div class="highlighter-rouge"><pre class="highlight"><code>git checkout gearpump-runner
-mvn install
-</code></pre>
-</div>
 
 <h2 id="writing-beam-pipeline-with-gearpump-runner">Writing Beam Pipeline with Gearpump Runner</h2>
 <p>To use the Gearpump Runner in a distributed mode, you have to setup a Gearpump cluster first by following the Gearpump <a href="http://gearpump.apache.org/releases/latest/deployment/deployment-standalone/index.html">setup quickstart</a>.</p>
