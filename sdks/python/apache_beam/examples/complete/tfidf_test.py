@@ -52,7 +52,8 @@ class TfIdfTest(unittest.TestCase):
   def test_tfidf_transform(self):
     with TestPipeline() as p:
       def re_key(word_uri_tfidf):
-        return (word_uri_tfidf[0], word_uri_tfidf[1][0], word_uri_tfidf[1][1])
+        (word, (uri, tfidf)) = word_uri_tfidf
+        return (word, uri, tfidf)
 
       uri_to_line = p | 'create sample' >> beam.Create(
           [('1.txt', 'abc def ghi'),
