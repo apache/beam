@@ -138,42 +138,6 @@ class ExtractAndSumScore(beam.PTransform):
             | beam.CombinePerKey(sum))
 
 
-class HourlyTeamScore(beam.PTransform):
-  def __init__(self, start_min, stop_min, window_duration):
-    super(HourlyTeamScore, self).__init__()
-    self.start_timestamp = str2timestamp(start_min)
-    self.stop_timestamp = str2timestamp(stop_min)
-    self.window_duration_in_seconds = window_duration * 60
-
-  def expand(self, pcoll):
-    return (
-        pcoll
-        | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
-
-        # Filter out data before and after the given times so that it is not
-        # included in the calculations. As we collect data in batches (say, by
-        # day), the batch for the day that we want to analyze could potentially
-        # include some late-arriving data from the previous day. If so, we want
-        # to weed it out. Similarly, if we include data from the following day
-        # (to scoop up late-arriving events from the day we're analyzing), we
-        # need to weed out events that fall after the time period we want to
-        # analyze.
-        | 'FilterStartTime' >> beam.Filter(
-            lambda elem: elem['timestamp'] > self.start_timestamp)
-        | 'FilterEndTime' >> beam.Filter(
-            lambda elem: elem['timestamp'] < self.stop_timestamp)
-
-        # Add an element timestamp based on the event log, and apply fixed
-        # windowing.
-        | 'AddEventTimestamps' >> beam.Map(
-            lambda elem: beam.window.TimestampedValue(elem, elem['timestamp']))
-        | 'FixedWindowsTeam' >> beam.WindowInto(
-            beam.window.FixedWindows(self.window_duration_in_seconds))
-
-        # Extract and sum teamname/score pairs from the event data.
-        | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
-
-
 class TeamScoresDict(beam.DoFn):
   """Formats the data into a dictionary of BigQuery columns with their values
 
@@ -229,6 +193,47 @@ class WriteToBigQuery(beam.PTransform):
             write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND)))
 
 
+# [START main]
+class HourlyTeamScore(beam.PTransform):
+  def __init__(self, start_min, stop_min, window_duration):
+    super(HourlyTeamScore, self).__init__()
+    self.start_timestamp = str2timestamp(start_min)
+    self.stop_timestamp = str2timestamp(stop_min)
+    self.window_duration_in_seconds = window_duration * 60
+
+  def expand(self, pcoll):
+    return (
+        pcoll
+        | 'ParseGameEventFn' >> beam.ParDo(ParseGameEventFn())
+
+        # Filter out data before and after the given times so that it is not
+        # included in the calculations. As we collect data in batches (say, by
+        # day), the batch for the day that we want to analyze could potentially
+        # include some late-arriving data from the previous day. If so, we want
+        # to weed it out. Similarly, if we include data from the following day
+        # (to scoop up late-arriving events from the day we're analyzing), we
+        # need to weed out events that fall after the time period we want to
+        # analyze.
+        # [START filter_by_time_range]
+        | 'FilterStartTime' >> beam.Filter(
+            lambda elem: elem['timestamp'] > self.start_timestamp)
+        | 'FilterEndTime' >> beam.Filter(
+            lambda elem: elem['timestamp'] < self.stop_timestamp)
+        # [END filter_by_time_range]
+
+        # [START add_timestamp_and_window]
+        # Add an element timestamp based on the event log, and apply fixed
+        # windowing.
+        | 'AddEventTimestamps' >> beam.Map(
+            lambda elem: beam.window.TimestampedValue(elem, elem['timestamp']))
+        | 'FixedWindowsTeam' >> beam.WindowInto(
+            beam.window.FixedWindows(self.window_duration_in_seconds))
+        # [END add_timestamp_and_window]
+
+        # Extract and sum teamname/score pairs from the event data.
+        | 'ExtractAndSumScore' >> ExtractAndSumScore('team'))
+
+
 def run(argv=None):
   """Main entry point; defines and runs the hourly_team_score pipeline."""
   parser = argparse.ArgumentParser()
@@ -282,11 +287,6 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   options.view_as(SetupOptions).save_main_session = True
 
-  schema = {
-      'team': 'STRING',
-      'total_score': 'INTEGER',
-      'window_start': 'STRING',
-  }
   with beam.Pipeline(options=options) as p:
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
@@ -294,7 +294,12 @@ def run(argv=None):
          args.start_min, args.stop_min, args.window_duration)
      | 'TeamScoresDict' >> beam.ParDo(TeamScoresDict())
      | 'WriteTeamScoreSums' >> WriteToBigQuery(
-         args.table_name, args.dataset, schema))
+         args.table_name, args.dataset, {
+             'team': 'STRING',
+             'total_score': 'INTEGER',
+             'window_start': 'STRING',
+         }))
+# [END main]
 
 
 if __name__ == '__main__':
