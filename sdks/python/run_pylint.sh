@@ -89,7 +89,9 @@ futurize_filtered=$(echo "$futurize_results" |grep -v 'pb2\|typehints.py\|trivia
 count=${#futurize_filtered}
 if [ "$count" != "0" ]; then
   echo "Some of the changes require futurize stage 1 changes."
+  echo "The files with required changes:"
   echo "$futurize_filtered"
+  echo "You can run futurize apache_beam to see the proposed changes."
   exit 1
 fi
 echo "No future changes needed"

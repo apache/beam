@@ -191,7 +191,11 @@ class IndexableTypeConstraint(TypeConstraint):
   """
 
   def _constraint_for_index(self, idx):
-    """Returns the type at the given index."""
+    """Returns the type at the given index. This is used to allow type inference
+    to determine the correct type for a specific index. On lists this will also
+    be the same, however for tuples the value will depend on the position. This
+    was added as part of the futurize changes since more of the expressions now
+    index into tuples."""
     raise NotImplementedError
 
 
