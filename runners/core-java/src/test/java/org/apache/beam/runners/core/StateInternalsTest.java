@@ -28,9 +28,15 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Iterables;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.state.BagState;
@@ -77,6 +83,13 @@ public abstract class StateInternalsTest {
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.LATEST);
   private static final StateTag<WatermarkHoldState> WATERMARK_EOW_ADDR =
       StateTags.watermarkStateInternal("watermark", TimestampCombiner.END_OF_WINDOW);
+
+  // Two distinct tags because they have non-equals() coders
+  private static final StateTag<BagState<String>> STRING_BAG_ADDR1 =
+      StateTags.bag("badStringBag", new StringCoderWithIdentityEquality());
+
+  private static final StateTag<BagState<String>> STRING_BAG_ADDR2 =
+      StateTags.bag("badStringBag", new StringCoderWithIdentityEquality());
 
   private StateInternals underTest;
 
@@ -610,4 +623,50 @@ public abstract class StateInternalsTest {
     assertThat(value.get("C").read(), equalTo(3));
   }
 
+  @Test
+  public void testBagWithBadCoderEquality() throws Exception {
+    // Ensure two instances of the bad coder are distinct; models user who fails to
+    // override equals() or inherit from CustomCoder for StructuredCoder
+    assertThat(
+        new StringCoderWithIdentityEquality(), not(equalTo(new StringCoderWithIdentityEquality())));
+
+    BagState<String> state1 = underTest.state(NAMESPACE_1, STRING_BAG_ADDR1);
+    state1.add("hello");
+
+    BagState<String> state2 = underTest.state(NAMESPACE_1, STRING_BAG_ADDR2);
+    assertThat(state2.read(), containsInAnyOrder("hello"));
+  }
+
+  private static class StringCoderWithIdentityEquality extends Coder<String> {
+
+    private final StringUtf8Coder realCoder = StringUtf8Coder.of();
+
+    @Override
+    public void encode(String value, OutputStream outStream) throws CoderException, IOException {
+      realCoder.encode(value, outStream);
+    }
+
+    @Override
+    public String decode(InputStream inStream) throws CoderException, IOException {
+      return realCoder.decode(inStream);
+    }
+
+    @Override
+    public List<? extends Coder<?>> getCoderArguments() {
+      return null;
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public boolean equals(Object other) {
+      return other == this;
+    }
+
+    @Override
+    public int hashCode() {
+      return super.hashCode();
+    }
+  }
 }
