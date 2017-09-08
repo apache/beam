@@ -311,42 +311,6 @@
     <!--[BEAM-398] Possible double check of field-->
   </Match>
   <Match>
-    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
-    <Field name="done"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-407] Inconsistent synchronization-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
-    <Field name="lastRecordStart"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-407] Inconsistent synchronization-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
-    <Field name="offsetOfLastSplitPoint"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-407] Inconsistent synchronization-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
-    <Field name="splitPointsSeen"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-407] Inconsistent synchronization-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
-    <Field name="startOffset"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-407] Inconsistent synchronization-->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.io.range.OffsetRangeTracker"/>
-    <Field name="stopOffset"/>
-    <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-407] Inconsistent synchronization-->
-  </Match>
-  <Match>
     <Class name="org.apache.beam.sdk.testing.WindowSupplier"/>
     <Field name="windows"/>
     <Bug pattern="IS2_INCONSISTENT_SYNC"/>
