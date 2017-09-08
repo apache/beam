@@ -295,7 +295,6 @@ public class ExecutorsBolt extends AbstractComponent implements IRichBatchBolt {
 
   public <T> void processExecutorElem(TupleTag<T> inputTag, WindowedValue<T> elem) {
     if (elem != null) {
-      LOG.debug("ProcessExecutorElem: value={} from tag={}", elem.getValue(), inputTag);
       Executor executor = inputTagToExecutor.get(inputTag);
       if (executor != null) {
         executor.process(inputTag, elem);

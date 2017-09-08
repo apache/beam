@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.jstorm.translation;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import com.google.common.collect.Iterables;
 import java.util.Collection;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -46,13 +44,13 @@ class WindowAssignExecutor<T, W extends BoundedWindow> implements Executor {
 
     JStormAssignContext(WindowFn<InputT, W> fn, WindowedValue<InputT> value) {
       fn.super();
-      checkArgument(
-          Iterables.size(value.getWindows()) == 1,
-          String.format(
-              "%s passed to window assignment must be in a single window, but it was in %s: %s",
-              WindowedValue.class.getSimpleName(),
-              Iterables.size(value.getWindows()),
-              value.getWindows()));
+      if (value.getWindows().size() != 1) {
+        throw new IllegalArgumentException(String.format(
+            "%s passed to window assignment must be in a single window, but it was in %s: %s",
+            WindowedValue.class.getSimpleName(),
+            Iterables.size(value.getWindows()),
+            value.getWindows()));
+      }
       this.value = value;
     }
 
