@@ -189,6 +189,7 @@
       <li><a href="#code-review-and-revision" id="markdown-toc-code-review-and-revision">Code Review and Revision</a></li>
       <li><a href="#lgtm" id="markdown-toc-lgtm">LGTM</a></li>
       <li><a href="#deleting-your-branch" id="markdown-toc-deleting-your-branch">Deleting your branch</a></li>
+      <li><a href="#stale-pull-requests" id="markdown-toc-stale-pull-requests">Stale pull requests</a></li>
     </ul>
   </li>
   <li><a href="#commit-committers-only" id="markdown-toc-commit-committers-only">Commit (committers only)</a>    <ul>
@@ -572,6 +573,10 @@ $ git branch -d &lt;my-branch&gt;
 $ git push &lt;GitHub_user&gt; --delete &lt;my-branch&gt;
 </code></pre>
 </div>
+
+<h3 id="stale-pull-requests">Stale pull requests</h3>
+
+<p>The community will close stale pull requests in order to keep the project healthy. A pull request becomes stale after its author fails to respond to actionable comments for 60 days.  Author of a closed pull request is welcome to reopen the same pull request again in the future. The associated JIRAs will be unassigned from the author but will stay open.</p>
 
 <h2 id="commit-committers-only">Commit (committers only)</h2>
 <p>Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the <a href="https://git-wip-us.apache.org/repos/asf/beam.git">authoritative Apache repository</a>, not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)</p>
