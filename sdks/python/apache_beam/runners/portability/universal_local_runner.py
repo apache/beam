@@ -16,9 +16,14 @@
 #
 
 from concurrent import futures
+import logging
+import socket
+import subprocess
+import sys
 import time
 import threading
 import traceback
+import uuid
 
 import grpc
 
@@ -38,17 +43,72 @@ TERMINAL_STATES = [
 
 class UniversalLocalRunner(runner.PipelineRunner):
 
-  def __init__(self, timeout=None, use_grpc=True, use_subprocesses=False):
+  def __init__(self, timeout=None, use_grpc=True, use_subprocesses=True):
     super(UniversalLocalRunner, self).__init__()
     self._timeout = use_grpc
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
 
+    self._handle = None
+    self._subprocess = None
+
+  def __del__(self):
+    if self._subprocess:
+      self._subprocess.kill()
+
+  def _get_handle(self):
+    if not self._handle:
+      if self._use_subprocesses:
+        if self._subprocess:
+          # Kill the old one if it exists.
+          self._subprocess.kill()
+        # TODO(robertwb): Consider letting the subprocess pick one and
+        # communicate it back...
+        port = _pick_unused_port()
+        logging.info("Starting server on port %d.", port)
+        self._subprocess = subprocess.Popen([
+            sys.executable,
+            '-m',
+            'apache_beam.runners.portability.universal_local_runner_main',
+            '-p',
+            str(port)])
+        handle = beam_job_api_pb2_grpc.JobServiceStub(
+            grpc.insecure_channel('localhost:%d' % port))
+        logging.info("Waiting for server to be ready...")
+        start = time.time()
+        timeout = 30
+        while True:
+          time.sleep(0.1)
+          if self._subprocess.poll() is not None:
+            raise RuntimeError(
+                "Subprocess terminated unexpectedly with exit code %d." %
+                self._subprocess.returncode)
+          elif time.time() - start > timeout:
+            raise RuntimeError(
+                "Pipeline timed out waiting for job service subprocess.")
+          else:
+            try:
+              handle.GetState(
+                  beam_job_api_pb2.GetJobStateRequest(job_id='[fake]'))
+              break
+            except grpc.RpcError as exn:
+              if exn.code != grpc.StatusCode.UNAVAILABLE:
+                break
+        logging.info("Server ready.")
+        self._handle = handle
+
+      elif self._use_grpc:
+        self._servicer = JobServicer()
+        self._handle = beam_job_api_pb2_grpc.JobServiceStub(
+            grpc.insecure_channel('localhost:%d' % self._servicer.start_grpc()))
+
+      else:
+        self._handle = JobServicer()
+
+    return self._handle
+
   def run(self, pipeline):
-    if self._use_subprocesses:
-      raise NotImplementedError
-    else:
-      handle = JobServicer().start(use_grpc=self._use_grpc)
+    handle = self._get_handle()
     prepare_response = handle.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job',
@@ -129,27 +189,16 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
     self._worker_command_line = worker_command_line
     self._jobs = {}
 
-  def start(self, use_grpc, port=0):
-    if use_grpc:
-      self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-      self._port = self._server.add_insecure_port('[::]:%d' % port)
-      beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
-      self._server.start()
-
-      channel = grpc.insecure_channel('[::]:%d' % self._port)
-      return beam_job_api_pb2_grpc.JobServiceStub(channel)
-    else:
-      self._port = None
-      return self
-
-  @property
-  def port(self):
-    return self._port
+  def start_grpc(self, port=0):
+    self._server = grpc.server(futures.ThreadPoolExecutor(max_workers=3))
+    port = self._server.add_insecure_port('localhost:%d' % port)
+    beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
+    self._server.start()
+    return port
 
   def Prepare(self, request, context=None):
-    # For now, just use the job name as the job id.  Reject duplicates.
-    preparation_id = request.job_name
-    assert preparation_id not in self._jobs
+    # For now, just use the job name as the job id.
+    preparation_id = "%s-%s" % (request.job_name, uuid.uuid4())
     self._jobs[preparation_id] = BeamJob(
         preparation_id, request.pipeline_options, request.pipeline)
     return beam_job_api_pb2.PrepareJobResponse(preparation_id=preparation_id)
@@ -167,3 +216,12 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobRequest(
         state=self._jobs[request.job_id].state)
+
+
+def _pick_unused_port():
+  """Not perfect, but we have to provide a port to the subprocess."""
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.bind(('localhost', 0))
+  _, port = s.getsockname()
+  s.close()
+  return port

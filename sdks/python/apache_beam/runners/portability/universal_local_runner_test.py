@@ -27,21 +27,26 @@ from apache_beam.testing.util import equal_to
 
 class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
+  _runner = None
+  _use_grpc = False
+  _use_subprocesses = False
+
+  @classmethod
+  def get_runner(cls):
+    if not cls._runner:
+      cls._runner = universal_local_runner.UniversalLocalRunner(
+          timeout=10,
+          use_grpc=cls._use_grpc,
+          use_subprocesses=cls._use_subprocesses)
+    return cls._runner
+
   def create_pipeline(self):
-    return beam.Pipeline(
-        runner=universal_local_runner.UniversalLocalRunner(timeout=10))
+    return beam.Pipeline(self.get_runner())
 
   def test_assert_that(self):
     # TODO: figure out a way for runner to parse and raise the
     # underlying exception.
     with self.assertRaises(Exception):
-      with self.create_pipeline() as p:
-        assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
-
-  def test_assert_that(self):
-    # TODO: figure out a way for runner to parse and raise the
-    # underlying exception.
-    with self.assertRaises(BaseException):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
@@ -61,6 +66,14 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
          | 'StageD' >> beam.Map(lambda x: x))
 
   # Inherits all tests from fn_api_runner_test.FnApiRunnerTest
+
+
+class UniversalLocalRunnerTestWithGrpc(UniversalLocalRunnerTest):
+  _use_grpc = True
+
+
+class UniversalLocalRunnerTestWithSubprocesses(UniversalLocalRunnerTest):
+  _use_subprocesses = True
 
 
 if __name__ == '__main__':

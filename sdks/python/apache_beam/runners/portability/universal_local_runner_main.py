@@ -16,12 +16,16 @@
 #
 
 import argparse
+import logging
 import sys
+import time
 
 from apache_beam.runners.portability import universal_local_runner
 
 
 def run(argv):
+  if argv[0] == __file__:
+    argv = argv[1:]
   parser = argparse.ArgumentParser()
   parser.add_argument('-p', '--port',
                       type=int,
@@ -31,8 +35,10 @@ def run(argv):
                       help='command line for starting up a worker process')
   options = parser.parse_args(argv)
   job_servicer = universal_local_runner.JobServicer(options.worker_command_line)
-  job_servicer.start(options.port)
-  print "Listening for jobs at %d" % job_servicer.port
+  port = job_servicer.start_grpc(options.port)
+  while True:
+    logging.info("Listening for jobs at %d", port)
+    time.sleep(300)
 
 
 if __name__ == '__main__':
