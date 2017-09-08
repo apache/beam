@@ -20,7 +20,8 @@
 import logging
 import unittest
 
-from mock import Mock, patch
+from mock import Mock
+from mock import patch
 
 from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.test_utils import patch_retry
@@ -64,8 +65,8 @@ class UtilsTest(unittest.TestCase):
                             'unused_dataset',
                             'unused_table')
     self.assertTrue(
-      e.exception.message.startswith('Failed to cleanup. Bigquery dataset '
-                                     'unused_dataset doesn\'t exist'))
+        e.exception.message.startswith('Failed to cleanup. Bigquery dataset '
+                                       'unused_dataset doesn\'t exist'))
 
   @patch.object(bigquery, 'Client')
   def test_delete_table_fails_table_not_exist(self, mock_client):
@@ -82,8 +83,8 @@ class UtilsTest(unittest.TestCase):
                             'unused_dataset',
                             'unused_table')
     self.assertTrue(
-      e.exception.message.startswith('Failed to cleanup. Bigquery table '
-                                     'unused_table doesn\'t exist'))
+        e.exception.message.startswith('Failed to cleanup. Bigquery table '
+                                       'unused_table doesn\'t exist'))
 
   @patch.object(bigquery, 'Client')
   def test_delete_table_fails_service_error(self, mock_client):
@@ -100,8 +101,8 @@ class UtilsTest(unittest.TestCase):
                             'unused_dataset',
                             'unused_table')
     self.assertTrue(
-      e.exception.message.startswith('Failed to cleanup. Bigquery table '
-                                     'unused_table still exists'))
+        e.exception.message.startswith('Failed to cleanup. Bigquery table '
+                                       'unused_table still exists'))
 
 
 if __name__ == '__main__':
