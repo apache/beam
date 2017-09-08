@@ -143,7 +143,7 @@
     <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
-    <slf4j.version>1.7.14</slf4j.version>
+    <slf4j.version>1.7.25</slf4j.version>
     <spanner.version>0.20.0-beta</spanner.version>
     <spark.version>1.6.3</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
@@ -151,7 +151,7 @@
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
-    <snappy-java.version>1.1.4-M3</snappy-java.version>
+    <snappy-java.version>1.1.4</snappy-java.version>
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
