@@ -301,6 +301,10 @@ From another local branch, run:
 	$ git branch -d <my-branch>
 	$ git push <GitHub_user> --delete <my-branch>
 
+### Stale pull requests
+
+The community will close stale pull requests in order to keep the project healthy. A pull request becomes stale after its author fails to respond to actionable comments for 60 days.  Author of a closed pull request is welcome to reopen the same pull request again in the future. The associated JIRAs will be unassigned from the author but will stay open.
+
 ## Commit (committers only)
 Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)
 
