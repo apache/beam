@@ -42,6 +42,9 @@ job('beam_SeedJob') {
     'Run Seed Job')
 
   steps {
+    environment {
+        SOME_TOKEN= sh (returnStdout: true, script: 'echo aoeu $ghprbPullId').trim()
+    }
     dsl {
       // A list or a glob of other groovy files to process.
       external('.test-infra/jenkins/job_*.groovy')
