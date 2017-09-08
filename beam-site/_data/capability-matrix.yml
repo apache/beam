@@ -11,6 +11,8 @@ columns:
     name: Apache Apex
   - class: gearpump
     name: Apache Gearpump
+  - class: mapreduce
+    name: MapReduce
 
 categories:
   - description: What is being computed?
@@ -46,6 +48,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: Gearpump wraps the per-element transformation function into processor execution.
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: GroupByKey
         values:
           - class: model
@@ -72,6 +78,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: "Use Gearpump's groupBy and window for key grouping and translate Beam's windowing and triggering to Gearpump's internal implementation."
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Flatten
         values:
           - class: model
@@ -95,6 +105,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: gearpump
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: mapreduce
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -124,6 +138,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Composite Transforms
         values:
           - class: model
@@ -149,6 +167,10 @@ categories:
           - class: gearpump
             l1: 'Partially'
             l2: supported via inlining
+            l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
       - name: Side Inputs
         values:
@@ -176,6 +198,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: Implemented by merging side input as a normal stream in Gearpump
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Source API
         values:
           - class: model
@@ -202,6 +228,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: mapreduce
+            l1: 'Partially'
+            l2: bounded source only
+            l3: ''
       - name: Splittable DoFn
         values:
           - class: model
@@ -225,6 +255,10 @@ categories:
             l2: implementation in streaming mode coming soon
             l3:
           - class: gearpump
+            l1: 'No'
+            l2: not implemented
+            l3:
+          - class: mapreduce
             l1: 'No'
             l2: not implemented
             l3:
@@ -254,6 +288,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: not implemented
+          - class: mapreduce
+            l1: 'Partially'
+            l2: Only attempted counters are supported
+            l3: ''
       - name: Stateful Processing
         values:
           - class: model
@@ -279,6 +317,10 @@ categories:
           - class: gearpump
             l1: 'No'
             l2: not implemented
+            l3: ''
+          - class: mapreduce
+            l1: 'Partially'
+            l2: non-merging windows
             l3: ''
   - description: Where in event time?
     anchor: where
@@ -313,6 +355,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -336,6 +382,10 @@ categories:
             l2: supported
             l3: ''
           - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: mapreduce
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -365,6 +415,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -388,6 +442,10 @@ categories:
             l2: supported
             l3: ''
           - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: mapreduce
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -417,6 +475,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -443,6 +505,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Timestamp control
         values:
           - class: model
@@ -466,6 +532,10 @@ categories:
             l2: supported
             l3: ''
           - class: gearpump
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: mapreduce
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -505,6 +575,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: Intermediate trigger firings are effectively meaningless.
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -531,6 +605,10 @@ categories:
           - class: gearpump
             l1: 'Yes'
             l2: fully supported
+            l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: Currently watermark progress jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
             l3: ''
 
       - name: Processing-time triggers
@@ -559,6 +637,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: From the perspective of triggers, processing time currently jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+            l3: ''
 
       - name: Count triggers
         values:
@@ -586,6 +668,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: Elements are processed in the largest bundles possible, so count-based triggers are effectively meaningless.
+            l3: ''
 
       - name: '[Meta]data driven triggers'
         values:
@@ -611,6 +697,10 @@ categories:
             l2: pending model support
             l3:
           - class: gearpump
+            l1: 'No'
+            l2: pending model support
+            l3:
+          - class: mapreduce
             l1: 'No'
             l2: pending model support
             l3:
@@ -641,6 +731,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Allowed lateness
         values:
@@ -668,6 +762,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: No data is ever late.
+            l3: ''
 
       - name: Timers
         values:
@@ -693,6 +791,10 @@ categories:
             l3: ''
           - class: gearpump
             l1: 'No'
+            l2: not implemented
+            l3: ''
+          - class: mapreduce
+            l1: 'Partially'
             l2: not implemented
             l3: ''
 
@@ -730,6 +832,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -757,6 +863,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: 'Accumulating &amp; Retracting'
         values:
@@ -782,6 +892,10 @@ categories:
             l2: pending model support
             l3: ''
           - class: gearpump
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: mapreduce
             l1: 'No'
             l2: pending model support
             l3: ''

@@ -36,6 +36,8 @@ Beam currently supports Runners that work with the following distributed process
          alt="Apache Flink">
 * Apache Gearpump (incubating) <img src="{{ site.baseurl }}/images/logos/runners/gearpump.png"
          alt="Apache Gearpump">
+* Apache Hadoop MapReduce <img src="{{ site.baseurl }}/images/logos/runners/mapreduce.png"
+         alt="Apache Hadoop MapReduce">
 * Apache Spark <img src="{{ site.baseurl }}/images/logos/runners/spark.png"
          alt="Apache Spark">
 * Google Cloud Dataflow <img src="{{ site.baseurl }}/images/logos/runners/dataflow.png"
