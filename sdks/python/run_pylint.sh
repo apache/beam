@@ -83,9 +83,15 @@ done
 pushd "$MODULE"
 isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
 popd
+FUTURIZE_EXCLUDED=(
+  "typehints.py"
+  "pb2"
+  "trivial_infernce.py"
+)
+FUTURIZE_GREP_PARAM=$( IFS='|'; echo "${ids[*]}" )
 echo "Checking for files requiring stage 1 refactoring from futurize"
 futurize_results=$(futurize -j 8 --stage1 apache_beam 2>&1 |grep Refactored)
-futurize_filtered=$(echo "$futurize_results" |grep -v 'pb2\|typehints.py\|trivial_inference.py' || echo "")
+futurize_filtered=$(echo "$futurize_results" |grep -v "$FUTURIZE_GREP_PARAM" || echo "")
 count=${#futurize_filtered}
 if [ "$count" != "0" ]; then
   echo "Some of the changes require futurize stage 1 changes."
