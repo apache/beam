@@ -143,7 +143,7 @@
                 <argument>--user</argument>
                 <argument>--upgrade</argument>
                 <argument>--ignore-installed</argument>
-                <argument>tox</argument>
+                <argument>detox</argument>
               </arguments>
               <environmentVariables>
                 <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
@@ -197,7 +197,7 @@
                   <goal>exec</goal>
                 </goals>
                 <configuration>
-                  <executable>${python.user.base}/bin/tox</executable>
+                  <executable>${python.user.base}/bin/detox</executable>
                   <arguments>
                     <argument>-e</argument>
                     <argument>ALL</argument>
