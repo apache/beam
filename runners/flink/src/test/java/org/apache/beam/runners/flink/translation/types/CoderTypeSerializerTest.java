@@ -35,7 +35,7 @@ public class CoderTypeSerializerTest {
   }
 
   @Test
-  public void shouldBeAbleToWriteSnapshotForConcreteClassCoder() throws Exception { //passes
+  public void shouldBeAbleToWriteSnapshotForConcreteClassCoder() throws Exception {
     Coder<String> concreteClassCoder = StringUtf8Coder.of();
     CoderTypeSerializer<String> coderTypeSerializer = new CoderTypeSerializer<>(concreteClassCoder);
     TypeSerializerConfigSnapshot typeSerializerConfigSnapshot = coderTypeSerializer
