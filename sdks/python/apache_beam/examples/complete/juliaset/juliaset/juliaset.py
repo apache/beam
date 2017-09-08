@@ -105,7 +105,8 @@ def run(argv=None):  # pylint: disable=missing-docstring
     coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
 
     def x_coord_key(x_y_i):
-      return (x_y_i[0], (x_y_i[0], x_y_i[1], x_y_i[2]))
+      (x, y, i) = x_y_i
+      return (x, (x, y, i))
 
     # Group each coordinate triplet by its x value, then write the coordinates
     # to the output file with an x-coordinate grouping per line.

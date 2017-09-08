@@ -70,7 +70,8 @@ def run(argv=None):
 
     # Capitalize the characters in each line.
     def count_ones(word_ones):
-      return (word_ones[0], sum(word_ones[1]))
+      (word, ones) = word_ones
+      return (word, sum(ones))
 
     transformed = (lines
                    | 'Split' >> (beam.FlatMap(find_words)

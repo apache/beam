@@ -95,22 +95,28 @@ def run(argv=None, assert_results=None):
 
     # Prepare tab-delimited output; something like this:
     # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
-    tsv_lines = grouped | beam.Map(
-        lambda name_email_phone_snailmail: '\t'.join(
-            ['"%s"' % name_email_phone_snailmail[0],
-             '"%s"' % ','.join(name_email_phone_snailmail[1][0]),
-             '"%s"' % ','.join(name_email_phone_snailmail[1][1]),
-             '"%s"' % next(iter(name_email_phone_snailmail[1][2]), '')]))
+    def format_as_tsv(name_email_phone_snailmail):
+      (name, (email, phone, snailmail)) = name_email_phone_snailmail
+      return '\t'.join(
+          ['"%s"' % name,
+           '"%s"' % ','.join(email),
+           '"%s"' % ','.join(phone),
+           '"%s"' % next(iter(snailmail), '')])
+
+    tsv_lines = grouped | beam.Map(format_as_tsv)
 
     # Compute some stats about our database of people.
-    def without_email(name_email_phone_snailmail1):
-      return not next(iter(name_email_phone_snailmail1[1][0]), None)
+    def without_email(name_email_phone_snailmail):
+      (_, (email, _, _)) = name_email_phone_snailmail
+      return not next(iter(email), None)
 
-    def without_phones(name_email_phone_snailmail2):
-      return not next(iter(name_email_phone_snailmail2[1][1]), None)
+    def without_phones(name_email_phone_snailmail):
+      (_, (_, phone, _)) = name_email_phone_snailmail
+      return not next(iter(phone), None)
 
-    def without_address(name_e_p_snailmail):
-      return not next(iter(name_e_p_snailmail[1][2]), None)
+    def without_address(name_email_phone_snailmail):
+      (_, (_, _, snailmail)) = name_email_phone_snailmail
+      return not next(iter(snailmail), None)
 
     luddites = grouped | beam.Filter(  # People without email.
         without_email)

@@ -46,7 +46,8 @@ def run(argv=None):
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
     def format_result(prefix_candidates):
-      return '%s: %s' % (prefix_candidates[0], prefix_candidates[1])
+      (prefix, candidates) = prefix_candidates
+      return '%s: %s' % (prefix, candidates)
 
     (p  # pylint: disable=expression-not-assigned
      | 'read' >> ReadFromText(known_args.input)

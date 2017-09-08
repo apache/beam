@@ -139,7 +139,8 @@ def run(argv=None):
 
   with beam.Pipeline(argv=pipeline_args) as p:
     def format_user_score_sums(user_score):
-      return 'user: %s, total_score: %s' % (user_score[0], user_score[1])
+      (user, score) = user_score
+      return 'user: %s, total_score: %s' % (user, score)
 
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)

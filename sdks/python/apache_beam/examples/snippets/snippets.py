@@ -535,8 +535,9 @@ def examples_wordcount_templated(renames):
   lines = p | 'Read' >> ReadFromText(wordcount_options.input)
   # [END example_wordcount_templated]
 
-  def format_result(w_c):
-    return '%s: %s' % (w_c[0], w_c[1])
+  def format_result(word_count):
+    (word, count) = word_count
+    return '%s: %s' % (word, count)
 
   (
       lines
@@ -614,8 +615,9 @@ def examples_wordcount_debugging(renames):
             [('Flourish', 3), ('stomach', 1)]))
     # [END example_wordcount_debugging_assert]
 
-    def format_result(w_c):
-      return '%s: %s' % (w_c[0], w_c[1])
+    def format_result(word_count):
+      (word, count) = word_count
+      return '%s: %s' % (word, count)
 
     output = (filtered_words
               | 'format' >> beam.Map(format_result)
@@ -1126,7 +1128,8 @@ def model_group_by_key(contents, output_path):
   import apache_beam as beam
   with TestPipeline() as p:  # Use TestPipeline for testing.
     def count_ones(word_ones):
-      return (word_ones[0], sum(word_ones[1]))
+      (word, ones) = word_ones
+      return (word, sum(ones))
 
     words_and_counts = (
         p
