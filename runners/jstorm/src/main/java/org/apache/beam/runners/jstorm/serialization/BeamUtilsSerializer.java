@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
 
 /**
@@ -110,5 +111,6 @@ public class BeamUtilsSerializer {
         Lists.<BoundedWindow>newArrayList(w1), PaneInfo.NO_FIRING).getClass());
     config.registerSerialization(WindowedValue.of(null, Instant.now(),
         Lists.<BoundedWindow>newArrayList(w1, w2), PaneInfo.NO_FIRING).getClass());
+    config.registerSerialization(TimestampedValue.class);
   }
 }

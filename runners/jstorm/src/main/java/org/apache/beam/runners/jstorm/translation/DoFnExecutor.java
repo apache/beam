@@ -214,7 +214,6 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
   }
 
   protected <T> void processMainInput(WindowedValue<T> elem) {
-    LOG.debug(String.format("Main input: tag=%s, elem=%s", mainInputTag, elem));
     if (sideInputs.isEmpty()) {
       runner.processElement((WindowedValue<InputT>) elem);
     } else {
@@ -236,7 +235,7 @@ class DoFnExecutor<InputT, OutputT> implements Executor {
   }
 
   protected void processSideInput(TupleTag tag, WindowedValue elem) {
-    LOG.debug(String.format("Side inputs: tag=%s, elem=%s.", tag, elem));
+    LOG.debug("Side inputs: tag={}, elem={}.", tag, elem);
 
     PCollectionView<?> sideInputView = sideInputTagToView.get(tag);
     sideInputHandler.addSideInputValue(sideInputView, elem);
