@@ -17,6 +17,10 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -25,14 +29,13 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.junit.Test;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 
+/**
+ * Tests CoderTypeSerializer.
+ */
 public class CoderTypeSerializerTest {
 
-  @Test
-  public void shouldBeAbleToWriteSnapshotForAnonymousClassCoder() throws Exception {
+  @Test public void shouldBeAbleToWriteSnapshotForAnonymousClassCoder() throws Exception {
     AtomicCoder<String> anonymousClassCoder = new AtomicCoder<String>() {
 
       @Override public void encode(String value, OutputStream outStream)
@@ -51,8 +54,7 @@ public class CoderTypeSerializerTest {
     configSnapshot.write(new ComparatorTestBase.TestOutputView());
   }
 
-  @Test
-  public void shouldBeAbleToWriteSnapshotForConcreteClassCoder() throws Exception {
+  @Test public void shouldBeAbleToWriteSnapshotForConcreteClassCoder() throws Exception {
     Coder<String> concreteClassCoder = StringUtf8Coder.of();
     CoderTypeSerializer<String> coderTypeSerializer = new CoderTypeSerializer<>(concreteClassCoder);
     TypeSerializerConfigSnapshot typeSerializerConfigSnapshot = coderTypeSerializer
