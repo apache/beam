@@ -646,7 +646,7 @@ public class MongoDbIO {
       builder.add(DisplayData.item("batchSize", batchSize()));
     }
 
-    private static class WriteFn extends DoFn<Document, Void> {
+    static class WriteFn extends DoFn<Document, Void> {
       private final Write spec;
       private transient MongoClient client;
       private List<Document> batch;
@@ -684,11 +684,12 @@ public class MongoDbIO {
       }
 
       private void flush() {
+        if (batch.isEmpty()) {
+          return;
+        }
         MongoDatabase mongoDatabase = client.getDatabase(spec.database());
         MongoCollection<Document> mongoCollection = mongoDatabase.getCollection(spec.collection());
-
         mongoCollection.insertMany(batch);
-
         batch.clear();
       }
 
