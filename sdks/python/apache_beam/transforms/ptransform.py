@@ -73,27 +73,25 @@ class _PValueishTransform(object):
 
   This visits a PValueish, contstructing a (possibly mutated) copy.
   """
-  def visit(self, node, *args):
-    return getattr(
-        self,
-        'visit_' + node.__class__.__name__,
-        lambda x, *args: x)(node, *args)
-
-  def visit_list(self, node, *args):
-    return [self.visit(x, *args) for x in node]
-
-  def visit_tuple(self, node, *args):
-    return tuple(self.visit(x, *args) for x in node)
-
-  def visit_dict(self, node, *args):
-    return {key: self.visit(value, *args) for (key, value) in node.items()}
+  def visit_nested(self, node, *args):
+    if isinstance(node, (tuple, list)):
+      # namedtuples require unpacked arguments in their constructor,
+      # but do have a _make method that takes a sequence.
+      return getattr(node.__class__, '_make', node.__class__)(
+          [self.visit(x, *args) for x in node])
+    elif isinstance(node, dict):
+      return node.__class__(
+          {key: self.visit(value, *args) for (key, value) in node.items()})
+    else:
+      return node
 
 
 class _SetInputPValues(_PValueishTransform):
   def visit(self, node, replacements):
     if id(node) in replacements:
       return replacements[id(node)]
-    return super(_SetInputPValues, self).visit(node, replacements)
+    else:
+      return self.visit_nested(node, replacements)
 
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
@@ -116,22 +114,25 @@ class _MaterializePValues(_PValueishTransform):
       return self._pvalue_cache.get_unwindowed_pvalue(node)
     elif isinstance(node, pvalue.DoOutputsTuple):
       return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
-    return super(_MaterializePValues, self).visit(node)
+    else:
+      return self.visit_nested(node)
 
 
-class GetPValues(_PValueishTransform):
-  def visit(self, node, pvalues=None):
-    if pvalues is None:
-      pvalues = []
-      self.visit(node, pvalues)
-      return pvalues
-    elif isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
+class _GetPValues(_PValueishTransform):
+  def visit(self, node, pvalues):
+    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pvalues.append(node)
     else:
-      super(GetPValues, self).visit(node, pvalues)
+      self.visit_nested(node, pvalues)
 
 
-class _ZipPValues(_PValueishTransform):
+def get_nested_pvalues(pvalueish):
+  pvalues = []
+  _GetPValues().visit(pvalueish, pvalues)
+  return pvalues
+
+
+class _ZipPValues(object):
   """Pairs each PValue in a pvalueish with a value in a parallel out sibling.
 
   Sibling should have the same nested structure as pvalueish.  Leaves in
@@ -153,10 +154,12 @@ class _ZipPValues(_PValueishTransform):
       return pairs
     elif isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pairs.append((context, pvalueish, sibling))
-    else:
-      super(_ZipPValues, self).visit(pvalueish, sibling, pairs, context)
+    elif isinstance(pvalueish, (list, tuple)):
+      self.visit_sequence(pvalueish, sibling, pairs, context)
+    elif isinstance(pvalueish, dict):
+      self.visit_dict(pvalueish, sibling, pairs, context)
 
-  def visit_list(self, pvalueish, sibling, pairs, context):
+  def visit_sequence(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, (list, tuple)):
       for ix, (p, s) in enumerate(zip(
           pvalueish, list(sibling) + [None] * len(pvalueish))):
@@ -164,9 +167,6 @@ class _ZipPValues(_PValueishTransform):
     else:
       for p in pvalueish:
         self.visit(p, sibling, pairs, context)
-
-  def visit_tuple(self, pvalueish, sibling, pairs, context):
-    self.visit_list(pvalueish, sibling, pairs, context)
 
   def visit_dict(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, dict):
