@@ -26,6 +26,8 @@ import Queue as queue
 import threading
 import traceback
 
+import grpc
+
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
@@ -33,8 +35,8 @@ from apache_beam.runners.worker import data_plane
 
 class SdkHarness(object):
 
-  def __init__(self, control_channel):
-    self._control_channel = control_channel
+  def __init__(self, control_address):
+    self._control_channel = grpc.insecure_channel(control_address)
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
 
   def run(self):

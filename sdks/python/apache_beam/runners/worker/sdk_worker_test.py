@@ -78,8 +78,7 @@ class SdkWorkerTest(unittest.TestCase):
     test_port = server.add_insecure_port("[::]:0")
     server.start()
 
-    channel = grpc.insecure_channel("localhost:%s" % test_port)
-    harness = sdk_worker.SdkHarness(channel)
+    harness = sdk_worker.SdkHarness("localhost:%s" % test_port)
     harness.run()
     self.assertEqual(
         harness.worker.fns,
