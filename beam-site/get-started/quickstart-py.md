@@ -118,7 +118,9 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 
 ## Next Steps
 
-* Learn more about these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
+* Learn more about the [Beam SDK for Python]({{ site.baseurl }}/documentation/sdks/python/)
+  and look through the [Python SDK API reference]({{ site.baseurl }}/documentation/sdks/pydoc).
+* Walk through these WordCount examples in the [WordCount Example Walkthrough]({{ site.baseurl }}/get-started/wordcount-example).
 * Dive in to some of our favorite [articles and presentations]({{ site.baseurl }}/documentation/resources).
 * Join the Beam [users@]({{ site.baseurl }}/get-started/support#mailing-lists) mailing list.
 
