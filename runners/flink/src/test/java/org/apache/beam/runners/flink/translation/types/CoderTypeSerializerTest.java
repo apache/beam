@@ -17,10 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.types;
 
+import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertThat;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+import org.apache.beam.runners.flink.translation.types.CoderTypeSerializer.CoderTypeSerializerConfigSnapshot;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -29,37 +33,47 @@ import org.apache.flink.api.common.typeutils.ComparatorTestBase;
 import org.apache.flink.api.common.typeutils.TypeSerializerConfigSnapshot;
 import org.junit.Test;
 
-
 /**
  * Tests {@link CoderTypeSerializer}.
  */
 public class CoderTypeSerializerTest {
 
-  @Test public void shouldBeAbleToWriteSnapshotForAnonymousClassCoder() throws Exception {
+  @Test
+  public void shouldWriteAndReadSnapshotForAnonymousClassCoder() throws Exception {
     AtomicCoder<String> anonymousClassCoder = new AtomicCoder<String>() {
 
-      @Override public void encode(String value, OutputStream outStream)
+      @Override
+      public void encode(String value, OutputStream outStream)
           throws CoderException, IOException {
 
       }
 
-      @Override public String decode(InputStream inStream) throws CoderException, IOException {
+      @Override
+      public String decode(InputStream inStream) throws CoderException, IOException {
         return "";
       }
     };
 
-    CoderTypeSerializer<String> serializer = new CoderTypeSerializer<>(anonymousClassCoder);
-
-    TypeSerializerConfigSnapshot configSnapshot = serializer.snapshotConfiguration();
-    configSnapshot.write(new ComparatorTestBase.TestOutputView());
+    testWriteAndReadConfigSnapshot(anonymousClassCoder);
   }
 
-  @Test public void shouldBeAbleToWriteSnapshotForConcreteClassCoder() throws Exception {
+  @Test
+  public void shouldWriteAndReadSnapshotForConcreteClassCoder() throws Exception {
     Coder<String> concreteClassCoder = StringUtf8Coder.of();
-    CoderTypeSerializer<String> coderTypeSerializer = new CoderTypeSerializer<>(concreteClassCoder);
-    TypeSerializerConfigSnapshot typeSerializerConfigSnapshot = coderTypeSerializer
-        .snapshotConfiguration();
-    typeSerializerConfigSnapshot.write(new ComparatorTestBase.TestOutputView());
+    testWriteAndReadConfigSnapshot(concreteClassCoder);
+  }
+
+  private void testWriteAndReadConfigSnapshot(Coder<String> coder) throws IOException {
+    CoderTypeSerializer<String> serializer = new CoderTypeSerializer<>(coder);
+
+    TypeSerializerConfigSnapshot writtenSnapshot = serializer.snapshotConfiguration();
+    ComparatorTestBase.TestOutputView outView = new ComparatorTestBase.TestOutputView();
+    writtenSnapshot.write(outView);
+
+    TypeSerializerConfigSnapshot readSnapshot = new CoderTypeSerializerConfigSnapshot<>();
+    readSnapshot.read(outView.getInputView());
+
+    assertThat(readSnapshot, is(writtenSnapshot));
   }
 }
 
