@@ -27,15 +27,14 @@ from apache_beam.testing.util import equal_to
 
 class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
 
-  _runner = None
   _use_grpc = False
   _use_subprocesses = False
 
   @classmethod
   def get_runner(cls):
-    if not cls._runner:
+    # Don't inherit.
+    if '_runner' not in cls.__dict__:
       cls._runner = universal_local_runner.UniversalLocalRunner(
-          timeout=10,
           use_grpc=cls._use_grpc,
           use_subprocesses=cls._use_subprocesses)
     return cls._runner

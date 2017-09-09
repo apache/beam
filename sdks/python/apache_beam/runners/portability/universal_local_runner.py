@@ -19,6 +19,7 @@ from concurrent import futures
 import functools
 import logging
 import os
+import Queue as queue
 import socket
 import subprocess
 import sys
@@ -47,9 +48,8 @@ TERMINAL_STATES = [
 
 class UniversalLocalRunner(runner.PipelineRunner):
 
-  def __init__(self, timeout=None, use_grpc=True, use_subprocesses=True):
+  def __init__(self, use_grpc=True, use_subprocesses=True):
     super(UniversalLocalRunner, self).__init__()
-    self._timeout = timeout
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
 
@@ -127,15 +127,15 @@ class UniversalLocalRunner(runner.PipelineRunner):
             pipeline=pipeline.to_runner_api()))
     run_response = handle.Run(beam_job_api_pb2.RunJobRequest(
         preparation_id=prepare_response.preparation_id))
-    return PipelineResult(handle, run_response.job_id, self._timeout)
+    return PipelineResult(handle, run_response.job_id)
 
 
 class PipelineResult(runner.PipelineResult):
-  def __init__(self, handle, job_id, timeout):
+  def __init__(self, handle, job_id):
     super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNKNOWN)
     self._handle = handle
     self._job_id = job_id
-    self._timeout = timeout
+    self._messages = []
 
   def cancel(self):
     self._handle.Cancel()
@@ -158,14 +158,18 @@ class PipelineResult(runner.PipelineResult):
     return beam_job_api_pb2.JobState.JobStateType.Value(pipeline_state)
 
   def wait_until_finish(self):
-    start = time.time()
-    sleep_interval = 0.01
-    while self._pipeline_state_to_runner_api_state(
-        self.state) not in TERMINAL_STATES:
-      if self._timeout and time.time() - start > self._timeout:
-        raise RuntimeError(
-            "Pipeline %s timed out in state %s." % (self._job_id, self._state))
-      time.sleep(sleep_interval)
+    def read_messages():
+      for message in self._handle.GetMessageStream(
+          beam_job_api_pb2.JobMessagesRequest(job_id=self._job_id)):
+        self._messages.append(message)
+    threading.Thread(target=read_messages).start()
+
+    for state_response in self._handle.GetStateStream(
+        beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)):
+      self._state = self._runner_api_state_to_pipeline_state(
+          state_response.state)
+      if state_response.state in TERMINAL_STATES:
+        break
     if self._state != runner.PipelineState.DONE:
       raise RuntimeError(
           "Pipeline %s failed in state %s." % (self._job_id, self._state))
@@ -180,19 +184,46 @@ class BeamJob(threading.Thread):
     self._pipeline_proto = pipeline_proto
     self._use_grpc = use_grpc
     self._sdk_harness_factory = sdk_harness_factory
+    self._log_queue = queue.Queue()
+    self._state_change_callbacks = [
+        lambda new_state: self._log_queue.put(
+            beam_job_api_pb2.JobMessagesResponse(
+                state_response=
+                beam_job_api_pb2.GetJobStateResponse(state=new_state)))
+    ]
+    self._state = None
     self.state = beam_job_api_pb2.JobState.STARTING
     self.daemon = True
 
+  def add_state_change_callback(self, f):
+    self._state_change_callbacks.append(f)
+
+  @property
+  def log_queue(self):
+    return self._log_queue
+
+  @property
+  def state(self):
+    return self._state
+
+  @state.setter
+  def state(self, new_state):
+    for state_change_callback in self._state_change_callbacks:
+      state_change_callback(new_state)
+    self._state = new_state
+
   def run(self):
-    try:
-      fn_api_runner.FnApiRunner(
-          use_grpc=self._use_grpc,
-          sdk_harness_factory=self._sdk_harness_factory
-      ).run_via_runner_api(self._pipeline_proto)
-      self.state = beam_job_api_pb2.JobState.DONE
-    except:  # pylint: disable=bare-except
-      traceback.print_exc()
-      self.state = beam_job_api_pb2.JobState.FAILED
+    with JobLogHandler(self._log_queue):
+      try:
+        fn_api_runner.FnApiRunner(
+            use_grpc=self._use_grpc,
+            sdk_harness_factory=self._sdk_harness_factory
+        ).run_via_runner_api(self._pipeline_proto)
+        self.state = beam_job_api_pb2.JobState.DONE
+      except:  # pylint: disable=bare-except
+        logging.exception("Error running pipeline.")
+        traceback.print_exc()
+        self.state = beam_job_api_pb2.JobState.FAILED
 
   def cancel(self):
     if self.state not in TERMINAL_STATES:
@@ -243,6 +274,34 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
     return beam_job_api_pb2.CancelJobRequest(
         state=self._jobs[request.job_id].state)
 
+  def GetStateStream(self, request, context=None):
+    job = self._jobs[request.job_id]
+    state_queue = queue.Queue()
+    job.add_state_change_callback(lambda state: state_queue.put(state))
+    try:
+      current_state = state_queue.get()
+    except queue.Empty:
+      current_state = job.state
+    yield beam_job_api_pb2.GetJobStateResponse(
+        state=current_state)
+    while current_state not in TERMINAL_STATES:
+      current_state = state_queue.get(block=True)
+      yield beam_job_api_pb2.GetJobStateResponse(
+          state=current_state)
+
+  def GetMessageStream(self, request, context=None):
+    job = self._jobs[request.job_id]
+    current_state = job.state
+    while current_state not in TERMINAL_STATES:
+      msg = job.log_queue.get(block=True)
+      yield msg
+      if msg.HasField('state_response'):
+        current_state = msg.state_response.state
+    try:
+      while True:
+        yield job.log_queue.get(block=False)
+    except queue.Empty:
+      pass
 
 class RemoteSdkHarness(object):
 
@@ -266,6 +325,47 @@ class RemoteSdkHarness(object):
     finally:
       if p.poll() is None:
         p.kill()
+
+
+class JobLogHandler(logging.Handler):
+
+  # Mapping from logging levels to LogEntry levels.
+  LOG_LEVEL_MAP = {
+      logging.FATAL: beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+      logging.ERROR: beam_job_api_pb2.JobMessage.JOB_MESSAGE_ERROR,
+      logging.WARNING: beam_job_api_pb2.JobMessage.JOB_MESSAGE_WARNING,
+      logging.INFO: beam_job_api_pb2.JobMessage.JOB_MESSAGE_BASIC,
+      logging.DEBUG: beam_job_api_pb2.JobMessage.JOB_MESSAGE_DEBUG,
+  }
+
+  def __init__(self, message_queue):
+    super(JobLogHandler, self).__init__()
+    self._message_queue = message_queue
+    self._last_id = 0
+    self._logged_thread = None
+
+  def __enter__(self):
+    self._logged_thread = threading.current_thread()
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().addHandler(self)
+
+  def __exit__(self, *args):
+    self._logged_thread = None
+    self.close()
+
+  def _next_id(self):
+    self._last_id += 1
+    return str(self._last_id)
+
+  def emit(self, record):
+    if self._logged_thread is threading.current_thread():
+        self._message_queue.put(beam_job_api_pb2.JobMessagesResponse(
+            message_response=beam_job_api_pb2.JobMessage(
+                message_id=self._next_id(),
+                time=time.strftime(
+                    '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)),
+                importance=self.LOG_LEVEL_MAP[record.levelno],
+                message_text=self.format(record))))
 
 
 def _pick_unused_port():
