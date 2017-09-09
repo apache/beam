@@ -16,7 +16,9 @@
 #
 
 from concurrent import futures
+import functools
 import logging
+import os
 import socket
 import subprocess
 import sys
@@ -26,7 +28,9 @@ import traceback
 import uuid
 
 import grpc
+from google.protobuf import text_format
 
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import runner
@@ -45,7 +49,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
 
   def __init__(self, timeout=None, use_grpc=True, use_subprocesses=True):
     super(UniversalLocalRunner, self).__init__()
-    self._timeout = use_grpc
+    self._timeout = timeout
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
 
@@ -53,8 +57,13 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._subprocess = None
 
   def __del__(self):
+    self.cleanup()
+
+  def cleanup(self):
     if self._subprocess:
       self._subprocess.kill()
+      time.sleep(0.1)
+    self._subprocess = None
 
   def _get_handle(self):
     if not self._handle:
@@ -71,7 +80,10 @@ class UniversalLocalRunner(runner.PipelineRunner):
             '-m',
             'apache_beam.runners.portability.universal_local_runner_main',
             '-p',
-            str(port)])
+            str(port),
+            '--worker_command_line',
+            '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
+        ])
         handle = beam_job_api_pb2_grpc.JobServiceStub(
             grpc.insecure_channel('localhost:%d' % port))
         logging.info("Waiting for server to be ready...")
@@ -98,12 +110,12 @@ class UniversalLocalRunner(runner.PipelineRunner):
         self._handle = handle
 
       elif self._use_grpc:
-        self._servicer = JobServicer()
+        self._servicer = JobServicer(use_grpc=True)
         self._handle = beam_job_api_pb2_grpc.JobServiceStub(
             grpc.insecure_channel('localhost:%d' % self._servicer.start_grpc()))
 
       else:
-        self._handle = JobServicer()
+        self._handle = JobServicer(use_grpc=False)
 
     return self._handle
 
@@ -160,17 +172,23 @@ class PipelineResult(runner.PipelineResult):
 
 
 class BeamJob(threading.Thread):
-  def __init__(self, job_id, pipeline_options, pipeline_proto):
+  def __init__(self, job_id, pipeline_options, pipeline_proto,
+               use_grpc=True, sdk_harness_factory=None):
     super(BeamJob, self).__init__()
     self._job_id = job_id
     self._pipeline_options = pipeline_options
     self._pipeline_proto = pipeline_proto
+    self._use_grpc = use_grpc
+    self._sdk_harness_factory = sdk_harness_factory
     self.state = beam_job_api_pb2.JobState.STARTING
     self.daemon = True
 
   def run(self):
     try:
-      fn_api_runner.FnApiRunner().run_via_runner_api(self._pipeline_proto)
+      fn_api_runner.FnApiRunner(
+          use_grpc=self._use_grpc,
+          sdk_harness_factory=self._sdk_harness_factory
+      ).run_via_runner_api(self._pipeline_proto)
       self.state = beam_job_api_pb2.JobState.DONE
     except:  # pylint: disable=bare-except
       traceback.print_exc()
@@ -185,8 +203,10 @@ class BeamJob(threading.Thread):
 
 class JobServicer(beam_job_api_pb2.JobServiceServicer):
 
-  def __init__(self, worker_command_line=None):
+  def __init__(
+      self, worker_command_line=None, use_grpc=True):
     self._worker_command_line = worker_command_line
+    self._use_grpc = use_grpc or bool(worker_command_line)
     self._jobs = {}
 
   def start_grpc(self, port=0):
@@ -199,8 +219,14 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
   def Prepare(self, request, context=None):
     # For now, just use the job name as the job id.
     preparation_id = "%s-%s" % (request.job_name, uuid.uuid4())
+    if self._worker_command_line:
+      sdk_harness_factory = functools.partial(
+          RemoteSdkHarness, self._worker_command_line)
+    else:
+      sdk_harness_factory = None
     self._jobs[preparation_id] = BeamJob(
-        preparation_id, request.pipeline_options, request.pipeline)
+        preparation_id, request.pipeline_options, request.pipeline,
+        use_grpc=self._use_grpc, sdk_harness_factory=sdk_harness_factory)
     return beam_job_api_pb2.PrepareJobResponse(preparation_id=preparation_id)
 
   def Run(self, request, context=None):
@@ -216,6 +242,30 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
     self._jobs[request.job_id].cancel()
     return beam_job_api_pb2.CancelJobRequest(
         state=self._jobs[request.job_id].state)
+
+
+class RemoteSdkHarness(object):
+
+  def __init__(self, worker_command_line, control_address):
+    self._worker_command_line = worker_command_line
+    self._control_address = control_address
+
+  def run(self):
+    control_descriptor = text_format.MessageToString(
+        beam_fn_api_pb2.ApiServiceDescriptor(url=self._control_address))
+    p = subprocess.Popen(
+        self._worker_command_line,
+        shell=True,
+        env=dict(os.environ,
+                 CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor))
+    try:
+      p.wait()
+      if p.returncode:
+        raise RuntimeError(
+            "Worker subprocess exited with return code %s" % p.returncode)
+    finally:
+      if p.poll() is None:
+        p.kill()
 
 
 def _pick_unused_port():

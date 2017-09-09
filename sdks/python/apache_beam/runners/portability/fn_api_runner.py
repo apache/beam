@@ -150,10 +150,13 @@ class _GroupingBuffer(object):
 
 class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
-  def __init__(self, use_grpc=False):
+  def __init__(self, use_grpc=False, sdk_harness_factory=None):
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
     self._use_grpc = use_grpc
+    if sdk_harness_factory and not use_grpc:
+      raise ValueError('GRPC must be used if a harness factory is provided.')
+    self._sdk_harness_factory = sdk_harness_factory
 
   def has_metrics_support(self):
     return False
@@ -625,7 +628,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
   def run_stages(self, pipeline_components, stages, safe_coders):
 
     if self._use_grpc:
-      controller = FnApiRunner.GrpcController()
+      controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
     else:
       controller = FnApiRunner.DirectController()
 
@@ -1029,7 +1032,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
   class GrpcController(object):
     """An grpc based controller for fn API control, state and data planes."""
 
-    def __init__(self):
+    def __init__(self, sdk_harness_factory=None):
+      self.sdk_harness_factory = sdk_harness_factory
       self.state_handler = FnApiRunner.SimpleState()
       self.control_server = grpc.server(
           futures.ThreadPoolExecutor(max_workers=10))
@@ -1052,8 +1056,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.data_server.start()
       self.control_server.start()
 
-      self.worker = sdk_worker.SdkHarness(
-          grpc.insecure_channel('localhost:%s' % self.control_port))
+      self.worker = (self.sdk_harness_factory or sdk_worker.SdkHarness)(
+          'localhost:%s' % self.control_port)
       self.worker_thread = threading.Thread(target=self.worker.run)
       logging.info('starting worker')
       self.worker_thread.start()

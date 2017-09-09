@@ -40,6 +40,10 @@ class UniversalLocalRunnerTest(fn_api_runner_test.FnApiRunnerTest):
           use_subprocesses=cls._use_subprocesses)
     return cls._runner
 
+  @classmethod
+  def tearDownClass(cls):
+    cls._runner.cleanup()
+
   def create_pipeline(self):
     return beam.Pipeline(self.get_runner())
 
