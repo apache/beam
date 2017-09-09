@@ -21,22 +21,27 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.io.Serializable;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
 import javax.xml.bind.ValidationEventHandler;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CompressedSource;
 import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -132,114 +137,12 @@ public class XmlIO {
         .build();
   }
 
-  // CHECKSTYLE.OFF: JavadocStyle
   /**
-   * A {@link FileBasedSink} that outputs records as XML-formatted elements. Writes a {@link
-   * PCollection} of records from JAXB-annotated classes to a single file location.
+   * Writes all elements in the input {@link PCollection} to a single XML file using {@link #sink}.
    *
-   * <p>Given a PCollection containing records of type T that can be marshalled to XML elements,
-   * this Sink will produce a single file consisting of a single root element that contains all of
-   * the elements in the PCollection.
-   *
-   * <p>XML Sinks are created with a base filename to write to, a root element name that will be
-   * used for the root element of the output files, and a class to bind to an XML element. This
-   * class will be used in the marshalling of records in an input PCollection to their XML
-   * representation and must be able to be bound using JAXB annotations (checked at pipeline
-   * construction time).
-   *
-   * <p>XML Sinks can be written to using the {@link Write} transform:
-   *
-   * <pre>{@code
-   * p.apply(XmlIO.<Type>write()
-   *      .withRecordClass(Type.class)
-   *      .withRootElement(root_element)
-   *      .toFilenamePrefix(output_filename));
-   * }</pre>
-   *
-   * <p>For example, consider the following class with JAXB annotations:
-   *
-   * <pre>
-   *  {@literal @}XmlRootElement(name = "word_count_result")
-   *  {@literal @}XmlType(propOrder = {"word", "frequency"})
-   *  public class WordFrequency {
-   *    private String word;
-   *    private long frequency;
-   *
-   *    public WordFrequency() { }
-   *
-   *    public WordFrequency(String word, long frequency) {
-   *      this.word = word;
-   *      this.frequency = frequency;
-   *    }
-   *
-   *    public void setWord(String word) {
-   *      this.word = word;
-   *    }
-   *
-   *    public void setFrequency(long frequency) {
-   *      this.frequency = frequency;
-   *    }
-   *
-   *    public long getFrequency() {
-   *      return frequency;
-   *    }
-   *
-   *    public String getWord() {
-   *      return word;
-   *    }
-   *  }
-   * </pre>
-   *
-   * <p>The following will produce XML output with a root element named "words" from a PCollection
-   * of WordFrequency objects:
-   *
-   * <pre>{@code
-   * p.apply(XmlIO.<WordFrequency>write()
-   *     .withRecordClass(WordFrequency.class)
-   *     .withRootElement("words")
-   *     .toFilenamePrefix(output_file));
-   * }</pre>
-   *
-   * <p>The output of which will look like:
-   *
-   * <pre>{@code
-   * <words>
-   *
-   *  <word_count_result>
-   *    <word>decreased</word>
-   *    <frequency>1</frequency>
-   *  </word_count_result>
-   *
-   *  <word_count_result>
-   *    <word>War</word>
-   *    <frequency>4</frequency>
-   *  </word_count_result>
-   *
-   *  <word_count_result>
-   *    <word>empress'</word>
-   *    <frequency>14</frequency>
-   *  </word_count_result>
-   *
-   *  <word_count_result>
-   *    <word>stoops</word>
-   *    <frequency>6</frequency>
-   *  </word_count_result>
-   *
-   *  ...
-   * </words>
-   * }</pre>
-   *
-   * <p>By default the UTF-8 charset is used. This can be overridden, for example:
-   *
-   * <pre>{@code
-   * p.apply(XmlIO.<Type>write()
-   *      .withRecordClass(Type.class)
-   *      .withRootElement(root_element)
-   *      .withCharset(StandardCharsets.ISO_8859_1)
-   *      .toFilenamePrefix(output_filename));
-   * }</pre>
+   * <p>For more configurable usage, use {@link #sink} directly with {@link FileIO#write} or
+   * {@link FileIO#writeDynamic}.
    */
-  // CHECKSTYLE.ON: JavadocStyle
   public static <T> Write<T> write() {
     return new AutoValue_XmlIO_Write.Builder<T>().setCharset("UTF-8").build();
   }
@@ -529,7 +432,7 @@ public class XmlIO {
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
     @Nullable
-    abstract ValueProvider<ResourceId> getFilenamePrefix();
+    abstract String getFilenamePrefix();
 
     @Nullable
     abstract Class<T> getRecordClass();
@@ -544,7 +447,7 @@ public class XmlIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setFilenamePrefix(ValueProvider<ResourceId> prefix);
+      abstract Builder<T> setFilenamePrefix(String prefix);
 
       abstract Builder<T> setRecordClass(Class<T> recordClass);
 
@@ -562,8 +465,7 @@ public class XmlIO {
      * the number of output bundles.
      */
     public Write<T> to(String filenamePrefix) {
-      ResourceId resourceId = FileBasedSink.convertToFileResourceIfPossible(filenamePrefix);
-      return toBuilder().setFilenamePrefix(StaticValueProvider.of(resourceId)).build();
+      return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 
     /**
@@ -597,18 +499,23 @@ public class XmlIO {
         throw new RuntimeException("Error binding classes to a JAXB Context.", e);
       }
 
-      input.apply(org.apache.beam.sdk.io.WriteFiles.to(createSink()));
+      ResourceId prefix =
+          FileSystems.matchNewResource(getFilenamePrefix(), false /* isDirectory */);
+      input.apply(
+          FileIO.<T>write()
+              .via(
+                  sink(getRecordClass())
+                      .withCharset(Charset.forName(getCharset()))
+                      .withRootElement(getRootElement()))
+              .to(prefix.getCurrentDirectory().toString())
+              .withPrefix(prefix.getFilename())
+              .withSuffix(".xml")
+              .withIgnoreWindowing());
       return PDone.in(input.getPipeline());
-    }
-
-    @VisibleForTesting
-    XmlSink<T> createSink() {
-      return new XmlSink<>(this);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
-      createSink().populateFileBasedDisplayData(builder);
       builder
           .addIfNotNull(
               DisplayData.item("rootElement", getRootElement()).withLabel("XML Root Element"))
@@ -616,6 +523,128 @@ public class XmlIO {
               DisplayData.item("recordClass", getRecordClass()).withLabel("XML Record Class"))
           .addIfNotNull(
               DisplayData.item("charset", getCharset()).withLabel("Charset"));
+    }
+  }
+
+  // CHECKSTYLE.OFF: JavadocStyle
+  /**
+   * Outputs records as XML-formatted elements using JAXB.
+   *
+   * <p>The produced file consists of a single root element containing 1 sub-element per element
+   * written to the sink.
+   *
+   * <p>The given class will be used in the marshalling of records in an input PCollection to their
+   * XML representation and must be able to be bound using JAXB annotations.
+   *
+   * <p>For example, consider the following class with JAXB annotations:
+   *
+   * <pre>
+   *  {@literal @}XmlRootElement(name = "word_count_result")
+   *  {@literal @}XmlType(propOrder = {"word", "frequency"})
+   *  public class WordFrequency {
+   *    public String word;
+   *    public long frequency;
+   *  }
+   * </pre>
+   *
+   * <p>The following will produce XML output with a root element named "words" from a PCollection
+   * of WordFrequency objects:
+   *
+   * <pre>{@code
+   * p.apply(FileIO.<WordFrequency>write()
+   *     .via(XmlIO.sink(WordFrequency.class).withRootElement("words"))
+   *     .to(prefixAndShardTemplate("...", DEFAULT_UNWINDOWED_SHARD_TEMPLATE + ".xml"));
+   * }</pre>
+   *
+   * <p>The output will look like:
+   *
+   * <pre>{@code
+   * <words>
+   *  <word_count_result>
+   *    <word>decreased</word>
+   *    <frequency>1</frequency>
+   *  </word_count_result>
+   *  <word_count_result>
+   *    <word>War</word>
+   *    <frequency>4</frequency>
+   *  </word_count_result>
+   *  <word_count_result>
+   *    <word>empress'</word>
+   *    <frequency>14</frequency>
+   *  </word_count_result>
+   *  <word_count_result>
+   *    <word>stoops</word>
+   *    <frequency>6</frequency>
+   *  </word_count_result>
+   *  ...
+   * </words>
+   * }</pre>
+   */
+  // CHECKSTYLE.ON: JavadocStyle
+  public static <T> Sink<T> sink(Class<T> recordClass) {
+    return new AutoValue_XmlIO_Sink.Builder<T>()
+        .setRecordClass(recordClass)
+        .setCharset(StandardCharsets.UTF_8.name())
+        .build();
+  }
+
+  /** Implementation of {@link #sink}. */
+  @AutoValue
+  public abstract static class Sink<T> implements FileIO.Sink<T> {
+    abstract Class<T> getRecordClass();
+    @Nullable abstract String getRootElement();
+    abstract String getCharset();
+
+    abstract Builder<T> toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder<T> {
+      abstract Builder<T> setRecordClass(Class<T> clazz);
+      abstract Builder<T> setRootElement(String rootElement);
+      abstract Builder<T> setCharset(String charset);
+
+      abstract Sink<T> build();
+    }
+
+    public Sink<T> withRootElement(String rootElement) {
+      return toBuilder().setRootElement(rootElement).build();
+    }
+
+    public Sink<T> withCharset(Charset charset) {
+      return toBuilder().setCharset(charset.name()).build();
+    }
+
+    private transient OutputStream outputStream;
+    private transient Marshaller marshaller;
+
+    @Override
+    public void open(WritableByteChannel channel) throws IOException {
+      checkArgument(getRootElement() != null, ".withRootElement() is required");
+      try {
+        marshaller = JAXBContext.newInstance(getRecordClass()).createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+        marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
+        marshaller.setProperty(Marshaller.JAXB_ENCODING, getCharset());
+      } catch (JAXBException e) {
+        throw new IOException(e);
+      }
+
+      this.outputStream = Channels.newOutputStream(channel);
+      outputStream.write(("<" + getRootElement() + ">\n").getBytes(getCharset()));
+    }
+
+    @Override
+    public void write(T element) throws IOException {
+      try {
+        this.marshaller.marshal(element, outputStream);
+      } catch (JAXBException e) {
+        throw new IOException(e);
+      }
+  }
+
+    @Override
+    public void flush() throws IOException {
+      outputStream.write(("\n</" + getRootElement() + ">").getBytes(getCharset()));
     }
   }
 }
