@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import collections
 import operator
 import re
 import unittest
@@ -669,6 +670,20 @@ class PTransformTest(unittest.TestCase):
     self.assertEqual([1, 2, 3, 4, 5, 6, 7, 8], sorted(res['a']))
     self.assertEqual(['x', 'x', 'y', 'y', 'z'], sorted(res['b']))
     self.assertEqual([], sorted(res['c']))
+
+  def test_named_tuple(self):
+    MinMax = collections.namedtuple('MinMax', ['min', 'max'])
+    class MinMaxTransform(PTransform):
+      def expand(self, pcoll):
+        return MinMax(
+            min=pcoll | beam.CombineGlobally(min).without_defaults(),
+            max=pcoll | beam.CombineGlobally(max).without_defaults())
+    res = [1, 2, 4, 8] | MinMaxTransform()
+    self.assertIsInstance(res, MinMax)
+    self.assertEqual(res, MinMax(min=[1], max=[8]))
+
+    flat = res | beam.Flatten()
+    self.assertEqual(sorted(flat), [1, 8])
 
 
 @beam.ptransform_fn
