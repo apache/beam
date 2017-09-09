@@ -31,7 +31,7 @@ import org.junit.Test;
 
 
 /**
- * Tests CoderTypeSerializer.
+ * Tests {@link CoderTypeSerializer}.
  */
 public class CoderTypeSerializerTest {
 
