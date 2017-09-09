@@ -379,11 +379,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoMulti(),
-                  BatchStatefulParDoOverrides.multiOutputOverrideFactory()))
+                  BatchStatefulParDoOverrides.multiOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
-                  BatchStatefulParDoOverrides.singleOutputOverrideFactory()))
+                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.createViewWithViewFn(PCollectionViews.MapViewFn.class),
