@@ -93,8 +93,7 @@ public class BeamSortRelTest extends BaseRelTest {
 
   @Test
   public void testOrderBy_timestamp() throws Exception {
-    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
-        + " order_id, site_id, price "
+    String sql = "SELECT order_id, site_id, price, order_time "
         + "FROM ORDER_DETAILS "
         + "ORDER BY order_time desc limit 4";
 
@@ -102,12 +101,13 @@ public class BeamSortRelTest extends BaseRelTest {
     PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
         Types.BIGINT, "order_id",
         Types.INTEGER, "site_id",
-        Types.DOUBLE, "price"
+        Types.DOUBLE, "price",
+        Types.TIMESTAMP, "order_time"
     ).addRows(
-        7L, 7, 7.0,
-        8L, 8888, 8.0,
-        8L, 999, 9.0,
-        10L, 100, 10.0
+        7L, 7, 7.0, new Date(6),
+        8L, 8888, 8.0, new Date(7),
+        8L, 999, 9.0, new Date(8),
+        10L, 100, 10.0, new Date(9)
     ).getRows());
     pipeline.run().waitUntilFinish();
   }
