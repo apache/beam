@@ -23,6 +23,7 @@ import copy
 import logging
 import Queue as queue
 import threading
+import time
 from concurrent import futures
 
 import grpc
@@ -64,11 +65,13 @@ def streaming_rpc_handler(cls, method_name):
       self._pull_queue = queue.Queue()
       setattr(self, method_name, self.run)
       self._read_thread = threading.Thread(target=self._read)
+      self._started = False
 
     def run(self, iterator, context):
       self._inputs = iterator
       # Note: We only support one client for now.
       self._read_thread.start()
+      self._started = True
       while True:
         to_push = self._push_queue.get()
         if to_push is self._DONE:
@@ -90,6 +93,9 @@ def streaming_rpc_handler(cls, method_name):
 
     def done(self):
       self.push(self._DONE)
+      # Can't join a thread before it's started.
+      while not self._started:
+        time.sleep(.01)
       self._read_thread.join()
 
   return StreamingRpcHandler()
@@ -144,9 +150,10 @@ class _GroupingBuffer(object):
 
 class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
-  def __init__(self):
+  def __init__(self, use_grpc=False):
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
+    self._use_grpc = use_grpc
 
   def has_metrics_support(self):
     return False
@@ -615,12 +622,12 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     # Return the (possibly mutated) context and ordered set of stages.
     return pipeline_components, stages, safe_coders
 
-  def run_stages(self, pipeline_components, stages, safe_coders, direct=True):
+  def run_stages(self, pipeline_components, stages, safe_coders):
 
-    if direct:
-      controller = FnApiRunner.DirectController()
-    else:
+    if self._use_grpc:
       controller = FnApiRunner.GrpcController()
+    else:
+      controller = FnApiRunner.DirectController()
 
     try:
       pcoll_buffers = collections.defaultdict(list)
@@ -657,8 +664,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           else:
             raise NotImplementedError
           if data_operation_spec:
-            transform.spec.payload = data_operation_spec
-            transform.spec.any_param.CopyFrom(data_operation_spec)
+            beam_fn_api_pb2.RemoteGrpcPort
+            transform.spec.payload = data_operation_spec.SerializeToString()
+            transform.spec.any_param.Pack(data_operation_spec)
           else:
             transform.spec.payload = ""
             transform.spec.any_param.Clear()
@@ -707,7 +715,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     # Wait for the bundle to finish.
     while True:
       result = controller.control_handler.pull()
-      if result.instruction_id == process_bundle.instruction_id:
+      if result and result.instruction_id == process_bundle.instruction_id:
         if result.error:
           raise RuntimeError(result.error)
         break
