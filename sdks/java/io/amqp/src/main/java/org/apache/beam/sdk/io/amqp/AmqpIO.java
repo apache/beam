@@ -18,19 +18,15 @@
 package org.apache.beam.sdk.io.amqp;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
-
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
@@ -133,10 +129,8 @@ public class AmqpIO {
      * Define the AMQP addresses where to receive messages.
      */
     public Read withAddresses(List<String> addresses) {
-      checkArgument(addresses != null, "AmqpIO.read().withAddresses(addresses) called with null"
-          + " addresses");
-      checkArgument(!addresses.isEmpty(), "AmqpIO.read().withAddresses(addresses) called with "
-          + "empty addresses list");
+      checkArgument(addresses != null, "addresses can not be null");
+      checkArgument(!addresses.isEmpty(), "addresses can not be empty");
       return builder().setAddresses(addresses).build();
     }
 
@@ -146,8 +140,6 @@ public class AmqpIO {
      * provide a bounded {@link PCollection}.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
-      checkArgument(maxReadTime() == null,
-          "maxNumRecord and maxReadTime are exclusive");
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
@@ -157,17 +149,7 @@ public class AmqpIO {
      * {@link PCollection}.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
-      checkArgument(maxNumRecords() == Long.MAX_VALUE,
-          "maxNumRecord and maxReadTime are exclusive");
       return builder().setMaxReadTime(maxReadTime).build();
-    }
-
-    @Override
-    public void validate(PipelineOptions pipelineOptions) {
-      checkState(addresses() != null, "AmqIO.read() requires addresses list to be set via "
-          + "withAddresses(addresses)");
-      checkState(!addresses().isEmpty(), "AmqIO.read() requires a non-empty addresses list to be"
-          + " set via withAddresses(addresses)");
     }
 
     @Override
@@ -177,6 +159,11 @@ public class AmqpIO {
 
     @Override
     public PCollection<Message> expand(PBegin input) {
+      checkArgument(addresses() != null, "withAddresses() is required");
+      checkArgument(
+          maxReadTime() == null || maxNumRecords() == Long.MAX_VALUE,
+          "withMaxNumRecords() and withMaxReadTime() are exclusive");
+
       org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedAmqpSource(this));
 
@@ -254,12 +241,6 @@ public class AmqpIO {
     public Coder<AmqpCheckpointMark> getCheckpointMarkCoder() {
       return SerializableCoder.of(AmqpCheckpointMark.class);
     }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
-    }
-
   }
 
   private static class UnboundedAmqpReader extends UnboundedSource.UnboundedReader<Message> {

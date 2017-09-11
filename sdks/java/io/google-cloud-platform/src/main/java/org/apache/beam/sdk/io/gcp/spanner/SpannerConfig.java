@@ -28,7 +28,6 @@ import com.google.cloud.spanner.SpannerOptions;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.Serializable;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -62,7 +61,7 @@ public abstract class SpannerConfig implements Serializable {
     return new AutoValue_SpannerConfig.Builder();
   }
 
-  public void validate(PipelineOptions options) {
+  public void validate() {
     checkNotNull(
         getInstanceId(),
         "SpannerIO.read() requires instance id to be set with withInstanceId method");

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -151,8 +150,7 @@ public final class KinesisIO {
     public Read from(String streamName, InitialPositionInStream initialPosition) {
       return toBuilder()
           .setStreamName(streamName)
-          .setInitialPosition(
-              new StartingPoint(checkNotNull(initialPosition, "initialPosition")))
+          .setInitialPosition(new StartingPoint(initialPosition))
           .build();
     }
 
@@ -163,8 +161,7 @@ public final class KinesisIO {
     public Read from(String streamName, Instant initialTimestamp) {
       return toBuilder()
           .setStreamName(streamName)
-          .setInitialPosition(
-              new StartingPoint(checkNotNull(initialTimestamp, "initialTimestamp")))
+          .setInitialPosition(new StartingPoint(initialTimestamp))
           .build();
     }
 
@@ -197,7 +194,7 @@ public final class KinesisIO {
 
     /** Specifies to read at most a given number of records. */
     public Read withMaxReadTime(Duration maxReadTime) {
-      checkNotNull(maxReadTime, "maxReadTime");
+      checkArgument(maxReadTime != null, "maxReadTime can not be null");
       return toBuilder().setMaxReadTime(maxReadTime).build();
     }
 
@@ -226,9 +223,12 @@ public final class KinesisIO {
       private final Regions region;
 
       private BasicKinesisProvider(String accessKey, String secretKey, Regions region) {
-        this.accessKey = checkNotNull(accessKey, "accessKey");
-        this.secretKey = checkNotNull(secretKey, "secretKey");
-        this.region = checkNotNull(region, "region");
+        checkArgument(accessKey != null, "accessKey can not be null");
+        checkArgument(secretKey != null, "secretKey can not be null");
+        checkArgument(region != null, "region can not be null");
+        this.accessKey = accessKey;
+        this.secretKey = secretKey;
+        this.region = region;
       }
 
       private AWSCredentialsProvider getCredentialsProvider() {

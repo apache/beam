@@ -404,9 +404,6 @@ public class Create<T> {
       }
 
       @Override
-      public void validate() {}
-
-      @Override
       public Coder<T> getOutputCoder() {
         return coder;
       }

@@ -149,12 +149,8 @@ public class MqttIO {
      * @return A connection configuration to the MQTT broker.
      */
     public static ConnectionConfiguration create(String serverUri, String topic) {
-      checkArgument(serverUri != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "serverUri");
-      checkArgument(topic != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "topic");
+      checkArgument(serverUri != null, "serverUri can not be null");
+      checkArgument(topic != null, "topic can not be null");
       return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri)
           .setTopic(topic).build();
     }
@@ -168,14 +164,9 @@ public class MqttIO {
      * @return A connection configuration to the MQTT broker.
      */
     public static ConnectionConfiguration create(String serverUri, String topic, String clientId) {
-      checkArgument(serverUri != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "serverUri");
-      checkArgument(topic != null,
-          "MqttIO.ConnectionConfiguration.create(serverUri, topic) called with null "
-              + "topic");
-      checkArgument(clientId != null, "MqttIO.ConnectionConfiguration.create(serverUri,"
-          + "topic, clientId) called with null clientId");
+      checkArgument(serverUri != null, "serverUri can not be null");
+      checkArgument(topic != null, "topic can not be null");
+      checkArgument(clientId != null, "clientId can not be null");
       return new AutoValue_MqttIO_ConnectionConfiguration.Builder().setServerUri(serverUri)
           .setTopic(topic).setClientId(clientId).build();
     }
@@ -242,9 +233,7 @@ public class MqttIO {
      * Define the MQTT connection configuration used to connect to the MQTT broker.
      */
     public Read withConnectionConfiguration(ConnectionConfiguration configuration) {
-      checkArgument(configuration != null,
-          "MqttIO.read().withConnectionConfiguration(configuration) called with null "
-              + "configuration or not called at all");
+      checkArgument(configuration != null, "configuration can not be null");
       return builder().setConnectionConfiguration(configuration).build();
     }
 
@@ -254,8 +243,6 @@ public class MqttIO {
      * will provide a bounded {@link PCollection}.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
-      checkArgument(maxReadTime() == null,
-          "maxNumRecord and maxReadTime are exclusive");
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
@@ -265,13 +252,14 @@ public class MqttIO {
      * {@link PCollection}.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
-      checkArgument(maxNumRecords() == Long.MAX_VALUE,
-          "maxNumRecord and maxReadTime are exclusive");
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
     @Override
     public PCollection<byte[]> expand(PBegin input) {
+      checkArgument(
+          maxReadTime() == null || maxNumRecords() == Long.MAX_VALUE,
+          "withMaxNumRecords() and withMaxReadTime() are exclusive");
 
       org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedMqttSource(this));
@@ -285,11 +273,6 @@ public class MqttIO {
       }
 
       return input.getPipeline().apply(transform);
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      // validation is performed in the ConnectionConfiguration create()
     }
 
     @Override
@@ -369,11 +352,6 @@ public class MqttIO {
       // message, resulting to duplicate messages in the PCollection.
       // So, for MQTT, we limit to number of split ot 1 (unique source).
       return Collections.singletonList(new UnboundedMqttSource(spec));
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
     }
 
     @Override
@@ -511,9 +489,7 @@ public class MqttIO {
      * Define MQTT connection configuration used to connect to the MQTT broker.
      */
     public Write withConnectionConfiguration(ConnectionConfiguration configuration) {
-      checkArgument(configuration != null,
-          "MqttIO.write().withConnectionConfiguration(configuration) called with null "
-              + "configuration or not called at all");
+      checkArgument(configuration != null, "configuration can not be null");
       return builder().setConnectionConfiguration(configuration).build();
     }
 
@@ -535,11 +511,6 @@ public class MqttIO {
     public PDone expand(PCollection<byte[]> input) {
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      // validate is done in connection configuration
     }
 
     @Override
