@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
 import java.io.Serializable;
@@ -47,6 +48,18 @@ import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 public class StateTags {
 
   private static final CoderRegistry STANDARD_REGISTRY = CoderRegistry.createDefault();
+
+  public static final Equivalence<StateTag> ID_EQUIVALENCE = new Equivalence<StateTag>() {
+    @Override
+    protected boolean doEquivalent(StateTag a, StateTag b) {
+      return a.getId().equals(b.getId());
+    }
+
+    @Override
+    protected int doHash(StateTag stateTag) {
+      return stateTag.getId().hashCode();
+    }
+  };
 
   /** @deprecated for migration purposes only */
   @Deprecated
