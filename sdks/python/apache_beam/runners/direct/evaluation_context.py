@@ -42,6 +42,7 @@ class _ExecutionContext(object):
   def get_step_context(self):
     if not self._step_context:
       self._step_context = DirectStepContext(self.keyed_states)
+    self._step_context.partial_keyed_state = {}
     return self._step_context
 
 
