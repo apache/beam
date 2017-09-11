@@ -173,7 +173,7 @@ public class TikaIO {
     }
 
     /**
-     * Returns a new transform which will report the metadata.
+     * Returns a new transform which will report the file metadata.
      */
     public Read withReadOutputMetadata(Boolean value) {
       return toBuilder().setReadOutputMetadata(value).build();
@@ -209,7 +209,7 @@ public class TikaIO {
     }
 
     /**
-     * Path to Tika configuration resource.
+     * Returns a new transform which will use TikaOptions.
      */
     public Read withOptions(TikaOptions options) {
       checkNotNull(options, "TikaOptions cannot be empty.");
