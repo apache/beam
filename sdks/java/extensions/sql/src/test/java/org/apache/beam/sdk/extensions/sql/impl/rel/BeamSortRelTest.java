@@ -49,16 +49,16 @@ public class BeamSortRelTest extends BaseRelTest {
             Types.DOUBLE, "price",
             Types.TIMESTAMP, "order_time"
         ).addRows(
-            1L, 2, 1.0, new Date(),
-            1L, 1, 2.0, new Date(),
-            2L, 4, 3.0, new Date(),
-            2L, 1, 4.0, new Date(),
-            5L, 5, 5.0, new Date(),
-            6L, 6, 6.0, new Date(),
-            7L, 7, 7.0, new Date(),
-            8L, 8888, 8.0, new Date(),
-            8L, 999, 9.0, new Date(),
-            10L, 100, 10.0, new Date()
+            1L, 2, 1.0, new Date(0),
+            1L, 1, 2.0, new Date(1),
+            2L, 4, 3.0, new Date(2),
+            2L, 1, 4.0, new Date(3),
+            5L, 5, 5.0, new Date(4),
+            6L, 6, 6.0, new Date(5),
+            7L, 7, 7.0, new Date(6),
+            8L, 8888, 8.0, new Date(7),
+            8L, 999, 9.0, new Date(8),
+            10L, 100, 10.0, new Date(9)
         )
     );
     sqlEnv.registerTable("SUB_ORDER_RAM",
@@ -87,6 +87,27 @@ public class BeamSortRelTest extends BaseRelTest {
         1L, 1, 2.0,
         2L, 4, 3.0,
         2L, 1, 4.0
+    ).getRows());
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testOrderBy_timestamp() throws Exception {
+    String sql = "INSERT INTO SUB_ORDER_RAM(order_id, site_id, price)  SELECT "
+        + " order_id, site_id, price "
+        + "FROM ORDER_DETAILS "
+        + "ORDER BY order_time desc limit 4";
+
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, sqlEnv);
+    PAssert.that(rows).containsInAnyOrder(TestUtils.RowsBuilder.of(
+        Types.BIGINT, "order_id",
+        Types.INTEGER, "site_id",
+        Types.DOUBLE, "price"
+    ).addRows(
+        7L, 7, 7.0,
+        8L, 8888, 8.0,
+        8L, 999, 9.0,
+        10L, 100, 10.0
     ).getRows());
     pipeline.run().waitUntilFinish();
   }
