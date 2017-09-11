@@ -175,19 +175,19 @@ public class HCatalogIOTest implements Serializable {
   /** Test of Write without specifying a table. */
   @Test
   public void testWriteFailureValidationTable() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage(containsString("table"));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("withTable() is required");
     HCatalogIO.write()
         .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-        .validate(null);
+        .expand(null);
   }
 
   /** Test of Write without specifying configuration properties. */
   @Test
   public void testWriteFailureValidationConfigProp() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage(containsString("configProperties"));
-    HCatalogIO.write().withTable("myowntable").validate(null);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("withConfigProperties() is required");
+    HCatalogIO.write().withTable("myowntable").expand(null);
   }
 
   /** Test of Read from a non-existent table. */
@@ -204,19 +204,19 @@ public class HCatalogIOTest implements Serializable {
   /** Test of Read without specifying configuration properties. */
   @Test
   public void testReadFailureValidationConfig() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage(containsString("configProperties"));
-    HCatalogIO.read().withTable("myowntable").validate(null);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("withConfigProperties() is required");
+    HCatalogIO.read().withTable("myowntable").expand(null);
   }
 
   /** Test of Read without specifying a table. */
   @Test
   public void testReadFailureValidationTable() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage(containsString("table"));
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("withTable() is required");
     HCatalogIO.read()
         .withConfigProperties(getConfigPropertiesAsMap(service.getHiveConf()))
-        .validate(null);
+        .expand(null);
   }
 
   /** Test of Read using SourceTestUtils.readFromSource(..). */

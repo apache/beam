@@ -145,7 +145,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public static <UserT, DestinationT, OutputT> WriteFiles<UserT, DestinationT, OutputT> to(
       FileBasedSink<UserT, DestinationT, OutputT> sink) {
-    checkNotNull(sink, "sink");
+    checkArgument(sink != null, "sink can not be null");
     return new WriteFiles<>(
         sink,
         null /* runner-determined sharding */,
@@ -307,8 +307,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    */
   public WriteFiles<UserT, DestinationT, OutputT> withSharding(
       PTransform<PCollection<UserT>, PCollectionView<Integer>> sharding) {
-    checkNotNull(
-        sharding, "Cannot provide null sharding. Use withRunnerDeterminedSharding() instead");
+    checkArgument(
+        sharding != null, "sharding can not be null. Use withRunnerDeterminedSharding() instead.");
     return new WriteFiles<>(
         sink, sharding, null, windowedWrites, maxNumWritersPerBundle, sideInputs);
   }

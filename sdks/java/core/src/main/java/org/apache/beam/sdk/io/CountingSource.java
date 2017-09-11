@@ -361,9 +361,6 @@ public class CountingSource {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<Long> getOutputCoder() {
       return VarLongCoder.of();
     }

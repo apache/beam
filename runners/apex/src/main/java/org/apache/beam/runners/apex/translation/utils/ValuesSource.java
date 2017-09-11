@@ -77,10 +77,6 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
   }
 
   @Override
-  public void validate() {
-  }
-
-  @Override
   public Coder<T> getOutputCoder() {
     return iterableCoder.getElemCoder();
   }

@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.xml;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -36,7 +36,6 @@ import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.OffsetBasedSource;
 import org.apache.beam.sdk.io.ReadAllViaFileBasedSource;
 import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -288,18 +287,10 @@ public class XmlIO {
     }
 
     private void validate() {
-      checkNotNull(
-          getRootElement(),
-          "rootElement is null. Use builder method withRootElement() to set this.");
-      checkNotNull(
-          getRecordElement(),
-          "recordElement is null. Use builder method withRecordElement() to set this.");
-      checkNotNull(
-          getRecordClass(),
-          "recordClass is null. Use builder method withRecordClass() to set this.");
-      checkNotNull(
-          getCharset(),
-          "charset is null. Use builder method withCharset() to set this.");
+      checkArgument(getRootElement() != null, "withRootElement() is required");
+      checkArgument(getRecordElement() != null, "withRecordElement() is required");
+      checkArgument(getRecordClass() != null, "withRecordClass() is required");
+      checkArgument(getCharset() != null, "withCharset() is required");
     }
 
     @Override
@@ -595,20 +586,17 @@ public class XmlIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      checkNotNull(getRecordClass(), "Missing a class to bind to a JAXB context.");
-      checkNotNull(getRootElement(), "Missing a root element name.");
-      checkNotNull(getFilenamePrefix(), "Missing a filename to write to.");
-      checkNotNull(getCharset(), "Missing charset");
+    public PDone expand(PCollection<T> input) {
+      checkArgument(getRecordClass() != null, "withRecordClass() is required");
+      checkArgument(getRootElement() != null, "withRootElement() is required");
+      checkArgument(getFilenamePrefix() != null, "to() is required");
+      checkArgument(getCharset() != null, "withCharset() is required");
       try {
         JAXBContext.newInstance(getRecordClass());
       } catch (JAXBException e) {
         throw new RuntimeException("Error binding classes to a JAXB Context.", e);
       }
-    }
 
-    @Override
-    public PDone expand(PCollection<T> input) {
       input.apply(org.apache.beam.sdk.io.WriteFiles.to(createSink()));
       return PDone.in(input.getPipeline());
     }

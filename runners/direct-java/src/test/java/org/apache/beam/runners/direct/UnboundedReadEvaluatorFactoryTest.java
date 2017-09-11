@@ -474,9 +474,6 @@ public class UnboundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<T> getOutputCoder() {
       return coder;
     }

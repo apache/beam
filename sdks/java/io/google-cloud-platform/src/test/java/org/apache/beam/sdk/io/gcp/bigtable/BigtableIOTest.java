@@ -194,7 +194,7 @@ public class BigtableIOTest {
 
     thrown.expect(IllegalArgumentException.class);
 
-    write.validate(null);
+    write.expand(null);
   }
 
   @Test
@@ -203,7 +203,7 @@ public class BigtableIOTest {
 
     thrown.expect(IllegalArgumentException.class);
 
-    write.validate(null);
+    write.expand(null);
   }
 
   /** Helper function to make a single row mutation to be written. */

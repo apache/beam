@@ -15,7 +15,6 @@
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -219,12 +218,7 @@ public class HadoopInputFormatIO {
       abstract Read<K, V> build();
     }
 
-    /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the
-     * options provided by the given configuration.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Reads from the source using the options provided by the given configuration. */
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
       TypeDescriptor<?> inputFormatClass =
@@ -255,27 +249,17 @@ public class HadoopInputFormatIO {
       return builder.build();
     }
 
-    /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will transform the keys read from the
-     * source using the given key translation function.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Transforms the keys read from the source using the given key translation function. */
     public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function) {
-      checkNotNull(function, "function");
+      checkArgument(function != null, "function can not be null");
       // Sets key class to key translation function's output class type.
       return toBuilder().setKeyTranslationFunction(function)
           .setKeyTypeDescriptor((TypeDescriptor<K>) function.getOutputTypeDescriptor()).build();
     }
 
-    /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will transform the values read from the
-     * source using the given value translation function.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Transforms the values read from the source using the given value translation function. */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {
-      checkNotNull(function, "function");
+      checkArgument(function != null, "function can not be null");
       // Sets value class to value translation function's output class type.
       return toBuilder().setValueTranslationFunction(function)
           .setValueTypeDescriptor((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
@@ -302,12 +286,14 @@ public class HadoopInputFormatIO {
      * key and value classes are provided in the Hadoop configuration.
      */
     private void validateConfiguration(Configuration configuration) {
-      checkNotNull(configuration, "configuration");
-      checkNotNull(configuration.get("mapreduce.job.inputformat.class"),
-          "configuration.get(\"mapreduce.job.inputformat.class\")");
-      checkNotNull(configuration.get("key.class"), "configuration.get(\"key.class\")");
-      checkNotNull(configuration.get("value.class"),
-          "configuration.get(\"value.class\")");
+      checkArgument(configuration != null, "configuration can not be null");
+      checkArgument(
+          configuration.get("mapreduce.job.inputformat.class") != null,
+          "Configuration must contain \"mapreduce.job.inputformat.class\"");
+      checkArgument(
+          configuration.get("key.class") != null, "configuration must contain \"key.class\"");
+      checkArgument(
+          configuration.get("value.class") != null, "configuration must contain \"value.class\"");
     }
 
     /**
@@ -315,7 +301,7 @@ public class HadoopInputFormatIO {
      */
     @VisibleForTesting
     void validateTransform() {
-      checkNotNull(getConfiguration(), "getConfiguration()");
+      checkArgument(getConfiguration() != null, "withConfiguration() is required");
       // Validate that the key translation input type must be same as key class of InputFormat.
       validateTranslationFunction(getinputFormatKeyClass(), getKeyTranslationFunction(),
           "Key translation's input type is not same as hadoop InputFormat : %s key class : %s");
@@ -422,9 +408,9 @@ public class HadoopInputFormatIO {
 
     @Override
     public void validate() {
-      checkNotNull(conf, "conf");
-      checkNotNull(keyCoder, "keyCoder");
-      checkNotNull(valueCoder, "valueCoder");
+      checkArgument(conf != null, "conf can not be null");
+      checkArgument(keyCoder != null, "keyCoder can not be null");
+      checkArgument(valueCoder != null, "valueCoder can not be null");
     }
 
     @Override
