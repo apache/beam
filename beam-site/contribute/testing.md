@@ -304,7 +304,7 @@ breakages. Beam Java unit tests are written in JUnit.
 
 #### How to run NeedsRunner tests
 
-NeedsRunner is a category of tests that require a Beam runner. Subset of these
+NeedsRunner is a category of tests that require a Beam runner. A subset of these
 tests cannot be executed while building their corresponding modules because all 
 runners depend on these modules (e.g. `sdks/java/core`) to be built. To break 
 the circular dependency, these tests are executed after the Direct Runner is 
@@ -323,7 +323,7 @@ To run a single NeedsRunner test use the `test` property, e.g.
 $ mvn -pl runners/direct-java surefire:test@validates-runner-tests -Dtest=MapElementsTest#testMapBasic
 ```
 
-will run single `MapElementsTest.testMapBasic()` test.
+will run the `MapElementsTest.testMapBasic()` test.
 
 
 NeedsRunner tests in modules that are not required to build runners (e.g. 
