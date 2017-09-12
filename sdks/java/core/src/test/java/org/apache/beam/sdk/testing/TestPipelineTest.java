@@ -29,11 +29,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,8 +42,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -129,47 +126,6 @@ public class TestPipelineTest implements Serializable {
       assertThat(
           lst,
           containsInAnyOrder("--tempLocation=Test_Location", "--appName=TestPipelineCreationTest"));
-    }
-
-    @Test
-    public void testRunWithDummyEnvironmentVariableFails() {
-      System.getProperties()
-          .setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.toString(true));
-      pipeline.apply(Create.of(1, 2, 3));
-
-      thrown.expect(IllegalArgumentException.class);
-      thrown.expectMessage("Cannot call #run");
-      pipeline.run();
-    }
-
-    /** TestMatcher is a matcher designed for testing matcher serialization/deserialization. */
-    public static class TestMatcher extends BaseMatcher<PipelineResult>
-        implements SerializableMatcher<PipelineResult> {
-      private final UUID uuid = UUID.randomUUID();
-
-      @Override
-      public boolean matches(Object o) {
-        return true;
-      }
-
-      @Override
-      public void describeTo(Description description) {
-        description.appendText(String.format("%tL", new Date()));
-      }
-
-      @Override
-      public boolean equals(Object obj) {
-        if (!(obj instanceof TestMatcher)) {
-          return false;
-        }
-        TestMatcher other = (TestMatcher) obj;
-        return other.uuid.equals(uuid);
-      }
-
-      @Override
-      public int hashCode() {
-        return uuid.hashCode();
-      }
     }
   }
 
@@ -315,16 +271,27 @@ public class TestPipelineTest implements Serializable {
     @RunWith(JUnit4.class)
     public static class WithCrashingPipelineRunner {
 
-      static {
-        System.setProperty(TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
-      }
-
       private final transient ExpectedException exception = ExpectedException.none();
 
       private final transient TestPipeline pipeline = TestPipeline.create();
 
       @Rule
       public final transient RuleChain chain = RuleChain.outerRule(exception).around(pipeline);
+
+      private static Object oldUseDefaultDummyRunner;
+
+      @BeforeClass
+      public static void beforeClass() {
+        oldUseDefaultDummyRunner =
+            System.setProperty(
+                TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, Boolean.TRUE.toString());
+      }
+
+      @AfterClass
+      public static void afterClass() {
+        System.setProperty(
+            TestPipeline.PROPERTY_USE_DEFAULT_DUMMY_RUNNER, (String) oldUseDefaultDummyRunner);
+      }
 
       @Test
       public void testNoTestPipelineUsed() {}
@@ -338,6 +305,15 @@ public class TestPipelineTest implements Serializable {
         // 2. The runner class is CrashingRunner.class
         // (1) + (2) => we assume this pipeline was never meant to be run, so no exception is
         // thrown on account of the missing run / dangling nodes.
+      }
+
+      @Test
+      public void testRunWithDummyEnvironmentVariableFails() {
+        addTransform(pCollection(pipeline));
+
+        exception.expect(IllegalArgumentException.class);
+        exception.expectMessage("Cannot call #run");
+        pipeline.run();
       }
     }
   }
