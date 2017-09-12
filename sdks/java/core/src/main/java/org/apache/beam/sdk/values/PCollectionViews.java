@@ -539,10 +539,15 @@ public class PCollectionViews {
     @Override
     public void finishSpecifyingOutput(
         String transformName, PInput input, PTransform<?, ?> transform) {
+
+      Map<TupleTag<?>, PValue> inputValues = input.expand();
       super.finishSpecifyingOutput(
           // Make our name include both the input collection and how we're viewing it,
           // for good error messages.
-          Iterables.getOnlyElement(input.expand().values()).getName() + "@" + transformName,
+          (inputValues.isEmpty()
+                  ? ""
+                  : (Iterables.getOnlyElement(inputValues.values()).getName() + "@"))
+              + transformName,
           input,
           transform);
     }
@@ -550,15 +555,24 @@ public class PCollectionViews {
     private void writeObject(ObjectOutputStream os)
         throws IOException {
       os.defaultWriteObject();
-      // Preserve name in serialized form so we can refer to it in worker error messages.
-      os.writeUTF(getName());
+      // This will be false only in tests that create PCollectionView objects outside
+      // the context of a pipeline.
+      boolean hasName = isFinishedSpecifying();
+      os.writeBoolean(hasName);
+      if (hasName) {
+        // Preserve name in serialized form so we can refer to it in worker error messages.
+        os.writeUTF(getName());
+      }
     }
 
     private void readObject(ObjectInputStream is)
         throws IOException, ClassNotFoundException {
       is.defaultReadObject();
-      String name = is.readUTF();
-      setName(name);
+      boolean hasName = is.readBoolean();
+      if (hasName) {
+        String name = is.readUTF();
+        setName(name);
+      }
     }
   }
 
