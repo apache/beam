@@ -322,7 +322,7 @@ public class ElasticsearchIO {
     private static final long MAX_BATCH_SIZE = 10000L;
 
     @Nullable
-    public abstract ConnectionConfiguration getConnectionConfiguration();
+    abstract ConnectionConfiguration getConnectionConfiguration();
 
     @Nullable
     abstract String getQuery();
