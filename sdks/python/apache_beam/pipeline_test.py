@@ -541,6 +541,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
       def start_bundle(self):
         self.step_context = self._execution_context.get_step_context()
+        self.step_context.clear_partial_states()
 
       def process_element(self, element):
         k, v = element

@@ -579,6 +579,7 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
 
   def start_bundle(self):
     self.step_context = self._execution_context.get_step_context()
+    self.step_context.clear_partial_states()
     self.global_state = self.step_context.get_keyed_state(None)
 
     assert len(self._outputs) == 1
@@ -720,6 +721,7 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
     self.step_context = self._execution_context.get_step_context()
+    self.step_context.clear_partial_states()
     self.driver = create_trigger_driver(
         self._applied_ptransform.transform.windowing)
     self.gabw_items = []
@@ -788,6 +790,7 @@ class _NativeWriteEvaluator(_TransformEvaluator):
 
   def start_bundle(self):
     self.step_context = self._execution_context.get_step_context()
+    self.step_context.clear_partial_states()
     self.global_state = self.step_context.get_keyed_state(None)
 
   def process_timer(self, timer_firing):

@@ -42,7 +42,6 @@ class _ExecutionContext(object):
   def get_step_context(self):
     if not self._step_context:
       self._step_context = DirectStepContext(self.keyed_states)
-    self._step_context.partial_keyed_state = {}
     return self._step_context
 
 
@@ -339,3 +338,6 @@ class DirectStepContext(object):
       self.partial_keyed_state[key] = (
           self.existing_keyed_state[key].copy())
     return self.partial_keyed_state[key]
+
+  def clear_partial_states(self):
+    self.partial_keyed_state = {}
