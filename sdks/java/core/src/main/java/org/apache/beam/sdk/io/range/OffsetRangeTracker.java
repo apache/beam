@@ -64,34 +64,6 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
   public synchronized boolean isDone() {
     return done;
   }
-  
-  private synchronized void setDone(boolean done) {
-    this.done = done;
-  }
-
-  private synchronized long getLastRecordStart() {
-    return lastRecordStart;
-  }
-
-  private synchronized void setLastRecordStart(long lastRecordStart) {
-    this.lastRecordStart = lastRecordStart;
-  }
-
-  private synchronized long getOffsetOfLastSplitPoint() {
-    return offsetOfLastSplitPoint;
-  }
-
-  private synchronized void setOffsetOfLastSplitPoint(long offsetOfLastSplitPoint) {
-    this.offsetOfLastSplitPoint = offsetOfLastSplitPoint;
-  }
-
-  private synchronized long getSplitPointsSeen() {
-    return splitPointsSeen;
-  }
-
-  private synchronized void setSplitPointsSeen(long splitPointsSeen) {
-    this.splitPointsSeen = splitPointsSeen;
-  }
 
   @Override
   public synchronized Long getStartPosition() {
@@ -290,12 +262,16 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
    */
   @VisibleForTesting
   OffsetRangeTracker copy() {
-    OffsetRangeTracker res =
-        new OffsetRangeTracker(this.getStartPosition(), this.getStopPosition());
-    res.setOffsetOfLastSplitPoint(this.getOffsetOfLastSplitPoint());
-    res.setLastRecordStart(this.getLastRecordStart());
-    res.setDone(this.isDone());
-    res.setSplitPointsSeen(this.getSplitPointsSeen());
-    return res;
+    synchronized (this) {
+      OffsetRangeTracker res = null;
+      synchronized (res) {
+        res = new OffsetRangeTracker(this.startOffset, this.stopOffset);
+        res.offsetOfLastSplitPoint = this.offsetOfLastSplitPoint;
+        res.lastRecordStart = this.lastRecordStart;
+        res.done = this.done;
+        res.splitPointsSeen = this.splitPointsSeen;
+      }
+      return res;
+    }
   }
 }
