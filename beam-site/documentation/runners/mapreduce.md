@@ -13,10 +13,10 @@ The [Beam Capability Matrix]({{ site.baseurl }}/documentation/runners/capability
 ## Apache Hadoop MapReduce Runner prerequisites and setup
 You need to have an Apache Hadoop environment with either [Single Node Setup](https://hadoop.apache.org/docs/r1.2.1/single_node_setup.html) or [Cluster Setup](https://hadoop.apache.org/docs/r1.2.1/cluster_setup.html)
 
-The Apache Hadoop MapReduce runner currently supports Apache Hadoop 2.8.1 version.
+The Apache Hadoop MapReduce runner currently supports Apache Hadoop version 2.8.1.
 
-You can add a dependency on the latest version of the Apache Hadoop MapReduce runner by adding to your pom.xml the following:
-```java
+You can add a dependency on the latest version of the Apache Hadoop MapReduce runner by adding the following to your pom.xml:
+```
 <dependency>
   <groupId>org.apache.beam</groupId>
   <artifactId>beam-runners-mapreduce</artifactId>
@@ -25,7 +25,7 @@ You can add a dependency on the latest version of the Apache Hadoop MapReduce ru
 ```
 
 ## Deploying Apache Hadoop MapReduce with your application
-To execute in a local hadoop environment, use this command:
+To execute in a local Hadoop environment, use this command:
 ```
 $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
     -Pmapreduce-runner \
@@ -35,9 +35,9 @@ $ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
       --fileOutputDir=<directory for intermediate outputs>"
 ```
 
-To execute in a hadoop cluster, you need to package your program along will all dependencies in a so-called fat jar.
+To execute in a Hadoop cluster, package your program along with all dependencies in a fat jar.
 
-If you follow along the [Beam Quickstart]({{ site.baseurl }}/get-started/quickstart/) this is the command that you can run:
+If you are following through the [Beam Java SDK Quickstart]({{ site.baseurl }}/get-started/quickstart-java/), you can run this command:
 ```
 $ mvn package -Pflink-runner
 ```
@@ -65,7 +65,7 @@ When executing your pipeline with the Apache Hadoop MapReduce Runner, you should
 <tr>
   <td><code>runner</code></td>
   <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
-  <td>Set to <code>MapReduceRunner</code> to run using the Apache Hadoop MapReduce.</td>
+  <td>Set to <code>MapReduceRunner</code> to run using Apache Hadoop MapReduce.</td>
 </tr>
 <tr>
   <td><code>jarClass</code></td>
@@ -74,7 +74,7 @@ When executing your pipeline with the Apache Hadoop MapReduce Runner, you should
 </tr>
 <tr>
   <td><code>fileOutputDir</code></td>
-  <td>The directory for files output.</td>
+  <td>The directory for output files.</td>
   <td>"/tmp/mapreduce/"</td>
 </tr>
 </table>

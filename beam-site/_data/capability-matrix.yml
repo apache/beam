@@ -12,7 +12,7 @@ columns:
   - class: gearpump
     name: Apache Gearpump
   - class: mapreduce
-    name: MapReduce
+    name: Apache Hadoop MapReduce
 
 categories:
   - description: What is being computed?
