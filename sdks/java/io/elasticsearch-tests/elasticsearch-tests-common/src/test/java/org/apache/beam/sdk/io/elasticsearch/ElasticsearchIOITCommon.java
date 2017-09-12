@@ -18,6 +18,9 @@
 package org.apache.beam.sdk.io.elasticsearch;
 
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_ITESTS;
 
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -32,10 +35,6 @@ import org.elasticsearch.client.RestClient;
  */
 public class ElasticsearchIOITCommon {
 
-  static final String ES_INDEX = "beam";
-  static final String ES_TYPE = "test";
-  static final long NUM_DOCS = 50000;
-  static final int AVERAGE_DOC_SIZE = 25;
   private static final String writeIndex = ES_INDEX + System.currentTimeMillis();
 
   /**
@@ -66,7 +65,8 @@ public class ElasticsearchIOITCommon {
     ConnectionConfiguration connectionConfiguration =
         getConnectionConfiguration(options, ReadOrWrite.READ);
     try (RestClient restClient = connectionConfiguration.createClient()) {
-      ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, NUM_DOCS, restClient);
+      ElasticSearchIOTestUtils
+          .insertTestDocuments(connectionConfiguration, NUM_DOCS_ITESTS, restClient);
     }
   }
 

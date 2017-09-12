@@ -69,8 +69,7 @@ public class ElasticsearchIOIT {
         .getConnectionConfiguration(options, ElasticsearchIOITCommon.ReadOrWrite.WRITE);
     restClient = readConnectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(readConnectionConfiguration,
-        restClient, ElasticsearchIOITCommon.NUM_DOCS,
-        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, false);
+        restClient, true);
   }
 
   @AfterClass
@@ -111,8 +110,7 @@ public class ElasticsearchIOIT {
   public void testWriteVolume() throws Exception {
     //cannot share elasticsearchIOTestCommon because tests run in parallel.
     ElasticsearchIOTestCommon elasticsearchIOTestCommonWrite = new ElasticsearchIOTestCommon(
-        writeConnectionConfiguration, restClient, ElasticsearchIOITCommon.NUM_DOCS,
-        ElasticsearchIOITCommon.AVERAGE_DOC_SIZE, false);
+        writeConnectionConfiguration, restClient, true);
     elasticsearchIOTestCommonWrite.setPipeline(pipeline);
     elasticsearchIOTestCommonWrite.testWrite();
   }

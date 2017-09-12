@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.junit.Assert.assertEquals;
 
@@ -56,10 +59,6 @@ public class ElasticsearchIOTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTest.class);
 
   private static final String ES_IP = "127.0.0.1";
-  private static final String ES_INDEX = "beam";
-  private static final String ES_TYPE = "test";
-  private static final long AVERAGE_DOC_SIZE = 25L;
-  private static final long NUM_DOCS = 400L;
 
   private static Node node;
   private static RestClient restClient;
@@ -100,7 +99,7 @@ public class ElasticsearchIOTest implements Serializable {
         .create(new String[] { "http://" + ES_IP + ":" + esHttpPort }, ES_INDEX, ES_TYPE);
     restClient = connectionConfiguration.createClient();
     elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration, restClient,
-        NUM_DOCS, AVERAGE_DOC_SIZE, true);
+        false);
   }
 
   @AfterClass
@@ -158,7 +157,8 @@ public class ElasticsearchIOTest implements Serializable {
 
   @Test
   public void testSplit() throws Exception {
-    ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, NUM_DOCS, restClient);
+    ElasticSearchIOTestUtils
+        .insertTestDocuments(connectionConfiguration, NUM_DOCS_UTESTS, restClient);
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);

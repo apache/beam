@@ -20,6 +20,9 @@ package org.apache.beam.sdk.io.elasticsearch;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.BoundedElasticsearchSource;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIO.Read;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_INDEX;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.ES_TYPE;
+import static org.apache.beam.sdk.io.elasticsearch.ElasticsearchIOTestCommon.NUM_DOCS_UTESTS;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
@@ -50,11 +53,6 @@ Cannot have @BeforeClass @AfterClass with ESIntegTestCase
 /** Tests for {@link ElasticsearchIO} version 5. */
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable {
-
-  private static final String ES_INDEX = "beam";
-  private static final String ES_TYPE = "test";
-  private static final long AVERAGE_DOC_SIZE = 15L;
-  private static final long NUM_DOCS = 400L;
 
   private ElasticsearchIOTestCommon elasticsearchIOTestCommon;
   private ConnectionConfiguration connectionConfiguration;
@@ -98,7 +96,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
     if (connectionConfiguration == null){
       connectionConfiguration = ConnectionConfiguration.create(fillAddresses(), ES_INDEX, ES_TYPE);
       elasticsearchIOTestCommon = new ElasticsearchIOTestCommon(connectionConfiguration,
-          getRestClient(), NUM_DOCS, AVERAGE_DOC_SIZE, true);
+          getRestClient(), false);
     }
   }
   @Rule
@@ -160,7 +158,8 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
    //need to create the index using the helper method (not create it at first insertion)
    // for the indexSettings() to be run
    createIndex(ES_INDEX);
-   ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, NUM_DOCS, getRestClient());
+    ElasticSearchIOTestUtils
+        .insertTestDocuments(connectionConfiguration, NUM_DOCS_UTESTS, getRestClient());
     PipelineOptions options = PipelineOptionsFactory.create();
     Read read =
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);

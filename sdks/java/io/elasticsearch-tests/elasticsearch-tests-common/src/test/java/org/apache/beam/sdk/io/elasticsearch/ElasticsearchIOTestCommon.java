@@ -55,6 +55,13 @@ class ElasticsearchIOTestCommon implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchIOTestCommon.class);
 
+  static final String ES_INDEX = "beam";
+  static final String ES_TYPE = "test";
+  static final long NUM_DOCS_UTESTS = 400L;
+  static final long NUM_DOCS_ITESTS = 50000L;
+  private static final long AVERAGE_DOC_SIZE = 25L;
+
+
   private static final int NUM_SCIENTISTS = 10;
   private static final long BATCH_SIZE = 200L;
   private static final long BATCH_SIZE_BYTES = 2048L;
@@ -62,19 +69,17 @@ class ElasticsearchIOTestCommon implements Serializable {
   private long numDocs;
   private ConnectionConfiguration connectionConfiguration;
   private RestClient restClient;
-  private long averageDocSize;
-  private boolean insertTestDocuments;
+  private boolean useAsITests;
 
   private TestPipeline pipeline;
   private ExpectedException expectedException;
 
   ElasticsearchIOTestCommon(ConnectionConfiguration connectionConfiguration, RestClient restClient,
-      long numDocs, long averageDocSize, boolean insertTestDocuments) {
+      boolean useAsITests) {
     this.connectionConfiguration = connectionConfiguration;
     this.restClient = restClient;
-    this.numDocs = numDocs;
-    this.averageDocSize = averageDocSize;
-    this.insertTestDocuments = insertTestDocuments;
+    this.numDocs = useAsITests ? NUM_DOCS_ITESTS : NUM_DOCS_UTESTS;
+    this.useAsITests = useAsITests;
   }
 
   // lazy init of the test rules (cannot be static)
@@ -87,7 +92,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testSizes() throws Exception {
-    if (insertTestDocuments) {
+    if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
     PipelineOptions options = PipelineOptionsFactory.create();
@@ -99,12 +104,12 @@ class ElasticsearchIOTestCommon implements Serializable {
     // (due to internal Elasticsearch implementation)
     long estimatedSize = initialSource.getEstimatedSizeBytes(options);
     LOG.info("Estimated size: {}", estimatedSize);
-    assertThat("Wrong estimated size", estimatedSize, greaterThan(averageDocSize * numDocs));
+    assertThat("Wrong estimated size", estimatedSize, greaterThan(AVERAGE_DOC_SIZE * numDocs));
   }
 
 
   void testRead() throws Exception {
-    if (insertTestDocuments) {
+    if (!useAsITests) {
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
@@ -121,7 +126,7 @@ class ElasticsearchIOTestCommon implements Serializable {
   }
 
   void testReadWithQuery() throws Exception {
-    if (insertTestDocuments){
+    if (!useAsITests){
       ElasticSearchIOTestUtils.insertTestDocuments(connectionConfiguration, numDocs, restClient);
     }
 
