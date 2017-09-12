@@ -521,7 +521,7 @@ public class TextIOReadTest {
     }
 
     /**
-     * Tests reading from a small, uncompressed file with .gz extension. This must work in AUTO or
+     * Tests reading from a small, uncompressed file with .gz extension. This must work in
      * GZIP modes. This is needed because some network file systems / HTTP clients will
      * transparently decompress gzipped content.
      */
@@ -536,8 +536,8 @@ public class TextIOReadTest {
     }
 
     /**
-     * Tests reading from a small, uncompressed file with .gz extension. This must work in AUTO or
-     * GZIP modes. This is needed because some network file systems / HTTP clients will
+     * Tests reading from a small, uncompressed file with .gz extension. This must work in
+     * AUTO modes. This is needed because some network file systems / HTTP clients will
      * transparently decompress gzipped content.
      */
     @Test
@@ -557,8 +557,8 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithNoEntries() throws Exception {
-      File filename = createZipFile(new ArrayList<String>(), tempFolder, "empty zip file");
-      assertReadingCompressedFileMatchesExpected(filename, ZIP, EMPTY, p);
+      File file = createZipFile(new ArrayList<String>(), tempFolder, "empty zip file");
+      assertReadingCompressedFileMatchesExpected(file, ZIP, EMPTY, p);
       p.run();
     }
 
@@ -575,9 +575,9 @@ public class TextIOReadTest {
 
       List<String> expected = new ArrayList<>();
 
-      File filename =
+      File file =
         createZipFile(expected, tempFolder, "multiple entries", entry0, entry1, entry2);
-      assertReadingCompressedFileMatchesExpected(filename, ZIP, expected, p);
+      assertReadingCompressedFileMatchesExpected(file, ZIP, expected, p);
       p.run();
     }
 
@@ -588,7 +588,7 @@ public class TextIOReadTest {
     @Test
     @Category(NeedsRunner.class)
     public void testZipCompressedReadWithComplexEmptyAndPresentEntries() throws Exception {
-      File filename =
+      File file =
         createZipFile(
           new ArrayList<String>(),
           tempFolder,
@@ -599,7 +599,7 @@ public class TextIOReadTest {
           new String[] {"dog"});
 
       assertReadingCompressedFileMatchesExpected(
-        filename, ZIP, Arrays.asList("cat", "dog"), p);
+        file, ZIP, Arrays.asList("cat", "dog"), p);
       p.run();
     }
 
