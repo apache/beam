@@ -192,6 +192,11 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public boolean consistentWithEquals() {
+      return true;
+    }
   }
 
   /** Assign events to auction windows and merges them intelligently. */
