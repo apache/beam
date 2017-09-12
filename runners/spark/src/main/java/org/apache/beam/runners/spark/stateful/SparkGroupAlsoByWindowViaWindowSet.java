@@ -342,10 +342,11 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             // timerInternals.advanceWatermark() has been called and the highWatermark
             // is now stored as the new inputWatermark, according to which triggers are
             // calculated.
-            // Note 2: The implicit contract between the runner and reduceFnRunner is that event_time based
-            // triggers are only delivered if the watermark has passed their timestamp.
-            // Note 3: Timer cleanups are performed by the GC timer scheduled by reduceFnRunner as part
-            // of processing timers.
+            // Note 2: The implicit contract between the runner and reduceFnRunner is that
+            // event_time based triggers are only delivered if the watermark has passed their
+            // timestamp.
+            // Note 3: Timer cleanups are performed by the GC timer scheduled by reduceFnRunner as
+            // part of processing timers.
             reduceFnRunner.onTimers(timersEligibleForProcessing);
           } catch (final Exception e) {
             throw new RuntimeException("Failed to process ReduceFnRunner onTimer.", e);
