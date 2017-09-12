@@ -64,7 +64,10 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
             .put(READ_TRANSFORM_URN, new ReadEvaluatorFactory(ctxt))
             .put(
                 PAR_DO_TRANSFORM_URN,
-                new ParDoEvaluatorFactory<>(ctxt, ParDoEvaluator.defaultRunnerFactory()))
+                new ParDoEvaluatorFactory<>(
+                    ctxt,
+                    ParDoEvaluator.defaultRunnerFactory(),
+                    ParDoEvaluatorFactory.basicDoFnCacheLoader()))
             .put(FLATTEN_TRANSFORM_URN, new FlattenEvaluatorFactory(ctxt))
             .put(WINDOW_TRANSFORM_URN, new WindowEvaluatorFactory(ctxt))
 

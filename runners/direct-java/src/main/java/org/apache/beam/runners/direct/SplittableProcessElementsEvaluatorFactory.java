@@ -64,7 +64,8 @@ class SplittableProcessElementsEvaluatorFactory<
         new ParDoEvaluatorFactory<>(
             evaluationContext,
             SplittableProcessElementsEvaluatorFactory
-                .<InputT, OutputT, RestrictionT>processFnRunnerFactory());
+                .<InputT, OutputT, RestrictionT>processFnRunnerFactory(),
+            ParDoEvaluatorFactory.basicDoFnCacheLoader());
   }
 
   @Override
