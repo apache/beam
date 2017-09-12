@@ -209,17 +209,15 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
 
       /**
        * Retrieves the timers that are eligible for processing by {@link
-       * org.apache.beam.runners.core.ReduceFnRunner}. Even if a given timer is deemed eligible for
-       * processing, it does not necessarily mean that it will fire (firing is determined by the
-       * trigger itself, not the {@link TimerInternals} object).
+       * org.apache.beam.runners.core.ReduceFnRunner}.
        *
        * @return A collection of timers that are eligible for processing. For a {@link
-       *     TimeDomain#EVENT_TIME} timer this implies that the watermark has passed the timer's
-       *     timestamp, for other <code>TimeDomain</code>s (e.g., {@link
-       *     TimeDomain#PROCESSING_TIME}) timers are eligible for processing without any
-       *     restrictions.
+       *     TimeDomain#EVENT_TIME} timer, this implies that the watermark has passed the timer's
+       *     timestamp. For other <code>TimeDomain</code>s (e.g., {@link
+       *     TimeDomain#PROCESSING_TIME}), a timer is always considered eligible for processing (no
+       *     restrictions).
        */
-      private Collection<TimerInternals.TimerData> filterEligibleForProcessing(
+      private Collection<TimerInternals.TimerData> filterTimersEligibleForProcessing(
           final Collection<TimerInternals.TimerData> timers, final Instant inputWatermark) {
         final Predicate<TimerInternals.TimerData> eligibleForProcessing =
             new Predicate<TimerInternals.TimerData>() {
@@ -332,7 +330,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             timerInternals.advanceWatermark();
 
             final Collection<TimerInternals.TimerData> timersEligibleForProcessing =
-                filterEligibleForProcessing(
+                filterTimersEligibleForProcessing(
                     timerInternals.getTimers(), timerInternals.currentInputWatermarkTime());
 
             LOG.debug(
@@ -347,6 +345,9 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
             // timestamp.
             // Note 3: Timer cleanups are performed by the GC timer scheduled by reduceFnRunner as
             // part of processing timers.
+            // Note 4: Even if a given timer is deemed eligible for processing, it does not
+            // necessarily mean that it will actually fire (firing is determined by the trigger
+            // itself, not the TimerInternals/TimerData objects).
             reduceFnRunner.onTimers(timersEligibleForProcessing);
           } catch (final Exception e) {
             throw new RuntimeException("Failed to process ReduceFnRunner onTimer.", e);
