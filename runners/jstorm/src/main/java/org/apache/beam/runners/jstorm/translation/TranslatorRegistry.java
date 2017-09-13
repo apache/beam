@@ -48,10 +48,6 @@ class TranslatorRegistry {
   }
 
   public static TransformTranslator<?> getTranslator(PTransform<?, ?> transform) {
-    TransformTranslator<?> translator = TRANSLATORS.get(transform.getClass());
-    if (translator == null) {
-      LOG.warn("Unsupported operator={}", transform.getClass().getName());
-    }
-    return translator;
+    return TRANSLATORS.get(transform.getClass());
   }
 }
