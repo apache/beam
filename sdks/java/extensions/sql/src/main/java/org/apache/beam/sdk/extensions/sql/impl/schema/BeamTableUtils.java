@@ -38,7 +38,7 @@ import org.apache.commons.csv.CSVRecord;
  * Utility methods for working with {@code BeamTable}.
  */
 public final class BeamTableUtils {
-  public static BeamRecord csvLine2BeamSqlRow(
+  public static BeamRecord csvLine2BeamRecord(
       CSVFormat csvFormat,
       String line,
       BeamRecordSqlType beamRecordSqlType) {
@@ -64,7 +64,7 @@ public final class BeamTableUtils {
     return new BeamRecord(beamRecordSqlType, fieldsValue);
   }
 
-  public static String beamSqlRow2CsvLine(BeamRecord row, CSVFormat csvFormat) {
+  public static String beamRecord2CsvLine(BeamRecord row, CSVFormat csvFormat) {
     StringWriter writer = new StringWriter();
     try (CSVPrinter printer = csvFormat.print(writer)) {
       for (int i = 0; i < row.getFieldCount(); i++) {

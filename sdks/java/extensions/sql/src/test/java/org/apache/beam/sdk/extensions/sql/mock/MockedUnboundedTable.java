@@ -93,7 +93,7 @@ public class MockedUnboundedTable extends MockedTable {
   }
 
   @Override public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
-    TestStream.Builder<BeamRecord> values = TestStream.create(beamSqlRowType.getRecordCoder());
+    TestStream.Builder<BeamRecord> values = TestStream.create(beamRecordSqlType.getRecordCoder());
 
     for (Pair<Duration, List<BeamRecord>> pair : timestampedRows) {
       values = values.advanceWatermarkTo(new Instant(0).plus(pair.getKey()));

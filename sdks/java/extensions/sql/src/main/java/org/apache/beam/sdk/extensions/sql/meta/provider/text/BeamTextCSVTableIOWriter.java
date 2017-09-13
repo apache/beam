@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.schema.text;
+package org.apache.beam.sdk.extensions.sql.meta.provider.text;
+
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRecord2CsvLine;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -36,13 +37,13 @@ import org.apache.commons.csv.CSVFormat;
 public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRecord>, PDone>
     implements Serializable {
   private String filePattern;
-  protected BeamRecordSqlType beamSqlRowType;
+  protected BeamRecordSqlType beamRecordSqlType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOWriter(BeamRecordSqlType beamSqlRowType, String filePattern,
+  public BeamTextCSVTableIOWriter(BeamRecordSqlType beamRecordSqlType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamSqlRowType = beamSqlRowType;
+    this.beamRecordSqlType = beamRecordSqlType;
     this.csvFormat = csvFormat;
   }
 
@@ -51,7 +52,7 @@ public class BeamTextCSVTableIOWriter extends PTransform<PCollection<BeamRecord>
 
       @ProcessElement public void processElement(ProcessContext ctx) {
         BeamRecord row = ctx.element();
-        ctx.output(BeamTableUtils.beamSqlRow2CsvLine(row, csvFormat));
+        ctx.output(beamRecord2CsvLine(row, csvFormat));
       }
     })).apply(TextIO.write().to(filePattern));
   }
