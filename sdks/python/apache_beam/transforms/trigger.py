@@ -1068,7 +1068,8 @@ class InMemoryUnmergedState(UnmergedState):
     cloned_object = copy.copy(self)
     cloned_object.timers = copy.deepcopy(self.timers)
     cloned_object.global_state = copy.deepcopy(self.global_state)
-    cloned_object.state = collections.defaultdict(lambda: collections.defaultdict(list))
+    cloned_object.state = (
+        collections.defaultdict(lambda: collections.defaultdict(list)))
     for window in self.state:
       cloned_object.state[window] = collections.defaultdict(list)
       for tag in self.state[window]:
