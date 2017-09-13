@@ -189,7 +189,14 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       if (closed) {
         throw new IOException("Channel is closed");
       }
-      return inputStream.read(dst);
+      // We avoid using the ByteBuffer based read for Hadoop because some FSInputStream
+      // implementations are not ByteBufferReadable,
+      // See https://issues.apache.org/jira/browse/HADOOP-14603
+      int read = inputStream.read(dst.array());
+      if (read > 0) {
+        dst.position(dst.position() + read);
+      }
+      return read;
     }
 
     @Override
