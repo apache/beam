@@ -23,7 +23,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -100,20 +99,6 @@ public class SparkTimerInternals implements TimerInternals {
 
   Collection<TimerData> getTimers() {
     return timers;
-  }
-
-  /** This should only be called after processing the element. */
-  Collection<TimerData> getTimersReadyToProcess() {
-    Set<TimerData> toFire = Sets.newHashSet();
-    Iterator<TimerData> iterator = timers.iterator();
-    while (iterator.hasNext()) {
-      TimerData timer = iterator.next();
-      if (timer.getTimestamp().isBefore(inputWatermark)) {
-        toFire.add(timer);
-        iterator.remove();
-      }
-    }
-    return toFire;
   }
 
   void addTimers(Iterable<TimerData> timers) {
