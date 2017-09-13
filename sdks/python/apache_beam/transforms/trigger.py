@@ -1064,13 +1064,13 @@ class InMemoryUnmergedState(UnmergedState):
     self.global_state = {}
     self.defensive_copy = defensive_copy
 
-  def custom_copy(self):
+  def copy(self):
     cloned_object = copy.copy(self)
     cloned_object.timers = copy.deepcopy(self.timers)
     cloned_object.global_state = copy.deepcopy(self.global_state)
-    cloned_object.state = copy.copy(self.state)
+    cloned_object.state = collections.defaultdict(lambda: collections.defaultdict(list))
     for window in self.state:
-      cloned_object.state[window] = copy.copy(self.state[window])
+      cloned_object.state[window] = collections.defaultdict(list)
       for tag in self.state[window]:
         cloned_object.state[window][tag] = copy.copy(self.state[window][tag])
     return cloned_object

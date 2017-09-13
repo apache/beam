@@ -336,5 +336,5 @@ class DirectStepContext(object):
       self.existing_keyed_state[key] = DirectUnmergedState()
     if not self.partial_keyed_state.get(key):
       self.partial_keyed_state[key] = (
-          self.existing_keyed_state[key].custom_copy())
+          self.existing_keyed_state[key].copy())
     return self.partial_keyed_state[key]
