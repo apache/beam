@@ -16,26 +16,41 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.schema.text;
+package org.apache.beam.sdk.extensions.sql.meta.store;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
+import java.util.List;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
+import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 
 /**
- * {@code BeamTextTable} represents a text file/directory(backed by {@code TextIO}).
+ * The interface to handle CRUD of {@code BeamSql} table metadata.
  */
-public abstract class BeamTextTable extends BaseBeamTable implements Serializable {
-  protected String filePattern;
+public interface MetaStore {
 
-  protected BeamTextTable(BeamRecordSqlType beamSqlRowType, String filePattern) {
-    super(beamSqlRowType);
-    this.filePattern = filePattern;
-  }
+  /**
+   * create a table.
+   */
+  void createTable(Table table);
 
-  @Override
-  public BeamIOType getSourceType() {
-    return BeamIOType.BOUNDED;
-  }
+  /**
+   * Get table with the specified name.
+   */
+  Table getTable(String tableName);
+
+  /**
+   * List all the tables.
+   */
+  List<Table> listTables();
+
+  /**
+   * Build the {@code BeamSqlTable} for the specified table.
+   */
+  BeamSqlTable buildBeamSqlTable(String tableName);
+
+  /**
+   * Register a table provider.
+   * @param provider
+   */
+  void registerProvider(TableProvider provider);
 }

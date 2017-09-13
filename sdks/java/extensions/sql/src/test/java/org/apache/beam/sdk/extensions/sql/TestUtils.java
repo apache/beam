@@ -98,7 +98,7 @@ public class TestUtils {
      * <p>For example:
      * <pre>{@code
      * TestUtils.RowsBuilder.of(
-     *   beamSqlRowType
+     *   beamRecordSqlType
      * )}</pre>
      * @beamSQLRowType the record type.
      */
