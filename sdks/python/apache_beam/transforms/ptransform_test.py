@@ -673,6 +673,7 @@ class PTransformTest(unittest.TestCase):
 
   def test_named_tuple(self):
     MinMax = collections.namedtuple('MinMax', ['min', 'max'])
+
     class MinMaxTransform(PTransform):
       def expand(self, pcoll):
         return MinMax(
