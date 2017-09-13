@@ -155,7 +155,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override public int hashCode() {
-      return Objects.hash(isAuctionWindow, auction);
+      return Objects.hash(super.hashCode(), isAuctionWindow, auction);
     }
   }
 
@@ -167,6 +167,8 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     private static final Coder<IntervalWindow> SUPER_CODER = IntervalWindow.getCoder();
     private static final Coder<Long> ID_CODER = VarLongCoder.of();
     private static final Coder<Integer> INT_CODER = VarIntCoder.of();
+    private static final boolean CONSISTENT_WITH_EQUALS = SUPER_CODER.consistentWithEquals()
+        && ID_CODER.consistentWithEquals() && INT_CODER.consistentWithEquals();
 
     @JsonCreator
     public static AuctionOrBidWindowCoder of() {
@@ -195,7 +197,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
     @Override
     public boolean consistentWithEquals() {
-      return true;
+      return CONSISTENT_WITH_EQUALS;
     }
   }
 
