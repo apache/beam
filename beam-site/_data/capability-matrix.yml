@@ -576,8 +576,8 @@ categories:
             l2: ''
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
-            l2: Intermediate trigger firings are effectively meaningless.
+            l1: 'No'
+            l2: It is a batch-only runner, and intermediate trigger firings are effectively meaningless.
             l3: ''
 
       - name: Event-time triggers
@@ -607,7 +607,7 @@ categories:
             l2: fully supported
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
+            l1: ''
             l2: Currently watermark progress jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
             l3: ''
 
@@ -638,7 +638,7 @@ categories:
             l2: ''
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
+            l1: ''
             l2: From the perspective of triggers, processing time currently jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
             l3: ''
 
@@ -669,7 +669,7 @@ categories:
             l2: ''
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
+            l1: ''
             l2: Elements are processed in the largest bundles possible, so count-based triggers are effectively meaningless.
             l3: ''
 
@@ -763,7 +763,7 @@ categories:
             l2: fully supported
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
+            l1: ''
             l2: No data is ever late.
             l3: ''
 
