@@ -15,7 +15,6 @@
 # limitations under the License.
 #
 
-from concurrent import futures
 import functools
 import logging
 import os
@@ -23,10 +22,11 @@ import Queue as queue
 import socket
 import subprocess
 import sys
-import time
 import threading
+import time
 import traceback
 import uuid
+from concurrent import futures
 
 import grpc
 from google.protobuf import text_format
@@ -37,7 +37,6 @@ from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.runners import runner
 from apache_beam.runners.portability import fn_api_runner
 
-
 TERMINAL_STATES = [
     beam_job_api_pb2.JobState.DONE,
     beam_job_api_pb2.JobState.STOPPED,
@@ -47,8 +46,15 @@ TERMINAL_STATES = [
 
 
 class UniversalLocalRunner(runner.PipelineRunner):
+  """A BeamRunner that executes pipelines via the Beam Job API.
 
-  def __init__(self, use_grpc=True, use_subprocesses=True):
+  By default, this runner executes in process but still uses GRPC to communicate
+  pipeline and worker state.  It can also be configured to use inline calls
+  rather than GRPC (for speed) or launch completely separate subprocesses for
+  the runner and worker(s).
+  """
+
+  def __init__(self, use_grpc=True, use_subprocesses=False):
     super(UniversalLocalRunner, self).__init__()
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
@@ -57,6 +63,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._subprocess = None
 
   def __del__(self):
+    # Best effort to not leave any dangling processes around.
     self.cleanup()
 
   def cleanup(self):
@@ -176,6 +183,8 @@ class PipelineResult(runner.PipelineResult):
 
 
 class BeamJob(threading.Thread):
+  """This class handles running and managing a single pipeline.
+  """
   def __init__(self, job_id, pipeline_options, pipeline_proto,
                use_grpc=True, sdk_harness_factory=None):
     super(BeamJob, self).__init__()
@@ -233,7 +242,10 @@ class BeamJob(threading.Thread):
 
 
 class JobServicer(beam_job_api_pb2.JobServiceServicer):
+  """Servicer for the Beam Job API.
 
+  Manages one or more pipelines, possibly concurrently.
+  """
   def __init__(
       self, worker_command_line=None, use_grpc=True):
     self._worker_command_line = worker_command_line
@@ -252,7 +264,7 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
     preparation_id = "%s-%s" % (request.job_name, uuid.uuid4())
     if self._worker_command_line:
       sdk_harness_factory = functools.partial(
-          RemoteSdkHarness, self._worker_command_line)
+          SubprocessSdkWorker, self._worker_command_line)
     else:
       sdk_harness_factory = None
     self._jobs[preparation_id] = BeamJob(
@@ -303,7 +315,10 @@ class JobServicer(beam_job_api_pb2.JobServiceServicer):
     except queue.Empty:
       pass
 
-class RemoteSdkHarness(object):
+
+class SubprocessSdkWorker(object):
+  """Manages a SDK worker implemented as a subprocess communicating over grpc.
+  """
 
   def __init__(self, worker_command_line, control_address):
     self._worker_command_line = worker_command_line
@@ -328,6 +343,9 @@ class RemoteSdkHarness(object):
 
 
 class JobLogHandler(logging.Handler):
+  """Captures logs to be returned via the Beam Job API.
+
+  Enabled via the with statement."""
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
@@ -345,8 +363,9 @@ class JobLogHandler(logging.Handler):
     self._logged_thread = None
 
   def __enter__(self):
+    # Remember the current thread to demultiplex the logs of concurrently
+    # running pipelines (as Python log handlers are global).
     self._logged_thread = threading.current_thread()
-    logging.getLogger().setLevel(logging.INFO)
     logging.getLogger().addHandler(self)
 
   def __exit__(self, *args):
@@ -359,17 +378,19 @@ class JobLogHandler(logging.Handler):
 
   def emit(self, record):
     if self._logged_thread is threading.current_thread():
-        self._message_queue.put(beam_job_api_pb2.JobMessagesResponse(
-            message_response=beam_job_api_pb2.JobMessage(
-                message_id=self._next_id(),
-                time=time.strftime(
-                    '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)),
-                importance=self.LOG_LEVEL_MAP[record.levelno],
-                message_text=self.format(record))))
+      self._message_queue.put(beam_job_api_pb2.JobMessagesResponse(
+          message_response=beam_job_api_pb2.JobMessage(
+              message_id=self._next_id(),
+              time=time.strftime(
+                  '%Y-%m-%d %H:%M:%S.', time.localtime(record.created)),
+              importance=self.LOG_LEVEL_MAP[record.levelno],
+              message_text=self.format(record))))
 
 
 def _pick_unused_port():
   """Not perfect, but we have to provide a port to the subprocess."""
+  # TODO(robertwb): Consider letting the subprocess communicate a choice of
+  # port back.
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   s.bind(('localhost', 0))
   _, port = s.getsockname()
