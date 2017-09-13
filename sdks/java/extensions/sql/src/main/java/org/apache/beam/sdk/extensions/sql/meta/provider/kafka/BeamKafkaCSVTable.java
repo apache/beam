@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.schema.kafka;
+package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;
+
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.beamRecord2CsvLine;
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRecord;
 
 import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -48,13 +50,13 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
   @Override
   public PTransform<PCollection<KV<byte[], byte[]>>, PCollection<BeamRecord>>
       getPTransformForInput() {
-    return new CsvRecorderDecoder(beamSqlRowType, csvFormat);
+    return new CsvRecorderDecoder(beamRecordSqlType, csvFormat);
   }
 
   @Override
   public PTransform<PCollection<BeamRecord>, PCollection<KV<byte[], byte[]>>>
       getPTransformForOutput() {
-    return new CsvRecorderEncoder(beamSqlRowType, csvFormat);
+    return new CsvRecorderEncoder(beamRecordSqlType, csvFormat);
   }
 
   /**
@@ -76,7 +78,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
         @ProcessElement
         public void processElement(ProcessContext c) {
           String rowInString = new String(c.element().getValue());
-          c.output(BeamTableUtils.csvLine2BeamSqlRow(format, rowInString, rowType));
+          c.output(csvLine2BeamRecord(format, rowInString, rowType));
         }
       }));
     }
@@ -101,7 +103,7 @@ public class BeamKafkaCSVTable extends BeamKafkaTable {
         @ProcessElement
         public void processElement(ProcessContext c) {
           BeamRecord in = c.element();
-          c.output(KV.of(new byte[] {}, BeamTableUtils.beamSqlRow2CsvLine(in, format).getBytes()));
+          c.output(KV.of(new byte[] {}, beamRecord2CsvLine(in, format).getBytes()));
         }
       }));
     }

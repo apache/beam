@@ -15,22 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+package org.apache.beam.sdk.extensions.sql.impl.parser;
+
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
+ * Column constraint such as primary key.
  */
-public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamRecordSqlType beamRecordSqlType;
-  public BaseBeamTable(BeamRecordSqlType beamRecordSqlType) {
-    this.beamRecordSqlType = beamRecordSqlType;
+public class ColumnConstraint extends SqlLiteral {
+  private ColumnConstraint(
+      Object value, SqlTypeName typeName, SqlParserPos pos) {
+    super(value, typeName, pos);
   }
 
-  @Override public BeamRecordSqlType getRowType() {
-    return beamRecordSqlType;
+  /**
+   * A primary key constraint.
+   */
+  public static class PrimaryKey extends ColumnConstraint {
+    public PrimaryKey(SqlParserPos pos) {
+      super(SqlDDLKeywords.PRIMARY, SqlTypeName.SYMBOL, pos);
+    }
   }
 }

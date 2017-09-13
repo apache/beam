@@ -15,22 +15,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.schema;
 
-import java.io.Serializable;
+package org.apache.beam.sdk.extensions.sql.meta.provider;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
+import org.apache.beam.sdk.extensions.sql.meta.Column;
+import org.apache.beam.sdk.extensions.sql.meta.Table;
 
 /**
- * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
+ * Utility methods for metadata.
  */
-public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamRecordSqlType beamRecordSqlType;
-  public BaseBeamTable(BeamRecordSqlType beamRecordSqlType) {
-    this.beamRecordSqlType = beamRecordSqlType;
-  }
-
-  @Override public BeamRecordSqlType getRowType() {
-    return beamRecordSqlType;
+public class MetaUtils {
+  public static BeamRecordSqlType getBeamSqlRecordTypeFromTable(Table table) {
+    List<String> columnNames = new ArrayList<>(table.getColumns().size());
+    List<Integer> columnTypes = new ArrayList<>(table.getColumns().size());
+    for (Column column : table.getColumns()) {
+      columnNames.add(column.getName());
+      columnTypes.add(column.getType());
+    }
+    return BeamRecordSqlType.create(columnNames, columnTypes);
   }
 }

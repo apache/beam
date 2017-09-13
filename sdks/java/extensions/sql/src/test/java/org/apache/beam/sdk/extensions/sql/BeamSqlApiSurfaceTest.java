@@ -40,10 +40,15 @@ public class BeamSqlApiSurfaceTest {
     final Set<String> allowed =
         ImmutableSet.of(
             "org.apache.beam",
-            "org.joda.time");
+            "org.joda.time",
+            "com.alibaba.fastjson",
+            // exposed by fastjson
+            "sun.reflect"
+            );
 
     ApiSurface surface = ApiSurface
         .ofClass(BeamSql.class)
+        .includingClass(BeamSqlCli.class)
         .includingClass(BeamSqlUdf.class)
         .includingClass(BeamRecordSqlType.class)
         .includingClass(BeamSqlRecordHelper.class)

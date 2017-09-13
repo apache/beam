@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.schema.text;
+package org.apache.beam.sdk.extensions.sql.meta.provider.text;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
@@ -41,6 +41,7 @@ public class BeamTextCSVTable extends BeamTextTable {
   private static final Logger LOG = LoggerFactory
       .getLogger(BeamTextCSVTable.class);
 
+  private String filePattern;
   private CSVFormat csvFormat;
 
   /**
@@ -50,9 +51,10 @@ public class BeamTextCSVTable extends BeamTextTable {
     this(beamSqlRowType, filePattern, CSVFormat.DEFAULT);
   }
 
-  public BeamTextCSVTable(BeamRecordSqlType beamSqlRowType, String filePattern,
+  public BeamTextCSVTable(BeamRecordSqlType beamRecordSqlType, String filePattern,
       CSVFormat csvFormat) {
-    super(beamSqlRowType, filePattern);
+    super(beamRecordSqlType, filePattern);
+    this.filePattern = filePattern;
     this.csvFormat = csvFormat;
   }
 
@@ -60,11 +62,19 @@ public class BeamTextCSVTable extends BeamTextTable {
   public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
     return PBegin.in(pipeline).apply("decodeRecord", TextIO.read().from(filePattern))
         .apply("parseCSVLine",
-            new BeamTextCSVTableIOReader(beamSqlRowType, filePattern, csvFormat));
+            new BeamTextCSVTableIOReader(beamRecordSqlType, filePattern, csvFormat));
   }
 
   @Override
   public PTransform<? super PCollection<BeamRecord>, PDone> buildIOWriter() {
-    return new BeamTextCSVTableIOWriter(beamSqlRowType, filePattern, csvFormat);
+    return new BeamTextCSVTableIOWriter(beamRecordSqlType, filePattern, csvFormat);
+  }
+
+  public CSVFormat getCsvFormat() {
+    return csvFormat;
+  }
+
+  public String getFilePattern() {
+    return filePattern;
   }
 }
