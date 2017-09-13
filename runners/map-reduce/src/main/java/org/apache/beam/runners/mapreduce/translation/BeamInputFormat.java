@@ -31,6 +31,8 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
+
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -57,7 +59,7 @@ public class BeamInputFormat<T> extends InputFormat {
   private static final long DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES = 5 * 1000 * 1000;
 
   private List<ReadOperation.TaggedSource> sources;
-  private SerializedPipelineOptions options;
+  private SerializablePipelineOptions options;
 
   public BeamInputFormat() {
   }
@@ -73,8 +75,8 @@ public class BeamInputFormat<T> extends InputFormat {
     }
     sources = (List<ReadOperation.TaggedSource>) SerializableUtils.deserializeFromByteArray(
         Base64.decodeBase64(serializedBoundedSource), "TaggedSources");
-    options = ((SerializedPipelineOptions) SerializableUtils.deserializeFromByteArray(
-        Base64.decodeBase64(serializedPipelineOptions), "SerializedPipelineOptions"));
+    options = ((SerializablePipelineOptions) SerializableUtils.deserializeFromByteArray(
+        Base64.decodeBase64(serializedPipelineOptions), "SerializablePipelineOptions"));
 
     try {
 
@@ -86,7 +88,7 @@ public class BeamInputFormat<T> extends InputFormat {
                     final ReadOperation.TaggedSource taggedSource) {
                   try {
                     return FluentIterable.from(taggedSource.getSource().split(
-                        DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES, options.getPipelineOptions()))
+                        DEFAULT_DESIRED_BUNDLE_SIZE_SIZE_BYTES, options.get()))
                         .transform(new Function<BoundedSource<?>, ReadOperation.TaggedSource>() {
                           @Override
                           public ReadOperation.TaggedSource apply(BoundedSource<?> input) {
@@ -120,7 +122,7 @@ public class BeamInputFormat<T> extends InputFormat {
   private static class BeamInputSplit<T> extends InputSplit implements Writable {
     private String stepName;
     private BoundedSource<T> boundedSource;
-    private SerializedPipelineOptions options;
+    private SerializablePipelineOptions options;
     private TupleTag<?> tupleTag;
 
     public BeamInputSplit() {
@@ -129,7 +131,7 @@ public class BeamInputFormat<T> extends InputFormat {
     public BeamInputSplit(
         String stepName,
         BoundedSource<T> boundedSource,
-        SerializedPipelineOptions options,
+        SerializablePipelineOptions options,
         TupleTag<?> tupleTag) {
       this.stepName = checkNotNull(stepName, "stepName");
       this.boundedSource = checkNotNull(boundedSource, "boundedSources");
@@ -139,13 +141,13 @@ public class BeamInputFormat<T> extends InputFormat {
 
     public BeamRecordReader<T> createReader() throws IOException {
       return new BeamRecordReader<>(
-          stepName, boundedSource.createReader(options.getPipelineOptions()), tupleTag);
+          stepName, boundedSource.createReader(options.get()), tupleTag);
     }
 
     @Override
     public long getLength() throws IOException, InterruptedException {
       try {
-        return boundedSource.getEstimatedSizeBytes(options.getPipelineOptions());
+        return boundedSource.getEstimatedSizeBytes(options.get());
       } catch (Exception e) {
         Throwables.throwIfUnchecked(e);
         Throwables.throwIfInstanceOf(e, IOException.class);
@@ -164,7 +166,7 @@ public class BeamInputFormat<T> extends InputFormat {
       ByteArrayOutputStream stream = new ByteArrayOutputStream();
       StringUtf8Coder.of().encode(stepName, stream);
       SerializableCoder.of(BoundedSource.class).encode(boundedSource, stream);
-      SerializableCoder.of(SerializedPipelineOptions.class).encode(options, stream);
+      SerializableCoder.of(SerializablePipelineOptions.class).encode(options, stream);
       SerializableCoder.of(TupleTag.class).encode(tupleTag, stream);
 
       byte[] bytes = stream.toByteArray();
@@ -181,7 +183,7 @@ public class BeamInputFormat<T> extends InputFormat {
       ByteArrayInputStream inStream = new ByteArrayInputStream(bytes);
       stepName = StringUtf8Coder.of().decode(inStream);
       boundedSource = SerializableCoder.of(BoundedSource.class).decode(inStream);
-      options = SerializableCoder.of(SerializedPipelineOptions.class).decode(inStream);
+      options = SerializableCoder.of(SerializablePipelineOptions.class).decode(inStream);
       tupleTag = SerializableCoder.of(TupleTag.class).decode(inStream);
     }
   }

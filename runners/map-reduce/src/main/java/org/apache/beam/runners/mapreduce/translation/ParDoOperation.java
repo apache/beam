@@ -34,6 +34,7 @@ import org.apache.beam.runners.core.NullSideInputReader;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -50,7 +51,7 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
  */
 public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> {
   private final String stepName;
-  protected final SerializedPipelineOptions options;
+  protected final SerializablePipelineOptions options;
   protected final TupleTag<OutputT> mainOutputTag;
   private final List<TupleTag<?>> sideOutputTags;
   protected final WindowingStrategy<?, ?> windowingStrategy;
@@ -70,7 +71,7 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
       WindowingStrategy<?, ?> windowingStrategy) {
     super(1 + sideOutputTags.size());
     this.stepName = checkNotNull(stepName, "stepName");
-    this.options = new SerializedPipelineOptions(checkNotNull(options, "options"));
+    this.options = new SerializablePipelineOptions(checkNotNull(options, "options"));
     this.mainOutputTag = checkNotNull(mainOutputTag, "mainOutputTag");
     this.sideOutputTags = checkNotNull(sideOutputTags, "sideOutputTags");
     this.windowingStrategy = checkNotNull(windowingStrategy, "windowingStrategy");
@@ -109,7 +110,7 @@ public abstract class ParDoOperation<InputT, OutputT> extends Operation<InputT> 
     final TimerInternals timerInternals = new InMemoryTimerInternals();
 
     fnRunner = DoFnRunners.simpleRunner(
-        options.getPipelineOptions(),
+        options.get(),
         getDoFn(),
         sideInputTags.isEmpty()
             ? NullSideInputReader.empty() :
