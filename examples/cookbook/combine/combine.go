@@ -58,7 +58,7 @@ func PlaysForWords(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
 	return beam.ParDo(p, formatFn, keyed)
 }
 
-// extractFn outputs (word, play) iif the word is longer than the minimum length.
+// extractFn outputs (word, play) iff the word is longer than the minimum length.
 type extractFn struct {
 	MinLength int `json:"min_length"`
 }
