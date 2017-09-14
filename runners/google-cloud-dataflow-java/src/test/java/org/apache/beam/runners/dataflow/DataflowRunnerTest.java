@@ -109,7 +109,6 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.GcsUtil;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -549,10 +548,10 @@ public class DataflowRunnerTest implements Serializable {
         cloudDataflowDataset,
         workflowJob.getEnvironment().getDataset());
     assertEquals(
-        ReleaseInfo.getReleaseInfo().getName(),
+        DataflowRunnerInfo.getDataflowRunnerInfo().getName(),
         workflowJob.getEnvironment().getUserAgent().get("name"));
     assertEquals(
-        ReleaseInfo.getReleaseInfo().getVersion(),
+        DataflowRunnerInfo.getDataflowRunnerInfo().getVersion(),
         workflowJob.getEnvironment().getUserAgent().get("version"));
   }
 
