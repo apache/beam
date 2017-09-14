@@ -163,9 +163,10 @@ class AmazonKinesisMock implements AmazonKinesis {
 
     int toIndex = min(startingRecord + numberOfRecordsPerGet, shardData.size());
     int fromIndex = min(startingRecord, toIndex);
-    return new GetRecordsResult().
-        withRecords(shardData.subList(fromIndex, toIndex)).
-        withNextShardIterator(String.format("%s:%s", shardId, toIndex));
+    return new GetRecordsResult()
+        .withRecords(shardData.subList(fromIndex, toIndex))
+        .withNextShardIterator(String.format("%s:%s", shardId, toIndex))
+        .withMillisBehindLatest(0L);
   }
 
   @Override
