@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,7 +64,6 @@ import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.message.BasicHeader;
 import org.apache.http.nio.conn.ssl.SSLIOSessionStrategy;
 import org.apache.http.nio.entity.NStringEntity;
 import org.apache.http.ssl.SSLContexts;
@@ -73,7 +73,6 @@ import org.elasticsearch.client.RestClientBuilder;
 
 /**
  * Transforms for reading and writing data from/to Elasticsearch.
- * This IO is only compatible with Elasticsearch v2.x
  *
  * <h3>Reading from Elasticsearch</h3>
  *
@@ -145,6 +144,7 @@ public class ElasticsearchIO {
 
   private static final ObjectMapper mapper = new ObjectMapper();
 
+  @VisibleForTesting
   static JsonNode parseResponse(Response response) throws IOException {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
@@ -153,23 +153,23 @@ public class ElasticsearchIO {
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
-    abstract List<String> getAddresses();
+    public abstract List<String> getAddresses();
 
     @Nullable
-    abstract String getUsername();
+    public abstract String getUsername();
 
     @Nullable
-    abstract String getPassword();
+    public abstract String getPassword();
 
     @Nullable
-    abstract String getKeystorePath();
+    public abstract String getKeystorePath();
 
     @Nullable
-    abstract String getKeystorePassword();
+    public abstract String getKeystorePassword();
 
-    abstract String getIndex();
+    public abstract String getIndex();
 
-    abstract String getType();
+    public abstract String getType();
 
     abstract Builder builder();
 
@@ -267,6 +267,7 @@ public class ElasticsearchIO {
       builder.addIfNotNull(DisplayData.item("keystore.path", getKeystorePath()));
     }
 
+    @VisibleForTesting
     RestClient createClient() throws IOException {
       HttpHost[] hosts = new HttpHost[getAddresses().size()];
       int i = 0;
@@ -399,9 +400,8 @@ public class ElasticsearchIO {
       checkState(
           connectionConfiguration != null,
           "withConnectionConfiguration() is required");
-      checkVersion(connectionConfiguration);
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(new BoundedElasticsearchSource(this, null)));
+      return input.apply(org.apache.beam.sdk.io.Read
+          .from(new BoundedElasticsearchSource(this, null, null, null)));
     }
 
     @Override
@@ -416,55 +416,94 @@ public class ElasticsearchIO {
 
   /** A {@link BoundedSource} reading from Elasticsearch. */
   @VisibleForTesting
-  static class BoundedElasticsearchSource extends BoundedSource<String> {
+  public static class BoundedElasticsearchSource extends BoundedSource<String> {
 
-    private final ElasticsearchIO.Read spec;
-    // shardPreference is the shard number where the source will read the documents
-    @Nullable private final String shardPreference;
+    private int backendVersion;
 
-    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference) {
+    private final Read spec;
+    // shardPreference is the shard id where the source will read the documents
+    @Nullable
+    private final String shardPreference;
+    @Nullable
+    private final Integer numSlices;
+    @Nullable
+    private final Integer sliceId;
+
+    //constructor used in split() when we know the backend version
+    private BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
+        @Nullable Integer numSlices, @Nullable Integer sliceId, int backendVersion) {
+      this.backendVersion = backendVersion;
       this.spec = spec;
       this.shardPreference = shardPreference;
+      this.numSlices = numSlices;
+      this.sliceId = sliceId;
     }
 
+    @VisibleForTesting
+    BoundedElasticsearchSource(Read spec, @Nullable String shardPreference,
+        @Nullable Integer numSlices, @Nullable Integer sliceId) {
+      this.spec = spec;
+      this.shardPreference = shardPreference;
+      this.numSlices = numSlices;
+      this.sliceId = sliceId;
+    }
     @Override
     public List<? extends BoundedSource<String>> split(
         long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
+      ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
+      this.backendVersion = getBackendVersion(connectionConfiguration);
       List<BoundedElasticsearchSource> sources = new ArrayList<>();
+      if (backendVersion == 2){
+        // 1. We split per shard :
+        // unfortunately, Elasticsearch 2. x doesn 't provide a way to do parallel reads on a single
+        // shard.So we do not use desiredBundleSize because we cannot split shards.
+        // With the slice API in ES 5.0 we will be able to use desiredBundleSize.
+        // Basically we will just ask the slice API to return data
+        // in nbBundles = estimatedSize / desiredBundleSize chuncks.
+        // So each beam source will read around desiredBundleSize volume of data.
 
-      // 1. We split per shard :
-      // unfortunately, Elasticsearch 2. x doesn 't provide a way to do parallel reads on a single
-      // shard.So we do not use desiredBundleSize because we cannot split shards.
-      // With the slice API in ES 5.0 we will be able to use desiredBundleSize.
-      // Basically we will just ask the slice API to return data
-      // in nbBundles = estimatedSize / desiredBundleSize chuncks.
-      // So each beam source will read around desiredBundleSize volume of data.
+        JsonNode statsJson = BoundedElasticsearchSource.getStats(connectionConfiguration, true);
+        JsonNode shardsJson =
+            statsJson
+                .path("indices")
+                .path(connectionConfiguration.getIndex())
+                .path("shards");
 
-      // 2. Primary and replica shards have the same shard_id, we filter primary
-      // to have one source for each shard_id. Even if we specify preference=shards:2,
-      // ES load balances (round robin) the request between primary shard 2 and replica shard 2.
-      // But, as each shard (replica or primary) is responsible for only one part of the data,
-      // there will be no duplicate.
-
-      JsonNode statsJson = getStats(true);
-      JsonNode shardsJson =
-          statsJson
-              .path("indices")
-              .path(spec.getConnectionConfiguration().getIndex())
-              .path("shards");
-
-      Iterator<Map.Entry<String, JsonNode>> shards = shardsJson.fields();
-      while (shards.hasNext()) {
-        Map.Entry<String, JsonNode> shardJson = shards.next();
-        String shardId = shardJson.getKey();
-        sources.add(new BoundedElasticsearchSource(spec, shardId));
+        Iterator<Map.Entry<String, JsonNode>> shards = shardsJson.fields();
+        while (shards.hasNext()) {
+          Map.Entry<String, JsonNode> shardJson = shards.next();
+          String shardId = shardJson.getKey();
+          sources.add(new BoundedElasticsearchSource(spec, shardId, null, null, backendVersion));
+        }
+        checkArgument(!sources.isEmpty(), "No shard found");
+      } else if (backendVersion == 5){
+        long indexSize = BoundedElasticsearchSource.estimateIndexSize(connectionConfiguration);
+        float nbBundlesFloat = (float) indexSize / desiredBundleSizeBytes;
+        int nbBundles = (int) Math.ceil(nbBundlesFloat);
+        //ES slice api imposes that the number of slices is <= 1024 even if it can be overloaded
+        if (nbBundles > 1024) {
+          nbBundles = 1024;
+        }
+        // split the index into nbBundles chunks of desiredBundleSizeBytes by creating
+        // nbBundles sources each reading a slice of the index
+        // (see https://goo.gl/MhtSWz)
+        // the slice API allows to split the ES shards
+        // to have bundles closer to desiredBundleSizeBytes
+        for (int i = 0; i < nbBundles; i++) {
+          sources.add(new BoundedElasticsearchSource(spec, null, nbBundles, i, backendVersion));
+        }
       }
-      checkArgument(!sources.isEmpty(), "No primary shard found");
       return sources;
     }
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) throws IOException {
+      return estimateIndexSize(spec.getConnectionConfiguration());
+    }
+
+    @VisibleForTesting
+    static long estimateIndexSize(ConnectionConfiguration connectionConfiguration)
+        throws IOException {
       // we use indices stats API to estimate size and list the shards
       // (https://www.elastic.co/guide/en/elasticsearch/reference/2.4/indices-stats.html)
       // as Elasticsearch 2.x doesn't not support any way to do parallel read inside a shard
@@ -473,11 +512,11 @@ public class ElasticsearchIO {
       // NB: Elasticsearch 5.x now provides the slice API.
       // (https://www.elastic.co/guide/en/elasticsearch/reference/5.0/search-request-scroll.html
       // #sliced-scroll)
-      JsonNode statsJson = getStats(false);
+      JsonNode statsJson = getStats(connectionConfiguration, false);
       JsonNode indexStats =
           statsJson
               .path("indices")
-              .path(spec.getConnectionConfiguration().getIndex())
+              .path(connectionConfiguration.getIndex())
               .path("primaries");
       JsonNode store = indexStats.path("store");
       return store.path("size_in_bytes").asLong();
@@ -487,6 +526,8 @@ public class ElasticsearchIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       spec.populateDisplayData(builder);
       builder.addIfNotNull(DisplayData.item("shard", shardPreference));
+      builder.addIfNotNull(DisplayData.item("numSlices", numSlices));
+      builder.addIfNotNull(DisplayData.item("sliceId", sliceId));
     }
 
     @Override
@@ -504,15 +545,16 @@ public class ElasticsearchIO {
       return StringUtf8Coder.of();
     }
 
-    private JsonNode getStats(boolean shardLevel) throws IOException {
+    private static JsonNode getStats(ConnectionConfiguration connectionConfiguration,
+        boolean shardLevel) throws IOException {
       HashMap<String, String> params = new HashMap<>();
       if (shardLevel) {
         params.put("level", "shards");
       }
-      String endpoint = String.format("/%s/_stats", spec.getConnectionConfiguration().getIndex());
-      try (RestClient restClient = spec.getConnectionConfiguration().createClient()) {
+      String endpoint = String.format("/%s/_stats", connectionConfiguration.getIndex());
+      try (RestClient restClient = connectionConfiguration.createClient()) {
         return parseResponse(
-            restClient.performRequest("GET", endpoint, params, new BasicHeader("", "")));
+            restClient.performRequest("GET", endpoint, params));
       }
     }
   }
@@ -536,9 +578,18 @@ public class ElasticsearchIO {
 
       String query = source.spec.getQuery();
       if (query == null) {
-        query = "{ \"query\": { \"match_all\": {} } }";
+        query = "{\"query\": { \"match_all\": {} }}";
       }
-
+      if (source.backendVersion == 5){
+        //if there is more than one slice
+        if (source.numSlices != null && source.numSlices > 1){
+          // add slice to the user query
+          String sliceQuery = String
+              .format("\"slice\": {\"id\": %d,\"max\": %d}", source.sliceId,
+                  source.numSlices);
+          query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
+        }
+      }
       Response response;
       String endPoint =
           String.format(
@@ -547,13 +598,16 @@ public class ElasticsearchIO {
               source.spec.getConnectionConfiguration().getType());
       Map<String, String> params = new HashMap<>();
       params.put("scroll", source.spec.getScrollKeepalive());
-      params.put("size", String.valueOf(source.spec.getBatchSize()));
-      if (source.shardPreference != null) {
-        params.put("preference", "_shards:" + source.shardPreference);
+      if (source.backendVersion == 2){
+        params.put("size", String.valueOf(source.spec.getBatchSize()));
+        if (source.shardPreference != null) {
+          params.put("preference", "_shards:" + source.shardPreference);
+        }
       }
-      HttpEntity queryEntity = new NStringEntity(query, ContentType.APPLICATION_JSON);
+      HttpEntity queryEntity = new NStringEntity(query,
+          ContentType.APPLICATION_JSON);
       response =
-          restClient.performRequest("GET", endPoint, params, queryEntity, new BasicHeader("", ""));
+          restClient.performRequest("GET", endPoint, params, queryEntity);
       JsonNode searchResult = parseResponse(response);
       updateScrollId(searchResult);
       return readNextBatchAndReturnFirstDocument(searchResult);
@@ -579,8 +633,7 @@ public class ElasticsearchIO {
                 "GET",
                 "/_search/scroll",
                 Collections.<String, String>emptyMap(),
-                scrollEntity,
-                new BasicHeader("", ""));
+                scrollEntity);
         JsonNode searchResult = parseResponse(response);
         updateScrollId(searchResult);
         return readNextBatchAndReturnFirstDocument(searchResult);
@@ -624,8 +677,7 @@ public class ElasticsearchIO {
             "DELETE",
             "/_search/scroll",
             Collections.<String, String>emptyMap(),
-            entity,
-            new BasicHeader("", ""));
+            entity);
       } finally {
         if (restClient != null) {
           restClient.close();
@@ -710,28 +762,33 @@ public class ElasticsearchIO {
     public PDone expand(PCollection<String> input) {
       ConnectionConfiguration connectionConfiguration = getConnectionConfiguration();
       checkState(connectionConfiguration != null, "withConnectionConfiguration() is required");
-      checkVersion(connectionConfiguration);
-
       input.apply(ParDo.of(new WriteFn(this)));
       return PDone.in(input.getPipeline());
     }
 
+    /**
+     * {@link DoFn} to for the {@link Write} transform.
+     * */
     @VisibleForTesting
     static class WriteFn extends DoFn<String, Void> {
 
-      private final Write spec;
 
+      private int backendVersion;
+      private final Write spec;
       private transient RestClient restClient;
       private ArrayList<String> batch;
       private long currentBatchSizeBytes;
 
+      @VisibleForTesting
       WriteFn(Write spec) {
         this.spec = spec;
       }
 
       @Setup
-      public void createClient() throws Exception {
-        restClient = spec.getConnectionConfiguration().createClient();
+      public void setup() throws Exception {
+        ConnectionConfiguration connectionConfiguration = spec.getConnectionConfiguration();
+        backendVersion = getBackendVersion(connectionConfiguration);
+        restClient = connectionConfiguration.createClient();
       }
 
       @StartBundle
@@ -744,7 +801,7 @@ public class ElasticsearchIO {
       public void processElement(ProcessContext context) throws Exception {
         String document = context.element();
         batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
-        currentBatchSizeBytes += document.getBytes().length;
+        currentBatchSizeBytes += document.getBytes(StandardCharsets.UTF_8).length;
         if (batch.size() >= spec.getMaxBatchSize()
             || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
           flushBatch();
@@ -779,8 +836,7 @@ public class ElasticsearchIO {
                 "POST",
                 endPoint,
                 Collections.<String, String>emptyMap(),
-                requestBody,
-                new BasicHeader("", ""));
+                requestBody);
         JsonNode searchResult = parseResponse(response);
         boolean errors = searchResult.path("errors").asBoolean();
         if (errors) {
@@ -790,12 +846,18 @@ public class ElasticsearchIO {
           JsonNode items = searchResult.path("items");
           //some items present in bulk might have errors, concatenate error messages
           for (JsonNode item : items) {
-            JsonNode creationObject = item.path("create");
-            JsonNode error = creationObject.get("error");
+            String errorRootName = "";
+            if (backendVersion == 2){
+              errorRootName = "create";
+            } else if (backendVersion == 5){
+              errorRootName = "index";
+            }
+            JsonNode errorRoot = item.path(errorRootName);
+            JsonNode error = errorRoot.get("error");
             if (error != null) {
               String type = error.path("type").asText();
               String reason = error.path("reason").asText();
-              String docId = creationObject.path("_id").asText();
+              String docId = errorRoot.path("_id").asText();
               errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
               JsonNode causedBy = error.get("caused_by");
               if (causedBy != null) {
@@ -817,16 +879,21 @@ public class ElasticsearchIO {
       }
     }
   }
-  private static void checkVersion(ConnectionConfiguration connectionConfiguration){
+  private static int getBackendVersion(ConnectionConfiguration connectionConfiguration){
     try (RestClient restClient = connectionConfiguration.createClient()) {
-      Response response = restClient.performRequest("GET", "", new BasicHeader("", ""));
+      Response response = restClient.performRequest("GET", "");
       JsonNode jsonNode = parseResponse(response);
-      String version = jsonNode.path("version").path("number").asText();
-      boolean version2x = version.startsWith("2.");
-      checkArgument(version2x, "The Elasticsearch version to connect to is different of 2.x. "
-          + "This version of the ElasticsearchIO is only compatible with Elasticsearch v2.x");
-    } catch (IOException e) {
-      throw new IllegalArgumentException("Cannot check Elasticsearch version");
+      int backendVersion = Integer
+          .parseInt(jsonNode.path("version").path("number").asText().substring(0, 1));
+      checkArgument((backendVersion == 2 || backendVersion == 5),
+          "The Elasticsearch version to connect to is %s.x. "
+          + "This version of the ElasticsearchIO is only compatible with "
+          + "Elasticsearch v5.x and v2.x",
+          backendVersion);
+      return backendVersion;
+
+    } catch (IOException e){
+      throw (new IllegalArgumentException("Cannot get Elasticsearch version"));
     }
   }
 }
