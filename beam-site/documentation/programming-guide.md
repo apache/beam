@@ -1684,7 +1684,7 @@ You set the trigger(s) for a `PCollection` by invoking the method `.triggering()
 
 This code sample sets a time-based trigger for a `PCollection`, which emits results one minute after the first element in that window has been processed. The last line in the code sample, `.discardingFiredPanes()`, is the window's **accumulation mode**.
 
-#### Window Accumulation Modes
+#### <a name="window-accumulation-modes"></a>Window Accumulation Modes
 
 When you specify a trigger, you must also set the the window's **accumulation mode**. When a trigger fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple times, the accumulation mode determines whether the system *accumulates* the window panes as the trigger fires, or *discards* them.
 
