@@ -11,8 +11,8 @@ var types = make(map[string]reflect.Type)
 
 // RegisterType inserts "external" types into a global type registry to bypass
 // serialization and preserve full method information. It should be called in
-// init() only.
-func RegisterType(t reflect.Type) {
+// init() only. Returns the external key for the type.
+func RegisterType(t reflect.Type) string {
 	if initialized {
 		panic("Init hooks have already run. Register type during init() instead.")
 	}
@@ -28,6 +28,7 @@ func RegisterType(t reflect.Type) {
 		panic(fmt.Sprintf("type already registered for %v", k))
 	}
 	types[k] = t
+	return k
 }
 
 // LookupType looks up a type in the global type registry by external key.
