@@ -702,20 +702,20 @@ type CoderRef struct {
 	IsStreamLike bool        `json:"is_stream_like,omitempty"`
 }
 
+// Exported types are used for translation lookup.
 const (
+	WindowedValueType = "kind:windowed_value"
+	BytesType         = "kind:bytes"
+	GlobalWindowType  = "kind:global_window"
+	streamType        = "kind:stream"
 	pairType          = "kind:pair"
 	lengthPrefixType  = "kind:length_prefix"
-	windowedValueType = "kind:windowed_value"
-	streamType        = "kind:stream"
-	bytesType         = "kind:bytes"
-
-	globalWindowType = "kind:global_window"
 )
 
 // WrapExtraWindowedValue adds an additional WV needed for side input, which
 // expects the coder to have exactly one component with the element.
 func WrapExtraWindowedValue(c *CoderRef) *CoderRef {
-	return &CoderRef{Type: windowedValueType, Components: []*CoderRef{c}}
+	return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{c}}
 }
 
 // EncodeCoderRef returns the encoded form understood by the runner.
@@ -776,11 +776,11 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &CoderRef{Type: windowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
+		return &CoderRef{Type: WindowedValueType, Components: []*CoderRef{elm, w}, IsWrapper: true}, nil
 
 	case coder.Bytes:
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
-		return &CoderRef{Type: bytesType}, nil
+		return &CoderRef{Type: BytesType}, nil
 
 	default:
 		return nil, fmt.Errorf("bad coder kind: %v", c.Kind)
@@ -790,7 +790,7 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 // DecodeCoderRef extracts a usable coder from the encoded runner form.
 func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	switch c.Type {
-	case bytesType:
+	case BytesType:
 		return coder.NewBytes(), nil
 
 	case pairType:
@@ -837,7 +837,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 		t := typex.New(custom.Type)
 		return &coder.Coder{Kind: coder.Custom, T: t, Custom: custom}, nil
 
-	case windowedValueType:
+	case WindowedValueType:
 		if len(c.Components) != 2 {
 			return nil, fmt.Errorf("bad windowed value: %+v", c)
 		}
@@ -872,7 +872,7 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 func encodeWindow(w *window.Window) (*CoderRef, error) {
 	switch w.Kind() {
 	case window.GlobalWindow:
-		return &CoderRef{Type: globalWindowType}, nil
+		return &CoderRef{Type: GlobalWindowType}, nil
 	default:
 		return nil, fmt.Errorf("bad window kind: %v", w.Kind())
 	}
@@ -882,7 +882,7 @@ func encodeWindow(w *window.Window) (*CoderRef, error) {
 // the preprocessed representation, expanding all types used by the coder.
 func decodeWindow(w *CoderRef) (*window.Window, error) {
 	switch w.Type {
-	case globalWindowType:
+	case GlobalWindowType:
 		return window.NewGlobalWindow(), nil
 	default:
 		return nil, fmt.Errorf("bad window: %v", w.Type)
