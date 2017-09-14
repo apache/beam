@@ -93,11 +93,11 @@ class ShardRecordsIterator {
         LOG.info("Refreshing expired iterator", e);
         shardIterator = checkpoint.getShardIterator(kinesis);
       }
-    } while (response == null || isEmptyResponseBeforeStreamEnd(response));
+    } while (response == null || gotEmptyResponseButIsBeforeEndOfTheStream(response));
     return response;
   }
 
-  private boolean isEmptyResponseBeforeStreamEnd(GetKinesisRecordsResult response) {
+  private boolean gotEmptyResponseButIsBeforeEndOfTheStream(GetKinesisRecordsResult response) {
     return response.getRecords().isEmpty() && response.getMillisBehindLatest() > 0;
   }
 

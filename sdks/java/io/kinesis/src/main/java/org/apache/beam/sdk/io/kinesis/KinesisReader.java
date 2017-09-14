@@ -95,10 +95,10 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
           shardIterators.moveForward();
         }
       }
+      watermark = Instant.now();
     } catch (TransientKinesisException e) {
       LOG.warn("Transient exception occurred", e);
     }
-    watermark = Instant.now();
     return false;
   }
 
