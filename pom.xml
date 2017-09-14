@@ -165,7 +165,7 @@
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
     <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
+    <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
@@ -1957,6 +1957,12 @@
           <version>1.3.5</version>
           <!-- no executions by default. Use build-containers profile -->
         </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-dependency-plugin</artifactId>
+          <version>${maven-dependency-plugin.version}</version>
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1964,7 +1970,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>${maven-dependency-plugin.version}</version>
         <executions>
           <execution>
             <goals><goal>analyze-only</goal></goals>

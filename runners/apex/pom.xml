@@ -300,7 +300,6 @@
                   <pluginExecutionFilter>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-dependency-plugin</artifactId>
-                    <versionRange>[2.10,)</versionRange>
                     <goals>
                       <goal>tree</goal>
                     </goals>
