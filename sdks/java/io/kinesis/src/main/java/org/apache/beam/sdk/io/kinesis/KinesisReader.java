@@ -41,6 +41,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final CheckpointGenerator initialCheckpointGenerator;
   private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
+  private Instant watermark = new Instant(0L);
 
   public KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
@@ -84,6 +85,11 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
       for (int i = 0; i < shardIterators.size(); ++i) {
         currentRecord = shardIterators.getCurrent().next();
         if (currentRecord.isPresent()) {
+          Instant approximateArrivalTimestamp = currentRecord.get()
+              .getApproximateArrivalTimestamp();
+          if (approximateArrivalTimestamp.isAfter(watermark)) {
+            watermark = approximateArrivalTimestamp;
+          }
           return true;
         } else {
           shardIterators.moveForward();
@@ -92,6 +98,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     } catch (TransientKinesisException e) {
       LOG.warn("Transient exception occurred", e);
     }
+    watermark = Instant.now();
     return false;
   }
 
@@ -106,29 +113,23 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   }
 
   /**
-   * When {@link KinesisReader} was advanced to the current record.
-   * We cannot use approximate arrival timestamp given for each record by Kinesis as it
-   * is not guaranteed to be accurate - this could lead to mark some records as "late"
-   * even if they were not.
+   * Returns the approximate time that the current record was inserted into the stream.
+   * It is not guaranteed to be accurate - this could lead to mark some records as "late"
+   * even if they were not. Beware of this when setting
+   * {@link org.apache.beam.sdk.values.WindowingStrategy#withAllowedLateness}
    */
   @Override
   public Instant getCurrentTimestamp() throws NoSuchElementException {
-    return currentRecord.get().getReadTime();
+    return currentRecord.get().getApproximateArrivalTimestamp();
   }
 
   @Override
   public void close() throws IOException {
   }
 
-  /**
-   * Current time.
-   * We cannot give better approximation of the watermark with current semantics of
-   * {@link KinesisReader#getCurrentTimestamp()}, because we don't know when the next
-   * {@link KinesisReader#advance()} will be called.
-   */
   @Override
   public Instant getWatermark() {
-    return Instant.now();
+    return watermark;
   }
 
   @Override

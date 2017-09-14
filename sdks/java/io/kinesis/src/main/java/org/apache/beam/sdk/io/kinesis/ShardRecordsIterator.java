@@ -77,20 +77,28 @@ class ShardRecordsIterator {
 
   private void readMoreIfNecessary() throws TransientKinesisException {
     if (data.isEmpty()) {
-      GetKinesisRecordsResult response;
+      GetKinesisRecordsResult response = fetchRecords();
+      data.addAll(filter.apply(response.getRecords(), checkpoint));
+    }
+  }
+
+  private GetKinesisRecordsResult fetchRecords() throws TransientKinesisException {
+    GetKinesisRecordsResult response = null;
+    do {
       try {
         response = kinesis.getRecords(shardIterator, checkpoint.getStreamName(),
             checkpoint.getShardId());
+        shardIterator = response.getNextShardIterator();
       } catch (ExpiredIteratorException e) {
         LOG.info("Refreshing expired iterator", e);
         shardIterator = checkpoint.getShardIterator(kinesis);
-        response = kinesis.getRecords(shardIterator, checkpoint.getStreamName(),
-            checkpoint.getShardId());
       }
-      LOG.debug("Fetched {} new records", response.getRecords().size());
-      shardIterator = response.getNextShardIterator();
-      data.addAll(filter.apply(response.getRecords(), checkpoint));
-    }
+    } while (response == null || isEmptyResponseBeforeStreamEnd(response));
+    return response;
+  }
+
+  private boolean isEmptyResponseBeforeStreamEnd(GetKinesisRecordsResult response) {
+    return response.getRecords().isEmpty() && response.getMillisBehindLatest() > 0;
   }
 
   public ShardCheckpoint getCheckpoint() {

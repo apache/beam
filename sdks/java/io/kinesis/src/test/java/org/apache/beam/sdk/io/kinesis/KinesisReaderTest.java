@@ -24,6 +24,8 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -58,6 +60,10 @@ public class KinesisReaderTest {
     when(secondCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(secondIterator);
     when(firstIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+    when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
+    when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
+    when(c.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
+    when(d.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
 
     reader = new KinesisReader(kinesis, generator, null);
   }
@@ -119,4 +125,35 @@ public class KinesisReaderTest {
     assertThat(reader.advance()).isFalse();
   }
 
+  @Test
+  public void watermarkMonotonicallyIncreases() throws TransientKinesisException, IOException {
+    Instant initialDate = Instant.parse("2017-02-10T10:00:00");
+    when(a.getApproximateArrivalTimestamp()).thenReturn(initialDate);
+    when(b.getApproximateArrivalTimestamp())
+        .thenReturn(initialDate.plus(Duration.standardMinutes(5)));
+    when(c.getApproximateArrivalTimestamp())
+        .thenReturn(initialDate.plus(Duration.standardMinutes(1)));
+    when(d.getApproximateArrivalTimestamp())
+        .thenReturn(initialDate.minus(Duration.standardMinutes(5)));
+    when(firstIterator.next())
+        .thenReturn(CustomOptional.of(a))
+        .thenReturn(CustomOptional.<KinesisRecord>absent())
+        .thenReturn(CustomOptional.of(b))
+        .thenReturn(CustomOptional.<KinesisRecord>absent());
+
+    when(secondIterator.next())
+        .thenReturn(CustomOptional.of(c))
+        .thenReturn(CustomOptional.of(d))
+        .thenReturn(CustomOptional.<KinesisRecord>absent());
+
+    reader.start();
+    Instant watermark = reader.getWatermark();
+    while (reader.advance()) {
+      assertThat(reader.getWatermark()).isGreaterThanOrEqualTo(watermark);
+      watermark = reader.getWatermark();
+    }
+    assertThat(reader.getWatermark()).isGreaterThanOrEqualTo(watermark);
+    assertThat(reader.getWatermark())
+        .isGreaterThan(Instant.now().minus(Duration.standardSeconds(5)));
+  }
 }
