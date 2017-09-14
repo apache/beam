@@ -48,7 +48,7 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-14": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
 					Urn: "urn:org.apache.beam:source:java:0.1",
-					Parameter: &google_protobuf.Any{
+					AnyParam: &google_protobuf.Any{
 						TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
 						Value:   []byte("\na\nO\022\023\010\030\022\017\010\032J\013emitLinesFn\0328{\"lines\":[\"old pond\",\"a frog leaps in\",\"water's sound\"]}\032\016\n\014\n\004\010\031@\016\022\004\n\002\010\014"),
 					},
@@ -58,7 +58,7 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-17": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
 					Urn: "urn:org.apache.beam:dofn:java:0.1",
-					Parameter: &google_protobuf.Any{
+					AnyParam: &google_protobuf.Any{
 						TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
 						Value:   []byte("\n\300\001ClkKVwpBZ2l0aHViLmNvbS9nb29nbGUvZ28tYmVhbS1zZGstZGV2L3BrZy9iZWFtL3RyYW5zZm9ybXMvY291bnQubWFwRm4SEggWIgQIGUAPKgQIGUAPKgIIAhISCAESDgoECBlADhIGCgQIGUAPGh4KHAoECBlADhIUCgQIGUALEgYKBAgZQA8SBAoCCAI="),
 					},
@@ -69,7 +69,7 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-20": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
 					Urn: "urn:org.apache.beam:dofn:java:0.1",
-					Parameter: &google_protobuf.Any{
+					AnyParam: &google_protobuf.Any{
 						TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
 						Value:   []byte("\n`CiIKIAoObWFpbi5leHRyYWN0Rm4SDggWIgIIDCIGCBYiAggMEhAIARIMCgQIGUAOEgQKAggMGg4KDAoECBlADhIECgIIDA=="),
 					},
@@ -80,7 +80,7 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-4": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
 					Urn: "urn:org.apache.beam:sink:runner:0.1",
-					Parameter: &google_protobuf.Any{
+					AnyParam: &google_protobuf.Any{
 						TypeUrl: "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort",
 						Value:   []byte("\n\025\n\002-1\022\017localhost:36335"),
 					},
@@ -93,11 +93,11 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-13": &rnapi_pb.PCollection{CoderId: "-12"},
 			"-9":  &rnapi_pb.PCollection{CoderId: "-8"},
 		},
-		Codersyyy: map[string]*rnapi_pb.Coder{
+		Coders: map[string]*rnapi_pb.Coder{
 			"-10": &rnapi_pb.Coder{
 				Spec: &rnapi_pb.SdkFunctionSpec{
 					Spec: &rnapi_pb.FunctionSpec{
-						Parameter: &google_protobuf.Any{
+						AnyParam: &google_protobuf.Any{
 							TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
 							Value:   []byte("\n\202\003{\"component_encodings\":[{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]},{\"@type\":\"kind:global_window\"}],\"@type\":\"kind:windowed_value\"}"),
 						},
@@ -107,7 +107,7 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-12": &rnapi_pb.Coder{
 				Spec: &rnapi_pb.SdkFunctionSpec{
 					Spec: &rnapi_pb.FunctionSpec{
-						Parameter: &google_protobuf.Any{
+						AnyParam: &google_protobuf.Any{
 							TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
 							Value:   []byte("\n\334\005{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"@type\":\"kind:pair\",\"component_encodings\":[{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]},{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIAhpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]}]},{\"@type\":\"kind:global_window\"}]}"),
 						},
@@ -117,7 +117,7 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 			"-8": &rnapi_pb.Coder{
 				Spec: &rnapi_pb.SdkFunctionSpec{
 					Spec: &rnapi_pb.FunctionSpec{
-						Parameter: &google_protobuf.Any{
+						AnyParam: &google_protobuf.Any{
 							TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
 							Value:   []byte("\n\202\003{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}],\"@type\":\"kind:length_prefix\"},{\"@type\":\"kind:global_window\"}]}"),
 						},
