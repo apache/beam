@@ -859,6 +859,19 @@ class TriggerDriver(object):
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     pass
 
+  def process_entire_key(
+      self, key, windowed_values, output_watermark=MIN_TIMESTAMP):
+    state = InMemoryUnmergedState()
+    for wvalue in self.process_elements(
+        state, windowed_values, output_watermark):
+      yield wvalue.with_value((key, wvalue.value))
+    while state.timers:
+      fired = state.get_and_clear_timers()
+      for timer_window, (name, time_domain, fire_time) in fired:
+        for wvalue in self.process_timer(
+            timer_window, name, time_domain, fire_time, state):
+          yield wvalue.with_value((key, wvalue.value))
+
 
 class _UnwindowedValues(observable.ObservableMixin):
   """Exposes iterable of windowed values as iterable of unwindowed values."""

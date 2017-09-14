@@ -38,7 +38,6 @@ from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import PTransformWithSideInputs
-from apache_beam.transforms.window import MIN_TIMESTAMP
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
@@ -1186,6 +1185,8 @@ class GroupByKey(PTransform):
       # Initialize type-hints used below to enforce type-checking and to pass
       # downstream to further PTransforms.
       key_type, value_type = trivial_inference.key_value_types(input_type)
+      # Enforce the input to a GBK has a KV element type.
+      pcoll.element_type = KV[key_type, value_type]
       typecoders.registry.verify_deterministic(
           typecoders.registry.get_coder(key_type),
           'GroupByKey operation "%s"' % self.label)
@@ -1281,24 +1282,13 @@ class _GroupAlsoByWindowDoFn(DoFn):
 
   def start_bundle(self):
     # pylint: disable=wrong-import-order, wrong-import-position
-    from apache_beam.transforms.trigger import InMemoryUnmergedState
     from apache_beam.transforms.trigger import create_trigger_driver
     # pylint: enable=wrong-import-order, wrong-import-position
     self.driver = create_trigger_driver(self.windowing, True)
-    self.state_type = InMemoryUnmergedState
 
   def process(self, element):
     k, vs = element
-    state = self.state_type()
-    # TODO(robertwb): Conditionally process in smaller chunks.
-    for wvalue in self.driver.process_elements(state, vs, MIN_TIMESTAMP):
-      yield wvalue.with_value((k, wvalue.value))
-    while state.timers:
-      fired = state.get_and_clear_timers()
-      for timer_window, (name, time_domain, fire_time) in fired:
-        for wvalue in self.driver.process_timer(
-            timer_window, name, time_domain, fire_time, state):
-          yield wvalue.with_value((k, wvalue.value))
+    return self.driver.process_entire_key(k, vs)
 
 
 class Partition(PTransformWithSideInputs):
