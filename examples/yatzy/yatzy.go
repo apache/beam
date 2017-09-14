@@ -13,9 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// yatzy is an example that shows that pipeline construction is normal Go
-// code. It can even be non-deterministic and produce different pipelines
-// on each invocation.
+// yatzy is an implementation of https://en.wikipedia.org/wiki/Yatzy that shows
+// that pipeline construction is normal Go code. It can even be
+// non-deterministic and produce different pipelines on each invocation.
 package main
 
 import (
