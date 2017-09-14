@@ -116,7 +116,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 		return nil, err
 	}
 
-	coders, err := translateCoders(bundle.GetCodersyyy())
+	coders, err := translateCoders(bundle.GetCoders())
 	if err != nil {
 		return nil, fmt.Errorf("invalid coders: %v", err)
 	}
@@ -132,7 +132,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 		switch spec.GetUrn() {
 		case "urn:org.apache.beam:source:java:0.1": // using Java's for now.
 			var me v1.MultiEdge
-			if err := protox.UnpackProto(spec.GetParameter(), &me); err != nil {
+			if err := protox.UnpackProto(spec.GetAnyParam(), &me); err != nil {
 				return nil, err
 			}
 
@@ -152,7 +152,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 
 		case "urn:org.apache.beam:dofn:java:0.1": // We are using Java's for now.
 			var me v1.MultiEdge
-			if err := protox.UnpackBase64Proto(spec.GetParameter(), &me); err != nil {
+			if err := protox.UnpackBase64Proto(spec.GetAnyParam(), &me); err != nil {
 				return nil, err
 			}
 
@@ -181,7 +181,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 
 		case "urn:org.apache.beam:source:runner:0.1":
-			port, err := translatePort(spec.GetParameter())
+			port, err := translatePort(spec.GetAnyParam())
 			if err != nil {
 				return nil, err
 			}
@@ -206,7 +206,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			edge.Output[0].Type = edge.Output[0].To.Coder.T
 
 		case "urn:org.apache.beam:sink:runner:0.1":
-			port, err := translatePort(spec.GetParameter())
+			port, err := translatePort(spec.GetAnyParam())
 			if err != nil {
 				return nil, err
 			}
@@ -334,7 +334,7 @@ func translateCoders(in map[string]*rnapi_pb.Coder) (map[string]*coder.Coder, er
 	coders := make(map[string]*coder.Coder)
 	for id, coder := range in {
 		spec := coder.GetSpec().GetSpec()
-		c, err := unpackCoder(spec.GetParameter())
+		c, err := unpackCoder(spec.GetAnyParam())
 		if err != nil {
 			return nil, fmt.Errorf("failed to translate coder %s: %v", id, err)
 		}

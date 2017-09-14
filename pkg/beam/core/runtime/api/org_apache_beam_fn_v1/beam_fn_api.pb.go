@@ -9,11 +9,6 @@ It is generated from these files:
 
 It has these top-level messages:
 	Target
-	PCollection
-	PrimitiveTransform
-	FunctionSpec
-	SideInput
-	Coder
 	RemoteGrpcPort
 	InstructionRequest
 	InstructionResponse
@@ -23,6 +18,7 @@ It has these top-level messages:
 	ProcessBundleRequest
 	ProcessBundleResponse
 	ProcessBundleProgressRequest
+	Metrics
 	ProcessBundleProgressResponse
 	ProcessBundleSplitRequest
 	ElementCountRestriction
@@ -32,9 +28,7 @@ It has these top-level messages:
 	Elements
 	StateRequest
 	StateResponse
-	CacheToken
 	StateKey
-	ContinuableStream
 	StateGetRequest
 	StateGetResponse
 	StateAppendRequest
@@ -53,7 +47,6 @@ import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import org_apache_beam_runner_api_v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_v1"
-import google_protobuf "github.com/golang/protobuf/ptypes/any"
 import google_protobuf1 "github.com/golang/protobuf/ptypes/timestamp"
 
 import (
@@ -129,13 +122,13 @@ var LogEntry_Severity_value = map[string]int32{
 func (x LogEntry_Severity) String() string {
 	return proto.EnumName(LogEntry_Severity_name, int32(x))
 }
-func (LogEntry_Severity) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{33, 0} }
+func (LogEntry_Severity) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{27, 0} }
 
 // A representation of an input or output definition on a primitive transform.
 // Stable
 type Target struct {
 	// (Required) The id of the PrimitiveTransform which is the target.
-	PrimitiveTransformReference string `protobuf:"bytes,1,opt,name=primitive_transform_reference" json:"primitive_transform_reference,omitempty"`
+	PrimitiveTransformReference string `protobuf:"bytes,1,opt,name=primitive_transform_reference,json=primitiveTransformReference" json:"primitive_transform_reference,omitempty"`
 	// (Required) The local name of an input or output defined on the primitive
 	// transform.
 	Name string `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`
@@ -177,228 +170,6 @@ func (m *Target_List) GetTarget() []*Target {
 	return nil
 }
 
-// Information defining a PCollection
-type PCollection struct {
-	// (Required) A reference to a coder.
-	CoderReference string `protobuf:"bytes,1,opt,name=coder_reference" json:"coder_reference,omitempty"`
-}
-
-func (m *PCollection) Reset()                    { *m = PCollection{} }
-func (m *PCollection) String() string            { return proto.CompactTextString(m) }
-func (*PCollection) ProtoMessage()               {}
-func (*PCollection) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
-
-func (m *PCollection) GetCoderReference() string {
-	if m != nil {
-		return m.CoderReference
-	}
-	return ""
-}
-
-// A primitive transform within Apache Beam.
-type PrimitiveTransform struct {
-	// (Required) A pipeline level unique id which can be used as a reference to
-	// refer to this.
-	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	// (Required) A function spec that is used by this primitive
-	// transform to process data.
-	FunctionSpec *FunctionSpec `protobuf:"bytes,2,opt,name=function_spec" json:"function_spec,omitempty"`
-	// A map of distinct input names to target definitions.
-	// For example, in CoGbk this represents the tag name associated with each
-	// distinct input name and a list of primitive transforms that are associated
-	// with the specified input.
-	Inputs map[string]*Target_List `protobuf:"bytes,3,rep,name=inputs" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// A map from local output name to PCollection definitions. For example, in
-	// DoFn this represents the tag name associated with each distinct output.
-	Outputs map[string]*PCollection `protobuf:"bytes,4,rep,name=outputs" json:"outputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// TODO: Should we model side inputs as a special type of input for a
-	// primitive transform or should it be modeled as the relationship that
-	// the predecessor input will be a view primitive transform.
-	// A map of from side input names to side inputs.
-	SideInputs map[string]*SideInput `protobuf:"bytes,5,rep,name=side_inputs" json:"side_inputs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// The user name of this step.
-	// TODO: This should really be in display data and not at this level
-	StepName string `protobuf:"bytes,6,opt,name=step_name" json:"step_name,omitempty"`
-}
-
-func (m *PrimitiveTransform) Reset()                    { *m = PrimitiveTransform{} }
-func (m *PrimitiveTransform) String() string            { return proto.CompactTextString(m) }
-func (*PrimitiveTransform) ProtoMessage()               {}
-func (*PrimitiveTransform) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
-
-func (m *PrimitiveTransform) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
-func (m *PrimitiveTransform) GetFunctionSpec() *FunctionSpec {
-	if m != nil {
-		return m.FunctionSpec
-	}
-	return nil
-}
-
-func (m *PrimitiveTransform) GetInputs() map[string]*Target_List {
-	if m != nil {
-		return m.Inputs
-	}
-	return nil
-}
-
-func (m *PrimitiveTransform) GetOutputs() map[string]*PCollection {
-	if m != nil {
-		return m.Outputs
-	}
-	return nil
-}
-
-func (m *PrimitiveTransform) GetSideInputs() map[string]*SideInput {
-	if m != nil {
-		return m.SideInputs
-	}
-	return nil
-}
-
-func (m *PrimitiveTransform) GetStepName() string {
-	if m != nil {
-		return m.StepName
-	}
-	return ""
-}
-
-// Defines the common elements of user-definable functions, to allow the SDK to
-// express the information the runner needs to execute work.
-// Stable
-type FunctionSpec struct {
-	// (Required) A pipeline level unique id which can be used as a reference to
-	// refer to this.
-	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	// (Required) A globally unique name representing this user definable
-	// function.
-	//
-	// User definable functions use the urn encodings registered such that another
-	// may implement the user definable function within another language.
-	//
-	// For example:
-	//    urn:org.apache.beam:coder:kv:1.0
-	Urn string `protobuf:"bytes,2,opt,name=urn" json:"urn,omitempty"`
-	// (Required) Reference to specification of execution environment required to
-	// invoke this function.
-	EnvironmentReference string `protobuf:"bytes,3,opt,name=environment_reference" json:"environment_reference,omitempty"`
-	// Data used to parameterize this function. Depending on the urn, this may be
-	// optional or required.
-	Data *google_protobuf.Any `protobuf:"bytes,4,opt,name=data" json:"data,omitempty"`
-}
-
-func (m *FunctionSpec) Reset()                    { *m = FunctionSpec{} }
-func (m *FunctionSpec) String() string            { return proto.CompactTextString(m) }
-func (*FunctionSpec) ProtoMessage()               {}
-func (*FunctionSpec) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
-
-func (m *FunctionSpec) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
-func (m *FunctionSpec) GetUrn() string {
-	if m != nil {
-		return m.Urn
-	}
-	return ""
-}
-
-func (m *FunctionSpec) GetEnvironmentReference() string {
-	if m != nil {
-		return m.EnvironmentReference
-	}
-	return ""
-}
-
-func (m *FunctionSpec) GetData() *google_protobuf.Any {
-	if m != nil {
-		return m.Data
-	}
-	return nil
-}
-
-type SideInput struct {
-	// For RunnerAPI.
-	Input *Target `protobuf:"bytes,1,opt,name=input" json:"input,omitempty"`
-	// For FnAPI.
-	ViewFn *FunctionSpec `protobuf:"bytes,2,opt,name=view_fn" json:"view_fn,omitempty"`
-}
-
-func (m *SideInput) Reset()                    { *m = SideInput{} }
-func (m *SideInput) String() string            { return proto.CompactTextString(m) }
-func (*SideInput) ProtoMessage()               {}
-func (*SideInput) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
-
-func (m *SideInput) GetInput() *Target {
-	if m != nil {
-		return m.Input
-	}
-	return nil
-}
-
-func (m *SideInput) GetViewFn() *FunctionSpec {
-	if m != nil {
-		return m.ViewFn
-	}
-	return nil
-}
-
-// Defines how to encode values into byte streams and decode values from byte
-// streams. A coder can be parameterized by additional properties which may or
-// may not be language agnostic.
-//
-// Coders using the urn:org.apache.beam:coder namespace must have their
-// encodings registered such that another may implement the encoding within
-// another language.
-//
-// For example:
-//    urn:org.apache.beam:coder:kv:1.0
-//    urn:org.apache.beam:coder:iterable:1.0
-// Stable
-type Coder struct {
-	// The data associated with this coder used to reconstruct it.
-	FunctionSpec *FunctionSpec `protobuf:"bytes,1,opt,name=function_spec" json:"function_spec,omitempty"`
-	// A list of component coder references.
-	//
-	// For a key-value coder, there must be exactly two component coder references
-	// where the first reference represents the key coder and the second reference
-	// is the value coder.
-	//
-	// For an iterable coder, there must be exactly one component coder reference
-	// representing the value coder.
-	//
-	// TODO: Perhaps this is redundant with the data of the FunctionSpec
-	// for known coders?
-	ComponentCoderReference []string `protobuf:"bytes,2,rep,name=component_coder_reference" json:"component_coder_reference,omitempty"`
-}
-
-func (m *Coder) Reset()                    { *m = Coder{} }
-func (m *Coder) String() string            { return proto.CompactTextString(m) }
-func (*Coder) ProtoMessage()               {}
-func (*Coder) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
-
-func (m *Coder) GetFunctionSpec() *FunctionSpec {
-	if m != nil {
-		return m.FunctionSpec
-	}
-	return nil
-}
-
-func (m *Coder) GetComponentCoderReference() []string {
-	if m != nil {
-		return m.ComponentCoderReference
-	}
-	return nil
-}
-
 // A descriptor for connecting to a remote port using the Beam Fn Data API.
 // Allows for communication between two environments (for example between the
 // runner and the SDK).
@@ -406,13 +177,13 @@ func (m *Coder) GetComponentCoderReference() []string {
 type RemoteGrpcPort struct {
 	// (Required) An API descriptor which describes where to
 	// connect to including any authentication that is required.
-	ApiServiceDescriptor *ApiServiceDescriptor `protobuf:"bytes,1,opt,name=api_service_descriptor" json:"api_service_descriptor,omitempty"`
+	ApiServiceDescriptor *ApiServiceDescriptor `protobuf:"bytes,1,opt,name=api_service_descriptor,json=apiServiceDescriptor" json:"api_service_descriptor,omitempty"`
 }
 
 func (m *RemoteGrpcPort) Reset()                    { *m = RemoteGrpcPort{} }
 func (m *RemoteGrpcPort) String() string            { return proto.CompactTextString(m) }
 func (*RemoteGrpcPort) ProtoMessage()               {}
-func (*RemoteGrpcPort) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*RemoteGrpcPort) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
 
 func (m *RemoteGrpcPort) GetApiServiceDescriptor() *ApiServiceDescriptor {
 	if m != nil {
@@ -421,12 +192,14 @@ func (m *RemoteGrpcPort) GetApiServiceDescriptor() *ApiServiceDescriptor {
 	return nil
 }
 
-// A request sent by a runner which it the SDK is asked to fulfill.
+// A request sent by a runner which the SDK is asked to fulfill.
+// For any unsupported request type, an error should be returned with a
+// matching instruction id.
 // Stable
 type InstructionRequest struct {
 	// (Required) An unique identifier provided by the runner which represents
 	// this requests execution. The InstructionResponse MUST have the matching id.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id" json:"instruction_id,omitempty"`
+	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId" json:"instruction_id,omitempty"`
 	// (Required) A request that the SDK Harness needs to interpret.
 	//
 	// Types that are valid to be assigned to Request:
@@ -440,7 +213,7 @@ type InstructionRequest struct {
 func (m *InstructionRequest) Reset()                    { *m = InstructionRequest{} }
 func (m *InstructionRequest) String() string            { return proto.CompactTextString(m) }
 func (*InstructionRequest) ProtoMessage()               {}
-func (*InstructionRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*InstructionRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
 
 type isInstructionRequest_Request interface {
 	isInstructionRequest_Request()
@@ -450,13 +223,13 @@ type InstructionRequest_Register struct {
 	Register *RegisterRequest `protobuf:"bytes,1000,opt,name=register,oneof"`
 }
 type InstructionRequest_ProcessBundle struct {
-	ProcessBundle *ProcessBundleRequest `protobuf:"bytes,1001,opt,name=process_bundle,oneof"`
+	ProcessBundle *ProcessBundleRequest `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,oneof"`
 }
 type InstructionRequest_ProcessBundleProgress struct {
-	ProcessBundleProgress *ProcessBundleProgressRequest `protobuf:"bytes,1002,opt,name=process_bundle_progress,oneof"`
+	ProcessBundleProgress *ProcessBundleProgressRequest `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,oneof"`
 }
 type InstructionRequest_ProcessBundleSplit struct {
-	ProcessBundleSplit *ProcessBundleSplitRequest `protobuf:"bytes,1003,opt,name=process_bundle_split,oneof"`
+	ProcessBundleSplit *ProcessBundleSplitRequest `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,oneof"`
 }
 
 func (*InstructionRequest_Register) isInstructionRequest_Request()              {}
@@ -624,7 +397,7 @@ type InstructionResponse struct {
 	// (Required) A reference provided by the runner which represents a requests
 	// execution. The InstructionResponse MUST have the matching id when
 	// responding to the runner.
-	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id" json:"instruction_id,omitempty"`
+	InstructionId string `protobuf:"bytes,1,opt,name=instruction_id,json=instructionId" json:"instruction_id,omitempty"`
 	// If this is specified, then this instruction has failed.
 	// A human readable string representing the reason as to why processing has
 	// failed.
@@ -643,7 +416,7 @@ type InstructionResponse struct {
 func (m *InstructionResponse) Reset()                    { *m = InstructionResponse{} }
 func (m *InstructionResponse) String() string            { return proto.CompactTextString(m) }
 func (*InstructionResponse) ProtoMessage()               {}
-func (*InstructionResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*InstructionResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
 type isInstructionResponse_Response interface {
 	isInstructionResponse_Response()
@@ -653,13 +426,13 @@ type InstructionResponse_Register struct {
 	Register *RegisterResponse `protobuf:"bytes,1000,opt,name=register,oneof"`
 }
 type InstructionResponse_ProcessBundle struct {
-	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,oneof"`
+	ProcessBundle *ProcessBundleResponse `protobuf:"bytes,1001,opt,name=process_bundle,json=processBundle,oneof"`
 }
 type InstructionResponse_ProcessBundleProgress struct {
-	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,oneof"`
+	ProcessBundleProgress *ProcessBundleProgressResponse `protobuf:"bytes,1002,opt,name=process_bundle_progress,json=processBundleProgress,oneof"`
 }
 type InstructionResponse_ProcessBundleSplit struct {
-	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,oneof"`
+	ProcessBundleSplit *ProcessBundleSplitResponse `protobuf:"bytes,1003,opt,name=process_bundle_split,json=processBundleSplit,oneof"`
 }
 
 func (*InstructionResponse_Register) isInstructionResponse_Response()              {}
@@ -833,13 +606,13 @@ func _InstructionResponse_OneofSizer(msg proto.Message) (n int) {
 // Stable
 type RegisterRequest struct {
 	// (Optional) The set of descriptors used to process bundles.
-	ProcessBundleDescriptor []*ProcessBundleDescriptor `protobuf:"bytes,1,rep,name=process_bundle_descriptor" json:"process_bundle_descriptor,omitempty"`
+	ProcessBundleDescriptor []*ProcessBundleDescriptor `protobuf:"bytes,1,rep,name=process_bundle_descriptor,json=processBundleDescriptor" json:"process_bundle_descriptor,omitempty"`
 }
 
 func (m *RegisterRequest) Reset()                    { *m = RegisterRequest{} }
 func (m *RegisterRequest) String() string            { return proto.CompactTextString(m) }
 func (*RegisterRequest) ProtoMessage()               {}
-func (*RegisterRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
+func (*RegisterRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
 
 func (m *RegisterRequest) GetProcessBundleDescriptor() []*ProcessBundleDescriptor {
 	if m != nil {
@@ -855,56 +628,39 @@ type RegisterResponse struct {
 func (m *RegisterResponse) Reset()                    { *m = RegisterResponse{} }
 func (m *RegisterResponse) String() string            { return proto.CompactTextString(m) }
 func (*RegisterResponse) ProtoMessage()               {}
-func (*RegisterResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+func (*RegisterResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 // Definitions that should be used to construct the bundle processing graph.
 type ProcessBundleDescriptor struct {
 	// (Required) A pipeline level unique id which can be used as a reference to
 	// refer to this.
 	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
-	// (Deprecated) A list of primitive transforms that should
-	// be used to construct the bundle processing graph.
-	PrimitiveTransform []*PrimitiveTransform `protobuf:"bytes,2,rep,name=primitive_transform" json:"primitive_transform,omitempty"`
-	// (Deprecated) The set of all coders referenced in this bundle.
-	Coders []*Coder `protobuf:"bytes,4,rep,name=coders" json:"coders,omitempty"`
 	// (Required) A map from pipeline-scoped id to PTransform.
-	Transforms map[string]*org_apache_beam_runner_api_v1.PTransform `protobuf:"bytes,5,rep,name=transforms" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Transforms map[string]*org_apache_beam_runner_api_v1.PTransform `protobuf:"bytes,2,rep,name=transforms" json:"transforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// (Required) A map from pipeline-scoped id to PCollection.
-	Pcollections map[string]*org_apache_beam_runner_api_v1.PCollection `protobuf:"bytes,6,rep,name=pcollections" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Pcollections map[string]*org_apache_beam_runner_api_v1.PCollection `protobuf:"bytes,3,rep,name=pcollections" json:"pcollections,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// (Required) A map from pipeline-scoped id to WindowingStrategy.
-	WindowingStrategies map[string]*org_apache_beam_runner_api_v1.WindowingStrategy `protobuf:"bytes,7,rep,name=windowing_strategies" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	WindowingStrategies map[string]*org_apache_beam_runner_api_v1.WindowingStrategy `protobuf:"bytes,4,rep,name=windowing_strategies,json=windowingStrategies" json:"windowing_strategies,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// (Required) A map from pipeline-scoped id to Coder.
-	// TODO: Rename to "coders" once deprecated coders field is removed. Unique
-	// name is choosen to make it an easy search/replace
-	Codersyyy map[string]*org_apache_beam_runner_api_v1.Coder `protobuf:"bytes,8,rep,name=codersyyy" json:"codersyyy,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Coders map[string]*org_apache_beam_runner_api_v1.Coder `protobuf:"bytes,5,rep,name=coders" json:"coders,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	// (Required) A map from pipeline-scoped id to Environment.
-	Environments map[string]*org_apache_beam_runner_api_v1.Environment `protobuf:"bytes,9,rep,name=environments" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Environments map[string]*org_apache_beam_runner_api_v1.Environment `protobuf:"bytes,6,rep,name=environments" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	// A descriptor describing the end point to use for State API
+	// calls. Required if the Runner intends to send remote references over the
+	// data plane or if any of the transforms rely on user state or side inputs.
+	StateApiServiceDescriptor *ApiServiceDescriptor `protobuf:"bytes,7,opt,name=state_api_service_descriptor,json=stateApiServiceDescriptor" json:"state_api_service_descriptor,omitempty"`
 }
 
 func (m *ProcessBundleDescriptor) Reset()                    { *m = ProcessBundleDescriptor{} }
 func (m *ProcessBundleDescriptor) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleDescriptor) ProtoMessage()               {}
-func (*ProcessBundleDescriptor) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
+func (*ProcessBundleDescriptor) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 func (m *ProcessBundleDescriptor) GetId() string {
 	if m != nil {
 		return m.Id
 	}
 	return ""
-}
-
-func (m *ProcessBundleDescriptor) GetPrimitiveTransform() []*PrimitiveTransform {
-	if m != nil {
-		return m.PrimitiveTransform
-	}
-	return nil
-}
-
-func (m *ProcessBundleDescriptor) GetCoders() []*Coder {
-	if m != nil {
-		return m.Coders
-	}
-	return nil
 }
 
 func (m *ProcessBundleDescriptor) GetTransforms() map[string]*org_apache_beam_runner_api_v1.PTransform {
@@ -928,9 +684,9 @@ func (m *ProcessBundleDescriptor) GetWindowingStrategies() map[string]*org_apach
 	return nil
 }
 
-func (m *ProcessBundleDescriptor) GetCodersyyy() map[string]*org_apache_beam_runner_api_v1.Coder {
+func (m *ProcessBundleDescriptor) GetCoders() map[string]*org_apache_beam_runner_api_v1.Coder {
 	if m != nil {
-		return m.Codersyyy
+		return m.Coders
 	}
 	return nil
 }
@@ -942,21 +698,28 @@ func (m *ProcessBundleDescriptor) GetEnvironments() map[string]*org_apache_beam_
 	return nil
 }
 
+func (m *ProcessBundleDescriptor) GetStateApiServiceDescriptor() *ApiServiceDescriptor {
+	if m != nil {
+		return m.StateApiServiceDescriptor
+	}
+	return nil
+}
+
 // A request to process a given bundle.
 // Stable
 type ProcessBundleRequest struct {
 	// (Required) A reference to the process bundle descriptor that must be
 	// instantiated and executed by the SDK harness.
-	ProcessBundleDescriptorReference string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_reference" json:"process_bundle_descriptor_reference,omitempty"`
-	// (Optional) A list of cache tokens that can be used by an SDK to cache
-	// data looked up using the State API across multiple bundles.
-	CacheTokens []*CacheToken `protobuf:"bytes,2,rep,name=cache_tokens" json:"cache_tokens,omitempty"`
+	ProcessBundleDescriptorReference string `protobuf:"bytes,1,opt,name=process_bundle_descriptor_reference,json=processBundleDescriptorReference" json:"process_bundle_descriptor_reference,omitempty"`
+	// (Optional) A list of cache tokens that can be used by an SDK to reuse
+	// cached data returned by the State API across multiple bundles.
+	CacheTokens [][]byte `protobuf:"bytes,2,rep,name=cache_tokens,json=cacheTokens,proto3" json:"cache_tokens,omitempty"`
 }
 
 func (m *ProcessBundleRequest) Reset()                    { *m = ProcessBundleRequest{} }
 func (m *ProcessBundleRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleRequest) ProtoMessage()               {}
-func (*ProcessBundleRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
+func (*ProcessBundleRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
 
 func (m *ProcessBundleRequest) GetProcessBundleDescriptorReference() string {
 	if m != nil {
@@ -965,7 +728,7 @@ func (m *ProcessBundleRequest) GetProcessBundleDescriptorReference() string {
 	return ""
 }
 
-func (m *ProcessBundleRequest) GetCacheTokens() []*CacheToken {
+func (m *ProcessBundleRequest) GetCacheTokens() [][]byte {
 	if m != nil {
 		return m.CacheTokens
 	}
@@ -974,23 +737,36 @@ func (m *ProcessBundleRequest) GetCacheTokens() []*CacheToken {
 
 // Stable
 type ProcessBundleResponse struct {
+	// (Optional) If metrics reporting is supported by the SDK, this represents
+	// the final metrics to record for this bundle.
+	Metrics *Metrics `protobuf:"bytes,1,opt,name=metrics" json:"metrics,omitempty"`
 }
 
 func (m *ProcessBundleResponse) Reset()                    { *m = ProcessBundleResponse{} }
 func (m *ProcessBundleResponse) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleResponse) ProtoMessage()               {}
-func (*ProcessBundleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
+func (*ProcessBundleResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
+func (m *ProcessBundleResponse) GetMetrics() *Metrics {
+	if m != nil {
+		return m.Metrics
+	}
+	return nil
+}
+
+// A request to report progress information for a given bundle.
+// This is an optional request to be handled and is used to support advanced
+// SDK features such as SplittableDoFn, user level metrics etc.
 type ProcessBundleProgressRequest struct {
 	// (Required) A reference to an active process bundle request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
 }
 
 func (m *ProcessBundleProgressRequest) Reset()                    { *m = ProcessBundleProgressRequest{} }
 func (m *ProcessBundleProgressRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressRequest) ProtoMessage()               {}
-func (*ProcessBundleProgressRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
+func (*ProcessBundleProgressRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{9} }
 
 func (m *ProcessBundleProgressRequest) GetInstructionReference() string {
 	if m != nil {
@@ -999,39 +775,213 @@ func (m *ProcessBundleProgressRequest) GetInstructionReference() string {
 	return ""
 }
 
+type Metrics struct {
+	Ptransforms map[string]*Metrics_PTransform `protobuf:"bytes,1,rep,name=ptransforms" json:"ptransforms,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	User        map[string]*Metrics_User       `protobuf:"bytes,2,rep,name=user" json:"user,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+}
+
+func (m *Metrics) Reset()                    { *m = Metrics{} }
+func (m *Metrics) String() string            { return proto.CompactTextString(m) }
+func (*Metrics) ProtoMessage()               {}
+func (*Metrics) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10} }
+
+func (m *Metrics) GetPtransforms() map[string]*Metrics_PTransform {
+	if m != nil {
+		return m.Ptransforms
+	}
+	return nil
+}
+
+func (m *Metrics) GetUser() map[string]*Metrics_User {
+	if m != nil {
+		return m.User
+	}
+	return nil
+}
+
+// PTransform level metrics.
+// These metrics are split into processed and active element groups for
+// progress reporting purposes. This allows a Runner to see what is measured,
+// what is estimated and what can be extrapolated to be able to accurately
+// estimate the backlog of remaining work.
+type Metrics_PTransform struct {
+	// (Required): Metrics for processed elements.
+	ProcessedElements *Metrics_PTransform_ProcessedElements `protobuf:"bytes,1,opt,name=processed_elements,json=processedElements" json:"processed_elements,omitempty"`
+	// (Required): Metrics for active elements.
+	ActiveElements *Metrics_PTransform_ActiveElements `protobuf:"bytes,2,opt,name=active_elements,json=activeElements" json:"active_elements,omitempty"`
+	// (Optional): Map from local output name to its watermark.
+	// The watermarks reported are tentative, to get a better sense of progress
+	// while processing a bundle but before it is committed. At bundle commit
+	// time, a Runner needs to also take into account the timers set to compute
+	// the actual watermarks.
+	Watermarks map[string]int64 `protobuf:"bytes,3,rep,name=watermarks" json:"watermarks,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+}
+
+func (m *Metrics_PTransform) Reset()                    { *m = Metrics_PTransform{} }
+func (m *Metrics_PTransform) String() string            { return proto.CompactTextString(m) }
+func (*Metrics_PTransform) ProtoMessage()               {}
+func (*Metrics_PTransform) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10, 0} }
+
+func (m *Metrics_PTransform) GetProcessedElements() *Metrics_PTransform_ProcessedElements {
+	if m != nil {
+		return m.ProcessedElements
+	}
+	return nil
+}
+
+func (m *Metrics_PTransform) GetActiveElements() *Metrics_PTransform_ActiveElements {
+	if m != nil {
+		return m.ActiveElements
+	}
+	return nil
+}
+
+func (m *Metrics_PTransform) GetWatermarks() map[string]int64 {
+	if m != nil {
+		return m.Watermarks
+	}
+	return nil
+}
+
+// Metrics that are measured for processed and active element groups.
+type Metrics_PTransform_Measured struct {
+	// (Required) Map from local input name to number of elements processed
+	// from this input.
+	InputElementCounts map[string]int64 `protobuf:"bytes,1,rep,name=input_element_counts,json=inputElementCounts" json:"input_element_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// (Required) Map from local output name to number of elements produced
+	// for this output.
+	OutputElementCounts map[string]int64 `protobuf:"bytes,2,rep,name=output_element_counts,json=outputElementCounts" json:"output_element_counts,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+	// (Optional) The total time spent so far in processing the elements in
+	// this group.
+	TotalTimeSpent int64 `protobuf:"varint,3,opt,name=total_time_spent,json=totalTimeSpent" json:"total_time_spent,omitempty"`
+}
+
+func (m *Metrics_PTransform_Measured) Reset()         { *m = Metrics_PTransform_Measured{} }
+func (m *Metrics_PTransform_Measured) String() string { return proto.CompactTextString(m) }
+func (*Metrics_PTransform_Measured) ProtoMessage()    {}
+func (*Metrics_PTransform_Measured) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{10, 0, 0}
+}
+
+func (m *Metrics_PTransform_Measured) GetInputElementCounts() map[string]int64 {
+	if m != nil {
+		return m.InputElementCounts
+	}
+	return nil
+}
+
+func (m *Metrics_PTransform_Measured) GetOutputElementCounts() map[string]int64 {
+	if m != nil {
+		return m.OutputElementCounts
+	}
+	return nil
+}
+
+func (m *Metrics_PTransform_Measured) GetTotalTimeSpent() int64 {
+	if m != nil {
+		return m.TotalTimeSpent
+	}
+	return 0
+}
+
+// Metrics for fully processed elements.
+type Metrics_PTransform_ProcessedElements struct {
+	// (Required)
+	Measured *Metrics_PTransform_Measured `protobuf:"bytes,1,opt,name=measured" json:"measured,omitempty"`
+}
+
+func (m *Metrics_PTransform_ProcessedElements) Reset()         { *m = Metrics_PTransform_ProcessedElements{} }
+func (m *Metrics_PTransform_ProcessedElements) String() string { return proto.CompactTextString(m) }
+func (*Metrics_PTransform_ProcessedElements) ProtoMessage()    {}
+func (*Metrics_PTransform_ProcessedElements) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{10, 0, 1}
+}
+
+func (m *Metrics_PTransform_ProcessedElements) GetMeasured() *Metrics_PTransform_Measured {
+	if m != nil {
+		return m.Measured
+	}
+	return nil
+}
+
+// Metrics for active elements.
+// An element is considered active if the SDK has started but not finished
+// processing it yet.
+type Metrics_PTransform_ActiveElements struct {
+	// (Required)
+	Measured *Metrics_PTransform_Measured `protobuf:"bytes,1,opt,name=measured" json:"measured,omitempty"`
+	// (Optional) Sum of estimated fraction of known work remaining for all
+	// active elements, as reported by this transform.
+	// If not reported, a Runner could extrapolate this from the processed
+	// elements.
+	// TODO: Handle the case when known work is infinite.
+	FractionRemaining float64 `protobuf:"fixed64,2,opt,name=fraction_remaining,json=fractionRemaining" json:"fraction_remaining,omitempty"`
+	// (Optional) Map from local output name to sum of estimated number
+	// of elements remaining for this output from all active elements,
+	// as reported by this transform.
+	// If not reported, a Runner could extrapolate this from the processed
+	// elements.
+	OutputElementsRemaining map[string]int64 `protobuf:"bytes,3,rep,name=output_elements_remaining,json=outputElementsRemaining" json:"output_elements_remaining,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
+}
+
+func (m *Metrics_PTransform_ActiveElements) Reset()         { *m = Metrics_PTransform_ActiveElements{} }
+func (m *Metrics_PTransform_ActiveElements) String() string { return proto.CompactTextString(m) }
+func (*Metrics_PTransform_ActiveElements) ProtoMessage()    {}
+func (*Metrics_PTransform_ActiveElements) Descriptor() ([]byte, []int) {
+	return fileDescriptor0, []int{10, 0, 2}
+}
+
+func (m *Metrics_PTransform_ActiveElements) GetMeasured() *Metrics_PTransform_Measured {
+	if m != nil {
+		return m.Measured
+	}
+	return nil
+}
+
+func (m *Metrics_PTransform_ActiveElements) GetFractionRemaining() float64 {
+	if m != nil {
+		return m.FractionRemaining
+	}
+	return 0
+}
+
+func (m *Metrics_PTransform_ActiveElements) GetOutputElementsRemaining() map[string]int64 {
+	if m != nil {
+		return m.OutputElementsRemaining
+	}
+	return nil
+}
+
+// User defined metrics
+type Metrics_User struct {
+}
+
+func (m *Metrics_User) Reset()                    { *m = Metrics_User{} }
+func (m *Metrics_User) String() string            { return proto.CompactTextString(m) }
+func (*Metrics_User) ProtoMessage()               {}
+func (*Metrics_User) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{10, 1} }
+
 type ProcessBundleProgressResponse struct {
-	// (Required) The finished amount of work. A monotonically increasing
-	// unitless measure of work finished.
-	FinishedWork float64 `protobuf:"fixed64,1,opt,name=finished_work" json:"finished_work,omitempty"`
-	// (Required) The known amount of backlog for the process bundle request.
-	// Computed as:
-	//   (estimated known work - finish work) / finished work
-	Backlog float64 `protobuf:"fixed64,2,opt,name=backlog" json:"backlog,omitempty"`
+	// (Required)
+	Metrics *Metrics `protobuf:"bytes,1,opt,name=metrics" json:"metrics,omitempty"`
 }
 
 func (m *ProcessBundleProgressResponse) Reset()                    { *m = ProcessBundleProgressResponse{} }
 func (m *ProcessBundleProgressResponse) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleProgressResponse) ProtoMessage()               {}
-func (*ProcessBundleProgressResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
+func (*ProcessBundleProgressResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{11} }
 
-func (m *ProcessBundleProgressResponse) GetFinishedWork() float64 {
+func (m *ProcessBundleProgressResponse) GetMetrics() *Metrics {
 	if m != nil {
-		return m.FinishedWork
+		return m.Metrics
 	}
-	return 0
-}
-
-func (m *ProcessBundleProgressResponse) GetBacklog() float64 {
-	if m != nil {
-		return m.Backlog
-	}
-	return 0
+	return nil
 }
 
 type ProcessBundleSplitRequest struct {
 	// (Required) A reference to an active process bundle request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
 	// (Required) The fraction of work (when compared to the known amount of work)
 	// the process bundle request should try to split at.
 	Fraction float64 `protobuf:"fixed64,2,opt,name=fraction" json:"fraction,omitempty"`
@@ -1040,7 +990,7 @@ type ProcessBundleSplitRequest struct {
 func (m *ProcessBundleSplitRequest) Reset()                    { *m = ProcessBundleSplitRequest{} }
 func (m *ProcessBundleSplitRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitRequest) ProtoMessage()               {}
-func (*ProcessBundleSplitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
+func (*ProcessBundleSplitRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{12} }
 
 func (m *ProcessBundleSplitRequest) GetInstructionReference() string {
 	if m != nil {
@@ -1066,7 +1016,7 @@ type ElementCountRestriction struct {
 func (m *ElementCountRestriction) Reset()                    { *m = ElementCountRestriction{} }
 func (m *ElementCountRestriction) String() string            { return proto.CompactTextString(m) }
 func (*ElementCountRestriction) ProtoMessage()               {}
-func (*ElementCountRestriction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
+func (*ElementCountRestriction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{13} }
 
 func (m *ElementCountRestriction) GetCount() int64 {
 	if m != nil {
@@ -1085,7 +1035,7 @@ type ElementCountSkipRestriction struct {
 func (m *ElementCountSkipRestriction) Reset()                    { *m = ElementCountSkipRestriction{} }
 func (m *ElementCountSkipRestriction) String() string            { return proto.CompactTextString(m) }
 func (*ElementCountSkipRestriction) ProtoMessage()               {}
-func (*ElementCountSkipRestriction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
+func (*ElementCountSkipRestriction) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{14} }
 
 func (m *ElementCountSkipRestriction) GetCount() int64 {
 	if m != nil {
@@ -1108,25 +1058,25 @@ type PrimitiveTransformSplit struct {
 	// (Required) A reference to a primitive transform with the given id that
 	// is part of the active process bundle request with the given instruction
 	// id.
-	PrimitiveTransformReference string `protobuf:"bytes,1,opt,name=primitive_transform_reference" json:"primitive_transform_reference,omitempty"`
+	PrimitiveTransformReference string `protobuf:"bytes,1,opt,name=primitive_transform_reference,json=primitiveTransformReference" json:"primitive_transform_reference,omitempty"`
 	// (Required) A function specification describing the restriction
 	// that has been completed by the primitive transform.
 	//
 	// For example, a remote GRPC source will have a specific urn and data
 	// block containing an ElementCountRestriction.
-	CompletedRestriction *FunctionSpec `protobuf:"bytes,2,opt,name=completed_restriction" json:"completed_restriction,omitempty"`
+	CompletedRestriction *org_apache_beam_runner_api_v1.FunctionSpec `protobuf:"bytes,2,opt,name=completed_restriction,json=completedRestriction" json:"completed_restriction,omitempty"`
 	// (Required) A function specification describing the restriction
 	// representing the remainder of work for the primitive transform.
 	//
 	// FOr example, a remote GRPC source will have a specific urn and data
 	// block contain an ElemntCountSkipRestriction.
-	RemainingRestriction *FunctionSpec `protobuf:"bytes,3,opt,name=remaining_restriction" json:"remaining_restriction,omitempty"`
+	RemainingRestriction *org_apache_beam_runner_api_v1.FunctionSpec `protobuf:"bytes,3,opt,name=remaining_restriction,json=remainingRestriction" json:"remaining_restriction,omitempty"`
 }
 
 func (m *PrimitiveTransformSplit) Reset()                    { *m = PrimitiveTransformSplit{} }
 func (m *PrimitiveTransformSplit) String() string            { return proto.CompactTextString(m) }
 func (*PrimitiveTransformSplit) ProtoMessage()               {}
-func (*PrimitiveTransformSplit) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
+func (*PrimitiveTransformSplit) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{15} }
 
 func (m *PrimitiveTransformSplit) GetPrimitiveTransformReference() string {
 	if m != nil {
@@ -1135,14 +1085,14 @@ func (m *PrimitiveTransformSplit) GetPrimitiveTransformReference() string {
 	return ""
 }
 
-func (m *PrimitiveTransformSplit) GetCompletedRestriction() *FunctionSpec {
+func (m *PrimitiveTransformSplit) GetCompletedRestriction() *org_apache_beam_runner_api_v1.FunctionSpec {
 	if m != nil {
 		return m.CompletedRestriction
 	}
 	return nil
 }
 
-func (m *PrimitiveTransformSplit) GetRemainingRestriction() *FunctionSpec {
+func (m *PrimitiveTransformSplit) GetRemainingRestriction() *org_apache_beam_runner_api_v1.FunctionSpec {
 	if m != nil {
 		return m.RemainingRestriction
 	}
@@ -1185,7 +1135,7 @@ type ProcessBundleSplitResponse struct {
 func (m *ProcessBundleSplitResponse) Reset()                    { *m = ProcessBundleSplitResponse{} }
 func (m *ProcessBundleSplitResponse) String() string            { return proto.CompactTextString(m) }
 func (*ProcessBundleSplitResponse) ProtoMessage()               {}
-func (*ProcessBundleSplitResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
+func (*ProcessBundleSplitResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{16} }
 
 func (m *ProcessBundleSplitResponse) GetSplits() []*PrimitiveTransformSplit {
 	if m != nil {
@@ -1204,7 +1154,7 @@ type Elements struct {
 func (m *Elements) Reset()                    { *m = Elements{} }
 func (m *Elements) String() string            { return proto.CompactTextString(m) }
 func (*Elements) ProtoMessage()               {}
-func (*Elements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
+func (*Elements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17} }
 
 func (m *Elements) GetData() []*Elements_Data {
 	if m != nil {
@@ -1218,7 +1168,7 @@ func (m *Elements) GetData() []*Elements_Data {
 type Elements_Data struct {
 	// (Required) A reference to an active instruction request with the given
 	// instruction id.
-	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,1,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
 	// (Required) A definition representing a consumer or producer of this data.
 	// If received by a harness, this represents the consumer within that
 	// harness that should consume these bytes. If sent by a harness, this
@@ -1241,7 +1191,7 @@ type Elements_Data struct {
 func (m *Elements_Data) Reset()                    { *m = Elements_Data{} }
 func (m *Elements_Data) String() string            { return proto.CompactTextString(m) }
 func (*Elements_Data) ProtoMessage()               {}
-func (*Elements_Data) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21, 0} }
+func (*Elements_Data) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{17, 0} }
 
 func (m *Elements_Data) GetInstructionReference() string {
 	if m != nil {
@@ -1272,9 +1222,9 @@ type StateRequest struct {
 	// (Required) The associated instruction id of the work that is currently
 	// being processed. This allows for the runner to associate any modifications
 	// to state to be committed with the appropriate work execution.
-	InstructionReference string `protobuf:"bytes,2,opt,name=instruction_reference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,2,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
 	// (Required) The state key this request is for.
-	StateKey *StateKey `protobuf:"bytes,3,opt,name=state_key" json:"state_key,omitempty"`
+	StateKey *StateKey `protobuf:"bytes,3,opt,name=state_key,json=stateKey" json:"state_key,omitempty"`
 	// (Required) The action to take on this request.
 	//
 	// Types that are valid to be assigned to Request:
@@ -1287,7 +1237,7 @@ type StateRequest struct {
 func (m *StateRequest) Reset()                    { *m = StateRequest{} }
 func (m *StateRequest) String() string            { return proto.CompactTextString(m) }
 func (*StateRequest) ProtoMessage()               {}
-func (*StateRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
+func (*StateRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{18} }
 
 type isStateRequest_Request interface {
 	isStateRequest_Request()
@@ -1458,6 +1408,9 @@ type StateResponse struct {
 	// A human readable string representing the reason as to why the request
 	// failed.
 	Error string `protobuf:"bytes,2,opt,name=error" json:"error,omitempty"`
+	// (Optional) If this is specified, then the result of this state request
+	// can be cached using the supplied token.
+	CacheToken []byte `protobuf:"bytes,3,opt,name=cache_token,json=cacheToken,proto3" json:"cache_token,omitempty"`
 	// A corresponding response matching the request will be populated.
 	//
 	// Types that are valid to be assigned to Response:
@@ -1470,7 +1423,7 @@ type StateResponse struct {
 func (m *StateResponse) Reset()                    { *m = StateResponse{} }
 func (m *StateResponse) String() string            { return proto.CompactTextString(m) }
 func (*StateResponse) ProtoMessage()               {}
-func (*StateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
+func (*StateResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{19} }
 
 type isStateResponse_Response interface {
 	isStateResponse_Response()
@@ -1509,6 +1462,13 @@ func (m *StateResponse) GetError() string {
 		return m.Error
 	}
 	return ""
+}
+
+func (m *StateResponse) GetCacheToken() []byte {
+	if m != nil {
+		return m.CacheToken
+	}
+	return nil
 }
 
 func (m *StateResponse) GetGet() *StateGetResponse {
@@ -1625,107 +1585,264 @@ func _StateResponse_OneofSizer(msg proto.Message) (n int) {
 	return n
 }
 
-type CacheToken struct {
-	// (Required) Represents the function spec and tag associated with this state
-	// key.
-	//
-	// By combining the function_spec_reference with the tag representing:
-	//   * the input, we refer to the iterable portion of a large GBK
-	//   * the side input, we refer to the side input
-	//   * the user state, we refer to user state
-	Target *Target `protobuf:"bytes,1,opt,name=target" json:"target,omitempty"`
-	// (Required) An opaque identifier.
-	Token []byte `protobuf:"bytes,2,opt,name=token,proto3" json:"token,omitempty"`
-}
-
-func (m *CacheToken) Reset()                    { *m = CacheToken{} }
-func (m *CacheToken) String() string            { return proto.CompactTextString(m) }
-func (*CacheToken) ProtoMessage()               {}
-func (*CacheToken) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
-
-func (m *CacheToken) GetTarget() *Target {
-	if m != nil {
-		return m.Target
-	}
-	return nil
-}
-
-func (m *CacheToken) GetToken() []byte {
-	if m != nil {
-		return m.Token
-	}
-	return nil
-}
-
 type StateKey struct {
-	// (Required) Represents the function spec and tag associated with this state
-	// key.
+	// (Required) One of the following state keys must be set.
 	//
-	// By combining the function_spec_reference with the tag representing:
-	//   * the input, we refer to fetching the iterable portion of a large GBK
-	//   * the side input, we refer to fetching the side input
-	//   * the user state, we refer to fetching user state
-	Target *Target `protobuf:"bytes,1,opt,name=target" json:"target,omitempty"`
-	// (Required) The bytes of the window which this state request is for encoded
-	// in the nested context.
-	Window []byte `protobuf:"bytes,2,opt,name=window,proto3" json:"window,omitempty"`
-	// (Required) The user key encoded in the nested context.
-	Key []byte `protobuf:"bytes,3,opt,name=key,proto3" json:"key,omitempty"`
+	// Types that are valid to be assigned to Type:
+	//	*StateKey_Runner_
+	//	*StateKey_MultimapSideInput_
+	//	*StateKey_BagUserState_
+	Type isStateKey_Type `protobuf_oneof:"type"`
 }
 
 func (m *StateKey) Reset()                    { *m = StateKey{} }
 func (m *StateKey) String() string            { return proto.CompactTextString(m) }
 func (*StateKey) ProtoMessage()               {}
-func (*StateKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
+func (*StateKey) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20} }
 
-func (m *StateKey) GetTarget() *Target {
+type isStateKey_Type interface {
+	isStateKey_Type()
+}
+
+type StateKey_Runner_ struct {
+	Runner *StateKey_Runner `protobuf:"bytes,1,opt,name=runner,oneof"`
+}
+type StateKey_MultimapSideInput_ struct {
+	MultimapSideInput *StateKey_MultimapSideInput `protobuf:"bytes,2,opt,name=multimap_side_input,json=multimapSideInput,oneof"`
+}
+type StateKey_BagUserState_ struct {
+	BagUserState *StateKey_BagUserState `protobuf:"bytes,3,opt,name=bag_user_state,json=bagUserState,oneof"`
+}
+
+func (*StateKey_Runner_) isStateKey_Type()            {}
+func (*StateKey_MultimapSideInput_) isStateKey_Type() {}
+func (*StateKey_BagUserState_) isStateKey_Type()      {}
+
+func (m *StateKey) GetType() isStateKey_Type {
 	if m != nil {
-		return m.Target
+		return m.Type
 	}
 	return nil
 }
 
-func (m *StateKey) GetWindow() []byte {
-	if m != nil {
-		return m.Window
+func (m *StateKey) GetRunner() *StateKey_Runner {
+	if x, ok := m.GetType().(*StateKey_Runner_); ok {
+		return x.Runner
 	}
 	return nil
 }
 
-func (m *StateKey) GetKey() []byte {
+func (m *StateKey) GetMultimapSideInput() *StateKey_MultimapSideInput {
+	if x, ok := m.GetType().(*StateKey_MultimapSideInput_); ok {
+		return x.MultimapSideInput
+	}
+	return nil
+}
+
+func (m *StateKey) GetBagUserState() *StateKey_BagUserState {
+	if x, ok := m.GetType().(*StateKey_BagUserState_); ok {
+		return x.BagUserState
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*StateKey) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _StateKey_OneofMarshaler, _StateKey_OneofUnmarshaler, _StateKey_OneofSizer, []interface{}{
+		(*StateKey_Runner_)(nil),
+		(*StateKey_MultimapSideInput_)(nil),
+		(*StateKey_BagUserState_)(nil),
+	}
+}
+
+func _StateKey_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*StateKey)
+	// type
+	switch x := m.Type.(type) {
+	case *StateKey_Runner_:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.Runner); err != nil {
+			return err
+		}
+	case *StateKey_MultimapSideInput_:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.MultimapSideInput); err != nil {
+			return err
+		}
+	case *StateKey_BagUserState_:
+		b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.BagUserState); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("StateKey.Type has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _StateKey_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*StateKey)
+	switch tag {
+	case 1: // type.runner
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StateKey_Runner)
+		err := b.DecodeMessage(msg)
+		m.Type = &StateKey_Runner_{msg}
+		return true, err
+	case 2: // type.multimap_side_input
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StateKey_MultimapSideInput)
+		err := b.DecodeMessage(msg)
+		m.Type = &StateKey_MultimapSideInput_{msg}
+		return true, err
+	case 3: // type.bag_user_state
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(StateKey_BagUserState)
+		err := b.DecodeMessage(msg)
+		m.Type = &StateKey_BagUserState_{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _StateKey_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*StateKey)
+	// type
+	switch x := m.Type.(type) {
+	case *StateKey_Runner_:
+		s := proto.Size(x.Runner)
+		n += proto.SizeVarint(1<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *StateKey_MultimapSideInput_:
+		s := proto.Size(x.MultimapSideInput)
+		n += proto.SizeVarint(2<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *StateKey_BagUserState_:
+		s := proto.Size(x.BagUserState)
+		n += proto.SizeVarint(3<<3 | proto.WireBytes)
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type StateKey_Runner struct {
+	// (Required) Opaque information supplied by the runner. Used to support
+	// remote references.
+	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+}
+
+func (m *StateKey_Runner) Reset()                    { *m = StateKey_Runner{} }
+func (m *StateKey_Runner) String() string            { return proto.CompactTextString(m) }
+func (*StateKey_Runner) ProtoMessage()               {}
+func (*StateKey_Runner) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20, 0} }
+
+func (m *StateKey_Runner) GetKey() []byte {
 	if m != nil {
 		return m.Key
 	}
 	return nil
 }
 
-// A logical byte stream which can be continued using the state API.
-type ContinuableStream struct {
-	// (Optional) If specified, represents a token which can be used with the
-	// state API to get the next chunk of this logical byte stream. The end of
-	// the logical byte stream is signalled by this field being unset.
-	ContinuationToken []byte `protobuf:"bytes,1,opt,name=continuation_token,proto3" json:"continuation_token,omitempty"`
-	// Represents a part of a logical byte stream. Elements within
-	// the logical byte stream are encoded in the nested context and
-	// concatenated together.
-	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+type StateKey_MultimapSideInput struct {
+	// (Required) The id of the PTransform containing a side input.
+	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId" json:"ptransform_id,omitempty"`
+	// (Required) The id of the side input.
+	SideInputId string `protobuf:"bytes,2,opt,name=side_input_id,json=sideInputId" json:"side_input_id,omitempty"`
+	// (Required) The window (after mapping the currently executing elements
+	// window into the side input windows domain) encoded in a nested context.
+	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	// (Required) The key encoded in a nested context.
+	Key []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
 }
 
-func (m *ContinuableStream) Reset()                    { *m = ContinuableStream{} }
-func (m *ContinuableStream) String() string            { return proto.CompactTextString(m) }
-func (*ContinuableStream) ProtoMessage()               {}
-func (*ContinuableStream) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
+func (m *StateKey_MultimapSideInput) Reset()                    { *m = StateKey_MultimapSideInput{} }
+func (m *StateKey_MultimapSideInput) String() string            { return proto.CompactTextString(m) }
+func (*StateKey_MultimapSideInput) ProtoMessage()               {}
+func (*StateKey_MultimapSideInput) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20, 1} }
 
-func (m *ContinuableStream) GetContinuationToken() []byte {
+func (m *StateKey_MultimapSideInput) GetPtransformId() string {
 	if m != nil {
-		return m.ContinuationToken
+		return m.PtransformId
+	}
+	return ""
+}
+
+func (m *StateKey_MultimapSideInput) GetSideInputId() string {
+	if m != nil {
+		return m.SideInputId
+	}
+	return ""
+}
+
+func (m *StateKey_MultimapSideInput) GetWindow() []byte {
+	if m != nil {
+		return m.Window
 	}
 	return nil
 }
 
-func (m *ContinuableStream) GetData() []byte {
+func (m *StateKey_MultimapSideInput) GetKey() []byte {
 	if m != nil {
-		return m.Data
+		return m.Key
+	}
+	return nil
+}
+
+type StateKey_BagUserState struct {
+	// (Required) The id of the PTransform containing user state.
+	PtransformId string `protobuf:"bytes,1,opt,name=ptransform_id,json=ptransformId" json:"ptransform_id,omitempty"`
+	// (Required) The id of the user state.
+	UserStateId string `protobuf:"bytes,2,opt,name=user_state_id,json=userStateId" json:"user_state_id,omitempty"`
+	// (Required) The window encoded in a nested context.
+	Window []byte `protobuf:"bytes,3,opt,name=window,proto3" json:"window,omitempty"`
+	// (Required) The key of the currently executing element encoded in a
+	// nested context.
+	Key []byte `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+}
+
+func (m *StateKey_BagUserState) Reset()                    { *m = StateKey_BagUserState{} }
+func (m *StateKey_BagUserState) String() string            { return proto.CompactTextString(m) }
+func (*StateKey_BagUserState) ProtoMessage()               {}
+func (*StateKey_BagUserState) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{20, 2} }
+
+func (m *StateKey_BagUserState) GetPtransformId() string {
+	if m != nil {
+		return m.PtransformId
+	}
+	return ""
+}
+
+func (m *StateKey_BagUserState) GetUserStateId() string {
+	if m != nil {
+		return m.UserStateId
+	}
+	return ""
+}
+
+func (m *StateKey_BagUserState) GetWindow() []byte {
+	if m != nil {
+		return m.Window
+	}
+	return nil
+}
+
+func (m *StateKey_BagUserState) GetKey() []byte {
+	if m != nil {
+		return m.Key
 	}
 	return nil
 }
@@ -1737,13 +1854,13 @@ type StateGetRequest struct {
 	//
 	// If unspecified, signals to the runner that the response should start
 	// from the beginning of the logical continuable stream.
-	ContinuationToken []byte `protobuf:"bytes,1,opt,name=continuation_token,proto3" json:"continuation_token,omitempty"`
+	ContinuationToken []byte `protobuf:"bytes,1,opt,name=continuation_token,json=continuationToken,proto3" json:"continuation_token,omitempty"`
 }
 
 func (m *StateGetRequest) Reset()                    { *m = StateGetRequest{} }
 func (m *StateGetRequest) String() string            { return proto.CompactTextString(m) }
 func (*StateGetRequest) ProtoMessage()               {}
-func (*StateGetRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
+func (*StateGetRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{21} }
 
 func (m *StateGetRequest) GetContinuationToken() []byte {
 	if m != nil {
@@ -1752,20 +1869,34 @@ func (m *StateGetRequest) GetContinuationToken() []byte {
 	return nil
 }
 
-// A response to get state.
+// A response to get state representing a logical byte stream which can be
+// continued using the state API.
 type StateGetResponse struct {
-	// (Required) The response containing a continuable logical byte stream.
-	Stream *ContinuableStream `protobuf:"bytes,1,opt,name=stream" json:"stream,omitempty"`
+	// (Optional) If specified, represents a token which can be used with the
+	// state API to get the next chunk of this logical byte stream. The end of
+	// the logical byte stream is signalled by this field being unset.
+	ContinuationToken []byte `protobuf:"bytes,1,opt,name=continuation_token,json=continuationToken,proto3" json:"continuation_token,omitempty"`
+	// Represents a part of a logical byte stream. Elements within
+	// the logical byte stream are encoded in the nested context and
+	// concatenated together.
+	Data []byte `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
 }
 
 func (m *StateGetResponse) Reset()                    { *m = StateGetResponse{} }
 func (m *StateGetResponse) String() string            { return proto.CompactTextString(m) }
 func (*StateGetResponse) ProtoMessage()               {}
-func (*StateGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
+func (*StateGetResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{22} }
 
-func (m *StateGetResponse) GetStream() *ContinuableStream {
+func (m *StateGetResponse) GetContinuationToken() []byte {
 	if m != nil {
-		return m.Stream
+		return m.ContinuationToken
+	}
+	return nil
+}
+
+func (m *StateGetResponse) GetData() []byte {
+	if m != nil {
+		return m.Data
 	}
 	return nil
 }
@@ -1781,7 +1912,7 @@ type StateAppendRequest struct {
 func (m *StateAppendRequest) Reset()                    { *m = StateAppendRequest{} }
 func (m *StateAppendRequest) String() string            { return proto.CompactTextString(m) }
 func (*StateAppendRequest) ProtoMessage()               {}
-func (*StateAppendRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
+func (*StateAppendRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{23} }
 
 func (m *StateAppendRequest) GetData() []byte {
 	if m != nil {
@@ -1797,7 +1928,7 @@ type StateAppendResponse struct {
 func (m *StateAppendResponse) Reset()                    { *m = StateAppendResponse{} }
 func (m *StateAppendResponse) String() string            { return proto.CompactTextString(m) }
 func (*StateAppendResponse) ProtoMessage()               {}
-func (*StateAppendResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
+func (*StateAppendResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{24} }
 
 // A request to clear state.
 type StateClearRequest struct {
@@ -1806,7 +1937,7 @@ type StateClearRequest struct {
 func (m *StateClearRequest) Reset()                    { *m = StateClearRequest{} }
 func (m *StateClearRequest) String() string            { return proto.CompactTextString(m) }
 func (*StateClearRequest) ProtoMessage()               {}
-func (*StateClearRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
+func (*StateClearRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{25} }
 
 // A response to clear state.
 type StateClearResponse struct {
@@ -1815,7 +1946,7 @@ type StateClearResponse struct {
 func (m *StateClearResponse) Reset()                    { *m = StateClearResponse{} }
 func (m *StateClearResponse) String() string            { return proto.CompactTextString(m) }
 func (*StateClearResponse) ProtoMessage()               {}
-func (*StateClearResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{32} }
+func (*StateClearResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{26} }
 
 // A log entry
 type LogEntry struct {
@@ -1830,10 +1961,10 @@ type LogEntry struct {
 	Trace string `protobuf:"bytes,4,opt,name=trace" json:"trace,omitempty"`
 	// (Optional) A reference to the instruction this log statement is associated
 	// with.
-	InstructionReference string `protobuf:"bytes,5,opt,name=instruction_reference" json:"instruction_reference,omitempty"`
+	InstructionReference string `protobuf:"bytes,5,opt,name=instruction_reference,json=instructionReference" json:"instruction_reference,omitempty"`
 	// (Optional) A reference to the primitive transform this log statement is
 	// associated with.
-	PrimitiveTransformReference string `protobuf:"bytes,6,opt,name=primitive_transform_reference" json:"primitive_transform_reference,omitempty"`
+	PrimitiveTransformReference string `protobuf:"bytes,6,opt,name=primitive_transform_reference,json=primitiveTransformReference" json:"primitive_transform_reference,omitempty"`
 	// (Optional) Human-readable name of the function or method being invoked,
 	// with optional context such as the class or package name. The format can
 	// vary by language. For example:
@@ -1841,7 +1972,7 @@ type LogEntry struct {
 	//   dir/package.func (Go)
 	//   module.function (Python)
 	//   file.cc:382 (C++)
-	LogLocation string `protobuf:"bytes,7,opt,name=log_location" json:"log_location,omitempty"`
+	LogLocation string `protobuf:"bytes,7,opt,name=log_location,json=logLocation" json:"log_location,omitempty"`
 	// (Optional) The name of the thread this log statement is associated with.
 	Thread string `protobuf:"bytes,8,opt,name=thread" json:"thread,omitempty"`
 }
@@ -1849,7 +1980,7 @@ type LogEntry struct {
 func (m *LogEntry) Reset()                    { *m = LogEntry{} }
 func (m *LogEntry) String() string            { return proto.CompactTextString(m) }
 func (*LogEntry) ProtoMessage()               {}
-func (*LogEntry) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33} }
+func (*LogEntry) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27} }
 
 func (m *LogEntry) GetSeverity() LogEntry_Severity {
 	if m != nil {
@@ -1911,13 +2042,13 @@ func (m *LogEntry) GetThread() string {
 // log messages using the logging API.
 type LogEntry_List struct {
 	// (Required) One or or more log messages.
-	LogEntries []*LogEntry `protobuf:"bytes,1,rep,name=log_entries" json:"log_entries,omitempty"`
+	LogEntries []*LogEntry `protobuf:"bytes,1,rep,name=log_entries,json=logEntries" json:"log_entries,omitempty"`
 }
 
 func (m *LogEntry_List) Reset()                    { *m = LogEntry_List{} }
 func (m *LogEntry_List) String() string            { return proto.CompactTextString(m) }
 func (*LogEntry_List) ProtoMessage()               {}
-func (*LogEntry_List) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{33, 0} }
+func (*LogEntry_List) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{27, 0} }
 
 func (m *LogEntry_List) GetLogEntries() []*LogEntry {
 	if m != nil {
@@ -1932,7 +2063,7 @@ type LogControl struct {
 func (m *LogControl) Reset()                    { *m = LogControl{} }
 func (m *LogControl) String() string            { return proto.CompactTextString(m) }
 func (*LogControl) ProtoMessage()               {}
-func (*LogControl) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{34} }
+func (*LogControl) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{28} }
 
 //
 // Environment types
@@ -1954,14 +2085,14 @@ type ApiServiceDescriptor struct {
 func (m *ApiServiceDescriptor) Reset()                    { *m = ApiServiceDescriptor{} }
 func (m *ApiServiceDescriptor) String() string            { return proto.CompactTextString(m) }
 func (*ApiServiceDescriptor) ProtoMessage()               {}
-func (*ApiServiceDescriptor) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{35} }
+func (*ApiServiceDescriptor) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{29} }
 
 type isApiServiceDescriptor_Authentication interface {
 	isApiServiceDescriptor_Authentication()
 }
 
 type ApiServiceDescriptor_Oauth2ClientCredentialsGrant struct {
-	Oauth2ClientCredentialsGrant *OAuth2ClientCredentialsGrant `protobuf:"bytes,3,opt,name=oauth2_client_credentials_grant,oneof"`
+	Oauth2ClientCredentialsGrant *OAuth2ClientCredentialsGrant `protobuf:"bytes,3,opt,name=oauth2_client_credentials_grant,json=oauth2ClientCredentialsGrant,oneof"`
 }
 
 func (*ApiServiceDescriptor_Oauth2ClientCredentialsGrant) isApiServiceDescriptor_Authentication() {}
@@ -2058,7 +2189,7 @@ type OAuth2ClientCredentialsGrant struct {
 func (m *OAuth2ClientCredentialsGrant) Reset()                    { *m = OAuth2ClientCredentialsGrant{} }
 func (m *OAuth2ClientCredentialsGrant) String() string            { return proto.CompactTextString(m) }
 func (*OAuth2ClientCredentialsGrant) ProtoMessage()               {}
-func (*OAuth2ClientCredentialsGrant) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{36} }
+func (*OAuth2ClientCredentialsGrant) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{30} }
 
 func (m *OAuth2ClientCredentialsGrant) GetUrl() string {
 	if m != nil {
@@ -2079,13 +2210,13 @@ type DockerContainer struct {
 	// (Optional) Docker registry specification.
 	// If unspecified, the uri is expected to be able to be fetched without
 	// requiring additional configuration by a runner.
-	RegistryReference string `protobuf:"bytes,3,opt,name=registry_reference" json:"registry_reference,omitempty"`
+	RegistryReference string `protobuf:"bytes,3,opt,name=registry_reference,json=registryReference" json:"registry_reference,omitempty"`
 }
 
 func (m *DockerContainer) Reset()                    { *m = DockerContainer{} }
 func (m *DockerContainer) String() string            { return proto.CompactTextString(m) }
 func (*DockerContainer) ProtoMessage()               {}
-func (*DockerContainer) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{37} }
+func (*DockerContainer) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{31} }
 
 func (m *DockerContainer) GetId() string {
 	if m != nil {
@@ -2111,11 +2242,6 @@ func (m *DockerContainer) GetRegistryReference() string {
 func init() {
 	proto.RegisterType((*Target)(nil), "org.apache.beam.fn.v1.Target")
 	proto.RegisterType((*Target_List)(nil), "org.apache.beam.fn.v1.Target.List")
-	proto.RegisterType((*PCollection)(nil), "org.apache.beam.fn.v1.PCollection")
-	proto.RegisterType((*PrimitiveTransform)(nil), "org.apache.beam.fn.v1.PrimitiveTransform")
-	proto.RegisterType((*FunctionSpec)(nil), "org.apache.beam.fn.v1.FunctionSpec")
-	proto.RegisterType((*SideInput)(nil), "org.apache.beam.fn.v1.SideInput")
-	proto.RegisterType((*Coder)(nil), "org.apache.beam.fn.v1.Coder")
 	proto.RegisterType((*RemoteGrpcPort)(nil), "org.apache.beam.fn.v1.RemoteGrpcPort")
 	proto.RegisterType((*InstructionRequest)(nil), "org.apache.beam.fn.v1.InstructionRequest")
 	proto.RegisterType((*InstructionResponse)(nil), "org.apache.beam.fn.v1.InstructionResponse")
@@ -2125,6 +2251,12 @@ func init() {
 	proto.RegisterType((*ProcessBundleRequest)(nil), "org.apache.beam.fn.v1.ProcessBundleRequest")
 	proto.RegisterType((*ProcessBundleResponse)(nil), "org.apache.beam.fn.v1.ProcessBundleResponse")
 	proto.RegisterType((*ProcessBundleProgressRequest)(nil), "org.apache.beam.fn.v1.ProcessBundleProgressRequest")
+	proto.RegisterType((*Metrics)(nil), "org.apache.beam.fn.v1.Metrics")
+	proto.RegisterType((*Metrics_PTransform)(nil), "org.apache.beam.fn.v1.Metrics.PTransform")
+	proto.RegisterType((*Metrics_PTransform_Measured)(nil), "org.apache.beam.fn.v1.Metrics.PTransform.Measured")
+	proto.RegisterType((*Metrics_PTransform_ProcessedElements)(nil), "org.apache.beam.fn.v1.Metrics.PTransform.ProcessedElements")
+	proto.RegisterType((*Metrics_PTransform_ActiveElements)(nil), "org.apache.beam.fn.v1.Metrics.PTransform.ActiveElements")
+	proto.RegisterType((*Metrics_User)(nil), "org.apache.beam.fn.v1.Metrics.User")
 	proto.RegisterType((*ProcessBundleProgressResponse)(nil), "org.apache.beam.fn.v1.ProcessBundleProgressResponse")
 	proto.RegisterType((*ProcessBundleSplitRequest)(nil), "org.apache.beam.fn.v1.ProcessBundleSplitRequest")
 	proto.RegisterType((*ElementCountRestriction)(nil), "org.apache.beam.fn.v1.ElementCountRestriction")
@@ -2135,9 +2267,10 @@ func init() {
 	proto.RegisterType((*Elements_Data)(nil), "org.apache.beam.fn.v1.Elements.Data")
 	proto.RegisterType((*StateRequest)(nil), "org.apache.beam.fn.v1.StateRequest")
 	proto.RegisterType((*StateResponse)(nil), "org.apache.beam.fn.v1.StateResponse")
-	proto.RegisterType((*CacheToken)(nil), "org.apache.beam.fn.v1.CacheToken")
 	proto.RegisterType((*StateKey)(nil), "org.apache.beam.fn.v1.StateKey")
-	proto.RegisterType((*ContinuableStream)(nil), "org.apache.beam.fn.v1.ContinuableStream")
+	proto.RegisterType((*StateKey_Runner)(nil), "org.apache.beam.fn.v1.StateKey.Runner")
+	proto.RegisterType((*StateKey_MultimapSideInput)(nil), "org.apache.beam.fn.v1.StateKey.MultimapSideInput")
+	proto.RegisterType((*StateKey_BagUserState)(nil), "org.apache.beam.fn.v1.StateKey.BagUserState")
 	proto.RegisterType((*StateGetRequest)(nil), "org.apache.beam.fn.v1.StateGetRequest")
 	proto.RegisterType((*StateGetResponse)(nil), "org.apache.beam.fn.v1.StateGetResponse")
 	proto.RegisterType((*StateAppendRequest)(nil), "org.apache.beam.fn.v1.StateAppendRequest")
@@ -2560,127 +2693,154 @@ var _BeamFnLogging_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("beam_fn_api.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 1944 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x59, 0xef, 0x72, 0xdb, 0xc6,
-	0x11, 0x17, 0x45, 0xf1, 0xdf, 0x92, 0x92, 0xa8, 0xb3, 0x14, 0xd1, 0xac, 0x5d, 0xdb, 0xb0, 0x9b,
-	0xc8, 0xb1, 0x4d, 0xd9, 0xb2, 0x93, 0x38, 0xfe, 0x93, 0x56, 0xa4, 0x25, 0x59, 0x8d, 0x46, 0x92,
-	0x49, 0xd5, 0x76, 0x67, 0xdc, 0x62, 0x20, 0xf0, 0x08, 0x5d, 0x05, 0x1e, 0xd0, 0xc3, 0x51, 0x1a,
-	0xce, 0xf4, 0x49, 0xfa, 0xad, 0xfd, 0xd8, 0x87, 0xe8, 0xe7, 0xce, 0xf4, 0x45, 0xd2, 0xe6, 0x19,
-	0x3a, 0xd3, 0xb9, 0x3b, 0x00, 0x24, 0x40, 0x82, 0xa4, 0x92, 0x0f, 0x1e, 0x83, 0xc0, 0xee, 0x6f,
-	0xf7, 0x7e, 0xbb, 0xb7, 0xbb, 0x77, 0x82, 0x95, 0x53, 0x6c, 0x74, 0xf5, 0x0e, 0xd5, 0x0d, 0x97,
-	0xd4, 0x5c, 0xe6, 0x70, 0x07, 0xad, 0x39, 0xcc, 0xaa, 0x19, 0xae, 0x61, 0x9e, 0xe1, 0x9a, 0xf8,
-	0x5a, 0xeb, 0xd0, 0xda, 0xc5, 0x93, 0xea, 0x9a, 0x94, 0x64, 0x3d, 0x4a, 0x31, 0x1b, 0x48, 0x57,
-	0x37, 0x2d, 0xc2, 0xcf, 0x7a, 0xa7, 0x35, 0xd3, 0xe9, 0x6e, 0x5a, 0x8e, 0x6d, 0x50, 0x6b, 0x53,
-	0x7e, 0x38, 0xed, 0x75, 0x36, 0x5d, 0xde, 0x77, 0xb1, 0xb7, 0x69, 0xd0, 0xbe, 0xf8, 0xe7, 0x2b,
-	0xbc, 0x9c, 0xae, 0xc0, 0x49, 0x17, 0x7b, 0xdc, 0xe8, 0xba, 0x83, 0x27, 0xa5, 0xac, 0x71, 0xc8,
-	0x9e, 0x18, 0xcc, 0xc2, 0x1c, 0xfd, 0x0a, 0x6e, 0xba, 0x8c, 0x74, 0x09, 0x27, 0x17, 0x58, 0xe7,
-	0xcc, 0xa0, 0x5e, 0xc7, 0x61, 0x5d, 0x9d, 0xe1, 0x0e, 0x66, 0x98, 0x9a, 0xb8, 0x92, 0xba, 0x9d,
-	0xda, 0x28, 0xa0, 0x12, 0x2c, 0x50, 0xa3, 0x8b, 0x2b, 0xf3, 0xe2, 0x57, 0xf5, 0x2b, 0x58, 0x38,
-	0x20, 0x1e, 0x47, 0x8f, 0x20, 0xcb, 0x25, 0x4c, 0x25, 0x75, 0x3b, 0xbd, 0x51, 0xdc, 0xba, 0x59,
-	0x1b, 0xbb, 0xe6, 0x9a, 0xb2, 0xa5, 0x7d, 0x0e, 0xc5, 0xe3, 0x86, 0x63, 0xdb, 0xd8, 0xe4, 0xc4,
-	0xa1, 0x68, 0x1d, 0x96, 0x4d, 0xa7, 0x8d, 0x59, 0xdc, 0x98, 0xf6, 0xef, 0x05, 0x40, 0xc7, 0x81,
-	0x53, 0x27, 0x81, 0x4f, 0x08, 0x60, 0x9e, 0xb4, 0x7d, 0x7f, 0x5e, 0xc0, 0x62, 0xa7, 0x47, 0x25,
-	0x8e, 0xee, 0xb9, 0xd8, 0x94, 0x8e, 0x15, 0xb7, 0xee, 0x26, 0x38, 0xb0, 0xeb, 0xcb, 0xb6, 0x5c,
-	0x6c, 0xa2, 0x1d, 0xc8, 0x12, 0xea, 0xf6, 0xb8, 0x57, 0x49, 0x4b, 0xaf, 0xbf, 0x4a, 0x50, 0x1a,
-	0x75, 0xa1, 0xb6, 0x2f, 0xf5, 0x76, 0x28, 0x67, 0x7d, 0xb4, 0x07, 0x39, 0xa7, 0xc7, 0x25, 0xce,
-	0x82, 0xc4, 0xf9, 0x7a, 0x76, 0x9c, 0x23, 0xa5, 0xa8, 0x80, 0x0e, 0xa1, 0xe8, 0x91, 0x36, 0xd6,
-	0x7d, 0xa7, 0x32, 0x12, 0xec, 0xdb, 0xd9, 0xc1, 0x5a, 0xa4, 0x8d, 0x87, 0x1d, 0x5b, 0x81, 0x82,
-	0xc7, 0xb1, 0xab, 0xcb, 0x80, 0x65, 0x65, 0xc0, 0xde, 0x41, 0x71, 0x58, 0xa2, 0x08, 0xe9, 0x73,
-	0xdc, 0xf7, 0xa9, 0x7c, 0x02, 0x99, 0x0b, 0xc3, 0xee, 0x61, 0x9f, 0x42, 0x6d, 0x62, 0x0c, 0x6b,
-	0x22, 0xee, 0x2f, 0xe6, 0x9f, 0xa7, 0xaa, 0x4d, 0x28, 0x45, 0x56, 0xf1, 0x53, 0x30, 0x87, 0xb2,
-	0x41, 0x62, 0xb6, 0x60, 0x39, 0xbe, 0x98, 0x08, 0xec, 0x66, 0x14, 0xf6, 0x76, 0x02, 0x6c, 0x88,
-	0x21, 0x40, 0xb5, 0x3f, 0x41, 0x29, 0x12, 0xfe, 0xe1, 0x34, 0x2a, 0x42, 0xba, 0xc7, 0xa8, 0xca,
-	0x6a, 0x74, 0x13, 0xd6, 0x30, 0xbd, 0x20, 0xcc, 0xa1, 0x5d, 0x4c, 0xf9, 0x50, 0x56, 0xa6, 0xe5,
-	0x67, 0x0d, 0x16, 0xda, 0x06, 0x37, 0x2a, 0x0b, 0xd2, 0xf6, 0x6a, 0xcd, 0x72, 0x1c, 0xcb, 0xc6,
-	0xb5, 0x60, 0xd3, 0xd5, 0xb6, 0x69, 0x5f, 0x73, 0xa0, 0x10, 0x1a, 0x47, 0x0f, 0x21, 0x23, 0x43,
-	0x2a, 0x6d, 0x4d, 0xdb, 0x1c, 0xe8, 0x19, 0xe4, 0x2e, 0x08, 0xbe, 0xd4, 0x3b, 0xf4, 0x0a, 0xb9,
-	0xac, 0x75, 0x20, 0xd3, 0x10, 0x7b, 0x68, 0x74, 0x43, 0xa4, 0x66, 0xdf, 0x10, 0x77, 0xe0, 0xba,
-	0xe9, 0x74, 0x5d, 0x87, 0x8a, 0x65, 0xc7, 0xb7, 0xe4, 0xfc, 0xed, 0xf4, 0x46, 0x41, 0xfb, 0x03,
-	0x2c, 0x35, 0x71, 0xd7, 0xe1, 0x78, 0x8f, 0xb9, 0xe6, 0xb1, 0xc3, 0x38, 0xfa, 0x1e, 0x3e, 0x33,
-	0x5c, 0xa2, 0x7b, 0x98, 0x5d, 0x10, 0x13, 0xeb, 0x6d, 0xec, 0x99, 0x8c, 0xb8, 0xdc, 0x61, 0xbe,
-	0xe5, 0x07, 0x09, 0x96, 0xb7, 0x5d, 0xd2, 0x52, 0x3a, 0x6f, 0x42, 0x15, 0xed, 0x87, 0x79, 0x40,
-	0xfb, 0xd4, 0xe3, 0xac, 0x27, 0xbd, 0x6a, 0xe2, 0x3f, 0xf7, 0xb0, 0xc7, 0xd1, 0x67, 0xb0, 0x44,
-	0x06, 0x6f, 0xf5, 0x30, 0x6c, 0x2f, 0x21, 0xcf, 0xb0, 0x45, 0x3c, 0x8e, 0x59, 0xe5, 0x87, 0x9c,
-	0x34, 0xf7, 0x79, 0x82, 0xb9, 0xa6, 0x2f, 0xe7, 0x43, 0xbe, 0x9d, 0x43, 0xbb, 0xb0, 0xe4, 0x32,
-	0xc7, 0xc4, 0x9e, 0xa7, 0x9f, 0xf6, 0x68, 0xdb, 0xc6, 0x95, 0xff, 0xe4, 0x26, 0x7a, 0x7c, 0xac,
-	0xa4, 0xeb, 0x52, 0x78, 0x80, 0xf3, 0x01, 0xd6, 0xa3, 0x38, 0xba, 0xcb, 0x1c, 0x8b, 0x61, 0xcf,
-	0xab, 0xfc, 0x57, 0x01, 0x3e, 0x9d, 0x05, 0xf0, 0xd8, 0x57, 0x1a, 0x00, 0xbf, 0x83, 0xd5, 0x18,
-	0xb0, 0xe7, 0xda, 0x84, 0x57, 0x7e, 0x54, 0xa8, 0x8f, 0x67, 0x41, 0x6d, 0x09, 0x8d, 0x10, 0xb2,
-	0x5e, 0x80, 0x1c, 0x53, 0x3f, 0xb4, 0xff, 0xcd, 0xc3, 0xb5, 0x08, 0xd5, 0x9e, 0xeb, 0x50, 0x0f,
-	0x27, 0x72, 0xbd, 0x08, 0x19, 0xcc, 0x98, 0xc3, 0xfc, 0x4d, 0xf2, 0x6a, 0x94, 0xfa, 0x2f, 0xa6,
-	0x52, 0xaf, 0x4c, 0xbc, 0x9d, 0x43, 0x7b, 0x49, 0xdc, 0x3f, 0x9c, 0x8d, 0xfb, 0x10, 0xe8, 0xe3,
-	0x54, 0xf2, 0x9f, 0x5d, 0x8d, 0xfc, 0x10, 0xb9, 0x39, 0x99, 0xfd, 0x27, 0x57, 0x60, 0x3f, 0xc0,
-	0xac, 0x83, 0x20, 0x4d, 0xfd, 0xd2, 0xda, 0xb0, 0x1c, 0xcb, 0x49, 0xf4, 0x0e, 0xae, 0xc7, 0x4c,
-	0x46, 0x76, 0x93, 0x68, 0x07, 0xb5, 0x59, 0xcc, 0x0e, 0x6d, 0x28, 0x04, 0xe5, 0x38, 0xfd, 0xda,
-	0x3f, 0xf3, 0xb0, 0x9e, 0x20, 0x1f, 0x29, 0x8a, 0xbb, 0x70, 0x6d, 0xcc, 0x48, 0x20, 0x0b, 0x41,
-	0x71, 0xeb, 0xfe, 0xcc, 0x7d, 0x09, 0x3d, 0x84, 0xac, 0x2c, 0x26, 0x41, 0x7f, 0xbc, 0x91, 0xa0,
-	0xaa, 0x0a, 0x58, 0x13, 0x20, 0xb4, 0x15, 0x34, 0xc1, 0xef, 0xae, 0xb6, 0xea, 0x5a, 0x68, 0xdb,
-	0x6f, 0x1e, 0xef, 0xa1, 0xe4, 0x9a, 0x61, 0x8b, 0xf1, 0x2a, 0x59, 0x89, 0xfa, 0x9b, 0x2b, 0xa2,
-	0x1e, 0x0f, 0x41, 0x28, 0x5c, 0x0c, 0xab, 0x97, 0x84, 0xb6, 0x9d, 0x4b, 0x42, 0x2d, 0xdd, 0xe3,
-	0xcc, 0xe0, 0xd8, 0x22, 0xd8, 0xab, 0xe4, 0x24, 0xfe, 0xde, 0x15, 0xf1, 0x3f, 0x04, 0x50, 0xad,
-	0x10, 0x49, 0x99, 0x39, 0x86, 0x82, 0x22, 0xb0, 0xdf, 0xef, 0x57, 0xf2, 0x12, 0xfb, 0xf5, 0x15,
-	0xb1, 0x1b, 0x81, 0x7e, 0x48, 0xc8, 0x50, 0x8b, 0xf3, 0x2a, 0x85, 0x9f, 0x44, 0xc8, 0xce, 0x10,
-	0x84, 0xc4, 0xad, 0x7e, 0x82, 0xe5, 0x38, 0xf7, 0x91, 0xc6, 0xfd, 0x3c, 0xda, 0xb8, 0x47, 0x93,
-	0x68, 0x68, 0x1e, 0x16, 0x86, 0x43, 0x30, 0x39, 0x16, 0xe8, 0xb0, 0x32, 0x1a, 0x83, 0x08, 0xfe,
-	0xb7, 0x51, 0xfc, 0x2f, 0xa7, 0xe1, 0xc7, 0xe6, 0x0e, 0x1b, 0x2a, 0x89, 0x41, 0x88, 0xd8, 0xf9,
-	0x75, 0xd4, 0xce, 0xe3, 0x29, 0x76, 0xe2, 0xa0, 0x7d, 0x69, 0xed, 0x3d, 0x2c, 0xc5, 0xc2, 0x12,
-	0xb1, 0xf1, 0x34, 0x6a, 0xe3, 0xde, 0x14, 0x1b, 0x12, 0x2a, 0xa0, 0x69, 0x24, 0x32, 0x3f, 0x8b,
-	0xa6, 0x21, 0x34, 0x39, 0x49, 0xfd, 0x05, 0x56, 0xc7, 0xf5, 0x42, 0xf4, 0x00, 0xee, 0x26, 0xd6,
-	0xaf, 0x91, 0x93, 0xc4, 0x37, 0x50, 0x32, 0x85, 0x41, 0x9d, 0x3b, 0xe7, 0x98, 0x7a, 0x7e, 0x59,
-	0xb9, 0x93, 0x54, 0x1b, 0xc4, 0x8b, 0x13, 0x21, 0xa9, 0xad, 0xc3, 0xda, 0xd8, 0x6e, 0xa0, 0xbd,
-	0x86, 0x1b, 0x93, 0x3a, 0xaa, 0x98, 0xeb, 0x86, 0x3b, 0x5b, 0xfc, 0xb4, 0xb1, 0x07, 0x37, 0x27,
-	0xf6, 0x04, 0xb4, 0x06, 0x8b, 0x1d, 0x42, 0x89, 0x77, 0x86, 0xdb, 0xfa, 0xa5, 0xc3, 0xce, 0xa5,
-	0x5e, 0x0a, 0x2d, 0x43, 0xee, 0xd4, 0x30, 0xcf, 0x6d, 0xc7, 0x92, 0x74, 0xa6, 0xb4, 0x03, 0xb8,
-	0x9e, 0xd8, 0x83, 0xa7, 0x38, 0x81, 0xca, 0x90, 0xef, 0x30, 0x43, 0x7e, 0xf3, 0xd1, 0x36, 0x60,
-	0x7d, 0xc7, 0xc6, 0x82, 0xfb, 0x86, 0xd3, 0xa3, 0xa2, 0x9b, 0x70, 0x46, 0xd4, 0xc1, 0x69, 0x11,
-	0x32, 0xa6, 0x78, 0x27, 0x75, 0xd3, 0xda, 0x43, 0xf8, 0xc5, 0xb0, 0x64, 0xeb, 0x9c, 0xb8, 0x13,
-	0xa4, 0xff, 0x95, 0x12, 0x5d, 0x20, 0x5e, 0xac, 0xa5, 0xaf, 0xb3, 0x1e, 0x06, 0xeb, 0xb0, 0x26,
-	0xe6, 0x45, 0x1b, 0x73, 0xdc, 0xd6, 0xd9, 0xc0, 0xd4, 0x55, 0x0e, 0x61, 0x75, 0x58, 0x63, 0xb8,
-	0x6b, 0x10, 0x2a, 0x4a, 0xe8, 0x30, 0x46, 0x7a, 0xf6, 0xe1, 0xf7, 0x13, 0x54, 0x93, 0xdb, 0x2e,
-	0xfa, 0x0e, 0xb2, 0xb2, 0x73, 0x7b, 0x53, 0x5b, 0xe8, 0x58, 0x32, 0xb4, 0xbf, 0xa7, 0x20, 0xef,
-	0xf3, 0xea, 0xa1, 0x2d, 0x7f, 0xf8, 0x57, 0x50, 0xf7, 0x12, 0xa0, 0x02, 0xf1, 0xda, 0x1b, 0x83,
-	0x1b, 0xd5, 0x53, 0x58, 0x10, 0xff, 0x4f, 0x0b, 0xfd, 0xe0, 0x10, 0x3d, 0x3f, 0xcb, 0x39, 0xa1,
-	0xe4, 0x7b, 0x22, 0x78, 0x2a, 0x69, 0xff, 0x98, 0x87, 0x52, 0x8b, 0x1b, 0x3c, 0xdc, 0x8b, 0xc3,
-	0x8d, 0x3c, 0xd1, 0xb0, 0x1a, 0xe5, 0xb6, 0xc4, 0x39, 0xd1, 0xe0, 0x58, 0x17, 0x05, 0x42, 0xd1,
-	0x7e, 0x2b, 0xe9, 0x44, 0x25, 0xe4, 0xbe, 0xc7, 0x7d, 0xf4, 0x35, 0xa4, 0x85, 0xa7, 0x53, 0x86,
-	0x6e, 0x29, 0xbe, 0x87, 0x07, 0x03, 0x28, 0x7a, 0x05, 0x59, 0xc3, 0x75, 0x31, 0x6d, 0x07, 0x03,
-	0xdf, 0xfd, 0x49, 0xaa, 0xdb, 0x52, 0x74, 0xa0, 0xfd, 0x02, 0x32, 0xa6, 0x8d, 0x0d, 0x16, 0xcc,
-	0x76, 0x1b, 0x93, 0x94, 0x1b, 0x42, 0x72, 0xec, 0xe8, 0xfb, 0x63, 0x0a, 0x16, 0x7d, 0xb2, 0xfc,
-	0x1c, 0x19, 0x66, 0x2b, 0x36, 0xe8, 0x7e, 0x13, 0x59, 0xe9, 0x17, 0x53, 0x57, 0x1a, 0x0e, 0x90,
-	0xaf, 0xe3, 0x4b, 0xfd, 0x72, 0x96, 0xa5, 0x86, 0xea, 0x2f, 0x63, 0x6b, 0xbd, 0x3f, 0xc3, 0x5a,
-	0xc7, 0x0e, 0x9a, 0xbf, 0x05, 0x18, 0x54, 0xcf, 0xc8, 0x55, 0xcd, 0x0c, 0x59, 0xb6, 0x08, 0x19,
-	0x59, 0x9f, 0x25, 0x19, 0x25, 0xed, 0x3d, 0xe4, 0xc3, 0x14, 0xb8, 0x22, 0xd2, 0x12, 0x64, 0xd5,
-	0xac, 0xa4, 0xa0, 0x82, 0x86, 0xa4, 0xd2, 0xf7, 0x35, 0xac, 0x34, 0x1c, 0xca, 0x09, 0xed, 0x19,
-	0xa7, 0x36, 0x6e, 0x71, 0x86, 0x8d, 0x2e, 0xaa, 0x02, 0x32, 0xfd, 0x97, 0x32, 0x6f, 0x95, 0x23,
-	0x29, 0xa9, 0x1d, 0x64, 0xbf, 0x72, 0xeb, 0x11, 0x2c, 0xc7, 0x52, 0x6d, 0x92, 0xb2, 0x76, 0x00,
-	0xe5, 0x78, 0xbc, 0xd0, 0x73, 0xc8, 0x7a, 0xd2, 0xac, 0xbf, 0x9a, 0x8d, 0xc4, 0x21, 0x35, 0xe6,
-	0xa6, 0xa6, 0x01, 0x1a, 0x4d, 0xd6, 0xd0, 0x41, 0x65, 0x71, 0x0d, 0xae, 0x8d, 0x89, 0xb2, 0x76,
-	0x0d, 0x56, 0x46, 0x52, 0x55, 0x5b, 0xf5, 0xf1, 0x22, 0x31, 0xd5, 0xfe, 0x9a, 0x86, 0xfc, 0x81,
-	0x63, 0xa9, 0x66, 0xfe, 0x02, 0xf2, 0x1e, 0xbe, 0xc0, 0x8c, 0x70, 0xd5, 0xd1, 0x97, 0x12, 0xdd,
-	0x0d, 0x54, 0x6a, 0x2d, 0x5f, 0x1e, 0x3d, 0x82, 0x42, 0x78, 0x0b, 0xe8, 0x57, 0x9a, 0xea, 0xc8,
-	0x1d, 0xc6, 0x49, 0x20, 0x21, 0xba, 0x5b, 0x17, 0x7b, 0x9e, 0x61, 0x05, 0xd7, 0x1f, 0x22, 0x23,
-	0x98, 0x61, 0x62, 0x79, 0xff, 0x31, 0xa1, 0xb6, 0x64, 0xe4, 0xe7, 0xa9, 0x9d, 0x44, 0xde, 0x4b,
-	0xa1, 0x55, 0x28, 0xd9, 0x8e, 0xa5, 0xdb, 0x8e, 0x29, 0xa3, 0x55, 0xc9, 0xc9, 0xb7, 0x4b, 0x90,
-	0xe5, 0x67, 0x0c, 0x1b, 0xed, 0x4a, 0x5e, 0xde, 0x5e, 0xbd, 0xf2, 0xaf, 0x1b, 0x9f, 0x41, 0x51,
-	0x48, 0x63, 0xca, 0x99, 0x98, 0xb6, 0x55, 0x2d, 0xbe, 0x35, 0x85, 0x01, 0xed, 0xf7, 0x90, 0x0f,
-	0x49, 0x28, 0x40, 0xe6, 0xa4, 0xb9, 0xdd, 0xd8, 0x29, 0xcf, 0x89, 0xc7, 0x37, 0x3b, 0xf5, 0xdf,
-	0xed, 0x95, 0x01, 0xe5, 0x61, 0x61, 0xff, 0x70, 0xf7, 0xa8, 0xbc, 0x8a, 0x00, 0xb2, 0x87, 0x47,
-	0x27, 0xfb, 0x8d, 0x9d, 0xf2, 0x2f, 0xc5, 0xdb, 0x0f, 0xdb, 0xcd, 0xc3, 0xf2, 0x86, 0x10, 0xdd,
-	0x69, 0x36, 0x8f, 0x9a, 0xe5, 0x2d, 0x54, 0x82, 0x7c, 0xa3, 0xb9, 0x7f, 0xb2, 0xdf, 0xd8, 0x3e,
-	0x28, 0xbf, 0xd2, 0x4a, 0x00, 0x07, 0x8e, 0x25, 0x52, 0x83, 0x39, 0xb6, 0xf6, 0xb7, 0x14, 0xac,
-	0x8e, 0xbb, 0xdd, 0x18, 0xbd, 0x71, 0xb2, 0xfd, 0x1a, 0xf3, 0x47, 0xb8, 0xe5, 0x18, 0x3d, 0x7e,
-	0xb6, 0xa5, 0x9b, 0x36, 0x91, 0x97, 0x2f, 0x0c, 0xb7, 0x31, 0xe5, 0xc4, 0xb0, 0x3d, 0xdd, 0x62,
-	0x06, 0xe5, 0x7e, 0x5d, 0x4e, 0xba, 0x49, 0x38, 0xda, 0x16, 0xda, 0x0d, 0xa9, 0xdc, 0x18, 0xe8,
-	0xee, 0x09, 0xd5, 0xb7, 0x73, 0xf5, 0x32, 0x2c, 0x09, 0x78, 0xf1, 0x56, 0x11, 0xac, 0x3d, 0x80,
-	0x1b, 0x93, 0x74, 0x02, 0xf7, 0xd4, 0x64, 0xb4, 0x0b, 0xcb, 0x6f, 0x1c, 0xf3, 0x1c, 0x33, 0xb1,
-	0x42, 0x83, 0x50, 0x3c, 0x66, 0x29, 0xc4, 0x5f, 0x4a, 0x15, 0x90, 0xba, 0x17, 0x60, 0xfd, 0xf8,
-	0xcd, 0xd9, 0xd6, 0x25, 0x2c, 0xd6, 0xb1, 0xd1, 0xdd, 0xa5, 0x3e, 0x53, 0xa8, 0x03, 0xb9, 0xe0,
-	0x31, 0xa9, 0x38, 0x8e, 0xb9, 0xa2, 0xa8, 0xde, 0x9f, 0x45, 0x56, 0x6d, 0xa6, 0xb9, 0x8d, 0xd4,
-	0xe3, 0xd4, 0xd6, 0x27, 0x00, 0x65, 0x58, 0xf6, 0xe1, 0x43, 0xbf, 0x1f, 0xdf, 0x9a, 0xd2, 0xbd,
-	0xab, 0xd3, 0x04, 0x7c, 0x74, 0x0b, 0x8a, 0x0a, 0x5d, 0x6e, 0x5b, 0xf4, 0x11, 0x32, 0xea, 0xe1,
-	0xee, 0xa4, 0x8a, 0xed, 0x3b, 0x58, 0xbd, 0x37, 0x59, 0xc8, 0xdf, 0xfd, 0xca, 0x10, 0x09, 0xf8,
-	0x3b, 0x70, 0x2c, 0x8b, 0x50, 0x0b, 0x7d, 0x84, 0x5c, 0xf0, 0x78, 0x6f, 0x5a, 0x01, 0x10, 0x3b,
-	0xa7, 0x7a, 0x27, 0x59, 0x2a, 0xc8, 0x5e, 0x69, 0xaa, 0xae, 0xc1, 0xf8, 0x3f, 0x5b, 0xd4, 0x0b,
-	0xca, 0x83, 0x6d, 0x97, 0x9c, 0x66, 0x65, 0xb9, 0x78, 0xfa, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff,
-	0xa4, 0x6d, 0xe2, 0xe2, 0xf4, 0x18, 0x00, 0x00,
+	// 2372 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x5a, 0x4b, 0x73, 0x1b, 0xc7,
+	0xf1, 0x27, 0x08, 0x10, 0x04, 0x9b, 0x20, 0x09, 0x0e, 0x41, 0x13, 0x5a, 0xcb, 0x96, 0xbc, 0xd2,
+	0xdf, 0xa6, 0x6c, 0xff, 0x41, 0x89, 0x4a, 0xaa, 0x64, 0x49, 0x4e, 0x44, 0x82, 0xa4, 0x44, 0x9b,
+	0x7a, 0x78, 0x49, 0x45, 0x56, 0x95, 0x2b, 0xeb, 0xe5, 0x62, 0xb8, 0x1a, 0x73, 0xb1, 0xbb, 0x99,
+	0x1d, 0x50, 0x61, 0xca, 0xa9, 0x54, 0x2e, 0xa9, 0x5c, 0x5d, 0xf9, 0x00, 0xa9, 0x9c, 0x73, 0xcb,
+	0x29, 0x55, 0xb9, 0xe5, 0x94, 0x4b, 0xce, 0xb9, 0xe7, 0x94, 0xc7, 0x21, 0x1f, 0x21, 0xa9, 0x79,
+	0xec, 0x03, 0xc0, 0x2e, 0x1e, 0xb4, 0x6f, 0x3b, 0x33, 0xdd, 0xbf, 0x5f, 0x4f, 0x77, 0x4f, 0xcf,
+	0x03, 0x80, 0xe5, 0x63, 0x6c, 0x75, 0xcc, 0x13, 0xcf, 0xb4, 0x02, 0xd2, 0x0c, 0xa8, 0xcf, 0x7c,
+	0xb4, 0xea, 0x53, 0xa7, 0x69, 0x05, 0x96, 0xfd, 0x0a, 0x37, 0xf9, 0x68, 0xf3, 0xc4, 0x6b, 0x9e,
+	0xdd, 0xd2, 0x56, 0x85, 0x24, 0xed, 0x7a, 0x1e, 0xa6, 0x89, 0xb4, 0x76, 0xcf, 0x21, 0xec, 0x55,
+	0xf7, 0xb8, 0x69, 0xfb, 0x9d, 0x0d, 0xc7, 0x77, 0x2d, 0xcf, 0xd9, 0x10, 0x03, 0xc7, 0xdd, 0x93,
+	0x8d, 0x80, 0x9d, 0x07, 0x38, 0xdc, 0x60, 0xa4, 0x83, 0x43, 0x66, 0x75, 0x82, 0xe4, 0x4b, 0x2a,
+	0xeb, 0xbf, 0x2d, 0x40, 0xf9, 0xc8, 0xa2, 0x0e, 0x66, 0x68, 0x1b, 0xde, 0x0a, 0x28, 0xe9, 0x10,
+	0x46, 0xce, 0xb0, 0xc9, 0xa8, 0xe5, 0x85, 0x27, 0x3e, 0xed, 0x98, 0x14, 0x9f, 0x60, 0x8a, 0x3d,
+	0x1b, 0x37, 0x0a, 0x57, 0x0b, 0xeb, 0x73, 0xc6, 0x9b, 0xb1, 0xd0, 0x51, 0x24, 0x63, 0x44, 0x22,
+	0x08, 0x41, 0xc9, 0xb3, 0x3a, 0xb8, 0x31, 0x2d, 0x44, 0xc5, 0xb7, 0xf6, 0x31, 0x94, 0x0e, 0x48,
+	0xc8, 0xd0, 0xf7, 0xa1, 0xcc, 0x04, 0x53, 0xa3, 0x70, 0xb5, 0xb8, 0x3e, 0xbf, 0xf9, 0x56, 0x33,
+	0x73, 0x9a, 0x4d, 0x69, 0x8e, 0xa1, 0x84, 0xf5, 0x10, 0x16, 0x0d, 0xdc, 0xf1, 0x19, 0x7e, 0x48,
+	0x03, 0xfb, 0x99, 0x4f, 0x19, 0xb2, 0xe0, 0x0d, 0x2b, 0x20, 0x66, 0x88, 0xe9, 0x19, 0xb1, 0xb1,
+	0xd9, 0xc6, 0xa1, 0x4d, 0x49, 0xc0, 0x7c, 0x2a, 0x2c, 0x9c, 0xdf, 0xfc, 0x20, 0x07, 0x78, 0x2b,
+	0x20, 0x87, 0x52, 0x67, 0x27, 0x56, 0x31, 0xea, 0x56, 0x46, 0xaf, 0xfe, 0xa7, 0x22, 0xa0, 0x7d,
+	0x2f, 0x64, 0xb4, 0x6b, 0x33, 0xe2, 0x7b, 0x06, 0xfe, 0x49, 0x17, 0x87, 0x0c, 0xfd, 0x1f, 0x2c,
+	0x92, 0xa4, 0xd7, 0x24, 0x6d, 0xe5, 0x93, 0x85, 0x54, 0xef, 0x7e, 0x1b, 0xed, 0x42, 0x85, 0x62,
+	0x87, 0x84, 0x0c, 0xd3, 0xc6, 0x3f, 0x66, 0x85, 0x4d, 0xef, 0xe6, 0xd8, 0x64, 0x28, 0x39, 0xc5,
+	0xf0, 0x68, 0xca, 0x88, 0x55, 0xd1, 0x73, 0x58, 0x0c, 0xa8, 0x6f, 0xe3, 0x30, 0x34, 0x8f, 0xbb,
+	0x5e, 0xdb, 0xc5, 0x8d, 0x7f, 0xce, 0x0e, 0x9d, 0xe0, 0x33, 0x29, 0xbd, 0x2d, 0x84, 0x13, 0xc4,
+	0x85, 0x20, 0xdd, 0x8f, 0x3c, 0x58, 0xeb, 0x85, 0x35, 0x03, 0xea, 0x3b, 0x14, 0x87, 0x61, 0xe3,
+	0x5f, 0x12, 0xff, 0xf6, 0x38, 0xf8, 0xcf, 0x94, 0x52, 0xc2, 0xb3, 0x1a, 0x64, 0x8d, 0x23, 0x0c,
+	0xf5, 0x3e, 0xbe, 0x30, 0x70, 0x09, 0x6b, 0xfc, 0x5b, 0x92, 0xdd, 0x1c, 0x87, 0xec, 0x90, 0x6b,
+	0x24, 0x4c, 0x28, 0x18, 0x18, 0xdc, 0x9e, 0x83, 0x59, 0x2a, 0x05, 0xf4, 0xbf, 0x15, 0x61, 0xa5,
+	0x27, 0x7a, 0x61, 0xe0, 0x7b, 0x21, 0x1e, 0x37, 0x7c, 0x75, 0x98, 0xc1, 0x94, 0xfa, 0x54, 0x65,
+	0xb1, 0x6c, 0xa0, 0xbd, 0xc1, 0xa0, 0xbe, 0x37, 0x32, 0xa8, 0x92, 0xb8, 0x27, 0xaa, 0x3f, 0xca,
+	0x8b, 0xea, 0x87, 0xe3, 0x45, 0x35, 0x86, 0xec, 0x0b, 0xab, 0x3f, 0x32, 0xac, 0xdf, 0x9b, 0x2c,
+	0xac, 0x31, 0x51, 0x4e, 0x5c, 0x4f, 0x86, 0xc7, 0xf5, 0xd6, 0x04, 0x71, 0x8d, 0xa9, 0xb2, 0x02,
+	0x0b, 0xdc, 0xf1, 0x52, 0x42, 0xff, 0x39, 0x2c, 0xf5, 0xad, 0x18, 0xf4, 0x15, 0x5c, 0xea, 0x33,
+	0xa3, 0xa7, 0x20, 0xf0, 0x4a, 0xd3, 0x1c, 0xc7, 0x94, 0x54, 0x4d, 0x58, 0x0b, 0xb2, 0x07, 0x74,
+	0x04, 0xb5, 0xfe, 0xd8, 0xea, 0x7f, 0x98, 0x83, 0xb5, 0x1c, 0x20, 0xb4, 0x08, 0xd3, 0x71, 0x92,
+	0x4d, 0x93, 0x36, 0xfa, 0x31, 0x40, 0x5c, 0x58, 0xc3, 0xc6, 0xb4, 0x30, 0xee, 0x07, 0x93, 0x19,
+	0xd7, 0x8c, 0xab, 0x6e, 0xb8, 0xeb, 0x31, 0x7a, 0x6e, 0xa4, 0x10, 0x51, 0x1b, 0xaa, 0x81, 0xed,
+	0xbb, 0x2e, 0x16, 0xa9, 0x1c, 0x36, 0x8a, 0x82, 0xe1, 0xc1, 0x84, 0x0c, 0xcf, 0x52, 0x10, 0x92,
+	0xa3, 0x07, 0x15, 0xfd, 0x0c, 0xea, 0xaf, 0x89, 0xd7, 0xf6, 0x5f, 0x13, 0xcf, 0x31, 0x43, 0x46,
+	0x2d, 0x86, 0x1d, 0x82, 0xc3, 0x46, 0x49, 0xb0, 0x3d, 0x9c, 0x90, 0xed, 0x45, 0x04, 0x75, 0x18,
+	0x23, 0x49, 0xd2, 0x95, 0xd7, 0x83, 0x23, 0xc8, 0x80, 0xb2, 0xed, 0xb7, 0x31, 0x0d, 0x1b, 0x33,
+	0x82, 0xed, 0xee, 0x84, 0x6c, 0x2d, 0xa1, 0x2c, 0x09, 0x14, 0x12, 0xf7, 0x1a, 0xf6, 0xce, 0x08,
+	0xf5, 0xbd, 0x0e, 0xf6, 0x58, 0xd8, 0x28, 0x5f, 0xc8, 0x6b, 0xbb, 0x29, 0x08, 0xe5, 0xb5, 0x34,
+	0x2a, 0x72, 0xe1, 0x72, 0xc8, 0x2c, 0x86, 0xcd, 0x9c, 0xbd, 0x6b, 0x76, 0xf2, 0xbd, 0xeb, 0x92,
+	0x00, 0xcc, 0x1a, 0xd2, 0x5e, 0xc1, 0x52, 0x5f, 0xa2, 0xa0, 0x1a, 0x14, 0x4f, 0xf1, 0xb9, 0xca,
+	0x46, 0xfe, 0x89, 0x7e, 0x08, 0x33, 0x67, 0x96, 0xdb, 0x95, 0xdb, 0xf5, 0xfc, 0xe6, 0x8d, 0x01,
+	0xee, 0xd4, 0x59, 0x83, 0xcf, 0x3c, 0xd9, 0xf0, 0xa5, 0xde, 0xdd, 0xe9, 0x3b, 0x05, 0xed, 0x14,
+	0x96, 0x07, 0x12, 0x26, 0x83, 0xeb, 0x41, 0x2f, 0xd7, 0xfb, 0xa3, 0xb8, 0x5a, 0x31, 0x64, 0x9a,
+	0xec, 0xa7, 0xd0, 0xc8, 0xcb, 0x97, 0x0c, 0xce, 0xbd, 0x5e, 0xce, 0x9b, 0x23, 0x38, 0xfb, 0x91,
+	0xcf, 0xd3, 0xcc, 0x26, 0xcc, 0xa7, 0x72, 0x27, 0x83, 0xec, 0x6e, 0x2f, 0xd9, 0xf5, 0x11, 0x64,
+	0x02, 0xac, 0xcf, 0x8f, 0x03, 0x29, 0xf4, 0xed, 0xfd, 0x98, 0x82, 0x4c, 0x91, 0xe9, 0xbf, 0x2e,
+	0x40, 0x3d, 0xeb, 0xb4, 0x80, 0x1e, 0xc3, 0xb5, 0xdc, 0x6a, 0x3a, 0x70, 0x14, 0xbc, 0x9a, 0x53,
+	0x27, 0x93, 0xf3, 0xe0, 0x3b, 0x50, 0xb5, 0xb9, 0x69, 0x26, 0xf3, 0x4f, 0xb1, 0x27, 0x4b, 0x5e,
+	0xd5, 0x98, 0x17, 0x7d, 0x47, 0xa2, 0x4b, 0xff, 0x0c, 0x56, 0x33, 0x77, 0x38, 0x74, 0x07, 0x66,
+	0x3b, 0x98, 0x51, 0x62, 0x87, 0xea, 0x5c, 0xf7, 0x76, 0xce, 0xda, 0x78, 0x2c, 0xa5, 0x8c, 0x48,
+	0x5c, 0x3f, 0x84, 0xcb, 0xc3, 0x8e, 0x2a, 0xe8, 0x36, 0xac, 0xa6, 0xcf, 0x01, 0xfd, 0xd3, 0xaa,
+	0x93, 0xf4, 0xd9, 0x41, 0x8d, 0xe9, 0xff, 0xad, 0xc2, 0xac, 0x62, 0x42, 0x9f, 0xc1, 0x7c, 0x90,
+	0x2a, 0xe4, 0x72, 0x97, 0xd9, 0x18, 0x6e, 0x5e, 0xf3, 0x19, 0xeb, 0xab, 0xdc, 0x69, 0x0c, 0x74,
+	0x1f, 0x4a, 0xdd, 0x10, 0x53, 0xb5, 0x29, 0xac, 0x8f, 0xc0, 0x7a, 0x1e, 0x62, 0x2a, 0x41, 0x84,
+	0x96, 0xf6, 0x0d, 0x00, 0x24, 0xcb, 0x13, 0x7d, 0x05, 0xd1, 0x46, 0x8a, 0xdb, 0x26, 0x76, 0xb1,
+	0xac, 0x6b, 0xd2, 0x8b, 0xf7, 0x46, 0x99, 0x19, 0xc3, 0x44, 0xa5, 0x0e, 0xb7, 0x77, 0x15, 0x84,
+	0xb1, 0x1c, 0xf4, 0x77, 0x21, 0x0b, 0x96, 0x2c, 0x5b, 0xdc, 0x19, 0x62, 0x22, 0x99, 0x9a, 0x77,
+	0xc6, 0x27, 0xda, 0x12, 0x00, 0x31, 0xcb, 0xa2, 0xd5, 0xd3, 0x46, 0x2f, 0x01, 0x5e, 0x5b, 0x0c,
+	0xd3, 0x8e, 0x45, 0x4f, 0xa3, 0x4d, 0xed, 0xa3, 0xf1, 0xd1, 0x5f, 0xc4, 0xba, 0x6a, 0xc7, 0x4c,
+	0xc0, 0xb4, 0x3f, 0x17, 0xa1, 0xf2, 0x18, 0x5b, 0x61, 0x97, 0xe2, 0x36, 0xfa, 0x1a, 0xea, 0xc4,
+	0x0b, 0xba, 0x2c, 0x9a, 0x89, 0x69, 0xfb, 0x5d, 0xe9, 0x38, 0xce, 0xf8, 0xc9, 0xf8, 0x8c, 0x11,
+	0x62, 0x73, 0x9f, 0xc3, 0xa9, 0x79, 0xb4, 0x04, 0x98, 0x34, 0x01, 0x91, 0x81, 0x01, 0xf4, 0x0b,
+	0x58, 0xf5, 0xbb, 0x2c, 0x83, 0x5e, 0xa6, 0xc4, 0xa7, 0x17, 0xa0, 0x7f, 0x2a, 0xf0, 0x32, 0xf8,
+	0x57, 0xfc, 0xc1, 0x11, 0xb4, 0x0e, 0x35, 0xe6, 0x33, 0xcb, 0x35, 0xf9, 0x25, 0xd1, 0x0c, 0x03,
+	0xec, 0xb1, 0x46, 0xf1, 0x6a, 0x61, 0xbd, 0x68, 0x2c, 0x8a, 0xfe, 0x23, 0xd2, 0xc1, 0x87, 0xbc,
+	0x57, 0xdb, 0x85, 0xb5, 0x9c, 0x99, 0x65, 0x54, 0xac, 0x7a, 0xba, 0x62, 0x15, 0xd3, 0x25, 0x6f,
+	0x0f, 0x1a, 0x79, 0x16, 0x4e, 0x84, 0x63, 0xc3, 0xf2, 0x40, 0xaa, 0xa2, 0x27, 0x50, 0xe9, 0x28,
+	0x3f, 0xa8, 0xcc, 0xdf, 0x9c, 0xdc, 0x83, 0x46, 0x8c, 0xa1, 0xfd, 0x67, 0x1a, 0x16, 0x7b, 0xf3,
+	0xf4, 0xbb, 0xa6, 0x40, 0xff, 0x0f, 0xe8, 0x84, 0x5a, 0x51, 0x51, 0xea, 0x58, 0xc4, 0x23, 0x9e,
+	0x23, 0xa6, 0x5b, 0x30, 0x96, 0xa3, 0x11, 0x23, 0x1a, 0x40, 0xdf, 0x14, 0xe0, 0x52, 0x6f, 0xc6,
+	0x84, 0x29, 0x35, 0xb9, 0x4c, 0x9e, 0x5f, 0x74, 0x11, 0xf6, 0xe6, 0x4e, 0x18, 0xb3, 0xca, 0xfc,
+	0x59, 0xf3, 0xb3, 0x47, 0xb5, 0x4f, 0xe0, 0xf2, 0x30, 0xc5, 0x89, 0xc2, 0xfa, 0x31, 0x2c, 0xf5,
+	0x2d, 0xdd, 0x89, 0xd4, 0xcb, 0x50, 0xe2, 0x65, 0x52, 0x23, 0x50, 0xeb, 0x2f, 0xbd, 0x17, 0x39,
+	0x0b, 0xe5, 0xf9, 0x2d, 0x4d, 0xf9, 0x05, 0xcc, 0xc5, 0x95, 0x39, 0x83, 0xe3, 0xa3, 0x5e, 0x8e,
+	0x6b, 0x63, 0x14, 0xf9, 0xf4, 0xa6, 0xfd, 0x12, 0xde, 0x1a, 0x7a, 0x55, 0xfb, 0x16, 0x3b, 0xa6,
+	0x0b, 0x97, 0x72, 0xef, 0xdb, 0x17, 0xda, 0x2e, 0x91, 0x06, 0x95, 0x28, 0x63, 0x55, 0x06, 0xc7,
+	0x6d, 0x7d, 0x03, 0xd6, 0xd2, 0x2b, 0xde, 0xc0, 0x21, 0xb7, 0x82, 0x0f, 0xf1, 0x70, 0x8a, 0xaa,
+	0x27, 0xb0, 0x8b, 0x86, 0x6c, 0xe8, 0xb7, 0xe1, 0xcd, 0xb4, 0xc2, 0xe1, 0x29, 0x09, 0x46, 0x2b,
+	0xfd, 0x6e, 0x9a, 0x5f, 0xcc, 0xfa, 0xdf, 0xaa, 0xc4, 0xcc, 0xbe, 0x93, 0xb7, 0xae, 0x2f, 0x61,
+	0xd5, 0xf6, 0x3b, 0x81, 0x8b, 0x19, 0x6e, 0x9b, 0x34, 0x31, 0x47, 0x45, 0xf7, 0x83, 0x11, 0x27,
+	0xb3, 0xbd, 0xae, 0x27, 0xc4, 0x0f, 0x03, 0x6c, 0x1b, 0xf5, 0x18, 0x29, 0x3d, 0xaf, 0x2f, 0x61,
+	0x35, 0x5e, 0xcf, 0x3d, 0x0c, 0xc5, 0x0b, 0x30, 0xc4, 0x48, 0x29, 0x06, 0xbd, 0x0d, 0x5a, 0xfe,
+	0x7d, 0x1c, 0xed, 0x41, 0x59, 0x5c, 0xe9, 0xc3, 0x91, 0xf7, 0xe8, 0x4c, 0x2f, 0x1b, 0x4a, 0x5b,
+	0xff, 0x6b, 0x01, 0x2a, 0x71, 0xd1, 0xbc, 0x03, 0xa5, 0xb6, 0xc5, 0x2c, 0x05, 0x79, 0x3d, 0x07,
+	0x32, 0x2e, 0x43, 0x3b, 0x16, 0xb3, 0x0c, 0xa1, 0xa1, 0xfd, 0xaa, 0x00, 0x25, 0xde, 0xbc, 0x58,
+	0x42, 0x26, 0xcf, 0x8f, 0x32, 0x3e, 0xe3, 0x3d, 0x3f, 0x22, 0xa4, 0xcc, 0xe5, 0x2e, 0xaf, 0x4a,
+	0x43, 0xf4, 0xbf, 0x4f, 0x43, 0xf5, 0x90, 0x5f, 0xbd, 0xa2, 0x15, 0xd2, 0x7f, 0xcf, 0xcf, 0x35,
+	0x70, 0x7a, 0x88, 0x81, 0xf7, 0x61, 0x4e, 0x5e, 0x10, 0x79, 0xd5, 0x90, 0x11, 0xbe, 0x92, 0x63,
+	0xa3, 0x20, 0xff, 0x14, 0x9f, 0x1b, 0x95, 0x50, 0x7d, 0xa1, 0x7b, 0x50, 0xe4, 0x73, 0x1b, 0xf1,
+	0xdc, 0x28, 0x14, 0x1f, 0xe2, 0xd4, 0x53, 0x1a, 0xd7, 0x42, 0x3b, 0x50, 0xb6, 0x82, 0x00, 0x7b,
+	0xed, 0xe8, 0x2d, 0xea, 0xc6, 0x30, 0xfd, 0x2d, 0x21, 0x9a, 0x40, 0x28, 0x5d, 0xb4, 0x05, 0x33,
+	0xb6, 0x8b, 0x2d, 0x1a, 0xbd, 0x37, 0xad, 0x0f, 0x03, 0x69, 0x71, 0xc9, 0x04, 0x43, 0x6a, 0xa6,
+	0x1f, 0xf1, 0x7e, 0x3f, 0x0d, 0x0b, 0xca, 0xc9, 0x2a, 0x1d, 0xfb, 0xbd, 0x9c, 0xfd, 0x4e, 0x77,
+	0x05, 0xe6, 0x53, 0x57, 0x0e, 0x15, 0x37, 0x48, 0x6e, 0x1c, 0xe8, 0x7e, 0x8f, 0xa7, 0xde, 0x1b,
+	0xe9, 0xa9, 0xf8, 0x71, 0x4a, 0xb8, 0x6a, 0xb7, 0xdf, 0x55, 0xef, 0x8f, 0xe3, 0xaa, 0x18, 0x23,
+	0xf2, 0xd5, 0x76, 0x9f, 0xaf, 0x6e, 0x8c, 0xe1, 0xab, 0x18, 0x44, 0x39, 0x2b, 0xfd, 0x30, 0xf6,
+	0xc7, 0x12, 0x54, 0xa2, 0xac, 0x40, 0x0f, 0xa0, 0x2c, 0x2b, 0x81, 0xda, 0x06, 0xde, 0x1d, 0x91,
+	0x46, 0x4d, 0x43, 0x48, 0x73, 0xf3, 0xa4, 0x1e, 0xb2, 0x61, 0xa5, 0xd3, 0x75, 0x19, 0xe9, 0x58,
+	0x81, 0x19, 0x92, 0x36, 0x36, 0xc5, 0x79, 0x55, 0xad, 0x9c, 0x5b, 0xa3, 0xe0, 0x1e, 0x2b, 0xd5,
+	0x43, 0xd2, 0xc6, 0xe2, 0x9c, 0xf8, 0x68, 0xca, 0x58, 0xee, 0xf4, 0x77, 0xa2, 0x23, 0x58, 0x3c,
+	0xb6, 0x1c, 0x93, 0x5f, 0x60, 0x4c, 0x91, 0xc7, 0x2a, 0xeb, 0x3f, 0x1c, 0x85, 0xbf, 0x6d, 0x39,
+	0x7c, 0x6f, 0x14, 0xed, 0x47, 0x53, 0x46, 0xf5, 0x38, 0xd5, 0xd6, 0x34, 0x28, 0xcb, 0xe9, 0xa4,
+	0x37, 0xe0, 0xaa, 0xd8, 0x80, 0x79, 0x05, 0x59, 0x1e, 0x30, 0x0e, 0x5d, 0x83, 0x85, 0xe4, 0x26,
+	0x96, 0xbc, 0x0a, 0x57, 0x93, 0xce, 0xfd, 0x36, 0xd2, 0x61, 0x21, 0x71, 0x04, 0x17, 0x92, 0x49,
+	0x37, 0x1f, 0x46, 0x30, 0xfb, 0x6d, 0xf4, 0x06, 0x94, 0xe5, 0x9b, 0x95, 0xca, 0x3a, 0xd5, 0x8a,
+	0x0c, 0x29, 0x25, 0x86, 0xfc, 0xb2, 0x00, 0xd5, 0xf4, 0x2c, 0xc6, 0xb6, 0x21, 0x71, 0x56, 0xca,
+	0x86, 0x6e, 0x04, 0x33, 0x89, 0x0d, 0xdb, 0x65, 0x28, 0xb1, 0xf3, 0x00, 0xeb, 0x0f, 0x60, 0xa9,
+	0xaf, 0x2c, 0xf0, 0x83, 0xa8, 0xed, 0x7b, 0x8c, 0x78, 0x5d, 0x4b, 0x14, 0x30, 0xb9, 0x94, 0xa4,
+	0x23, 0x97, 0xd3, 0x23, 0x62, 0x45, 0xe9, 0xcf, 0xa1, 0xd6, 0xbf, 0x5c, 0x26, 0x84, 0x88, 0xcb,
+	0xec, 0x74, 0xaa, 0xcc, 0xae, 0x03, 0x1a, 0xac, 0x37, 0xb1, 0x64, 0x21, 0x25, 0xb9, 0x0a, 0x2b,
+	0x19, 0xcb, 0x4d, 0x5f, 0x81, 0xe5, 0x81, 0x5a, 0xa3, 0xd7, 0x15, 0x6a, 0xcf, 0xa2, 0xd2, 0x7f,
+	0x53, 0x82, 0xca, 0x81, 0xaf, 0x0e, 0xa9, 0x3b, 0x50, 0x09, 0xf1, 0x19, 0xa6, 0x84, 0xc9, 0xec,
+	0x59, 0xcc, 0x2d, 0x65, 0x91, 0x4a, 0xf3, 0x50, 0xc9, 0x1b, 0xb1, 0x26, 0xba, 0x03, 0x73, 0xf1,
+	0xaf, 0x6d, 0x6a, 0xe5, 0x68, 0x4d, 0xc7, 0xf7, 0x1d, 0x17, 0x37, 0xa3, 0x1f, 0xe8, 0x9a, 0x47,
+	0x91, 0x84, 0x91, 0x08, 0xa3, 0x06, 0x3f, 0xc7, 0x85, 0xa1, 0xe5, 0xc8, 0x15, 0x31, 0x67, 0x44,
+	0x4d, 0x5e, 0xf2, 0x18, 0xb5, 0x6c, 0x2c, 0xe2, 0x38, 0x67, 0xc8, 0x46, 0xfe, 0x76, 0x33, 0x33,
+	0x64, 0xbb, 0x19, 0x79, 0x04, 0x2a, 0x8f, 0x3e, 0x02, 0xbd, 0x03, 0x55, 0xd7, 0x77, 0x4c, 0xd7,
+	0xb7, 0x45, 0x28, 0xc5, 0x1b, 0xe6, 0x9c, 0x31, 0xef, 0xfa, 0xce, 0x81, 0xea, 0xe2, 0xf9, 0xc8,
+	0x5e, 0x51, 0x6c, 0xb5, 0x1b, 0x15, 0x31, 0xa8, 0x5a, 0xda, 0x23, 0xf5, 0xab, 0xe0, 0x03, 0xe0,
+	0xe2, 0x26, 0xf6, 0x18, 0x25, 0x38, 0x3a, 0x68, 0x5c, 0x19, 0xe1, 0x6e, 0x03, 0x5c, 0xf9, 0x45,
+	0x70, 0xa8, 0xbf, 0x84, 0x4a, 0xe4, 0x7d, 0x34, 0x07, 0x33, 0x47, 0xc6, 0x56, 0x6b, 0xb7, 0x36,
+	0xc5, 0x3f, 0x77, 0x76, 0xb7, 0x9f, 0x3f, 0xac, 0x01, 0xaa, 0x40, 0x69, 0xff, 0xc9, 0xde, 0xd3,
+	0x5a, 0x1d, 0x01, 0x94, 0x9f, 0x3c, 0x3d, 0xda, 0x6f, 0xed, 0xd6, 0xde, 0xe6, 0xbd, 0x2f, 0xb6,
+	0x8c, 0x27, 0xb5, 0x75, 0x2e, 0xba, 0x6b, 0x18, 0x4f, 0x8d, 0xda, 0x26, 0xaa, 0x42, 0xa5, 0x65,
+	0xec, 0x1f, 0xed, 0xb7, 0xb6, 0x0e, 0x6a, 0xf7, 0xf5, 0x2a, 0xc0, 0x81, 0xef, 0xb4, 0x7c, 0x8f,
+	0x51, 0xdf, 0xd5, 0xff, 0x52, 0x80, 0x7a, 0xd6, 0x63, 0xeb, 0xc0, 0xc6, 0x54, 0x83, 0x62, 0x97,
+	0xba, 0x6a, 0x75, 0xf2, 0x4f, 0xf4, 0x35, 0x5c, 0xf1, 0xad, 0x2e, 0x7b, 0xb5, 0x69, 0xda, 0x2e,
+	0x11, 0x57, 0x7b, 0x8a, 0xdb, 0xd8, 0x63, 0xc4, 0x72, 0x43, 0xd3, 0xa1, 0x96, 0xba, 0x69, 0xe7,
+	0xff, 0xf4, 0xf6, 0x74, 0x8b, 0x6b, 0xb7, 0x84, 0x72, 0x2b, 0xd1, 0x7d, 0xc8, 0x55, 0x1f, 0x4d,
+	0x19, 0x97, 0x25, 0x7a, 0xf6, 0xf8, 0x76, 0x0d, 0x16, 0xf9, 0x30, 0xef, 0x93, 0x51, 0xd1, 0x6f,
+	0xc2, 0xe5, 0x61, 0x88, 0xd1, 0x0c, 0x0a, 0xf1, 0x0c, 0xf4, 0x63, 0x58, 0xda, 0xf1, 0xed, 0x53,
+	0x4c, 0xb9, 0x37, 0x2c, 0xc2, 0xeb, 0x6b, 0xe6, 0xb4, 0x49, 0x32, 0x6d, 0xc2, 0x8b, 0x80, 0xfc,
+	0xdd, 0x8b, 0x9e, 0xa7, 0x12, 0x4b, 0xe6, 0xf4, 0x72, 0x34, 0x12, 0xa7, 0xd3, 0xe6, 0x6b, 0x58,
+	0xd8, 0xc6, 0x56, 0x67, 0xcf, 0x53, 0x1e, 0x47, 0x27, 0x30, 0x1b, 0x7d, 0xe6, 0x6d, 0xb3, 0x19,
+	0xbf, 0xf3, 0x69, 0x37, 0xc6, 0x91, 0x95, 0xd5, 0x60, 0x6a, 0xbd, 0x70, 0xb3, 0xb0, 0xf9, 0x05,
+	0x80, 0x24, 0x16, 0xc7, 0xcb, 0x27, 0xea, 0x98, 0x79, 0x65, 0xc4, 0xd9, 0x54, 0x1b, 0x25, 0xa0,
+	0xd0, 0x1d, 0x98, 0x97, 0xe8, 0xb2, 0xd4, 0x7f, 0x0e, 0x33, 0xaa, 0xe6, 0x0f, 0xdb, 0xe7, 0x94,
+	0x81, 0xda, 0xf5, 0xe1, 0x42, 0xaa, 0x7c, 0x49, 0x22, 0x12, 0xf9, 0xef, 0xc0, 0x77, 0x1c, 0xe2,
+	0x39, 0xe8, 0x73, 0x98, 0x8d, 0x3e, 0xaf, 0x8f, 0xaa, 0x60, 0x7c, 0x35, 0x6a, 0xef, 0xe4, 0x4b,
+	0x45, 0xab, 0x40, 0x50, 0x6d, 0xeb, 0x90, 0xfd, 0x27, 0x85, 0xed, 0x39, 0x69, 0xc1, 0x56, 0x40,
+	0x8e, 0xcb, 0xa2, 0xca, 0xdd, 0xfe, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x29, 0xe8, 0x0b, 0xde,
+	0xe2, 0x20, 0x00, 0x00,
 }

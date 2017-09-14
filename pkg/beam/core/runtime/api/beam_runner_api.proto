@@ -92,7 +92,9 @@ message Pipeline {
   // this pipeline.
   Components components = 1;
 
-  // (Required) The ids of all PTransforms that are not contained within another PTransform
+  // (Required) The ids of all PTransforms that are not contained within another PTransform.
+  // These must be in shallow topological order, so that traversing them recursively
+  // in this order yields a recursively topological traversal.
   repeated string root_transform_ids = 2;
 
   // (Optional) Static display data for the pipeline. If there is none,
@@ -286,8 +288,8 @@ message TimerSpec {
 }
 
 enum IsBounded {
-  BOUNDED = 0;
-  UNBOUNDED = 1;
+  UNBOUNDED = 0;
+  BOUNDED = 1;
 }
 
 // The payload for the primitive Read transform.
@@ -367,9 +369,14 @@ message WriteFilesPayload {
   // (Required) The SdkFunctionSpec of the FileBasedSink.
   SdkFunctionSpec sink = 1;
 
-  bool windowed_writes = 2;
+  // (Required) The format function.
+  SdkFunctionSpec format_function = 2;
 
-  bool runner_determined_sharding = 3;
+  bool windowed_writes = 3;
+
+  bool runner_determined_sharding = 4;
+
+  map<string, SideInput> side_inputs = 5;
 }
 
 // A coder, the binary format for serialization and deserialization of data in
@@ -433,6 +440,14 @@ message WindowingStrategy {
   // (Required) The duration, in milliseconds, beyond the end of a window at
   // which the window becomes droppable.
   int64 allowed_lateness = 8;
+
+  // (Required) Indicate whether empty on-time panes should be omitted.
+  OnTimeBehavior OnTimeBehavior = 9;
+
+  // (Required) Whether or not the window fn assigns inputs to exactly one window
+  //
+  // This knowledge is required for some optimizations
+  bool assigns_to_one_window = 10;
 }
 
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
@@ -476,6 +491,17 @@ enum ClosingBehavior {
 
   // Only emit output when new data has arrives since the last output
   EMIT_IF_NONEMPTY = 1;
+}
+
+// Controls whether or not an aggregating transform should output data
+// when an on-time pane is empty.
+enum OnTimeBehavior {
+  // Always fire the on-time pane. Even if there is no new data since
+  // the previous firing, an element will be produced.
+  FIRE_ALWAYS = 0;
+
+  // Only fire the on-time pane if there is new data since the previous firing.
+  FIRE_IF_NONEMPTY = 1;
 }
 
 // When a number of windowed, timestamped inputs are aggregated, the timestamp
@@ -729,9 +755,12 @@ message FunctionSpec {
   // passed as-is.
   string urn = 1;
 
+  // (Deprecated)
+  google.protobuf.Any any_param = 2;
+
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
-  google.protobuf.Any parameter = 2;
+  bytes payload = 3;
 }
 
 // TODO: transfer javadoc here
