@@ -180,6 +180,6 @@ public class ElasticsearchIOTest implements Serializable {
         nonEmptySplits += 1;
       }
     }
-    assertEquals("Wrong number of empty splits", expectedNumSplits, nonEmptySplits);
+    assertEquals("Wrong number of non empty splits", expectedNumSplits, nonEmptySplits);
   }
 }

@@ -35,7 +35,7 @@
         <commons-io.version>1.3.2</commons-io.version>
         <jna.version>4.1.0</jna.version>
         <log4j.version>2.6.2</log4j.version>
-        <elasticsearch.client.rest.version>5.0.0</elasticsearch.client.rest.version>
+        <elasticsearch.client.rest.version>5.4.0</elasticsearch.client.rest.version>
     </properties>
 
     <dependencies>

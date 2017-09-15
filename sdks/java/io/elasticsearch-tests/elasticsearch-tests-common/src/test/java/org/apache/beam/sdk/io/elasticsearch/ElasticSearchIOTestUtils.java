@@ -61,8 +61,11 @@ class ElasticSearchIOTestUtils {
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.DO_NOT_INJECT_INVALID_DOCS);
     StringBuilder bulkRequest = new StringBuilder();
+    int i = 0;
     for (String document : data) {
-      bulkRequest.append(String.format("{ \"index\" : {} }%n%s%n", document));
+      bulkRequest.append(String.format(
+          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%d\" } }%n%s%n",
+          connectionConfiguration.getIndex(), connectionConfiguration.getType(), i++, document));
     }
     String endPoint = String.format("/%s/%s/_bulk", connectionConfiguration.getIndex(),
         connectionConfiguration.getType());
