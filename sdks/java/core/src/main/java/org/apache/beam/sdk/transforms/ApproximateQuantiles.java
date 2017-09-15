@@ -341,7 +341,7 @@ public class ApproximateQuantiles {
         b++;
       }
       b--;
-      int k = Math.max(2, (int) Math.ceil(maxNumElements / (1 << (b - 1))));
+      int k = Math.max(2, (int) Math.ceil(maxNumElements / (float) (1 << (b - 1))));
       return new ApproximateQuantilesCombineFn<T, ComparatorT>(
           numQuantiles, compareFn, k, b, maxNumElements);
     }
