@@ -150,7 +150,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 				return nil, err
 			}
 
-		case "urn:org.apache.beam:dofn:java:0.1": // We are using Java's for now.
+		case "urn:beam:dofn:javasdk:0.1": // We are using Java's for now.
 			var me v1.MultiEdge
 			if err := protox.UnpackBase64Proto(spec.GetAnyParam(), &me); err != nil {
 				return nil, err
@@ -331,26 +331,74 @@ func translateOutputs(transform *rnapi_pb.PTransform, tid string, colls pCollMap
 }
 
 func translateCoders(in map[string]*rnapi_pb.Coder) (map[string]*coder.Coder, error) {
-	coders := make(map[string]*coder.Coder)
+	// Coders can be transmitted in two forms. The first method is by well-known name.
+	// We recognize these well-known names, and generate the appropriate CoderRef for them.
+	// The second method is for user-defined coders. In this case, the CoderRef is already serialized
+	// and we just deserialize it.
+
+	// The first pass populates the map of CoderRefs we construct.
+	coderRefs := make(map[string]*graphx.CoderRef)
+	for id := range in {
+		coderRefs[id] = &graphx.CoderRef{}
+	}
+
+	// The second pass over the supplied coder information populates each CoderRef.
 	for id, coder := range in {
 		spec := coder.GetSpec().GetSpec()
-		c, err := unpackCoder(spec.GetAnyParam())
+
+		ref := coderRefs[id]
+		if spec.GetUrn() != "" {
+
+			// If this well-known coder has component coders, add them to our pool of known coders.
+			// This way, when their definition is read (possibly later), the type information can be
+			// set.
+
+			for _, nc := range coder.ComponentCoderIds {
+				c := coderRefs[nc]
+				ref.Components = append(ref.Components, c)
+			}
+			// Apply the type to the CoderRef. Entry is guaranteed to exist.
+			switch spec.GetUrn() {
+			case "urn:beam:coders:windowed_value:0.1":
+				coderRefs[id].Type = graphx.WindowedValueType
+
+			case "urn:beam:coders:global_window:0.1":
+				coderRefs[id].Type = graphx.GlobalWindowType
+			case "urn:beam:coders:bytes:0.1":
+				coderRefs[id].Type = graphx.BytesType
+
+			default:
+				return nil, fmt.Errorf("Unknown coder requested: %v", spec.GetUrn())
+			}
+		} else {
+			if spec.GetPayload() == nil {
+				return nil, fmt.Errorf("Invalid coder spec. Encoded coder expected but not present")
+			}
+			// Not a known coder. Decode the encoded data.
+			if err := json.Unmarshal(spec.GetPayload(), ref); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// The third pass translates the CoderRefs into Coders.
+	coders := make(map[string]*coder.Coder)
+	for id, cr := range coderRefs {
+		// TODO(wcn): we're at a transitional point in coder representation.
+		// The Go coder serializes the coder as a single entity, transitively closed over its
+		// component coders. The Beam model is using a graph approach identical to transforms.
+		// Until this Beam change is reflected throughout the system, we need to support both.
+		// Filtering out the GlobalWindowType coder below allows the two paradigms to
+		// coexist. Once our internal coder representation changes, this filtering will
+		// no longer be needed.
+		if cr.Type == graphx.GlobalWindowType {
+			continue
+		}
+		c, err := graphx.DecodeCoderRef(cr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to translate coder %s: %v", id, err)
 		}
 		coders[id] = c
 	}
 	return coders, nil
-}
-
-func unpackCoder(data *protobuf.Any) (*coder.Coder, error) {
-	buf, err := protox.UnpackBytes(data)
-	if err != nil {
-		return nil, err
-	}
-	var c graphx.CoderRef
-	if err := json.Unmarshal(buf, &c); err != nil {
-		return nil, err
-	}
-	return graphx.DecodeCoderRef(&c)
 }
