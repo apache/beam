@@ -341,7 +341,7 @@ public class ApproximateQuantiles {
         b++;
       }
       b--;
-      int k = Math.max(2, (int) Math.ceil(maxNumElements / (1 << (b - 1))));
+      int k = Math.max(2, (int) Math.ceil(maxNumElements / (float) (1 << (b - 1))));
       return new ApproximateQuantilesCombineFn<T, ComparatorT>(
           numQuantiles, compareFn, k, b, maxNumElements);
     }
@@ -365,6 +365,14 @@ public class ApproximateQuantiles {
             .withLabel("Quantile Count"))
           .add(DisplayData.item("comparer", compareFn.getClass())
             .withLabel("Record Comparer"));
+    }
+
+    int getNumBuffers() {
+      return numBuffers;
+    }
+
+    int getBufferSize() {
+      return bufferSize;
     }
   }
 
