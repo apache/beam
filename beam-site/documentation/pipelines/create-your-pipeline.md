@@ -22,7 +22,7 @@ A Beam program often starts by creating a `Pipeline` object.
 
 In the Beam SDKs, each pipeline is represented by an explicit object of type `Pipeline`. Each `Pipeline` object is an independent entity that encapsulates both the data the pipeline operates over and the transforms that get applied to that data.
 
-To create a pipeline, declare a `Pipeline` object, and pass it some [configuration options]({{ site.baseurl }}/documentation/programming-guide#options).
+To create a pipeline, declare a `Pipeline` object, and pass it some [configuration options]({{ site.baseurl }}/documentation/programming-guide#configuring-pipeline-options).
 
 ```java
 // Start by defining the options for the pipeline.
@@ -73,7 +73,7 @@ filteredWords.apply("WriteMyFile", TextIO.write().to("gs://some/outputData.txt")
 
 ## Running Your Pipeline
 
-Once you have constructed your pipeline, use the `run` method to execute the pipeline. Pipelines are executed asynchronously: the program you create sends a specification for your pipeline to a **pipeline runner**, which then constructs and runs the actual series of pipeline operations. 
+Once you have constructed your pipeline, use the `run` method to execute the pipeline. Pipelines are executed asynchronously: the program you create sends a specification for your pipeline to a **pipeline runner**, which then constructs and runs the actual series of pipeline operations.
 
 ```java
 p.run();

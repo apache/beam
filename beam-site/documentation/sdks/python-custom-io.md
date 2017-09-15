@@ -13,7 +13,7 @@ The Apache Beam SDK for Python provides an extensible API that you can use to cr
 
 ## Why Create a New Source or Sink
 
-You'll need to create a new source or sink if you want your pipeline to read data from (or write data to) a storage system for which the Beam SDK for Python does not provide [native support]({{ site.baseurl }}/documentation/programming-guide/#io).
+You'll need to create a new source or sink if you want your pipeline to read data from (or write data to) a storage system for which the Beam SDK for Python does not provide [native support]({{ site.baseurl }}/documentation/programming-guide/#pipeline-io).
 
 In simple cases, you may not need to create a new source or sink. For example, if you need to read data from an SQL database using an arbitrary query, none of the advanced Source API features would benefit you. Likewise, if you'd like to write data to a third-party API via a protocol that lacks deduplication support, the Sink API wouldn't benefit you. In such cases it makes more sense to use a `ParDo`.
 

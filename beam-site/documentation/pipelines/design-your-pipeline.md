@@ -18,7 +18,7 @@ When designing your Beam pipeline, consider a few basic questions:
 
 *   **Where is your input data stored?** How many sets of input data do you have? This will determine what kinds of `Read` transforms you'll need to apply at the start of your pipeline.
 *   **What does your data look like?** It might be plaintext, formatted log files, or rows in a database table. Some Beam transforms work exclusively on `PCollection`s of key/value pairs; you'll need to determine if and how your data is keyed and how to best represent that in your pipeline's `PCollection`(s).
-*   **What do you want to do with your data?** The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like [ParDo]({{ site.baseurl }}/documentation/programming-guide/#transforms-pardo), or when you use pre-written transforms included with the Beam SDKs.
+*   **What do you want to do with your data?** The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like [ParDo]({{ site.baseurl }}/documentation/programming-guide/#pardo), or when you use pre-written transforms included with the Beam SDKs.
 *   **What does your output data look like, and where should it go?** This will determine what kinds of `Write` transforms you'll need to apply at the end of your pipeline.
 
 ## A basic pipeline
@@ -72,7 +72,7 @@ PCollection<String> bCollection = dbRowCollection.apply("bTrans", ParDo.of(new D
 
 ### A single transform that produces multiple outputs
 
-Another way to branch a pipeline is to have a **single** transform output to multiple `PCollection`s by using [tagged outputs]({{ site.baseurl }}/documentation/programming-guide/#transforms-outputs). Transforms that produce more than one output process each element of the input once, and output to zero or more `PCollection`s.
+Another way to branch a pipeline is to have a **single** transform output to multiple `PCollection`s by using [tagged outputs]({{ site.baseurl }}/documentation/programming-guide/#additional-outputs). Transforms that produce more than one output process each element of the input once, and output to zero or more `PCollection`s.
 
 Figure 3 below illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with 'A' are added to the main output `PCollection`, and names that start with 'B' are added to an additional output `PCollection`.
 

@@ -23,8 +23,8 @@ After you test your pipeline using the `DirectRunner`, you can use the runner of
 
 The Beam SDKs provide a number of ways to unit test your pipeline code, from the lowest to the highest levels. From the lowest to the highest level, these are:
 
-*   You can test the individual function objects, such as [DoFn]({{ site.baseurl }}/documentation/programming-guide/#transforms-pardo)s, inside your pipeline's core transforms.
-*   You can test an entire [Composite Transform]({{ site.baseurl }}/documentation/programming-guide/#transforms-composite) as a unit.
+*   You can test the individual function objects, such as [DoFn]({{ site.baseurl }}/documentation/programming-guide/#pardo)s, inside your pipeline's core transforms.
+*   You can test an entire [Composite Transform]({{ site.baseurl }}/documentation/programming-guide/#composite-transforms) as a unit.
 *   You can perform an end-to-end test for an entire pipeline.
 
 To support unit testing, the Beam SDK for Java provides a number of test classes in the [testing package](https://github.com/apache/beam/tree/master/sdks/java/core/src/test/java/org/apache/beam/sdk). You can use these tests as references and guides.
@@ -38,7 +38,7 @@ The Beam SDK for Java provides a convenient way to test an individual `DoFn` cal
 `DoFnTester`uses the [JUnit](http://junit.org) framework. To use `DoFnTester`, you'll need to do the following:
 
 1.  Create a `DoFnTester`. You'll need to pass an instance of the `DoFn` you want to test to the static factory method for `DoFnTester`.
-2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces [multiple outputs]({{ site.baseurl }}/documentation/programming-guide#transforms-outputs), you should also create the side inputs and the output tags.
+2.  Create one or more main test inputs of the appropriate type for your `DoFn`. If your `DoFn` takes side inputs and/or produces [multiple outputs]({{ site.baseurl }}/documentation/programming-guide#additional-outputs), you should also create the side inputs and the output tags.
 3.  Call `DoFnTester.processBundle` to process the main inputs.
 4.  Use JUnit's `Assert.assertThat` method to ensure the test outputs returned from `processBundle` match your expected values.
 
@@ -79,7 +79,7 @@ Iterable<Integer> value = ...;
 fnTester.setSideInputInGlobalWindow(sideInput, value);
 ```
 
-See the `ParDo` documentation on [side inputs]({{ site.baseurl }}/documentation/programming-guide/#transforms-sideio) for more information.
+See the `ParDo` documentation on [side inputs]({{ site.baseurl }}/documentation/programming-guide/#side-inputs) for more information.
 
 #### Additional Outputs
 
@@ -104,7 +104,7 @@ TupleTagList tags = TupleTagList.of(tag1).and(tag2);
 fnTester.setOutputTags(tags);
 ```
 
-See the `ParDo` documentation on [additional outputs]({{ site.baseurl }}/documentation/programming-guide/#transforms-outputs) for more information.
+See the `ParDo` documentation on [additional outputs]({{ site.baseurl }}/documentation/programming-guide/#additional-outputs) for more information.
 
 ### Processing Test Inputs and Checking Results
 
@@ -157,7 +157,7 @@ Pipeline p = TestPipeline.create();
 
 ### Using the Create Transform
 
-You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java `List`. See [Creating a PCollection]({{ site.baseurl }}/documentation/programming-guide/#pcollection) for more information.
+You can use the `Create` transform to create a `PCollection` out of a standard in-memory collection class, such as Java `List`. See [Creating a PCollection]({{ site.baseurl }}/documentation/programming-guide/#creating-a-pcollection) for more information.
 
 ### PAssert
 [PAssert]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/testing/PAssert.html) is a class included in the Beam Java SDK  that is an assertion on the contents of a `PCollection`. You can use `PAssert`to verify that a `PCollection` contains a specific set of expected elements.
