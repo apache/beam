@@ -44,7 +44,7 @@
     <pubsub.version>@pubsub.version@</pubsub.version>
     <slf4j.version>@slf4j.version@</slf4j.version>
     <spark.version>@spark.version@</spark.version>
-    <surefire-plugin.version>@surefire-plugin.version@</surefire-plugin.version>
+    <surefire-plugin.version>@maven-surefire-plugin.version@</surefire-plugin.version>
   </properties>
 
   <repositories>
