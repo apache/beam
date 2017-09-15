@@ -686,6 +686,15 @@ class PTransformTest(unittest.TestCase):
     flat = res | beam.Flatten()
     self.assertEqual(sorted(flat), [1, 8])
 
+  def test_tuple_twice(self):
+    class Duplicate(PTransform):
+      def expand(self, pcoll):
+        return pcoll, pcoll
+
+    res1, res2 = [1, 2, 4, 8] | Duplicate()
+    self.assertEqual(sorted(res1), [1, 2, 4, 8])
+    self.assertEqual(sorted(res2), [1, 2, 4, 8])
+
 
 @beam.ptransform_fn
 def SamplePTransform(pcoll):
