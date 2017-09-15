@@ -2,11 +2,14 @@ package harness
 
 import (
 	"reflect"
+	"testing"
 
 	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 )
 
 // Declare the DoFn that is used in the test graph
@@ -34,45 +37,123 @@ func (s symlookup) Sym2Addr(name string) (uintptr, error) {
 
 var fakeSymbols symlookup
 
+// retain the key for the registered function to encode into the test execution plan.
+var emitLinesFnKey string
+
 func init() {
-	runtime.RegisterType(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
+	emitLinesFnKey = runtime.RegisterType(reflect.TypeOf((*emitLinesFn)(nil)).Elem())
 	runtime.SymbolResolver = fakeSymbols
 }
 
+func windowedString() *v1.FullType {
+	return &v1.FullType{
+		Type: &v1.Type{
+			Kind:    v1.Type_SPECIAL,
+			Special: v1.Type_WINDOWEDVALUE,
+		},
+		Components: []*v1.FullType{
+			&v1.FullType{
+				Type: &v1.Type{
+					Kind: v1.Type_STRING,
+				},
+			},
+		},
+	}
+}
+
+func makeDoFn() *google_protobuf.Any {
+	// This is a schematic for a DoFn that takes a windowed string
+	// and produces a windowed string.
+	me := v1.MultiEdge{
+		Opcode: "ParDo",
+		Inbound: []*v1.MultiEdge_Inbound{
+			&v1.MultiEdge_Inbound{
+				Kind: v1.MultiEdge_Inbound_MAIN,
+				Type: windowedString(),
+			},
+		},
+		Outbound: []*v1.MultiEdge_Outbound{
+			&v1.MultiEdge_Outbound{
+				Type: windowedString(),
+			},
+		},
+		// schematic of a function that takes two arguments, an input string, and an output emitter of string.
+		Fn: &v1.Fn{
+			Fn: &v1.UserFn{
+				Name: "main.doFn",
+				Type: &v1.Type{
+					Kind: v1.Type_FUNC,
+					ParameterTypes: []*v1.Type{
+						&v1.Type{Kind: v1.Type_STRING},
+						&v1.Type{
+							Kind: v1.Type_FUNC,
+							ParameterTypes: []*v1.Type{
+								&v1.Type{Kind: v1.Type_STRING},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	res, err := protox.PackBase64Proto(&me)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func makeSource() *google_protobuf.Any {
+	me := v1.MultiEdge{
+		Outbound: []*v1.MultiEdge_Outbound{
+			&v1.MultiEdge_Outbound{
+				Type: windowedString(),
+			},
+		},
+		Fn: &v1.Fn{
+			Opt: "{\"lines\":[\"old pond\",\"a frog leaps in\",\"water's sound\"]}",
+			Type: &v1.Type{
+				Kind: v1.Type_PTR,
+				Element: &v1.Type{
+					Kind:        v1.Type_EXTERNAL,
+					ExternalKey: emitLinesFnKey,
+				},
+				ExternalKey: emitLinesFnKey,
+			},
+		},
+	}
+
+	res, err := protox.PackProto(&me)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
 func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
-	// See https://goo.gl/Mm6N19 for instructions to capture a worker
-	// graph to use as a seed for test data.
 	return &fnapi_pb.ProcessBundleDescriptor{
 		Id: "-7",
 		Transforms: map[string]*rnapi_pb.PTransform{
 			"-14": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn: "urn:org.apache.beam:source:java:0.1",
-					AnyParam: &google_protobuf.Any{
-						TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
-						Value:   []byte("\na\nO\022\023\010\030\022\017\010\032J\013emitLinesFn\0328{\"lines\":[\"old pond\",\"a frog leaps in\",\"water's sound\"]}\032\016\n\014\n\004\010\031@\016\022\004\n\002\010\014"),
-					},
+					Urn:      "urn:org.apache.beam:source:java:0.1",
+					AnyParam: makeSource(),
 				},
 				Outputs: map[string]string{"-6": "-9"},
 			},
 			"-17": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn: "urn:org.apache.beam:dofn:java:0.1",
-					AnyParam: &google_protobuf.Any{
-						TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
-						Value:   []byte("\n\300\001ClkKVwpBZ2l0aHViLmNvbS9nb29nbGUvZ28tYmVhbS1zZGstZGV2L3BrZy9iZWFtL3RyYW5zZm9ybXMvY291bnQubWFwRm4SEggWIgQIGUAPKgQIGUAPKgIIAhISCAESDgoECBlADhIGCgQIGUAPGh4KHAoECBlADhIUCgQIGUALEgYKBAgZQA8SBAoCCAI="),
-					},
+					Urn:      "urn:beam:dofn:javasdk:0.1",
+					AnyParam: makeDoFn(),
 				},
 				Inputs:  map[string]string{"-16": "-11"},
 				Outputs: map[string]string{"out": "-13"},
 			},
 			"-20": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn: "urn:org.apache.beam:dofn:java:0.1",
-					AnyParam: &google_protobuf.Any{
-						TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
-						Value:   []byte("\n`CiIKIAoObWFpbi5leHRyYWN0Rm4SDggWIgIIDCIGCBYiAggMEhAIARIMCgQIGUAOEgQKAggMGg4KDAoECBlADhIECgIIDA=="),
-					},
+					Urn:      "urn:beam:dofn:javasdk:0.1",
+					AnyParam: makeDoFn(),
 				},
 				Inputs:  map[string]string{"-19": "-9"},
 				Outputs: map[string]string{"out": "-11"},
@@ -90,47 +171,13 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 		},
 		Pcollections: map[string]*rnapi_pb.PCollection{
 			"-11": &rnapi_pb.PCollection{CoderId: "-10"},
-			"-13": &rnapi_pb.PCollection{CoderId: "-12"},
-			"-9":  &rnapi_pb.PCollection{CoderId: "-8"},
+			"-13": &rnapi_pb.PCollection{CoderId: "-10"},
+			"-9":  &rnapi_pb.PCollection{CoderId: "-10"},
 		},
-		Coders: map[string]*rnapi_pb.Coder{
-			"-10": &rnapi_pb.Coder{
-				Spec: &rnapi_pb.SdkFunctionSpec{
-					Spec: &rnapi_pb.FunctionSpec{
-						AnyParam: &google_protobuf.Any{
-							TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
-							Value:   []byte("\n\202\003{\"component_encodings\":[{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]},{\"@type\":\"kind:global_window\"}],\"@type\":\"kind:windowed_value\"}"),
-						},
-					},
-				},
-			},
-			"-12": &rnapi_pb.Coder{
-				Spec: &rnapi_pb.SdkFunctionSpec{
-					Spec: &rnapi_pb.FunctionSpec{
-						AnyParam: &google_protobuf.Any{
-							TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
-							Value:   []byte("\n\334\005{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"@type\":\"kind:pair\",\"component_encodings\":[{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]},{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIAhpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]}]},{\"@type\":\"kind:global_window\"}]}"),
-						},
-					},
-				},
-			},
-			"-8": &rnapi_pb.Coder{
-				Spec: &rnapi_pb.SdkFunctionSpec{
-					Spec: &rnapi_pb.FunctionSpec{
-						AnyParam: &google_protobuf.Any{
-							TypeUrl: "type.googleapis.com/google.protobuf.BytesValue",
-							Value:   []byte("\n\202\003{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uanNvbkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}],\"@type\":\"kind:length_prefix\"},{\"@type\":\"kind:global_window\"}]}"),
-						},
-					},
-				},
-			},
-		},
+		Coders: getCoders(),
 	}
 }
 
-// TODO(herohde) 7/6/2017: these test are extremely painful to maintain. Improve or kill.
-
-/*
 func TestGraphTranslationSuccess(t *testing.T) {
 	_, err := translate(createReferenceGraph())
 	if err != nil {
@@ -158,8 +205,55 @@ func TestTooManyOutputsSource(t *testing.T) {
 	}
 }
 
+func getCoders() map[string]*rnapi_pb.Coder {
+	return map[string]*rnapi_pb.Coder{
+		"-12": &rnapi_pb.Coder{
+			Spec: &rnapi_pb.SdkFunctionSpec{
+				Spec: &rnapi_pb.FunctionSpec{
+					// TODO(wcn): this blob will go away once coders are implemented as components rather than monoliths.
+					Payload: []byte("{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"@type\":\"kind:pair\",\"component_encodings\":[{\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}],\"@type\":\"kind:length_prefix\"},{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIAhpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]}]},{\"@type\":\"kind:global_window\"}]}"),
+				},
+			},
+		},
+		"ByteArrayCoder": &rnapi_pb.Coder{
+			Spec: &rnapi_pb.SdkFunctionSpec{
+				Spec: &rnapi_pb.FunctionSpec{
+					Urn: "urn:beam:coders:bytes:0.1",
+				},
+			},
+		},
+		"Coder": &rnapi_pb.Coder{
+			Spec: &rnapi_pb.SdkFunctionSpec{
+				Spec: &rnapi_pb.FunctionSpec{
+					Urn: "urn:beam:coders:global_window:0.1",
+				},
+			},
+		},
+		"-10": &rnapi_pb.Coder{
+			Spec: &rnapi_pb.SdkFunctionSpec{
+				Spec: &rnapi_pb.FunctionSpec{
+					Urn: "urn:beam:coders:windowed_value:0.1",
+				},
+			},
+			ComponentCoderIds: []string{
+				"ByteArrayCoder",
+				"Coder",
+			},
+		},
+	}
+}
+
 func TestTranslateCoders(t *testing.T) {
-	// Check translateCoders call
+	input := getCoders()
+	coders, err := translateCoders(input)
+	if err != nil {
+		t.Errorf("translateCoders() failed: %v", err)
+	}
+
+	expected := len(input) - 1 // We don't see the global window coder
+	if len(coders) != expected {
+		t.Errorf("Got %d coders, wanted %d.", len(coders), expected)
+	}
 }
 
 func TestUnknownOpcode(t *testing.T) {
@@ -185,4 +279,3 @@ func TestBundleHasNoRoots(t *testing.T) {
 		t.Errorf("got %v, wanted %v in graph: %v", err, errRootlessBundle, g)
 	}
 }
-*/
