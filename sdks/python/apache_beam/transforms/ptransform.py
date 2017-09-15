@@ -102,7 +102,8 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
     self._pvalue_cache = pvalue_cache
 
   def __getitem__(self, tag):
-    return self._pvalue_cache.get_unwindowed_pvalue(self._deferred[tag])
+    return self._pvalue_cache.get_unwindowed_pvalue(
+        self._deferred[tag], decref=False)
 
 
 class _MaterializePValues(_PValueishTransform):
@@ -111,7 +112,7 @@ class _MaterializePValues(_PValueishTransform):
 
   def visit(self, node):
     if isinstance(node, pvalue.PValue):
-      return self._pvalue_cache.get_unwindowed_pvalue(node)
+      return self._pvalue_cache.get_unwindowed_pvalue(node, decref=False)
     elif isinstance(node, pvalue.DoOutputsTuple):
       return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
     else:
