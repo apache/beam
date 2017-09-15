@@ -1084,22 +1084,6 @@ public class BigtableIO {
    * @see com.google.cloud.bigtable.config.BigtableVersionInfo
    */
   private static String getBeamSdkPartOfUserAgent() {
-    // Attempt to get the Dataflow distribution release information, if we fail, fallback to using
-    // the Apache Beam release information.
-    ReleaseInfo info;
-    try {
-      Class<?> kls = ReflectHelpers.findClassLoader().loadClass(
-          "org.apache.beam.runners.dataflow.DataflowRunnerInfo");
-      Method method = kls.getMethod("getDataflowRunnerInfo");
-      info = (ReleaseInfo) method.invoke(null);
-    } catch (ClassNotFoundException
-        | NoSuchMethodException
-        | IllegalAccessException
-        | InvocationTargetException e) {
-      info = ReleaseInfo.getReleaseInfo();
-    }
-    return
-        String.format("%s/%s", info.getName(), info.getVersion())
-            .replace(" ", "_");
+    ReleaseInfo info = ReleaseInfo.getReleaseInfo();
   }
 }
