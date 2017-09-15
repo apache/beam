@@ -7,7 +7,7 @@ permalink: /documentation/io/io-toc/
 # Pipeline I/O
 
 ## Using Pipeline I/O
-* [Programming Guide: Using I/O Transforms]({{site.baseurl }}/documentation/programming-guide#io)
+* [Programming Guide: Using I/O Transforms]({{site.baseurl }}/documentation/programming-guide#pipeline-io)
 * [Built-in I/O Transforms]({{site.baseurl }}/documentation/io/built-in/)
 
 
