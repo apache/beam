@@ -245,9 +245,10 @@ message Parameter {
   Type type = 1;
 
   enum Type {
-    WINDOW = 0;
-    PIPELINE_OPTIONS = 1;
-    RESTRICTION_TRACKER = 2;
+    TYPE_UNSPECIFIED = 0;
+    WINDOW = 1;
+    PIPELINE_OPTIONS = 2;
+    RESTRICTION_TRACKER = 3;
   }
 }
 
@@ -288,8 +289,9 @@ message TimerSpec {
 }
 
 enum IsBounded {
-  UNBOUNDED = 0;
-  BOUNDED = 1;
+  IS_BOUNDED_UNSPECIFIED = 0;
+  UNBOUNDED = 1;
+  BOUNDED = 2;
 }
 
 // The payload for the primitive Read transform.
@@ -454,87 +456,96 @@ message WindowingStrategy {
 // merging-but-already-merged, in which case a subsequent GroupByKey is almost
 // always going to do something the user does not want
 enum MergeStatus {
+  MERGE_STATUS_UNSPECIFIED = 0;
+
   // The WindowFn does not require merging.
   // Examples: global window, FixedWindows, SlidingWindows
-  NON_MERGING = 0;
+  NON_MERGING = 1;
 
   // The WindowFn is merging and the PCollection has not had merging
   // performed.
   // Example: Sessions prior to a GroupByKey
-  NEEDS_MERGE = 1;
+  NEEDS_MERGE = 2;
 
   // The WindowFn is merging and the PCollection has had merging occur
   // already.
   // Example: Sessions after a GroupByKey
-  ALREADY_MERGED = 2;
+  ALREADY_MERGED = 3;
 }
 
 // Whether or not subsequent outputs of aggregations should be entire
 // replacement values or just the aggregation of inputs received since
 // the prior output.
 enum AccumulationMode {
+  ACCUMULATION_MODE_UNSPECIFIED = 0;
 
   // The aggregation is discarded when it is output
-  DISCARDING = 0;
+  DISCARDING = 1;
 
   // The aggregation is accumulated across outputs
-  ACCUMULATING = 1;
+  ACCUMULATING = 2;
 }
 
 // Controls whether or not an aggregating transform should output data
 // when a window expires.
 enum ClosingBehavior {
+  CLOSING_BEHVAIOR_UNSPECIFIED = 0;
 
   // Emit output when a window expires, whether or not there has been
   // any new data since the last output.
-  EMIT_ALWAYS = 0;
+  EMIT_ALWAYS = 1;
 
   // Only emit output when new data has arrives since the last output
-  EMIT_IF_NONEMPTY = 1;
+  EMIT_IF_NONEMPTY = 2;
 }
 
 // Controls whether or not an aggregating transform should output data
 // when an on-time pane is empty.
 enum OnTimeBehavior {
+  ON_TIME_BEHAVIOR_UNSPECIFIED = 0;
+
   // Always fire the on-time pane. Even if there is no new data since
   // the previous firing, an element will be produced.
-  FIRE_ALWAYS = 0;
+  FIRE_ALWAYS = 1;
 
   // Only fire the on-time pane if there is new data since the previous firing.
-  FIRE_IF_NONEMPTY = 1;
+  FIRE_IF_NONEMPTY = 2;
 }
 
 // When a number of windowed, timestamped inputs are aggregated, the timestamp
 // for the resulting output.
 enum OutputTime {
+  OUTPUT_TIME_UNSPECIFIED = 0;
+
   // The output has the timestamp of the end of the window.
-  END_OF_WINDOW = 0;
+  END_OF_WINDOW = 1;
 
   // The output has the latest timestamp of the input elements since
   // the last output.
-  LATEST_IN_PANE = 1;
+  LATEST_IN_PANE = 2;
 
   // The output has the earliest timestamp of the input elements since
   // the last output.
-  EARLIEST_IN_PANE = 2;
+  EARLIEST_IN_PANE = 3;
 }
 
 // The different time domains in the Beam model.
 enum TimeDomain {
+  TIME_DOMAIN_UNSPECIFIED = 0;
 
   // Event time is time from the perspective of the data
-  EVENT_TIME = 0;
+  EVENT_TIME = 1;
 
   // Processing time is time from the perspective of the
   // execution of your pipeline
-  PROCESSING_TIME = 1;
+  PROCESSING_TIME = 2;
 
   // Synchronized processing time is the minimum of the
   // processing time of all pending elements.
   //
   // The "processing time" of an element refers to
   // the local processing time at which it was emitted
-  SYNCHRONIZED_PROCESSING_TIME = 2;
+  SYNCHRONIZED_PROCESSING_TIME = 3;
 }
 
 // A small DSL for expressing when to emit new aggregations
@@ -804,12 +815,13 @@ message DisplayData {
   }
 
   enum Type {
-    STRING = 0;
-    INTEGER = 1;
-    FLOAT = 2;
-    BOOLEAN = 3;
-    TIMESTAMP = 4;
-    DURATION = 5;
-    JAVA_CLASS = 6;
+    TYPE_UNSPECIFIED = 0;
+    STRING = 1;
+    INTEGER = 2;
+    FLOAT = 3;
+    BOOLEAN = 4;
+    TIMESTAMP = 5;
+    DURATION = 6;
+    JAVA_CLASS = 7;
   }
 }
