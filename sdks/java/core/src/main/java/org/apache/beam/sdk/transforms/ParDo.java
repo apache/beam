@@ -537,7 +537,7 @@ public class ParDo {
     if (methodSignature.windowT() != null) {
       checkArgument(
           methodSignature.windowT().isSupertypeOf(actualWindowT),
-          "%s unable to provide window -- expected window type from parameter (%s) is not a"
+          "%s unable to provide window -- expected window type from parameter (%s) is not a "
               + "supertype of actual window type assigned by windowing (%s)",
           methodSignature.targetMethod(),
           methodSignature.windowT(),
