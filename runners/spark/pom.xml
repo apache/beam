@@ -60,6 +60,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-surefire-plugin</artifactId>
+            <version>${maven-surefire-plugin.version}</version>
             <executions>
               <execution>
                 <id>validates-runner-tests</id>
@@ -376,42 +377,6 @@
     <pluginManagement>
       <plugins>
         <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-surefire-plugin</artifactId>
-          <configuration>
-            <forkCount>1</forkCount>
-            <reuseForks>false</reuseForks>
-            <systemPropertyVariables>
-              <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
-              <spark.ui.enabled>false</spark.ui.enabled>
-              <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
-            </systemPropertyVariables>
-          </configuration>
-          <executions>
-            <execution>
-              <id>default-test</id>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <excludedGroups>
-                  org.apache.beam.runners.spark.UsesCheckpointRecovery,
-                  org.apache.beam.runners.spark.StreamingTest
-                </excludedGroups>
-                <systemPropertyVariables>
-                  <beamTestPipelineOptions>
-                    [
-                    "--runner=TestSparkRunner",
-                    "--streaming=false",
-                    "--enableSparkMetricSinks=true"
-                    ]
-                  </beamTestPipelineOptions>
-                </systemPropertyVariables>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-        <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>exec-maven-plugin</artifactId>
           <configuration>
@@ -460,6 +425,42 @@
             </ignoredUnusedDeclaredDependency>
           </ignoredUnusedDeclaredDependencies>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <forkCount>1</forkCount>
+          <reuseForks>false</reuseForks>
+          <systemPropertyVariables>
+            <beam.spark.test.reuseSparkContext>true</beam.spark.test.reuseSparkContext>
+            <spark.ui.enabled>false</spark.ui.enabled>
+            <spark.ui.showConsoleProgress>false</spark.ui.showConsoleProgress>
+          </systemPropertyVariables>
+        </configuration>
+        <executions>
+          <execution>
+            <id>default-test</id>
+            <goals>
+              <goal>test</goal>
+            </goals>
+            <configuration>
+              <excludedGroups>
+                org.apache.beam.runners.spark.UsesCheckpointRecovery,
+                org.apache.beam.runners.spark.StreamingTest
+              </excludedGroups>
+              <systemPropertyVariables>
+                <beamTestPipelineOptions>
+                  [
+                  "--runner=TestSparkRunner",
+                  "--streaming=false",
+                  "--enableSparkMetricSinks=true"
+                  ]
+                </beamTestPipelineOptions>
+              </systemPropertyVariables>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
