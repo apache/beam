@@ -161,7 +161,7 @@ public class CoderTypeSerializer<T> extends TypeSerializer<T> {
     }
 
     public CoderTypeSerializerConfigSnapshot(Coder<T> coder) {
-      this.coderName = coder.getClass().getCanonicalName();
+      this.coderName = coder.getClass().getName();
     }
 
     @Override
