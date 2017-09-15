@@ -194,11 +194,15 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       // We avoid using the ByteBuffer based read for Hadoop because some FSDataInputStream
       // implementations are not ByteBufferReadable,
       // See https://issues.apache.org/jira/browse/HADOOP-14603
-      if (dst.hasArray()){
+      if (dst.hasArray()) {
         // does the same as inputStream.read(dst):
         // stores up to dst.remaining() bytes into dst.array() starting at dst.position().
         // But dst can have an offset with its backing array hence the + dst.arrayOffset()
         read = inputStream.read(dst.array(), dst.position() + dst.arrayOffset(), dst.remaining());
+      } else {
+        // TODO: Add support for off heap ByteBuffers in case the underlying FSDataInputStream
+        // does not support reading from a ByteBuffer.
+        read = inputStream.read(dst);
       }
       if (read > 0) {
         dst.position(dst.position() + read);

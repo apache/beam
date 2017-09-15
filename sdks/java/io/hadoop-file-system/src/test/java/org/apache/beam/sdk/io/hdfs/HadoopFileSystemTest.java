@@ -293,9 +293,7 @@ public class HadoopFileSystemTest {
     try (ReadableByteChannel channel = fileSystem.open(testPath(relativePath))) {
       InputStream inputStream = Channels.newInputStream(channel);
       if (bytesToSkip > 0) {
-        long bytesSkip = inputStream.skip(bytesToSkip);
-        // might skip less than bytesToSkip
-        assertEquals(bytesSkip, bytesToSkip);
+        ByteStreams.skipFully(inputStream, bytesToSkip);
       }
       return ByteStreams.toByteArray(inputStream);
     }
