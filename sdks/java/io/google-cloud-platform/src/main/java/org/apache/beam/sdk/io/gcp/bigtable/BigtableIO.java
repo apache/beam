@@ -38,8 +38,6 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -63,7 +61,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.ReleaseInfo;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -1085,5 +1082,8 @@ public class BigtableIO {
    */
   private static String getBeamSdkPartOfUserAgent() {
     ReleaseInfo info = ReleaseInfo.getReleaseInfo();
+    return
+        String.format("%s/%s", info.getName(), info.getVersion())
+            .replace(" ", "_");
   }
 }
