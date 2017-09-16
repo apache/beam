@@ -108,7 +108,9 @@
                     <include>com.google.guava:guava</include>
                     <!-- include Apache Calcite and related dependencies -->
                     <include>org.apache.calcite:*</include>
+                    <include>org.apache.calcite.avatica:*</include>
                     <include>org.codehaus.janino:*</include>
+                    <include>com.google.protobuf:*</include>
                   </includes>
                 </artifactSet>
                 <filters>
@@ -138,6 +140,24 @@
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.thirdparty
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.protobuf</pattern>
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.com.google.protobuf
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.calcite</pattern>
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.org.apache.calcite
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.codehaus</pattern>
+                    <shadedPattern>
+                      org.apache.${renderedArtifactId}.repackaged.org.codehaus
                     </shadedPattern>
                   </relocation>
                 </relocations>
