@@ -34,9 +34,10 @@ thread queries the current state, the time spent since the previous sample is
 attributed to that state and accumulated.  Over time, this allows a granular
 runtime profile to be produced.
 
-Also measures time spent for the current active transition. We keep track of
-the number of completed transitions for every sample period and use it to
-attribute the fraction of the time spent in the active transition for a sample:
+Also measures time spent for the current active transition (A transition that
+has entered but not exited a context). We keep track of the number of
+completed transitions for every sample period and use it to attribute the
+fraction of the time spent in the active transition for a sample:
 
   active_transition_time = elapsed_time * (1 / (1 + #completed transitions))
 
