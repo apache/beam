@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
@@ -39,7 +40,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 @Internal
 public interface TransformTranslator<TransformT extends PTransform> {
-  void translate(TransformT transform, TranslationContext context);
+  void translate(TransformT transform, TranslationContext context) throws IOException;
 
   /**
    * The interface provided to registered callbacks for interacting with the {@link DataflowRunner},

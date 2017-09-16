@@ -47,6 +47,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,6 +57,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.core.construction.WindowingStrategyTranslation;
@@ -73,6 +77,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
+import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
@@ -439,7 +444,11 @@ public class DataflowPipelineTranslator {
           node.getFullName());
       LOG.debug("Translating {}", transform);
       currentTransform = node.toAppliedPTransform(getPipeline());
-      translator.translate(transform, this);
+      try {
+        translator.translate(transform, this);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       currentTransform = null;
     }
 
@@ -814,27 +823,27 @@ public class DataflowPipelineTranslator {
         ParDo.MultiOutput.class,
         new TransformTranslator<ParDo.MultiOutput>() {
           @Override
-          public void translate(ParDo.MultiOutput transform, TranslationContext context) {
+          public void translate(ParDo.MultiOutput transform, TranslationContext context)
+              throws IOException {
             translateMultiHelper(transform, context);
           }
 
           private <InputT, OutputT> void translateMultiHelper(
-              ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context) {
+              ParDo.MultiOutput<InputT, OutputT> transform, TranslationContext context)
+              throws IOException {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
-            translateInputs(
-                stepContext, context.getInput(transform), transform.getSideInputs(), context);
-            BiMap<Long, TupleTag<?>> outputMap =
-                translateOutputs(context.getOutputs(transform), stepContext);
+            PCollection<InputT> input = (PCollection<InputT>) context.getInput(transform);
+            translateInputs(stepContext, input, transform.getSideInputs(), context);
             translateFn(
                 stepContext,
                 transform.getFn(),
-                context.getInput(transform).getWindowingStrategy(),
+                input,
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
                 context,
-                outputMap.inverse().get(transform.getMainOutputTag()),
-                outputMap);
+                transform.getMainOutputTag(),
+                context.getOutputs(transform));
           }
         });
 
@@ -842,27 +851,28 @@ public class DataflowPipelineTranslator {
         ParDoSingle.class,
         new TransformTranslator<ParDoSingle>() {
           @Override
-          public void translate(ParDoSingle transform, TranslationContext context) {
+          public void translate(ParDoSingle transform, TranslationContext context)
+              throws IOException {
             translateSingleHelper(transform, context);
           }
 
           private <InputT, OutputT> void translateSingleHelper(
-              ParDoSingle<InputT, OutputT> transform, TranslationContext context) {
+              ParDoSingle<InputT, OutputT> transform, TranslationContext context)
+              throws IOException {
 
             StepTranslationContext stepContext = context.addStep(transform, "ParallelDo");
             translateInputs(
                 stepContext, context.getInput(transform), transform.getSideInputs(), context);
-            long mainOutput = stepContext.addOutput(context.getOutput(transform));
             translateFn(
                 stepContext,
                 transform.getFn(),
-                context.getInput(transform).getWindowingStrategy(),
+                context.getInput(transform),
                 transform.getSideInputs(),
                 context.getInput(transform).getCoder(),
                 context,
-                mainOutput,
-                ImmutableMap.<Long, TupleTag<?>>of(
-                    mainOutput, new TupleTag<>(PropertyNames.OUTPUT)));
+                new TupleTag<>(PropertyNames.OUTPUT),
+                ImmutableMap.<TupleTag<?>, PValue>of(
+                    new TupleTag<>(PropertyNames.OUTPUT), context.getOutput(transform)));
           }
         });
 
@@ -960,12 +970,13 @@ public class DataflowPipelineTranslator {
   private static void translateFn(
       StepTranslationContext stepContext,
       DoFn fn,
-      WindowingStrategy windowingStrategy,
+      PCollection<?> input,
       Iterable<PCollectionView<?>> sideInputs,
       Coder inputCoder,
       TranslationContext context,
-      long mainOutput,
-      Map<Long, TupleTag<?>> outputMap) {
+      TupleTag<?> mainOutputTag,
+      Map<TupleTag<?>, PValue> outputs)
+      throws IOException {
 
     DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
     if (signature.processElement().isSplittable()) {
@@ -978,16 +989,15 @@ public class DataflowPipelineTranslator {
 
     if (signature.usesState() || signature.usesTimers()) {
       DataflowRunner.verifyStateSupported(fn);
-      DataflowRunner.verifyStateSupportForWindowingStrategy(windowingStrategy);
+      DataflowRunner.verifyStateSupportForWindowingStrategy(input.getWindowingStrategy());
     }
 
     stepContext.addInput(PropertyNames.USER_FN, fn.getClass().getName());
     stepContext.addInput(
         PropertyNames.SERIALIZED_FN,
         byteArrayToJsonString(
-            serializeToByteArray(
-                DoFnInfo.forFn(
-                    fn, windowingStrategy, sideInputs, inputCoder, mainOutput, outputMap))));
+            payloadForFn(stepContext, fn, input, sideInputs, inputCoder, mainOutputTag, outputs)
+                .toByteArray()));
 
     // Setting USES_KEYED_STATE will cause an ungrouped shuffle, which works
     // in streaming but does not work in batch
@@ -997,6 +1007,90 @@ public class DataflowPipelineTranslator {
     }
   }
 
+  /**
+   * Builds a {@link RunnerApi.PTransform} with adequate context to supply all the information
+   * needed for the Dataflow worker to execute the {@link DoFn} without having to inspect a larger
+   * subgraph.
+   */
+  private static RunnerApi.MessageWithComponents payloadForFn(
+      StepTranslationContext stepContext,
+      DoFn fn,
+      PCollection<?> input,
+      Iterable<PCollectionView<?>> sideInputViews,
+      Coder inputCoder,
+      TupleTag<?> mainOutputTag,
+      Map<TupleTag<?>, PValue> outputs)
+      throws IOException {
+
+    // The root message to embed in the Dataflow API layer
+    RunnerApi.MessageWithComponents.Builder message = RunnerApi.MessageWithComponents.newBuilder();
+
+    // The surrounding graph context needed to re-wire things on the worker
+    // We need to know the main input, side inputs, all outputs, and distinguished main output
+    SdkComponents sdkComponents = SdkComponents.create();
+    RunnerApi.PTransform.Builder protoTransform = RunnerApi.PTransform.newBuilder();
+
+    // The ParDo-specific payload
+    RunnerApi.ParDoPayload.Builder parDoPayload = RunnerApi.ParDoPayload.newBuilder();
+
+    // Extract the main input's tag from its expansion. Since it is a PCollection the expansion
+    // is required to be just itself, tagged.
+    String mainInputTag = Iterables.getOnlyElement(input.expand().keySet()).getId();
+    String inputId = sdkComponents.registerPCollection(input);
+    protoTransform.putInputs(mainInputTag, inputId);
+
+    // Each side input has its PCollection wired to the PTransform node and the side input
+    // specification in the ParDoPayload
+    for (PCollectionView<?> sideInputView : sideInputViews) {
+      String sideInputCollectionId =
+          sdkComponents.registerPCollection(sideInputView.getPCollection());
+      String sideInputTag = sideInputView.getTagInternal().getId();
+      protoTransform.putInputs(sideInputTag, sideInputCollectionId);
+      parDoPayload.putSideInputs(sideInputTag, ParDoTranslation.toProto(sideInputView));
+    }
+
+    // The SDK harness is currently hardcoded to re-use intra-message ids, so this
+    // map is used for that.
+    BiMap<Long, TupleTag<?>> outputMap = translateOutputs(outputs, stepContext);
+
+    // The main output tag is embedded in the DoFn; we choose the new id allocated at translation
+    // time for backwards-compatibility with positional access,
+    // and re-associate them on the worker
+    for (Map.Entry<TupleTag<?>, PValue> outputEntry : outputs.entrySet()) {
+      String outputId = sdkComponents.registerPCollection((PCollection<?>) outputEntry.getValue());
+      protoTransform.putOutputs(outputEntry.getKey().getId(), outputId);
+    }
+
+    parDoPayload.setDoFn(
+        RunnerApi.SdkFunctionSpec.newBuilder()
+            .setSpec(
+                RunnerApi.FunctionSpec.newBuilder()
+                    .setUrn(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN)
+                    .setPayload(
+                        ByteString.copyFrom(
+                            serializeToByteArray(
+                                DoFnInfo.forFn(
+                                    fn,
+                                    input.getWindowingStrategy(),
+                                    sideInputViews,
+                                    inputCoder,
+                                    outputMap.inverse().get(mainOutputTag),
+                                    outputMap))))));
+
+    return RunnerApi.MessageWithComponents.newBuilder()
+        .setComponents(sdkComponents.toComponents())
+        .setPtransform(
+            protoTransform.setSpec(
+                RunnerApi.FunctionSpec.newBuilder()
+                    .setUrn(PTransformTranslation.PAR_DO_TRANSFORM_URN)
+                    .setPayload(parDoPayload.build().toByteString())))
+        .build();
+  }
+
+  /**
+   * Given a map from TupleTag to PValue, and a StepContext to apply it to, wires the outputs
+   * to the StepContext and returns a bimap from the pipeline-level unique id to the tag.
+   */
   private static BiMap<Long, TupleTag<?>> translateOutputs(
       Map<TupleTag<?>, PValue> outputs,
       StepTranslationContext stepContext) {
