@@ -57,41 +57,39 @@ class SdkHarness(object):
           return
         yield response
 
-    def process_requests():
-      for work_request in contol_stub.Control(get_responses()):
-        logging.info('Got work %s', work_request.instruction_id)
-        request_type = work_request.WhichOneof('request')
-        if request_type == ['process_bundle_progress']:
-          thread_pool = self._progress_thread_pool
-        else:
-          thread_pool = self._default_work_thread_pool
+    for work_request in contol_stub.Control(get_responses()):
+      logging.info('Got work %s', work_request.instruction_id)
+      request_type = work_request.WhichOneof('request')
+      if request_type == ['process_bundle_progress']:
+        thread_pool = self._progress_thread_pool
+      else:
+        thread_pool = self._default_work_thread_pool
 
-        # Need this wrapper to capture the original stack trace.
-        def do_instruction(request):
-          try:
-            return self.worker.do_instruction(request)
-          except Exception as e:  # pylint: disable=broad-except
-            traceback_str = traceback.format_exc(e)
-            raise StandardError("Error processing request. Original traceback "
-                                "is\n%s\n" % traceback_str)
+      # Need this wrapper to capture the original stack trace.
+      def do_instruction(request):
+        try:
+          return self.worker.do_instruction(request)
+        except Exception as e:  # pylint: disable=broad-except
+          traceback_str = traceback.format_exc(e)
+          raise StandardError("Error processing request. Original traceback "
+                              "is\n%s\n" % traceback_str)
 
-        def handle_response(request, response_future):
-          try:
-            response = response_future.result()
-          except Exception as e:  # pylint: disable=broad-except
-            logging.error(
-                'Error processing instruction %s',
-                request.instruction_id,
-                exc_info=True)
-            response = beam_fn_api_pb2.InstructionResponse(
-                instruction_id=request.instruction_id,
-                error=str(e))
-          responses.put(response)
+      def handle_response(request, response_future):
+        try:
+          response = response_future.result()
+        except Exception as e:  # pylint: disable=broad-except
+          logging.error(
+              'Error processing instruction %s',
+              request.instruction_id,
+              exc_info=True)
+          response = beam_fn_api_pb2.InstructionResponse(
+              instruction_id=request.instruction_id,
+              error=str(e))
+        responses.put(response)
 
-        thread_pool.submit(do_instruction, work_request).add_done_callback(
-            functools.partial(handle_response, work_request))
+      thread_pool.submit(do_instruction, work_request).add_done_callback(
+          functools.partial(handle_response, work_request))
 
-    process_requests()
     logging.info("No more requests from control plane")
     logging.info("SDK Harness waiting for in-flight requests to complete")
     # Wait until existing requests are processed.
