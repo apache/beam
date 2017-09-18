@@ -75,10 +75,12 @@ class _PValueishTransform(object):
   """
   def visit_nested(self, node, *args):
     if isinstance(node, (tuple, list)):
-      # namedtuples require unpacked arguments in their constructor,
-      # but do have a _make method that takes a sequence.
-      return getattr(node.__class__, '_make', node.__class__)(
-          [self.visit(x, *args) for x in node])
+      args = [self.visit(x, *args) for x in node]
+      if isinstance(node, tuple) and hasattr(node.__class__, '_make'):
+        # namedtuples require unpacked arguments in their constructor
+        return node.__class__(*args)
+      else:
+        return node.__class__(args)
     elif isinstance(node, dict):
       return node.__class__(
           {key: self.visit(value, *args) for (key, value) in node.items()})
@@ -102,6 +104,7 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
     self._pvalue_cache = pvalue_cache
 
   def __getitem__(self, tag):
+    # Simply accessing the value should not use it up.
     return self._pvalue_cache.get_unwindowed_pvalue(
         self._deferred[tag], decref=False)
 
@@ -112,6 +115,7 @@ class _MaterializePValues(_PValueishTransform):
 
   def visit(self, node):
     if isinstance(node, pvalue.PValue):
+      # Simply accessing the value should not use it up.
       return self._pvalue_cache.get_unwindowed_pvalue(node, decref=False)
     elif isinstance(node, pvalue.DoOutputsTuple):
       return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
