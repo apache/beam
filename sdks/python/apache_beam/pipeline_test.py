@@ -538,10 +538,10 @@ class DirectRunnerRetryTests(unittest.TestCase):
 
       def __init__(self):
         self._execution_context = _ExecutionContext(None, {})
+        self._execution_context.get_step_context().get_keyed_state(None)
 
       def start_bundle(self):
         self.step_context = self._execution_context.get_step_context()
-        self.step_context.clear_partial_states()
 
       def process_element(self, element):
         k, v = element
@@ -571,6 +571,7 @@ class DirectRunnerRetryTests(unittest.TestCase):
         {None: {'elements':['value', 'value2']}})
 
     # Simulate an exception (redo key/value)
+    evaluator._execution_context.reset()
     evaluator.start_bundle()
     evaluator.process_element(['key', 'value'])
     self.assertEqual(

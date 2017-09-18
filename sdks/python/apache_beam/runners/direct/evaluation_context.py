@@ -44,6 +44,11 @@ class _ExecutionContext(object):
       self._step_context = DirectStepContext(self.keyed_states)
     return self._step_context
 
+  def reset(self):
+    if self._step_context:
+      if self._step_context.partial_keyed_state:
+        self._step_context.partial_keyed_state = {}
+
 
 class _SideInputView(object):
 
@@ -338,6 +343,3 @@ class DirectStepContext(object):
       self.partial_keyed_state[key] = (
           self.existing_keyed_state[key].copy())
     return self.partial_keyed_state[key]
-
-  def clear_partial_states(self):
-    self.partial_keyed_state = {}

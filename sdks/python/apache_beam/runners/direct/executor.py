@@ -337,6 +337,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
     evaluator = self._transform_evaluator_registry.get_evaluator(
         self._applied_ptransform, self._input_bundle,
         side_input_values, scoped_metrics_container)
+    evaluator._execution_context.reset()
+    if hasattr(evaluator, 'step_context'):
+      evaluator.global_state = evaluator.step_context.get_keyed_state(None)
 
     if self._fired_timers:
       for timer_firing in self._fired_timers:
