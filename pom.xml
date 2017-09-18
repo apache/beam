@@ -110,7 +110,7 @@
     <bigquery.version>v2-rev355-1.22.0</bigquery.version>
     <bigtable.version>1.0.0-pre3</bigtable.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
-    <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
+    <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
     <dataflow.version>v1b3-rev198-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
@@ -888,7 +888,7 @@
 
       <dependency>
         <groupId>com.google.api.grpc</groupId>
-        <artifactId>grpc-google-pubsub-v1</artifactId>
+        <artifactId>grpc-google-cloud-pubsub-v1</artifactId>
         <version>${pubsubgrpc.version}</version>
         <exclusions>
           <!-- Exclude an old version of guava that is being pulled in by a transitive
@@ -904,6 +904,12 @@
             <artifactId>grpc-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-pubsub-v1</artifactId>
+        <version>${pubsubgrpc.version}</version>
       </dependency>
 
       <dependency>
