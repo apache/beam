@@ -337,6 +337,11 @@
       <artifactId>proto-google-common-protos</artifactId>
     </dependency>
 
+    <dependency>
+      <groupId>com.google.api.grpc</groupId>
+      <artifactId>grpc-google-common-protos</artifactId>
+    </dependency>
+
     <!--  Test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>

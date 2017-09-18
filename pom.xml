@@ -903,6 +903,11 @@
             <groupId>io.grpc</groupId>
             <artifactId>grpc-all</artifactId>
           </exclusion>
+          <!-- Version 0.1.0 is not compatible with Cloud Spanner. -->
+          <exclusion>
+            <groupId>com.google.api.grpc</groupId>
+            <artifactId>grpc-google-common-protos</artifactId>
+          </exclusion>
         </exclusions>
       </dependency>
 
