@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
@@ -268,6 +269,20 @@ public class SourceRDD {
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof SourcePartition) {
+        SourcePartition that = (SourcePartition) o;
+        return this.rddId == that.rddId
+            && this.index == that.index
+            && this.source.equals(that.source);
+      }
+      return false;
+    }
+
+    @Override
     public int index() {
       return index;
     }
@@ -360,6 +375,23 @@ public class SourceRDD {
                                   CheckpointMarkT checkpointMark) {
       super(rddId, index, source);
       this.checkpointMark = checkpointMark;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o == this) {
+        return true;
+      }
+      if (o instanceof CheckpointableSourcePartition) {
+        CheckpointableSourcePartition that = (CheckpointableSourcePartition) o;
+        return super.equals(o) && this.checkpointMark.equals(that.checkpointMark);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), checkpointMark);
     }
   }
 }
