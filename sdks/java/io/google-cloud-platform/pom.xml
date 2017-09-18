@@ -340,6 +340,7 @@
     <dependency>
       <groupId>com.google.api.grpc</groupId>
       <artifactId>grpc-google-common-protos</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <!--  Test dependencies -->
