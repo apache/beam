@@ -24,6 +24,7 @@ int NO_BUILD = -1
 // These are args for the GitHub Pull Request Builder (ghprb) Plugin. Providing these arguments is
 // necessary due to a bug in the ghprb plugin where environment variables are not correctly passed
 // to jobs downstream of a Pipeline job.
+// Tracked by https://github.com/jenkinsci/ghprb-plugin/issues/572.
 List<Object> ghprbArgs = [
     string(name: 'ghprbGhRepository', value: "${ghprbGhRepository}"),
     string(name: 'ghprbActualCommit', value: "${ghprbActualCommit}"),

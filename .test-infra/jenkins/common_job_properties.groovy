@@ -22,11 +22,14 @@
 //  http://groovy-lang.org/style-guide.html
 class common_job_properties {
 
-  static void setBeamSCM(def context, String repositoryName) {
+  static void setSCM(def context, String repositoryName) {
     context.scm {
       git {
         remote {
+          // Double quotes here mean ${repositoryName} is interpolated.
           github("apache/${repositoryName}")
+          // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
+          // through to Jenkins where it refers to the environment variable.
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
@@ -87,7 +90,7 @@ class common_job_properties {
     }
 
     // Source code management.
-    setBeamSCM(context, repositoryName)
+    setSCM(context, repositoryName)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -218,7 +221,7 @@ class common_job_properties {
     }
   }
 
-  static def mapToArgList(LinkedHashMap<String, String> inputArgs) {
+  static def mapToArgString(LinkedHashMap<String, String> inputArgs) {
     List argList = []
     inputArgs.each({
         // FYI: Replacement only works with double quotes.
@@ -240,7 +243,7 @@ class common_job_properties {
     ]
     // Note: in case of key collision, keys present in ArgMap win.
     LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
-    return mapToArgList(joinedArgs)
+    return mapToArgString(joinedArgs)
   }
 
   // Adds the standard performance test job steps.
@@ -284,15 +287,15 @@ class common_job_properties {
     }
 
     // Set JDK version.
-    jdk('JDK 1.8 (latest)')
+    context.jdk('JDK 1.8 (latest)')
 
     // Restrict this project to run only on Jenkins executors as specified
-    label('beam')
+    context.label('beam')
 
     // Execute concurrent builds if necessary.
-    concurrentBuild()
+    context.concurrentBuild()
 
-    wrappers {
+    context.wrappers {
       timeout {
         absolute(jobTimeout)
         abortBuild()
@@ -337,12 +340,11 @@ class common_job_properties {
     }
 
     // Source code management.
-    setBeamSCM(context, 'beam')
+    setSCM(context, 'beam')
   }
 
   /**
-   * Sets job parameters common to pipeline jobs which are downstream of a job which builds
-   * artifacts for them.
+   * Sets common job parameters for jobs which consume artifacts built for them by an upstream job.
    * @param context The delegate from the top level of a MavenJob.
    * @param jobName The job from which to copy artifacts.
    */
