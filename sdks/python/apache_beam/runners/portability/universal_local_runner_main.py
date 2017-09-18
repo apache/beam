@@ -31,7 +31,6 @@ def run(argv):
                       type=int,
                       help='port on which to serve the job api')
   parser.add_argument('--worker_command_line',
-                      default='',
                       help='command line for starting up a worker process')
   options = parser.parse_args(argv)
   job_servicer = universal_local_runner.JobServicer(options.worker_command_line)

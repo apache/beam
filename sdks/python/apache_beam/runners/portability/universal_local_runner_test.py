@@ -76,6 +76,7 @@ class UniversalLocalRunnerTestWithGrpc(UniversalLocalRunnerTest):
 
 
 class UniversalLocalRunnerTestWithSubprocesses(UniversalLocalRunnerTest):
+  _use_grpc = True
   _use_subprocesses = True
 
 

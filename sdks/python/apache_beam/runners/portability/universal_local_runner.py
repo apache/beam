@@ -46,7 +46,7 @@ TERMINAL_STATES = [
 
 
 class UniversalLocalRunner(runner.PipelineRunner):
-  """A BeamRunner that executes pipelines via the Beam Job API.
+  """A BeamRunner that executes Python pipelines via the Beam Job API.
 
   By default, this runner executes in process but still uses GRPC to communicate
   pipeline and worker state.  It can also be configured to use inline calls
@@ -55,11 +55,14 @@ class UniversalLocalRunner(runner.PipelineRunner):
   """
 
   def __init__(self, use_grpc=True, use_subprocesses=False):
+    if use_subprocesses and not use_grpc:
+      raise ValueError("GRPC must be used with subprocesses")
     super(UniversalLocalRunner, self).__init__()
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
 
     self._handle = None
+    self._handle_lock = threading.Lock()
     self._subprocess = None
 
   def __del__(self):
@@ -73,58 +76,63 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._subprocess = None
 
   def _get_handle(self):
-    if not self._handle:
-      if self._use_subprocesses:
-        if self._subprocess:
-          # Kill the old one if it exists.
-          self._subprocess.kill()
-        # TODO(robertwb): Consider letting the subprocess pick one and
-        # communicate it back...
-        port = _pick_unused_port()
-        logging.info("Starting server on port %d.", port)
-        self._subprocess = subprocess.Popen([
-            sys.executable,
-            '-m',
-            'apache_beam.runners.portability.universal_local_runner_main',
-            '-p',
-            str(port),
-            '--worker_command_line',
-            '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
-        ])
-        handle = beam_job_api_pb2_grpc.JobServiceStub(
-            grpc.insecure_channel('localhost:%d' % port))
-        logging.info("Waiting for server to be ready...")
-        start = time.time()
-        timeout = 30
-        while True:
-          time.sleep(0.1)
-          if self._subprocess.poll() is not None:
-            raise RuntimeError(
-                "Subprocess terminated unexpectedly with exit code %d." %
-                self._subprocess.returncode)
-          elif time.time() - start > timeout:
-            raise RuntimeError(
-                "Pipeline timed out waiting for job service subprocess.")
-          else:
-            try:
-              handle.GetState(
-                  beam_job_api_pb2.GetJobStateRequest(job_id='[fake]'))
-              break
-            except grpc.RpcError as exn:
-              if exn.code != grpc.StatusCode.UNAVAILABLE:
-                break
-        logging.info("Server ready.")
-        self._handle = handle
+    with self._handle_lock:
+      if not self._handle:
+        if self._use_subprocesses:
+          self._handle = self._start_local_runner_subprocess_handle()
 
-      elif self._use_grpc:
-        self._servicer = JobServicer(use_grpc=True)
-        self._handle = beam_job_api_pb2_grpc.JobServiceStub(
-            grpc.insecure_channel('localhost:%d' % self._servicer.start_grpc()))
+        elif self._use_grpc:
+          self._servicer = JobServicer(use_grpc=True)
+          self._handle = beam_job_api_pb2_grpc.JobServiceStub(
+              grpc.insecure_channel('localhost:%d' % self._servicer.start_grpc()))
 
-      else:
-        self._handle = JobServicer(use_grpc=False)
+        else:
+          self._handle = JobServicer(use_grpc=False)
 
     return self._handle
+
+  def _start_local_runner_subprocess_handle(self):
+    if self._subprocess:
+      # Kill the old one if it exists.
+      self._subprocess.kill()
+    # TODO(robertwb): Consider letting the subprocess pick one and
+    # communicate it back...
+    port = _pick_unused_port()
+    logging.info("Starting server on port %d.", port)
+    self._subprocess = subprocess.Popen([
+        sys.executable,
+        '-m',
+        'apache_beam.runners.portability.universal_local_runner_main',
+        '-p',
+        str(port),
+        '--worker_command_line',
+        '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
+    ])
+    handle = beam_job_api_pb2_grpc.JobServiceStub(
+        grpc.insecure_channel('localhost:%d' % port))
+    logging.info("Waiting for server to be ready...")
+    start = time.time()
+    timeout = 30
+    while True:
+      time.sleep(0.1)
+      if self._subprocess.poll() is not None:
+        raise RuntimeError(
+            "Subprocess terminated unexpectedly with exit code %d." %
+            self._subprocess.returncode)
+      elif time.time() - start > timeout:
+        raise RuntimeError(
+            "Pipeline timed out waiting for job service subprocess.")
+      else:
+        try:
+          handle.GetState(
+              beam_job_api_pb2.GetJobStateRequest(job_id='[fake]'))
+          break
+        except grpc.RpcError as exn:
+          if exn.code != grpc.StatusCode.UNAVAILABLE:
+            # We were able to contact the service for our fake state request.
+            break
+    logging.info("Server ready.")
+    return handle
 
   def run(self, pipeline):
     handle = self._get_handle()
@@ -184,6 +192,8 @@ class PipelineResult(runner.PipelineResult):
 
 class BeamJob(threading.Thread):
   """This class handles running and managing a single pipeline.
+
+  The current state of the pipeline is available as self.state.
   """
   def __init__(self, job_id, pipeline_options, pipeline_proto,
                use_grpc=True, sdk_harness_factory=None):
