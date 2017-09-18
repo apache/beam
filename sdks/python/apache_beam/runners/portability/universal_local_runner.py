@@ -192,7 +192,7 @@ class PipelineResult(runner.PipelineResult):
 
 
 class BeamJob(threading.Thread):
-  """This class job_services running and managing a single pipeline.
+  """This class handles running and managing a single pipeline.
 
   The current state of the pipeline is available as self.state.
   """
