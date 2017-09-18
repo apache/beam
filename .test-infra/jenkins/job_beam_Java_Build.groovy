@@ -20,7 +20,7 @@ import common_job_properties
 
 // This is the Java Jenkins job which builds artifacts for downstream jobs to consume.
 mavenJob('beam_Java_Build') {
-  description('Builds Java SDK and archives artifacts. Meant to be run as part of a pipeline.')
+  description('Builds Beam Java SDK and archives artifacts. Meant to be run as part of a pipeline.')
 
   // Set standard properties for a job which is part of a pipeline.
   common_job_properties.setPipelineJobProperties(delegate, 15, "Java Build")
@@ -34,6 +34,7 @@ mavenJob('beam_Java_Build') {
       'string' "beam_*"
     }
     // The Build Discarder also doesn't support the job DSL in the right way so we have to configure it manually.
+    // -1 indicates that a property is "infinite".
     project / 'properties' / 'jenkins.model.BuildDiscarderProperty' / 'strategy'(class:'hudson.tasks.LogRotator') {
       'daysToKeep'(-1)
       'numToKeep'(-1)

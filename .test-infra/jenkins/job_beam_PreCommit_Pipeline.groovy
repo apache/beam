@@ -19,8 +19,8 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a maven install, and the current set
-// of precommit tests.
+// This job owns the overall execution of the precommit pipeline. The actual pipeline code is in
+// Precommit_Pipeline.groovy.
 pipelineJob('beam_PreCommit_Pipeline') {
   description('PreCommit Pipeline Job. Owns overall lifecycle of PreCommit tests.')
 
@@ -74,7 +74,7 @@ pipelineJob('beam_PreCommit_Pipeline') {
   definition {
     cpsScm {
       // Source code management.
-      common_job_properties.setBeamSCM(delegate, 'beam')
+      common_job_properties.setSCM(delegate, 'beam')
       scriptPath('.test-infra/jenkins/PreCommit_Pipeline.groovy')
     }
   }
