@@ -2016,7 +2016,7 @@ Subsequent transforms, however, are applied to the result of the <code class="hi
 
 <p>This code sample sets a time-based trigger for a <code class="highlighter-rouge">PCollection</code>, which emits results one minute after the first element in that window has been processed. The last line in the code sample, <code class="highlighter-rouge">.discardingFiredPanes()</code>, is the window’s <strong>accumulation mode</strong>.</p>
 
-<h4 id="window-accumulation-modes">Window Accumulation Modes</h4>
+<h4 id="a-namewindow-accumulation-modesawindow-accumulation-modes"><a name="window-accumulation-modes"></a>Window Accumulation Modes</h4>
 
 <p>When you specify a trigger, you must also set the the window’s <strong>accumulation mode</strong>. When a trigger fires, it emits the current contents of the window as a pane. Since a trigger can fire multiple times, the accumulation mode determines whether the system <em>accumulates</em> the window panes as the trigger fires, or <em>discards</em> them.</p>
 
