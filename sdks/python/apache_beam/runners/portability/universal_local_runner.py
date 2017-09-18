@@ -61,8 +61,8 @@ class UniversalLocalRunner(runner.PipelineRunner):
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
 
-    self._handle = None
-    self._handle_lock = threading.Lock()
+    self._job_service = None
+    self._job_service_lock = threading.Lock()
     self._subprocess = None
 
   def __del__(self):
@@ -75,23 +75,24 @@ class UniversalLocalRunner(runner.PipelineRunner):
       time.sleep(0.1)
     self._subprocess = None
 
-  def _get_handle(self):
-    with self._handle_lock:
-      if not self._handle:
+  def _get_job_service(self):
+    with self._job_service_lock:
+      if not self._job_service:
         if self._use_subprocesses:
-          self._handle = self._start_local_runner_subprocess_handle()
+          self._job_service = self._start_local_runner_subprocess_job_service()
 
         elif self._use_grpc:
           self._servicer = JobServicer(use_grpc=True)
-          self._handle = beam_job_api_pb2_grpc.JobServiceStub(
-              grpc.insecure_channel('localhost:%d' % self._servicer.start_grpc()))
+          self._job_service = beam_job_api_pb2_grpc.JobServiceStub(
+              grpc.insecure_channel(
+                  'localhost:%d' % self._servicer.start_grpc()))
 
         else:
-          self._handle = JobServicer(use_grpc=False)
+          self._job_service = JobServicer(use_grpc=False)
 
-    return self._handle
+    return self._job_service
 
-  def _start_local_runner_subprocess_handle(self):
+  def _start_local_runner_subprocess_job_service(self):
     if self._subprocess:
       # Kill the old one if it exists.
       self._subprocess.kill()
@@ -108,7 +109,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
         '--worker_command_line',
         '%s -m apache_beam.runners.worker.sdk_worker_main' % sys.executable
     ])
-    handle = beam_job_api_pb2_grpc.JobServiceStub(
+    job_service = beam_job_api_pb2_grpc.JobServiceStub(
         grpc.insecure_channel('localhost:%d' % port))
     logging.info("Waiting for server to be ready...")
     start = time.time()
@@ -124,7 +125,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
             "Pipeline timed out waiting for job service subprocess.")
       else:
         try:
-          handle.GetState(
+          job_service.GetState(
               beam_job_api_pb2.GetJobStateRequest(job_id='[fake]'))
           break
         except grpc.RpcError as exn:
@@ -132,32 +133,32 @@ class UniversalLocalRunner(runner.PipelineRunner):
             # We were able to contact the service for our fake state request.
             break
     logging.info("Server ready.")
-    return handle
+    return job_service
 
   def run(self, pipeline):
-    handle = self._get_handle()
-    prepare_response = handle.Prepare(
+    job_service = self._get_job_service()
+    prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
             job_name='job',
             pipeline=pipeline.to_runner_api()))
-    run_response = handle.Run(beam_job_api_pb2.RunJobRequest(
+    run_response = job_service.Run(beam_job_api_pb2.RunJobRequest(
         preparation_id=prepare_response.preparation_id))
-    return PipelineResult(handle, run_response.job_id)
+    return PipelineResult(job_service, run_response.job_id)
 
 
 class PipelineResult(runner.PipelineResult):
-  def __init__(self, handle, job_id):
+  def __init__(self, job_service, job_id):
     super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNKNOWN)
-    self._handle = handle
+    self._job_service = job_service
     self._job_id = job_id
     self._messages = []
 
   def cancel(self):
-    self._handle.Cancel()
+    self._job_service.Cancel()
 
   @property
   def state(self):
-    runner_api_state = self._handle.GetState(
+    runner_api_state = self._job_service.GetState(
         beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)).state
     self._state = self._runner_api_state_to_pipeline_state(runner_api_state)
     return self._state
@@ -174,12 +175,12 @@ class PipelineResult(runner.PipelineResult):
 
   def wait_until_finish(self):
     def read_messages():
-      for message in self._handle.GetMessageStream(
+      for message in self._job_service.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(job_id=self._job_id)):
         self._messages.append(message)
     threading.Thread(target=read_messages).start()
 
-    for state_response in self._handle.GetStateStream(
+    for state_response in self._job_service.GetStateStream(
         beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)):
       self._state = self._runner_api_state_to_pipeline_state(
           state_response.state)
@@ -191,7 +192,7 @@ class PipelineResult(runner.PipelineResult):
 
 
 class BeamJob(threading.Thread):
-  """This class handles running and managing a single pipeline.
+  """This class job_services running and managing a single pipeline.
 
   The current state of the pipeline is available as self.state.
   """
