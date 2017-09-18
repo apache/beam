@@ -179,6 +179,6 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
         nonEmptySplits += 1;
       }
     }
-    assertEquals("Wrong number of empty splits", expectedNumSources, nonEmptySplits);
+    assertEquals("Wrong number of non empty splits", expectedNumSources, nonEmptySplits);
   }
 }
