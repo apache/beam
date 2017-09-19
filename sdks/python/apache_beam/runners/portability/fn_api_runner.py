@@ -27,7 +27,6 @@ import time
 from concurrent import futures
 
 import grpc
-from google.protobuf import wrappers_pb2
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam.coders import WindowedValueCoder
@@ -349,8 +348,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   inputs=transform.inputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
-                      any_param=proto_utils.pack_Any(
-                          wrappers_pb2.BytesValue(value=param)),
                       payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
@@ -363,8 +360,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      any_param=proto_utils.pack_Any(
-                          wrappers_pb2.BytesValue(value=param)),
                       payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
@@ -421,9 +416,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                     inputs={local_in: transcoded_pcollection},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        any_param=proto_utils.pack_Any(
-                            wrappers_pb2.BytesValue(
-                                value=param)),
                         payload=param))],
                 downstream_side_inputs=frozenset(),
                 must_follow=stage.must_follow)
@@ -437,9 +429,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      any_param=proto_utils.pack_Any(
-                          wrappers_pb2.BytesValue(
-                              value=param)),
                       payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
@@ -549,9 +538,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       inputs={'in': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_OUTPUT_URN,
-                          any_param=proto_utils.pack_Any(
-                              wrappers_pb2.BytesValue(
-                                  value=pcoll_as_param)),
                           payload=pcoll_as_param))])
               fuse(producer, write_pcoll)
             if consumer.has_as_main_input(pcoll):
@@ -562,9 +548,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       outputs={'out': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
-                          any_param=proto_utils.pack_Any(
-                              wrappers_pb2.BytesValue(
-                                  value=pcoll_as_param)),
                           payload=pcoll_as_param))],
                   must_follow={write_pcoll})
               fuse(read_pcoll, consumer)
@@ -686,10 +669,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             raise NotImplementedError
           if data_operation_spec:
             transform.spec.payload = data_operation_spec.SerializeToString()
-            transform.spec.any_param.Pack(data_operation_spec)
           else:
             transform.spec.payload = ""
-            transform.spec.any_param.Clear()
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)
@@ -838,7 +819,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.DATA_OUTPUT_URN,
-            any_param=proto_utils.pack_Any(data_operation_spec),
             payload=data_operation_spec.SerializeToString() \
                 if data_operation_spec is not None else None)
 
@@ -854,7 +834,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.DATA_INPUT_URN,
-              any_param=proto_utils.pack_Any(data_operation_spec),
               payload=data_operation_spec.SerializeToString() \
                   if data_operation_spec is not None else None)
 
@@ -867,9 +846,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               pickler.dumps(operation.source.source))
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.PYTHON_SOURCE_URN,
-              any_param=proto_utils.pack_Any(
-                  wrappers_pb2.BytesValue(
-                      value=source_bytes)),
               payload=source_bytes)
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
@@ -889,8 +865,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             (operation.serialized_fn, side_input_extras))
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.PYTHON_DOFN_URN,
-            any_param=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=augmented_serialized_fn)),
             payload=augmented_serialized_fn)
 
       elif isinstance(operation, operation_specs.WorkerFlatten):

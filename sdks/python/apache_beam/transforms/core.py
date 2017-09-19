@@ -53,7 +53,6 @@ from apache_beam.typehints.decorators import WithTypeHints
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
-from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
 
 __all__ = [
@@ -715,9 +714,6 @@ class ParDo(PTransformWithSideInputs):
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=urns.PICKLED_DO_FN_INFO,
-                    any_param=proto_utils.pack_Any(
-                        wrappers_pb2.BytesValue(
-                            value=picked_pardo_fn_data)),
                     payload=picked_pardo_fn_data))))
 
   @PTransform.register_urn(
