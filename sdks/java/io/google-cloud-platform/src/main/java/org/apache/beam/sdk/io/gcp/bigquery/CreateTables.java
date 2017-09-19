@@ -113,7 +113,7 @@ public class CreateTables<DestinationT>
   private void possibleCreateTable(
       BigQueryOptions options, TableDestination tableDestination, TableSchema tableSchema)
       throws InterruptedException, IOException {
-    String tableSpec = tableDestination.getTableSpec();
+    String tableSpec = tableDestination.getStrippedTableSpec();
     TableReference tableReference = tableDestination.getTableReference();
     String tableDescription = tableDestination.getTableDescription();
     if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
