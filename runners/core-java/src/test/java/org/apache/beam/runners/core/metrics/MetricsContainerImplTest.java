@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
@@ -67,6 +68,9 @@ public class MetricsContainerImplTest {
     c1.inc(8L);
     assertThat(container.getUpdates().counterUpdates(), contains(
         metricUpdate("name1", 13L)));
+
+    CounterCell dne = container.tryGetCounter(MetricName.named("ns", "dne"));
+    assertEquals(dne, null);
   }
 
   @Test

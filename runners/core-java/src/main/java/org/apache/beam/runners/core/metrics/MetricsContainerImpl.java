@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -84,6 +85,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
   public CounterCell getCounter(MetricName metricName) {
     return counters.get(metricName);
   }
+
+  @Nullable
+  public CounterCell tryGetCounter(MetricName metricName) { return counters.tryGet(metricName); }
 
   @Override
   public DistributionCell getDistribution(MetricName metricName) {
