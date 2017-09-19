@@ -112,6 +112,9 @@ class FakeJobService implements JobService, Serializable {
       throws InterruptedException, IOException {
     synchronized (allJobs) {
       verifyUniqueJobId(jobRef.getJobId());
+      if (loadConfig.getSchema() == null) {
+        throw new IOException("No schema specified on job or table: " + jobRef.getJobId());
+      }
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setLoad(loadConfig));
@@ -129,8 +132,7 @@ class FakeJobService implements JobService, Serializable {
               filename + ThreadLocalRandom.current().nextInt(), false /* isDirectory */));
         }
 
-        FileSystems.copy(sourceFiles.build(), loadFiles.build(),
-            MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+        FileSystems.copy(sourceFiles.build(), loadFiles.build());
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
 
@@ -325,6 +327,7 @@ class FakeJobService implements JobService, Serializable {
       rows.addAll(readRows(filename.toString()));
     }
     datasetService.insertAll(destination, rows, null);
+    FileSystems.delete(sourceFiles);
     return new JobStatus().setState("DONE");
   }
 

@@ -33,7 +33,11 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
@@ -42,9 +46,23 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.WithKeys;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +79,8 @@ import org.slf4j.LoggerFactory;
  * {@link KV} maps the final table to itself.
  */
 class WriteTables<DestinationT>
-    extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
+  extends PTransform<PCollection<KV<ShardedKey<DestinationT>, List<String>>>,
+    PCollection<KV<TableDestination, String>>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteTables.class);
 
   private final boolean singlePartition;
@@ -70,7 +89,84 @@ class WriteTables<DestinationT>
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
-  private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
+  private final List<PCollectionView<?>> sideInputs;
+  private final TupleTag<KV<TableDestination, String>> mainOutputTag;
+  private final TupleTag<String> temporaryFilesTag;
+
+
+  private class WriteTablesDoFn
+      extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
+    private Map<DestinationT, String> jsonSchemas = Maps.newHashMap();
+
+    @StartBundle
+    public void startBundle(StartBundleContext c) {
+      // Clear the map on each bundle so we can notice side-input updates.
+      // (alternative is to use a cache with a TTL).
+      jsonSchemas.clear();
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      dynamicDestinations.setSideInputAccessorFromProcessContext(c);
+      DestinationT destination = c.element().getKey().getKey();
+      TableSchema tableSchema;
+      String jsonSchema = jsonSchemas.get(destination);
+      if (jsonSchema != null) {
+        tableSchema = BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+      } else {
+        tableSchema = dynamicDestinations.getSchema(destination);
+        if (tableSchema != null) {
+          jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
+        }
+      }
+
+      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      TableReference tableReference = tableDestination.getTableReference();
+      if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
+        tableReference.setProjectId(
+            c.getPipelineOptions().as(BigQueryOptions.class).getProject());
+        tableDestination = new TableDestination(
+            tableReference, tableDestination.getTableDescription());
+      }
+
+      Integer partition = c.element().getKey().getShardNumber();
+      List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
+      String jobIdPrefix = BigQueryHelpers.createJobId(
+          c.sideInput(jobIdToken), tableDestination, partition, c.pane().getIndex());
+
+      if (!singlePartition) {
+        tableReference.setTableId(jobIdPrefix);
+      }
+
+      WriteDisposition writeDisposition =
+          (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
+      CreateDisposition createDisposition =
+          (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
+      load(
+          bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
+          bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
+          jobIdPrefix,
+          tableReference,
+          tableDestination.getTimePartitioning(),
+          tableSchema,
+          partitionFiles,
+          writeDisposition,
+          createDisposition,
+          tableDestination.getTableDescription());
+      c.output(
+          mainOutputTag, KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
+      for (String file : partitionFiles) {
+        c.output(temporaryFilesTag, file);
+      }
+    }
+  }
+
+  private class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      removeTemporaryFiles(c.element());
+    }
+  }
 
   public WriteTables(
       boolean singlePartition,
@@ -78,74 +174,48 @@ class WriteTables<DestinationT>
       PCollectionView<String> jobIdToken,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
+      List<PCollectionView<?>> sideInputs,
       DynamicDestinations<?, DestinationT> dynamicDestinations) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
     this.firstPaneWriteDisposition = writeDisposition;
     this.firstPaneCreateDisposition = createDisposition;
+    this.sideInputs = sideInputs;
     this.dynamicDestinations = dynamicDestinations;
+    this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
+    this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
   }
 
-  @StartBundle
-  public void startBundle(StartBundleContext c) {
-    // Clear the map on each bundle so we can notice side-input updates.
-    // (alternative is to use a cache with a TTL).
-    jsonSchemas.clear();
+  @Override
+  public PCollection<KV<TableDestination, String>> expand(
+      PCollection<KV<ShardedKey<DestinationT>, List<String>>> input) {
+    PCollectionTuple writeTablesOutputs = input.apply(ParDo.of(new WriteTablesDoFn())
+        .withSideInputs(sideInputs)
+        .withOutputTags(mainOutputTag, TupleTagList.of(temporaryFilesTag)));
+
+    // Garbage collect temporary files.
+    // We mustn't start garbage collecting files until we are assured that the WriteTablesDoFn has
+    // succeeded in loading those files and won't be retried. Otherwise, we might fail part of the
+    // way through deleting temporary files, and retry WriteTablesDoFn. This will then fail due
+    // to missing files, causing either the entire workflow to fail or get stuck (depending on how
+    // the runner handles persistent failures).
+    writeTablesOutputs
+        .get(temporaryFilesTag)
+        .setCoder(StringUtf8Coder.of())
+        .apply(WithKeys.<Void, String>of((Void) null))
+        .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
+        .apply(Window.<KV<Void, String>>into(new GlobalWindows())
+            .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+            .discardingFiredPanes())
+        .apply(GroupByKey.<Void, String>create())
+        .apply(Values.<Iterable<String>>create())
+        .apply(ParDo.of(new GarbageCollectTemporaryFiles()));
+
+    return writeTablesOutputs.get(mainOutputTag);
   }
 
-  @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
-    dynamicDestinations.setSideInputAccessorFromProcessContext(c);
-    DestinationT destination = c.element().getKey().getKey();
-    TableSchema tableSchema;
-    String jsonSchema = jsonSchemas.get(destination);
-    if (jsonSchema != null) {
-      tableSchema = BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
-    } else {
-      tableSchema = dynamicDestinations.getSchema(destination);
-      if (tableSchema != null) {
-        jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
-      }
-    }
 
-    TableDestination tableDestination = dynamicDestinations.getTable(destination);
-    TableReference tableReference = tableDestination.getTableReference();
-    if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
-      tableReference.setProjectId(
-          c.getPipelineOptions().as(BigQueryOptions.class).getProject());
-      tableDestination = new TableDestination(
-          tableReference, tableDestination.getTableDescription());
-    }
-
-    Integer partition = c.element().getKey().getShardNumber();
-    List<String> partitionFiles = Lists.newArrayList(c.element().getValue());
-    String jobIdPrefix = BigQueryHelpers.createJobId(
-            c.sideInput(jobIdToken), tableDestination, partition, c.pane().getIndex());
-
-    if (!singlePartition) {
-      tableReference.setTableId(jobIdPrefix);
-    }
-
-    WriteDisposition writeDisposition =
-        (c.pane().getIndex() == 0) ? firstPaneWriteDisposition : WriteDisposition.WRITE_APPEND;
-    CreateDisposition createDisposition =
-        (c.pane().getIndex() == 0) ? firstPaneCreateDisposition : CreateDisposition.CREATE_NEVER;
-    load(
-        bqServices.getJobService(c.getPipelineOptions().as(BigQueryOptions.class)),
-        bqServices.getDatasetService(c.getPipelineOptions().as(BigQueryOptions.class)),
-        jobIdPrefix,
-        tableReference,
-        tableDestination.getTimePartitioning(),
-        tableSchema,
-        partitionFiles,
-        writeDisposition,
-        createDisposition,
-        tableDestination.getTableDescription());
-    c.output(KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
-
-    removeTemporaryFiles(partitionFiles);
-  }
 
   private void load(
       JobService jobService,
@@ -208,11 +278,11 @@ class WriteTables<DestinationT>
             BigQueryHelpers.jobToPrettyString(lastFailedLoadJob)));
   }
 
-  static void removeTemporaryFiles(Collection<String> files) throws IOException {
+  static void removeTemporaryFiles(Iterable<String> files) throws IOException {
     ImmutableList.Builder<ResourceId> fileResources = ImmutableList.builder();
-    for (String file: files) {
+    for (String file : files) {
       fileResources.add(FileSystems.matchNewResource(file, false/* isDirectory */));
     }
-    FileSystems.delete(fileResources.build(), MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+    FileSystems.delete(fileResources.build());
   }
 }

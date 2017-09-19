@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -216,7 +217,6 @@ class BatchLoads<DestinationT>
                 .discardingFiredPanes());
     PCollection<WriteBundlesToFiles.Result<DestinationT>> results =
         writeShardedFiles(inputInGlobalWindow, tempFilePrefixView);
-
     // Apply the user's trigger before we start generating BigQuery load jobs.
     results =
         results.apply(
@@ -480,15 +480,14 @@ class BatchLoads<DestinationT>
         .apply("MultiPartitionsReshuffle", Reshuffle.<ShardedKey<DestinationT>, List<String>>of())
         .apply(
             "MultiPartitionsWriteTables",
-            ParDo.of(
-                    new WriteTables<>(
+            new WriteTables<>(
                         false,
                         bigQueryServices,
                         jobIdTokenView,
                         WriteDisposition.WRITE_EMPTY,
                         CreateDisposition.CREATE_IF_NEEDED,
-                        dynamicDestinations))
-                .withSideInputs(sideInputs));
+                        sideInputs,
+                        dynamicDestinations));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -510,15 +509,14 @@ class BatchLoads<DestinationT>
         .apply("SinglePartitionsReshuffle", Reshuffle.<ShardedKey<DestinationT>, List<String>>of())
         .apply(
             "SinglePartitionWriteTables",
-            ParDo.of(
-                    new WriteTables<>(
+            new WriteTables<>(
                         true,
                         bigQueryServices,
                         jobIdTokenView,
                         writeDisposition,
                         createDisposition,
-                        dynamicDestinations))
-                .withSideInputs(sideInputs));
+                        sideInputs,
+                        dynamicDestinations));
   }
 
   private WriteResult writeResult(Pipeline p) {

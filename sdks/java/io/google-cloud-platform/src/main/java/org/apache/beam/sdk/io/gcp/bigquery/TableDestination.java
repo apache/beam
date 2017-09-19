@@ -104,11 +104,12 @@ public class TableDestination implements Serializable {
     }
     TableDestination other = (TableDestination) o;
     return Objects.equals(this.tableSpec, other.tableSpec)
-        && Objects.equals(this.tableDescription, other.tableDescription);
+        && Objects.equals(this.tableDescription, other.tableDescription)
+        && Objects.equals(this.jsonTimePartitioning, other.jsonTimePartitioning);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(tableSpec, tableDescription);
+    return Objects.hash(tableSpec, tableDescription, jsonTimePartitioning);
   }
 }
