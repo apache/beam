@@ -145,9 +145,11 @@ class _GrpcDataChannel(DataChannel):
     self._received = collections.defaultdict(queue.Queue)
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
+    self._closed = False
 
   def close(self):
     self._to_send.put(self._WRITES_FINISHED)
+    self._closed = True
 
   def wait(self, timeout=None):
     self._reads_finished.wait(timeout)
@@ -209,9 +211,10 @@ class _GrpcDataChannel(DataChannel):
       for elements in elements_iterator:
         for data in elements.data:
           self._receiving_queue(data.instruction_reference).put(data)
-    except:  # pylint: disable=broad-except
-      logging.exception('Failed to read inputs in the data plane')
-      raise
+    except:  # pylint: disable=bare-except
+      if not self._closed:
+        logging.exception('Failed to read inputs in the data plane')
+        raise
     finally:
       self._reads_finished.set()
 
