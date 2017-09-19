@@ -50,13 +50,13 @@ def delete_bq_table(project, dataset, table):
                'table: %s.', project, dataset, table)
   bq_dataset = bigquery.Client(project=project).dataset(dataset)
   if not bq_dataset.exists():
-    raise GcpTestIOError('Failed to cleanup. Bigquery dataset %s doesn\'t'
-                         'exist in project %s.' % dataset, project)
+    raise GcpTestIOError('Failed to cleanup. Bigquery dataset %s doesn\'t '
+                         'exist in project %s.' % (dataset, project))
   bq_table = bq_dataset.table(table)
   if not bq_table.exists():
-    raise GcpTestIOError('Failed to cleanup. Biqeury table %s doesn\'t '
+    raise GcpTestIOError('Failed to cleanup. Bigquery table %s doesn\'t '
                          'exist in project %s, dataset %s.' %
-                         table, project, dataset)
+                         (table, project, dataset))
   bq_table.delete()
   if bq_table.exists():
     raise RuntimeError('Failed to cleanup. Bigquery table %s still exists '

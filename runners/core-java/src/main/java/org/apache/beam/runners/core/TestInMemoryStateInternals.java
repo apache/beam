@@ -32,9 +32,9 @@ public class TestInMemoryStateInternals<K> extends InMemoryStateInternals<K> {
     super(key);
   }
 
-  public Set<StateTag<?>> getTagsInUse(StateNamespace namespace) {
-    Set<StateTag<?>> inUse = new HashSet<>();
-    for (Map.Entry<StateTag<?>, State> entry :
+  public Set<StateTag> getTagsInUse(StateNamespace namespace) {
+    Set<StateTag> inUse = new HashSet<>();
+    for (Map.Entry<StateTag, State> entry :
       inMemoryState.getTagsInUse(namespace).entrySet()) {
       if (!isEmptyForTesting(entry.getValue())) {
         inUse.add(entry.getKey());

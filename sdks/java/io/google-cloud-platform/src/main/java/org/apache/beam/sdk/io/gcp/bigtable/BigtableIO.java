@@ -33,6 +33,7 @@ import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
@@ -258,7 +259,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withBigtableOptions(BigtableOptions options) {
-      checkNotNull(options, "options");
+      checkArgument(options != null, "options can not be null");
       return withBigtableOptions(options.toBuilder());
     }
 
@@ -272,7 +273,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
-      checkNotNull(optionsBuilder, "optionsBuilder");
+      checkArgument(optionsBuilder != null, "optionsBuilder can not be null");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions options = optionsBuilder.build();
 
@@ -291,7 +292,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withRowFilter(RowFilter filter) {
-      checkNotNull(filter, "filter");
+      checkArgument(filter != null, "filter can not be null");
       return toBuilder().setRowFilter(filter).build();
     }
 
@@ -301,7 +302,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withKeyRange(ByteKeyRange keyRange) {
-      checkNotNull(keyRange, "keyRange");
+      checkArgument(keyRange != null, "keyRange can not be null");
       return toBuilder().setKeyRange(keyRange).build();
     }
 
@@ -311,12 +312,14 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withTableId(String tableId) {
-      checkNotNull(tableId, "tableId");
+      checkArgument(tableId != null, "tableId can not be null");
       return toBuilder().setTableId(tableId).build();
     }
 
     @Override
     public PCollection<Row> expand(PBegin input) {
+      checkArgument(getBigtableOptions() != null, "withBigtableOptions() is required");
+      checkArgument(getTableId() != null && !getTableId().isEmpty(), "withTableId() is required");
       BigtableSource source =
           new BigtableSource(new SerializableFunction<PipelineOptions, BigtableService>() {
             @Override
@@ -329,8 +332,6 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      checkArgument(getBigtableOptions() != null, "BigtableOptions not specified");
-      checkArgument(getTableId() != null && !getTableId().isEmpty(), "Table ID not specified");
       try {
         checkArgument(
             getBigtableService(options).tableExists(getTableId()),
@@ -381,7 +382,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     Read withBigtableService(BigtableService bigtableService) {
-      checkNotNull(bigtableService, "bigtableService");
+      checkArgument(bigtableService != null, "bigtableService can not be null");
       return toBuilder().setBigtableService(bigtableService).build();
     }
 
@@ -465,7 +466,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
-      checkNotNull(optionsBuilder, "optionsBuilder");
+      checkArgument(optionsBuilder != null, "optionsBuilder can not be null");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
       BigtableOptions options = optionsBuilder.build();
 
@@ -487,12 +488,15 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withTableId(String tableId) {
-      checkNotNull(tableId, "tableId");
+      checkArgument(tableId != null, "tableId can not be null");
       return toBuilder().setTableId(tableId).build();
     }
 
     @Override
     public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+      checkArgument(getBigtableOptions() != null, "withBigtableOptions() is required");
+      checkArgument(getTableId() != null && !getTableId().isEmpty(), "withTableId() is required");
+
       input.apply(ParDo.of(new BigtableWriterFn(getTableId(),
           new SerializableFunction<PipelineOptions, BigtableService>() {
         @Override
@@ -505,8 +509,6 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      checkArgument(getBigtableOptions() != null, "BigtableOptions not specified");
-      checkArgument(getTableId() != null && !getTableId().isEmpty(), "Table ID not specified");
       try {
         checkArgument(
             getBigtableService(options).tableExists(getTableId()),
@@ -526,7 +528,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     Write withBigtableService(BigtableService bigtableService) {
-      checkNotNull(bigtableService, "bigtableService");
+      checkArgument(bigtableService != null, "bigtableService can not be null");
       return toBuilder().setBigtableService(bigtableService).build();
     }
 
@@ -638,12 +640,14 @@ public class BigtableIO {
 
         StringBuilder logEntry = new StringBuilder();
         int i = 0;
+        List<BigtableWriteException> suppressed = Lists.newArrayList();
         for (; i < 10 && !failures.isEmpty(); ++i) {
           BigtableWriteException exc = failures.remove();
           logEntry.append("\n").append(exc.getMessage());
           if (exc.getCause() != null) {
             logEntry.append(": ").append(exc.getCause().getMessage());
           }
+          suppressed.add(exc);
         }
         String message =
             String.format(
@@ -652,7 +656,11 @@ public class BigtableIO {
                 i,
                 logEntry.toString());
         LOG.error(message);
-        throw new IOException(message);
+        IOException exception = new IOException(message);
+        for (BigtableWriteException e : suppressed) {
+          exception.addSuppressed(e);
+        }
+        throw exception;
       }
 
       private class WriteExceptionCallback implements FutureCallback<MutateRowResponse> {
@@ -714,19 +722,19 @@ public class BigtableIO {
     @Nullable private transient List<SampleRowKeysResponse> sampleRowKeys;
 
     protected BigtableSource withStartKey(ByteKey startKey) {
-      checkNotNull(startKey, "startKey");
+      checkArgument(startKey != null, "startKey can not be null");
       return new BigtableSource(
           serviceFactory, tableId, filter, range.withStartKey(startKey), estimatedSizeBytes);
     }
 
     protected BigtableSource withEndKey(ByteKey endKey) {
-      checkNotNull(endKey, "endKey");
+      checkArgument(endKey != null, "endKey can not be null");
       return new BigtableSource(
           serviceFactory, tableId, filter, range.withEndKey(endKey), estimatedSizeBytes);
     }
 
     protected BigtableSource withEstimatedSizeBytes(Long estimatedSizeBytes) {
-      checkNotNull(estimatedSizeBytes, "estimatedSizeBytes");
+      checkArgument(estimatedSizeBytes != null, "estimatedSizeBytes can not be null");
       return new BigtableSource(serviceFactory, tableId, filter, range, estimatedSizeBytes);
     }
 

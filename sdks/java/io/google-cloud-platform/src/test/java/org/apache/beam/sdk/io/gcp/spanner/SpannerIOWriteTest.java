@@ -66,7 +66,7 @@ public class SpannerIOWriteTest implements Serializable {
     SpannerIO.Write write = SpannerIO.write();
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires instance id to be set with");
-    write.validate(null);
+    write.expand(null);
   }
 
   @Test
@@ -74,7 +74,7 @@ public class SpannerIOWriteTest implements Serializable {
     SpannerIO.Write write = SpannerIO.write().withDatabaseId("123");
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires instance id to be set with");
-    write.validate(null);
+    write.expand(null);
   }
 
   @Test
@@ -82,7 +82,7 @@ public class SpannerIOWriteTest implements Serializable {
     SpannerIO.Write write = SpannerIO.write().withInstanceId("123");
     thrown.expect(NullPointerException.class);
     thrown.expectMessage("requires database id to be set with");
-    write.validate(null);
+    write.expand(null);
   }
 
   @Test

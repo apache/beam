@@ -93,7 +93,7 @@ class InjectorUtils {
         Topic topic = client.projects().topics()
                 .create(fullTopicName, new Topic())
                 .execute();
-        System.out.printf("Topic %s was created.\n", topic.getName());
+        System.out.printf("Topic %s was created.%n", topic.getName());
       }
     }
   }

@@ -301,13 +301,13 @@ public class TextIO {
      * of thousands), use {@link #withHintMatchesManyFiles} for better performance and scalability.
      */
     public Read from(String filepattern) {
-      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      checkArgument(filepattern != null, "filepattern can not be null");
       return from(StaticValueProvider.of(filepattern));
     }
 
     /** Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}. */
     public Read from(ValueProvider<String> filepattern) {
-      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      checkArgument(filepattern != null, "filepattern can not be null");
       return toBuilder().setFilepattern(filepattern).build();
     }
 

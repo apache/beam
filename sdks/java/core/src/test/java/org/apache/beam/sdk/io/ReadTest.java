@@ -168,9 +168,6 @@ public class ReadTest implements Serializable{
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }
@@ -202,9 +199,6 @@ public class ReadTest implements Serializable{
     public Coder<NoOpCheckpointMark> getCheckpointMarkCoder() {
       return null;
     }
-
-    @Override
-    public void validate() {}
 
     @Override
     public Coder<String> getOutputCoder() {

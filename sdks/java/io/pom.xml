@@ -44,6 +44,7 @@
     <module>cassandra</module>
     <module>common</module>
     <module>elasticsearch</module>
+    <module>elasticsearch-tests</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
     <module>hadoop-file-system</module>
@@ -57,6 +58,7 @@
     <module>mongodb</module>
     <module>mqtt</module>
     <module>solr</module>
+    <module>tika</module>
     <module>xml</module>
   </modules>
 

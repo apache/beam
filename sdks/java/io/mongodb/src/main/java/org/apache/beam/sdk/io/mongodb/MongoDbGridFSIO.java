@@ -431,10 +431,6 @@ public class MongoDbGridFSIO {
       }
 
       @Override
-      public void validate() {
-      }
-
-      @Override
       public void populateDisplayData(DisplayData.Builder builder) {
         spec.populateDisplayData(builder);
       }

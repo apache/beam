@@ -30,7 +30,7 @@ class FnApiRunnerTest(
 
   def create_pipeline(self):
     return beam.Pipeline(
-        runner=fn_api_runner.FnApiRunner())
+        runner=fn_api_runner.FnApiRunner(use_grpc=False))
 
   def test_combine_per_key(self):
     # TODO(BEAM-1348): Enable once Partial GBK is supported in fn API.
@@ -56,6 +56,13 @@ class FnApiRunnerTest(
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
   # Inherits all tests from maptask_executor_runner.MapTaskExecutorRunner
+
+
+class FnApiRunnerTestWithGrpc(FnApiRunnerTest):
+
+  def create_pipeline(self):
+    return beam.Pipeline(
+        runner=fn_api_runner.FnApiRunner(use_grpc=True))
 
 
 if __name__ == '__main__':

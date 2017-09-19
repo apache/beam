@@ -219,6 +219,11 @@ public class ParDoTranslation {
   }
 
   public static DoFn<?, ?> getDoFn(AppliedPTransform<?, ?, ?> application) throws IOException {
+    PTransform<?, ?> transform = application.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      return ((ParDo.MultiOutput<?, ?>) transform).getFn();
+    }
+
     return getDoFn(getParDoPayload(application));
   }
 
@@ -229,11 +234,20 @@ public class ParDoTranslation {
 
   public static TupleTag<?> getMainOutputTag(AppliedPTransform<?, ?, ?> application)
       throws IOException {
+    PTransform<?, ?> transform = application.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      return ((ParDo.MultiOutput<?, ?>) transform).getMainOutputTag();
+    }
+
     return getMainOutputTag(getParDoPayload(application));
   }
 
   public static TupleTagList getAdditionalOutputTags(AppliedPTransform<?, ?, ?> application)
       throws IOException {
+    PTransform<?, ?> transform = application.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      return ((ParDo.MultiOutput<?, ?>) transform).getAdditionalOutputTags();
+    }
 
     RunnerApi.PTransform protoTransform =
         PTransformTranslation.toProto(application, SdkComponents.create());
@@ -253,6 +267,10 @@ public class ParDoTranslation {
 
   public static List<PCollectionView<?>> getSideInputs(AppliedPTransform<?, ?, ?> application)
       throws IOException {
+    PTransform<?, ?> transform = application.getTransform();
+    if (transform instanceof ParDo.MultiOutput) {
+      return ((ParDo.MultiOutput<?, ?>) transform).getSideInputs();
+    }
 
     SdkComponents sdkComponents = SdkComponents.create();
     RunnerApi.PTransform parDoProto =
@@ -450,7 +468,13 @@ public class ParDoTranslation {
 
   private static DoFnAndMainOutput doFnAndMainOutputTagFromProto(SdkFunctionSpec fnSpec)
       throws InvalidProtocolBufferException {
-    checkArgument(fnSpec.getSpec().getUrn().equals(CUSTOM_JAVA_DO_FN_URN));
+    checkArgument(
+        fnSpec.getSpec().getUrn().equals(CUSTOM_JAVA_DO_FN_URN),
+        "Expected %s to be %s with URN %s, but URN was %s",
+        DoFn.class.getSimpleName(),
+        FunctionSpec.class.getSimpleName(),
+        CUSTOM_JAVA_DO_FN_URN,
+        fnSpec.getSpec().getUrn());
     byte[] serializedFn =
         fnSpec.getSpec().getPayload().toByteArray();
     return (DoFnAndMainOutput)

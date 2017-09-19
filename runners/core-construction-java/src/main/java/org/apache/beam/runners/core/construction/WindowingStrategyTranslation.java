@@ -123,6 +123,21 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
+  public static RunnerApi.OnTimeBehavior toProto(OnTimeBehavior onTimeBehavior) {
+    switch (onTimeBehavior) {
+      case FIRE_ALWAYS:
+        return RunnerApi.OnTimeBehavior.FIRE_ALWAYS;
+      case FIRE_IF_NON_EMPTY:
+        return RunnerApi.OnTimeBehavior.FIRE_IF_NONEMPTY;
+      default:
+        throw new IllegalArgumentException(
+            String.format(
+                "Cannot convert unknown %s to %s: %s",
+                OnTimeBehavior.class.getCanonicalName(),
+                RunnerApi.OnTimeBehavior.class.getCanonicalName(),
+                onTimeBehavior));
+    }
+  }
 
   public static OnTimeBehavior fromProto(RunnerApi.OnTimeBehavior proto) {
     switch (proto) {
@@ -299,6 +314,7 @@ public class WindowingStrategyTranslation implements Serializable {
             .setTrigger(TriggerTranslation.toProto(windowingStrategy.getTrigger()))
             .setWindowFn(windowFnSpec)
             .setAssignsToOneWindow(windowingStrategy.getWindowFn().assignsToOneWindow())
+            .setOnTimeBehavior(toProto(windowingStrategy.getOnTimeBehavior()))
             .setWindowCoderId(
                 components.registerCoder(windowingStrategy.getWindowFn().windowCoder()));
 
