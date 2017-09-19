@@ -908,6 +908,12 @@
 
       <dependency>
         <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-pubsub-v1</artifactId>
+        <version>${pubsubgrpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
         <artifactId>proto-google-cloud-spanner-admin-database-v1</artifactId>
         <version>${grpc-google-common-protos.version}</version>
       </dependency>
