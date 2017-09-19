@@ -289,6 +289,7 @@ class PipelineState(object):
   API JobState enum.
   """
   UNKNOWN = 'UNKNOWN'  # not specified
+  STARTING = 'STARTING'  # not yet started
   STOPPED = 'STOPPED'  # paused or not yet started
   RUNNING = 'RUNNING'  # currently running
   DONE = 'DONE'  # successfully completed (terminal state)
