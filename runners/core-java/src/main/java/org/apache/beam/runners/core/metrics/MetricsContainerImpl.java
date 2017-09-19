@@ -95,7 +95,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
    * {@code null}.
    */
   @Nullable
-  public CounterCell tryGetCounter(MetricName metricName) { return counters.tryGet(metricName); }
+  public CounterCell tryGetCounter(MetricName metricName) {
+    return counters.tryGet(metricName);
+  }
 
   @Override
   public DistributionCell getDistribution(MetricName metricName) {

@@ -22,8 +22,8 @@ import static org.apache.beam.runners.core.metrics.MetricUpdateMatchers.metricUp
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 
 import org.apache.beam.sdk.metrics.MetricName;
 import org.junit.Test;
@@ -73,7 +73,7 @@ public class MetricsContainerImplTest {
     assertEquals(dne, null);
 
     CounterCell readC1 = container.tryGetCounter(MetricName.named("ns", "name1"));
-    assertEquals((long)readC1.getCumulative(), 13L);
+    assertEquals((long) readC1.getCumulative(), 13L);
   }
 
   @Test
