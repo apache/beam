@@ -81,11 +81,19 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     this.stepName = stepName;
   }
 
+  /**
+   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, create a
+   * {@code Metric} with the specified name.
+   */
   @Override
   public CounterCell getCounter(MetricName metricName) {
     return counters.get(metricName);
   }
 
+  /**
+   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, return
+   * {@code null}.
+   */
   @Nullable
   public CounterCell tryGetCounter(MetricName metricName) { return counters.tryGet(metricName); }
 
