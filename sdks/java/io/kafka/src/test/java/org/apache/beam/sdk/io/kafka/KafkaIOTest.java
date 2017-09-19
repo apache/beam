@@ -32,9 +32,9 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -114,14 +114,19 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link KafkaIO}.
  * Run with 'mvn test -Dkafka.clients.version=0.10.1.1',
- * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version
+ * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version.
  */
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
+
   /*
    * The tests below borrow code and structure from CountingSourceTest. In addition verifies
    * the reader interleaves the records from multiple partitions.
@@ -184,7 +189,7 @@ public class KafkaIOTest {
           //1. SpEL can find this function, either input is List or Collection;
           //2. List extends Collection, so super.assign() could find either assign(List)
           //  or assign(Collection).
-          public void assign(final Collection<TopicPartition> assigned) {
+          public void assign(final List<TopicPartition> assigned) {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
             for (TopicPartition tp : assigned) {
@@ -790,6 +795,11 @@ public class KafkaIOTest {
     // similar to testSink(), enables to EOS.
     // This does not actually test exactly-once-semantics. Mainly exercises the code.
 
+    if (!ProducerSpEL.supportsTransactions()) {
+      LOG.warn("testEOSink() is disabled as Kafka client version does not support transactions.");
+      return;
+    }
+
     int numElements = 1000;
 
     try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
@@ -1108,15 +1118,27 @@ public class KafkaIOTest {
   }
 
   /**
-   * This wrapper over MockProducer places the mock producer in global MOCK_PRODUCER_MAP. The map
-   * is needed so that the producer returned by ProducerFactoryFn during pipeline can be used in
-   * verification after the test. We also override {@code flush()} method in MockProducer
-   * so that test can control behavior of {@code send()} method (e.g. inject errors).
+   * This wrapper over MockProducer. It also places the mock producer in global MOCK_PRODUCER_MAP.
+   * The map is needed so that the producer returned by ProducerFactoryFn during pipeline can be
+   * used in verification after the test. We also override {@code flush()} method in MockProducer
+   * so that test can control behavior of {@code send()} method (e.g. to inject errors).
    */
   private static class MockProducerWrapper implements AutoCloseable {
 
     final String producerKey;
     final MockProducer<Integer, Long> mockProducer;
+
+    // MockProducer has "closed" method starting version 0.11.
+    private static Method closedMethod;
+
+    static {
+      try {
+        closedMethod = MockProducer.class.getMethod("closed");
+      } catch (NoSuchMethodException e) {
+        closedMethod = null;
+      }
+    }
+
 
     MockProducerWrapper() {
       producerKey = String.valueOf(ThreadLocalRandom.current().nextLong());
@@ -1147,8 +1169,12 @@ public class KafkaIOTest {
 
     public void close() {
       MOCK_PRODUCER_MAP.remove(producerKey);
-      if (!mockProducer.closed()) {
-        mockProducer.close();
+      try {
+        if (closedMethod == null || !((Boolean) closedMethod.invoke(mockProducer))) {
+          mockProducer.close();
+        }
+      } catch (Exception e) { // Not expected.
+        throw new RuntimeException(e);
       }
     }
   }
