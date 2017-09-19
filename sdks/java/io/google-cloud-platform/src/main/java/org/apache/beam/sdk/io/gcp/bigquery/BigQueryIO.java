@@ -34,6 +34,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -1278,9 +1279,12 @@ public class BigQueryIO {
             getWriteDisposition() != WriteDisposition.WRITE_TRUNCATE,
             "WriteDisposition.WRITE_TRUNCATE is not supported for an unbounded"
                 + " PCollection.");
+        InsertRetryPolicy retryPolicy = MoreObjects.firstNonNull(
+            getFailedInsertRetryPolicy(), InsertRetryPolicy.alwaysRetry());
+
         StreamingInserts<DestinationT> streamingInserts =
             new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
-                .withInsertRetryPolicy(getFailedInsertRetryPolicy())
+                .withInsertRetryPolicy(retryPolicy)
                 .withTestServices((getBigQueryServices()));
         return rowsWithDestination.apply(streamingInserts);
       } else {
