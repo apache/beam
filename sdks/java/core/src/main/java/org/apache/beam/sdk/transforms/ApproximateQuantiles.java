@@ -366,6 +366,14 @@ public class ApproximateQuantiles {
           .add(DisplayData.item("comparer", compareFn.getClass())
             .withLabel("Record Comparer"));
     }
+
+    int getNumBuffers() {
+      return numBuffers;
+    }
+
+    int getBufferSize() {
+      return bufferSize;
+    }
   }
 
   /**
