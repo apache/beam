@@ -56,6 +56,8 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
     this.stopOffset = stopOffset;
   }
 
+  private OffsetRangeTracker() { }
+
   public synchronized boolean isStarted() {
     // done => started: handles the case when the reader was empty.
     return (offsetOfLastSplitPoint != -1) || done;
@@ -263,9 +265,10 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
   @VisibleForTesting
   OffsetRangeTracker copy() {
     synchronized (this) {
-      OffsetRangeTracker res = null;
+      OffsetRangeTracker res = new OffsetRangeTracker();
       synchronized (res) {
-        res = new OffsetRangeTracker(this.startOffset, this.stopOffset);
+        res.startOffset = this.startOffset;
+        res.stopOffset = this.stopOffset;
         res.offsetOfLastSplitPoint = this.offsetOfLastSplitPoint;
         res.lastRecordStart = this.lastRecordStart;
         res.done = this.done;
