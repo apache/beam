@@ -2343,4 +2343,15 @@ public class BigQueryIOTest implements Serializable {
     }
     return converted;
   }
+
+  @Test
+  public void testTableDecoratorStripping() {
+    TableDestination tableDestination = tableDestination = new TableDestination(
+        "project:dataset.table$decorator", "");
+    assertEquals("project:dataset.table", tableDestination.getStrippedTableSpec());
+
+    tableDestination = new TableDestination("project:dataset.table", "");
+    assertEquals("project:dataset.table", tableDestination.getStrippedTableSpec());
+
+  }
 }
