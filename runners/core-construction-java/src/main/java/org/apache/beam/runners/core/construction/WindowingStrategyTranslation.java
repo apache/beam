@@ -17,9 +17,7 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -223,7 +221,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(OLD_SERIALIZED_JAVA_WINDOWFN_URN)
-                  .setAnyParam(Any.pack(BytesValue.newBuilder().setValue(serializedFn).build()))
                   .setPayload(serializedFn)
                   .build())
           .build();
@@ -241,7 +238,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(FIXED_WINDOWS_FN)
-                  .setAnyParam(Any.pack(fixedWindowsPayload))
                   .setPayload(fixedWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof SlidingWindows) {
@@ -254,7 +250,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SLIDING_WINDOWS_FN)
-                  .setAnyParam(Any.pack(slidingWindowsPayload))
                   .setPayload(slidingWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof Sessions) {
@@ -266,7 +261,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SESSION_WINDOWS_FN)
-                  .setAnyParam(Any.pack(sessionsPayload))
                   .setPayload(sessionsPayload.toByteString()))
           .build();
     } else {
@@ -274,7 +268,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
-                  .setAnyParam(Any.pack(BytesValue.newBuilder().setValue(serializedFn).build()))
                   .setPayload(serializedFn))
           .build();
     }
