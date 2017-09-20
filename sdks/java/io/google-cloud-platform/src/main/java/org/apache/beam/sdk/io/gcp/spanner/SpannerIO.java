@@ -806,7 +806,7 @@ public class SpannerIO {
       SpannerSchema schema = c.sideInput(schemaView);
       String table = m.getTable();
       MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(schema);
-      byte[] key = new byte[] {};
+      byte[] key = new byte[] {};  // Empty by default, will not batched.
       if (m.getOperation() != Mutation.Op.DELETE) {
         key = mutationGroupEncoder.encodeKey(m);
       } else if (isPointDelete(m)) {
