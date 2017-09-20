@@ -47,7 +47,7 @@ job('beam_PerformanceTests_JDBC'){
             "-Pdataflow-runner",
             'clean',
             'install',
-            "-pl runners/google-cloud-dataflow-java",
+//            "-pl runners/google-cloud-dataflow-java",
             '-DskipTests'
     ]
 
