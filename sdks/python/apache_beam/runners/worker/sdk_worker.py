@@ -123,9 +123,9 @@ class SdkWorker(object):
   def register(self, request, instruction_id):
     for process_bundle_descriptor in request.process_bundle_descriptor:
       self.fns[process_bundle_descriptor.id] = process_bundle_descriptor
-    return beam_fn_api_pb2.InstructionResponse(**{
-        'instruction_id': instruction_id,
-        'register': beam_fn_api_pb2.RegisterResponse()})
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
     bundle_processor.BundleProcessor(
@@ -133,11 +133,11 @@ class SdkWorker(object):
         self.state_handler,
         self.data_channel_factory).process_bundle(instruction_id)
 
-    return beam_fn_api_pb2.InstructionResponse(**{
-        'instruction_id': instruction_id,
-        'process_bundle': beam_fn_api_pb2.ProcessBundleResponse()})
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        process_bundle=beam_fn_api_pb2.ProcessBundleResponse())
 
   def process_bundle_progress(self, request, instruction_id):
-    return beam_fn_api_pb2.InstructionResponse(**{
-        'instruction_id': instruction_id,
-        'error': 'Not Supported'})
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        error='Not Supported')
