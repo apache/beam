@@ -61,6 +61,7 @@ job('beam_PerformanceTests_JDBC'){
             '-Dio-it-suite',
             '-DpkbLocation="$WORKSPACE/PerfKitBenchmarker/pkb.py"',
             '-DmvnBinary=/home/jenkins/tools/maven/latest/bin/mvn',
+            '-Dkubectl=/usr/lib/google-cloud-sdk/bin/kubectl',
             '-DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests" ]\''
     ]
 
@@ -78,7 +79,7 @@ job('beam_PerformanceTests_JDBC'){
 
     steps {
         shell('echo xyz123')
-        shell('export PATH=/usr/lib/google-cloud-sdk/bin:$PATH')
+        shell('export PATH=$PATH:/usr/lib/google-cloud-sdk/bin')
         shell('echo $PATH')
         shell('ls /usr/lib/google-cloud-sdk/bin')
         shell('kubectl help')
