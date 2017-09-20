@@ -24,9 +24,12 @@ import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
 import java.io.Serializable;
+import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -67,7 +70,7 @@ public class SerializableUtils {
   public static Object deserializeFromByteArray(byte[] encodedValue,
       String description) {
     try {
-      try (ObjectInputStream ois = new ObjectInputStream(
+      try (ObjectInputStream ois = new ContextualObjectInputStream(
           new SnappyInputStream(new ByteArrayInputStream(encodedValue)))) {
         return ois.readObject();
       }
@@ -79,16 +82,22 @@ public class SerializableUtils {
   }
 
   public static <T extends Serializable> T ensureSerializable(T value) {
-    @SuppressWarnings("unchecked")
-    T copy = (T) deserializeFromByteArray(serializeToByteArray(value),
-        value.toString());
-    return copy;
+    return clone(value);
   }
 
   public static <T extends Serializable> T clone(T value) {
+    final Thread thread = Thread.currentThread();
+    final ClassLoader loader = value == null
+            ? thread.getContextClassLoader() : value.getClass().getClassLoader();
+    final ClassLoader pushedLoader = thread.getContextClassLoader();
+    thread.setContextClassLoader(loader);
     @SuppressWarnings("unchecked")
-    T copy = (T) deserializeFromByteArray(serializeToByteArray(value),
-        value.toString());
+    final T copy;
+    try {
+      copy = (T) deserializeFromByteArray(serializeToByteArray(value), value.toString());
+    } finally {
+      thread.setContextClassLoader(pushedLoader);
+    }
     return copy;
   }
 
@@ -143,5 +152,46 @@ public class SerializableUtils {
             + ", encoding of value " + value + ", using " + coder,
             exn);
       }
+  }
+
+  private static final class ContextualObjectInputStream extends ObjectInputStream {
+    private ContextualObjectInputStream(final InputStream in) throws IOException {
+      super(in);
+    }
+
+    @Override
+    protected Class<?> resolveClass(final ObjectStreamClass classDesc)
+            throws IOException, ClassNotFoundException {
+      // note: staying aligned on JVM default but can need class filtering here to avoid 0day issue
+      final String n = classDesc.getName();
+      final ClassLoader classloader = getClassloader();
+      try {
+        return Class.forName(n, false, classloader);
+      } catch (final ClassNotFoundException e) {
+        return super.resolveClass(classDesc);
+      }
+    }
+
+    @Override
+    protected Class resolveProxyClass(final String[] interfaces)
+            throws IOException, ClassNotFoundException {
+      final ClassLoader classloader = getClassloader();
+
+      final Class[] cinterfaces = new Class[interfaces.length];
+      for (int i = 0; i < interfaces.length; i++) {
+        cinterfaces[i] = classloader.loadClass(interfaces[i]);
+      }
+
+      try {
+        return Proxy.getProxyClass(classloader, cinterfaces);
+      } catch (final IllegalArgumentException e) {
+        throw new ClassNotFoundException(null, e);
+      }
+    }
+
+    private ClassLoader getClassloader() {
+      final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
+      return contextClassLoader == null ? ClassLoader.getSystemClassLoader() : contextClassLoader;
+    }
   }
 }
