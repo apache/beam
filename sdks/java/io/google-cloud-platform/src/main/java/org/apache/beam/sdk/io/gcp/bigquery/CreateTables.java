@@ -113,7 +113,7 @@ public class CreateTables<DestinationT>
   private void possibleCreateTable(
       BigQueryOptions options, TableDestination tableDestination, TableSchema tableSchema)
       throws InterruptedException, IOException {
-    String tableSpec = tableDestination.getStrippedTableSpec();
+    String tableSpec = BigQueryHelpers.getStrippedTableSpec(tableDestination.getTableSpec());
     TableReference tableReference = tableDestination.getTableReference();
     String tableDescription = tableDestination.getTableDescription();
     if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
@@ -123,6 +123,8 @@ public class CreateTables<DestinationT>
         // every thread from attempting a create and overwhelming our BigQuery quota.
         DatasetService datasetService = bqServices.getDatasetService(options);
         if (!createdTables.contains(tableSpec)) {
+          tableReference.setTableId(
+              BigQueryHelpers.getStrippedTableSpec(tableReference.getTableId()));
           if (datasetService.getTable(tableReference) == null) {
             Table table = new Table()
                 .setTableReference(tableReference)

@@ -112,6 +112,14 @@ public class BigQueryHelpers {
     return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
   }
 
+  /**
+   * Strip off any partition decorator information from a tablespec.
+   */
+  static public String getStrippedTableSpec(String tableSpec) {
+    int index = tableSpec.lastIndexOf('$');
+    return  (index  == -1) ? tableSpec : tableSpec.substring(0, index);
+  }
+
   static String jobToPrettyString(@Nullable Job job) throws IOException {
     return job == null ? "null" : job.toPrettyString();
   }

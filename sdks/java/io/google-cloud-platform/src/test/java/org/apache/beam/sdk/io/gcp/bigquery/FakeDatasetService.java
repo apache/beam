@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.InsertRetryPolicy.Context;
@@ -111,7 +112,17 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public void createTable(Table table) throws IOException {
+    final Pattern TABLE_REGEXP = Pattern.compile("[-\\w]{1,1024}");
+
     TableReference tableReference = table.getTableReference();
+    if (!TABLE_REGEXP.matcher(tableReference.getTableId()).matches()) {
+      throw new IOException(
+          String.format(
+              "invalid table ID %s. Table IDs must be alphanumeric "
+                  + "(plus underscores) and must be at most 1024 characters long. Also, table decorators "
+                  + "cannot be used.",
+              tableReference.getTableId()));
+    }
     synchronized (BigQueryIOTest.tables) {
       Map<String, TableContainer> dataset =
           BigQueryIOTest.tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
@@ -202,7 +213,9 @@ class FakeDatasetService implements DatasetService, Serializable {
 
       long dataSize = 0;
       TableContainer tableContainer = getTableContainer(
-          ref.getProjectId(), ref.getDatasetId(), ref.getTableId());
+          ref.getProjectId(),
+          ref.getDatasetId(),
+          BigQueryHelpers.getStrippedTableSpec(ref.getTableId()));
       for (int i = 0; i < rowList.size(); ++i) {
         TableRow row = rowList.get(i).getValue();
         List<TableDataInsertAllResponse.InsertErrors> allErrors = insertErrors.get(row);

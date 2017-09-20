@@ -30,7 +30,6 @@ import javax.annotation.Nullable;
 public class TableDestination implements Serializable {
   private static final long serialVersionUID = 1L;
   private final String tableSpec;
-  @Nullable private String strippedTableSpec;
   @Nullable
   private final String tableDescription;
   @Nullable
@@ -60,22 +59,12 @@ public class TableDestination implements Serializable {
   public TableDestination(String tableSpec, @Nullable String tableDescription,
       @Nullable String jsonTimePartitioning) {
     this.tableSpec = tableSpec;
-    this.strippedTableSpec = null;
     this.tableDescription = tableDescription;
     this.jsonTimePartitioning = jsonTimePartitioning;
   }
 
-
   public String getTableSpec() {
     return tableSpec;
-  }
-
-  public String getStrippedTableSpec() {
-    if (strippedTableSpec == null) {
-      int index = tableSpec.lastIndexOf('$');
-      strippedTableSpec = (index  == -1) ? tableSpec : tableSpec.substring(0, index);
-    }
-    return strippedTableSpec;
   }
 
   public TableReference getTableReference() {
