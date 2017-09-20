@@ -78,11 +78,11 @@ job('beam_PerformanceTests_JDBC'){
     }
 
     steps {
-        shell('echo xyz123')
-        shell('export PATH=$PATH:/usr/lib/google-cloud-sdk/bin')
-        shell('echo $PATH')
-        shell('ls /usr/lib/google-cloud-sdk/bin')
-        shell('kubectl help')
+//        shell('echo xyz123')
+//        shell('export PATH=$PATH:/usr/lib/google-cloud-sdk/bin')
+//        shell('echo $PATH')
+//        shell('ls /usr/lib/google-cloud-sdk/bin')
+        shell('/usr/lib/google-cloud-sdk/bin/kubectl help')
         shell(clean_install_command.join(' '))
         shell(io_it_suite_command.join(' '))
     }
