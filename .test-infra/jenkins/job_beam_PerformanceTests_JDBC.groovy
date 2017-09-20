@@ -78,7 +78,7 @@ job('beam_PerformanceTests_JDBC'){
 
     steps {
         shell('echo xyz123')
-        shell('PATH=/usr/lib/google-cloud-sdk/bin:$PATH')
+        shell('export PATH=/usr/lib/google-cloud-sdk/bin:$PATH')
         shell('echo $PATH')
         shell('ls /usr/lib/google-cloud-sdk/bin')
         shell('kubectl help')
