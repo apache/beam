@@ -71,9 +71,6 @@ public class MetricsContainerImplTest {
 
     CounterCell dne = container.tryGetCounter(MetricName.named("ns", "dne"));
     assertEquals(dne, null);
-
-    CounterCell readC1 = container.tryGetCounter(MetricName.named("ns", "name1"));
-    assertEquals((long) readC1.getCumulative(), 13L);
   }
 
   @Test
@@ -96,6 +93,9 @@ public class MetricsContainerImplTest {
     assertThat(container.getCumulative().counterUpdates(), containsInAnyOrder(
         metricUpdate("name1", 13L),
         metricUpdate("name2", 4L)));
+
+    CounterCell readC1 = container.tryGetCounter(MetricName.named("ns", "name1"));
+    assertEquals((long) readC1.getCumulative(), 13L);
   }
 
   @Test
@@ -133,5 +133,8 @@ public class MetricsContainerImplTest {
     assertThat(container.getUpdates().distributionUpdates(), contains(
         metricUpdate("name1", DistributionData.create(17, 3, 4, 8))));
     container.commitUpdates();
+
+    DistributionCell dne = container.tryGetDistribution(MetricName.named("ns", "dne"));
+    assertEquals(dne, null);
   }
 }

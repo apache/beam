@@ -99,14 +99,40 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return counters.tryGet(metricName);
   }
 
+  /**
+   * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, create a
+   * {@code Metric} with the specified name.
+   */
   @Override
   public DistributionCell getDistribution(MetricName metricName) {
     return distributions.get(metricName);
   }
 
+  /**
+   * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, return
+   * {@code null}.
+   */
+  @Nullable
+  public DistributionCell tryGetDistribution(MetricName metricName) {
+    return distributions.tryGet(metricName);
+  }
+
+  /**
+   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, create a
+   * {@code Metric} with the specified name.
+   */
   @Override
   public GaugeCell getGauge(MetricName metricName) {
     return gauges.get(metricName);
+  }
+
+  /**
+   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, return
+   * {@code null}.
+   */
+  @Nullable
+  public GaugeCell tryGetGauge(MetricName metricName) {
+    return gauges.tryGet(metricName);
   }
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
