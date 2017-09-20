@@ -215,7 +215,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_@flink.scala.version@</artifactId>
+          <artifactId>beam-runners-flink_2.10</artifactId>
           <version>${beam.version}</version>
           <scope>runtime</scope>
         </dependency>
