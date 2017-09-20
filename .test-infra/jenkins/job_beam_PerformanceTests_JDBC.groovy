@@ -62,7 +62,7 @@ job('beam_PerformanceTests_JDBC'){
             '-DpkbLocation="$WORKSPACE/PerfKitBenchmarker/pkb.py"',
             '-DmvnBinary=/home/jenkins/tools/maven/latest/bin/mvn',
             '-Dkubectl=/usr/lib/google-cloud-sdk/bin/kubectl',
-            '-Dkubeconfig=/home/jenkins/.kube/config',
+//            '-Dkubeconfig=, # TODO(chamikara): should we set this
             '-DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests" ]\''
     ]
 
@@ -79,15 +79,12 @@ job('beam_PerformanceTests_JDBC'){
     }
 
     steps {
-        shell('echo xyz123')
+//        shell('echo xyz123')
 //        shell('export PATH=$PATH:/usr/lib/google-cloud-sdk/bin')
 //        shell('echo $PATH')
 //        shell('ls /usr/lib/google-cloud-sdk/bin')
-//        shell('/usr/lib/google-cloud-sdk/bin/kubectl help')
-        shell('ls /home/jenkins/')
-        shell('ls /home/jenkins/.kube/')
-        shell('cat /home/jenkins/.kube/config')
-//        shell(clean_install_command.join(' '))
-//        shell(io_it_suite_command.join(' '))
+        shell('/usr/lib/google-cloud-sdk/bin/kubectl help')
+        shell(clean_install_command.join(' '))
+        shell(io_it_suite_command.join(' '))
     }
 }
