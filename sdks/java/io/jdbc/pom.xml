@@ -128,7 +128,7 @@
                 <argument>-beam_prebuilt=true</argument>
                 <argument>-maven_binary=${mvnBinary}</argument>
                 <argument>-beam_sdk=java</argument>
-                <!--<argument>-kubeconfig=${kubeconfig}</argument>-->
+                <argument>-kubeconfig=${kubeconfig}</argument>
                 <argument>-kubectl=${kubectl}</argument>
                 <!-- runner overrides, controlled via forceDirectRunner -->
                 <argument>${pkbBeamRunnerProfile}</argument>
