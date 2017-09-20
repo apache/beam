@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import copy
 import glob
 import tempfile
 
@@ -33,6 +34,7 @@ from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'assert_that',
+    'contains_in_any_order',
     'equal_to',
     'is_empty',
     # open_shards is internal and has no backwards compatibility guarantees.
@@ -50,7 +52,6 @@ class BeamAssertException(Exception):
 # compare are PCollections for which there is no guaranteed order.
 # However the sorting does not go beyond top level therefore [1,2] and [2,1]
 # are considered equal and [[1,2]] and [[2,1]] are not.
-# TODO(silviuc): Add contains_in_any_order-style matchers.
 def equal_to(expected):
   expected = list(expected)
 
@@ -61,6 +62,43 @@ def equal_to(expected):
       raise BeamAssertException(
           'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
   return _equal
+
+
+def contains_in_any_order(predicates):
+  """Create a matcher to check that an iterable maps to a list of predicates.
+
+  Args:
+    predicates: a list of predicate functions that take a value from the
+      iterable as argument and return True to indicate a match and False to
+      indicate a non-match. Each of the predicates will only be used once, so
+      be careful when specifying predicates that may be satisfied by more
+      than one entry in an iterable.
+
+  Returns:
+    A matcher that operates on iterables and raises an error if any of the
+    following are true:
+    - the length of the list of predicates is not equal to the length of the
+      iterable.
+    - an item in the iterable matches no predicate in the list of predicates.
+  """
+  predicates = copy.copy(predicates)
+
+  def _matches(item):
+    for i, predicate in enumerate(predicates):
+      if predicate(item):
+        del predicates[i]
+        return True
+    return False
+
+  def _contains_in_any_order(actual):
+    e = BeamAssertException('Failed assert: %r contains_in_any_order %r' %
+                            (actual, predicates))
+    if len(actual) != len(predicates):
+      raise e
+    for item in actual:
+      if not _matches(item):
+        raise e
+  return _contains_in_any_order
 
 
 def is_empty():
