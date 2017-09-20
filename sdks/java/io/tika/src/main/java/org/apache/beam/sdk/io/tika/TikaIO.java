@@ -21,7 +21,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 
 import javax.annotation.Nullable;
-
+import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read.Bounded;
@@ -53,7 +53,10 @@ import org.apache.tika.metadata.Metadata;
  * // A simple Read of a local PDF file (only runs locally):
  * PCollection<String> content = p.apply(TikaInput.from("/local/path/to/file.pdf"));
  * }</pre>
+ *
+ * <b>Warning:</b> the API of this IO is likely to change in the next release.
  */
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class TikaIO {
 
   /**
