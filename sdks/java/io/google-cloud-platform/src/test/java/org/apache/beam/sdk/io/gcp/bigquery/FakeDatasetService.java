@@ -112,15 +112,15 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public void createTable(Table table) throws IOException {
-    final Pattern TABLE_REGEXP = Pattern.compile("[-\\w]{1,1024}");
+    final Pattern tableRegexp = Pattern.compile("[-\\w]{1,1024}");
 
     TableReference tableReference = table.getTableReference();
-    if (!TABLE_REGEXP.matcher(tableReference.getTableId()).matches()) {
+    if (!tableRegexp.matcher(tableReference.getTableId()).matches()) {
       throw new IOException(
           String.format(
               "invalid table ID %s. Table IDs must be alphanumeric "
-                  + "(plus underscores) and must be at most 1024 characters long. Also, table decorators "
-                  + "cannot be used.",
+                  + "(plus underscores) and must be at most 1024 characters long. Also, table"
+                  + " decorators cannot be used.",
               tableReference.getTableId()));
     }
     synchronized (BigQueryIOTest.tables) {
