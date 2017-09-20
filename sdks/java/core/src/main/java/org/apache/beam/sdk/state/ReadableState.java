@@ -36,6 +36,8 @@ public interface ReadableState<T> {
    * <p>If there will be many calls to {@link #read} for different state in short succession, you
    * should first call {@link #readLater} for all of them so the reads can potentially be batched
    * (depending on the underlying implementation}.
+   *
+   * <p>Subclasses should not modify the returned object through other calls to the state object.
    */
   T read();
 
