@@ -115,7 +115,7 @@ public class BigQueryHelpers {
   /**
    * Strip off any partition decorator information from a tablespec.
    */
-  static public String getStrippedTableSpec(String tableSpec) {
+  public static String stripPartitionDecorator(String tableSpec) {
     int index = tableSpec.lastIndexOf('$');
     return  (index  == -1) ? tableSpec : tableSpec.substring(0, index);
   }

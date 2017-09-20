@@ -2334,8 +2334,8 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testTableDecoratorStripping() {
     assertEquals("project:dataset.table",
-        BigQueryHelpers.getStrippedTableSpec("project:dataset.table$decorator"));
+        BigQueryHelpers.stripPartitionDecorator("project:dataset.table$decorator"));
     assertEquals("project:dataset.table",
-        BigQueryHelpers.getStrippedTableSpec("project:dataset.table"));
+        BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
   }
 }

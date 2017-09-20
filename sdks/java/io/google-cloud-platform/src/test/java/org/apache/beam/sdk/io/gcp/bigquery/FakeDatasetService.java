@@ -215,7 +215,7 @@ class FakeDatasetService implements DatasetService, Serializable {
       TableContainer tableContainer = getTableContainer(
           ref.getProjectId(),
           ref.getDatasetId(),
-          BigQueryHelpers.getStrippedTableSpec(ref.getTableId()));
+          BigQueryHelpers.stripPartitionDecorator(ref.getTableId()));
       for (int i = 0; i < rowList.size(); ++i) {
         TableRow row = rowList.get(i).getValue();
         List<TableDataInsertAllResponse.InsertErrors> allErrors = insertErrors.get(row);
