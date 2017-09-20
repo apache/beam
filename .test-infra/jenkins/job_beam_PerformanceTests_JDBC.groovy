@@ -47,7 +47,8 @@ job('beam_PerformanceTests_JDBC'){
             "-Pdataflow-runner",
             'clean',
             'install',
-//            "-pl runners/google-cloud-dataflow-java",
+            // TODO: remove following since otherwise build could break due to changes to other mvn projects
+            "-pl runners/google-cloud-dataflow-java",
             '-DskipTests'
     ]
 
@@ -80,6 +81,7 @@ job('beam_PerformanceTests_JDBC'){
         shell('PATH=/usr/lib/google-cloud-sdk/bin:$PATH')
         shell('echo $PATH')
         shell('ls /usr/lib/google-cloud-sdk/bin')
+        shell('kubectl help')
         shell(clean_install_command.join(' '))
         shell(io_it_suite_command.join(' '))
     }
