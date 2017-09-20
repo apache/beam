@@ -741,6 +741,53 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
+  public void testFailuresNoRetryPolicy() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeDatasetService datasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(datasetService);
+
+    datasetService.createDataset("project-id", "dataset-id", "", "");
+
+    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
+    TableRow row2 = new TableRow().set("name", "b").set("number", "2");
+    TableRow row3 = new TableRow().set("name", "c").set("number", "3");
+
+    TableDataInsertAllResponse.InsertErrors ephemeralError =
+        new TableDataInsertAllResponse.InsertErrors().setErrors(
+            ImmutableList.of(new ErrorProto().setReason("timeout")));
+
+    datasetService.failOnInsert(
+        ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
+            row1, ImmutableList.of(ephemeralError, ephemeralError),
+            row2, ImmutableList.of(ephemeralError, ephemeralError)));
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    p.apply(Create.of(row1, row2, row3))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id")
+                .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+                .withMethod(Method.STREAMING_INSERTS)
+                .withSchema(
+                    new TableSchema()
+                        .setFields(
+                            ImmutableList.of(
+                                new TableFieldSchema().setName("name").setType("STRING"),
+                                new TableFieldSchema().setName("number").setType("INTEGER"))))
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+    p.run();
+
+    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(row1, row2, row3));
+  }
+
+  @Test
   public void testRetryPolicy() throws Exception {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("project-id");
@@ -772,9 +819,9 @@ public class BigQueryIOTest implements Serializable {
     Pipeline p = TestPipeline.create(bqOptions);
     PCollection<TableRow> failedRows =
         p.apply(Create.of(row1, row2, row3))
-            .setIsBoundedInternal(IsBounded.UNBOUNDED)
             .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
             .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withMethod(Method.STREAMING_INSERTS)
             .withSchema(new TableSchema().setFields(
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
@@ -790,7 +837,6 @@ public class BigQueryIOTest implements Serializable {
     // Only row1 and row3 were successfully inserted.
     assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(row1, row3));
-
   }
 
   @Test
