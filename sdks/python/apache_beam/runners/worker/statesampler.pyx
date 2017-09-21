@@ -183,7 +183,7 @@ cdef class StateSampler(object):
         self.scoped_states_by_index[self.current_state_index].name,
         self.state_transition_count)
 
-  def scoped_state(self, step_name, state_name=None):
+  def scoped_state(self, step_name, state_name=None, io_target=None):
     """Returns a context manager managing transitions for a given state."""
     cdef ScopedState scoped_state
     if state_name is None:
@@ -194,7 +194,8 @@ cdef class StateSampler(object):
     else:
       counter_name = CounterName(state_name+'-msecs',
                                  stage_name=self.prefix,
-                                 step_name=step_name)
+                                 step_name=step_name,
+                                 io_target=io_target)
       scoped_state = self.scoped_states_by_name.get(counter_name, None)
 
     if scoped_state is None:
