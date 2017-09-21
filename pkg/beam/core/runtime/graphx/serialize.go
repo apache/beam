@@ -19,7 +19,7 @@ import (
 var genFnType = reflect.TypeOf((*func([]byte) func([]reflect.Value) []reflect.Value)(nil)).Elem()
 
 // EncodeMultiEdge converts the preprocessed representation into the wire
-// representation of the multiedge, capturing input and ouput type information.
+// representation of the multiedge, capturing input and output type information.
 func EncodeMultiEdge(edge *graph.MultiEdge) (*v1.MultiEdge, error) {
 	ret := &v1.MultiEdge{}
 	ret.Opcode = string(edge.Op)

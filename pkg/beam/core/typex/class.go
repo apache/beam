@@ -31,7 +31,7 @@ const (
 )
 
 // TODO(herohde) 5/16/2017: maybe we should add more classes, so that every
-// reasonable type (such as error) is not Invalid, even though it it not
+// reasonable type (such as error) is not Invalid, even though it is not
 // valid in FullType. "Special", say? Right now, a valid DoFn signature may
 // have "Invalid" parameter types, which might be confusing. Or maybe rename
 // as DataClass to make the narrower scope clearer?

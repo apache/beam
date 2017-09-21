@@ -540,7 +540,7 @@ message StateKey {
     string ptransform_id = 1;
     // (Required) The id of the user state.
     string user_state_id = 2;
-    // (Required) The window encoded in a nested context. 
+    // (Required) The window encoded in a nested context.
     bytes window = 3;
     // (Required) The key of the currently executing element encoded in a
     // nested context.
