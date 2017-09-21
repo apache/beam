@@ -85,7 +85,7 @@ func (g *Graph) Build() ([]*MultiEdge, []*Node, error) {
 			reachable[o.To] = e
 		}
 	}
-	for n, _ := range nodes {
+	for n := range nodes {
 		if _, ok := reachable[n]; !ok {
 			return nil, nil, fmt.Errorf("node %v in graph is unconnected", n.id)
 		}

@@ -6,6 +6,7 @@ import (
 	"flag"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	// The imports here are for the side effect of runner registration.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/gcs"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/local"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"

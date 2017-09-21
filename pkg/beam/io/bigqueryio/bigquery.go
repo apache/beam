@@ -1,4 +1,4 @@
-// package bigqueryio provides transformations and utilities to interact with
+// Package bigqueryio provides transformations and utilities to interact with
 // Google BigQuery. See also: https://cloud.google.com/bigquery/docs.
 package bigqueryio
 

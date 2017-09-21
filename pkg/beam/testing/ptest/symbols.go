@@ -40,7 +40,7 @@ func (r *resolver) Register(fn interface{}) {
 func (r *resolver) Sym2Addr(name string) (uintptr, error) {
 	ptr, ok := r.registry[name]
 	if !ok {
-		return 0, fmt.Errorf("%v not registered. Use ptest.RegisterFn in unit tests.", name)
+		return 0, fmt.Errorf("%v not registered. Use ptest.RegisterFn in unit tests", name)
 	}
 	return ptr, nil
 }
