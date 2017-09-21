@@ -37,7 +37,9 @@ public interface ReadableState<T> {
    * should first call {@link #readLater} for all of them so the reads can potentially be batched
    * (depending on the underlying implementation}.
    *
-   * <p>Subclasses should not modify the returned object through other calls to the state object.
+   * <p>The returned object should be independent of the underlying state.  Any direct modification
+   * of the returned object should not modify state without going through the appropriate state
+   * interface, and modification to the state should not be mirrored in the returned object.
    */
   T read();
 
