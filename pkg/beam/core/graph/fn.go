@@ -282,7 +282,7 @@ func verifyValidNames(fn *Fn, names ...string) error {
 		m[name] = true
 	}
 
-	for key, _ := range fn.methods {
+	for key := range fn.methods {
 		if !m[key] {
 			return fmt.Errorf("unexpected method %v present. Valid methods are: %v", key, names)
 		}

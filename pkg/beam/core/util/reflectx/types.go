@@ -1,4 +1,4 @@
-// package reflectx contains a set of reflection utilities and well-known types.
+// Package reflectx contains a set of reflection utilities and well-known types.
 package reflectx
 
 import (

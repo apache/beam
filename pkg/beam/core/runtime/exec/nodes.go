@@ -26,19 +26,19 @@ func (d *Discard) ID() UnitID {
 	return d.UID
 }
 
-func (_ *Discard) Up(ctx context.Context) error {
+func (d *Discard) Up(ctx context.Context) error {
 	return nil
 }
 
-func (_ *Discard) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
+func (d *Discard) ProcessElement(ctx context.Context, value FullValue, values ...ReStream) error {
 	return nil
 }
 
-func (_ *Discard) Down(ctx context.Context) error {
+func (d *Discard) Down(ctx context.Context) error {
 	return nil
 }
 
-func (_ *Discard) String() string {
+func (d *Discard) String() string {
 	return "Discard"
 }
 
