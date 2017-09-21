@@ -1,9 +1,10 @@
 package protox
 
 import (
-	"reflect"
+	"bytes"
 	"testing"
 
+	"github.com/golang/protobuf/proto"
 	protobufw "github.com/golang/protobuf/ptypes/wrappers"
 )
 
@@ -22,7 +23,7 @@ func TestProtoPackingInvertibility(t *testing.T) {
 		t.Errorf("Failed to unpack data: %v", err)
 	}
 
-	if !reflect.DeepEqual(res, buf) {
+	if !proto.Equal(&res, &buf) {
 		t.Errorf("Got %v, wanted %v", res, buf)
 	}
 
@@ -43,7 +44,7 @@ func TestProto64PackingInvertibility(t *testing.T) {
 		t.Errorf("Failed to unpack data: %v", err)
 	}
 
-	if !reflect.DeepEqual(res, buf) {
+	if !proto.Equal(&res, &buf) {
 		t.Errorf("Got %v, wanted %v", res, buf)
 	}
 }
@@ -61,7 +62,7 @@ func TestBytesPackingInvertibility(t *testing.T) {
 		t.Errorf("Failed to unpack data: %v", err)
 	}
 
-	if !reflect.DeepEqual(b, data) {
+	if !bytes.Equal(b, data) {
 		t.Errorf("Got %v, wanted %v", b, data)
 	}
 }
