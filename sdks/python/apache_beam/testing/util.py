@@ -70,35 +70,38 @@ def contains_in_any_order(predicates):
   Args:
     predicates: a list of predicate functions that take a value from the
       iterable as argument and return True to indicate a match and False to
-      indicate a non-match. Each of the predicates will only be used once, so
-      be careful when specifying predicates that may be satisfied by more
-      than one entry in an iterable.
+      indicate a non-match.
 
   Returns:
     A matcher that operates on iterables and raises an error if any of the
-    following are true:
-    - the length of the list of predicates is not equal to the length of the
+      following are true:
+      - the length of the list of predicates is not equal to the length of the
       iterable.
-    - an item in the iterable matches no predicate in the list of predicates.
+      - there isn't a way to create a one-to-one mapping from items i in the
+      iterable to predicates p such that p(i) == True for all i.
   """
-  predicates = copy.copy(predicates)
+  def _contains_in_any_order(all_items, all_predicates):
+    stack = [(all_items, all_predicates)]
 
-  def _matches(item):
-    for i, predicate in enumerate(predicates):
-      if predicate(item):
-        del predicates[i]
-        return True
+    # Perform a depth-first search to find a mapping from items in the
+    # iterable to predicates they satisfy.
+    while len(stack) > 0:
+      items, predicates = stack[0]
+      stack = stack[1:]
+      if items == []:
+        return predicates == []
+      for i, p in enumerate(predicates):
+        remaining_predicates = copy.copy(predicates)
+        del remaining_predicates[i]
+        if p(items[0]):
+          stack = [(items[1:], remaining_predicates)] + stack
     return False
 
-  def _contains_in_any_order(actual):
-    e = BeamAssertException('Failed assert: %r contains_in_any_order %r' %
-                            (actual, predicates))
-    if len(actual) != len(predicates):
-      raise e
-    for item in actual:
-      if not _matches(item):
-        raise e
-  return _contains_in_any_order
+  def _matcher(actual):
+    if not _contains_in_any_order(actual, predicates):
+      raise BeamAssertException('Failed assert: %r contains_in_any_order %r' %
+                                (actual, predicates))
+  return _matcher
 
 
 def is_empty():

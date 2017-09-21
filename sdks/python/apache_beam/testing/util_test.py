@@ -27,10 +27,6 @@ from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_empty
 
 
-def equals_int(number):
-  return lambda n: n == number
-
-
 class UtilTest(unittest.TestCase):
 
   def test_assert_that_equal_to_passes(self):
@@ -49,14 +45,25 @@ class UtilTest(unittest.TestCase):
 
   def test_assert_that_contains_in_any_order_passes(self):
     with TestPipeline() as p:
-      assert_that(p | Create([2, 3, 1]), contains_in_any_order(
-          [equals_int(1), equals_int(2), equals_int(3)]))
+      assert_that(p | Create([5, 50]), contains_in_any_order(
+          [lambda x: x > 0, lambda x: x < 10]))
 
   def test_assert_that_contains_in_any_order_fails(self):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
-        assert_that(p | Create([1, 10, 100]), contains_in_any_order(
-            [equals_int(1), equals_int(2), equals_int(3)]))
+        assert_that(p | Create([5, 50]), contains_in_any_order(
+            [lambda x: x > 0, lambda x: x < 0]))
+
+  def test_assert_that_contains_in_any_order_fails_on_empty_predicates(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([5, 50]), contains_in_any_order([]))
+
+  def test_assert_that_contains_in_any_order_fails_on_too_many_predicates(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([5, 50]), contains_in_any_order(
+            [lambda x: x > 0, lambda x: x < 10, lambda x: x == 5]))
 
   def test_assert_that_is_empty_passes(self):
     with TestPipeline() as p:
