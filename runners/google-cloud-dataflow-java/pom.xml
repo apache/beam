@@ -181,6 +181,7 @@
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
+                    <include>com.google.protobuf:protobuf-java</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                   </includes>
                 </artifactSet>
@@ -205,6 +206,10 @@
                       <exclude>com.google.common.**.testing.*</exclude>
                     </excludes>
                     <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.common</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>com.google.protobuf</pattern>
+                    <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.protobuf</shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>
@@ -371,6 +376,11 @@
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
     </dependency>
 
     <dependency>
