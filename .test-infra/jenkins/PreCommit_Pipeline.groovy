@@ -78,6 +78,8 @@ stage('Unit Test / Code Health') {
 
 stage('Integration Test') {
     parallel (
+        // Not gated on codehealth because codehealth shouldn't affect whether tests provide useful
+        // signal.
         java_integration: {
             if(javaUnitPassed) {
                 build job: 'beam_Java_IntegrationTest', parameters: javaBuildArg + ghprbArgs
