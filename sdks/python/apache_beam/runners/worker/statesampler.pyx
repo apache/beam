@@ -111,7 +111,8 @@ cdef class StateSampler(object):
   def __init__(self, prefix, counter_factory,
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
 
-    # TODO(pabloem) - Remove this once the worker has been rebuilt(by 17/10/1).
+    # TODO(pabloem) - Remove this once all dashed prefixes are removed from
+    # the worker.
     # We stop using prefixes with included dash.
     self.prefix = prefix[:-1] if prefix[-1] == '-' else prefix
     self.counter_factory = counter_factory
@@ -184,7 +185,16 @@ cdef class StateSampler(object):
         self.state_transition_count)
 
   def scoped_state(self, step_name, state_name=None, io_target=None):
-    """Returns a context manager managing transitions for a given state."""
+    """Returns a context manager managing transitions for a given state.
+    Args:
+      step_name: A string with the name of the running step.
+      state_name: A string with the name of the state (e.g. 'process', 'start')
+      io_target: An IOTargetName object describing the io_target (e.g. writing
+        or reading to side inputs, shuffle or state). Will often be None.
+
+    Returns:
+      A ScopedState for the set of step-state-io_target.
+    """
     cdef ScopedState scoped_state
     if state_name is None:
       # If state_name is None, the worker is still using old style
