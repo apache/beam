@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.Lists;
 import java.io.Serializable;
@@ -45,6 +44,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
 import org.hamcrest.TypeSafeDiagnosingMatcher;
 import org.junit.Rule;
 import org.junit.Test;
@@ -401,8 +401,14 @@ public class ApproximateQuantilesTest {
       int k = combineFn.getBufferSize();
       long n = this.maxInputSize;
 
-      assertTrue("(b-2)2^(b-2) + 1/2 <= eN", (b - 2) * (1 << (b - 2)) + 0.5 <= this.epsilon * n);
-      assertTrue("k2^(b-1) >= N", Math.pow(k * 2, b - 1) >= n);
+      assertThat(
+          "(b-2)2^(b-2) + 1/2 <= eN",
+          (b - 2) * (1 << (b - 2)) + 0.5,
+          Matchers.lessThanOrEqualTo(this.epsilon * n));
+      assertThat(
+          "k2^(b-1) >= N",
+          Math.pow(k * 2, b - 1),
+          Matchers.greaterThanOrEqualTo((double) n));
     }
   }
 }
