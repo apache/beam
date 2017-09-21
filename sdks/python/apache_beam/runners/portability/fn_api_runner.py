@@ -46,6 +46,7 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
@@ -145,15 +146,12 @@ class _GroupingBuffer(object):
 
   def __iter__(self):
     output_stream = create_OutputStream()
-    group_also_by_window_fn = beam.transforms.core._GroupAlsoByWindowDoFn(
-        self._windowing)
-    group_also_by_window_fn.start_bundle()
+    trigger_driver = trigger.create_trigger_driver(self._windowing, True)
     for encoded_key, windowed_values in self._table.items():
       key = self._key_coder.decode(encoded_key)
-      for wkvs in group_also_by_window_fn.process((key, windowed_values)):
+      for wkvs in trigger_driver.process_entire_key(key, windowed_values):
         self._post_grouped_coder.get_impl().encode_to_stream(
             wkvs, output_stream, True)
-    group_also_by_window_fn.finish_bundle()
     return iter([output_stream.get()])
 
 
