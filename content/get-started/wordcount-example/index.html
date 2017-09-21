@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam WordCount Example</title>
+  <title>Beam WordCount Examples</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -143,65 +143,82 @@
 </nav>
 
     <div class="body__contained">
-      <h1 id="apache-beam-wordcount-example">Apache Beam WordCount Example</h1>
+      <h1 id="apache-beam-wordcount-examples">Apache Beam WordCount Examples</h1>
 
 <ul id="markdown-toc">
-  <li><a href="#minimalwordcount" id="markdown-toc-minimalwordcount">MinimalWordCount</a>    <ul>
-      <li><a href="#creating-the-pipeline" id="markdown-toc-creating-the-pipeline">Creating the Pipeline</a></li>
-      <li><a href="#applying-pipeline-transforms" id="markdown-toc-applying-pipeline-transforms">Applying Pipeline Transforms</a></li>
-      <li><a href="#running-the-pipeline" id="markdown-toc-running-the-pipeline">Running the Pipeline</a></li>
+  <li><a href="#minimalwordcount-example" id="markdown-toc-minimalwordcount-example">MinimalWordCount example</a>    <ul>
+      <li><a href="#creating-the-pipeline" id="markdown-toc-creating-the-pipeline">Creating the pipeline</a></li>
+      <li><a href="#applying-pipeline-transforms" id="markdown-toc-applying-pipeline-transforms">Applying pipeline transforms</a></li>
+      <li><a href="#running-the-pipeline" id="markdown-toc-running-the-pipeline">Running the pipeline</a></li>
     </ul>
   </li>
-  <li><a href="#wordcount-example" id="markdown-toc-wordcount-example">WordCount Example</a>    <ul>
-      <li><a href="#specifying-explicit-dofns" id="markdown-toc-specifying-explicit-dofns">Specifying Explicit DoFns</a></li>
-      <li><a href="#creating-composite-transforms" id="markdown-toc-creating-composite-transforms">Creating Composite Transforms</a></li>
-      <li><a href="#using-parameterizable-pipelineoptions" id="markdown-toc-using-parameterizable-pipelineoptions">Using Parameterizable PipelineOptions</a></li>
+  <li><a href="#wordcount-example" id="markdown-toc-wordcount-example">WordCount example</a>    <ul>
+      <li><a href="#specifying-explicit-dofns" id="markdown-toc-specifying-explicit-dofns">Specifying explicit DoFns</a></li>
+      <li><a href="#creating-composite-transforms" id="markdown-toc-creating-composite-transforms">Creating composite transforms</a></li>
+      <li><a href="#using-parameterizable-pipelineoptions" id="markdown-toc-using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</a></li>
     </ul>
   </li>
-  <li><a href="#debugging-wordcount-example" id="markdown-toc-debugging-wordcount-example">Debugging WordCount Example</a>    <ul>
+  <li><a href="#debugging-wordcount-example" id="markdown-toc-debugging-wordcount-example">Debugging WordCount example</a>    <ul>
       <li><a href="#logging" id="markdown-toc-logging">Logging</a>        <ul>
           <li><a href="#direct-runner" id="markdown-toc-direct-runner">Direct Runner</a></li>
-          <li><a href="#dataflow-runner" id="markdown-toc-dataflow-runner">Dataflow Runner</a></li>
+          <li><a href="#cloud-dataflow-runner" id="markdown-toc-cloud-dataflow-runner">Cloud Dataflow Runner</a></li>
           <li><a href="#apache-spark-runner" id="markdown-toc-apache-spark-runner">Apache Spark Runner</a></li>
           <li><a href="#apache-flink-runner" id="markdown-toc-apache-flink-runner">Apache Flink Runner</a></li>
           <li><a href="#apache-apex-runner" id="markdown-toc-apache-apex-runner">Apache Apex Runner</a></li>
         </ul>
       </li>
-      <li><a href="#testing-your-pipeline-via-passert" id="markdown-toc-testing-your-pipeline-via-passert">Testing your Pipeline via PAssert</a></li>
+      <li><a href="#testing-your-pipeline-via-passert" id="markdown-toc-testing-your-pipeline-via-passert">Testing your pipeline via PAssert</a></li>
     </ul>
   </li>
-  <li><a href="#windowedwordcount" id="markdown-toc-windowedwordcount">WindowedWordCount</a>    <ul>
+  <li><a href="#windowedwordcount-example" id="markdown-toc-windowedwordcount-example">WindowedWordCount example</a>    <ul>
       <li><a href="#unbounded-and-bounded-pipeline-input-modes" id="markdown-toc-unbounded-and-bounded-pipeline-input-modes">Unbounded and bounded pipeline input modes</a></li>
-      <li><a href="#adding-timestamps-to-data" id="markdown-toc-adding-timestamps-to-data">Adding Timestamps to Data</a></li>
+      <li><a href="#adding-timestamps-to-data" id="markdown-toc-adding-timestamps-to-data">Adding timestamps to data</a></li>
       <li><a href="#windowing" id="markdown-toc-windowing">Windowing</a></li>
       <li><a href="#reusing-ptransforms-over-windowed-pcollections" id="markdown-toc-reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</a></li>
-      <li><a href="#write-results-to-an-unbounded-sink" id="markdown-toc-write-results-to-an-unbounded-sink">Write Results to an Unbounded Sink</a></li>
+      <li><a href="#writing-results-to-an-unbounded-sink" id="markdown-toc-writing-results-to-an-unbounded-sink">Writing results to an unbounded sink</a></li>
     </ul>
   </li>
 </ul>
 
 <nav class="language-switcher">
-  <strong>Adapt for:</strong> 
+  <strong>Adapt for:</strong>
   <ul>
     <li data-type="language-java">Java SDK</li>
     <li data-type="language-py">Python SDK</li>
   </ul>
 </nav>
 
-<p>The WordCount examples demonstrate how to set up a processing pipeline that can read text, tokenize the text lines into individual words, and perform a frequency count on each of those words. The Beam SDKs contain a series of these four successively more detailed WordCount examples that build on each other. The input text for all the examples is a set of Shakespeare’s texts.</p>
+<p>The WordCount examples demonstrate how to set up a processing pipeline that can
+read text, tokenize the text lines into individual words, and perform a
+frequency count on each of those words. The Beam SDKs contain a series of these
+four successively more detailed WordCount examples that build on each other. The
+input text for all the examples is a set of Shakespeare’s texts.</p>
 
-<p>Each WordCount example introduces different concepts in the Beam programming model. Begin by understanding Minimal WordCount, the simplest of the examples. Once you feel comfortable with the basic principles in building a pipeline, continue on to learn more concepts in the other examples.</p>
+<p>Each WordCount example introduces different concepts in the Beam programming
+model. Begin by understanding Minimal WordCount, the simplest of the examples.
+Once you feel comfortable with the basic principles in building a pipeline,
+continue on to learn more concepts in the other examples.</p>
 
 <ul>
-  <li><strong>Minimal WordCount</strong> demonstrates the basic principles involved in building a pipeline.</li>
-  <li><strong>WordCount</strong> introduces some of the more common best practices in creating re-usable and maintainable pipelines.</li>
+  <li><strong>Minimal WordCount</strong> demonstrates the basic principles involved in building a
+pipeline.</li>
+  <li><strong>WordCount</strong> introduces some of the more common best practices in creating
+re-usable and maintainable pipelines.</li>
   <li><strong>Debugging WordCount</strong> introduces logging and debugging practices.</li>
-  <li><strong>Windowed WordCount</strong> demonstrates how you can use Beam’s programming model to handle both bounded and unbounded datasets.</li>
+  <li><strong>Windowed WordCount</strong> demonstrates how you can use Beam’s programming model
+to handle both bounded and unbounded datasets.</li>
 </ul>
 
-<h2 id="minimalwordcount">MinimalWordCount</h2>
+<h2 id="minimalwordcount-example">MinimalWordCount example</h2>
 
-<p>Minimal WordCount demonstrates a simple pipeline that can read from a text file, apply transforms to tokenize and count the words, and write the data to an output text file. This example hard-codes the locations for its input and output files and doesn’t perform any error checking; it is intended to only show you the “bare bones” of creating a Beam pipeline. This lack of parameterization makes this particular pipeline less portable across different runners than standard Beam pipelines. In later examples, we will parameterize the pipeline’s input and output sources and show other best practices.</p>
+<p>Minimal WordCount demonstrates a simple pipeline that can read from a text file,
+apply transforms to tokenize and count the words, and write the data to an
+output text file. This example hard-codes the locations for its input and output
+files and doesn’t perform any error checking; it is intended to only show you
+the “bare bones” of creating a Beam pipeline. This lack of parameterization
+makes this particular pipeline less portable across different runners than
+standard Beam pipelines. In later examples, we will parameterize the pipeline’s
+input and output sources and show other best practices.</p>
 
 <p><strong>To run this example in Java:</strong></p>
 
@@ -239,7 +256,8 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<p>To view the full code in Java, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java">MinimalWordCount</a>.</strong></p>
+<p>To view the full code in Java, see
+<strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/MinimalWordCount.java">MinimalWordCount</a>.</strong></p>
 
 <p><strong>To run this example in Python:</strong></p>
 
@@ -273,7 +291,8 @@ python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/s
 </code></pre>
 </div>
 
-<p>To view the full code in Python, see <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py">wordcount_minimal.py</a>.</strong></p>
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_minimal.py">wordcount_minimal.py</a>.</strong></p>
 
 <p><strong>Key Concepts:</strong></p>
 
@@ -287,13 +306,21 @@ python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/s
   <li>Running the Pipeline</li>
 </ul>
 
-<p>The following sections explain these concepts in detail along with excerpts of the relevant code from the Minimal WordCount pipeline.</p>
+<p>The following sections explain these concepts in detail, using the relevant code
+excerpts from the Minimal WordCount pipeline.</p>
 
-<h3 id="creating-the-pipeline">Creating the Pipeline</h3>
+<h3 id="creating-the-pipeline">Creating the pipeline</h3>
 
-<p>The first step in creating a Beam pipeline is to create a <code class="highlighter-rouge">PipelineOptions</code> object. This object lets us set various options for our pipeline, such as the pipeline runner that will execute our pipeline and any runner-specific configuration required by the chosen runner. In this example we set these options programmatically, but more often command-line arguments are used to set <code class="highlighter-rouge">PipelineOptions</code>.</p>
+<p>In this example, the code first creates a <code class="highlighter-rouge">PipelineOptions</code> object. This object
+lets us set various options for our pipeline, such as the pipeline runner that
+will execute our pipeline and any runner-specific configuration required by the
+chosen runner. In this example we set these options programmatically, but more
+often, command-line arguments are used to set <code class="highlighter-rouge">PipelineOptions</code>.</p>
 
-<p>You can specify a runner for executing your pipeline, such as the <code class="highlighter-rouge">DataflowRunner</code> or <code class="highlighter-rouge">SparkRunner</code>. If you omit specifying a runner, as in this example, your pipeline will be executed locally using the <code class="highlighter-rouge">DirectRunner</code>. In the next sections, we will specify the pipeline’s runner.</p>
+<p>You can specify a runner for executing your pipeline, such as the
+<code class="highlighter-rouge">DataflowRunner</code> or <code class="highlighter-rouge">SparkRunner</code>. If you omit specifying a runner, as in this
+example, your pipeline executes locally using the <code class="highlighter-rouge">DirectRunner</code>. In the next
+sections, we will specify the pipeline’s runner.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code> <span class="n">PipelineOptions</span> <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptionsFactory</span><span class="o">.</span><span class="na">create</span><span class="o">();</span>
 
@@ -322,7 +349,9 @@ python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/s
 </code></pre>
 </div>
 
-<p>The next step is to create a Pipeline object with the options we’ve just constructed. The Pipeline object builds up the graph of transformations to be executed, associated with that particular pipeline.</p>
+<p>The next step is to create a <code class="highlighter-rouge">Pipeline</code> object with the options we’ve just
+constructed. The Pipeline object builds up the graph of transformations to be
+executed, associated with that particular pipeline.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Pipeline</span> <span class="n">p</span> <span class="o">=</span> <span class="n">Pipeline</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">options</span><span class="o">);</span>
 </code></pre>
@@ -332,11 +361,17 @@ python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/s
 </code></pre>
 </div>
 
-<h3 id="applying-pipeline-transforms">Applying Pipeline Transforms</h3>
+<h3 id="applying-pipeline-transforms">Applying pipeline transforms</h3>
 
-<p>The Minimal WordCount pipeline contains several transforms to read data into the pipeline, manipulate or otherwise transform the data, and write out the results. Each transform represents an operation in the pipeline.</p>
+<p>The Minimal WordCount pipeline contains several transforms to read data into the
+pipeline, manipulate or otherwise transform the data, and write out the results.
+Transforms can consist of an individual operation, or can contain multiple
+nested transforms (which is a <a href="/documentation/programming-guide#transforms-composite">composite transform</a>).</p>
 
-<p>Each transform takes some kind of input (data or otherwise), and produces some output data. The input and output data is represented by the SDK class <code class="highlighter-rouge">PCollection</code>. <code class="highlighter-rouge">PCollection</code> is a special class, provided by the Beam SDK, that you can use to represent a data set of virtually any size, including unbounded data sets.</p>
+<p>Each transform takes some kind of input data and produces some output data. The
+input and output data is often represented by the SDK class <code class="highlighter-rouge">PCollection</code>.
+<code class="highlighter-rouge">PCollection</code> is a special class, provided by the Beam SDK, that you can use to
+represent a data set of virtually any size, including unbounded data sets.</p>
 
 <p><img src="/images/wordcount-pipeline.png" alt="Word Count pipeline diagram" />
 Figure 1: The pipeline data flow.</p>
@@ -345,7 +380,10 @@ Figure 1: The pipeline data flow.</p>
 
 <ol>
   <li>
-    <p>A text file <code class="highlighter-rouge">Read</code> transform is applied to the Pipeline object itself, and produces a <code class="highlighter-rouge">PCollection</code> as output. Each element in the output PCollection represents one line of text from the input file. This example uses input data stored in a publicly accessible Google Cloud Storage bucket (“gs://”).</p>
+    <p>A text file <code class="highlighter-rouge">Read</code> transform is applied to the <code class="highlighter-rouge">Pipeline</code> object itself, and
+produces a <code class="highlighter-rouge">PCollection</code> as output. Each element in the output <code class="highlighter-rouge">PCollection</code>
+represents one line of text from the input file. This example uses input
+data stored in a publicly accessible Google Cloud Storage bucket (“gs://”).</p>
 
     <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">read</span><span class="o">().</span><span class="na">from</span><span class="o">(</span><span class="s">"gs://apache-beam-samples/shakespeare/*"</span><span class="o">))</span>
 </code></pre>
@@ -357,7 +395,12 @@ Figure 1: The pipeline data flow.</p>
     </div>
   </li>
   <li>
-    <p>A <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a> transform that invokes a <code class="highlighter-rouge">DoFn</code> (defined in-line as an anonymous class) on each element that tokenizes the text lines into individual words. The input for this transform is the <code class="highlighter-rouge">PCollection</code> of text lines generated by the previous <code class="highlighter-rouge">TextIO.Read</code> transform. The <code class="highlighter-rouge">ParDo</code> transform outputs a new <code class="highlighter-rouge">PCollection</code>, where each element represents an individual word in the text.</p>
+    <p>A <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a>
+transform that invokes a <code class="highlighter-rouge">DoFn</code> (defined in-line as an anonymous class) on
+each element that tokenizes the text lines into individual words. The input
+for this transform is the <code class="highlighter-rouge">PCollection</code> of text lines generated by the
+previous <code class="highlighter-rouge">TextIO.Read</code> transform. The <code class="highlighter-rouge">ParDo</code> transform outputs a new
+<code class="highlighter-rouge">PCollection</code>, where each element represents an individual word in the text.</p>
 
     <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"ExtractWords"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
     <span class="nd">@ProcessElement</span>
@@ -380,9 +423,16 @@ Figure 1: The pipeline data flow.</p>
     </div>
   </li>
   <li>
-    <p>The SDK-provided <code class="highlighter-rouge">Count</code> transform is a generic transform that takes a <code class="highlighter-rouge">PCollection</code> of any type, and returns a <code class="highlighter-rouge">PCollection</code> of key/value pairs. Each key represents a unique element from the input collection, and each value represents the number of times that key appeared in the input collection.</p>
+    <p>The SDK-provided <code class="highlighter-rouge">Count</code> transform is a generic transform that takes a
+<code class="highlighter-rouge">PCollection</code> of any type, and returns a <code class="highlighter-rouge">PCollection</code> of key/value pairs.
+Each key represents a unique element from the input collection, and each
+value represents the number of times that key appeared in the input
+collection.</p>
 
-    <p>In this pipeline, the input for <code class="highlighter-rouge">Count</code> is the <code class="highlighter-rouge">PCollection</code> of individual words generated by the previous <code class="highlighter-rouge">ParDo</code>, and the output is a <code class="highlighter-rouge">PCollection</code> of key/value pairs where each key represents a unique word in the text and the associated value is the occurrence count for each.</p>
+    <p>In this pipeline, the input for <code class="highlighter-rouge">Count</code> is the <code class="highlighter-rouge">PCollection</code> of individual
+words generated by the previous <code class="highlighter-rouge">ParDo</code>, and the output is a <code class="highlighter-rouge">PCollection</code>
+of key/value pairs where each key represents a unique word in the text and
+the associated value is the occurrence count for each.</p>
 
     <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Count</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">perElement</span><span class="o">())</span>
 </code></pre>
@@ -393,9 +443,13 @@ Figure 1: The pipeline data flow.</p>
     </div>
   </li>
   <li>
-    <p>The next transform formats each of the key/value pairs of unique words and occurrence counts into a printable string suitable for writing to an output file.</p>
+    <p>The next transform formats each of the key/value pairs of unique words and
+occurrence counts into a printable string suitable for writing to an output
+file.</p>
 
-    <p>The map transform is a higher-level composite transform that encapsulates a simple <code class="highlighter-rouge">ParDo</code>. For each element in the input <code class="highlighter-rouge">PCollection</code>, the map transform applies a function that produces exactly one output element.</p>
+    <p>The map transform is a higher-level composite transform that encapsulates a
+simple <code class="highlighter-rouge">ParDo</code>. For each element in the input <code class="highlighter-rouge">PCollection</code>, the map
+transform applies a function that produces exactly one output element.</p>
 
     <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"FormatResults"</span><span class="o">,</span> <span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">(</span><span class="k">new</span> <span class="n">SimpleFunction</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">String</span><span class="o">&gt;()</span> <span class="o">{</span>
     <span class="nd">@Override</span>
@@ -411,7 +465,10 @@ Figure 1: The pipeline data flow.</p>
     </div>
   </li>
   <li>
-    <p>A text file write transform. This transform takes the final <code class="highlighter-rouge">PCollection</code> of formatted Strings as input and writes each element to an output text file. Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the resulting output file.</p>
+    <p>A text file write transform. This transform takes the final <code class="highlighter-rouge">PCollection</code> of
+formatted Strings as input and writes each element to an output text file.
+Each element in the input <code class="highlighter-rouge">PCollection</code> represents one line of text in the
+resulting output file.</p>
 
     <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">TextIO</span><span class="o">.</span><span class="na">write</span><span class="o">().</span><span class="na">to</span><span class="o">(</span><span class="s">"wordcounts"</span><span class="o">));</span>
 </code></pre>
@@ -423,11 +480,13 @@ Figure 1: The pipeline data flow.</p>
   </li>
 </ol>
 
-<p>Note that the <code class="highlighter-rouge">Write</code> transform produces a trivial result value of type <code class="highlighter-rouge">PDone</code>, which in this case is ignored.</p>
+<p>Note that the <code class="highlighter-rouge">Write</code> transform produces a trivial result value of type <code class="highlighter-rouge">PDone</code>,
+which in this case is ignored.</p>
 
-<h3 id="running-the-pipeline">Running the Pipeline</h3>
+<h3 id="running-the-pipeline">Running the pipeline</h3>
 
-<p>Run the pipeline by calling the <code class="highlighter-rouge">run</code> method, which sends your pipeline to be executed by the pipeline runner that you specified when you created your pipeline.</p>
+<p>Run the pipeline by calling the <code class="highlighter-rouge">run</code> method, which sends your pipeline to be
+executed by the pipeline runner that you specified in your <code class="highlighter-rouge">PipelineOptions</code>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">p</span><span class="o">.</span><span class="na">run</span><span class="o">().</span><span class="na">waitUntilFinish</span><span class="o">();</span>
 </code></pre>
@@ -437,13 +496,21 @@ Figure 1: The pipeline data flow.</p>
 </code></pre>
 </div>
 
-<p>Note that the <code class="highlighter-rouge">run</code> method is asynchronous. For a blocking execution instead, run your pipeline appending the <code class="highlighter-rouge">waitUntilFinish</code> method.</p>
+<p>Note that the <code class="highlighter-rouge">run</code> method is asynchronous. For a blocking execution, call the
+<span class="language-java"><code class="highlighter-rouge">waitUntilFinish</code></span>
+<span class="language-py"><code class="highlighter-rouge">wait_until_finish</code></span> method on the result object
+returned by the call to <code class="highlighter-rouge">run</code>.</p>
 
-<h2 id="wordcount-example">WordCount Example</h2>
+<h2 id="wordcount-example">WordCount example</h2>
 
-<p>This WordCount example introduces a few recommended programming practices that can make your pipeline easier to read, write, and maintain. While not explicitly required, they can make your pipeline’s execution more flexible, aid in testing your pipeline, and help make your pipeline’s code reusable.</p>
+<p>This WordCount example introduces a few recommended programming practices that
+can make your pipeline easier to read, write, and maintain. While not explicitly
+required, they can make your pipeline’s execution more flexible, aid in testing
+your pipeline, and help make your pipeline’s code reusable.</p>
 
-<p>This section assumes that you have a good understanding of the basic concepts in building a pipeline. If you feel that you aren’t at that point yet, read the above section, <a href="#minimalwordcount">Minimal WordCount</a>.</p>
+<p>This section assumes that you have a good understanding of the basic concepts in
+building a pipeline. If you feel that you aren’t at that point yet, read the
+above section, <a href="#minimalwordcount-example">Minimal WordCount</a>.</p>
 
 <p><strong>To run this example in Java:</strong></p>
 
@@ -482,7 +549,8 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<p>To view the full code in Java, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount</a>.</strong></p>
+<p>To view the full code in Java, see
+<strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WordCount.java">WordCount</a>.</strong></p>
 
 <p><strong>To run this example in Python:</strong></p>
 
@@ -516,7 +584,8 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 </code></pre>
 </div>
 
-<p>To view the full code in Python, see <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py">wordcount.py</a>.</strong></p>
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount.py">wordcount.py</a>.</strong></p>
 
 <p><strong>New Concepts:</strong></p>
 
@@ -526,11 +595,18 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
   <li>Using Parameterizable <code class="highlighter-rouge">PipelineOptions</code></li>
 </ul>
 
-<p>The following sections explain these key concepts in detail, and break down the pipeline code into smaller sections.</p>
+<p>The following sections explain these key concepts in detail, and break down the
+pipeline code into smaller sections.</p>
 
-<h3 id="specifying-explicit-dofns">Specifying Explicit DoFns</h3>
+<h3 id="specifying-explicit-dofns">Specifying explicit DoFns</h3>
 
-<p>When using <code class="highlighter-rouge">ParDo</code> transforms, you need to specify the processing operation that gets applied to each element in the input <code class="highlighter-rouge">PCollection</code>. This processing operation is a subclass of the SDK class <code class="highlighter-rouge">DoFn</code>. You can create the <code class="highlighter-rouge">DoFn</code> subclasses for each <code class="highlighter-rouge">ParDo</code> inline, as an anonymous inner class instance, as is done in the previous example (Minimal WordCount). However, it’s often a good idea to define the <code class="highlighter-rouge">DoFn</code> at the global level, which makes it easier to unit test and can make the <code class="highlighter-rouge">ParDo</code> code more readable.</p>
+<p>When using <code class="highlighter-rouge">ParDo</code> transforms, you need to specify the processing operation that
+gets applied to each element in the input <code class="highlighter-rouge">PCollection</code>. This processing
+operation is a subclass of the SDK class <code class="highlighter-rouge">DoFn</code>. You can create the <code class="highlighter-rouge">DoFn</code>
+subclasses for each <code class="highlighter-rouge">ParDo</code> inline, as an anonymous inner class instance, as is
+done in the previous example (Minimal WordCount). However, it’s often a good
+idea to define the <code class="highlighter-rouge">DoFn</code> at the global level, which makes it easier to unit
+test and can make the <code class="highlighter-rouge">ParDo</code> code more readable.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// In this example, ExtractWordsFn is a DoFn that is defined as a static class:</span>
 
@@ -557,13 +633,20 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 </code></pre>
 </div>
 
-<h3 id="creating-composite-transforms">Creating Composite Transforms</h3>
+<h3 id="creating-composite-transforms">Creating composite transforms</h3>
 
-<p>If you have a processing operation that consists of multiple transforms or <code class="highlighter-rouge">ParDo</code> steps, you can create it as a subclass of <code class="highlighter-rouge">PTransform</code>. Creating a <code class="highlighter-rouge">PTransform</code> subclass allows you to create complex reusable transforms, can make your pipeline’s structure more clear and modular, and makes unit testing easier.</p>
+<p>If you have a processing operation that consists of multiple transforms or
+<code class="highlighter-rouge">ParDo</code> steps, you can create it as a subclass of <code class="highlighter-rouge">PTransform</code>. Creating a
+<code class="highlighter-rouge">PTransform</code> subclass allows you to encapsulate complex transforms, can make
+your pipeline’s structure more clear and modular, and makes unit testing easier.</p>
 
-<p>In this example, two transforms are encapsulated as the <code class="highlighter-rouge">PTransform</code> subclass <code class="highlighter-rouge">CountWords</code>. <code class="highlighter-rouge">CountWords</code> contains the <code class="highlighter-rouge">ParDo</code> that runs <code class="highlighter-rouge">ExtractWordsFn</code> and the SDK-provided <code class="highlighter-rouge">Count</code> transform.</p>
+<p>In this example, two transforms are encapsulated as the <code class="highlighter-rouge">PTransform</code> subclass
+<code class="highlighter-rouge">CountWords</code>. <code class="highlighter-rouge">CountWords</code> contains the <code class="highlighter-rouge">ParDo</code> that runs <code class="highlighter-rouge">ExtractWordsFn</code> and
+the SDK-provided <code class="highlighter-rouge">Count</code> transform.</p>
 
-<p>When <code class="highlighter-rouge">CountWords</code> is defined, we specify its ultimate input and output; the input is the <code class="highlighter-rouge">PCollection&lt;String&gt;</code> for the extraction operation, and the output is the <code class="highlighter-rouge">PCollection&lt;KV&lt;String, Long&gt;&gt;</code> produced by the count operation.</p>
+<p>When <code class="highlighter-rouge">CountWords</code> is defined, we specify its ultimate input and output; the
+input is the <code class="highlighter-rouge">PCollection&lt;String&gt;</code> for the extraction operation, and the output
+is the <code class="highlighter-rouge">PCollection&lt;KV&lt;String, Long&gt;&gt;</code> produced by the count operation.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">CountWords</span> <span class="kd">extends</span> <span class="n">PTransform</span><span class="o">&lt;</span><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;,</span>
     <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;&gt;</span> <span class="o">{</span>
@@ -607,11 +690,15 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 </code></pre>
 </div>
 
-<h3 id="using-parameterizable-pipelineoptions">Using Parameterizable PipelineOptions</h3>
+<h3 id="using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</h3>
 
-<p>You can hard-code various execution options when you run your pipeline. However, the more common way is to define your own configuration options via command-line argument parsing. Defining your configuration options via the command-line makes the code more easily portable across different runners.</p>
+<p>You can hard-code various execution options when you run your pipeline. However,
+the more common way is to define your own configuration options via command-line
+argument parsing. Defining your configuration options via the command-line makes
+the code more easily portable across different runners.</p>
 
-<p>Add arguments to be processed by the command-line parser, and specify default values for them. You can then access the options values in your pipeline code.</p>
+<p>Add arguments to be processed by the command-line parser, and specify default
+values for them. You can then access the options values in your pipeline code.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kd">interface</span> <span class="nc">WordCountOptions</span> <span class="kd">extends</span> <span class="n">PipelineOptions</span> <span class="o">{</span>
   <span class="nd">@Description</span><span class="o">(</span><span class="s">"Path of the file to read from"</span><span class="o">)</span>
@@ -643,9 +730,10 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 </code></pre>
 </div>
 
-<h2 id="debugging-wordcount-example">Debugging WordCount Example</h2>
+<h2 id="debugging-wordcount-example">Debugging WordCount example</h2>
 
-<p>The Debugging WordCount example demonstrates some best practices for instrumenting your pipeline code.</p>
+<p>The Debugging WordCount example demonstrates some best practices for
+instrumenting your pipeline code.</p>
 
 <p><strong>To run this example in Java:</strong></p>
 
@@ -684,7 +772,8 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<p>To view the full code in Java, see <a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount</a>.</p>
+<p>To view the full code in Java, see
+<a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/DebuggingWordCount.java">DebuggingWordCount</a>.</p>
 
 <p><strong>To run this example in Python:</strong></p>
 
@@ -718,7 +807,8 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 </code></pre>
 </div>
 
-<p>To view the full code in Python, see <strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">wordcount_debugging.py</a>.</strong></p>
+<p>To view the full code in Python, see
+<strong><a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/wordcount_debugging.py">wordcount_debugging.py</a>.</strong></p>
 
 <p><strong>New Concepts:</strong></p>
 
@@ -727,7 +817,8 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
   <li>Testing your Pipeline via <code class="highlighter-rouge">PAssert</code></li>
 </ul>
 
-<p>The following sections explain these key concepts in detail, and break down the pipeline code into smaller sections.</p>
+<p>The following sections explain these key concepts in detail, and break down the
+pipeline code into smaller sections.</p>
 
 <h3 id="logging">Logging</h3>
 
@@ -740,11 +831,12 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
   <span class="kd">public</span> <span class="kd">static</span> <span class="kd">class</span> <span class="nc">FilterTextFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="o">{</span>
     <span class="o">...</span>
 
+    <span class="nd">@ProcessElement</span>
     <span class="kd">public</span> <span class="kt">void</span> <span class="nf">processElement</span><span class="o">(</span><span class="n">ProcessContext</span> <span class="n">c</span><span class="o">)</span> <span class="o">{</span>
       <span class="k">if</span> <span class="o">(...)</span> <span class="o">{</span>
         <span class="o">...</span>
         <span class="n">LOG</span><span class="o">.</span><span class="na">debug</span><span class="o">(</span><span class="s">"Matched: "</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
-      <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>        
+      <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
         <span class="o">...</span>
         <span class="n">LOG</span><span class="o">.</span><span class="na">trace</span><span class="o">(</span><span class="s">"Did not match: "</span> <span class="o">+</span> <span class="n">c</span><span class="o">.</span><span class="na">element</span><span class="o">().</span><span class="na">getKey</span><span class="o">());</span>
       <span class="o">}</span>
@@ -793,39 +885,69 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 
 <h4 id="direct-runner">Direct Runner</h4>
 
-<p>If you execute your pipeline using <code class="highlighter-rouge">DirectRunner</code>, it will print the log messages directly to your local console.</p>
+<p>When executing your pipeline with the <code class="highlighter-rouge">DirectRunner</code>, you can print log
+messages directly to your local console. <span class="language-java">If you use
+the Beam SDK for Java, you must add <code class="highlighter-rouge">Slf4j</code> to your class path.</span></p>
 
-<h4 id="dataflow-runner">Dataflow Runner</h4>
+<h4 id="cloud-dataflow-runner">Cloud Dataflow Runner</h4>
 
-<p>If you execute your pipeline using <code class="highlighter-rouge">DataflowRunner</code>, you can use Stackdriver Logging. Stackdriver Logging aggregates the logs from all of your Dataflow job’s workers to a single location in the Google Cloud Platform Console. You can use Stackdriver Logging to search and access the logs from all of the workers that Dataflow has spun up to complete your Dataflow job. Logging statements in your pipeline’s <code class="highlighter-rouge">DoFn</code> instances will appear in Stackdriver Logging as your pipeline runs.</p>
+<p>When executing your pipeline with the <code class="highlighter-rouge">DataflowRunner</code>, you can use Stackdriver
+Logging. Stackdriver Logging aggregates the logs from all of your Cloud Dataflow
+job’s workers to a single location in the Google Cloud Platform Console. You can
+use Stackdriver Logging to search and access the logs from all of the workers
+that Cloud Dataflow has spun up to complete your job. Logging statements in your
+pipeline’s <code class="highlighter-rouge">DoFn</code> instances will appear in Stackdriver Logging as your pipeline
+runs.</p>
 
-<p>If you execute your pipeline using <code class="highlighter-rouge">DataflowRunner</code>, you can control the worker log levels. Dataflow workers that execute user code are configured to log to Stackdriver Logging by default at “INFO” log level and higher. You can override log levels for specific logging namespaces by specifying: <code class="highlighter-rouge">--workerLogLevelOverrides={"Name1":"Level1","Name2":"Level2",...}</code>. For example, by specifying <code class="highlighter-rouge">--workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}</code> when executing this pipeline using the Dataflow service, Stackdriver Logging would contain only “DEBUG” or higher level logs for the package in addition to the default “INFO” or higher level logs.</p>
+<p>You can also control the worker log levels. Cloud Dataflow workers that execute
+user code are configured to log to Stackdriver Logging by default at “INFO” log
+level and higher. You can override log levels for specific logging namespaces by
+specifying: <code class="highlighter-rouge">--workerLogLevelOverrides={"Name1":"Level1","Name2":"Level2",...}</code>.
+For example, by specifying <code class="highlighter-rouge">--workerLogLevelOverrides={"org.apache.beam.examples":"DEBUG"}</code>
+when executing a pipeline using the Cloud Dataflow service, Stackdriver Logging
+will contain only “DEBUG” or higher level logs for the package in addition to
+the default “INFO” or higher level logs.</p>
 
-<p>The default Dataflow worker logging configuration can be overridden by specifying <code class="highlighter-rouge">--defaultWorkerLogLevel=&lt;one of TRACE, DEBUG, INFO, WARN, ERROR&gt;</code>. For example, by specifying <code class="highlighter-rouge">--defaultWorkerLogLevel=DEBUG</code> when executing this pipeline with the Dataflow service, Cloud Logging would contain all “DEBUG” or higher level logs. Note that changing the default worker log level to TRACE or DEBUG will significantly increase the amount of logs output.</p>
+<p>The default Cloud Dataflow worker logging configuration can be overridden by
+specifying <code class="highlighter-rouge">--defaultWorkerLogLevel=&lt;one of TRACE, DEBUG, INFO, WARN, ERROR&gt;</code>.
+For example, by specifying <code class="highlighter-rouge">--defaultWorkerLogLevel=DEBUG</code> when executing a
+pipeline with the Cloud Dataflow service, Cloud Logging will contain all “DEBUG”
+or higher level logs. Note that changing the default worker log level to TRACE
+or DEBUG significantly increases the amount of logs output.</p>
 
 <h4 id="apache-spark-runner">Apache Spark Runner</h4>
 
 <blockquote>
-  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this (<a href="https://issues.apache.org/jira/browse/BEAM-792">BEAM-792</a>).</p>
+  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-792">BEAM-792</a>).</p>
 </blockquote>
 
 <h4 id="apache-flink-runner">Apache Flink Runner</h4>
 
 <blockquote>
-  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this (<a href="https://issues.apache.org/jira/browse/BEAM-791">BEAM-791</a>).</p>
+  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-791">BEAM-791</a>).</p>
 </blockquote>
 
 <h4 id="apache-apex-runner">Apache Apex Runner</h4>
 
 <blockquote>
-  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this (<a href="https://issues.apache.org/jira/browse/BEAM-2285">BEAM-2285</a>).</p>
+  <p><strong>Note:</strong> This section is yet to be added. There is an open issue for this
+(<a href="https://issues.apache.org/jira/browse/BEAM-2285">BEAM-2285</a>).</p>
 </blockquote>
 
-<h3 id="testing-your-pipeline-via-passert">Testing your Pipeline via PAssert</h3>
+<h3 id="testing-your-pipeline-via-passert">Testing your pipeline via PAssert</h3>
 
-<p><code class="highlighter-rouge">PAssert</code> is a set of convenient PTransforms in the style of Hamcrest’s collection matchers that can be used when writing Pipeline level tests to validate the contents of PCollections. <code class="highlighter-rouge">PAssert</code> is best used in unit tests with small data sets, but is demonstrated here as a teaching tool.</p>
+<p><code class="highlighter-rouge">PAssert</code> is a set of convenient PTransforms in the style of Hamcrest’s
+collection matchers that can be used when writing Pipeline level tests to
+validate the contents of PCollections. <code class="highlighter-rouge">PAssert</code> is best used in unit tests with
+small data sets, but is demonstrated here as a teaching tool.</p>
 
-<p>Below, we verify that the set of filtered words matches our expected counts. Note that <code class="highlighter-rouge">PAssert</code> does not produce any output, and pipeline will only succeed if all of the expectations are met. See <a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java">DebuggingWordCountTest</a> for an example unit test.</p>
+<p>Below, we verify that the set of filtered words matches our expected counts.
+Note that <code class="highlighter-rouge">PAssert</code> does not produce any output, and the pipeline only succeeds
+if all of the expectations are met. See
+<a href="https://github.com/apache/beam/blob/master/examples/java/src/test/java/org/apache/beam/examples/DebuggingWordCountTest.java">DebuggingWordCountTest</a>
+for an example unit test.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="o">{</span>
   <span class="o">...</span>
@@ -838,13 +960,14 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
-<h2 id="windowedwordcount">WindowedWordCount</h2>
+<h2 id="windowedwordcount-example">WindowedWordCount example</h2>
 
-<p>This example, <code class="highlighter-rouge">WindowedWordCount</code>, counts words in text just as the previous examples did, but introduces several advanced concepts.</p>
+<p>This example, <code class="highlighter-rouge">WindowedWordCount</code>, counts words in text just as the previous
+examples did, but introduces several advanced concepts.</p>
 
 <p><strong>New Concepts:</strong></p>
 
@@ -855,7 +978,8 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
   <li>Reusing PTransforms over windowed PCollections</li>
 </ul>
 
-<p>The following sections explain these key concepts in detail, and break down the pipeline code into smaller sections.</p>
+<p>The following sections explain these key concepts in detail, and break down the
+pipeline code into smaller sections.</p>
 
 <p><strong>To run this example in Java:</strong></p>
 
@@ -894,7 +1018,8 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<p>To view the full code in Java, see <strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java">WindowedWordCount</a>.</strong></p>
+<p>To view the full code in Java, see
+<strong><a href="https://github.com/apache/beam/blob/master/examples/java/src/main/java/org/apache/beam/examples/WindowedWordCount.java">WindowedWordCount</a>.</strong></p>
 
 <blockquote>
   <p><strong>Note:</strong> WindowedWordCount is not yet available for the Python SDK.</p>
@@ -902,9 +1027,19 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 
 <h3 id="unbounded-and-bounded-pipeline-input-modes">Unbounded and bounded pipeline input modes</h3>
 
-<p>Beam allows you to create a single pipeline that can handle both bounded and unbounded types of input. If the input is unbounded, then all PCollections of the pipeline will be unbounded as well. The same goes for bounded input. If your input has a fixed number of elements, it’s considered a ‘bounded’ data set. If your input is continuously updating, then it’s considered ‘unbounded’.</p>
+<p>Beam allows you to create a single pipeline that can handle both bounded and
+unbounded types of input. If your input has a fixed number of elements, it’s
+considered a ‘bounded’ data set. If your input is continuously updating, then
+it’s considered ‘unbounded’ and you must use a runner that supports streaming.</p>
 
-<p>Recall that the input for this example is a set of Shakespeare’s texts, finite data. Therefore, this example reads bounded data from a text file:</p>
+<p>If your pipeline’s input is bounded, then all downstream PCollections will also be
+bounded. Similarly, if the input is unbounded, then all downstream PCollections
+of the pipeline will be unbounded, though separate branches may be independently
+bounded.</p>
+
+<p>Recall that the input for this example is a set of Shakespeare’s texts, which is
+a finite set of data. Therefore, this example reads bounded data from a text
+file:</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">main</span><span class="o">(</span><span class="n">String</span><span class="o">[]</span> <span class="n">args</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">IOException</span> <span class="o">{</span>
     <span class="n">Options</span> <span class="n">options</span> <span class="o">=</span> <span class="o">...</span>
@@ -916,23 +1051,38 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
-<h3 id="adding-timestamps-to-data">Adding Timestamps to Data</h3>
+<h3 id="adding-timestamps-to-data">Adding timestamps to data</h3>
 
-<p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated <strong>timestamp</strong>. The timestamp for each element is initially assigned by the source that creates the <code class="highlighter-rouge">PCollection</code> and can be adjusted by a <code class="highlighter-rouge">DoFn</code>. In this example the input is bounded. For the purpose of the example, the <code class="highlighter-rouge">DoFn</code> method named <code class="highlighter-rouge">AddTimestampsFn</code> (invoked by <code class="highlighter-rouge">ParDo</code>) will set a timestamp for each element in the <code class="highlighter-rouge">PCollection</code>.</p>
+<p>Each element in a <code class="highlighter-rouge">PCollection</code> has an associated <a href="/documentation/programming-guide#pctimestamps">timestamp</a>.
+The timestamp for each element is initially assigned by the source that creates
+the <code class="highlighter-rouge">PCollection</code>. Some sources that create unbounded PCollections can assign
+each new element a timestamp that corresponds to when the element was read or
+added. You can manually assign or adjust timestamps with a <code class="highlighter-rouge">DoFn</code>; however, you
+can only move timestamps forward in time.</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">AddTimestampFn</span><span class="o">()));</span>
+<p>In this example the input is bounded. For the purpose of the example, the <code class="highlighter-rouge">DoFn</code>
+method named <code class="highlighter-rouge">AddTimestampsFn</code> (invoked by <code class="highlighter-rouge">ParDo</code>) will set a timestamp for
+each element in the <code class="highlighter-rouge">PCollection</code>.</p>
+
+<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">AddTimestampFn</span><span class="o">(</span><span class="n">minTimestamp</span><span class="o">,</span> <span class="n">maxTimestamp</span><span class="o">)));</span>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
-<p>Below is the code for <code class="highlighter-rouge">AddTimestampFn</code>, a <code class="highlighter-rouge">DoFn</code> invoked by <code class="highlighter-rouge">ParDo</code>, that sets the data element of the timestamp given the element itself. For example, if the elements were log lines, this <code class="highlighter-rouge">ParDo</code> could parse the time out of the log string and set it as the element’s timestamp. There are no timestamps inherent in the works of Shakespeare, so in this case we’ve made up random timestamps just to illustrate the concept. Each line of the input text will get a random associated timestamp sometime in a 2-hour period.</p>
+<p>Below is the code for <code class="highlighter-rouge">AddTimestampFn</code>, a <code class="highlighter-rouge">DoFn</code> invoked by <code class="highlighter-rouge">ParDo</code>, that sets
+the data element of the timestamp given the element itself. For example, if the
+elements were log lines, this <code class="highlighter-rouge">ParDo</code> could parse the time out of the log string
+and set it as the element’s timestamp. There are no timestamps inherent in the
+works of Shakespeare, so in this case we’ve made up random timestamps just to
+illustrate the concept. Each line of the input text will get a random associated
+timestamp sometime in a 2-hour period.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">static</span> <span class="kd">class</span> <span class="nc">AddTimestampFn</span> <span class="kd">extends</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
   <span class="kd">private</span> <span class="kd">final</span> <span class="n">Instant</span> <span class="n">minTimestamp</span><span class="o">;</span>
@@ -959,15 +1109,20 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
 <h3 id="windowing">Windowing</h3>
 
-<p>Beam uses a concept called <strong>Windowing</strong> to subdivide a <code class="highlighter-rouge">PCollection</code> according to the timestamps of its individual elements. PTransforms that aggregate multiple elements, process each <code class="highlighter-rouge">PCollection</code> as a succession of multiple, finite windows, even though the entire collection itself may be of infinite size (unbounded).</p>
+<p>Beam uses a concept called <strong>Windowing</strong> to subdivide a <code class="highlighter-rouge">PCollection</code> into
+bounded sets of elements. PTransforms that aggregate multiple elements process
+each <code class="highlighter-rouge">PCollection</code> as a succession of multiple, finite windows, even though the
+entire collection itself may be of infinite size (unbounded).</p>
 
-<p>The <code class="highlighter-rouge">WindowedWordCount</code> example applies fixed-time windowing, wherein each window represents a fixed time interval. The fixed window size for this example defaults to 1 minute (you can change this with a command-line option).</p>
+<p>The <code class="highlighter-rouge">WindowedWordCount</code> example applies fixed-time windowing, wherein each
+window represents a fixed time interval. The fixed window size for this example
+defaults to 1 minute (you can change this with a command-line option).</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">windowedWords</span> <span class="o">=</span> <span class="n">input</span>
   <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Window</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">into</span><span class="o">(</span>
@@ -975,27 +1130,34 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
 <h3 id="reusing-ptransforms-over-windowed-pcollections">Reusing PTransforms over windowed PCollections</h3>
 
-<p>You can reuse existing PTransforms that were created for manipulating simple PCollections over windowed PCollections as well.</p>
+<p>You can reuse existing PTransforms that were created for manipulating simple
+PCollections over windowed PCollections as well.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Long</span><span class="o">&gt;&gt;</span> <span class="n">wordCounts</span> <span class="o">=</span> <span class="n">windowedWords</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="k">new</span> <span class="n">WordCount</span><span class="o">.</span><span class="na">CountWords</span><span class="o">());</span>
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
-<h3 id="write-results-to-an-unbounded-sink">Write Results to an Unbounded Sink</h3>
+<h3 id="writing-results-to-an-unbounded-sink">Writing results to an unbounded sink</h3>
 
-<p>When our input is unbounded, the same is true of our output <code class="highlighter-rouge">PCollection</code>. We need to make sure that we choose an appropriate, unbounded sink. Some output sinks support only bounded output, while others support both bounded and unbounded outputs. By using a <code class="highlighter-rouge">FilenamePolicy</code>, we can use <code class="highlighter-rouge">TextIO</code> to files that are partitioned by windows. We use a composite <code class="highlighter-rouge">PTransform</code> that uses such a policy internally to write a single sharded file per window.</p>
+<p>When our input is unbounded, the same is true of our output <code class="highlighter-rouge">PCollection</code>. We
+need to make sure that we choose an appropriate, unbounded sink. Some output
+sinks support only bounded output, while others support both bounded and
+unbounded outputs. By using a <code class="highlighter-rouge">FilenamePolicy</code>, we can use <code class="highlighter-rouge">TextIO</code> to files
+that are partitioned by windows. We use a composite <code class="highlighter-rouge">PTransform</code> that uses such
+a policy internally to write a single sharded file per window.</p>
 
-<p>In this example, we stream the results to a BigQuery table. The results are then formatted for a BigQuery table, and then written to BigQuery using BigQueryIO.Write.</p>
+<p>In this example, we stream the results to Google BigQuery. The code formats the
+results and writes them to a BigQuery table using <code class="highlighter-rouge">BigQueryIO.Write</code>.</p>
 
 <div class="language-java highlighter-rouge"><pre class="highlight"><code>  <span class="n">wordCounts</span>
       <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">MapElements</span><span class="o">.</span><span class="na">via</span><span class="o">(</span><span class="k">new</span> <span class="n">WordCount</span><span class="o">.</span><span class="na">FormatAsTextFn</span><span class="o">()))</span>
@@ -1003,7 +1165,7 @@ You can monitor the running job by visiting the Flink dashboard at http://&lt;fl
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="n">This</span> <span class="n">feature</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">yet</span> <span class="n">available</span> <span class="ow">in</span> <span class="n">the</span> <span class="n">Beam</span> <span class="n">SDK</span> <span class="k">for</span> <span class="n">Python</span><span class="o">.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># This feature is not yet available in the Beam SDK for Python.</span>
 </code></pre>
 </div>
 
