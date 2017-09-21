@@ -46,7 +46,7 @@ package org_apache_beam_fn_v1
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
-import org_apache_beam_runner_api_v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_v1"
+import org_apache_beam_runner_api_v1 "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_api_v1"
 import google_protobuf1 "github.com/golang/protobuf/ptypes/timestamp"
 
 import (
