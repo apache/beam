@@ -22,7 +22,7 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*failGBKFn)(nil)))
 }
 
-// Equals verifies the the given collection has the same values as the given
+// Equals verifies the given collection has the same values as the given
 // values, under coder equality. The values can be provided as single
 // PCollection.
 func Equals(p *beam.Pipeline, col beam.PCollection, values ...interface{}) beam.PCollection {
