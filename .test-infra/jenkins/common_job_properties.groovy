@@ -304,7 +304,7 @@ class common_job_properties {
         string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
       }
       downstreamCommitStatus {
-        context("Jenkins: ${descriptor}")
+        delegate.context("Jenkins: ${descriptor}")
         triggeredStatus("${descriptor} Pending")
         startedStatus("Running ${descriptor}")
         statusUrl()
