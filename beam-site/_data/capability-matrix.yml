@@ -577,7 +577,7 @@ categories:
             l3: ''
           - class: mapreduce
             l1: 'No'
-            l2: It is a batch-only runner, and intermediate trigger firings are effectively meaningless.
+            l2: batch-only runner
             l3: ''
 
       - name: Event-time triggers
@@ -608,7 +608,7 @@ categories:
             l3: ''
           - class: mapreduce
             l1: 'No'
-            l2: Currently watermark progress jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+            l2: ''
             l3: ''
 
       - name: Processing-time triggers
@@ -639,7 +639,7 @@ categories:
             l3: ''
           - class: mapreduce
             l1: 'No'
-            l2: From the perspective of triggers, processing time currently jumps from the beginning of time to the end of time once the input has been fully consumed, thus no additional triggering granularity is available.
+            l2: ''
             l3: ''
 
       - name: Count triggers
@@ -670,7 +670,7 @@ categories:
             l3: ''
           - class: mapreduce
             l1: 'No'
-            l2: Elements are processed in the largest bundles possible, so count-based triggers are effectively meaningless.
+            l2: ''
             l3: ''
 
       - name: '[Meta]data driven triggers'
@@ -702,7 +702,7 @@ categories:
             l3:
           - class: mapreduce
             l1: 'No'
-            l2: pending model support
+            l2: ''
             l3:
 
       - name: Composite triggers
@@ -732,8 +732,8 @@ categories:
             l2: ''
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
-            l2: fully supported
+            l1: 'No'
+            l2: ''
             l3: ''
 
       - name: Allowed lateness
@@ -764,7 +764,7 @@ categories:
             l3: ''
           - class: mapreduce
             l1: 'No'
-            l2: No data is ever late.
+            l2: ''
             l3: ''
 
       - name: Timers
@@ -794,8 +794,8 @@ categories:
             l2: not implemented
             l3: ''
           - class: mapreduce
-            l1: 'Partially'
-            l2: not implemented
+            l1: 'No'
+            l2: ''
             l3: ''
 
   - description: How do refinements relate?
@@ -833,8 +833,8 @@ categories:
             l2: fully supported
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
-            l2: fully supported
+            l1: 'No'
+            l2: batch-only runner
             l3: ''
 
       - name: Accumulating
@@ -864,8 +864,8 @@ categories:
             l2: ''
             l3: ''
           - class: mapreduce
-            l1: 'Yes'
-            l2: fully supported
+            l1: 'No'
+            l2: ''
             l3: ''
 
       - name: 'Accumulating &amp; Retracting'
@@ -897,5 +897,5 @@ categories:
             l3: ''
           - class: mapreduce
             l1: 'No'
-            l2: pending model support
+            l2: ''
             l3: ''
