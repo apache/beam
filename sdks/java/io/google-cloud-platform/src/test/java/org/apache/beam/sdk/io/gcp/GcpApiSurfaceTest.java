@@ -86,8 +86,10 @@ public class GcpApiSurfaceTest {
             classesInPackage("io.grpc"),
             classesInPackage("java"),
             classesInPackage("javax"),
+            classesInPackage("org.apache.avro"),
             classesInPackage("org.apache.beam"),
             classesInPackage("org.apache.commons.logging"),
+            classesInPackage("org.codehaus.jackson"),
             classesInPackage("org.joda.time"));
 
     assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));

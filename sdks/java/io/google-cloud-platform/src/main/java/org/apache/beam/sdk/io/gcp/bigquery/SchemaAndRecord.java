@@ -15,21 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.io.gcp.bigquery;
+
+import com.google.api.services.bigquery.model.TableSchema;
+import org.apache.avro.generic.GenericRecord;
+
 /**
- * Defines transforms for reading and writing common storage formats, including
- * {@link org.apache.beam.sdk.io.AvroIO}, and
- * {@link org.apache.beam.sdk.io.TextIO}.
- *
- * <p>The classes in this package provide {@code Read} transforms that create PCollections
- * from existing storage:
- * <pre>{@code
- * PCollection<TableRow> inputData = pipeline.apply(
- *     BigQueryIO.readTableRows().from("clouddataflow-readonly:samples.weather_stations"));
- * }</pre>
- * and {@code Write} transforms that persist PCollections to external storage:
- * <pre> {@code
- * PCollection<Integer> numbers = ...;
- * numbers.apply(TextIO.write().to("gs://my_bucket/path/to/numbers"));
- * } </pre>
+ * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
+ * table (or query) it was generated from.
  */
-package org.apache.beam.sdk.io;
+public class SchemaAndRecord {
+  private final GenericRecord record;
+  private final TableSchema tableSchema;
+
+  public SchemaAndRecord(GenericRecord record, TableSchema tableSchema) {
+    this.record = record;
+    this.tableSchema = tableSchema;
+  }
+
+  public GenericRecord getRecord() {
+    return record;
+  }
+
+  public TableSchema getTableSchema() {
+    return tableSchema;
+  }
+}

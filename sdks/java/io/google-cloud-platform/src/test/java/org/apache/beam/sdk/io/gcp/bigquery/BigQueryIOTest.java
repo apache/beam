@@ -48,6 +48,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.bigtable.v2.Mutation;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
@@ -56,6 +57,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -78,10 +80,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
@@ -107,6 +112,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -124,6 +130,7 @@ import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -395,29 +402,34 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testReadFromTableOldSource() throws IOException, InterruptedException {
-    testReadFromTable(false);
+  public void testReadFromTableWithoutTemplateCompatibility()
+      throws IOException, InterruptedException {
+    testReadFromTable(false, false);
   }
 
   @Test
-  public void testReadFromTableTemplateCompatibility() throws IOException, InterruptedException {
-    testReadFromTable(true);
+  public void testReadFromTableWithTemplateCompatibility()
+      throws IOException, InterruptedException {
+    testReadFromTable(true, false);
   }
 
-  private void testReadFromTable(boolean useTemplateCompatibility)
+  @Test
+  public void testReadTableRowsFromTableWithoutTemplateCompatibility()
+      throws IOException, InterruptedException {
+    testReadFromTable(false, true);
+  }
+
+  @Test
+  public void testReadTableRowsFromTableWithTemplateCompatibility()
+      throws IOException, InterruptedException {
+    testReadFromTable(true, true);
+  }
+
+  private void testReadFromTable(boolean useTemplateCompatibility, boolean useReadTableRows)
       throws IOException, InterruptedException {
     BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
     bqOptions.setProject("defaultproject");
     bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    Job job = new Job();
-    JobStatus status = new JobStatus();
-    job.setStatus(status);
-    JobStatistics jobStats = new JobStatistics();
-    job.setStatistics(jobStats);
-    JobStatistics4 extract = new JobStatistics4();
-    jobStats.setExtract(extract);
-    extract.setDestinationUriFileCounts(ImmutableList.of(1L));
 
     Table sometable = new Table();
     sometable.setSchema(
@@ -447,16 +459,24 @@ public class BigQueryIOTest implements Serializable {
         .withDatasetService(fakeDatasetService);
 
     Pipeline p = TestPipeline.create(bqOptions);
-    BigQueryIO.Read read =
-        BigQueryIO.read()
-            .from("non-executing-project:somedataset.sometable")
-            .withTestServices(fakeBqServices)
-            .withoutValidation();
-    if (useTemplateCompatibility) {
-      read = read.withTemplateCompatibility();
+    PTransform<PBegin, PCollection<TableRow>> readTransform;
+    if (useReadTableRows) {
+      BigQueryIO.Read read =
+          BigQueryIO.read()
+              .from("non-executing-project:somedataset.sometable")
+              .withTestServices(fakeBqServices)
+              .withoutValidation();
+      readTransform = useTemplateCompatibility ? read.withTemplateCompatibility() : read;
+    } else {
+      BigQueryIO.TypedRead<TableRow> read =
+          BigQueryIO.readTableRows()
+              .from("non-executing-project:somedataset.sometable")
+              .withTestServices(fakeBqServices)
+              .withoutValidation();
+      readTransform = useTemplateCompatibility ? read.withTemplateCompatibility() : read;
     }
     PCollection<KV<String, Long>> output =
-        p.apply(read)
+        p.apply(readTransform)
             .apply(
                 ParDo.of(
                     new DoFn<TableRow, KV<String, Long>>() {
@@ -1650,7 +1670,11 @@ public class BigQueryIOTest implements Serializable {
 
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), fakeBqServices);
+        stepUuid,
+        StaticValueProvider.of(table),
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
@@ -1727,8 +1751,13 @@ public class BigQueryIOTest implements Serializable {
 
     String query = FakeBigQueryServices.encodeQuery(expected);
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        stepUuid, StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+        stepUuid,
+        StaticValueProvider.of(query),
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE);
     options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
@@ -1813,7 +1842,11 @@ public class BigQueryIOTest implements Serializable {
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         stepUuid,
         StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE);
 
     options.setTempLocation(baseDir.toString());
 
@@ -2374,5 +2407,20 @@ public class BigQueryIOTest implements Serializable {
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table$decorator"));
     assertEquals("project:dataset.table",
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
+  }
+
+  @Test
+  public void testCoderInference() {
+    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn =
+      new SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>>() {
+        @Override
+        public KV<ByteString, Mutation> apply(SchemaAndRecord input) {
+          return null;
+        }
+      };
+
+    assertEquals(
+        KvCoder.of(ByteStringCoder.of(), ProtoCoder.of(Mutation.class)),
+        BigQueryIO.read(parseFn).inferCoder(CoderRegistry.createDefault()));
   }
 }
