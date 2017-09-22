@@ -33,7 +33,7 @@
   <packaging>jar</packaging>
 
   <properties>
-    <dataflow.container_version>beam-master-20170921</dataflow.container_version>
+    <dataflow.container_version>beam-master-20170918</dataflow.container_version>
     <dataflow.fnapi_environment_major_version>1</dataflow.fnapi_environment_major_version>
     <dataflow.legacy_environment_major_version>6</dataflow.legacy_environment_major_version>
   </properties>
@@ -181,9 +181,7 @@
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
-                    <include>com.google.protobuf:protobuf-java</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
-                    <include>org.apache.beam:beam-sdks-common-runner-api</include>
                   </includes>
                 </artifactSet>
                 <filters>
@@ -209,20 +207,12 @@
                     <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.common</shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>com.google.protobuf</pattern>
-                    <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.protobuf</shadedPattern>
-                  </relocation>
-                  <relocation>
                     <pattern>com.google.thirdparty</pattern>
                     <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.thirdparty</shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>org.apache.beam.runners.core</pattern>
                     <shadedPattern>org.apache.beam.runners.dataflow.repackaged.org.apache.beam.runners.core</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>org.apache.beam.sdk.common.runner</pattern>
-                    <shadedPattern>org.apache.beam.runners.dataflow.repackaged.org.apache.beam.sdk.common.runner</shadedPattern>
                   </relocation>
                 </relocations>
                 <transformers>
@@ -381,11 +371,6 @@
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.protobuf</groupId>
-      <artifactId>protobuf-java</artifactId>
     </dependency>
 
     <dependency>
