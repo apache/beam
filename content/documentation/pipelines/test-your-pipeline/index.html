@@ -180,8 +180,8 @@
 <p>The Beam SDKs provide a number of ways to unit test your pipeline code, from the lowest to the highest levels. From the lowest to the highest level, these are:</p>
 
 <ul>
-  <li>You can test the individual function objects, such as <a href="/documentation/programming-guide/#transforms-pardo">DoFn</a>s, inside your pipeline’s core transforms.</li>
-  <li>You can test an entire <a href="/documentation/programming-guide/#transforms-composite">Composite Transform</a> as a unit.</li>
+  <li>You can test the individual function objects, such as <a href="/documentation/programming-guide/#pardo">DoFn</a>s, inside your pipeline’s core transforms.</li>
+  <li>You can test an entire <a href="/documentation/programming-guide/#composite-transforms">Composite Transform</a> as a unit.</li>
   <li>You can perform an end-to-end test for an entire pipeline.</li>
 </ul>
 
@@ -197,7 +197,7 @@
 
 <ol>
   <li>Create a <code class="highlighter-rouge">DoFnTester</code>. You’ll need to pass an instance of the <code class="highlighter-rouge">DoFn</code> you want to test to the static factory method for <code class="highlighter-rouge">DoFnTester</code>.</li>
-  <li>Create one or more main test inputs of the appropriate type for your <code class="highlighter-rouge">DoFn</code>. If your <code class="highlighter-rouge">DoFn</code> takes side inputs and/or produces <a href="/documentation/programming-guide#transforms-outputs">multiple outputs</a>, you should also create the side inputs and the output tags.</li>
+  <li>Create one or more main test inputs of the appropriate type for your <code class="highlighter-rouge">DoFn</code>. If your <code class="highlighter-rouge">DoFn</code> takes side inputs and/or produces <a href="/documentation/programming-guide#additional-outputs">multiple outputs</a>, you should also create the side inputs and the output tags.</li>
   <li>Call <code class="highlighter-rouge">DoFnTester.processBundle</code> to process the main inputs.</li>
   <li>Use JUnit’s <code class="highlighter-rouge">Assert.assertThat</code> method to ensure the test outputs returned from <code class="highlighter-rouge">processBundle</code> match your expected values.</li>
 </ol>
@@ -239,7 +239,7 @@
 </code></pre>
 </div>
 
-<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#transforms-sideio">side inputs</a> for more information.</p>
+<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#side-inputs">side inputs</a> for more information.</p>
 
 <h4 id="additional-outputs">Additional Outputs</h4>
 
@@ -264,7 +264,7 @@ for the <code class="highlighter-rouge">DoFnTester</code> as follows:</p>
 </code></pre>
 </div>
 
-<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#transforms-outputs">additional outputs</a> for more information.</p>
+<p>See the <code class="highlighter-rouge">ParDo</code> documentation on <a href="/documentation/programming-guide/#additional-outputs">additional outputs</a> for more information.</p>
 
 <h3 id="processing-test-inputs-and-checking-results">Processing Test Inputs and Checking Results</h3>
 
@@ -321,7 +321,7 @@ for the <code class="highlighter-rouge">DoFnTester</code> as follows:</p>
 
 <h3 id="using-the-create-transform">Using the Create Transform</h3>
 
-<p>You can use the <code class="highlighter-rouge">Create</code> transform to create a <code class="highlighter-rouge">PCollection</code> out of a standard in-memory collection class, such as Java <code class="highlighter-rouge">List</code>. See <a href="/documentation/programming-guide/#pcollection">Creating a PCollection</a> for more information.</p>
+<p>You can use the <code class="highlighter-rouge">Create</code> transform to create a <code class="highlighter-rouge">PCollection</code> out of a standard in-memory collection class, such as Java <code class="highlighter-rouge">List</code>. See <a href="/documentation/programming-guide/#creating-a-pcollection">Creating a PCollection</a> for more information.</p>
 
 <h3 id="passert">PAssert</h3>
 <p><a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/testing/PAssert.html">PAssert</a> is a class included in the Beam Java SDK  that is an assertion on the contents of a <code class="highlighter-rouge">PCollection</code>. You can use <code class="highlighter-rouge">PAssert</code>to verify that a <code class="highlighter-rouge">PCollection</code> contains a specific set of expected elements.</p>

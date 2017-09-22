@@ -169,7 +169,7 @@
 <ul>
   <li><strong>Where is your input data stored?</strong> How many sets of input data do you have? This will determine what kinds of <code class="highlighter-rouge">Read</code> transforms you’ll need to apply at the start of your pipeline.</li>
   <li><strong>What does your data look like?</strong> It might be plaintext, formatted log files, or rows in a database table. Some Beam transforms work exclusively on <code class="highlighter-rouge">PCollection</code>s of key/value pairs; you’ll need to determine if and how your data is keyed and how to best represent that in your pipeline’s <code class="highlighter-rouge">PCollection</code>(s).</li>
-  <li><strong>What do you want to do with your data?</strong> The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like <a href="/documentation/programming-guide/#transforms-pardo">ParDo</a>, or when you use pre-written transforms included with the Beam SDKs.</li>
+  <li><strong>What do you want to do with your data?</strong> The core transforms in the Beam SDKs are general purpose. Knowing how you need to change or manipulate your data will determine how you build core transforms like <a href="/documentation/programming-guide/#pardo">ParDo</a>, or when you use pre-written transforms included with the Beam SDKs.</li>
   <li><strong>What does your output data look like, and where should it go?</strong> This will determine what kinds of <code class="highlighter-rouge">Write</code> transforms you’ll need to apply at the end of your pipeline.</li>
 </ul>
 
@@ -222,7 +222,7 @@
 
 <h3 id="a-single-transform-that-produces-multiple-outputs">A single transform that produces multiple outputs</h3>
 
-<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#transforms-outputs">tagged outputs</a>. Transforms that produce more than one output process each element of the input once, and output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
+<p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#additional-outputs">tagged outputs</a>. Transforms that produce more than one output process each element of the input once, and output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
 
 <p>Figure 3 below illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with ‘A’ are added to the main output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to an additional output <code class="highlighter-rouge">PCollection</code>.</p>
 
