@@ -81,9 +81,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Transport;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -600,15 +598,7 @@ public class BigQueryIO {
         rows =
             tuple
                 .get(filesTag)
-                .apply(
-                    WithKeys.of(
-                        new SerializableFunction<String, String>() {
-                          public String apply(String s) {
-                            return s;
-                          }
-                        }))
-                .apply(Reshuffle.<String, String>of())
-                .apply(Values.<String>create())
+                .apply(Reshuffle.<String>viaRandomKey())
                 .apply(
                     "ReadFiles",
                     ParDo.of(
