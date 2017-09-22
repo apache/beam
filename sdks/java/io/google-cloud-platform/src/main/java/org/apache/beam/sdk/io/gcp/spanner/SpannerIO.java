@@ -34,7 +34,6 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -43,10 +42,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -287,27 +283,16 @@ public class SpannerIO {
 
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
-      PCollection<ReadOperation> reshuffled =
-          input
-              .apply(
-                  "Pair with random key",
-                  WithKeys.of(
-                      new SerializableFunction<ReadOperation, String>() {
-                        @Override
-                        public String apply(ReadOperation ignored) {
-                          return UUID.randomUUID().toString();
-                        }
-                      }))
-              .apply("Reshuffle", Reshuffle.<String, ReadOperation>of())
-              .apply("Strip keys", Values.<ReadOperation>create());
       List<PCollectionView<Transaction>> sideInputs =
           getTransaction() == null
               ? Collections.<PCollectionView<Transaction>>emptyList()
               : Collections.singletonList(getTransaction());
-      return reshuffled.apply(
-          "Execute queries",
-          ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
-              .withSideInputs(sideInputs));
+      return input
+          .apply(Reshuffle.<ReadOperation>viaRandomKey())
+          .apply(
+              "Execute queries",
+              ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
+                  .withSideInputs(sideInputs));
     }
   }
 
