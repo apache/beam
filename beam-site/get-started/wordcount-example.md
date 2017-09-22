@@ -198,7 +198,7 @@ Pipeline p = Pipeline.create(options);
 The Minimal WordCount pipeline contains several transforms to read data into the
 pipeline, manipulate or otherwise transform the data, and write out the results.
 Transforms can consist of an individual operation, or can contain multiple
-nested transforms (which is a [composite transform]({{ site.baseurl }}/documentation/programming-guide#transforms-composite)).
+nested transforms (which is a [composite transform]({{ site.baseurl }}/documentation/programming-guide#composite-transforms)).
 
 Each transform takes some kind of input data and produces some output data. The
 input and output data is often represented by the SDK class `PCollection`.
@@ -838,7 +838,7 @@ public static void main(String[] args) throws IOException {
 
 ### Adding timestamps to data
 
-Each element in a `PCollection` has an associated [timestamp]({{ site.baseurl }}/documentation/programming-guide#pctimestamps).
+Each element in a `PCollection` has an associated [timestamp]({{ site.baseurl }}/documentation/programming-guide#element-timestamps).
 The timestamp for each element is initially assigned by the source that creates
 the `PCollection`. Some sources that create unbounded PCollections can assign
 each new element a timestamp that corresponds to when the element was read or
