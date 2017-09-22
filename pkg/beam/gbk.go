@@ -22,10 +22,8 @@ import (
 // comparing the encoded bytes. This admits efficient parallel evaluation.
 // Note that this requires that the Coder of the keys be deterministic.
 //
-// By default, the Coder of the keys of the output PCollection is the same
-// as that of the keys of the input, and the Coder of the elements of the
-// iterable values of the output PCollection is the same as the Coder of the
-// values of the input.
+// By default, input and output PCollections share a key Coder and iterable
+// values in the input and output PCollection share an element Coder.
 //
 // Example of use:
 //

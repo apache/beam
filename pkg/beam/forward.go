@@ -20,6 +20,8 @@ import (
 // RegisterType inserts "external" types into a global type registry to bypass
 // serialization and preserve full method information. It should be called in
 // init() only.
+// TODO(wcn): the canonical definition of "external" is in v1.proto. We need user
+// facing copy for this important concept.
 func RegisterType(t reflect.Type) {
 	runtime.RegisterType(t)
 }
