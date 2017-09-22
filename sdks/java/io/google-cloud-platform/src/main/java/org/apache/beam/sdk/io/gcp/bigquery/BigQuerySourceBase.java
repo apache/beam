@@ -27,18 +27,14 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
-import java.io.Serializable;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import javax.annotation.Nullable;
+
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
@@ -64,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * ...
  */
-abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
+abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   private static final Logger LOG = LoggerFactory.getLogger(BigQuerySourceBase.class);
 
   // The maximum number of retries to poll a BigQuery job.
@@ -73,11 +69,20 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected final String stepUuid;
   protected final BigQueryServices bqServices;
 
-  private transient List<BoundedSource<TableRow>> cachedSplitResult;
+  private transient List<BoundedSource<T>> cachedSplitResult;
+  private SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory;
+  private Coder<T> coder;
 
-  BigQuerySourceBase(String stepUuid, BigQueryServices bqServices) {
+  BigQuerySourceBase(
+      String stepUuid,
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory
+    ) {
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.bqServices = checkNotNull(bqServices, "bqServices");
+    this.coder = checkNotNull(coder, "coder");
+    this.parseFnFactory = checkNotNull(parseFnFactory, "parseFnFactory");
   }
 
   protected TableSchema getSchema(PipelineOptions options) throws Exception {
@@ -106,7 +111,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   }
 
   @Override
-  public List<BoundedSource<TableRow>> split(
+  public List<BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     // split() can be called multiple times, e.g. Dataflow runner may call it multiple times
     // with different desiredBundleSizeBytes in case the split() call produces too many sources.
@@ -128,13 +133,23 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
   protected abstract void cleanupTempResource(BigQueryOptions bqOptions) throws Exception;
 
   @Override
+  public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+    try {
+      List<BoundedSource<T>> splits = split(0L, options);
+      return new MergedBoundedReader<>(splits, options);
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+  }
+
+  @Override
   public void validate() {
     // Do nothing, validation is done in BigQuery.Read.
   }
 
   @Override
-  public Coder<TableRow> getOutputCoder() {
-    return TableRowJsonCoder.of();
+  public Coder<T> getOutputCoder() {
+    return coder;
   }
 
   private List<ResourceId> executeExtract(
@@ -167,21 +182,11 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
-  List<BoundedSource<TableRow>> createSources(List<ResourceId> files, TableSchema tableSchema)
+  List<BoundedSource<T>> createSources(List<ResourceId> files, TableSchema tableSchema)
       throws IOException, InterruptedException {
-    final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
 
-    SerializableFunction<GenericRecord, TableRow> function =
-        new SerializableFunction<GenericRecord, TableRow>() {
-          private Supplier<TableSchema> schema = Suppliers.memoize(
-              Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(jsonSchema)));
-
-          @Override
-          public TableRow apply(GenericRecord input) {
-            return BigQueryAvroUtils.convertGenericRecordToTableRow(input, schema.get());
-          }};
-
-    List<BoundedSource<TableRow>> avroSources = Lists.newArrayList();
+    SerializableFunction<GenericRecord, T> function = parseFnFactory.apply(tableSchema);
+    List<BoundedSource<T>> avroSources = Lists.newArrayList();
     for (ResourceId file : files) {
       avroSources.add(
           AvroSource.from(file.toString()).withParseFn(function, getOutputCoder()));
@@ -189,47 +194,58 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     return ImmutableList.copyOf(avroSources);
   }
 
-  private static class TableSchemaFunction implements Serializable, Function<String, TableSchema> {
-    @Nullable
-    @Override
-    public TableSchema apply(@Nullable String input) {
-      return BigQueryHelpers.fromJsonString(input, TableSchema.class);
-    }
-  }
+  private static class MergedBoundedReader<T> extends BoundedReader<T> {
+    private final Iterator<BoundedSource<T>> sourceIterator;
+    private final PipelineOptions options;
 
-  protected static class BigQueryReader extends BoundedReader<TableRow> {
-    private final BigQuerySourceBase source;
-    private final BigQueryServices.BigQueryJsonReader reader;
+    private BoundedReader<T> currentReader;
 
-    BigQueryReader(
-        BigQuerySourceBase source, BigQueryServices.BigQueryJsonReader reader) {
-      this.source = source;
-      this.reader = reader;
+    MergedBoundedReader(List<BoundedSource<T>> sources, PipelineOptions options) {
+      this.sourceIterator = sources.iterator();
+      this.options = options;
     }
 
-    @Override
-    public BoundedSource<TableRow> getCurrentSource() {
-      return source;
+    private boolean startNextReader() throws IOException {
+      if (currentReader != null) {
+        currentReader.close();
+      }
+      if (sourceIterator.hasNext()) {
+        BoundedSource<T> nextSource = sourceIterator.next();
+        currentReader = nextSource.createReader(options);
+        return currentReader.start();
+      } else {
+        return false;
+      }
     }
 
     @Override
     public boolean start() throws IOException {
-      return reader.start();
+      return startNextReader();
     }
 
     @Override
     public boolean advance() throws IOException {
-      return reader.advance();
+      return currentReader.advance() || startNextReader();
     }
 
     @Override
-    public TableRow getCurrent() throws NoSuchElementException {
-      return reader.getCurrent();
+    public T getCurrent() throws NoSuchElementException {
+      return currentReader.getCurrent();
     }
 
     @Override
     public void close() throws IOException {
-      reader.close();
+      currentReader.close();
+      currentReader = null;
+    }
+
+    @Override
+    public BoundedSource<T> getCurrentSource() {
+      if (currentReader != null) {
+        return currentReader.getCurrentSource();
+      } else {
+        return null;
+      }
     }
   }
 }

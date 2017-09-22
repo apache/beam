@@ -48,6 +48,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.bigtable.v2.Mutation;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
@@ -56,6 +57,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.protobuf.ByteString;
+
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -78,15 +81,20 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -138,7 +146,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1589,40 +1596,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testBigQueryTableSourceThroughJsonAPI() throws Exception {
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    List<TableRow> expected = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", "1"),
-        new TableRow().set("name", "b").set("number", "2"),
-        new TableRow().set("name", "c").set("number", "3"),
-        new TableRow().set("name", "d").set("number", "4"),
-        new TableRow().set("name", "e").set("number", "5"),
-        new TableRow().set("name", "f").set("number", "6"));
-
-    TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
-    datasetService.createDataset(table.getProjectId(), table.getDatasetId(), "", "");
-    datasetService.createTable(new Table().setTableReference(table));
-    datasetService.insertAll(table, expected, null);
-
-    Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
-    String stepUuid = "testStepUuid";
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), fakeBqServices);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation(baseDir.toString());
-    Assert.assertThat(
-        SourceTestUtils.readFromSource(bqSource, options),
-        CoreMatchers.is(expected));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
-  }
-
-  @Test
   public void testBigQueryTableSourceInitSplit() throws Exception {
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
     FakeJobService fakeJobService = new FakeJobService();
@@ -1652,14 +1625,20 @@ public class BigQueryIOTest implements Serializable {
 
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), fakeBqServices);
+        stepUuid,
+        StaticValueProvider.of(table),
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParserFactory.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setProject("project");
 
-    List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
+    List<TableRow> read =
+        convertBigDecimalsToLong(SourceTestUtils.readFromSource(bqSource, options));
+
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
@@ -1729,8 +1708,13 @@ public class BigQueryIOTest implements Serializable {
 
     String query = FakeBigQueryServices.encodeQuery(expected);
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        stepUuid, StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+        stepUuid,
+        StaticValueProvider.of(query),
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParserFactory.INSTANCE);
     options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
@@ -1744,7 +1728,9 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(queryTable))));
 
-    List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
+    List<TableRow> read =
+        convertBigDecimalsToLong(SourceTestUtils.readFromSource(bqSource, options));
+
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
         bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
@@ -1816,7 +1802,11 @@ public class BigQueryIOTest implements Serializable {
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         stepUuid,
         StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParserFactory.INSTANCE);
 
     options.setTempLocation(baseDir.toString());
 
@@ -2338,6 +2328,8 @@ public class BigQueryIOTest implements Serializable {
       Object num = convertedEntry.get("number");
       if (num instanceof BigDecimal) {
         convertedEntry.set("number", ((BigDecimal) num).longValue());
+      } else if (num instanceof String) {
+        convertedEntry.set("number", Long.valueOf((String) num));
       }
       converted.add(convertedEntry);
     }
@@ -2382,5 +2374,29 @@ public class BigQueryIOTest implements Serializable {
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table$decorator"));
     assertEquals("project:dataset.table",
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
+  }
+
+  @Test
+  public void testCoderInference() {
+    BigQueryIO.ReadGenericRecords<KV<ByteString, Mutation>> io =
+        BigQueryIO.<KV<ByteString, Mutation>>readRecords()
+          .withParseFnFactory(new SerializableFunction<
+              TableSchema,
+              SerializableFunction<GenericRecord, KV<ByteString, Mutation>>
+              >() {
+            @Override
+            public SerializableFunction<GenericRecord, KV<ByteString, Mutation>> apply(
+                TableSchema input) {
+              return null;
+            }
+          });
+    Coder<KV<ByteString, Mutation>> coder = io.inferCoder(CoderRegistry.createDefault());
+    assertEquals(
+        KvCoder.of(
+            ByteStringCoder.of(),
+            ProtoCoder.of(Mutation.class)
+        ),
+        coder
+    );
   }
 }

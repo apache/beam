@@ -27,17 +27,21 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
 
@@ -45,20 +49,24 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
  * A {@link BigQuerySourceBase} for querying BigQuery tables.
  */
 @VisibleForTesting
-class BigQueryQuerySource extends BigQuerySourceBase {
+class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
 
-  static BigQueryQuerySource create(
+  static <T>BigQueryQuerySource<T> create(
       String stepUuid,
       ValueProvider<String> query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      BigQueryServices bqServices) {
-    return new BigQueryQuerySource(
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory) {
+    return new BigQueryQuerySource<T>(
         stepUuid,
         query,
         flattenResults,
         useLegacySql,
-        bqServices);
+        bqServices,
+        coder,
+        parseFnFactory);
   }
 
   private final ValueProvider<String> query;
@@ -71,8 +79,10 @@ class BigQueryQuerySource extends BigQuerySourceBase {
       ValueProvider<String> query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      BigQueryServices bqServices) {
-    super(stepUuid, bqServices);
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory) {
+    super(stepUuid, bqServices, coder, parseFnFactory);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
@@ -83,13 +93,6 @@ class BigQueryQuerySource extends BigQuerySourceBase {
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     return dryRunQueryIfNeeded(bqOptions).getTotalBytesProcessed();
-  }
-
-  @Override
-  public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    return new BigQueryReader(this, bqServices.getReaderFromQuery(
-        bqOptions, bqOptions.getProject(), createBasicQueryConfig()));
   }
 
   @Override

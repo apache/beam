@@ -49,17 +49,6 @@ interface BigQueryServices extends Serializable {
   DatasetService getDatasetService(BigQueryOptions bqOptions);
 
   /**
-   * Returns a real, mock, or fake {@link BigQueryJsonReader} to read tables.
-   */
-  BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
-
-  /**
-   * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
-   */
-  BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig);
-
-  /**
    * An interface for the Cloud BigQuery load service.
    */
   interface JobService {
