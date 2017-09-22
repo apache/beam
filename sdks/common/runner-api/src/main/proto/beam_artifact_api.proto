@@ -55,20 +55,28 @@ service ArtifactRetrievalService {
 }
 
 // An artifact identifier and associated metadata.
-message Artifact {
+message ArtifactMetadata {
   // (Required) The name of the artifact.
   string name = 1;
 
   // (Optional) The Unix-like permissions of the artifact
   int32 permissions = 2;
 
-  // (Optional) The md5 checksum of the artifact.
-  string md5 = 3;
+  // (Optional) The checksum of the artifact.
+  Checksum checksum = 3;
+}
+
+message Checksum {
+  // (Required) the algorithm used to generate this checksum
+  string algorithm = 1;
+
+  // (Required) the value of this checksum
+  bytes value = 2;
 }
 
 // A collection of artifacts.
 message Manifest {
-  repeated Artifact artifact = 1;
+  repeated ArtifactMetadata artifact = 1;
 }
 
 // A request to get the manifest of a Job.
@@ -94,9 +102,9 @@ message ArtifactChunk {
 message PutArtifactRequest {
   // (Required)
   oneof content {
-    // The name of the artifact. The first message in a PutArtifact call must contain the name
+    // The Artifact metadata. The first message in a PutArtifact call must contain the name
     // of the artifact.
-    string name = 1;
+    ArtifactMetadata metadata = 1;
 
     // A chunk of the artifact. All messages after the first in a PutArtifact call must contain a
     // chunk.
