@@ -10,7 +10,7 @@ permalink: /documentation/io/built-in/
 
 This table contains the currently available I/O transforms.
 
-Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/programming-guide#io) for general usage instructions, and see the javadoc/pydoc for the particular I/O transforms.
+Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/programming-guide#pipeline-io) for general usage instructions, and see the javadoc/pydoc for the particular I/O transforms.
 
 
 <table class="table table-bordered">
