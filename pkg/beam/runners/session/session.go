@@ -312,9 +312,9 @@ func buildLocalBinary() (string, error) {
 	log.Printf("Compiling %v as %v", program, ret)
 
 	// Cross-compile given go program. Not awesome.
-	real := []string{"go", "build", "-o", ret, program}
+	build := []string{"go", "build", "-o", ret, program}
 
-	cmd := exec.Command("/bin/bash", "-c", strings.Join(real, " "))
+	cmd := exec.Command(build[0], build[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Print(string(out))
 		return "", fmt.Errorf("failed to compile %v: %v", program, err)
