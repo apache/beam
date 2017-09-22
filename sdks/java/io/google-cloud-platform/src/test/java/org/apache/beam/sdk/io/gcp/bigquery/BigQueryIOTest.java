@@ -62,7 +62,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -106,7 +105,6 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
-import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
@@ -138,7 +136,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -1589,40 +1586,6 @@ public class BigQueryIOTest implements Serializable {
   }
 
   @Test
-  public void testBigQueryTableSourceThroughJsonAPI() throws Exception {
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    List<TableRow> expected = ImmutableList.of(
-        new TableRow().set("name", "a").set("number", "1"),
-        new TableRow().set("name", "b").set("number", "2"),
-        new TableRow().set("name", "c").set("number", "3"),
-        new TableRow().set("name", "d").set("number", "4"),
-        new TableRow().set("name", "e").set("number", "5"),
-        new TableRow().set("name", "f").set("number", "6"));
-
-    TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
-    datasetService.createDataset(table.getProjectId(), table.getDatasetId(), "", "");
-    datasetService.createTable(new Table().setTableReference(table));
-    datasetService.insertAll(table, expected, null);
-
-    Path baseDir = Files.createTempDirectory(tempFolder, "testBigQueryTableSourceThroughJsonAPI");
-    String stepUuid = "testStepUuid";
-    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), fakeBqServices);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    options.setTempLocation(baseDir.toString());
-    Assert.assertThat(
-        SourceTestUtils.readFromSource(bqSource, options),
-        CoreMatchers.is(expected));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
-  }
-
-  @Test
   public void testBigQueryTableSourceInitSplit() throws Exception {
     FakeDatasetService fakeDatasetService = new FakeDatasetService();
     FakeJobService fakeJobService = new FakeJobService();
@@ -1659,10 +1622,10 @@ public class BigQueryIOTest implements Serializable {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     bqOptions.setProject("project");
 
-    List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
+    List<TableRow> read =
+        convertStringsToLong(
+            SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
@@ -1744,10 +1707,9 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(queryTable))));
 
-    List<TableRow> read = SourceTestUtils.readFromSource(bqSource, options);
+    List<TableRow> read = convertStringsToLong(
+        SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
@@ -1820,11 +1782,9 @@ public class BigQueryIOTest implements Serializable {
 
     options.setTempLocation(baseDir.toString());
 
-    List<TableRow> read = convertBigDecimalsToLong(
-        SourceTestUtils.readFromSource(bqSource, options));
+    List<TableRow> read = convertStringsToLong(
+            SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
@@ -2329,16 +2289,13 @@ public class BigQueryIOTest implements Serializable {
             IntervalWindow.getCoder()));
   }
 
-  List<TableRow> convertBigDecimalsToLong(List<TableRow> toConvert) {
-    // The numbers come back as BigDecimal objects after JSON serialization. Change them back to
+  List<TableRow> convertStringsToLong(List<TableRow> toConvert) {
+    // The numbers come back as String after JSON serialization. Change them back to
     // longs so that we can assert the output.
     List<TableRow> converted = Lists.newArrayList();
     for (TableRow entry : toConvert) {
       TableRow convertedEntry = entry.clone();
-      Object num = convertedEntry.get("number");
-      if (num instanceof BigDecimal) {
-        convertedEntry.set("number", ((BigDecimal) num).longValue());
-      }
+      convertedEntry.set("number", Long.parseLong((String) convertedEntry.get("number")));
       converted.add(convertedEntry);
     }
     return converted;

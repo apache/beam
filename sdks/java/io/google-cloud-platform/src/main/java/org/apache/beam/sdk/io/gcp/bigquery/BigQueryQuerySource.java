@@ -27,7 +27,6 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -83,13 +82,6 @@ class BigQueryQuerySource extends BigQuerySourceBase {
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     return dryRunQueryIfNeeded(bqOptions).getTotalBytesProcessed();
-  }
-
-  @Override
-  public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    return new BigQueryReader(this, bqServices.getReaderFromQuery(
-        bqOptions, bqOptions.getProject(), createBasicQueryConfig()));
   }
 
   @Override
