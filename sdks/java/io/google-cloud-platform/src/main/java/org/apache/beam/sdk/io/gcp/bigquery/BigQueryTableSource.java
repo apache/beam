@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.IOException;
@@ -88,14 +87,6 @@ class BigQueryTableSource extends BigQuerySourceBase {
       tableReference.setProjectId(bqOptions.getProject());
     }
     return tableReference;
-  }
-
-  @Override
-  public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    TableReference tableRef = BigQueryIO.JSON_FACTORY.fromString(jsonTable.get(),
-        TableReference.class);
-    return new BigQueryReader(this, bqServices.getReaderFromTable(bqOptions, tableRef));
   }
 
   @Override
