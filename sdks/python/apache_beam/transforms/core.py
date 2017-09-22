@@ -90,6 +90,8 @@ class DoFnContext(object):
 class DoFnProcessContext(DoFnContext):
   """A processing context passed to DoFn process() during execution.
 
+  Experimental; no backwards-compatibility guarantees.
+
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
 
@@ -142,22 +144,20 @@ class ProcessContinuation(object):
   """An object that may be produced as the last element of a process method
     invocation.
 
-  If produced, and if should_resume is True, indicates that there is more work
-  to be done for the current input element.
+  Experimental; no backwards-compatibility guarantees.
+
+  If produced, indicates that there is more work to be done for the current
+  input element.
   """
 
   def __init__(self, should_resume, resume_delay=0):
     """Initializes a ProcessContinuation object.
 
     Args:
-      should_resume: If False, promises that there is no more work to be done
-        for the current element so the runner should not resume the process()
-        invocation for the current input element.
-      resume_delay: Inidicates the minimum time, in seconds, that should elapse
+      resume_delay: indicates the minimum time, in seconds, that should elapse
         before re-invoking process() method for resuming the invocation of the
         current element.
     """
-    self.should_resume = should_resume
     self.resume_delay = resume_delay
 
 
@@ -190,7 +190,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return self.__class__.__name__
 
   def process(self, element, *args, **kwargs):
-    """method to use for processing elements.
+    """Method to use for processing elements.
 
     This is invoked by ``DoFnRunner`` for each element of a input
     ``PCollection``.
@@ -215,20 +215,23 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     watermark in number of seconds.
 
     ** Splittable DoFns **
+
+    This feature is experimental and currently does not offer any
+    backwards-compatibility guarantees.
+
     A ``DoFn`` is considered to be a 'Splittable DoFn' of it's ``process()``
     method has a parameter with default value ``DoFn.RestrictionTrackerParam``.
     This is an advanced feature and an overwhelming majority of users will never
     need to write a Splittable DoFn.
 
-    Not all runners support Splittable DoFn. See the capability matrix
-    (a href="https://beam.apache.org/documentation/runners/capability-matrix/)
-    for the set of runners that support this feature.
-
     A Splittable DoFn must provide suitable overrides for the following methods
     of the ``DoFn`` class.
     * new_tracker()
-    * restriction_coder()
     * initial_restriction()
+
+    Optionally, Splittable DoFns may override default implementations of
+    following methods.
+    * restriction_coder()
     * split()
 
     As the last element produced by the iterator returned by the ``process()``
@@ -278,8 +281,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
     Args:
       restriction: an object that defines a restriction as identified by the
-        current ``DoFn``. For example, a tuple that gives a range of positions for
-        a ``DoFn`` that reads files based on byte positions.
+        current ``DoFn``. For example, a tuple that gives a range of positions
+        for a ``DoFn`` that reads files based on byte positions.
     Returns: an object of type ``RestrictionTracker``.
     """
     pass
@@ -290,7 +293,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     Returns:
       an object of type ``Coder``.
     """
-    pass
+    return coders.registry.get_coder(object)
 
   def initial_restriction(self, element):
     """Produces an initial restriction for the given element."""
@@ -307,16 +310,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     TODO(chamikara): give suitable hints for performing splitting, for example
     number of parts or size in bytes.
     """
-    pass
-
-  @staticmethod
-  def stop():
-    """A convenient method that produces a ``ProcessContinuation``.
-
-    Returns: a ``ProcessContinuation`` for signalling the runner that current
-      input element has been fully processed.
-    """
-    return ProcessContinuation(should_resume=False)
+    yield restriction
 
   @staticmethod
   def resume(resume_delay=0):

@@ -1018,6 +1018,8 @@ class _RoundRobinKeyFn(core.DoFn):
 class RestrictionTracker(object):
   """Manages concurrent access to a restriction.
 
+  Experimental; no backwards-compatibility guarantees.
+
   Keeps track of the restrictions claimed part for a Splittable DoFn.
 
   See following documents for more details.
