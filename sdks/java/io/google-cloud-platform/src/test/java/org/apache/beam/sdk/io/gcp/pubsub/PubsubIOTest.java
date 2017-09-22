@@ -31,10 +31,9 @@ import static org.junit.Assert.assertThat;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.Read;
-import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesUnboundedPCollections;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -149,62 +148,49 @@ public class PubsubIOTest {
     assertNotNull(DisplayData.from(read));
   }
 
-  /**
-   * {@link PipelineOptions} with a ValueProvider.
-   */
-  public interface RuntimeSubscriptionOptions extends PipelineOptions {
-    ValueProvider<String> getValue();
-    void setValue(ValueProvider<String> provider);
-  }
-
   @Test
   public void testValueProviderSubscription() {
-    RuntimeSubscriptionOptions options =
-        PipelineOptionsFactory.create().as(RuntimeSubscriptionOptions.class);
-    options.setValue(StaticValueProvider.of("projects/project/subscriptions/subscription"));
-    ValueProvider<String> subscription = options.getValue();
-    Read<String> pubsubRead = PubsubIO.readStrings().fromSubscription(subscription);
+    StaticValueProvider<String> provider =
+        StaticValueProvider.of("projects/project/subscriptions/subscription");
+    Read<String> pubsubRead =
+        PubsubIO.readStrings()
+            .fromSubscription(provider);
     Pipeline.create().apply(pubsubRead);
     assertThat(pubsubRead.getSubscriptionProvider(), not(nullValue()));
     assertThat(pubsubRead.getSubscriptionProvider().isAccessible(), is(true));
-    assertThat(
-        pubsubRead.getSubscriptionProvider().get().asPath(),
-        equalTo(options.getValue().get()));
+    assertThat(pubsubRead.getSubscriptionProvider().get().asPath(), equalTo(provider.get()));
   }
 
   @Test
   public void testRuntimeValueProviderSubscription() {
-    RuntimeSubscriptionOptions options =
-        PipelineOptionsFactory.create().as(RuntimeSubscriptionOptions.class);
-    ValueProvider<String> subscription = options.getValue();
+    TestPipeline pipeline = TestPipeline.create();
+    ValueProvider<String> subscription =
+        pipeline.newProvider("projects/project/subscriptions/subscription");
     Read<String> pubsubRead = PubsubIO.readStrings().fromSubscription(subscription);
-    Pipeline.create().apply(pubsubRead);
+    pipeline.apply(pubsubRead);
     assertThat(pubsubRead.getSubscriptionProvider(), not(nullValue()));
     assertThat(pubsubRead.getSubscriptionProvider().isAccessible(), is(false));
   }
 
   @Test
   public void testValueProviderTopic() {
-    RuntimeSubscriptionOptions options =
-        PipelineOptionsFactory.create().as(RuntimeSubscriptionOptions.class);
-    options.setValue(StaticValueProvider.of("projects/project/topics/topic"));
-    ValueProvider<String> topic = options.getValue();
-    Read<String> pubsubRead = PubsubIO.readStrings().fromTopic(topic);
+    StaticValueProvider<String> provider = StaticValueProvider.of("projects/project/topics/topic");
+    Read<String> pubsubRead =
+        PubsubIO.readStrings().fromTopic(provider);
     Pipeline.create().apply(pubsubRead);
     assertThat(pubsubRead.getTopicProvider(), not(nullValue()));
     assertThat(pubsubRead.getTopicProvider().isAccessible(), is(true));
     assertThat(
         pubsubRead.getTopicProvider().get().asPath(),
-        equalTo(options.getValue().get()));
+        equalTo(provider.get()));
   }
 
   @Test
   public void testRuntimeValueProviderTopic() {
-    RuntimeSubscriptionOptions options =
-        PipelineOptionsFactory.create().as(RuntimeSubscriptionOptions.class);
-    ValueProvider<String> topic = options.getValue();
+    TestPipeline pipeline = TestPipeline.create();
+    ValueProvider<String> topic = pipeline.newProvider("projects/project/topics/topic");
     Read<String> pubsubRead = PubsubIO.readStrings().fromTopic(topic);
-    Pipeline.create().apply(pubsubRead);
+    pipeline.apply(pubsubRead);
     assertThat(pubsubRead.getTopicProvider(), not(nullValue()));
     assertThat(pubsubRead.getTopicProvider().isAccessible(), is(false));
   }
