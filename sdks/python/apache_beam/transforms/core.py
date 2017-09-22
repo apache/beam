@@ -138,6 +138,29 @@ class DoFnProcessContext(DoFnContext):
       self.windows = windowed_value.windows
 
 
+class ProcessContinuation(object):
+  """An object that may be produced as the last element of a process method
+    invocation.
+
+  If produced, and if should_resume is True, indicates that there is more work
+  to be done for the current input element.
+  """
+
+  def __init__(self, should_resume, resume_delay=0):
+    """Initializes a ProcessContinuation object.
+
+    Args:
+      should_resume: If False, promises that there is no more work to be done
+        for the current element so the runner should not resume the process()
+        invocation for the current input element.
+      resume_delay: Inidicates the minimum time, in seconds, that should elapse
+        before re-invoking process() method for resuming the invocation of the
+        current element.
+    """
+    self.should_resume = should_resume
+    self.resume_delay = resume_delay
+
+
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -154,6 +177,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   SideInputParam = 'SideInputParam'
   TimestampParam = 'TimestampParam'
   WindowParam = 'WindowParam'
+  RestrictionTrackerParam = 'RestrictionTrackerParam'
+  WatermarkReporterParam = 'WatermarkReporterParam'
 
   DoFnParams = [ElementParam, SideInputParam, TimestampParam, WindowParam]
 
@@ -165,13 +190,72 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return self.__class__.__name__
 
   def process(self, element, *args, **kwargs):
-    """Called for each element of a pipeline. The default arguments are needed
-    for the DoFnRunner to be able to pass the parameters correctly.
+    """method to use for processing elements.
+
+    This is invoked by ``DoFnRunner`` for each element of a input
+    ``PCollection``.
+
+    If specified, following default arguments are used by the ``DoFnRunner`` to
+    be able to pass the parameters correctly.
+
+    ``DoFn.ElementParam``: element to be processed.
+    ``DoFn.SideInputParam``: a side input that may be used when processing.
+    ``DoFn.TimestampParam``: timestamp of the input element.
+    ``DoFn.WindowParam``: ``Window`` the input element belongs to.
+    ``DoFn.RestrictionTrackerParam``: a ``RestrictionTrakcer`` to be used when
+    processing the input element. If a parameter is defined with this default
+    value, current ``DoFn`` is considered to be a Splittable ``DoFn`` and is
+    subjected to the special requirements given in the corresponding section
+    below.
+    ``DoFn.WatermarkReporterParam``: a function that can be used to give the
+    runner a (best-effort) lower bound about the timestamps of future output
+    associated with the current element. If the ``DoFn`` has multiple outputs,
+    the watermark applies to all of them. Function must be invoked with a
+    single parameter of type ``Timestamp`` or as an integer that gives the
+    watermark in number of seconds.
+
+    ** Splittable DoFns **
+    A ``DoFn`` is considered to be a 'Splittable DoFn' of it's ``process()``
+    method has a parameter with default value ``DoFn.RestrictionTrackerParam``.
+    This is an advanced feature and an overwhelming majority of users will never
+    need to write a Splittable DoFn.
+
+    Not all runners support Splittable DoFn. See the capability matrix
+    (a href="https://beam.apache.org/documentation/runners/capability-matrix/)
+    for the set of runners that support this feature.
+
+    A Splittable DoFn must provide suitable overrides for the following methods
+    of the ``DoFn`` class.
+    * new_tracker()
+    * restriction_coder()
+    * initial_restriction()
+    * split()
+
+    As the last element produced by the iterator returned by the ``process()``
+    method, a Splittable DoFn may return an object of type
+    ``ProcessContinuation``.
+
+    If provided, ``ProcessContinuation`` object specifies whether runner should
+    later re-invoke ``process()`` method to resume processing the current
+    element and the manner in which the re-invocation should be performed. A
+    ``ProcessContinuation`` object must only be specified as the last element of
+    the iterator. If a ``ProcessContinuation`` object is not provided the runner
+    will assume that the current input element has been fully processed.
+
+    Optionally, a runner may specify a parameter to the ``process()`` method
+    with default value ``DoFn.WatermarkReporterParam``. If specified, this gives
+    a function that can be used to update the watermark of the outputs produced
+    by the current Splittable DoFn. This function must be invoked with an object
+    of type ``Timestamp``.
+
+    See following documents for more details about Splittable DoFns.
+    * https://s.apache.org/splittable-do-fn
+    * https://s.apache.org/splittable-do-fn-python-sdk
 
     Args:
       element: The element to be processed
       *args: side inputs
-      **kwargs: keyword side inputs
+      **kwargs: other keyword arguments.
     """
     raise NotImplementedError
 
@@ -188,6 +272,63 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     """Called after a bundle of elements is processed on a worker.
     """
     pass
+
+  def new_tracker(self, restriction):
+    """Produces a new ``RestrictionTracker`` for the given restriction.
+
+    Args:
+      restriction: an object that defines a restriction as identified by the
+        current ``DoFn``. For example, a tuple that gives a range of positions for
+        a ``DoFn`` that reads files based on byte positions.
+    Returns: an object of type ``RestrictionTracker``.
+    """
+    pass
+
+  def restriction_coder(self):
+    """Returns a ``Coder`` for restrictions produced by the current ``DoFn``.
+
+    Returns:
+      an object of type ``Coder``.
+    """
+    pass
+
+  def initial_restriction(self, element):
+    """Produces an initial restriction for the given element."""
+    pass
+
+  def split(self, element, restriction):
+    """Splits the given element and restriction.
+
+    Returns an iterator of restrictions. The total set of elements produced by
+    reading input element for each of the returned restrictions should be the
+    same as the total set of elements produced by reading the input element for
+    the input restriction.
+
+    TODO(chamikara): give suitable hints for performing splitting, for example
+    number of parts or size in bytes.
+    """
+    pass
+
+  @staticmethod
+  def stop():
+    """A convenient method that produces a ``ProcessContinuation``.
+
+    Returns: a ``ProcessContinuation`` for signalling the runner that current
+      input element has been fully processed.
+    """
+    return ProcessContinuation(should_resume=False)
+
+  @staticmethod
+  def resume(resume_delay=0):
+    """A convenient method that produces a ``ProcessContinuation``.
+
+    Args:
+      resume_delay: delay after which processing current element should be
+        resumed.
+    Returns: a ``ProcessContinuation`` for signalling the runner that current
+      input element has not been fully processed and should be resumed later.
+    """
+    return ProcessContinuation(should_resume=True, resume_delay=resume_delay)
 
   def get_function_arguments(self, func):
     """Return the function arguments based on the name provided. If they have

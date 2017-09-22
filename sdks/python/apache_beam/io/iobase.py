@@ -1013,3 +1013,54 @@ class _RoundRobinKeyFn(core.DoFn):
     if self.counter >= self.count:
       self.counter -= self.count
     yield self.counter, element
+
+
+class RestrictionTracker(object):
+  """Manages concurrent access to a restriction.
+
+  Keeps track of the restrictions claimed part for a Splittable DoFn.
+
+  See following documents for more details.
+  * https://s.apache.org/splittable-do-fn
+  * https://s.apache.org/splittable-do-fn-python-sdk
+  """
+
+  def current_restriction(self):
+    """Returns the current restriction.
+
+    Returns a restriction accurately describing the full range of work the
+    current ``DoFn.process()`` call will do, including already completed work.
+    """
+    raise NotImplementedError
+
+  def checkpoint(self):
+    """Performs a checkpoint of the current restriction.
+
+    Signals that the current ``DoFn.process()`` call should terminate as soon as
+    possible. After this method returns, the tracker MUST refuse all future
+    claim calls, and ``RestrictionTracker.check_done()`` MUST succeed.
+
+    This invocation modifies the value returned by ``current_restriction()``
+    invocation and returns a restriction representing the rest of the work. The
+    old value of ``current_restriction()`` is equivalent to the new value of
+    ``current_restriction()`` and the return value of this method invocation
+    combined.
+
+    This method must be called at most once on a given ``RestrictionTracker``
+    object.
+    """
+
+    raise NotImplementedError
+
+  def check_done(self):
+    """Checks whether the restriction has been fully processed.
+
+    Called by the runner after iterator returned by ``DoFn.process()`` has been
+    fully read.
+
+    Returns: ``True`` if current restriction has been fully processed.
+    Raises ValueError: if there is still any unclaimed work remaining in the
+      restriction invoking this method. Exception raised must have an
+      informative error message.
+    """
+    raise NotImplementedError
