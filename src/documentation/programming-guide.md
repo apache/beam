@@ -942,7 +942,7 @@ pc = ...
 %}```
 
 If you are combining a `PCollection` of key-value pairs, [per-key
-combining](#combining-values-in-a-key-grouped-collection) is often enough. If
+combining](#combining-values-in-a-keyed-pcollection) is often enough. If
 you need the combining strategy to change based on the key (for example, MIN for
 some users and MAX for other users), you can define a `KeyedCombineFn` to access
 the key within the combining strategy.
@@ -1007,10 +1007,10 @@ applying `Combine`:
   the result of your pipeline's `Combine` is to be used as a side input later in
   the pipeline.
 
-##### 4.2.4.6. Combining values in a key-grouped collection
+##### 4.2.4.6. Combining values in a keyed PCollection
 
-After creating a key-grouped collection (for example, by using a `GroupByKey`
-transform) a common pattern is to combine the collection of values associated
+After creating a keyed PCollection (for example, by using a `GroupByKey`
+transform), a common pattern is to combine the collection of values associated
 with each key into a single, merged value. Drawing on the previous example from
 `GroupByKey`, a key-grouped `PCollection` called `groupedWords` looks like this:
 ```
@@ -1434,7 +1434,7 @@ reference pages for a list of transforms:
   * [Pre-written Beam transforms for Java]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/package-summary.html)
   * [Pre-written Beam transforms for Python]({{ site.baseurl }}/documentation/sdks/pydoc/{{ site.release_latest }}/apache_beam.transforms.html)
 
-#### 4.6.1. Composite transform example
+#### 4.6.1. An example composite transform
 
 The `CountWords` transform in the [WordCount example program]({{ site.baseurl }}/get-started/wordcount-example/)
 is an example of a composite transform. `CountWords` is a `PTransform` subclass
@@ -1544,10 +1544,10 @@ transforms to be nested within the structure of your pipeline.
 
 #### 4.6.3. PTransform Style Guide
 
-When you create a new `PTransform`, be sure to read the [PTransform Style
-Guide]({{ site.baseurl }}/contribute/ptransform-style-guide/). The guide
-contains additional helpful information such as style guidelines, logging and
-testing guidance, and language-specific considerations.
+The [PTransform Style Guide]({{ site.baseurl }}/contribute/ptransform-style-guide/)
+contains additional information not included here, such as style guidelines,
+logging and testing guidance, and language-specific considerations.  The guide
+is a useful starting point when you want to write new composite PTransforms.
 
 ## 5. Pipeline I/O
 
@@ -2040,7 +2040,7 @@ for that `PCollection`.  The `GroupByKey` transform groups the elements of the
 subsequent `ParDo` transform gets applied multiple times per key, once for each
 window.
 
-### 7.2. Beam windowing functions
+### 7.2. Provided windowing functions
 
 You can define different kinds of windows to divide the elements of your
 `PCollection`. Beam provides several windowing functions, including:
@@ -2051,10 +2051,13 @@ You can define different kinds of windows to divide the elements of your
 *  Single Global Window
 *  Calendar-based Windows (not supported by the Beam SDK for Python)
 
+You can also define your own `WindowFn` if you have a more complex need.
+
 Note that each element can logically belong to more than one window, depending
 on the windowing function you use. Sliding time windowing, for example, creates
 overlapping windows wherein a single element can be assigned to multiple
 windows.
+
 
 #### 7.2.1. Fixed time windows
 
@@ -2109,15 +2112,15 @@ the start of a new window.
 **Figure:** Session windows, with a minimum gap duration. Note how each data key
 has different windows, according to its data distribution.
 
-#### 7.2.4. Single global window
+#### 7.2.4. The single global window
 
-By default, all data in a `PCollection` is assigned to a single global window,
+By default, all data in a `PCollection` is assigned to the single global window,
 and late data is discarded. If your data set is of a fixed size, you can use the
 global window default for your `PCollection`.
 
-You can use a single global window if you are working with an unbounded data set
+You can use the single global window if you are working with an unbounded data set
 (e.g. from a streaming data source) but use caution when applying aggregating
-transforms such as `GroupByKey` and `Combine`. A single global window with a
+transforms such as `GroupByKey` and `Combine`. The single global window with a
 default trigger generally requires the entire data set to be available before
 processing, which is not possible with continuously updating data. To perform
 aggregations on an unbounded `PCollection` that uses global windowing, you
@@ -2129,10 +2132,6 @@ You can set the windowing function for a `PCollection` by applying the `Window`
 transform. When you apply the `Window` transform, you must provide a `WindowFn`.
 The `WindowFn` determines the windowing function your `PCollection` will use for
 subsequent grouping transforms, such as a fixed or sliding time window.
-
-Beam provides pre-defined `WindownFn`s for the basic windowing functions
-described here. You can also define your own `WindowFn` if you have a more
-complex need.
 
 When you set a windowing function, you may also want to set a trigger for your
 `PCollection`. The trigger determines when each individual window is aggregated
@@ -2314,7 +2313,7 @@ with a `DoFn` to attach the timestamps to each element in your `PCollection`.
 When collecting and grouping data into windows, Beam uses **triggers** to
 determine when to emit the aggregated results of each window (referred to as a
 *pane*). If you use Beam's default windowing configuration and [default
-trigger](#default-trigger), Beam outputs the aggregated result when it
+trigger](#the-default-trigger), Beam outputs the aggregated result when it
 [estimates all data has arrived](#watermarks-and-late-data), and discards all
 subsequent data for that window.
 
@@ -2397,7 +2396,7 @@ firings:
   # The Beam SDK for Python does not support triggers.
 ```
 
-#### 8.1.1. Default trigger
+#### 8.1.1. The default trigger
 
 The default trigger for a `PCollection` is based on event time, and emits the
 results of the window when the Beam's watermark passes the end of the window,
