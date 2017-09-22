@@ -63,7 +63,6 @@ public class TableDestination implements Serializable {
     this.jsonTimePartitioning = jsonTimePartitioning;
   }
 
-
   public String getTableSpec() {
     return tableSpec;
   }

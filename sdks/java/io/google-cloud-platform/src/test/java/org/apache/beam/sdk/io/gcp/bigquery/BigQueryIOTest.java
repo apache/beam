@@ -670,7 +670,7 @@ public class BigQueryIOTest implements Serializable {
         .setFields(
             ImmutableList.of(
                 new TableFieldSchema().setName("number").setType("INTEGER")));
-    p.apply(Create.of(row1, row1))
+    p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
                 .to("project-id:dataset-id.table-id")
@@ -1820,7 +1820,7 @@ public class BigQueryIOTest implements Serializable {
 
     options.setTempLocation(baseDir.toString());
 
-    List<TableRow> read = convertBigDecimaslToLong(
+    List<TableRow> read = convertBigDecimalsToLong(
         SourceTestUtils.readFromSource(bqSource, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
     SourceTestUtils.assertSplitAtFractionBehavior(
@@ -2329,7 +2329,7 @@ public class BigQueryIOTest implements Serializable {
             IntervalWindow.getCoder()));
   }
 
-  List<TableRow> convertBigDecimaslToLong(List<TableRow> toConvert) {
+  List<TableRow> convertBigDecimalsToLong(List<TableRow> toConvert) {
     // The numbers come back as BigDecimal objects after JSON serialization. Change them back to
     // longs so that we can assert the output.
     List<TableRow> converted = Lists.newArrayList();
@@ -2342,5 +2342,45 @@ public class BigQueryIOTest implements Serializable {
       converted.add(convertedEntry);
     }
     return converted;
+  }
+
+  @Test
+  public void testWriteToTableDecorator() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeDatasetService datasetService = new FakeDatasetService();
+    FakeBigQueryServices fakeBqServices =
+        new FakeBigQueryServices()
+            .withJobService(new FakeJobService())
+            .withDatasetService(datasetService);
+    datasetService.createDataset("project-id", "dataset-id", "", "");
+
+    Pipeline p = TestPipeline.create(bqOptions);
+    TableRow row1 = new TableRow().set("name", "a").set("number", "1");
+    TableRow row2 = new TableRow().set("name", "b").set("number", "2");
+
+    TableSchema schema = new TableSchema()
+        .setFields(
+            ImmutableList.of(
+                new TableFieldSchema().setName("number").setType("INTEGER")));
+    p.apply(Create.of(row1, row2))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("project-id:dataset-id.table-id$decorator")
+                .withTestServices(fakeBqServices)
+                .withMethod(Method.STREAMING_INSERTS)
+                .withSchema(schema)
+                .withoutValidation());
+    p.run();
+  }
+
+  @Test
+  public void testTableDecoratorStripping() {
+    assertEquals("project:dataset.table",
+        BigQueryHelpers.stripPartitionDecorator("project:dataset.table$decorator"));
+    assertEquals("project:dataset.table",
+        BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
   }
 }
