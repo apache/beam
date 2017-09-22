@@ -241,9 +241,9 @@ func buildLocalBinary() (string, error) {
 	log.Printf("Cross-compiling %v as %v", program, ret)
 
 	// Cross-compile given go program. Not awesome.
-	real := []string{"go", "build", "-o", ret, program}
+	build := []string{"go", "build", "-o", ret, program}
 
-	cmd := exec.Command("/bin/bash", "-c", strings.Join(real, " "))
+	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		log.Print(string(out))
