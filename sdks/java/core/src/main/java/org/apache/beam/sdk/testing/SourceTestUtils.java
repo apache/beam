@@ -27,6 +27,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -137,6 +138,16 @@ public class SourceTestUtils {
     try (BoundedSource.BoundedReader<T> reader = source.createReader(options)) {
       return readFromUnstartedReader(reader);
     }
+  }
+
+  public static <T> List<T> readFromSplitsOfSource(
+      BoundedSource<T> source, long desiredBundleSizeBytes, PipelineOptions options)
+      throws Exception {
+    List<T> res = Lists.newArrayList();
+    for (BoundedSource<T> split : source.split(desiredBundleSizeBytes, options)) {
+      res.addAll(readFromSource(split, options));
+    }
+    return res;
   }
 
   /**
