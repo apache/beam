@@ -50,6 +50,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -510,6 +511,8 @@ public class BigQueryIOTest implements Serializable {
             .withSchema(schema)
             .withoutValidation());
     p.run();
+    checkNotNull(datasetService.getTable(
+        BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
     testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
@@ -1174,19 +1177,12 @@ public class BigQueryIOTest implements Serializable {
     datasetService.createDataset("project-id", "dataset-id", "", "");
     Pipeline p = TestPipeline.create(bqOptions);
 
-    TableSchema schema = new TableSchema()
-        .setFields(
-            ImmutableList.of(
-                new TableFieldSchema().setName("name").setType("STRING"),
-                new TableFieldSchema().setName("number").setType("INTEGER")));
-
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
-        .withSchema(schema)
         .withCreateDisposition(CreateDisposition.CREATE_NEVER)
         .withTestServices(fakeBqServices)
         .withoutValidation());
@@ -1213,12 +1209,6 @@ public class BigQueryIOTest implements Serializable {
         .withJobService(new FakeJobService())
         .withDatasetService(datasetService);
 
-    TableSchema schema = new TableSchema()
-        .setFields(
-            ImmutableList.of(
-                new TableFieldSchema().setName("name").setType("STRING"),
-                new TableFieldSchema().setName("number").setType("INTEGER")));
-
     Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
@@ -1226,7 +1216,6 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
         .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
-            .withSchema(schema)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withTestServices(fakeBqServices)
             .withoutValidation());
@@ -2070,9 +2059,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public TableSchema getSchema(String destination) {
-      return new TableSchema().setFields(
-          ImmutableList.of(
-              new TableFieldSchema().setName("name").setType("STRING")));
+      return null;
     }
   }
 

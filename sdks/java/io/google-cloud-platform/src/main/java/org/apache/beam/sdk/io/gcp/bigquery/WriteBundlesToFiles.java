@@ -90,12 +90,6 @@ class WriteBundlesToFiles<DestinationT>
     }
 
     @Override
-    public String toString() {
-      return String.format("filename: %s fileByeSize: %d destination: %s",
-          filename, fileByteSize, destination);
-    }
-
-    @Override
     public boolean equals(Object other) {
       if (other instanceof Result) {
         Result<DestinationT> o = (Result<DestinationT>) other;
@@ -109,6 +103,15 @@ class WriteBundlesToFiles<DestinationT>
     @Override
     public int hashCode() {
       return Objects.hash(filename, fileByteSize, destination);
+    }
+
+    @Override
+    public String toString() {
+      return "Result{" +
+          "filename='" + filename + '\'' +
+          ", fileByteSize=" + fileByteSize +
+          ", destination=" + destination +
+          '}';
     }
   }
 

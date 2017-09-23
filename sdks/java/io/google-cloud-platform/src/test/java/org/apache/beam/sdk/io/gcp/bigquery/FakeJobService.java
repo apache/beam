@@ -111,9 +111,6 @@ class FakeJobService implements JobService, Serializable {
       throws InterruptedException, IOException {
     synchronized (allJobs) {
       verifyUniqueJobId(jobRef.getJobId());
-      if (loadConfig.getSchema() == null) {
-        throw new IOException("No schema specified on job or table: " + jobRef.getJobId());
-      }
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setLoad(loadConfig));
