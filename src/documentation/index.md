@@ -11,12 +11,13 @@ redirect_from:
 
 This section provides in-depth conceptual information and reference material for the Beam Model, SDKs, and Runners:
 
-## Concepts 
+## Concepts
 
 Learn about the Beam Programming Model and the concepts common to all Beam SDKs and Runners.
 
 * The [Programming Guide]({{ site.baseurl }}/documentation/programming-guide/) introduces all the key Beam concepts.
-* Visit [Additional Resources]({{ site.baseurl }}/documentation/resources/) for some of our favorite articles and talks about Beam. 
+* Learn about Beam's [execution model]({{ site.baseurl }}/documentation/execution-model/) to better understand how pipelines execute.
+* Visit [Additional Resources]({{ site.baseurl }}/documentation/resources/) for some of our favorite articles and talks about Beam.
 
 ## Pipeline Fundamentals
 
@@ -28,7 +29,7 @@ Learn about the Beam Programming Model and the concepts common to all Beam SDKs 
 
 Find status and reference information on all of the available Beam SDKs.
 
-* [Java SDK]({{ site.baseurl }}/documentation/sdks/java/) 
+* [Java SDK]({{ site.baseurl }}/documentation/sdks/java/)
 * [Python SDK]({{ site.baseurl }}/documentation/sdks/python/)
 
 ## Runners
@@ -42,7 +43,7 @@ A Beam Runner runs a Beam pipeline on a specific (often distributed) data proces
 * [FlinkRunner]({{ site.baseurl }}/documentation/runners/flink/): Runs on [Apache Flink](http://flink.apache.org).
 * [SparkRunner]({{ site.baseurl }}/documentation/runners/spark/): Runs on [Apache Spark](http://spark.apache.org).
 * [DataflowRunner]({{ site.baseurl }}/documentation/runners/dataflow/): Runs on [Google Cloud Dataflow](https://cloud.google.com/dataflow), a fully managed service within [Google Cloud Platform](https://cloud.google.com/).
-* [GearpumpRunner]({{ site.baseurl }}/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org). 
+* [GearpumpRunner]({{ site.baseurl }}/documentation/runners/gearpump/): Runs on [Apache Gearpump (incubating)](http://gearpump.apache.org).
 
 ### Choosing a Runner
 
