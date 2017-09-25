@@ -20,6 +20,7 @@
 import logging
 import platform
 import unittest
+from collections import defaultdict
 
 import apache_beam as beam
 from apache_beam.io import Read
@@ -31,6 +32,9 @@ from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
 from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.runners.direct.evaluation_context import _ExecutionContext
+from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
+from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
@@ -529,16 +533,11 @@ class DirectRunnerRetryTests(unittest.TestCase):
     assert count_b == count_c == 4
 
   def test_no_partial_writeouts(self):
-    from collections import defaultdict
-    from apache_beam.runners.direct.transform_evaluator import _TransformEvaluator
-    from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
-    from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 
     class TestTransformEvaluator(_TransformEvaluator):
 
       def __init__(self):
         self._execution_context = _ExecutionContext(None, {})
-        self._execution_context.get_step_context().get_keyed_state(None)
 
       def start_bundle(self):
         self.step_context = self._execution_context.get_step_context()

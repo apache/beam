@@ -45,8 +45,7 @@ class _ExecutionContext(object):
     return self._step_context
 
   def reset(self):
-    if self._step_context:
-      self._step_context = None
+    self._step_context = None
 
 
 class _SideInputView(object):
@@ -339,5 +338,5 @@ class DirectStepContext(object):
     if not self.existing_keyed_state.get(key):
       self.existing_keyed_state[key] = DirectUnmergedState()
     if not self.partial_keyed_state.get(key):
-      self.partial_keyed_state[key] = (self.existing_keyed_state[key].copy())
+      self.partial_keyed_state[key] = self.existing_keyed_state[key].copy()
     return self.partial_keyed_state[key]
