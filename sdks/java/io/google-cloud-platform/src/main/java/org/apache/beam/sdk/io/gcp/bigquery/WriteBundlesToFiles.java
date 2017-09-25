@@ -107,11 +107,11 @@ class WriteBundlesToFiles<DestinationT>
 
     @Override
     public String toString() {
-      return "Result{" +
-          "filename='" + filename + '\'' +
-          ", fileByteSize=" + fileByteSize +
-          ", destination=" + destination +
-          '}';
+      return "Result{"
+          + "filename='" + filename + '\''
+          + ", fileByteSize=" + fileByteSize
+          + ", destination=" + destination
+          + '}';
     }
   }
 
