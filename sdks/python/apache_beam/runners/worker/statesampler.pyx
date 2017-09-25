@@ -111,7 +111,7 @@ cdef class StateSampler(object):
   def __init__(self, prefix, counter_factory,
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
 
-    # TODO(pabloem) - Remove this once all dashed prefixes are removed from
+    # TODO(pabloem): Remove this once all dashed prefixes are removed from
     # the worker.
     # We stop using prefixes with included dash.
     self.prefix = prefix[:-1] if prefix[-1] == '-' else prefix
@@ -184,7 +184,7 @@ cdef class StateSampler(object):
         self.scoped_states_by_index[self.current_state_index].name,
         self.state_transition_count)
 
-  # TODO(pabloem) - Make state_name required once all callers migrate,
+  # TODO(pabloem): Make state_name required once all callers migrate,
   #   and the legacy path is removed.
   def scoped_state(self, step_name, state_name=None, io_target=None):
     """Returns a context manager managing transitions for a given state.
@@ -204,7 +204,7 @@ cdef class StateSampler(object):
       counter_name = '%s-%s-msecs' % (self.prefix, step_name)
       scoped_state = self.scoped_states_by_name.get(counter_name, None)
     else:
-      counter_name = CounterName(state_name + '-msecs',
+      counter_name = CounterName(state_name + 6'-msecs',
                                  stage_name=self.prefix,
                                  step_name=step_name,
                                  io_target=io_target)
