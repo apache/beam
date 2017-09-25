@@ -23,7 +23,7 @@ class StateSampler(object):
   def __init__(self, *args, **kwargs):
     pass
 
-  def scoped_state(self, step_name, state_name=None):
+  def scoped_state(self, step_name, state_name=None, io_target=None):
     return _FakeScopedState()
 
 
