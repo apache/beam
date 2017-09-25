@@ -60,10 +60,11 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PDone;
+import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -434,7 +435,7 @@ public class BigtableIO {
   @Experimental(Experimental.Kind.SOURCE_SINK)
   @AutoValue
   public abstract static class Write
-      extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PDone> {
+      extends PTransform<PCollection<KV<ByteString, Iterable<Mutation>>>, PCollection<Void>> {
 
     /** Returns the table being written to. */
     @Nullable
@@ -516,18 +517,17 @@ public class BigtableIO {
     }
 
     @Override
-    public PDone expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
+    public PCollection<Void> expand(PCollection<KV<ByteString, Iterable<Mutation>>> input) {
       checkArgument(getBigtableOptions() != null, "withBigtableOptions() is required");
       checkArgument(getTableId() != null && !getTableId().isEmpty(), "withTableId() is required");
 
-      input.apply(ParDo.of(new BigtableWriterFn(getTableId(),
+      return input.apply(ParDo.of(new BigtableWriterFn(getTableId(),
           new SerializableFunction<PipelineOptions, BigtableService>() {
         @Override
         public BigtableService apply(PipelineOptions options) {
           return getBigtableService(options);
         }
       })));
-      return PDone.in(input.getPipeline());
     }
 
     @Override
@@ -630,10 +630,11 @@ public class BigtableIO {
       }
 
       @FinishBundle
-      public void finishBundle() throws Exception {
+      public void finishBundle(FinishBundleContext c) throws Exception {
         bigtableWriter.flush();
         checkForFailures();
         LOG.info("Wrote {} records", recordsWritten);
+        c.output(null, Instant.now(), GlobalWindow.INSTANCE);
       }
 
       @Teardown
