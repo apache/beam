@@ -184,6 +184,8 @@ cdef class StateSampler(object):
         self.scoped_states_by_index[self.current_state_index].name,
         self.state_transition_count)
 
+  # TODO(pabloem) - Make state_name required once all callers migrate,
+  #   and the legacy path is removed.
   def scoped_state(self, step_name, state_name=None, io_target=None):
     """Returns a context manager managing transitions for a given state.
     Args:
@@ -200,9 +202,9 @@ cdef class StateSampler(object):
       # If state_name is None, the worker is still using old style
       # msec counters.
       counter_name = '%s-%s-msecs' % (self.prefix, step_name)
-      scoped_state = self.scoped_states_by_name.get(step_name, None)
+      scoped_state = self.scoped_states_by_name.get(counter_name, None)
     else:
-      counter_name = CounterName(state_name+'-msecs',
+      counter_name = CounterName(state_name + '-msecs',
                                  stage_name=self.prefix,
                                  step_name=step_name,
                                  io_target=io_target)
