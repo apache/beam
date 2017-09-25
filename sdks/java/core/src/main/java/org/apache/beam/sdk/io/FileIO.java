@@ -152,6 +152,11 @@ public class FileIO {
     public String readFullyAsUTF8String() throws IOException {
       return new String(readFullyAsBytes(), StandardCharsets.UTF_8);
     }
+
+    @Override
+    public String toString() {
+      return "ReadableFile{metadata=" + metadata + ", compression=" + compression + '}';
+    }
   }
 
   /**
