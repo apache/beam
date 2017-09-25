@@ -234,7 +234,6 @@ class Coder(object):
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urn,
-                any_param=proto_utils.pack_Any(typed_param),
                 payload=typed_param.SerializeToString()
                 if typed_param is not None else None)),
         component_coder_ids=[context.coders.get_id(c) for c in components])

@@ -716,9 +716,6 @@ class ParDo(PTransformWithSideInputs):
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=urns.PICKLED_DO_FN_INFO,
-                    any_param=proto_utils.pack_Any(
-                        wrappers_pb2.BytesValue(
-                            value=picked_pardo_fn_data)),
                     payload=picked_pardo_fn_data))))
 
   @PTransform.register_urn(
