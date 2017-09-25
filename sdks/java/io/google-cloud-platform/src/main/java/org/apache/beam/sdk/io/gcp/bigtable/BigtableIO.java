@@ -203,7 +203,10 @@ public class BigtableIO {
    */
   @Experimental
   public static Write write() {
-    return new AutoValue_BigtableIO_Write.Builder().setTableId("").build();
+    return new AutoValue_BigtableIO_Write.Builder()
+        .setTableId("")
+        .setValidate(true)
+        .build();
   }
 
   /**
@@ -432,6 +435,8 @@ public class BigtableIO {
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
+    abstract boolean getValidate();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -442,6 +447,8 @@ public class BigtableIO {
       abstract Builder setBigtableOptions(BigtableOptions options);
 
       abstract Builder setBigtableService(BigtableService bigtableService);
+
+      abstract Builder setValidate(boolean validate);
 
       abstract Write build();
     }
@@ -482,6 +489,11 @@ public class BigtableIO {
       return toBuilder().setBigtableOptions(optionsWithAgent).build();
     }
 
+    /** Disables validation that the table being written to exists. */
+    public Write withoutValidation() {
+      return toBuilder().setValidate(false).build();
+    }
+
     /**
      * Returns a new {@link BigtableIO.Write} that will write to the specified table.
      *
@@ -509,13 +521,15 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      try {
-        checkArgument(
-            getBigtableService(options).tableExists(getTableId()),
-            "Table %s does not exist",
-            getTableId());
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+      if (getValidate()) {
+        try {
+          checkArgument(
+              getBigtableService(options).tableExists(getTableId()),
+              "Table %s does not exist",
+              getTableId());
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+        }
       }
     }
 
