@@ -23,7 +23,12 @@ import static com.google.common.collect.Lists.newArrayList;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
+
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.Min;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.MovingFunction;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,13 +40,34 @@ import org.slf4j.LoggerFactory;
 class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   private static final Logger LOG = LoggerFactory.getLogger(KinesisReader.class);
+  /**
+   * Period of samples to determine watermark.
+   */
+  private static final Duration SAMPLE_PERIOD = Duration.standardMinutes(1);
+
+  /**
+   * Period of updates to determine watermark.
+   */
+  private static final Duration SAMPLE_UPDATE = Duration.standardSeconds(5);
+
+  /**
+   * Minimum number of unread messages required before considering updating watermark.
+   */
+  static final int MIN_WATERMARK_MESSAGES = 10;
+
+  /**
+   * Minimum number of SAMPLE_UPDATE periods over which unread messages should be spread
+   * before considering updating watermark.
+   */
+  private static final int MIN_WATERMARK_SPREAD = 2;
 
   private final SimplifiedKinesisClient kinesis;
   private final UnboundedSource<KinesisRecord, ?> source;
   private final CheckpointGenerator initialCheckpointGenerator;
   private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
-  private Instant watermark = new Instant(0L);
+  private MovingFunction minReadTimestampMsSinceEpoch;
+  private Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   public KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
@@ -50,6 +76,11 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     this.initialCheckpointGenerator =
         checkNotNull(initialCheckpointGenerator, "initialCheckpointGenerator");
     this.source = source;
+    this.minReadTimestampMsSinceEpoch = new MovingFunction(SAMPLE_PERIOD.getMillis(),
+        SAMPLE_UPDATE.getMillis(),
+        MIN_WATERMARK_SPREAD,
+        MIN_WATERMARK_MESSAGES,
+        Min.ofLongs());
   }
 
   /**
@@ -87,15 +118,13 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
         if (currentRecord.isPresent()) {
           Instant approximateArrivalTimestamp = currentRecord.get()
               .getApproximateArrivalTimestamp();
-          if (approximateArrivalTimestamp.isAfter(watermark)) {
-            watermark = approximateArrivalTimestamp;
-          }
+          minReadTimestampMsSinceEpoch.add(Instant.now().getMillis(),
+              approximateArrivalTimestamp.getMillis());
           return true;
         } else {
           shardIterators.moveForward();
         }
       }
-      watermark = Instant.now();
     } catch (TransientKinesisException e) {
       LOG.warn("Transient exception occurred", e);
     }
@@ -129,7 +158,17 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public Instant getWatermark() {
-    return watermark;
+    Instant now = Instant.now();
+    long readMin = minReadTimestampMsSinceEpoch.get(now.getMillis());
+    if (readMin == Long.MAX_VALUE) {
+      lastWatermark = now;
+    } else if (minReadTimestampMsSinceEpoch.isSignificant()) {
+      Instant minReadTime = new Instant(readMin);
+      if (minReadTime.isAfter(lastWatermark)) {
+        lastWatermark = minReadTime;
+      }
+    }
+    return lastWatermark;
   }
 
   @Override
