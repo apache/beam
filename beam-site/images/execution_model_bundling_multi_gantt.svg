@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg2" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" height="303.81" width="589.09" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <metadata id="metadata7">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <g id="layer1" transform="translate(20.046875,-752.34875)">
+  <path id="path3207" stroke-linejoin="miter" d="m50,805.93,0,196.43h436.43" stroke="#000" stroke-linecap="butt" stroke-width="1px" fill="none"/>
+  <text id="text3209" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" xml:space="preserve" font-size="16px" font-style="normal" y="779.505" x="20" font-family="Sans" line-height="125%" fill="#000000"><tspan id="tspan3211" y="779.505" x="20">Worker</tspan><tspan id="tspan3219" y="799.505" x="20">Thread</tspan></text>
+  <text id="text3213" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" xml:space="preserve" font-size="16px" font-style="normal" y="1020.9336" x="445" font-family="Sans" line-height="125%" fill="#000000"><tspan id="tspan3215" y="1020.9336" x="445">Processing</tspan><tspan id="tspan3217" y="1040.9336" x="445">Time</tspan></text>
+  <g id="g3140-54" transform="matrix(2.3376624,0,0,1.2745098,24.367395,-85.011242)">
+   <rect id="rect3025-7-1-9-8-74" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <flowRoot id="flowRoot4030" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-weight="normal" xml:space="preserve" font-size="20px" transform="translate(20.644914,751.7051)" font-style="normal" font-family="Sans" fill="#000000"><flowRegion id="flowRegion4032"><rect id="rect4034" y="202.14" width="107.14" x="65" height="24.286"/></flowRegion><flowPara id="flowPara4036">ParDo1</flowPara></flowRoot>
+  <g id="g3140-54-9" transform="matrix(2.3376624,0,0,1.2745098,152.93886,-85.011242)" fill="#AFA">
+   <rect id="rect3025-7-1-9-8-74-5" height="36.429" width="55" y="806.93" x="14.143" fill="#AFA"/>
+  </g>
+  <flowRoot id="flowRoot4030-0" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-weight="normal" xml:space="preserve" font-size="20px" transform="translate(149.21638,751.7051)" font-style="normal" font-family="Sans" fill="#000000"><flowRegion id="flowRegion4032-4"><rect id="rect4034-8" y="202.14" width="107.14" x="65" height="24.286"/></flowRegion><flowPara id="flowPara4036-7">ParDo2</flowPara></flowRoot>
+  <g id="g3140-54-1" transform="matrix(3.2727274,0,0,1.2745098,13.571526,-143.43981)">
+   <rect id="rect3025-7-1-9-8-74-7" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <flowRoot id="flowRoot4030-2" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-weight="normal" xml:space="preserve" font-size="20px" transform="translate(48.787789,693.27658)" font-style="normal" font-family="Sans" fill="#000000"><flowRegion id="flowRegion4032-7"><rect id="rect4034-2" y="202.14" width="107.14" x="65" height="24.286"/></flowRegion><flowPara id="flowPara4036-2">ParDo1</flowPara></flowRoot>
+  <g id="g3140-54-9-6" transform="matrix(2.5324676,0,0,1.2745098,203.89807,-143.43981)" fill="#AFA">
+   <rect id="rect3025-7-1-9-8-74-5-1" height="36.429" width="55" y="806.93" x="14.143" fill="#AFA"/>
+  </g>
+  <flowRoot id="flowRoot4030-0-0" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-weight="normal" xml:space="preserve" font-size="20px" transform="translate(208.36595,693.27658)" font-style="normal" font-family="Sans" fill="#000000"><flowRegion id="flowRegion4032-4-6"><rect id="rect4034-8-1" y="202.14" width="107.14" x="65" height="24.286"/></flowRegion><flowPara id="flowPara4036-7-5">ParDo2</flowPara></flowRoot>
+ </g>
+</svg>

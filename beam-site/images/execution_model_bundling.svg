@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg2" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" height="144.38" width="419.8" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <metadata id="metadata7">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <g id="layer1" transform="translate(25.429,-781.45258)">
+  <g id="g3135" transform="translate(8.1428566,0)">
+   <rect id="rect2987" ry="11.782" height="34.286" width="197.14" y="876.55" x="26.429" fill="#ff7f2a"/>
+   <text id="text2991" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="40px" y="901.14917" x="88.930664" font-weight="normal" font-style="normal" fill="#000000"><tspan id="tspan2993" y="901.14917" x="88.930664" font-size="20px">ParDo1</tspan></text>
+  </g>
+  <rect id="rect3025" height="36.429" width="237.14" y="815.51" x="14.571" fill="#afc6e9"/>
+  <path id="path3029" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(-14,812.36218)" fill="#59F"/>
+  <path id="path3029-9" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(94.85714,828.79075)" fill="#59F"/>
+  <path id="path3029-1" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(7.42857,826.64789)" fill="#59F"/>
+  <path id="path3029-2" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(40.285713,808.79075)" fill="#59F"/>
+  <path id="path3029-7" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(40.285713,824.50504)" fill="#59F"/>
+  <path id="path3029-0" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(75.285713,815.93361)" fill="#59F"/>
+  <path id="path3029-93" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(20.999998,814.50504)" fill="#59F"/>
+  <path id="path3029-6" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(108.14286,813.79075)" fill="#59F"/>
+  <path id="path3029-06" d="m57.857,14.286c0,2.3669-1.9188,4.2857-4.2857,4.2857s-4.2857-1.9188-4.2857-4.2857c0.001-2.367,1.919-4.286,4.286-4.286,2.3669,0,4.2857,1.9188,4.2857,4.2857z" transform="translate(136,821.64789)" fill="#59F"/>
+  <text id="text3153" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="20px" y="841.17542" x="257.14285" font-weight="normal" font-style="normal" fill="#000000"><tspan id="tspan3155" y="841.17542" x="257.14285">Collection</tspan></text>
+  <rect id="rect3161" height="51.429" width="5" y="808.01" x="110.71" fill="#1c2422"/>
+  <text id="text3163" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="20px" y="811.64789" x="15.000003" font-weight="normal" font-style="normal" fill="#000000"><tspan id="tspan3165" y="811.64789" x="15.000003">Bundle 1</tspan></text>
+  <text id="text3163-1" style="letter-spacing:0px;word-spacing:0px;" line-height="125%" font-family="Sans" xml:space="preserve" font-size="20px" y="811.64789" x="128.29799" font-weight="normal" font-style="normal" fill="#000000"><tspan id="tspan3165-8" y="811.64789" x="128.29799">Bundle 2</tspan></text>
+ </g>
+</svg>

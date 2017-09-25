@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg id="svg2" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://www.w3.org/2000/svg" height="303.81" width="589.09" version="1.1" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/">
+ <metadata id="metadata7">
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title/>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <g id="layer1" transform="translate(20.046875,-752.34875)">
+  <path id="path3207" stroke-linejoin="miter" d="m50,805.93,0,196.43h436.43" stroke="#000" stroke-linecap="butt" stroke-width="1px" fill="none"/>
+  <text id="text3209" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" xml:space="preserve" font-size="16px" font-style="normal" y="779.505" x="20" font-family="Sans" line-height="125%" fill="#000000"><tspan id="tspan3211" y="779.505" x="20">Worker</tspan><tspan id="tspan3219" y="799.505" x="20">Thread</tspan></text>
+  <text id="text3213" style="letter-spacing:0px;word-spacing:0px;" font-weight="normal" xml:space="preserve" font-size="16px" font-style="normal" y="1020.9336" x="445" font-family="Sans" line-height="125%" fill="#000000"><tspan id="tspan3215" y="1020.9336" x="445">Processing</tspan><tspan id="tspan3217" y="1040.9336" x="445">Time</tspan></text>
+  <g id="g3140" transform="matrix(1,0,0,0.31372546,43.285717,554.56371)">
+   <rect id="rect3025-7-1-9-8" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-0" transform="matrix(1,0,0,0.31372546,43.285717,597.33157)">
+   <rect id="rect3025-7-1-9-8-6" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-1" transform="matrix(1,0,0,0.31372546,43.285717,682.86727)">
+   <rect id="rect3025-7-1-9-8-5" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-5" transform="matrix(1,0,0,0.31372546,53.285717,618.71549)">
+   <rect id="rect3025-7-1-9-8-4" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-7" transform="matrix(1,0,0,0.31372546,55.285717,704.2512)">
+   <rect id="rect3025-7-1-9-8-65" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-6" transform="matrix(1,0,0,0.31372546,51.285717,575.94764)">
+   <rect id="rect3025-7-1-9-8-9" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-3" transform="matrix(1,0,0,0.31372546,43.285717,640.09942)">
+   <rect id="rect3025-7-1-9-8-7" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-4" transform="matrix(1,0,0,0.31372546,85.285717,661.48335)">
+   <rect id="rect3025-7-1-9-8-52" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+  <g id="g3140-54" transform="matrix(1,0,0,0.31372546,43.285717,725.63512)">
+   <rect id="rect3025-7-1-9-8-74" height="36.429" width="55" y="806.93" x="14.143" fill="#afc6e9"/>
+  </g>
+ </g>
+</svg>
