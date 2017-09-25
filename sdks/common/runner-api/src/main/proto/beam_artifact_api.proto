@@ -60,18 +60,11 @@ message ArtifactMetadata {
   string name = 1;
 
   // (Optional) The Unix-like permissions of the artifact
-  int32 permissions = 2;
+  uint32 permissions = 2;
 
-  // (Optional) The checksum of the artifact.
-  Checksum checksum = 3;
-}
-
-message Checksum {
-  // (Required) the algorithm used to generate this checksum
-  string algorithm = 1;
-
-  // (Required) the value of this checksum
-  bytes value = 2;
+  // (Optional) The md5 checksum of the artifact. Used, among other things, by harness boot code to
+  // validate the integrity of the artifact.
+  string md5 = 3;
 }
 
 // A collection of artifacts.
