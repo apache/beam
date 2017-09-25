@@ -132,20 +132,10 @@ public class KinesisReaderTest {
       throws IOException, TransientKinesisException {
     final long timestampMs = 1000L;
 
-    KinesisRecord firstRecord = prepareRecordMockWithArrivalTimestamp(timestampMs);
-    OngoingStubbing<CustomOptional<KinesisRecord>> firstIteratorStubbing =
-        when(firstIterator.next()).thenReturn(CustomOptional.of(firstRecord));
-    for (int i = 0; i < 5; i++) {
-      KinesisRecord record = prepareRecordMockWithArrivalTimestamp(timestampMs + i);
-      firstIteratorStubbing = firstIteratorStubbing.thenReturn(CustomOptional.of(record));
-    }
-    firstIteratorStubbing.thenReturn(CustomOptional.<KinesisRecord>absent());
+    prepareRecordsWithArrivalTimestamps(timestampMs, 1, KinesisReader.MIN_WATERMARK_MESSAGES / 2);
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    reader.start();
-
-    assertThat(reader.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
-    while (reader.advance()) {
+    for (boolean more = reader.start(); more; more = reader.advance()) {
       assertThat(reader.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
     }
   }
@@ -155,23 +145,17 @@ public class KinesisReaderTest {
       throws IOException, TransientKinesisException {
     long timestampMs = 1000L;
 
-    KinesisRecord firstRecord = prepareRecordMockWithArrivalTimestamp(timestampMs);
-    OngoingStubbing<CustomOptional<KinesisRecord>> firstIteratorStubbing =
-        when(firstIterator.next()).thenReturn(CustomOptional.of(firstRecord));
-    for (int i = 0; i < KinesisReader.MIN_WATERMARK_MESSAGES; i++) {
-      KinesisRecord record = prepareRecordMockWithArrivalTimestamp(timestampMs + i);
-      firstIteratorStubbing = firstIteratorStubbing.thenReturn(CustomOptional.of(record));
-    }
-    firstIteratorStubbing.thenReturn(CustomOptional.<KinesisRecord>absent());
+    prepareRecordsWithArrivalTimestamps(timestampMs, 1, KinesisReader.MIN_WATERMARK_MESSAGES);
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    reader.start();
-
-    assertThat(reader.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
-    for (int i = 0; i < KinesisReader.MIN_WATERMARK_MESSAGES; i++) {
-      reader.advance();
+    int recordsNeededForWatermarkAdvancing = KinesisReader.MIN_WATERMARK_MESSAGES;
+    for (boolean more = reader.start(); more; more = reader.advance()) {
+      if (--recordsNeededForWatermarkAdvancing > 0) {
+        assertThat(reader.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      } else {
+        assertThat(reader.getWatermark()).isEqualTo(new Instant(timestampMs));
+      }
     }
-    assertThat(reader.getWatermark()).isEqualTo(new Instant(timestampMs));
   }
 
   @Test
@@ -179,27 +163,30 @@ public class KinesisReaderTest {
       throws IOException, TransientKinesisException {
     long timestampMs = 1000L;
 
-    KinesisRecord firstRecord = prepareRecordMockWithArrivalTimestamp(timestampMs);
-    OngoingStubbing<CustomOptional<KinesisRecord>> firstIteratorStubbing =
-        when(firstIterator.next()).thenReturn(CustomOptional.of(firstRecord));
-    for (int i = KinesisReader.MIN_WATERMARK_MESSAGES;
-         i > -KinesisReader.MIN_WATERMARK_MESSAGES; i--) {
-      KinesisRecord record = prepareRecordMockWithArrivalTimestamp(timestampMs + i);
-      firstIteratorStubbing = firstIteratorStubbing.thenReturn(CustomOptional.of(record));
-    }
-    firstIteratorStubbing.thenReturn(CustomOptional.<KinesisRecord>absent());
+    prepareRecordsWithArrivalTimestamps(timestampMs, -1, KinesisReader.MIN_WATERMARK_MESSAGES * 2);
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
 
-    reader.start();
-
-    Instant lastWatermark = reader.getWatermark();
-    assertThat(lastWatermark).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
-    while (reader.advance()) {
+    Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    for (boolean more = reader.start(); more; more = reader.advance()) {
       Instant currentWatermark = reader.getWatermark();
       assertThat(currentWatermark).isGreaterThanOrEqualTo(lastWatermark);
       lastWatermark = currentWatermark;
     }
     assertThat(reader.advance()).isFalse();
+  }
+
+  private void prepareRecordsWithArrivalTimestamps(long initialTimestampMs, int increment,
+      int count) throws TransientKinesisException {
+    long timestampMs = initialTimestampMs;
+    KinesisRecord firstRecord = prepareRecordMockWithArrivalTimestamp(timestampMs);
+    OngoingStubbing<CustomOptional<KinesisRecord>> firstIteratorStubbing =
+        when(firstIterator.next()).thenReturn(CustomOptional.of(firstRecord));
+    for (int i = 0; i < count; i++) {
+      timestampMs += increment;
+      KinesisRecord record = prepareRecordMockWithArrivalTimestamp(timestampMs);
+      firstIteratorStubbing = firstIteratorStubbing.thenReturn(CustomOptional.of(record));
+    }
+    firstIteratorStubbing.thenReturn(CustomOptional.<KinesisRecord>absent());
   }
 
   private KinesisRecord prepareRecordMockWithArrivalTimestamp(long timestampMs) {
