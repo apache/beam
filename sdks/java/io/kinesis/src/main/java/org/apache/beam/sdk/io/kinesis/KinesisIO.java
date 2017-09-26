@@ -172,8 +172,8 @@ public final class KinesisIO {
      * Specify reading from some initial position in stream.
      */
     public Read withInitialPositionInStream(InitialPositionInStream initialPosition) {
-      return toBuilder().setInitialPosition(
-          new StartingPoint(checkNotNull(initialPosition, "initialPosition")))
+      return toBuilder()
+          .setInitialPosition(new StartingPoint(initialPosition))
           .build();
     }
 
@@ -183,8 +183,7 @@ public final class KinesisIO {
      */
     public Read withInitialTimestampInStream(Instant initialTimestamp) {
       return toBuilder()
-          .setInitialPosition(
-              new StartingPoint(checkNotNull(initialTimestamp, "initialTimestamp")))
+          .setInitialPosition(new StartingPoint(initialTimestamp))
           .build();
     }
 
@@ -226,16 +225,9 @@ public final class KinesisIO {
      * When this limit is exceeded the actual backlog size will be evaluated and the runner might
      * decide to scale the amount of resources allocated to the pipeline in order to
      * speed up ingestion.
-     *
-     * <p>
-     * TODO: This feature will not work properly with current {@link KinesisReader#getWatermark()}
-     * and {@link KinesisReader#getCurrentTimestamp()} implementations.
-     * Watermark and record's timestamp need to be based on a real event time
-     * (like ApproximateArrivalTimestamp) in order decide when event is on time.
-     * </p>
      */
     public Read withUpToDateThreshold(Duration upToDateThreshold) {
-      checkNotNull(upToDateThreshold, "upToDateThreshold");
+      checkArgument(upToDateThreshold != null, "upToDateThreshold can not be null");
       return toBuilder().setUpToDateThreshold(upToDateThreshold).build();
     }
 

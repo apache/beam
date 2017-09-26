@@ -27,9 +27,9 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
