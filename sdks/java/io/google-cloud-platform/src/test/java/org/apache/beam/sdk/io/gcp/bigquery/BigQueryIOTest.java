@@ -65,7 +65,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -113,7 +112,6 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
-import org.apache.beam.sdk.testing.SourceTestUtils.ExpectedSplitOutcome;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
@@ -1636,11 +1634,9 @@ public class BigQueryIOTest implements Serializable {
     bqOptions.setProject("project");
 
     List<TableRow> read =
-        convertBigDecimalsToLong(SourceTestUtils.readFromSource(bqSource, options));
-
+        convertStringsToLong(
+            SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
@@ -1727,12 +1723,9 @@ public class BigQueryIOTest implements Serializable {
                 .setTotalBytesProcessed(100L)
                 .setReferencedTables(ImmutableList.of(queryTable))));
 
-    List<TableRow> read =
-        convertBigDecimalsToLong(SourceTestUtils.readFromSource(bqSource, options));
-
+    List<TableRow> read = convertStringsToLong(
+        SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
@@ -1809,11 +1802,9 @@ public class BigQueryIOTest implements Serializable {
 
     options.setTempLocation(baseDir.toString());
 
-    List<TableRow> read = convertBigDecimalsToLong(
-        SourceTestUtils.readFromSource(bqSource, options));
+    List<TableRow> read = convertStringsToLong(
+            SourceTestUtils.readFromSplitsOfSource(bqSource, 0L /* ignored */, options));
     assertThat(read, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
-    SourceTestUtils.assertSplitAtFractionBehavior(
-        bqSource, 2, 0.3, ExpectedSplitOutcome.MUST_BE_CONSISTENT_IF_SUCCEEDS, options);
 
     List<? extends BoundedSource<TableRow>> sources = bqSource.split(100, options);
     assertEquals(2, sources.size());
@@ -2318,18 +2309,13 @@ public class BigQueryIOTest implements Serializable {
             IntervalWindow.getCoder()));
   }
 
-  List<TableRow> convertBigDecimalsToLong(List<TableRow> toConvert) {
-    // The numbers come back as BigDecimal objects after JSON serialization. Change them back to
+  List<TableRow> convertStringsToLong(List<TableRow> toConvert) {
+    // The numbers come back as String after JSON serialization. Change them back to
     // longs so that we can assert the output.
     List<TableRow> converted = Lists.newArrayList();
     for (TableRow entry : toConvert) {
       TableRow convertedEntry = entry.clone();
-      Object num = convertedEntry.get("number");
-      if (num instanceof BigDecimal) {
-        convertedEntry.set("number", ((BigDecimal) num).longValue());
-      } else if (num instanceof String) {
-        convertedEntry.set("number", Long.valueOf((String) num));
-      }
+      convertedEntry.set("number", Long.parseLong((String) convertedEntry.get("number")));
       converted.add(convertedEntry);
     }
     return converted;

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-
 import com.google.api.client.util.Base64;
 import com.google.api.services.bigquery.model.TableRow;
 import java.io.ByteArrayInputStream;

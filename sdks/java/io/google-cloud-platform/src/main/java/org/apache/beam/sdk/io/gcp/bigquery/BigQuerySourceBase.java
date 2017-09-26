@@ -37,7 +37,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 
 import org.apache.avro.generic.GenericRecord;
@@ -116,6 +115,11 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   }
 
   @Override
+  public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
+    throw new UnsupportedOperationException("BigQuery source must be split before being read");
+  }
+
+  @Override
   public List<BoundedSource<T>> split(
       long desiredBundleSizeBytes, PipelineOptions options) throws Exception {
     // split() can be called multiple times, e.g. Dataflow runner may call it multiple times
@@ -136,16 +140,6 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected abstract TableReference getTableToExtract(BigQueryOptions bqOptions) throws Exception;
 
   protected abstract void cleanupTempResource(BigQueryOptions bqOptions) throws Exception;
-
-  @Override
-  public BoundedReader<T> createReader(PipelineOptions options) throws IOException {
-    try {
-      List<BoundedSource<T>> splits = split(0L, options);
-      return new MergedBoundedReader<>(splits, options);
-    } catch (Exception e) {
-      throw new IOException(e);
-    }
-  }
 
   @Override
   public void validate() {
@@ -187,15 +181,6 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
-  private static class TableSchemaFunction
-      implements Serializable, Function<String, TableSchema> {
-    @Nullable
-    @Override
-    public TableSchema apply(@Nullable String input) {
-      return BigQueryHelpers.fromJsonString(input, TableSchema.class);
-    }
-  }
-
   List<BoundedSource<T>> createSources(List<ResourceId> files, TableSchema tableSchema)
       throws IOException, InterruptedException {
 
@@ -218,58 +203,11 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     return ImmutableList.copyOf(avroSources);
   }
 
-  private static class MergedBoundedReader<T> extends BoundedReader<T> {
-    private final Iterator<BoundedSource<T>> sourceIterator;
-    private final PipelineOptions options;
-
-    private BoundedReader<T> currentReader;
-
-    MergedBoundedReader(List<BoundedSource<T>> sources, PipelineOptions options) {
-      this.sourceIterator = sources.iterator();
-      this.options = options;
-    }
-
-    private boolean startNextReader() throws IOException {
-      if (currentReader != null) {
-        currentReader.close();
-      }
-      if (sourceIterator.hasNext()) {
-        BoundedSource<T> nextSource = sourceIterator.next();
-        currentReader = nextSource.createReader(options);
-        return currentReader.start();
-      } else {
-        return false;
-      }
-    }
-
+  private static class TableSchemaFunction implements Serializable, Function<String, TableSchema> {
+    @Nullable
     @Override
-    public boolean start() throws IOException {
-      return startNextReader();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      return currentReader.advance() || startNextReader();
-    }
-
-    @Override
-    public T getCurrent() throws NoSuchElementException {
-      return currentReader.getCurrent();
-    }
-
-    @Override
-    public void close() throws IOException {
-      currentReader.close();
-      currentReader = null;
-    }
-
-    @Override
-    public BoundedSource<T> getCurrentSource() {
-      if (currentReader != null) {
-        return currentReader.getCurrentSource();
-      } else {
-        return null;
-      }
+    public TableSchema apply(@Nullable String input) {
+      return BigQueryHelpers.fromJsonString(input, TableSchema.class);
     }
   }
 }
