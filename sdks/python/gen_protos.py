@@ -81,6 +81,8 @@ def generate_proto_files():
           target=_install_grpcio_tools_and_generate_proto_files)
       p.start()
       p.join()
+      if p.exitcode:
+        raise ValueError("Proto generation failed (see log for details).")
     else:
       logging.info('Regenerating out-of-date Python proto definitions.')
       builtin_protos = pkg_resources.resource_filename('grpc_tools', '_proto')
