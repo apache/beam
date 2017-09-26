@@ -37,7 +37,6 @@ import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
@@ -103,6 +102,11 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
             bqOptions.getProject(),
             extractDestinationDir);
     return tempFiles;
+  }
+
+  @Override
+  public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
+    throw new UnsupportedOperationException("BigQuery source must be split before being read");
   }
 
   @Override
@@ -194,42 +198,6 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     @Override
     public TableSchema apply(@Nullable String input) {
       return BigQueryHelpers.fromJsonString(input, TableSchema.class);
-    }
-  }
-
-  protected static class BigQueryReader extends BoundedReader<TableRow> {
-    private final BigQuerySourceBase source;
-    private final BigQueryServices.BigQueryJsonReader reader;
-
-    BigQueryReader(
-        BigQuerySourceBase source, BigQueryServices.BigQueryJsonReader reader) {
-      this.source = source;
-      this.reader = reader;
-    }
-
-    @Override
-    public BoundedSource<TableRow> getCurrentSource() {
-      return source;
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      return reader.start();
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      return reader.advance();
-    }
-
-    @Override
-    public TableRow getCurrent() throws NoSuchElementException {
-      return reader.getCurrent();
-    }
-
-    @Override
-    public void close() throws IOException {
-      reader.close();
     }
   }
 }
