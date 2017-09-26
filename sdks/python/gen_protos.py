@@ -127,7 +127,8 @@ def _install_grpcio_tools_and_generate_proto_files():
   try:
     start = time.time()
     subprocess.check_call(
-        ['pip', 'install', '--target', install_path, '--build', build_path,
+        [sys.executable, '-m', 'pip', 'install',
+         '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
     logging.warning(
         'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
