@@ -204,7 +204,7 @@ cdef class StateSampler(object):
       counter_name = '%s-%s-msecs' % (self.prefix, step_name)
       scoped_state = self.scoped_states_by_name.get(counter_name, None)
     else:
-      counter_name = CounterName(state_name + 6'-msecs',
+      counter_name = CounterName(state_name + '-msecs',
                                  stage_name=self.prefix,
                                  step_name=step_name,
                                  io_target=io_target)
