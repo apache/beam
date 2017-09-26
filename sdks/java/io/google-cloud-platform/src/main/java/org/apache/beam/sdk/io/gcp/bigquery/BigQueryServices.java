@@ -145,10 +145,15 @@ interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     /**
-     * Create a {@link Dataset} with the given {@code location} and {@code description}.
+     * Create a {@link Dataset} with the given {@code location}, {@code description} and default
+     * expiration time for tables in the dataset (if {@code null}, tables don't expire).
      */
     void createDataset(
-        String projectId, String datasetId, @Nullable String location, @Nullable String description)
+        String projectId,
+        String datasetId,
+        @Nullable String location,
+        @Nullable String description,
+        @Nullable Long defaultTableExpirationMs)
         throws IOException, InterruptedException;
 
     /**
