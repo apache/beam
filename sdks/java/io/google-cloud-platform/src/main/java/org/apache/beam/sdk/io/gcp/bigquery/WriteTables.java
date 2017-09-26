@@ -89,6 +89,31 @@ class WriteTables<DestinationT>
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
   private final TupleTag<String> temporaryFilesTag;
 
+  public WriteTables(
+      boolean singlePartition,
+      BigQueryServices bqServices,
+      PCollectionView<String> jobIdToken,
+      WriteDisposition writeDisposition,
+      CreateDisposition createDisposition,
+      List<PCollectionView<?>> sideInputs,
+      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+    this.singlePartition = singlePartition;
+    this.bqServices = bqServices;
+    this.jobIdToken = jobIdToken;
+    this.firstPaneWriteDisposition = writeDisposition;
+    this.firstPaneCreateDisposition = createDisposition;
+    this.sideInputs = sideInputs;
+    this.dynamicDestinations = dynamicDestinations;
+    this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
+    this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
+  }
+
+  private class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
+      removeTemporaryFiles(c.element());
+    }
+  }
 
   private class WriteTablesDoFn
       extends DoFn<KV<ShardedKey<DestinationT>, List<String>>, KV<TableDestination, String>> {
@@ -157,32 +182,6 @@ class WriteTables<DestinationT>
     }
   }
 
-  private class GarbageCollectTemporaryFiles extends DoFn<Iterable<String>, Void> {
-    @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      removeTemporaryFiles(c.element());
-    }
-  }
-
-  public WriteTables(
-      boolean singlePartition,
-      BigQueryServices bqServices,
-      PCollectionView<String> jobIdToken,
-      WriteDisposition writeDisposition,
-      CreateDisposition createDisposition,
-      List<PCollectionView<?>> sideInputs,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
-    this.singlePartition = singlePartition;
-    this.bqServices = bqServices;
-    this.jobIdToken = jobIdToken;
-    this.firstPaneWriteDisposition = writeDisposition;
-    this.firstPaneCreateDisposition = createDisposition;
-    this.sideInputs = sideInputs;
-    this.dynamicDestinations = dynamicDestinations;
-    this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
-    this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
-  }
-
   @Override
   public PCollection<KV<TableDestination, String>> expand(
       PCollection<KV<ShardedKey<DestinationT>, List<String>>> input) {
@@ -199,8 +198,11 @@ class WriteTables<DestinationT>
     writeTablesOutputs
         .get(temporaryFilesTag)
         .setCoder(StringUtf8Coder.of())
+        // Add as key for the GroupByKey.
         .apply(WithKeys.<Void, String>of((Void) null))
         .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
+        // Delete files fairly quickly. In practice elementCountAtLeast(1) will trigger full bundles
+        // so we will get batching in deletes.
         .apply(Window.<KV<Void, String>>into(new GlobalWindows())
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
             .discardingFiredPanes())
