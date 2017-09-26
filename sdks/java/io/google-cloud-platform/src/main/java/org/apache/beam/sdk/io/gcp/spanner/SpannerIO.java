@@ -269,6 +269,12 @@ public class SpannerIO {
       return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
     }
 
+    /** Specifies the Cloud Spanner host. */
+    public ReadAll witHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
+    }
+
     /** Specifies the Cloud Spanner database. */
     public ReadAll withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
@@ -378,6 +384,12 @@ public class SpannerIO {
     public Read withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner host. */
+    public Read witHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
     }
 
     @VisibleForTesting
@@ -533,6 +545,12 @@ public class SpannerIO {
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
+    /** Specifies the Cloud Spanner host. */
+    public CreateTransaction witHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
+    }
+
     @VisibleForTesting
     CreateTransaction withServiceFactory(
         ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
@@ -617,6 +635,12 @@ public class SpannerIO {
     public Write withDatabaseId(ValueProvider<String> databaseId) {
       SpannerConfig config = getSpannerConfig();
       return withSpannerConfig(config.withDatabaseId(databaseId));
+    }
+
+    /** Specifies the Cloud Spanner host. */
+    public Write witHost(String host) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withHost(host));
     }
 
     @VisibleForTesting
