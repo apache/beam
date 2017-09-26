@@ -191,7 +191,7 @@
             <artifactId>exec-maven-plugin</artifactId>
             <executions>
               <execution>
-                <id>setuptools-test</id>
+                <id>setuptools-test-py27</id>
                 <phase>test</phase>
                 <goals>
                   <goal>exec</goal>
@@ -200,7 +200,64 @@
                   <executable>${python.user.base}/bin/detox</executable>
                   <arguments>
                     <argument>-e</argument>
-                    <argument>ALL</argument>
+                    <argument>py27</argument>
+                    <argument>-c</argument>
+                    <argument>tox.ini</argument>
+                  </arguments>
+                  <environmentVariables>
+                    <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+                  </environmentVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>setuptools-test-py27cython</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>${python.user.base}/bin/detox</executable>
+                  <arguments>
+                    <argument>-e</argument>
+                    <argument>py27cython</argument>
+                    <argument>-c</argument>
+                    <argument>tox.ini</argument>
+                  </arguments>
+                  <environmentVariables>
+                    <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+                  </environmentVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>setuptools-test-lint</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>${python.user.base}/bin/detox</executable>
+                  <arguments>
+                    <argument>-e</argument>
+                    <argument>lint</argument>
+                    <argument>-c</argument>
+                    <argument>tox.ini</argument>
+                  </arguments>
+                  <environmentVariables>
+                    <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+                  </environmentVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>setuptools-test-docs</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>exec</goal>
+                </goals>
+                <configuration>
+                  <executable>${python.user.base}/bin/detox</executable>
+                  <arguments>
+                    <argument>-e</argument>
+                    <argument>docs</argument>
                     <argument>-c</argument>
                     <argument>tox.ini</argument>
                   </arguments>
