@@ -34,6 +34,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
@@ -181,8 +182,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   @Override
   protected void delete(Collection<LocalResourceId> resourceIds) throws IOException {
     for (LocalResourceId resourceId : resourceIds) {
-      LOG.debug("Deleting file {}", resourceId);
-      Files.delete(resourceId.getPath());
+      try {
+        Files.delete(resourceId.getPath());
+      } catch (NoSuchFileException e) {
+        LOG.info("Ignoring failed deletion of file {} which already does not exist: {}", resourceId,
+            e);
+      }
     }
   }
 
