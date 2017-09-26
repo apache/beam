@@ -22,13 +22,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.TableRefToJson;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -51,8 +49,8 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       ValueProvider<TableReference> table,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory) {
-    return new BigQueryTableSource<>(stepUuid, table, bqServices, coder, parseFnFactory);
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryTableSource<>(stepUuid, table, bqServices, coder, parseFn);
   }
 
   private final ValueProvider<String> jsonTable;
@@ -63,9 +61,9 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
       ValueProvider<TableReference> table,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory
+      SerializableFunction<SchemaAndRecord, T> parseFn
   ) {
-    super(stepUuid, bqServices, coder, parseFnFactory);
+    super(stepUuid, bqServices, coder, parseFn);
     this.jsonTable = NestedValueProvider.of(checkNotNull(table, "table"), new TableRefToJson());
     this.tableSizeBytes = new AtomicReference<>();
   }

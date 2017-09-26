@@ -27,14 +27,12 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
@@ -58,7 +56,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       Boolean useLegacySql,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory) {
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
     return new BigQueryQuerySource<T>(
         stepUuid,
         query,
@@ -66,7 +64,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         useLegacySql,
         bqServices,
         coder,
-        parseFnFactory);
+        parseFn);
   }
 
   private final ValueProvider<String> query;
@@ -81,8 +79,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       Boolean useLegacySql,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory) {
-    super(stepUuid, bqServices, coder, parseFnFactory);
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");

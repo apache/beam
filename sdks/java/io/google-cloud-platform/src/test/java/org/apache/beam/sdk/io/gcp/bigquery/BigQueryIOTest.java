@@ -82,7 +82,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -1629,7 +1628,7 @@ public class BigQueryIOTest implements Serializable {
         StaticValueProvider.of(table),
         fakeBqServices,
         TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParserFactory.INSTANCE);
+        BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
@@ -1714,7 +1713,7 @@ public class BigQueryIOTest implements Serializable {
         true /* useLegacySql */,
         fakeBqServices,
         TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParserFactory.INSTANCE);
+        BigQueryIO.TableRowParser.INSTANCE);
     options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
@@ -1806,7 +1805,7 @@ public class BigQueryIOTest implements Serializable {
         true /* useLegacySql */,
         fakeBqServices,
         TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParserFactory.INSTANCE);
+        BigQueryIO.TableRowParser.INSTANCE);
 
     options.setTempLocation(baseDir.toString());
 
@@ -2378,18 +2377,15 @@ public class BigQueryIOTest implements Serializable {
 
   @Test
   public void testCoderInference() {
-    BigQueryIO.ReadGenericRecords<KV<ByteString, Mutation>> io =
-        BigQueryIO.<KV<ByteString, Mutation>>readRecords()
-          .withParseFnFactory(new SerializableFunction<
-              TableSchema,
-              SerializableFunction<GenericRecord, KV<ByteString, Mutation>>
-              >() {
-            @Override
-            public SerializableFunction<GenericRecord, KV<ByteString, Mutation>> apply(
-                TableSchema input) {
-              return null;
-            }
-          });
+    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn =
+      new SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>>() {
+        @Override
+        public KV<ByteString, Mutation> apply(SchemaAndRecord input) {
+          return null;
+        }
+      };
+
+    BigQueryIO.ReadGenericRecords<KV<ByteString, Mutation>> io = BigQueryIO.readRecords(parseFn);
     Coder<KV<ByteString, Mutation>> coder = io.inferCoder(CoderRegistry.createDefault());
     assertEquals(
         KvCoder.of(

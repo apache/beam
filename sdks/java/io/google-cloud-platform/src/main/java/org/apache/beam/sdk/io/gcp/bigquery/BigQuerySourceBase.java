@@ -28,12 +28,17 @@ import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import javax.annotation.Nullable;
 
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
@@ -70,19 +75,19 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected final BigQueryServices bqServices;
 
   private transient List<BoundedSource<T>> cachedSplitResult;
-  private SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory;
+  private SerializableFunction<SchemaAndRecord, T> parseFn;
   private Coder<T> coder;
 
   BigQuerySourceBase(
       String stepUuid,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<TableSchema, SerializableFunction<GenericRecord, T>> parseFnFactory
+      SerializableFunction<SchemaAndRecord, T> parseFn
     ) {
     this.stepUuid = checkNotNull(stepUuid, "stepUuid");
     this.bqServices = checkNotNull(bqServices, "bqServices");
     this.coder = checkNotNull(coder, "coder");
-    this.parseFnFactory = checkNotNull(parseFnFactory, "parseFnFactory");
+    this.parseFn = checkNotNull(parseFn, "parseFn");
   }
 
   protected TableSchema getSchema(PipelineOptions options) throws Exception {
@@ -182,14 +187,33 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
+  private static class TableSchemaFunction
+      implements Serializable, Function<String, TableSchema> {
+    @Nullable
+    @Override
+    public TableSchema apply(@Nullable String input) {
+      return BigQueryHelpers.fromJsonString(input, TableSchema.class);
+    }
+  }
+
   List<BoundedSource<T>> createSources(List<ResourceId> files, TableSchema tableSchema)
       throws IOException, InterruptedException {
 
-    SerializableFunction<GenericRecord, T> function = parseFnFactory.apply(tableSchema);
+    final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
+    SerializableFunction<GenericRecord, T> fnWrapper =
+        new SerializableFunction<GenericRecord, T>() {
+          private Supplier<TableSchema> schema = Suppliers.memoize(
+              Suppliers.compose(new TableSchemaFunction(), Suppliers.ofInstance(jsonSchema)));
+
+          @Override
+          public T apply(GenericRecord input) {
+            return parseFn.apply(new SchemaAndRecord(input, schema.get()));
+          }
+        };
     List<BoundedSource<T>> avroSources = Lists.newArrayList();
     for (ResourceId file : files) {
       avroSources.add(
-          AvroSource.from(file.toString()).withParseFn(function, getOutputCoder()));
+          AvroSource.from(file.toString()).withParseFn(fnWrapper, getOutputCoder()));
     }
     return ImmutableList.copyOf(avroSources);
   }
