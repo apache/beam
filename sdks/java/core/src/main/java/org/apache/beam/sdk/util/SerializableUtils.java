@@ -33,6 +33,7 @@ import java.lang.reflect.Proxy;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.xerial.snappy.SnappyInputStream;
 import org.xerial.snappy.SnappyOutputStream;
 
@@ -89,7 +90,7 @@ public class SerializableUtils {
     final Thread thread = Thread.currentThread();
     final ClassLoader loader = value == null
             ? thread.getContextClassLoader() : value.getClass().getClassLoader();
-    final ClassLoader pushedLoader = thread.getContextClassLoader();
+    final ClassLoader pushedLoader = ReflectHelpers.findClassLoader();
     thread.setContextClassLoader(loader);
     @SuppressWarnings("unchecked")
     final T copy;
@@ -164,7 +165,7 @@ public class SerializableUtils {
             throws IOException, ClassNotFoundException {
       // note: staying aligned on JVM default but can need class filtering here to avoid 0day issue
       final String n = classDesc.getName();
-      final ClassLoader classloader = getClassloader();
+      final ClassLoader classloader = ReflectHelpers.findClassLoader();
       try {
         return Class.forName(n, false, classloader);
       } catch (final ClassNotFoundException e) {
@@ -175,7 +176,7 @@ public class SerializableUtils {
     @Override
     protected Class resolveProxyClass(final String[] interfaces)
             throws IOException, ClassNotFoundException {
-      final ClassLoader classloader = getClassloader();
+      final ClassLoader classloader = ReflectHelpers.findClassLoader();
 
       final Class[] cinterfaces = new Class[interfaces.length];
       for (int i = 0; i < interfaces.length; i++) {
@@ -187,11 +188,6 @@ public class SerializableUtils {
       } catch (final IllegalArgumentException e) {
         throw new ClassNotFoundException(null, e);
       }
-    }
-
-    private ClassLoader getClassloader() {
-      final ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
-      return contextClassLoader == null ? ClassLoader.getSystemClassLoader() : contextClassLoader;
     }
   }
 }
