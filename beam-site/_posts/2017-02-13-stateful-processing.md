@@ -265,7 +265,7 @@ new DoFn<KV<MyKey, MyValue>, KV<Integer, KV<MyKey, MyValue>>>() {
 
   // A state cell holding a single Integer per key+window
   @StateId("index")
-  private final StateSpec<Object, ValueState<Integer>> indexSpec = 
+  private final StateSpec<ValueState<Integer>> indexSpec = 
       StateSpecs.value(VarIntCoder.of());
 
   @ProcessElement
@@ -456,11 +456,11 @@ only features I have already introduced:
 new DoFn<KV<UserId, Event>, KV<UserId, Prediction>>() {
 
   @StateId("model")
-  private final StateSpec<Object, ValueState<Model>> modelSpec =
+  private final StateSpec<ValueState<Model>> modelSpec =
       StateSpecs.value(Model.coder());
 
   @StateId("previousPrediction")
-  private final StateSpec<Object, ValueState<Prediction>> previousPredictionSpec =
+  private final StateSpec<ValueState<Prediction>> previousPredictionSpec =
       StateSpecs.value(Prediction.coder());
 
   @ProcessElement
