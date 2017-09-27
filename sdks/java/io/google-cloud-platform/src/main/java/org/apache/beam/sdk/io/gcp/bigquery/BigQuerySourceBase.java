@@ -35,7 +35,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
 
@@ -89,17 +88,21 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     this.parseFn = checkNotNull(parseFn, "parseFn");
   }
 
-  protected TableSchema getSchema(PipelineOptions options) throws Exception {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    TableReference tableToExtract = getTableToExtract(bqOptions);
-    TableSchema tableSchema =
-        bqServices.getDatasetService(bqOptions).getTable(tableToExtract).getSchema();
-    return tableSchema;
+  protected static class ExtractResult {
+    public final TableSchema schema;
+    public final List<ResourceId> extractedFiles;
+
+    public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
+      this.schema = schema;
+      this.extractedFiles = extractedFiles;
+    }
   }
 
-  protected List<ResourceId> extractFiles(PipelineOptions options) throws Exception {
+  protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
+    TableSchema schema =
+        bqServices.getDatasetService(bqOptions).getTable(tableToExtract).getSchema();
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
     final String extractDestinationDir =
@@ -111,7 +114,7 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
             jobService,
             bqOptions.getProject(),
             extractDestinationDir);
-    return tempFiles;
+    return new ExtractResult(schema, tempFiles);
   }
 
   @Override
@@ -127,12 +130,10 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
     // We ignore desiredBundleSizeBytes anyway, however in any case, we should not initiate
     // another BigQuery extract job for the repeated split() calls.
     if (cachedSplitResult == null) {
-      List<ResourceId> tempFiles = extractFiles(options);
-      TableSchema tableSchema = getSchema(options);
-
-      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-      cleanupTempResource(bqOptions);
-      cachedSplitResult = checkNotNull(createSources(tempFiles, tableSchema));
+      ExtractResult res = extractFiles(options);
+      LOG.info("Extract job produced {} files", res.extractedFiles.size());
+      cleanupTempResource(options.as(BigQueryOptions.class));
+      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema));
     }
     return cachedSplitResult;
   }
@@ -183,8 +184,8 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
 
   List<BoundedSource<T>> createSources(List<ResourceId> files, TableSchema tableSchema)
       throws IOException, InterruptedException {
-
     final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
+
     SerializableFunction<GenericRecord, T> fnWrapper =
         new SerializableFunction<GenericRecord, T>() {
           private Supplier<TableSchema> schema = Suppliers.memoize(

@@ -134,11 +134,12 @@ message JobMessage {
   string message_text = 4;
 
   enum MessageImportance {
-    JOB_MESSAGE_DEBUG = 0;
-    JOB_MESSAGE_DETAILED = 1;
-    JOB_MESSAGE_BASIC = 2;
-    JOB_MESSAGE_WARNING = 3;
-    JOB_MESSAGE_ERROR = 4;
+    MESSAGE_IMPORTANCE_UNSPECIFIED = 0;
+    JOB_MESSAGE_DEBUG = 1;
+    JOB_MESSAGE_DETAILED = 2;
+    JOB_MESSAGE_BASIC = 3;
+    JOB_MESSAGE_WARNING = 4;
+    JOB_MESSAGE_ERROR = 5;
   }
 }
 
@@ -152,16 +153,17 @@ message JobMessagesResponse {
 message JobState {
   // Enumeration of all JobStates
   enum JobStateType {
-    UNKNOWN = 0;
-    STOPPED = 1;
-    RUNNING = 2;
-    DONE = 3;
-    FAILED = 4;
-    CANCELLED = 5;
-    UPDATED = 6;
-    DRAINING = 7;
-    DRAINED = 8;
-    STARTING = 9;
-    CANCELLING = 10;
+    JOB_STATE_TYPE_UNSPECIFIED = 0;
+    UNKNOWN = 1;
+    STOPPED = 2;
+    RUNNING = 3;
+    DONE = 4;
+    FAILED = 5;
+    CANCELLED = 6;
+    UPDATED = 7;
+    DRAINING = 8;
+    DRAINED = 9;
+    STARTING = 10;
+    CANCELLING = 11;
   }
 }

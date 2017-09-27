@@ -164,7 +164,11 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public void createDataset(
-      String projectId, String datasetId, String location, String description)
+      String projectId,
+      String datasetId,
+      String location,
+      String description,
+      Long defaultTableExpirationMs /* ignored */)
       throws IOException, InterruptedException {
     synchronized (BigQueryIOTest.tables) {
       Map<String, TableContainer> dataset = BigQueryIOTest.tables.get(projectId, datasetId);

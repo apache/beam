@@ -693,14 +693,12 @@ public class BigQueryIO {
                           public void processElement(ProcessContext c) throws Exception {
                             String jobUuid = c.element();
                             BigQuerySourceBase<T> source = createSource(jobUuid, coder);
-                            String schema =
-                                BigQueryHelpers.toJsonString(
-                                    source.getSchema(c.getPipelineOptions()));
-                            c.output(tableSchemaTag, schema);
-                            List<ResourceId> files = source.extractFiles(c.getPipelineOptions());
-                            for (ResourceId file : files) {
+                            BigQuerySourceBase.ExtractResult res =
+                                source.extractFiles(c.getPipelineOptions());
+                            for (ResourceId file : res.extractedFiles) {
                               c.output(file.toString());
                             }
+                            c.output(tableSchemaTag, BigQueryHelpers.toJsonString(res.schema));
                           }
                         })
                     .withOutputTags(filesTag, TupleTagList.of(tableSchemaTag)));

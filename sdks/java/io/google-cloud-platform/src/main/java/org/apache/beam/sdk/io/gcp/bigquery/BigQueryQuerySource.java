@@ -41,6 +41,8 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -48,6 +50,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
  */
 @VisibleForTesting
 class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryQuerySource.class);
 
   static <T>BigQueryQuerySource<T> create(
       String stepUuid,
@@ -110,19 +113,31 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
     TableReference tableToExtract = createTempTableReference(
         bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
+    LOG.info("Creating temporary dataset {} for query results", tableToExtract.getDatasetId());
     tableService.createDataset(
         tableToExtract.getProjectId(),
         tableToExtract.getDatasetId(),
         location,
-        "Dataset for BigQuery query job temporary table");
+        "Temporary tables for query results of job " + bqOptions.getJobName(),
+        // Set a TTL of 1 day on the temporary tables, which ought to be enough in all cases:
+        // the temporary tables are used only to immediately extract them into files.
+        // They are normally cleaned up, but in case of job failure the cleanup step may not run,
+        // and then they'll get deleted after the TTL.
+        24 * 3600 * 1000L /* 1 day */);
 
     // 3. Execute the query.
     String queryJobId = createJobIdToken(bqOptions.getJobName(), stepUuid) + "-query";
+    LOG.info(
+        "Exporting query results into temporary table {} using job {}",
+        tableToExtract,
+        queryJobId);
     executeQuery(
         bqOptions.getProject(),
         queryJobId,
         tableToExtract,
         bqServices.getJobService(bqOptions));
+    LOG.info("Query job {} completed", queryJobId);
+
     return tableToExtract;
   }
 
@@ -132,7 +147,9 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
     DatasetService tableService = bqServices.getDatasetService(bqOptions);
+    LOG.info("Deleting temporary table with query results {}", tableToRemove);
     tableService.deleteTable(tableToRemove);
+    LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
     tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
   }
 

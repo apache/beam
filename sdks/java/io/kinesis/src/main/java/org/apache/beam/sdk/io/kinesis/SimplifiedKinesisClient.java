@@ -126,6 +126,7 @@ class SimplifiedKinesisClient {
         return new GetKinesisRecordsResult(
             UserRecord.deaggregate(response.getRecords()),
             response.getNextShardIterator(),
+            response.getMillisBehindLatest(),
             streamName, shardId);
       }
     });
