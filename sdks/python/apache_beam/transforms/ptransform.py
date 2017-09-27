@@ -375,6 +375,12 @@ class PTransform(WithTypeHints, HasDisplayData):
       p = pipeline.Pipeline(
           'DirectRunner', PipelineOptions(sys.argv))
     else:
+      if any(getattr(p, 'is_ephemeral', False) for p in pipelines):
+        raise ValueError(
+            'Re-using PCollection(s) from previous implicit run not allowed: %s'
+            % [v for v in pvalues
+               if isinstance(v, pvalue.PValue)
+               and getattr(v.pipeline, 'is_ephemeral', False)])
       if not pipelines:
         if self.pipeline is not None:
           p = self.pipeline
@@ -403,6 +409,7 @@ class PTransform(WithTypeHints, HasDisplayData):
     # clean it after run.
     cache = p.runner.cache
     p.run().wait_until_finish()
+    p.is_ephemeral = True
     return _MaterializePValues(cache).visit(result)
 
   def _extract_input_pvalues(self, pvalueish):
