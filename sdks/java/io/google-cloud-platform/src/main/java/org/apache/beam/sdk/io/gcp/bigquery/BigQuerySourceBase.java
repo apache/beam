@@ -80,17 +80,21 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     this.bqServices = checkNotNull(bqServices, "bqServices");
   }
 
-  protected TableSchema getSchema(PipelineOptions options) throws Exception {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    TableReference tableToExtract = getTableToExtract(bqOptions);
-    TableSchema tableSchema =
-        bqServices.getDatasetService(bqOptions).getTable(tableToExtract).getSchema();
-    return tableSchema;
+  protected static class ExtractResult {
+    public final TableSchema schema;
+    public final List<ResourceId> extractedFiles;
+
+    public ExtractResult(TableSchema schema, List<ResourceId> extractedFiles) {
+      this.schema = schema;
+      this.extractedFiles = extractedFiles;
+    }
   }
 
-  protected List<ResourceId> extractFiles(PipelineOptions options) throws Exception {
+  protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
+    TableSchema schema =
+        bqServices.getDatasetService(bqOptions).getTable(tableToExtract).getSchema();
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
     final String extractDestinationDir =
@@ -102,7 +106,7 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
             jobService,
             bqOptions.getProject(),
             extractDestinationDir);
-    return tempFiles;
+    return new ExtractResult(schema, tempFiles);
   }
 
   @Override
@@ -113,12 +117,10 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     // We ignore desiredBundleSizeBytes anyway, however in any case, we should not initiate
     // another BigQuery extract job for the repeated split() calls.
     if (cachedSplitResult == null) {
-      List<ResourceId> tempFiles = extractFiles(options);
-      TableSchema tableSchema = getSchema(options);
-
-      BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-      cleanupTempResource(bqOptions);
-      cachedSplitResult = checkNotNull(createSources(tempFiles, tableSchema));
+      ExtractResult res = extractFiles(options);
+      LOG.info("Extract job produced {} files", res.extractedFiles.size());
+      cleanupTempResource(options.as(BigQueryOptions.class));
+      cachedSplitResult = checkNotNull(createSources(res.extractedFiles, res.schema));
     }
     return cachedSplitResult;
   }
@@ -167,9 +169,9 @@ abstract class BigQuerySourceBase extends BoundedSource<TableRow> {
     return BigQueryIO.getExtractFilePaths(extractDestinationDir, extractJob);
   }
 
-  List<BoundedSource<TableRow>> createSources(List<ResourceId> files, TableSchema tableSchema)
+  List<BoundedSource<TableRow>> createSources(List<ResourceId> files, TableSchema schema)
       throws IOException, InterruptedException {
-    final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(tableSchema);
+    final String jsonSchema = BigQueryIO.JSON_FACTORY.toString(schema);
 
     SerializableFunction<GenericRecord, TableRow> function =
         new SerializableFunction<GenericRecord, TableRow>() {
