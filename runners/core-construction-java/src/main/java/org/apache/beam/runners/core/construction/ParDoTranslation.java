@@ -430,14 +430,14 @@ public class ParDoTranslation {
     return RunnerApi.TimerSpec.newBuilder().setTimeDomain(toProto(timer.getTimeDomain())).build();
   }
 
-  private static RunnerApi.TimeDomain toProto(TimeDomain timeDomain) {
+  private static RunnerApi.TimeDomain.Enum toProto(TimeDomain timeDomain) {
     switch(timeDomain) {
       case EVENT_TIME:
-        return RunnerApi.TimeDomain.EVENT_TIME;
+        return RunnerApi.TimeDomain.Enum.EVENT_TIME;
       case PROCESSING_TIME:
-        return RunnerApi.TimeDomain.PROCESSING_TIME;
+        return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
       case SYNCHRONIZED_PROCESSING_TIME:
-        return RunnerApi.TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
+        return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
       default:
         throw new IllegalArgumentException("Unknown time domain");
     }
@@ -486,13 +486,13 @@ public class ParDoTranslation {
         new Cases.WithDefault<Optional<RunnerApi.Parameter>>() {
           @Override
           public Optional<RunnerApi.Parameter> dispatch(WindowParameter p) {
-            return Optional.of(RunnerApi.Parameter.newBuilder().setType(Type.WINDOW).build());
+            return Optional.of(RunnerApi.Parameter.newBuilder().setType(Type.Enum.WINDOW).build());
           }
 
           @Override
           public Optional<RunnerApi.Parameter> dispatch(RestrictionTrackerParameter p) {
             return Optional.of(
-                RunnerApi.Parameter.newBuilder().setType(Type.RESTRICTION_TRACKER).build());
+                RunnerApi.Parameter.newBuilder().setType(Type.Enum.RESTRICTION_TRACKER).build());
           }
 
           @Override

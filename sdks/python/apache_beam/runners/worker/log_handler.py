@@ -38,11 +38,11 @@ class FnApiLogRecordHandler(logging.Handler):
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
-      logging.FATAL: beam_fn_api_pb2.LogEntry.CRITICAL,
-      logging.ERROR: beam_fn_api_pb2.LogEntry.ERROR,
-      logging.WARNING: beam_fn_api_pb2.LogEntry.WARN,
-      logging.INFO: beam_fn_api_pb2.LogEntry.INFO,
-      logging.DEBUG: beam_fn_api_pb2.LogEntry.DEBUG
+      logging.FATAL: beam_fn_api_pb2.LogEntry.Severity.CRITICAL,
+      logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
+      logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
+      logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
+      logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG
   }
 
   def __init__(self, log_service_descriptor):

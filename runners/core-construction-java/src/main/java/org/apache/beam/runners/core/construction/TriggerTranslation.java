@@ -123,14 +123,14 @@ public class TriggerTranslation implements Serializable {
           .build();
     }
 
-    private RunnerApi.TimeDomain convertTimeDomain(TimeDomain timeDomain) {
+    private RunnerApi.TimeDomain.Enum convertTimeDomain(TimeDomain timeDomain) {
       switch (timeDomain) {
         case EVENT_TIME:
-          return RunnerApi.TimeDomain.EVENT_TIME;
+          return RunnerApi.TimeDomain.Enum.EVENT_TIME;
         case PROCESSING_TIME:
-          return RunnerApi.TimeDomain.PROCESSING_TIME;
+          return RunnerApi.TimeDomain.Enum.PROCESSING_TIME;
         case SYNCHRONIZED_PROCESSING_TIME:
-          return RunnerApi.TimeDomain.SYNCHRONIZED_PROCESSING_TIME;
+          return RunnerApi.TimeDomain.Enum.SYNCHRONIZED_PROCESSING_TIME;
         default:
           throw new IllegalArgumentException(String.format("Unknown time domain: %s", timeDomain));
       }

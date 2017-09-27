@@ -53,14 +53,14 @@ public class ReadTranslation {
 
   public static ReadPayload toProto(Read.Bounded<?> read) {
     return ReadPayload.newBuilder()
-        .setIsBounded(IsBounded.BOUNDED)
+        .setIsBounded(IsBounded.Enum.BOUNDED)
         .setSource(toProto(read.getSource()))
         .build();
   }
 
   public static ReadPayload toProto(Read.Unbounded<?> read) {
     return ReadPayload.newBuilder()
-        .setIsBounded(IsBounded.UNBOUNDED)
+        .setIsBounded(IsBounded.Enum.UNBOUNDED)
         .setSource(toProto(read.getSource()))
         .build();
   }
@@ -88,7 +88,7 @@ public class ReadTranslation {
 
   public static BoundedSource<?> boundedSourceFromProto(ReadPayload payload)
       throws InvalidProtocolBufferException {
-    checkArgument(payload.getIsBounded().equals(IsBounded.BOUNDED));
+    checkArgument(payload.getIsBounded().equals(IsBounded.Enum.BOUNDED));
     return (BoundedSource<?>) SerializableUtils.deserializeFromByteArray(
         payload
             .getSource()
@@ -135,7 +135,7 @@ public class ReadTranslation {
 
   public static UnboundedSource<?, ?> unboundedSourceFromProto(ReadPayload payload)
       throws InvalidProtocolBufferException {
-    checkArgument(payload.getIsBounded().equals(IsBounded.UNBOUNDED));
+    checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
     return (UnboundedSource<?, ?>) SerializableUtils.deserializeFromByteArray(
         payload
             .getSource()

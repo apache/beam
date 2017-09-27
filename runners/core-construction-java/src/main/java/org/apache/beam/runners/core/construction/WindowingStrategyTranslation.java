@@ -51,7 +51,7 @@ import org.joda.time.Duration;
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
 public class WindowingStrategyTranslation implements Serializable {
 
-  public static AccumulationMode fromProto(RunnerApi.AccumulationMode proto) {
+  public static AccumulationMode fromProto(RunnerApi.AccumulationMode.Enum proto) {
     switch (proto) {
       case DISCARDING:
         return AccumulationMode.DISCARDING_FIRED_PANES;
@@ -71,12 +71,12 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.AccumulationMode toProto(AccumulationMode accumulationMode) {
+  public static RunnerApi.AccumulationMode.Enum toProto(AccumulationMode accumulationMode) {
     switch (accumulationMode) {
       case DISCARDING_FIRED_PANES:
-        return RunnerApi.AccumulationMode.DISCARDING;
+        return RunnerApi.AccumulationMode.Enum.DISCARDING;
       case ACCUMULATING_FIRED_PANES:
-        return RunnerApi.AccumulationMode.ACCUMULATING;
+        return RunnerApi.AccumulationMode.Enum.ACCUMULATING;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -87,12 +87,12 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.ClosingBehavior toProto(ClosingBehavior closingBehavior) {
+  public static RunnerApi.ClosingBehavior.Enum toProto(ClosingBehavior closingBehavior) {
     switch (closingBehavior) {
       case FIRE_ALWAYS:
-        return RunnerApi.ClosingBehavior.EMIT_ALWAYS;
+        return RunnerApi.ClosingBehavior.Enum.EMIT_ALWAYS;
       case FIRE_IF_NON_EMPTY:
-        return RunnerApi.ClosingBehavior.EMIT_IF_NONEMPTY;
+        return RunnerApi.ClosingBehavior.Enum.EMIT_IF_NONEMPTY;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -103,7 +103,7 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static ClosingBehavior fromProto(RunnerApi.ClosingBehavior proto) {
+  public static ClosingBehavior fromProto(RunnerApi.ClosingBehavior.Enum proto) {
     switch (proto) {
       case EMIT_ALWAYS:
         return ClosingBehavior.FIRE_ALWAYS;
@@ -123,12 +123,12 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.OnTimeBehavior toProto(OnTimeBehavior onTimeBehavior) {
+  public static RunnerApi.OnTimeBehavior.Enum toProto(OnTimeBehavior onTimeBehavior) {
     switch (onTimeBehavior) {
       case FIRE_ALWAYS:
-        return RunnerApi.OnTimeBehavior.FIRE_ALWAYS;
+        return RunnerApi.OnTimeBehavior.Enum.FIRE_ALWAYS;
       case FIRE_IF_NON_EMPTY:
-        return RunnerApi.OnTimeBehavior.FIRE_IF_NONEMPTY;
+        return RunnerApi.OnTimeBehavior.Enum.FIRE_IF_NONEMPTY;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -139,7 +139,7 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static OnTimeBehavior fromProto(RunnerApi.OnTimeBehavior proto) {
+  public static OnTimeBehavior fromProto(RunnerApi.OnTimeBehavior.Enum proto) {
     switch (proto) {
       case FIRE_ALWAYS:
         return OnTimeBehavior.FIRE_ALWAYS;
@@ -159,14 +159,14 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.OutputTime toProto(TimestampCombiner timestampCombiner) {
+  public static RunnerApi.OutputTime.Enum toProto(TimestampCombiner timestampCombiner) {
     switch(timestampCombiner) {
       case EARLIEST:
-        return OutputTime.EARLIEST_IN_PANE;
+        return OutputTime.Enum.EARLIEST_IN_PANE;
       case END_OF_WINDOW:
-        return OutputTime.END_OF_WINDOW;
+        return OutputTime.Enum.END_OF_WINDOW;
       case LATEST:
-        return OutputTime.LATEST_IN_PANE;
+        return OutputTime.Enum.LATEST_IN_PANE;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -176,7 +176,7 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static TimestampCombiner timestampCombinerFromProto(RunnerApi.OutputTime proto) {
+  public static TimestampCombiner timestampCombinerFromProto(RunnerApi.OutputTime.Enum proto) {
     switch (proto) {
       case EARLIEST_IN_PANE:
         return TimestampCombiner.EARLIEST;

@@ -133,7 +133,7 @@ class PCollection(PValue):
         unique_name='%d%s.%s' % (
             len(self.producer.full_label), self.producer.full_label, self.tag),
         coder_id=pickler.dumps(self.element_type),
-        is_bounded=beam_runner_api_pb2.BOUNDED,
+        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
 
