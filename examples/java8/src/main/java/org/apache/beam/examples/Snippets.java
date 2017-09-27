@@ -36,7 +36,7 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 public class Snippets {
 
-  /* Helper function to format results in CoGroupByKeyTuple */
+  /* Helper function to format results in coGroupByKeyTuple */
   public static String formatCoGbkResults(
       String name, Iterable<String> emails, Iterable<String> phones) {
 
