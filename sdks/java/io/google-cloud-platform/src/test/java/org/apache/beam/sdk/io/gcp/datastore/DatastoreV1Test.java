@@ -611,7 +611,7 @@ public class DatastoreV1Test {
         .thenReturn(splitQuery(QUERY, numSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
      * mock factory using a when clause for unit testing purposes, it is not serializable
@@ -619,10 +619,9 @@ public class DatastoreV1Test {
      * doFn from being serialized.
      */
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+    List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), numSplits);
-    verifyUniqueKeys(queries);
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
     verifyZeroInteractions(mockDatastore);
@@ -657,12 +656,11 @@ public class DatastoreV1Test {
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+    List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), expectedNumSplits);
-    verifyUniqueKeys(queries);
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
     verify(mockDatastore, times(1)).runQuery(latestTimestampRequest);
@@ -679,12 +677,11 @@ public class DatastoreV1Test {
         .build();
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
+    List<Query> queries = doFnTester.processBundle(queryWithLimit);
 
     assertEquals(queries.size(), 1);
-    verifyUniqueKeys(queries);
     verifyNoMoreInteractions(mockDatastore);
     verifyNoMoreInteractions(mockQuerySplitter);
   }
