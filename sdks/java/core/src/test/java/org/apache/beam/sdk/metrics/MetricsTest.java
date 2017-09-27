@@ -48,6 +48,7 @@ import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.mockito.Mockito;
 
 /**
@@ -71,6 +72,9 @@ public class MetricsTest implements Serializable {
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
+  @Rule
+  public final transient ExpectedException thrown = ExpectedException.none();
+
   @After
   public void tearDown() {
     MetricsEnvironment.setCurrentContainer(null);
@@ -92,6 +96,30 @@ public class MetricsTest implements Serializable {
     counter.inc(5L);
     counter.dec();
     counter.dec(5L);
+  }
+
+  @Test
+  public void testCounterWithEmptyName() {
+    thrown.expect(IllegalArgumentException.class);
+    Metrics.counter(NS, "");
+  }
+
+  @Test
+  public void testCounterWithEmptyNamespace() {
+    thrown.expect(IllegalArgumentException.class);
+    Metrics.counter("", NAME);
+  }
+
+  @Test
+  public void testDistributionWithEmptyName() {
+    thrown.expect(IllegalArgumentException.class);
+    Metrics.distribution(NS, "");
+  }
+
+  @Test
+  public void testDistributionWithEmptyNamespace() {
+    thrown.expect(IllegalArgumentException.class);
+    Metrics.distribution("", NAME);
   }
 
   @Test
