@@ -92,19 +92,14 @@ def generate_proto_files(force=False):
         ['--proto_path=%s' % builtin_protos] +
         ['--proto_path=%s' % d for d in proto_dirs] +
         ['--python_out=%s' % out_dir] +
-        ['--grpc_python_out=%s' % out_dir] +
+        # TODO(robertwb): Remove the prefix once it's the default.
+        ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
         proto_files)
       ret_code = protoc.main(args)
       if ret_code:
         raise RuntimeError(
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
-      for pb_file in glob.glob(os.path.join(out_dir, '*_pb2.py')):
-        # Avoid importing or using beta implementation.
-        # TODO(robertwb): Remove when this becomes the default.
-        contents = open(pb_file).read()
-        open(pb_file, 'w').write(contents.replace(
-            'from grpc.beta', 'from grpc_beta_do_not_use'))
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses
