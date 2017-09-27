@@ -253,10 +253,10 @@ import org.joda.time.Duration;
  *   }
  * }
  * PCollection<UserEvents> events = ...;
- * PCollectionView<Integer, String> schemaMap = events.apply(
- *     "ComputeSchemas", new ComputePerUserSchemas());
+ * PCollectionView<Map<Integer, String>> userToSchemaMap = events.apply(
+ *     "ComputePerUserSchemas", new ComputePerUserSchemas());
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
- *     .to(new UserDynamicAvros()));
+ *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
  */
 public class AvroIO {
