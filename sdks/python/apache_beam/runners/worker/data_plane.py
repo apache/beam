@@ -31,6 +31,7 @@ import grpc
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -235,7 +236,7 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 
 
 class GrpcServerDataChannel(
-    beam_fn_api_pb2.BeamFnDataServicer, _GrpcDataChannel):
+    beam_fn_api_pb2_grpc.BeamFnDataServicer, _GrpcDataChannel):
   """A DataChannel wrapping the server side of a BeamFnData connection."""
 
   def Data(self, elements_iterator, context):
@@ -281,7 +282,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           options=[("grpc.max_receive_message_length", -1),
                    ("grpc.max_send_message_length", -1)])
       self._data_channel_cache[url] = GrpcClientDataChannel(
-          beam_fn_api_pb2.BeamFnDataStub(grpc_channel))
+          beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
     return self._data_channel_cache[url]
 
   def close(self):
