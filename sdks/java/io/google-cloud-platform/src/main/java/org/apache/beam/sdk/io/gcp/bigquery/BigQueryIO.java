@@ -45,7 +45,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -942,7 +941,6 @@ public class BigQueryIO {
     }
     return paths.build();
   }
-
 
   /////////////////////////////////////////////////////////////////////////////
 

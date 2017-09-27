@@ -37,7 +37,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import javax.annotation.Nullable;
-
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.AvroSource;
