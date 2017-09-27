@@ -39,7 +39,7 @@ BEAM_PROTO_PATHS = [
 PYTHON_OUTPUT_PATH = os.path.join('apache_beam', 'portability', 'api')
 
 
-def generate_proto_files():
+def generate_proto_files(force=False):
 
   try:
     import grpc_tools
@@ -54,7 +54,7 @@ def generate_proto_files():
   out_dir = os.path.join(py_sdk_root, PYTHON_OUTPUT_PATH)
   out_files = [path for path in glob.glob(os.path.join(out_dir, '*_pb2.py'))]
 
-  if out_files and not proto_files:
+  if out_files and not proto_files and not force:
     # We have out_files but no protos; assume they're up to date.
     # This is actually the common case (e.g. installation from an sdist).
     logging.info('No proto files; using existing generated files.')
@@ -69,7 +69,7 @@ def generate_proto_files():
           'No proto files found in %s.' % proto_dirs)
 
   # Regenerate iff the proto files are newer.
-  elif not out_files or len(out_files) < len(proto_files) or (
+  elif force or not out_files or len(out_files) < len(proto_files) or (
       min(os.path.getmtime(path) for path in out_files)
       <= max(os.path.getmtime(path) for path in proto_files)):
     try:
@@ -92,7 +92,8 @@ def generate_proto_files():
         ['--proto_path=%s' % builtin_protos] +
         ['--proto_path=%s' % d for d in proto_dirs] +
         ['--python_out=%s' % out_dir] +
-        ['--grpc_python_out=%s' % out_dir] +
+        # TODO(robertwb): Remove the prefix once it's the default.
+        ['--grpc_python_out=grpc_2_0:%s' % out_dir] +
         proto_files)
       ret_code = protoc.main(args)
       if ret_code:
@@ -128,4 +129,4 @@ def _install_grpcio_tools_and_generate_proto_files():
 
 
 if __name__ == '__main__':
-  generate_proto_files()
+  generate_proto_files(force=True)

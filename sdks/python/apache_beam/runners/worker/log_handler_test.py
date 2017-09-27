@@ -23,10 +23,11 @@ from concurrent import futures
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import log_handler
 
 
-class BeamFnLoggingServicer(beam_fn_api_pb2.BeamFnLoggingServicer):
+class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
 
   def __init__(self):
     self.log_records_received = []

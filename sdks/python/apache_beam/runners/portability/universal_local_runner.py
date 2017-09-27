@@ -252,7 +252,7 @@ class BeamJob(threading.Thread):
       self.state = beam_job_api_pb2.JobState.CANCELLED
 
 
-class JobServicer(beam_job_api_pb2.JobServiceServicer):
+class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
   """Servicer for the Beam Job API.
 
   Manages one or more pipelines, possibly concurrently.
