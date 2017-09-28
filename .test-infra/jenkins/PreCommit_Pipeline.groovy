@@ -36,6 +36,19 @@ List<Object> commitArg = [string(name: 'sha1', value: "origin/pr/${ghprbPullId}/
 
 int javaBuildNum = NO_BUILD
 
+boolean testJava = true
+boolean testPython = true
+
+String commentLower = ghprbCommentBody.toLowerCase()
+
+if (!commentLower.isEmpty()) {
+    if (commentLower.endsWith('python only')) {
+        testJava = false
+    } else if (commentLower.endsWith('java only')) {
+        testPython = false
+    }
+}
+
 // This (and the below) define "Stages" of a pipeline. These stages run serially, and inside can
 // have "parallel" blocks which execute several work steps concurrently. This work is limited to
 // simple operations -- more complicated operations need to be performed on an actual node. In this
@@ -43,13 +56,25 @@ int javaBuildNum = NO_BUILD
 stage('Build') {
     parallel (
         java: {
-            def javaBuild = build job: 'beam_Java_Build', parameters: commitArg + ghprbArgs
-            if(javaBuild.getResult() == Result.SUCCESS.toString()) {
-                javaBuildNum = javaBuild.getNumber()
+            if (testJava) {
+                def javaBuild = build job: 'beam_Java_Build', parameters: commitArg + ghprbArgs
+                if (javaBuild.getResult() == Result.SUCCESS.toString()) {
+                    javaBuildNum = javaBuild.getNumber()
+                }
+            } else {
+                echo 'Skipping Java due to comment ending in "python only": ' + ghprbCommentBody
             }
         },
         python_unit: { // Python doesn't have a build phase, so we include this here.
-            build job: 'beam_Python_UnitTest', parameters: commitArg + ghprbArgs
+            if (testPython) {
+                try {
+                    build job: 'beam_Python_UnitTest', parameters: commitArg + ghprbArgs
+                } catch (Exception e) {
+                    echo 'Python build failed: ' + e.toString()
+                }
+            } else {
+                echo 'Skipping Python due to comment ending in "java only": ' + ghprbCommentBody
+            }
         }
     )
 }
@@ -70,7 +95,11 @@ stage('Unit Test / Code Health') {
         },
         java_codehealth: {
             if(javaBuildNum != NO_BUILD) {
-                build job: 'beam_Java_CodeHealth', parameters: javaBuildArg + ghprbArgs
+                try {
+                    build job: 'beam_Java_CodeHealth', parameters: javaBuildArg + ghprbArgs
+                } catch (Exception e) {
+                    echo 'Java CodeHealth Build Failed: ' + e.toString()
+                }
             }
         }
     )
