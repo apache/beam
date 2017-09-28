@@ -42,6 +42,7 @@ import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
+import org.apache.beam.portability.v1.Endpoints;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -91,8 +92,8 @@ public class BeamFnControlClientTest {
         TestStreams.withOnNext(values::add)
         .withOnCompleted(() -> clientClosedStream.set(true)).build();
 
-    BeamFnApi.ApiServiceDescriptor apiServiceDescriptor =
-        BeamFnApi.ApiServiceDescriptor.newBuilder()
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
     Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -136,7 +137,7 @@ public class BeamFnControlClientTest {
 
       BeamFnControlClient client = new BeamFnControlClient(
                 apiServiceDescriptor,
-                (BeamFnApi.ApiServiceDescriptor descriptor) -> channel,
+                (Endpoints.ApiServiceDescriptor descriptor) -> channel,
                 this::createStreamForTest,
                 handlers);
 

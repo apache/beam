@@ -34,6 +34,7 @@ import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
+import org.apache.beam.portability.v1.Endpoints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,8 +66,8 @@ public class BeamFnControlClient {
   private final CompletableFuture<Void> onFinish;
 
   public BeamFnControlClient(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      Function<BeamFnApi.ApiServiceDescriptor, ManagedChannel> channelFactory,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
       BiFunction<Function<StreamObserver<BeamFnApi.InstructionRequest>,
                           StreamObserver<BeamFnApi.InstructionResponse>>,
                  StreamObserver<BeamFnApi.InstructionRequest>,
