@@ -40,31 +40,6 @@ public interface TikaOptions extends PipelineOptions {
   String getContentTypeHint();
   void setContentTypeHint(String value);
 
-  @Description("Metadata report status")
-  @Default.Boolean(false)
-  Boolean getReadOutputMetadata();
-  void setReadOutputMetadata(Boolean value);
-
-  @Description("Optional use of the synchronous reader")
-  @Default.Boolean(false)
-  Boolean getParseSynchronously();
-  void setParseSynchronously(Boolean value);
-
-  @Description("Tika Parser queue poll time in milliseconds")
-  @Default.Long(TikaIO.Read.DEFAULT_QUEUE_POLL_TIME)
-  Long getQueuePollTime();
-  void setQueuePollTime(Long value);
-
-  @Description("Tika Parser queue maximum poll time in milliseconds")
-  @Default.Long(TikaIO.Read.DEFAULT_QUEUE_MAX_POLL_TIME)
-  Long getQueueMaxPollTime();
-  void setQueueMaxPollTime(Long value);
-
-  @Description("Minimum text fragment length for Tika Parser to report")
-  @Default.Integer(0)
-  Integer getMinimumTextLength();
-  void setMinimumTextLength(Integer value);
-
   @Description("Pipeline name")
   @Default.String("TikaRead")
   String getPipelineName();

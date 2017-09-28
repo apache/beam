@@ -28,22 +28,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.NoSuchElementException;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Source;
@@ -56,18 +50,19 @@ import org.apache.tika.io.TikaInputStream;
 import org.apache.tika.parser.AutoDetectParser;
 import org.apache.tika.parser.ParseContext;
 import org.apache.tika.parser.Parser;
+import org.apache.tika.sax.ToTextContentHandler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
-import org.xml.sax.helpers.DefaultHandler;
+
 
 /**
  * Implementation detail of {@link TikaIO.Read}.
  *
  * <p>A {@link Source} which can represent the content of the files parsed by Apache Tika.
  */
-class TikaSource extends BoundedSource<String> {
+class TikaSource extends BoundedSource<ParseResult> {
   private static final long serialVersionUID = -509574062910491122L;
   private static final Logger LOG = LoggerFactory.getLogger(TikaSource.class);
 
@@ -95,7 +90,7 @@ class TikaSource extends BoundedSource<String> {
   }
 
   @Override
-  public BoundedReader<String> createReader(PipelineOptions options) throws IOException {
+  public BoundedReader<ParseResult> createReader(PipelineOptions options) throws IOException {
     this.validate();
     checkState(spec.getFilepattern().isAccessible(),
         "Cannot create a Tika reader without access to the file"
@@ -143,9 +138,10 @@ class TikaSource extends BoundedSource<String> {
     return spec;
   }
 
+  @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
-  public Coder<String> getDefaultOutputCoder() {
-    return StringUtf8Coder.of();
+  public Coder<ParseResult> getDefaultOutputCoder() {
+    return SerializableCoder.of((Class) ParseResult.class);
   }
 
   @Override
@@ -198,7 +194,7 @@ class TikaSource extends BoundedSource<String> {
    *  TODO: This is mostly a copy of FileBasedSource internal file-pattern reader
    *        so that code would need to be generalized as part of the future contribution
    */
-  static class FilePatternTikaReader extends BoundedReader<String> {
+  static class FilePatternTikaReader extends BoundedReader<ParseResult> {
     private final TikaSource source;
     final ListIterator<TikaReader> fileReadersIterator;
     TikaReader currentReader = null;
@@ -234,7 +230,7 @@ class TikaSource extends BoundedSource<String> {
     }
 
     @Override
-    public String getCurrent() throws NoSuchElementException {
+    public ParseResult getCurrent() throws NoSuchElementException {
       return currentReader.getCurrent();
     }
 
@@ -259,15 +255,14 @@ class TikaSource extends BoundedSource<String> {
     }
   }
 
-  static class TikaReader extends BoundedReader<String> {
-    private ExecutorService execService;
+  static class TikaReader extends BoundedReader<ParseResult> {
     private final ContentHandlerImpl tikaHandler = new ContentHandlerImpl();
     private String current;
     private TikaSource source;
     private String filePath;
     private TikaIO.Read spec;
     private org.apache.tika.metadata.Metadata tikaMetadata;
-    private Iterator<String> metadataIterator;
+    private volatile boolean docParsed;
 
     TikaReader(TikaSource source, String filePath) {
       this.source = source;
@@ -293,35 +288,12 @@ class TikaSource extends BoundedSource<String> {
       tikaMetadata = spec.getInputMetadata() != null ? spec.getInputMetadata()
           : new org.apache.tika.metadata.Metadata();
 
-      if (spec.getMinimumTextLength() != null) {
-        tikaHandler.setMinTextLength(spec.getMinimumTextLength());
-      }
-
-      if (!Boolean.TRUE.equals(spec.getParseSynchronously())) {
-        // Try to parse the file on the executor thread to make the best effort
-        // at letting the pipeline thread advancing over the file content
-        // without immediately parsing all of it
-        execService = Executors.newFixedThreadPool(1);
-        execService.submit(new Runnable() {
-          public void run() {
-            try {
-              parser.parse(is, tikaHandler, tikaMetadata, context);
-              is.close();
-            } catch (Exception ex) {
-              tikaHandler.setParseException(ex);
-            }
-          }
-        });
-      } else {
-        // Some parsers might not be able to report the content in chunks.
-        // It does not make sense to create extra threads in such cases
-        try {
-          parser.parse(is, tikaHandler, tikaMetadata, context);
-        } catch (Exception ex) {
-          throw new IOException(ex);
-        } finally {
-          is.close();
-        }
+      try {
+        parser.parse(is, tikaHandler, tikaMetadata, context);
+      } catch (Exception ex) {
+        throw new IOException(ex);
+      } finally {
+        is.close();
       }
       return advanceToNext();
     }
@@ -333,134 +305,41 @@ class TikaSource extends BoundedSource<String> {
     }
 
     protected boolean advanceToNext() throws IOException {
-      current = null;
-      // The content is reported first
-      if (metadataIterator == null) {
-        // Check if some content is already available
-        current = tikaHandler.getCurrent();
-
-        if (current == null && !Boolean.TRUE.equals(spec.getParseSynchronously())) {
-          long maxPollTime = 0;
-          long configuredMaxPollTime = spec.getQueueMaxPollTime() == null
-              ? TikaIO.Read.DEFAULT_QUEUE_MAX_POLL_TIME : spec.getQueueMaxPollTime();
-          long configuredPollTime = spec.getQueuePollTime() == null
-              ? TikaIO.Read.DEFAULT_QUEUE_POLL_TIME : spec.getQueuePollTime();
-
-          // Poll the queue till the next piece of data is available
-          while (current == null && maxPollTime < configuredMaxPollTime) {
-            boolean docEnded = tikaHandler.waitForNext(configuredPollTime);
-            current = tikaHandler.getCurrent();
-            // End of Document ?
-            if (docEnded) {
-              break;
-            }
-            maxPollTime += spec.getQueuePollTime();
-          }
-        }
-        // No more content ?
-        if (current == null && Boolean.TRUE.equals(spec.getReadOutputMetadata())) {
-          // Time to report the metadata
-          metadataIterator = Arrays.asList(tikaMetadata.names()).iterator();
-        }
+      if (!docParsed) {
+        current = tikaHandler.toString().trim();
+        docParsed = true;
+        return true;
+      } else {
+        return false;
       }
-
-      if (metadataIterator != null && metadataIterator.hasNext()) {
-          String key = metadataIterator.next();
-          // The metadata name/value separator can be configured if needed
-          current = key + "=" + tikaMetadata.get(key);
-      }
-      return current != null;
     }
 
     @Override
-    public String getCurrent() throws NoSuchElementException {
+    public ParseResult getCurrent() throws NoSuchElementException {
       if (current == null) {
         throw new NoSuchElementException();
       }
-      return current;
+      ParseResult result = new ParseResult();
+      result.setContent(current);
+      result.setMetadata(tikaMetadata);
+      result.setFileLocation(filePath);
+      return result;
+    }
+
+    @Override
+    public BoundedSource<ParseResult> getCurrentSource() {
+      return source;
     }
 
     @Override
     public void close() throws IOException {
-      if (execService != null) {
-          execService.shutdown();
-      }
-    }
-
-    ExecutorService getExecutorService() {
-      return execService;
-    }
-
-    @Override
-    public BoundedSource<String> getCurrentSource() {
-      return source;
+      // complete
     }
   }
 
   /**
    * Tika Parser Content Handler.
    */
-  static class ContentHandlerImpl extends DefaultHandler {
-    private Queue<String> queue = new ConcurrentLinkedQueue<>();
-    private volatile boolean documentEnded;
-    private volatile Exception parseException;
-    private volatile String current;
-    private int minTextLength;
-
-    @Override
-    public void characters(char ch[], int start, int length) throws SAXException {
-      String value = new String(ch, start, length).trim();
-      if (!value.isEmpty()) {
-        if (minTextLength <= 0) {
-          queue.add(value);
-        } else {
-          current = current == null ? value : current + " " + value;
-          if (current.length() >= minTextLength) {
-            queue.add(current);
-            current = null;
-          }
-        }
-      }
-    }
-
-    public void setParseException(Exception ex) {
-      this.parseException = ex;
-    }
-
-    public synchronized boolean waitForNext(long pollTime) throws IOException {
-      if (!documentEnded) {
-        try {
-          wait(pollTime);
-        } catch (InterruptedException ex) {
-          // continue;
-        }
-      }
-      return documentEnded;
-    }
-
-    @Override
-    public synchronized void endDocument() throws SAXException {
-      this.documentEnded = true;
-      notify();
-    }
-
-    public String getCurrent() throws IOException {
-      checkParseException();
-      String value = queue.poll();
-      if (value == null && documentEnded) {
-        return current;
-      } else {
-        return value;
-      }
-    }
-    public void checkParseException() throws IOException {
-      if (parseException != null) {
-        throw new IOException(parseException);
-      }
-    }
-
-    public void setMinTextLength(int minTextLength) {
-      this.minTextLength = minTextLength;
-    }
+  static class ContentHandlerImpl extends ToTextContentHandler {
   }
 }

@@ -21,9 +21,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -32,6 +33,9 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.tika.metadata.Metadata;
+
+
+
 
 
 /**
@@ -65,26 +69,17 @@ public class TikaIO {
    */
    public static Read read() {
      return new AutoValue_TikaIO_Read.Builder()
-        .setQueuePollTime(Read.DEFAULT_QUEUE_POLL_TIME)
-        .setQueueMaxPollTime(Read.DEFAULT_QUEUE_MAX_POLL_TIME)
         .build();
    }
 
    /** Implementation of {@link #read}. */
   @AutoValue
-  public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
+  public abstract static class Read extends PTransform<PBegin, PCollection<ParseResult>> {
     private static final long serialVersionUID = 2198301984784351829L;
-    public static final long DEFAULT_QUEUE_POLL_TIME = 50L;
-    public static final long DEFAULT_QUEUE_MAX_POLL_TIME = 3000L;
 
     @Nullable abstract ValueProvider<String> getFilepattern();
     @Nullable abstract ValueProvider<String> getTikaConfigPath();
     @Nullable abstract Metadata getInputMetadata();
-    @Nullable abstract Boolean getReadOutputMetadata();
-    @Nullable abstract Long getQueuePollTime();
-    @Nullable abstract Long getQueueMaxPollTime();
-    @Nullable abstract Integer getMinimumTextLength();
-    @Nullable abstract Boolean getParseSynchronously();
 
     abstract Builder toBuilder();
 
@@ -93,11 +88,6 @@ public class TikaIO {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
       abstract Builder setTikaConfigPath(ValueProvider<String> tikaConfigPath);
       abstract Builder setInputMetadata(Metadata metadata);
-      abstract Builder setReadOutputMetadata(Boolean value);
-      abstract Builder setQueuePollTime(Long value);
-      abstract Builder setQueueMaxPollTime(Long value);
-      abstract Builder setMinimumTextLength(Integer value);
-      abstract Builder setParseSynchronously(Boolean value);
 
       abstract Read build();
     }
@@ -124,8 +114,6 @@ public class TikaIO {
       checkNotNull(filepattern, "Filepattern cannot be empty.");
       return toBuilder()
           .setFilepattern(filepattern)
-          .setQueuePollTime(Read.DEFAULT_QUEUE_POLL_TIME)
-          .setQueueMaxPollTime(Read.DEFAULT_QUEUE_MAX_POLL_TIME)
           .build();
     }
 
@@ -173,52 +161,12 @@ public class TikaIO {
     }
 
     /**
-     * Returns a new transform which will report the file metadata.
-     */
-    public Read withReadOutputMetadata(Boolean value) {
-      return toBuilder().setReadOutputMetadata(value).build();
-    }
-
-    /**
-     * Returns a new transform which will use the specified queue poll time.
-     */
-    public Read withQueuePollTime(Long value) {
-      return toBuilder().setQueuePollTime(value).build();
-    }
-
-    /**
-     * Returns a new transform which will use the specified queue max poll time.
-     */
-    public Read withQueueMaxPollTime(Long value) {
-      return toBuilder().setQueueMaxPollTime(value).build();
-    }
-
-    /**
-     * Returns a new transform which will operate on the text blocks with the
-     * given minimum text length.
-     */
-    public Read withMinimumTextlength(Integer value) {
-      return toBuilder().setMinimumTextLength(value).build();
-    }
-
-    /**
-     * Returns a new transform which will use the synchronous reader.
-     */
-    public Read withParseSynchronously(Boolean value) {
-      return toBuilder().setParseSynchronously(value).build();
-    }
-
-    /**
      * Returns a new transform which will use TikaOptions.
      */
     public Read withOptions(TikaOptions options) {
       checkNotNull(options, "TikaOptions cannot be empty.");
       Builder builder = toBuilder();
-      builder.setFilepattern(StaticValueProvider.of(options.getInput()))
-             .setQueuePollTime(options.getQueuePollTime())
-             .setQueueMaxPollTime(options.getQueueMaxPollTime())
-             .setMinimumTextLength(options.getMinimumTextLength())
-             .setParseSynchronously(options.getParseSynchronously());
+      builder.setFilepattern(StaticValueProvider.of(options.getInput()));
       if (options.getContentTypeHint() != null) {
         Metadata metadata = this.getInputMetadata();
         if (metadata == null) {
@@ -230,17 +178,14 @@ public class TikaIO {
       if (options.getTikaConfigPath() != null) {
         builder.setTikaConfigPath(StaticValueProvider.of(options.getTikaConfigPath()));
       }
-      if (Boolean.TRUE.equals(options.getReadOutputMetadata())) {
-        builder.setReadOutputMetadata(options.getReadOutputMetadata());
-      }
       return builder.build();
     }
 
     @Override
-    public PCollection<String> expand(PBegin input) {
+    public PCollection<ParseResult> expand(PBegin input) {
       checkNotNull(this.getFilepattern(), "Filepattern cannot be empty.");
-      final Bounded<String> read = org.apache.beam.sdk.io.Read.from(new TikaSource(this));
-      PCollection<String> pcol = input.getPipeline().apply(read);
+      final Bounded<ParseResult> read = org.apache.beam.sdk.io.Read.from(new TikaSource(this));
+      PCollection<ParseResult> pcol = input.getPipeline().apply(read);
       pcol.setCoder(getDefaultOutputCoder());
       return pcol;
     }
@@ -275,36 +220,12 @@ public class TikaIO {
             .add(DisplayData.item("inputMetadata", sb.toString())
             .withLabel("Input Metadata"));
       }
-      if (Boolean.TRUE.equals(getParseSynchronously())) {
-        builder
-          .add(DisplayData.item("parseMode", "synchronous")
-            .withLabel("Parse Mode"));
-      } else {
-        builder
-          .add(DisplayData.item("parseMode", "asynchronous")
-            .withLabel("Parse Mode"));
-        builder
-          .add(DisplayData.item("queuePollTime", getQueuePollTime().toString())
-            .withLabel("Queue Poll Time"))
-        .add(DisplayData.item("queueMaxPollTime", getQueueMaxPollTime().toString())
-          .withLabel("Queue Max Poll Time"));
-      }
-      Integer minTextLen = getMinimumTextLength();
-      if (minTextLen != null && minTextLen > 0) {
-        builder
-        .add(DisplayData.item("minTextLen", getMinimumTextLength().toString())
-          .withLabel("Minimum Text Length"));
-      }
-      if (Boolean.TRUE.equals(getReadOutputMetadata())) {
-        builder
-          .add(DisplayData.item("readOutputMetadata", "true")
-            .withLabel("Read Output Metadata"));
-      }
     }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Override
-    protected Coder<String> getDefaultOutputCoder() {
-      return StringUtf8Coder.of();
+    protected Coder<ParseResult> getDefaultOutputCoder() {
+      return SerializableCoder.of((Class) ParseResult.class);
     }
   }
 }
