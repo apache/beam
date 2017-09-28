@@ -38,6 +38,7 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
@@ -1063,12 +1064,12 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.data_port = self.data_server.add_insecure_port('[::]:0')
 
       self.control_handler = streaming_rpc_handler(
-          beam_fn_api_pb2.BeamFnControlServicer, 'Control')
-      beam_fn_api_pb2.add_BeamFnControlServicer_to_server(
+          beam_fn_api_pb2_grpc.BeamFnControlServicer, 'Control')
+      beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
           self.control_handler, self.control_server)
 
       self.data_plane_handler = data_plane.GrpcServerDataChannel()
-      beam_fn_api_pb2.add_BeamFnDataServicer_to_server(
+      beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
           self.data_plane_handler, self.data_server)
 
       logging.info('starting control server on port %s', self.control_port)

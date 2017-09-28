@@ -30,6 +30,7 @@ from concurrent import futures
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 
@@ -44,7 +45,7 @@ class SdkHarness(object):
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
   def run(self):
-    contol_stub = beam_fn_api_pb2.BeamFnControlStub(self._control_channel)
+    contol_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
     # TODO(robertwb): Wire up to new state api.
     state_stub = None
     self.worker = SdkWorker(state_stub, self._data_channel_factory)
