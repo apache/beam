@@ -21,19 +21,36 @@ package org.apache.beam.runners.reference.job;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import java.io.IOException;
+import org.kohsuke.args4j.CmdLineException;
+import org.kohsuke.args4j.CmdLineParser;
+import org.kohsuke.args4j.Option;
 
 /** A program that runs a {@link ReferenceRunnerJobService}. */
 public class ReferenceRunnerJobServer {
   public static void main(String[] args) throws IOException, InterruptedException {
-    if (args.length != 1) {
-      System.out.println(
-          String.format("Usage: %s [Port]", ReferenceRunnerJobServer.class.getSimpleName()));
-      System.exit(1);
+    ServerConfiguration configuration = new ServerConfiguration();
+    try {
+      new CmdLineParser(configuration).parseArgument(args);
+    } catch (CmdLineException e) {
+      throw new IllegalArgumentException(e);
     }
+    runServer(configuration);
+  }
+
+  private static void runServer(ServerConfiguration configuration) throws IOException, InterruptedException {
     ReferenceRunnerJobService service = ReferenceRunnerJobService.create();
-    int port = Integer.parseInt(args[0]);
-    Server server = ServerBuilder.forPort(port).addService(service).build();
+    Server server = ServerBuilder.forPort(configuration.port).addService(service).build();
     server.start();
     server.awaitTermination();
+  }
+
+  private static class ServerConfiguration {
+    @Option(
+      name = "p",
+      aliases = {"port"},
+      required = true,
+      usage = "The local port to expose the server on"
+    )
+    private int port = -1;
   }
 }

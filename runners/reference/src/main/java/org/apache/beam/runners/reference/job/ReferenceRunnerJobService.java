@@ -31,11 +31,7 @@ import org.apache.beam.sdk.common.runner.v1.JobServiceGrpc.JobServiceImplBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A {@link JobServiceImplBase Job Service} which implements methods by executing with the
- * ReferenceRunner. The ReferenceRunner uses containers over the Fn API to execute a Pipeline on
- * a single machine.
- */
+/** The ReferenceRunner uses the portability framework to execute a Pipeline on a single machine. */
 public class ReferenceRunnerJobService extends JobServiceImplBase {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
