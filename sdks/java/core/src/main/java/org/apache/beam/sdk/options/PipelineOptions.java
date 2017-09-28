@@ -356,12 +356,22 @@ public interface PipelineOptions extends HasDisplayData {
   }
 
   /**
-   * A user agent string describing the pipeline to external services.
+   * A user agent string as per RFC2616, describing the pipeline to external services.
+   *
+   * <p>https://www.ietf.org/rfc/rfc2616.txt
+   *
+   * <p>It should follow the BNF Form:
+   * <pre><code>
+   * user agent         = 1*(product | comment)
+   * product            = token ["/" product-version]
+   * product-version    = token
+   * </code></pre>
+   * Where a token is a series of without a separator.
    *
    * <p>The string defaults to {@code [name]/[version]} based on the properties of the Beam release.
    */
-  @Description("A user agent string describing the pipeline to external services. "
-      + "The default name is \"[name]/[version]\""
+  @Description("A user agent string describing the pipeline to external services."
+      + " The format should follow RFC2616. This option defaults to \"[name]/[version]\""
       + " where name and version are properties of the Apache Beam release.")
   @Default.InstanceFactory(UserAgentFactory.class)
   String getUserAgent();
