@@ -21,6 +21,8 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
+import java.util.Map;
+
 import org.apache.beam.runners.jstorm.JStormPipelineOptions;
 import org.apache.beam.runners.jstorm.TestJStormRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -157,16 +159,18 @@ public class PipelineTranslateTest implements Serializable {
     // Source is translated to spout, ParDo and GBK are not chained and translated to two bolts.
     TranslationContext.ExecutionGraphContext executionGraphContext =
         context.getExecutionGraphContext();
-    assertEquals(1, executionGraphContext.getSpouts().size());
-    assertEquals(2, executionGraphContext.getBolts().size());
-    assertEquals(2, Iterables.size(executionGraphContext.getStreams()));
+    Map<String, UnboundedSourceSpout> spouts = executionGraphContext.getSpouts();
+    Map<String, ExecutorsBolt> bolts = executionGraphContext.getBolts();
+    Iterable<Stream> streams = executionGraphContext.getStreams();
+    assertEquals(1, spouts.size());
+    assertEquals(2, bolts.size());
+    assertEquals(2, Iterables.size(streams));
 
     // Check grouping type between ParDo and GBK bolts
-    for (Stream stream: executionGraphContext.getStreams()) {
-      if (stream.getConsumer().getComponentId().indexOf("bolt") > -1
-          && stream.getProducer().getComponentId().indexOf("bolt") > -1) {
-        assertEquals(Stream.Grouping.Type.FIELDS,
-            stream.getConsumer().getGrouping().getType());
+    for (Stream stream: streams) {
+      if (bolts.containsKey(stream.getProducer().getComponentId())) {
+          assertEquals(Stream.Grouping.Type.FIELDS,
+                  stream.getConsumer().getGrouping().getType());
       }
     }
   }

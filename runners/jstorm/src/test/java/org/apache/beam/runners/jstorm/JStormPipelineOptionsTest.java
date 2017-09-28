@@ -19,9 +19,7 @@ package org.apache.beam.runners.jstorm;
 
 import static org.junit.Assert.assertEquals;
 
-import com.alibaba.jstorm.client.ConfigExtension;
 import com.google.common.collect.Maps;
-import java.util.Map;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -60,44 +58,12 @@ public class JStormPipelineOptionsTest {
   }
 
   @Test
-  public void testUserDefinedOption() {
-    assertEquals("test", options.getTestOption());
-  }
-
-  @Test
-  public void testLocalModeOption() {
+  public void testOptionDefaultValue() {
     assertEquals(false, options.getLocalMode());
-    options.setLocalMode(true);
-    assertEquals(true, options.getLocalMode());
-  }
-
-  @Test
-  public void testLocalExecuteTime() {
     assertEquals(Long.valueOf(60), options.getLocalModeExecuteTimeSec());
-    options.setLocalModeExecuteTimeSec(120L);
-    assertEquals(Long.valueOf(120), options.getLocalModeExecuteTimeSec());
-  }
-
-  @Test
-  public void testWorkerNumberOption() {
     assertEquals(Integer.valueOf(1), options.getWorkerNumber());
-    options.setWorkerNumber(2);
-    assertEquals(Integer.valueOf(2), options.getWorkerNumber());
-  }
-
-  @Test
-  public void testParallelism() {
     assertEquals(Integer.valueOf(1), options.getParallelism());
-    options.setParallelism(2);
-    assertEquals(Integer.valueOf(2), options.getParallelism());
-  }
-
-  @Test
-  public void testJStormConfigOption() {
     assertEquals(Maps.newHashMap(), options.getTopologyConfig());
-    options.getTopologyConfig().put(ConfigExtension.TOPOLOGY_BACKPRESSURE_ENABLE, false);
-    Map config = Maps.newHashMap();
-    config.put(ConfigExtension.TOPOLOGY_BACKPRESSURE_ENABLE, false);
-    assertEquals(config, options.getTopologyConfig());
+    assertEquals("test", options.getTestOption());
   }
 }

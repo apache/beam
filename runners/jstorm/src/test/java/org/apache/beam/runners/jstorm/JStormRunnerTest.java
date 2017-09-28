@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.jstorm;
 
+import static org.junit.Assert.assertEquals;
+
 import java.io.IOException;
 import java.io.Serializable;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -42,8 +44,9 @@ public class JStormRunnerTest implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(JStormRunnerTest.class);
 
   private Pipeline createPipeline() {
-    PipelineOptions options = PipelineOptionsFactory.as(JStormPipelineOptions.class);
-    options.setRunner(TestJStormRunner.class);
+    JStormPipelineOptions options = PipelineOptionsFactory.as(JStormPipelineOptions.class);
+    options.setLocalMode(true);
+    options.setRunner(JStormRunner.class);
     return Pipeline.create(options);
   }
 
@@ -55,16 +58,22 @@ public class JStormRunnerTest implements Serializable {
     }
   }
 
+  /**
+   * Test the creation of pipeline with JStorm runner, and the states of each stage.
+   */
   @Test
-  public void testCreatePipeline() {
+  public void testCreatePipeline() throws IOException {
     Pipeline pipeline = createPipeline();
     pipeline.apply(Create.of(1))
         .apply(ParDo.of(new TestDoFn()));
     PipelineResult result = pipeline.run();
-    try {
-      result.cancel();
-    } catch (IOException e) {
-      LOG.error("Failed to cancel pipeline", e);
-    }
+
+    // Verify the states
+    State state = result.getState();
+    assertEquals(State.RUNNING, state);
+    state = result.waitUntilFinish();
+    assertEquals(State.DONE, state);
+    state = result.cancel();
+    assertEquals(State.CANCELLED, state);
   }
 }
