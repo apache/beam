@@ -18,25 +18,21 @@
 package org.apache.beam.sdk.util;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 
 import com.google.common.collect.ImmutableList;
 
-import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.util.List;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -63,29 +59,7 @@ public class SerializableUtilsTest {
   public void customClassLoader() throws Exception {
     // define a classloader with test-classes in it
     final ClassLoader testLoader = Thread.currentThread().getContextClassLoader();
-    final String moduleMarker = SerializableUtilsTest.class.getName()
-                                                           .replace('.', '/') + ".class";
-    final URL url = testLoader.getResource(moduleMarker);
-    assertNotNull(url);
-    final File testClasses = new File(decodeFile(
-            url.getFile().substring(0, url.getFile().length() - moduleMarker.length())));
-    final ClassLoader loader = new URLClassLoader(
-            new URL[] { testClasses.toURI().toURL() }, testLoader) {
-      @Override
-      protected Class<?> loadClass(
-              final String name, final boolean resolve) throws ClassNotFoundException {
-        if (name != null && name.startsWith("org.apache.beam.sdk.util")) {
-          final Class<?> aClass = super.findClass(name);
-          if (aClass != null) {
-            if (resolve) {
-              resolveClass(aClass);
-            }
-            return aClass;
-          }
-        }
-        return super.loadClass(name, resolve);
-      }
-    };
+    final ClassLoader loader = new InterceptingUrlClassLoader(testLoader, MySource.class.getName());
     final Class<?> source = loader.loadClass(
             "org.apache.beam.sdk.util.SerializableUtilsTest$MySource");
     assertNotSame(source.getClassLoader(), MySource.class.getClassLoader());
@@ -198,47 +172,6 @@ public class SerializableUtilsTest {
     @Override
     public BoundedReader<String> createReader(final PipelineOptions options) throws IOException {
       return null;
-    }
-  }
-
-  private static String decodeFile(final String fileName) {
-    if (fileName.indexOf(37) == -1) {
-      return fileName;
-    }
-    final StringBuilder result = new StringBuilder(fileName.length());
-    final ByteArrayOutputStream out = new ByteArrayOutputStream();
-    int i = 0;
-
-    while (true) {
-      while (i < fileName.length()) {
-        final char c = fileName.charAt(i);
-        if (c == '%') {
-          out.reset();
-
-          do {
-            if (i + 2 >= fileName.length()) {
-              throw new IllegalArgumentException("Incomplete % sequence at: " + i);
-            }
-
-            final int d1 = Character.digit(fileName.charAt(i + 1), 16);
-            final int d2 = Character.digit(fileName.charAt(i + 2), 16);
-            if (d1 == -1 || d2 == -1) {
-              throw new IllegalArgumentException("Invalid % sequence ("
-                      + fileName.substring(i, i + 3) + ") at: " + i);
-            }
-
-            out.write((byte) ((d1 << 4) + d2));
-            i += 3;
-          } while(i < fileName.length() && fileName.charAt(i) == '%');
-
-          result.append(out.toString());
-        } else {
-          result.append(c);
-          ++i;
-        }
-      }
-
-      return result.toString();
     }
   }
 }
