@@ -24,7 +24,7 @@ mavenJob('beam_Python_UnitTest') {
   description('Runs Python unit tests on a specific commit. Designed to be run by a pipeline job.')
 
   // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 25, "Python Unit Tests")
+  common_job_properties.setPipelineJobProperties(delegate, 35, "Python Unit Tests")
   // Set standard properties for a pipeline job which needs to pull from GitHub instead of an
   // upstream job.
   common_job_properties.setPipelineBuildJobProperties(delegate)

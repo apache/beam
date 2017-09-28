@@ -23,7 +23,7 @@ mavenJob('beam_Java_CodeHealth') {
   description('Runs Java code health checks. Meant to be run as part of a pipeline.')
 
   // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 15, "Java Code Health")
+  common_job_properties.setPipelineJobProperties(delegate, 30, "Java Code Health")
   // This job runs downstream of the beam_Java_Build job and gets artifacts from that job.
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
 

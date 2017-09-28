@@ -57,6 +57,9 @@ pipelineJob('beam_PreCommit_Pipeline') {
       orgWhitelist(['apache'])
       allowMembersOfWhitelistedOrgsAsAdmin()
       permitAll()
+      // Remove once Pipeline Build is default.
+      triggerPhrase('Run PreCommit Pipeline')
+      onlyTriggerPhrase()
       displayBuildErrorsOnDownstreamBuilds()
       extensions {
         commitStatus {

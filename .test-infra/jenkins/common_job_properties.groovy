@@ -334,7 +334,7 @@ class common_job_properties {
 
     context.parameters {
       stringParam(
-              'commit',
+              'sha1',
               'master',
               'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
     }

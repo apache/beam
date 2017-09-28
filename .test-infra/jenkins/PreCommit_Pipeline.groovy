@@ -32,7 +32,7 @@ List<Object> ghprbArgs = [
 ]
 
 // This argument is the commit at which to build.
-List<Object> commitArg = [string(name: 'commit', value: "origin/pr/${ghprbPullId}/head")]
+List<Object> commitArg = [string(name: 'sha1', value: "origin/pr/${ghprbPullId}/head")]
 
 int javaBuildNum = NO_BUILD
 

@@ -23,7 +23,7 @@ mavenJob('beam_Java_IntegrationTest') {
   description('Runs Java Failsafe integration tests. Designed to be run as part of a pipeline.')
 
   // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 25, "Java Integration Tests")
+  common_job_properties.setPipelineJobProperties(delegate, 30, "Java Integration Tests")
   // Set standard properties for a job which pulls artifacts from an upstream job.
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
 

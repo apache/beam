@@ -23,7 +23,7 @@ mavenJob('beam_Java_Build') {
   description('Builds Beam Java SDK and archives artifacts. Meant to be run as part of a pipeline.')
 
   // Set standard properties for a job which is part of a pipeline.
-  common_job_properties.setPipelineJobProperties(delegate, 15, "Java Build")
+  common_job_properties.setPipelineJobProperties(delegate, 30, "Java Build")
   // Set standard properties for a pipeline job which needs to pull from GitHub instead of an
   // upstream job.
   common_job_properties.setPipelineBuildJobProperties(delegate)
