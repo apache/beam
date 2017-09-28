@@ -190,7 +190,10 @@ public class BigtableIO {
    */
   @Experimental
   public static Read read() {
-    return new AutoValue_BigtableIO_Read.Builder().setKeyRange(ByteKeyRange.ALL_KEYS).setTableId("")
+    return new AutoValue_BigtableIO_Read.Builder()
+        .setKeyRange(ByteKeyRange.ALL_KEYS)
+        .setTableId("")
+        .setValidate(true)
         .build();
   }
 
@@ -237,6 +240,8 @@ public class BigtableIO {
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
+    public abstract boolean getValidate();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -251,6 +256,8 @@ public class BigtableIO {
       abstract Builder setBigtableOptions(BigtableOptions options);
 
       abstract Builder setBigtableService(BigtableService bigtableService);
+
+      abstract Builder setValidate(boolean validate);
 
       abstract Read build();
     }
@@ -319,6 +326,11 @@ public class BigtableIO {
       return toBuilder().setTableId(tableId).build();
     }
 
+    /** Disables validation that the table being read from exists. */
+    public Read withoutValidation() {
+      return toBuilder().setValidate(false).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       checkArgument(getBigtableOptions() != null, "withBigtableOptions() is required");
@@ -335,13 +347,15 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      try {
-        checkArgument(
-            getBigtableService(options).tableExists(getTableId()),
-            "Table %s does not exist",
-            getTableId());
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+      if (getValidate()) {
+        try {
+          checkArgument(
+              getBigtableService(options).tableExists(getTableId()),
+              "Table %s does not exist",
+              getTableId());
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+        }
       }
     }
 
