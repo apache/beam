@@ -425,7 +425,7 @@ on a per key-and-window basis:</p>
 
   <span class="c1">// A state cell holding a single Integer per key+window</span>
   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"index"</span><span class="o">)</span>
-  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">Object</span><span class="o">,</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">indexSpec</span> <span class="o">=</span> 
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Integer</span><span class="o">&gt;&gt;</span> <span class="n">indexSpec</span> <span class="o">=</span> 
       <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">VarIntCoder</span><span class="o">.</span><span class="na">of</span><span class="o">());</span>
 
   <span class="nd">@ProcessElement</span>
@@ -620,11 +620,11 @@ only features I have already introduced:</p>
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">UserId</span><span class="o">,</span> <span class="n">Event</span><span class="o">&gt;,</span> <span class="n">KV</span><span class="o">&lt;</span><span class="n">UserId</span><span class="o">,</span> <span class="n">Prediction</span><span class="o">&gt;&gt;()</span> <span class="o">{</span>
 
   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"model"</span><span class="o">)</span>
-  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">Object</span><span class="o">,</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Model</span><span class="o">&gt;&gt;</span> <span class="n">modelSpec</span> <span class="o">=</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Model</span><span class="o">&gt;&gt;</span> <span class="n">modelSpec</span> <span class="o">=</span>
       <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">Model</span><span class="o">.</span><span class="na">coder</span><span class="o">());</span>
 
   <span class="nd">@StateId</span><span class="o">(</span><span class="s">"previousPrediction"</span><span class="o">)</span>
-  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">Object</span><span class="o">,</span> <span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Prediction</span><span class="o">&gt;&gt;</span> <span class="n">previousPredictionSpec</span> <span class="o">=</span>
+  <span class="kd">private</span> <span class="kd">final</span> <span class="n">StateSpec</span><span class="o">&lt;</span><span class="n">ValueState</span><span class="o">&lt;</span><span class="n">Prediction</span><span class="o">&gt;&gt;</span> <span class="n">previousPredictionSpec</span> <span class="o">=</span>
       <span class="n">StateSpecs</span><span class="o">.</span><span class="na">value</span><span class="o">(</span><span class="n">Prediction</span><span class="o">.</span><span class="na">coder</span><span class="o">());</span>
 
   <span class="nd">@ProcessElement</span>
