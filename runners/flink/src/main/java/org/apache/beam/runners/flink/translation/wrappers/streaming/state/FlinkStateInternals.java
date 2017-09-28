@@ -990,7 +990,9 @@ public class FlinkStateInternals<K> implements StateInternals {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).entries();
-            return result != null ? ImmutableList.copyOf(result) : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
+            return result != null
+                ? ImmutableList.copyOf(result)
+                : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state entries.", e);
           }
