@@ -23,7 +23,9 @@ import java.io.IOException;
 import java.util.Set;
 
 /**
- * Custom classloader behaving as a child first for a set of defined classes.
+ * A classloader that intercepts loading of specifically named classes. This classloader copies
+ * the original classes definition and is useful for testing code which needs to validate usage
+ * with multiple classloaders..
  */
 public class InterceptingUrlClassLoader extends ClassLoader {
     private final Set<String> ownedClasses;
