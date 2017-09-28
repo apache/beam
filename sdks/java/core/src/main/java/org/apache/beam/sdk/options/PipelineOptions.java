@@ -358,10 +358,10 @@ public interface PipelineOptions extends HasDisplayData {
   /**
    * A user agent string describing the pipeline to external services.
    *
-   * <p>The string defaults to "[name]/[version]" based on the properties of the Beam release.
+   * <p>The string defaults to {@code [name]/[version]} based on the properties of the Beam release.
    */
   @Description("A user agent string describing the pipeline to external services. "
-      + "The default name is {@code [name]/[version]}"
+      + "The default name is \"[name]/[version]\""
       + " where name and version are properties of the Apache Beam release.")
   @Default.InstanceFactory(UserAgentFactory.class)
   String getUserAgent();
