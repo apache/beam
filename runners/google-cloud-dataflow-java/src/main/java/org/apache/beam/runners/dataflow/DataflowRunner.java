@@ -297,6 +297,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
 
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String userAgent = String
+        .format("%s/%s", dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion())
+        .replace(" ", "_");
+    dataflowOptions.setUserAgent(userAgent);
+
     return new DataflowRunner(dataflowOptions);
   }
 
