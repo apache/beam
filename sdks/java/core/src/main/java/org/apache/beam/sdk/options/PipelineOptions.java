@@ -361,8 +361,8 @@ public interface PipelineOptions extends HasDisplayData {
    * <p>The string defaults to "[name]/[version]" based on the properties of the Beam release.
    */
   @Description("A user agent string describing the pipeline to external services. "
-      + "The default name is \"[name]/[version]\""
-      + " where name and version are properties of the Beam release.")
+      + "The default name is {@code [name]/[version]}"
+      + " where name and version are properties of the Apache Beam release.")
   @Default.InstanceFactory(UserAgentFactory.class)
   String getUserAgent();
   void setUserAgent(String userAgent);
@@ -375,9 +375,7 @@ public interface PipelineOptions extends HasDisplayData {
     @Override
     public String create(PipelineOptions options) {
       ReleaseInfo info = ReleaseInfo.getReleaseInfo();
-      return
-          String.format("%s/%s", info.getName(), info.getVersion())
-              .replace(" ", "_");
+      return String.format("%s/%s", info.getName(), info.getVersion()).replace(" ", "_");
     }
   }
 }
