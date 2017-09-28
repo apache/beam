@@ -71,7 +71,6 @@ class FakeBigQueryServices implements BigQueryServices {
     return Base64.encodeBase64String(output.toByteArray());
   }
 
-
   // Longs tend to get converted back to Integers due to JSON serialization. Convert them back.
   static TableRow convertNumbers(TableRow tableRow) {
     for (TableRow.Entry entry : tableRow.entrySet()) {

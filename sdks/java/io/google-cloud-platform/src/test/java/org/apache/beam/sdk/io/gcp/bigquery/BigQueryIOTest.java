@@ -48,6 +48,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
+import com.google.bigtable.v2.Mutation;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
@@ -56,6 +57,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.protobuf.ByteString;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
@@ -78,10 +80,13 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.protobuf.ByteStringCoder;
+import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.JsonSchemaToTableSchema;
@@ -1650,7 +1655,11 @@ public class BigQueryIOTest implements Serializable {
 
     String stepUuid = "testStepUuid";
     BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
-        stepUuid, StaticValueProvider.of(table), fakeBqServices);
+        stepUuid,
+        StaticValueProvider.of(table),
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE);
 
     PipelineOptions options = PipelineOptionsFactory.create();
     options.setTempLocation(baseDir.toString());
@@ -1727,8 +1736,13 @@ public class BigQueryIOTest implements Serializable {
 
     String query = FakeBigQueryServices.encodeQuery(expected);
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
-        stepUuid, StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+        stepUuid,
+        StaticValueProvider.of(query),
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE);
     options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
@@ -1813,7 +1827,11 @@ public class BigQueryIOTest implements Serializable {
     BoundedSource<TableRow> bqSource = BigQueryQuerySource.create(
         stepUuid,
         StaticValueProvider.of(query),
-        true /* flattenResults */, true /* useLegacySql */, fakeBqServices);
+        true /* flattenResults */,
+        true /* useLegacySql */,
+        fakeBqServices,
+        TableRowJsonCoder.of(),
+        BigQueryIO.TableRowParser.INSTANCE);
 
     options.setTempLocation(baseDir.toString());
 
@@ -2374,5 +2392,27 @@ public class BigQueryIOTest implements Serializable {
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table$decorator"));
     assertEquals("project:dataset.table",
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
+  }
+
+  @Test
+  public void testCoderInference() {
+    SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>> parseFn =
+      new SerializableFunction<SchemaAndRecord, KV<ByteString, Mutation>>() {
+        @Override
+        public KV<ByteString, Mutation> apply(SchemaAndRecord input) {
+          return null;
+        }
+      };
+
+    BigQueryIO.ReadGenericRecords<KV<ByteString, Mutation>> io =
+        BigQueryIO.readGenericRecords(parseFn);
+    Coder<KV<ByteString, Mutation>> coder = io.inferCoder(CoderRegistry.createDefault());
+    assertEquals(
+        KvCoder.of(
+            ByteStringCoder.of(),
+            ProtoCoder.of(Mutation.class)
+        ),
+        coder
+    );
   }
 }
