@@ -21,7 +21,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import org.apache.avro.generic.GenericRecord;
 
 /**
- * A wrapper for a GenericRecord and the schema of the table (or query) it was generated from.
+ * A wrapper for a {@link GenericRecord} and the {@link TableSchema} representing the schema of the
+ * table (or query) it was generated from.
  */
 public class SchemaAndRecord {
   private final GenericRecord record;

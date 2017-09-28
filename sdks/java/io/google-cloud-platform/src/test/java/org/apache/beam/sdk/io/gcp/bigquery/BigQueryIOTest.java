@@ -2404,7 +2404,8 @@ public class BigQueryIOTest implements Serializable {
         }
       };
 
-    BigQueryIO.ReadGenericRecords<KV<ByteString, Mutation>> io = BigQueryIO.readRecords(parseFn);
+    BigQueryIO.ReadGenericRecords<KV<ByteString, Mutation>> io =
+        BigQueryIO.readGenericRecords(parseFn);
     Coder<KV<ByteString, Mutation>> coder = io.inferCoder(CoderRegistry.createDefault());
     assertEquals(
         KvCoder.of(

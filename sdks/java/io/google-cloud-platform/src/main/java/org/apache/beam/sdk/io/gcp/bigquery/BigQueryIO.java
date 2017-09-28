@@ -130,8 +130,8 @@ import org.slf4j.LoggerFactory;
  *
  * <h3>Reading</h3>
  *
- * <p>To read from a BigQuery table, apply a {@link Read} transformation. This produces a
- * {@link PCollection} of {@link TableRow TableRows} as output:
+ * <p>To read from a {@link PCollection} of {@link TableRow TableRows} from a BigQuery table,
+ * apply a {@link BigQueryIO.Read} transformation:
  *
  * <pre>{@code
  * PCollection<TableRow> weatherData = pipeline.apply(
@@ -139,6 +139,26 @@ import org.slf4j.LoggerFactory;
  * }</pre>
  *
  * <p>See {@link TableRow} for more information on the {@link TableRow} object.
+ *
+ * <p>To read generic records, whose schema is unknown at pipeline construction time, or differs
+ * between tables, apply a {@link BigQueryIO.ReadGenericRecords} transformation, and supply a
+ * parseFn to convert from a {@link SchemaAndRecord} to a user defined object:
+ * (note: you may also need to supply a {@link Coder} for the result type if one can not be
+ * inferred.)
+ *
+ * <p>For example:
+ *
+ * <pre>{@code
+ * PCollection<WeatherRecord> weatherData = pipeline.apply(
+ *    BigQueryIO
+ *      .readGenericRecords(new SerializableFunction<SchemaAndRecord, WeatherRecord>() {
+ *        public WeatherRecord apply(SchemaAndRecord schemaAndRecord) {
+ *          return new WeatherRecord(...);
+ *        }
+ *      })
+ *      .from("clouddataflow-readonly:samples.weather_stations"))
+ *      .withCoder(SerializableCoder.of(WeatherRecord.class));
+ * }</pre>
  *
  * <p>Users may provide a query to read from rather than reading all of a BigQuery table. If
  * specified, the result obtained by executing the specified query will be used as the data of the
@@ -322,7 +342,7 @@ public class BigQueryIO {
    * A {@link PTransform} that reads from a BigQuery table and returns a
    * {@link PCollection} of records transformed by a user defined conversion function.
    */
-  public static <T>ReadGenericRecords<T> readRecords(
+  public static <T>ReadGenericRecords<T> readGenericRecords(
       SerializableFunction<SchemaAndRecord, T> parseFn) {
     return new AutoValue_BigQueryIO_ReadGenericRecords.Builder<T>()
         .setValidate(true)
@@ -353,7 +373,8 @@ public class BigQueryIO {
     private final ReadGenericRecords<TableRow> inner;
 
     Read() {
-      this(BigQueryIO.readRecords(TableRowParser.INSTANCE).withCoder(TableRowJsonCoder.of()));
+      this(BigQueryIO.readGenericRecords(TableRowParser.INSTANCE)
+          .withCoder(TableRowJsonCoder.of()));
     }
 
     Read(BigQueryIO.ReadGenericRecords<TableRow> inner) {
@@ -362,17 +383,12 @@ public class BigQueryIO {
 
     @Override
     public PCollection<TableRow> expand(PBegin input) {
-      return inner.expand(input);
+      return input.apply(inner);
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       this.inner.populateDisplayData(builder);
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      this.inner.validate(options);
     }
 
     boolean getValidate() {
@@ -488,7 +504,7 @@ public class BigQueryIO {
   /////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Implementation of {@link BigQueryIO#readRecords(SerializableFunction)} )}.
+   * Implementation of {@link BigQueryIO#readGenericRecords(SerializableFunction)}.
    */
   @AutoValue
   public abstract static class ReadGenericRecords<T>
@@ -744,7 +760,7 @@ public class BigQueryIO {
                               }
                             })
                         .withSideInputs(schemaView, jobIdTokenView))
-                        .setCoder(inferCoder(input.getPipeline().getCoderRegistry()));
+                        .setCoder(coder);
       }
       PassThroughThenCleanup.CleanupOperation cleanupOperation =
           new PassThroughThenCleanup.CleanupOperation() {
@@ -799,34 +815,34 @@ public class BigQueryIO {
           getJsonTableRef() == null && getQuery() == null, "from() or fromQuery() already called");
     }
 
-    /**
-     * Returns the table to read, or {@code null} if reading from a query instead.
-     */
+    /** See {@link Read#getTableProvider()}. */
     @Nullable
     public ValueProvider<TableReference> getTableProvider() {
       return getJsonTableRef() == null
           ? null : NestedValueProvider.of(getJsonTableRef(), new JsonTableRefToTableRef());
     }
-    /** Returns the table to read, or {@code null} if reading from a query instead. */
+
+    /** See {@link Read#getTable()}. */
     @Nullable
     public TableReference getTable() {
       ValueProvider<TableReference> provider = getTableProvider();
       return provider == null ? null : provider.get();
     }
 
+    /**
+     * Sets a {@link Coder} for the result of the parse function.  This may be required if a coder
+     * can not be inferred automatically.
+     */
     public ReadGenericRecords<T> withCoder(Coder<T> coder) {
       return toBuilder().setCoder(coder).build();
     }
 
-    /**
-     * Reads a BigQuery table specified as {@code "[project_id]:[dataset_id].[table_id]"} or
-     * {@code "[dataset_id].[table_id]"} for tables within the current project.
-     */
+    /** See {@link Read#from(String)}. */
     public ReadGenericRecords<T> from(String tableSpec) {
       return from(StaticValueProvider.of(tableSpec));
     }
 
-    /** Same as {@code from(String)}, but with a {@link ValueProvider}. */
+    /** See {@link Read#from(ValueProvider)}. */
     public ReadGenericRecords<T> from(ValueProvider<String> tableSpec) {
       ensureFromNotCalledYet();
       return toBuilder()
@@ -837,70 +853,38 @@ public class BigQueryIO {
           .build();
     }
 
-    /**
-     * Reads results received after executing the given query.
-     *
-     * <p>By default, the query results will be flattened -- see "flattenResults" in the <a
-     * href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">Jobs documentation</a> for
-     * more information. To disable flattening, use {@link Read#withoutResultFlattening}.
-     *
-     * <p>By default, the query will use BigQuery's legacy SQL dialect. To use the BigQuery Standard
-     * SQL dialect, use {@link Read#usingStandardSql}.
-     */
+    /** See {@link Read#fromQuery(String)}. */
     public ReadGenericRecords<T> fromQuery(String query) {
       return fromQuery(StaticValueProvider.of(query));
     }
 
-    /**
-     * Same as {@code fromQuery(String)}, but with a {@link ValueProvider}.
-     */
+    /** See {@link Read#fromQuery(ValueProvider)}. */
     public ReadGenericRecords<T> fromQuery(ValueProvider<String> query) {
       ensureFromNotCalledYet();
       return toBuilder().setQuery(query).setFlattenResults(true).setUseLegacySql(true).build();
     }
 
-    /**
-     * Read from table specified by a {@link TableReference}.
-     */
+    /** See {@link Read#from(TableReference)}. */
     public ReadGenericRecords<T> from(TableReference table) {
       return from(StaticValueProvider.of(BigQueryHelpers.toTableSpec(table)));
     }
 
-    /**
-     * Disable validation that the table exists or the query succeeds prior to pipeline submission.
-     * Basic validation (such as ensuring that a query or table is specified) still occurs.
-     */
+    /** See {@link Read#withoutValidation()}. */
     public ReadGenericRecords<T> withoutValidation() {
       return toBuilder().setValidate(false).build();
     }
 
-    /**
-     * Disable <a href="https://cloud.google.com/bigquery/docs/reference/v2/jobs">flattening of
-     * query results</a>.
-     *
-     * <p>Only valid when a query is used ({@link #fromQuery}). Setting this option when reading
-     * from a table will cause an error during validation.
-     */
+    /** See {@link Read#withoutResultFlattening()}. */
     public ReadGenericRecords<T> withoutResultFlattening() {
       return toBuilder().setFlattenResults(false).build();
     }
 
-    /**
-     * Enables BigQuery's Standard SQL dialect when reading from a query.
-     *
-     * <p>Only valid when a query is used ({@link #fromQuery}). Setting this option when reading
-     * from a table will cause an error during validation.
-     */
+    /** See {@link Read#usingStandardSql()}. */
     public ReadGenericRecords<T> usingStandardSql() {
       return toBuilder().setUseLegacySql(false).build();
     }
 
-    /**
-     * Use new template-compatible source implementation.
-     *
-     * <p>Use new template-compatible source implementation. This implementation is compatible with
-     * repeated template invocations. It does not support dynamic work rebalancing.
-     */
+    /** See {@link Read#withTemplateCompatibility()}. */
     @Experimental(Experimental.Kind.SOURCE_SINK)
     public ReadGenericRecords<T> withTemplateCompatibility() {
       return toBuilder().setWithTemplateCompatibility(true).build();
