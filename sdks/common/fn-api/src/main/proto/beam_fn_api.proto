@@ -38,6 +38,7 @@ option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
+import "endpoints.proto";
 import "google/protobuf/timestamp.proto";
 
 /*
@@ -73,7 +74,7 @@ message Target {
 message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
-  ApiServiceDescriptor api_service_descriptor = 1;
+  org.apache.beam.portability.v1.ApiServiceDescriptor api_service_descriptor = 1;
 }
 
 /*
@@ -174,7 +175,7 @@ message ProcessBundleDescriptor {
   // A descriptor describing the end point to use for State API
   // calls. Required if the Runner intends to send remote references over the
   // data plane or if any of the transforms rely on user state or side inputs.
-  ApiServiceDescriptor state_api_service_descriptor = 7;
+  org.apache.beam.portability.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
 // A request to process a given bundle.
@@ -706,28 +707,6 @@ service BeamFnLogging {
 /*
  * Environment types
  */
-message ApiServiceDescriptor {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  string id = 1;
-
-  // (Required) The URL to connect to.
-  string url = 2;
-
-  // (Optional) The method for authentication. If unspecified, access to the
-  // url is already being performed in a trusted context (e.g. localhost,
-  // private network).
-  oneof authentication {
-    OAuth2ClientCredentialsGrant oauth2_client_credentials_grant = 3;
-  }
-}
-
-message OAuth2ClientCredentialsGrant {
-  // (Required) The URL to submit a "client_credentials" grant type request for
-  // an OAuth access token which will be used as a bearer token for requests.
-  string url = 1;
-}
-
 // A Docker container configuration for launching the SDK harness to execute
 // user specified functions.
 message DockerContainer {

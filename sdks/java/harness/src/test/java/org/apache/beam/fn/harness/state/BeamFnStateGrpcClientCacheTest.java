@@ -41,10 +41,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.IdGenerator;
 import org.apache.beam.fn.harness.test.TestStreams;
-import org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor;
 import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
 import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
 import org.apache.beam.fn.v1.BeamFnStateGrpc;
+import org.apache.beam.portability.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.After;
 import org.junit.Before;
@@ -111,7 +111,7 @@ public class BeamFnStateGrpcClientCacheTest {
         clientCache.forApiServiceDescriptor(apiServiceDescriptor));
     assertNotSame(clientCache.forApiServiceDescriptor(apiServiceDescriptor),
         clientCache.forApiServiceDescriptor(
-            ApiServiceDescriptor.newBuilder().setId("OTHER").build()));
+            ApiServiceDescriptor.getDefaultInstance()));
   }
 
   @Test

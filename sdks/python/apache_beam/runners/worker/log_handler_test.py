@@ -24,6 +24,7 @@ import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker import log_handler
 
 
@@ -50,7 +51,7 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     self.test_port = self.server.add_insecure_port('[::]:0')
     self.server.start()
 
-    self.logging_service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
+    self.logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     self.logging_service_descriptor.url = 'localhost:%s' % self.test_port
     self.fn_log_handler = log_handler.FnApiLogRecordHandler(
         self.logging_service_descriptor)
