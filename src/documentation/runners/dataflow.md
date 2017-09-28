@@ -31,7 +31,10 @@ To use the Cloud Dataflow Runner, you must complete the following setup:
 
 2. Enable billing for your project.
 
-3. Enable required Google Cloud APIs: Cloud Dataflow, Compute Engine, Stackdriver Logging, Cloud Storage, and Cloud Storage JSON. You may need to enable additional APIs (such as BigQuery, Cloud Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.
+3. Enable the required Google Cloud APIs: Cloud Dataflow, Compute Engine,
+   Stackdriver Logging, Cloud Storage, Cloud Storage JSON, and Cloud Resource
+   Manager. You may need to enable additional APIs (such as BigQuery, Cloud
+   Pub/Sub, or Cloud Datastore) if you use them in your pipeline code.
 
 4. Install the Google Cloud SDK.
 
