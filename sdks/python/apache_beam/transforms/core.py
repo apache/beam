@@ -160,6 +160,18 @@ class ProcessContinuation(object):
     """
     self.resume_delay = resume_delay
 
+  @staticmethod
+  def resume(resume_delay=0):
+    """A convenient method that produces a ``ProcessContinuation``.
+
+    Args:
+      resume_delay: delay after which processing current element should be
+        resumed.
+    Returns: a ``ProcessContinuation`` for signalling the runner that current
+      input element has not been fully processed and should be resumed later.
+    """
+    return ProcessContinuation(resume_delay=resume_delay)
+
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
@@ -194,6 +206,11 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
 
     This is invoked by ``DoFnRunner`` for each element of a input
     ``PCollection``.
+
+    Args:
+      element: The element to be processed
+      *args: side inputs
+      **kwargs: other keyword arguments.
 
     If specified, following default arguments are used by the ``DoFnRunner`` to
     be able to pass the parameters correctly.
@@ -254,11 +271,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     See following documents for more details about Splittable DoFns.
     * https://s.apache.org/splittable-do-fn
     * https://s.apache.org/splittable-do-fn-python-sdk
-
-    Args:
-      element: The element to be processed
-      *args: side inputs
-      **kwargs: other keyword arguments.
     """
     raise NotImplementedError
 
@@ -279,16 +291,20 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def new_tracker(self, restriction):
     """Produces a new ``RestrictionTracker`` for the given restriction.
 
+    This method should only be implemented by Splittable DoFns.
+
     Args:
       restriction: an object that defines a restriction as identified by the
         current ``DoFn``. For example, a tuple that gives a range of positions
         for a ``DoFn`` that reads files based on byte positions.
     Returns: an object of type ``RestrictionTracker``.
     """
-    pass
+    raise NotImplementedError
 
   def restriction_coder(self):
     """Returns a ``Coder`` for restrictions produced by the current ``DoFn``.
+
+    This method may be overridden by Splittable DoFns.
 
     Returns:
       an object of type ``Coder``.
@@ -296,11 +312,16 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return coders.registry.get_coder(object)
 
   def initial_restriction(self, element):
-    """Produces an initial restriction for the given element."""
-    pass
+    """Produces an initial restriction for the given element.
+
+    This method should only be implemented by Splittable DoFns.
+    """
+    raise NotImplementedError
 
   def split(self, element, restriction):
     """Splits the given element and restriction.
+
+    This method may be overridden by Splittable DoFns.
 
     Returns an iterator of restrictions. The total set of elements produced by
     reading input element for each of the returned restrictions should be the
@@ -311,18 +332,6 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     number of parts or size in bytes.
     """
     yield restriction
-
-  @staticmethod
-  def resume(resume_delay=0):
-    """A convenient method that produces a ``ProcessContinuation``.
-
-    Args:
-      resume_delay: delay after which processing current element should be
-        resumed.
-    Returns: a ``ProcessContinuation`` for signalling the runner that current
-      input element has not been fully processed and should be resumed later.
-    """
-    return ProcessContinuation(should_resume=True, resume_delay=resume_delay)
 
   def get_function_arguments(self, func):
     """Return the function arguments based on the name provided. If they have

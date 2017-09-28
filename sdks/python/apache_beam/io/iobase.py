@@ -1032,6 +1032,16 @@ class RestrictionTracker(object):
 
     Returns a restriction accurately describing the full range of work the
     current ``DoFn.process()`` call will do, including already completed work.
+
+    The current restriction returned by method may be updated dynamically due
+    to invocation of other methods of the ``RestrictionTracker``, For example,
+    ``checkpoint()``.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
     """
     raise NotImplementedError
 
@@ -1050,6 +1060,12 @@ class RestrictionTracker(object):
 
     This method must be called at most once on a given ``RestrictionTracker``
     object.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
     """
 
     raise NotImplementedError
@@ -1064,5 +1080,11 @@ class RestrictionTracker(object):
     Raises ValueError: if there is still any unclaimed work remaining in the
       restriction invoking this method. Exception raised must have an
       informative error message.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
     """
     raise NotImplementedError
