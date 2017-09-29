@@ -366,9 +366,10 @@ public interface PipelineOptions extends HasDisplayData {
    * product            = token ["/" product-version]
    * product-version    = token
    * </code></pre>
-   * Where a token is a series of without a separator.
+   * Where a token is a series of characters without a separator.
    *
-   * <p>The string defaults to {@code [name]/[version]} based on the properties of the Beam release.
+   * <p>The string defaults to {@code [name]/[version]} based on the properties of the Apache Beam
+   * release.
    */
   @Description("A user agent string describing the pipeline to external services."
       + " The format should follow RFC2616. This option defaults to \"[name]/[version]\""
