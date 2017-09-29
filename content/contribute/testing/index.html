@@ -159,7 +159,10 @@
     </ul>
   </li>
   <li><a href="#testing-types" id="markdown-toc-testing-types">Testing Types</a>    <ul>
-      <li><a href="#unit" id="markdown-toc-unit">Unit</a></li>
+      <li><a href="#unit" id="markdown-toc-unit">Unit</a>        <ul>
+          <li><a href="#how-to-run-needsrunner-tests" id="markdown-toc-how-to-run-needsrunner-tests">How to run NeedsRunner tests</a></li>
+        </ul>
+      </li>
       <li><a href="#validatesrunner" id="markdown-toc-validatesrunner">ValidatesRunner</a></li>
       <li><a href="#e2e" id="markdown-toc-e2e">E2E</a></li>
     </ul>
@@ -465,6 +468,36 @@ ensuring software correctness. As all of the contributors to Beam understand the
 importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.</p>
+
+<h4 id="how-to-run-needsrunner-tests">How to run NeedsRunner tests</h4>
+
+<p>NeedsRunner is a category of tests that require a Beam runner. A subset of these
+tests cannot be executed while building their corresponding modules because all 
+runners depend on these modules (e.g. <code class="highlighter-rouge">sdks/java/core</code>) to be built. To break 
+the circular dependency, these tests are executed after the Direct Runner is 
+built.</p>
+
+<p>To run this subset of the NeedsRunner tests (requires Maven 3.3.1+):</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn -pl runners/direct-java -am install -DskipTests
+$ mvn -pl runners/direct-java surefire:test@validates-runner-tests
+</code></pre>
+</div>
+
+<p>To run a single NeedsRunner test use the <code class="highlighter-rouge">test</code> property, e.g.</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn -pl runners/direct-java surefire:test@validates-runner-tests -Dtest=MapElementsTest#testMapBasic
+</code></pre>
+</div>
+
+<p>will run the <code class="highlighter-rouge">MapElementsTest.testMapBasic()</code> test.</p>
+
+<p>NeedsRunner tests in modules that are not required to build runners (e.g. 
+<code class="highlighter-rouge">sdks/java/io/jdbc</code>) can be executed with the <code class="highlighter-rouge">mvn test</code> command:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn -pl sdks/java/io/jdbc test -Dgroups=org.apache.beam.sdk.testing.NeedsRunner
+</code></pre>
+</div>
 
 <h3 id="validatesrunner">ValidatesRunner</h3>
 
