@@ -34,6 +34,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -51,6 +52,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -62,12 +64,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Helper routines for packages. */
-class PackageUtil {
+@Internal
+class PackageUtil implements Closeable {
+
   private static final Logger LOG = LoggerFactory.getLogger(PackageUtil.class);
+
   /**
    * A reasonable upper bound on the number of jars required to launch a Dataflow job.
    */
   private static final int SANE_CLASSPATH_SIZE = 1000;
+
+  private static final int DEFAULT_THREAD_POOL_SIZE = 32;
 
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(5));
@@ -76,6 +83,27 @@ class PackageUtil {
    * Translates exceptions from API calls.
    */
   private static final ApiErrorExtractor ERROR_EXTRACTOR = new ApiErrorExtractor();
+
+  private final ListeningExecutorService executorService;
+
+  private PackageUtil(ListeningExecutorService executorService) {
+    this.executorService = executorService;
+  }
+
+  public static PackageUtil withDefaultThreadPool() {
+    return PackageUtil.withExecutorService(
+        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(DEFAULT_THREAD_POOL_SIZE)));
+  }
+
+  public static PackageUtil withExecutorService(ListeningExecutorService executorService) {
+    return new PackageUtil(executorService);
+  }
+
+  @Override
+  public void close() {
+    executorService.shutdown();
+  }
+
 
   /**
    * Compute and cache the attributes of a classpath element that we will need to stage it.
@@ -140,9 +168,10 @@ class PackageUtil {
    * Utility function that computes sizes and hashes of packages so that we can validate whether
    * they have already been correctly staged.
    */
-  private static List<PackageAttributes> computePackageAttributes(
-      Collection<String> classpathElements, final String stagingPath,
-      ListeningExecutorService executorService) {
+  private List<PackageAttributes> computePackageAttributes(
+      Collection<String> classpathElements,
+      final String stagingPath) {
+
     List<ListenableFuture<PackageAttributes>> futures = new LinkedList<>();
     for (String classpathElement : classpathElements) {
       @Nullable String userPackageName = null;
@@ -189,7 +218,7 @@ class PackageUtil {
    * Utility to verify whether a package has already been staged and, if not, copy it to the
    * staging location.
    */
-  private static void stageOnePackage(
+  private void stageOnePackage(
       PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
       Sleeper retrySleeper, CreateOptions createOptions) {
     String source = attributes.getSourcePath();
@@ -255,22 +284,16 @@ class PackageUtil {
    * @param stagingPath The base location to stage the elements to.
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
-  static List<DataflowPackage> stageClasspathElements(
+  List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
-    ListeningExecutorService executorService =
-        MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(32));
-    try {
-      return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT,
-          executorService, createOptions);
-    } finally {
-      executorService.shutdown();
-    }
+    return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT, createOptions);
   }
 
   // Visible for testing.
-  static List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, final String stagingPath,
-      final Sleeper retrySleeper, ListeningExecutorService executorService,
+  List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements,
+      final String stagingPath,
+      final Sleeper retrySleeper,
       final CreateOptions createOptions) {
     LOG.info("Uploading {} files from PipelineOptions.filesToStage to staging location to "
         + "prepare for execution.", classpathElements.size());
@@ -290,7 +313,7 @@ class PackageUtil {
 
     // Inline a copy here because the inner code returns an immutable list and we want to mutate it.
     List<PackageAttributes> packageAttributes =
-        new LinkedList<>(computePackageAttributes(classpathElements, stagingPath, executorService));
+        new LinkedList<>(computePackageAttributes(classpathElements, stagingPath));
 
     // Compute the returned list of DataflowPackage objects here so that they are returned in the
     // same order as on the classpath.

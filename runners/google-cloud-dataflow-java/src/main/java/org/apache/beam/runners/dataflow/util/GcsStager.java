@@ -62,9 +62,9 @@ public class GcsStager implements Stager {
         .setMimeType(MimeTypes.BINARY)
         .build();
 
-    return PackageUtil.stageClasspathElements(
-        options.getFilesToStage(),
-        options.getStagingLocation(),
-        createOptions);
+    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
+      return packageUtil.stageClasspathElements(
+          options.getFilesToStage(), options.getStagingLocation(), createOptions);
+    }
   }
 }
