@@ -26,6 +26,7 @@ import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode
 import com.amazonaws.AmazonWebServiceRequest;
 import com.amazonaws.ResponseMetadata;
 import com.amazonaws.regions.Region;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.AddTagsToStreamRequest;
 import com.amazonaws.services.kinesis.model.AddTagsToStreamResult;
@@ -74,6 +75,7 @@ import javax.annotation.Nullable;
 
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
+import org.mockito.Mockito;
 
 /**
  * Mock implemenation of {@link AmazonKinesis} for testing.
@@ -117,7 +119,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     }
   }
 
-  static class Provider implements KinesisClientProvider {
+  static class Provider implements AWSClientsProvider {
 
     private final List<List<TestData>> shardedData;
     private final int numberOfRecordsPerGet;
@@ -128,7 +130,7 @@ class AmazonKinesisMock implements AmazonKinesis {
     }
 
     @Override
-    public AmazonKinesis get() {
+    public AmazonKinesis getKinesisClient() {
       return new AmazonKinesisMock(transform(shardedData,
           new Function<List<TestData>, List<Record>>() {
 
@@ -143,6 +145,12 @@ class AmazonKinesisMock implements AmazonKinesis {
               });
             }
           }), numberOfRecordsPerGet);
+
+    }
+
+    @Override
+    public AmazonCloudWatch getCloudWatchClient() {
+      return Mockito.mock(AmazonCloudWatch.class);
     }
   }
 
