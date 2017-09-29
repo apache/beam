@@ -29,12 +29,23 @@ import org.kohsuke.args4j.Option;
 public class ReferenceRunnerJobServer {
   public static void main(String[] args) throws IOException, InterruptedException {
     ServerConfiguration configuration = new ServerConfiguration();
+    CmdLineParser parser = new CmdLineParser(configuration);
     try {
-      new CmdLineParser(configuration).parseArgument(args);
+      parser.parseArgument(args);
     } catch (CmdLineException e) {
-      throw new IllegalArgumentException(e);
+      System.err.println(e);
+      printUsage(parser);
+      return;
     }
     runServer(configuration);
+  }
+
+  private static void printUsage(CmdLineParser parser) {
+    System.err.println(
+        String.format(
+            "Usage: java %s arguments...", ReferenceRunnerJobService.class.getSimpleName()));
+    parser.printUsage(System.err);
+    System.err.println();
   }
 
   private static void runServer(ServerConfiguration configuration) throws IOException, InterruptedException {
