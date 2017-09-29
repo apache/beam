@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.core.fn;
 
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyString;

@@ -15,19 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
-
-import java.io.Closeable;
 
 /**
- * A receiver of streamed data.
- *
- * <p>Provide a {@link FnDataReceiver} and target to a {@link FnDataService} to listen for incoming
- * data.
- *
- * <p>Register a target with a {@link FnDataService} to gain a {@link FnDataReceiver} to which you
- * may write outgoing data.
+ * Provides utilities for a Beam runner to interact with a client using the Fn API.
  */
-public interface FnDataReceiver<T> extends Closeable {
-  void accept(T input) throws Exception;
-}
+package org.apache.beam.runners.core.fn;

@@ -15,12 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core;
+package org.apache.beam.runners.core.fn;
 
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.UserCodeException;
