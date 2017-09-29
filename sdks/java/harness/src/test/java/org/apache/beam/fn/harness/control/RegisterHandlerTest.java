@@ -27,7 +27,7 @@ import org.apache.beam.fn.harness.test.TestExecutors;
 import org.apache.beam.fn.harness.test.TestExecutors.TestExecutorService;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;

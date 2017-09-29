@@ -10,6 +10,8 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.v1.BeamFnApi.StateGetRequest;
 import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
 import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -27,7 +29,6 @@ import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
 
 /**
  * Adapters which convert a a logical series of chunks using continuation tokens over the Beam

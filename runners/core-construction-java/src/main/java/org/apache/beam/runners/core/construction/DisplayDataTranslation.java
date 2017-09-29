@@ -20,7 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.BoolValue;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
 /** Utilities for going to/from DisplayData protos. */

@@ -311,6 +311,10 @@
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-model-pipeline</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-model-construction</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
 
