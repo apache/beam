@@ -37,6 +37,11 @@ public class InterceptingUrlClassLoader extends ClassLoader {
 
     @Override
     public Class<?> loadClass(final String name) throws ClassNotFoundException {
+        final Class<?> alreadyLoaded = super.findLoadedClass(name);
+        if (alreadyLoaded != null) {
+            return alreadyLoaded;
+        }
+
         if (name != null && ownedClasses.contains(name)) {
             try {
                 final String classAsResource = name.replace('.', '/') + ".class";

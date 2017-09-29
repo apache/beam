@@ -88,16 +88,25 @@ public class SerializableUtils {
 
   public static <T extends Serializable> T clone(T value) {
     final Thread thread = Thread.currentThread();
-    final ClassLoader loader = value == null
-            ? thread.getContextClassLoader() : value.getClass().getClassLoader();
-    final ClassLoader pushedLoader = ReflectHelpers.findClassLoader();
+    final ClassLoader tccl = ReflectHelpers.findClassLoader();
+    ClassLoader loader = tccl;
+    try {
+      if (tccl.loadClass(value.getClass().getName()) != value.getClass()) {
+        loader = value.getClass().getClassLoader();
+      }
+    } catch (final NoClassDefFoundError | ClassNotFoundException e) {
+      loader = value.getClass().getClassLoader();
+    }
+    if (loader == null) {
+      loader = tccl; // will likely fail but the best we can do
+    }
     thread.setContextClassLoader(loader);
     @SuppressWarnings("unchecked")
     final T copy;
     try {
       copy = (T) deserializeFromByteArray(serializeToByteArray(value), value.toString());
     } finally {
-      thread.setContextClassLoader(pushedLoader);
+      thread.setContextClassLoader(tccl);
     }
     return copy;
   }
