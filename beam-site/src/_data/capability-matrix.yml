@@ -13,6 +13,8 @@ columns:
     name: Apache Gearpump
   - class: mapreduce
     name: Apache Hadoop MapReduce
+  - class: jstorm
+    name: JStorm
 
 categories:
   - description: What is being computed?
@@ -52,6 +54,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: GroupByKey
         values:
           - class: model
@@ -79,6 +85,10 @@ categories:
             l2: fully supported
             l3: "Use Gearpump's groupBy and window for key grouping and translate Beam's windowing and triggering to Gearpump's internal implementation."
           - class: mapreduce
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: jstorm
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -112,6 +122,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''            
       - name: Combine
         values:
           - class: model
@@ -142,6 +156,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''            
       - name: Composite Transforms
         values:
           - class: model
@@ -172,6 +190,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''            
       - name: Side Inputs
         values:
           - class: model
@@ -202,6 +224,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: some size restrictions
+            l3: ''            
       - name: Source API
         values:
           - class: model
@@ -232,6 +258,10 @@ categories:
             l1: 'Partially'
             l2: bounded source only
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Splittable DoFn
         values:
           - class: model
@@ -259,6 +289,10 @@ categories:
             l2: not implemented
             l3:
           - class: mapreduce
+            l1: 'No'
+            l2: not implemented
+            l3:
+          - class: jstorm
             l1: 'No'
             l2: not implemented
             l3:
@@ -292,6 +326,10 @@ categories:
             l1: 'Partially'
             l2: Only attempted counters are supported
             l3: ''
+          - class: jstorm
+            l1: 'Partially'
+            l2: Metrics are only supported in local mode.
+            l3: ''
       - name: Stateful Processing
         values:
           - class: model
@@ -319,6 +357,10 @@ categories:
             l2: not implemented
             l3: ''
           - class: mapreduce
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: ''
+          - class: jstorm
             l1: 'Partially'
             l2: non-merging windows
             l3: ''
@@ -359,6 +401,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -386,6 +432,10 @@ categories:
             l2: supported
             l3: ''
           - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jstorm
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -419,6 +469,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -446,6 +500,10 @@ categories:
             l2: supported
             l3: ''
           - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jstorm
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -479,6 +537,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -509,6 +571,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Timestamp control
         values:
           - class: model
@@ -536,6 +602,10 @@ categories:
             l2: supported
             l3: ''
           - class: mapreduce
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: jstorm
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -579,6 +649,10 @@ categories:
             l1: 'No'
             l2: batch-only runner
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -609,6 +683,10 @@ categories:
           - class: mapreduce
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
 
       - name: Processing-time triggers
@@ -641,6 +719,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Count triggers
         values:
@@ -671,6 +753,10 @@ categories:
           - class: mapreduce
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
 
       - name: '[Meta]data driven triggers'
@@ -704,6 +790,10 @@ categories:
             l1: 'No'
             l2: ''
             l3:
+          - class: jstorm
+            l1: 'No'
+            l2: pending model support
+            l3:
 
       - name: Composite triggers
         values:
@@ -734,6 +824,10 @@ categories:
           - class: mapreduce
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
 
       - name: Allowed lateness
@@ -766,6 +860,10 @@ categories:
             l1: 'No'
             l2: ''
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Timers
         values:
@@ -796,6 +894,10 @@ categories:
           - class: mapreduce
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: jstorm
+            l1: 'Partially'
+            l2: non-merging windows
             l3: ''
 
   - description: How do refinements relate?
@@ -836,6 +938,10 @@ categories:
             l1: 'No'
             l2: batch-only runner
             l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -866,6 +972,10 @@ categories:
           - class: mapreduce
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
             l3: ''
 
       - name: 'Accumulating &amp; Retracting'
@@ -898,4 +1008,8 @@ categories:
           - class: mapreduce
             l1: 'No'
             l2: ''
+            l3: ''
+          - class: jstorm
+            l1: 'No'
+            l2: pending model support
             l3: ''
