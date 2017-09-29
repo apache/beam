@@ -8,6 +8,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // Coder defines how to encode and decode values of type 'A' into byte streams.
@@ -68,6 +69,15 @@ func NewCoder(t typex.FullType) Coder {
 func inferCoder(t typex.FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
+		switch t.Type() {
+		// The type conversions here are very conservative. We handle bytes/strings
+		// equivalently because they are essentially equivalent in the language.
+		// Notably, we do not (currently) support equivalences in numeric data types
+		// due to risks around inadvertent widening or narrowing of data.
+		case reflectx.String:
+		case reflectx.ByteSlice:
+			return &coder.Coder{Kind: coder.Bytes}, nil
+		}
 		c, err := newJSONCoder(t.Type())
 		if err != nil {
 			return nil, err
@@ -118,10 +128,12 @@ func inferCoders(list []typex.FullType) ([]*coder.Coder, error) {
 // Concrete and universal custom coders both have a similar signature.
 // Conversion is handled by reflection.
 
+// JSONEnc encodes the supplied value in JSON.
 func JSONEnc(in typex.T) ([]byte, error) {
 	return json.Marshal(in)
 }
 
+// JSONDec decodes the supplied JSON into an instance of the supplied type.
 func JSONDec(t reflect.Type, in []byte) (typex.T, error) {
 	val := reflect.New(t)
 	if err := json.Unmarshal(in, val.Interface()); err != nil {
