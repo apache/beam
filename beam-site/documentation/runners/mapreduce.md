@@ -1,6 +1,7 @@
 ---
 layout: default
 title: "Apache Hadoop MapReduce Runner"
+permalink: /documentation/runners/mapreduce/
 ---
 # Using the Apache Hadoop MapReduce Runner
 
