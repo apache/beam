@@ -25,12 +25,13 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.common.collect.Lists;
+import com.google.common.base.Function;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
+import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -42,22 +43,22 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.ZipFiles;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -75,6 +76,14 @@ class PackageUtil implements Closeable {
   private static final int SANE_CLASSPATH_SIZE = 1000;
 
   private static final int DEFAULT_THREAD_POOL_SIZE = 32;
+
+  private static final Sleeper DEFAULT_SLEEPER = Sleeper.DEFAULT;
+
+  private static final CreateOptions DEFAULT_CREATE_OPTIONS =
+      GcsCreateOptions.builder()
+          .setGcsUploadBufferSizeBytes(1024 * 1024)
+          .setMimeType(MimeTypes.BINARY)
+          .build();
 
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT.withMaxRetries(4).withInitialBackoff(Duration.standardSeconds(5));
@@ -121,121 +130,146 @@ class PackageUtil implements Closeable {
     }
   }
 
-  /**
-   * Utility function that computes sizes and hashes of packages so that we can validate whether
-   * they have already been correctly staged.
-   */
-  private List<PackageAttributes> computePackageAttributes(
-      Collection<String> classpathElements,
-      final String stagingPath) {
+  /** Asynchronously computes {@link PackageAttributes} for a single staged file. */
+  private ListenableFuture<PackageAttributes> computePackageAttributes(
+      final DataflowPackage source, final String stagingPath) {
 
-    List<ListenableFuture<PackageAttributes>> futures = new LinkedList<>();
-    for (String classpathElement : classpathElements) {
-      @Nullable String userPackageName = null;
-      if (classpathElement.contains("=")) {
-        String[] components = classpathElement.split("=", 2);
-        userPackageName = components[0];
-        classpathElement = components[1];
-      }
-      @Nullable final String packageName = userPackageName;
-
-      final File file = new File(classpathElement);
-      if (!file.exists()) {
-        LOG.warn("Skipping non-existent classpath element {} that was specified.",
-            classpathElement);
-        continue;
-      }
-
-      ListenableFuture<PackageAttributes> future =
-          executorService.submit(new Callable<PackageAttributes>() {
-            @Override
-            public PackageAttributes call() throws Exception {
-              PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
-              if (packageName != null) {
-                attributes = attributes.withPackageName(packageName);
-              }
-              return attributes;
+    return executorService.submit(
+        new Callable<PackageAttributes>() {
+          @Override
+          public PackageAttributes call() throws Exception {
+            final File file = new File(source.getLocation());
+            if (!file.exists()) {
+              throw new FileNotFoundException(
+                  String.format("Non-existent file to stage: %s", file.getAbsolutePath()));
             }
-          });
-      futures.add(future);
-    }
 
+            PackageAttributes attributes = PackageAttributes.forFileToStage(file, stagingPath);
+            if (source.getName() != null) {
+              attributes = attributes.withPackageName(source.getName());
+            }
+            return attributes;
+          }
+        });
+  }
+
+  private boolean alreadyStaged(PackageAttributes attributes) throws IOException {
     try {
-      return Futures.allAsList(futures).get();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new RuntimeException("Interrupted while staging packages", e);
-    } catch (ExecutionException e) {
-      throw new RuntimeException("Error while staging packages", e.getCause());
+      long remoteLength =
+          FileSystems.matchSingleFileSpec(attributes.getDestination().getLocation()).sizeBytes();
+      return remoteLength == attributes.getSize();
+    } catch (FileNotFoundException expected) {
+      // If the file doesn't exist, it means we need to upload it.
+      return false;
     }
   }
 
-  private static WritableByteChannel makeWriter(String target, CreateOptions createOptions)
-      throws IOException {
-    return FileSystems.create(FileSystems.matchNewResource(target, false), createOptions);
+  /** Stages one file ("package") if necessary. */
+  public ListenableFuture<StagingResult> stagePackage(
+      final PackageAttributes attributes,
+      final Sleeper retrySleeper,
+      final CreateOptions createOptions) {
+    return executorService.submit(
+        new Callable<StagingResult>() {
+          @Override
+          public StagingResult call() throws Exception {
+            return stagePackageSynchronously(attributes, retrySleeper, createOptions);
+          }
+        });
   }
 
-  /**
-   * Utility to verify whether a package has already been staged and, if not, copy it to the
-   * staging location.
-   */
-  private void stageOnePackage(
-      PackageAttributes attributes, AtomicInteger numUploaded, AtomicInteger numCached,
-      Sleeper retrySleeper, CreateOptions createOptions) {
+  /** Synchronously stages a package, with retry and backoff for resiliency. */
+  private StagingResult stagePackageSynchronously(
+      PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
+      throws IOException, InterruptedException {
     File source = attributes.getSource();
     String target = attributes.getDestination().getLocation();
 
-    // TODO: Should we attempt to detect the Mime type rather than
-    // always using MimeTypes.BINARY?
-    try {
-      try {
-        long remoteLength = FileSystems.matchSingleFileSpec(target).sizeBytes();
-        if (remoteLength == attributes.getSize()) {
-          LOG.debug("Skipping classpath element already staged: {} at {}",
-              attributes.getSource(), target);
-          numCached.incrementAndGet();
-          return;
-        }
-      } catch (FileNotFoundException expected) {
-        // If the file doesn't exist, it means we need to upload it.
-      }
-
-      // Upload file, retrying on failure.
-      BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
-      while (true) {
-        try {
-          LOG.debug("Uploading classpath element {} to {}", source, target);
-          try (WritableByteChannel writer = makeWriter(target, createOptions)) {
-            copyContent(attributes.getSource(), writer);
-          }
-          numUploaded.incrementAndGet();
-          break;
-        } catch (IOException e) {
-          if (ERROR_EXTRACTOR.accessDenied(e)) {
-            String errorMessage = String.format(
-                "Uploaded failed due to permissions error, will NOT retry staging "
-                    + "of classpath %s. Please verify credentials are valid and that you have "
-                    + "write access to %s. Stale credentials can be resolved by executing "
-                    + "'gcloud auth application-default login'.", source, target);
-            LOG.error(errorMessage);
-            throw new IOException(errorMessage, e);
-          }
-          long sleep = backoff.nextBackOffMillis();
-          if (sleep == BackOff.STOP) {
-            // Rethrow last error, to be included as a cause in the catch below.
-            LOG.error("Upload failed, will NOT retry staging of classpath: {}",
-                source, e);
-            throw e;
-          } else {
-            LOG.warn("Upload attempt failed, sleeping before retrying staging of classpath: {}",
-                source, e);
-            retrySleeper.sleep(sleep);
-          }
-        }
-      }
-    } catch (Exception e) {
-      throw new RuntimeException("Could not stage classpath element: " + source, e);
+    if (alreadyStaged(attributes)) {
+      LOG.debug("Skipping file already staged: {} at {}", source, target);
+      return StagingResult.cached(attributes);
     }
+
+    try {
+      return tryStagePackageWithRetry(attributes, retrySleeper, createOptions);
+    } catch (Exception miscException) {
+      throw new RuntimeException(
+          String.format("Could not stage %s to %s", source, target), miscException);
+    }
+  }
+
+  private StagingResult tryStagePackageWithRetry(
+      PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
+      throws IOException, InterruptedException {
+    File source = attributes.getSource();
+    String target = attributes.getDestination().getLocation();
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+
+    while (true) {
+      try {
+        return tryStagePackage(attributes, createOptions);
+      } catch (IOException ioException) {
+
+        if (ERROR_EXTRACTOR.accessDenied(ioException)) {
+          String errorMessage =
+              String.format(
+                  "Uploaded failed due to permissions error, will NOT retry staging "
+                      + "of %s. Please verify credentials are valid and that you have "
+                      + "write access to %s. Stale credentials can be resolved by executing "
+                      + "'gcloud auth application-default login'.",
+                  source, target);
+          LOG.error(errorMessage);
+          throw new IOException(errorMessage, ioException);
+        }
+
+        long sleep = backoff.nextBackOffMillis();
+        if (sleep == BackOff.STOP) {
+          LOG.error("Upload failed, will NOT retry staging of package: {}", source, ioException);
+          throw new RuntimeException("Could not stage %s to %s", ioException);
+        } else {
+          LOG.warn(
+              "Upload attempt failed, sleeping before retrying staging of package: {}",
+              source,
+              ioException);
+          retrySleeper.sleep(sleep);
+        }
+      }
+    }
+  }
+
+  private StagingResult tryStagePackage(
+      PackageAttributes attributes, CreateOptions createOptions)
+      throws IOException, InterruptedException {
+    File source = attributes.getSource();
+    String target = attributes.getDestination().getLocation();
+
+    LOG.info("Uploading {} to {}", source, target);
+    try (WritableByteChannel writer =
+        FileSystems.create(FileSystems.matchNewResource(target, false), createOptions)) {
+      copyContent(attributes.getSource(), writer);
+    }
+    return StagingResult.uploaded(attributes);
+  }
+
+  /**
+   * Transfers the classpath elements to the staging location using a default {@link Sleeper}.
+   *
+   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   */
+  List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
+    return stageClasspathElements(classpathElements, stagingPath, DEFAULT_SLEEPER, createOptions);
+  }
+
+  /**
+   * Transfers the classpath elements to the staging location using default settings.
+   *
+   * @see {@link #stageClasspathElements(Collection, String, Sleeper, CreateOptions)}
+   */
+  List<DataflowPackage> stageClasspathElements(
+      Collection<String> classpathElements, String stagingPath) {
+    return stageClasspathElements(
+        classpathElements, stagingPath, DEFAULT_SLEEPER, DEFAULT_CREATE_OPTIONS);
   }
 
   /**
@@ -245,12 +279,6 @@ class PackageUtil implements Closeable {
    * @param stagingPath The base location to stage the elements to.
    * @return A list of cloud workflow packages, each representing a classpath element.
    */
-  List<DataflowPackage> stageClasspathElements(
-      Collection<String> classpathElements, String stagingPath, CreateOptions createOptions) {
-    return stageClasspathElements(classpathElements, stagingPath, Sleeper.DEFAULT, createOptions);
-  }
-
-  // Visible for testing.
   List<DataflowPackage> stageClasspathElements(
       Collection<String> classpathElements,
       final String stagingPath,
@@ -272,45 +300,69 @@ class PackageUtil implements Closeable {
         stagingPath != null,
         "Can't stage classpath elements because no staging location has been provided");
 
-    // Inline a copy here because the inner code returns an immutable list and we want to mutate it.
-    List<PackageAttributes> packageAttributes =
-        new LinkedList<>(computePackageAttributes(classpathElements, stagingPath));
-
-    // Compute the returned list of DataflowPackage objects here so that they are returned in the
-    // same order as on the classpath.
-    List<DataflowPackage> packages = Lists.newArrayListWithExpectedSize(packageAttributes.size());
-    for (final PackageAttributes attributes : packageAttributes) {
-      packages.add(attributes.getDestination());
-    }
-
-    // Order package attributes in descending size order so that we upload the largest files first.
-    Collections.sort(packageAttributes, new PackageUploadOrder());
     final AtomicInteger numUploaded = new AtomicInteger(0);
     final AtomicInteger numCached = new AtomicInteger(0);
+    List<ListenableFuture<DataflowPackage>> destinationPackages = new ArrayList<>();
 
-    List<ListenableFuture<?>> futures = new LinkedList<>();
-    for (final PackageAttributes attributes : packageAttributes) {
-      futures.add(executorService.submit(new Runnable() {
-        @Override
-        public void run() {
-          stageOnePackage(attributes, numUploaded, numCached, retrySleeper, createOptions);
-        }
-      }));
+    for (String classpathElement : classpathElements) {
+      DataflowPackage sourcePackage = new DataflowPackage();
+      if (classpathElement.contains("=")) {
+        String[] components = classpathElement.split("=", 2);
+        sourcePackage.setName(components[0]);
+        sourcePackage.setLocation(components[1]);
+      } else {
+        sourcePackage.setName(null);
+        sourcePackage.setLocation(classpathElement);
+      }
+
+      File sourceFile = new File(sourcePackage.getLocation());
+      if (!sourceFile.exists()) {
+        LOG.warn("Skipping non-existent file to stage {}.", sourceFile);
+        continue;
+      }
+
+      // TODO: Java 8 / Guava 23.0: FluentFuture
+      ListenableFuture<StagingResult> stagingResult =
+          Futures.transformAsync(
+              computePackageAttributes(sourcePackage, stagingPath),
+              new AsyncFunction<PackageAttributes, StagingResult>() {
+                @Override
+                public ListenableFuture<StagingResult> apply(
+                    final PackageAttributes packageAttributes) throws Exception {
+                  return stagePackage(packageAttributes, retrySleeper, createOptions);
+                }
+              });
+
+      ListenableFuture<DataflowPackage> stagedPackage =
+          Futures.transform(
+              stagingResult,
+              new Function<StagingResult, DataflowPackage>() {
+                @Override
+                public DataflowPackage apply(StagingResult stagingResult) {
+                  if (stagingResult.alreadyStaged()) {
+                    numCached.incrementAndGet();
+                  } else {
+                    numUploaded.incrementAndGet();
+                  }
+                  return stagingResult.getPackageAttributes().getDestination();
+                }
+              });
+
+      destinationPackages.add(stagedPackage);
     }
+
     try {
-      Futures.allAsList(futures).get();
+      List<DataflowPackage> stagedPackages = Futures.allAsList(destinationPackages).get();
+      LOG.info(
+          "Staging files complete: {} files cached, {} files newly uploaded",
+          numCached.get(), numUploaded.get());
+      return stagedPackages;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException("Interrupted while staging packages", e);
     } catch (ExecutionException e) {
       throw new RuntimeException("Error while staging packages", e.getCause());
     }
-
-    LOG.info(
-        "Staging files complete: {} files cached, {} files newly uploaded",
-        numCached.get(), numUploaded.get());
-
-    return packages;
   }
 
   /**
@@ -350,6 +402,22 @@ class PackageUtil implements Closeable {
       Files.asByteSource(classpathElement).copyTo(Channels.newOutputStream(outputChannel));
     }
   }
+
+  @AutoValue
+  abstract static class StagingResult {
+    abstract PackageAttributes getPackageAttributes();
+
+    abstract boolean alreadyStaged();
+
+    public static StagingResult cached(PackageAttributes attributes) {
+      return new AutoValue_PackageUtil_StagingResult(attributes, true);
+    }
+
+    public static StagingResult uploaded(PackageAttributes attributes) {
+      return new AutoValue_PackageUtil_StagingResult(attributes, false);
+    }
+  }
+
   /**
    * Holds the metadata necessary to stage a file or confirm that a staged file has not changed.
    */
