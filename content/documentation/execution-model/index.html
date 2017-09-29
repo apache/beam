@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Beam Execution Model</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/execution-model/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Example Walkthroughs</li>
+            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Resources</li>
+            <li><a href="/get-started/downloads">Downloads</a></li>
+            <li><a href="/get-started/support">Support</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/documentation">Using the Documentation</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Beam Concepts</li>
+            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
+            <li><a href="/documentation/execution-model/">Execution Model</a></li>
+            <li><a href="/documentation/resources/">Additional Resources</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Pipeline Fundamentals</li>
+            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">SDKs</li>
+            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Runners</li>
+            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
+            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
+            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
+            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">DSLs</li>
+            <li><a href="/documentation/dsls/sql/">SQL</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/contribute">Get Started Contributing</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Guides</li>
+            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="/contribute/testing/">Testing Guide</a></li>
+            <li><a href="/contribute/release-guide/">Release Guide</a></li>
+            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical References</li>
+            <li><a href="/contribute/design-principles/">Design Principles</a></li>
+            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
+            <li><a href="/contribute/source-repository/">Source Repository</a></li>
+            <li><a href="/contribute/docker-images/">Docker Images</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Promotion</li>
+            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="/contribute/logos/">Logos and Design</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+            <li><a href="/contribute/team/">Team</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+</nav>
+
+    <div class="body__contained">
+      <h1 id="apache-beam-execution-model">Apache Beam Execution Model</h1>
+
+<p>The Beam model allows runners to execute your pipeline in different ways. You
+may observe various effects as a result of the runner’s choices. This page
+describes these effects so you can better understand how Beam pipelines execute.</p>
+
+<ul id="markdown-toc">
+  <li><a href="#processing-of-elements" id="markdown-toc-processing-of-elements">Processing of elements</a>    <ul>
+      <li><a href="#serialization-and-communication" id="markdown-toc-serialization-and-communication">Serialization and communication</a></li>
+      <li><a href="#bundling-and-persistence" id="markdown-toc-bundling-and-persistence">Bundling and persistence</a></li>
+    </ul>
+  </li>
+  <li><a href="#parallelism" id="markdown-toc-parallelism">Failures and parallelism within and between transforms</a>    <ul>
+      <li><a href="#data-parallelism" id="markdown-toc-data-parallelism">Data-parallelism within one transform</a></li>
+      <li><a href="#dependent-parallellism" id="markdown-toc-dependent-parallellism">Dependent-parallelism between transforms</a></li>
+      <li><a href="#failures-within-one-transform" id="markdown-toc-failures-within-one-transform">Failures within one transform</a></li>
+      <li><a href="#coupled-failure" id="markdown-toc-coupled-failure">Coupled failure: Failures between transforms</a></li>
+    </ul>
+  </li>
+</ul>
+
+<h2 id="processing-of-elements">Processing of elements</h2>
+
+<p>The serialization and communication of elements between machines is one of the
+most expensive operations in a distributed execution of your pipeline. Avoiding
+this serialization may require re-processing elements after failures or may
+limit the distribution of output to other machines.</p>
+
+<h3 id="serialization-and-communication">Serialization and communication</h3>
+
+<p>The runner might serialize elements between machines for communication purposes
+and for other reasons such as persistence.</p>
+
+<p>A runner may decide to transfer elements between transforms in a variety of
+ways, such as:</p>
+
+<ol>
+  <li>Routing elements to a worker for processing as part of a grouping operation.
+This may involve serializing elements and grouping or sorting them by their
+key.</li>
+  <li>Redistributing elements between workers to adjust parallelism. This may
+involve serializing elements and communicating them to other workers.</li>
+  <li>Using the elements in a side input to a <code class="highlighter-rouge">ParDo</code>. This may require
+serializing the elements and broadcasting them to all the workers executing
+the <code class="highlighter-rouge">ParDo</code>.</li>
+  <li>Passing elements between transforms that are running on the same worker.
+This may allow the runner to avoid serializing elements; instead, the runner
+can just pass the elements in memory.</li>
+</ol>
+
+<p>Some situations where the runner may serialize and persist elements are:</p>
+
+<ol>
+  <li>When used as part of a stateful <code class="highlighter-rouge">DoFn</code>, the runner may persist values to some
+state mechanism.</li>
+  <li>When committing the results of processing, the runner may persist the outputs
+as a checkpoint.</li>
+</ol>
+
+<h3 id="bundling-and-persistence">Bundling and persistence</h3>
+
+<p>Beam pipelines often focus on “<a href="https://en.wikipedia.org/wiki/embarrassingly_parallel">embarassingly parallel</a>”
+problems. Because of this, the APIs emphasize processing elements in parallel,
+which makes it difficult to express actions like “assign a sequence number to
+each element in a PCollection”. This is intentional as such algorithms are much
+more likely to suffer from scalability problems.</p>
+
+<p>Processing all elements in parallel also has some drawbacks. Specifically, it
+makes it impossible to batch any operations, such as writing elements to a sink
+or checkpointing progress during processing.</p>
+
+<p>Instead of processing all elements simultaneously, the elements in a
+<code class="highlighter-rouge">PCollection</code> are processed in <em>bundles</em>. The division of the collection into
+bundles is arbitrary and selected by the runner. This allows the runner to
+choose an appropriate middle-ground between persisting results after every
+element, and having to retry everything if there is a failure. For example, a
+streaming runner may prefer to process and commit small bundles, and a batch
+runner may prefer to process larger bundles.</p>
+
+<h2 id="parallelism">Failures and parallelism within and between transforms</h2>
+
+<p>In this section, we discuss how elements in the input collection are processed
+in parallel, and how transforms are retried when failures occur.</p>
+
+<h3 id="data-parallelism">Data-parallelism within one transform</h3>
+
+<p>When executing a single <code class="highlighter-rouge">ParDo</code>, a runner might divide an example input
+collection of nine elements into two bundles as shown in figure 1.</p>
+
+<p><img src="/images/execution_model_bundling.svg" alt="bundling" /></p>
+
+<p><strong>Figure 1:</strong> A runner divides an input collection with nine elements
+into two bundles.</p>
+
+<p>When the <code class="highlighter-rouge">ParDo</code> executes, workers may process the two bundles in parallel as
+shown in figure 2.</p>
+
+<p><img src="/images/execution_model_bundling_gantt.svg" alt="bundling_gantt" /></p>
+
+<p><strong>Figure 2:</strong> Two workers process the two bundles in parallel. The elements in
+each bundle are processed in sequence.</p>
+
+<p>Since elements cannot be split, the maximum parallelism for a transform depends
+on the number of elements in the collection. In our example, the input
+collection has nine elements, so the maximum parallelism is nine.</p>
+
+<p><img src="/images/execution_model_bundling_gantt_max.svg" alt="bundling_gantt_max" /></p>
+
+<p><strong>Figure 3:</strong> The maximum parallelism is nine, as there are nine elements in the
+input collection.</p>
+
+<p>Note: Splittable ParDo allows splitting the processing of a single input across
+multiple bundles. This feature is a work in progress.</p>
+
+<h3 id="dependent-parallellism">Dependent-parallelism between transforms</h3>
+
+<p><code class="highlighter-rouge">ParDo</code> transforms that are in sequence may be <em>dependently parallel</em> if the
+runner chooses to execute the consuming transform on the producing transform’s
+output elements without altering the bundling. In figure 4, <code class="highlighter-rouge">ParDo1</code> and
+<code class="highlighter-rouge">ParDo2</code> are <em>dependently parallel</em> if the output of <code class="highlighter-rouge">ParDo1</code> for a given
+element must be processed on the same worker.</p>
+
+<p><img src="/images/execution_model_bundling_multi.svg" alt="bundling_multi" /></p>
+
+<p><strong>Figure 4:</strong> Two transforms in sequence and their corresponding input collections.</p>
+
+<p>Figure 5 shows how these dependently parallel transforms might execute. The
+first worker executes <code class="highlighter-rouge">ParDo1</code> on the elements in bundle A (which results in
+bundle C), and then executes <code class="highlighter-rouge">ParDo2</code> on the elements in bundle C. Similarly,
+the second worker executes <code class="highlighter-rouge">ParDo1</code> on the elements in bundle B (which results
+in bundle D), and then executes <code class="highlighter-rouge">ParDo2</code> on the elements in bundle D.</p>
+
+<p><img src="/images/execution_model_bundling_multi_gantt.svg" alt="bundling_multi_gantt.svg" /></p>
+
+<p><strong>Figure 5:</strong> Two workers execute dependently parallel ParDo transforms.</p>
+
+<p>Executing transforms this way allows a runner to avoid redistributing elements
+between workers, which saves on communication costs. However, the maximum parallelism
+now depends on the maximum parallelism of the first of the dependently parallel
+steps.</p>
+
+<h3 id="failures-within-one-transform">Failures within one transform</h3>
+
+<p>If processing of an element within a bundle fails, the entire bundle fails. The
+elements in the bundle must be retried (otherwise the entire pipeline fails),
+although they do not need to be retried with the same bundling.</p>
+
+<p>For this example, we will use the <code class="highlighter-rouge">ParDo</code> from figure 1 that has an input
+collection with nine elements and is divided into two bundles.</p>
+
+<p>In figure 6, the first worker successfully processes all five elements in bundle
+A. The second worker processes the four elements in bundle B: the first two
+elements were successfully processed, the third element’s processing failed, and
+there is one element still awaiting processing.</p>
+
+<p>We see that the runner retries all elements in bundle B and the processing
+completes successfully the second time. Note that the retry does not necessarily
+happen on the same worker as the original processing attempt, as shown in the
+diagram.</p>
+
+<p><img src="/images/execution_model_failure_retry.svg" alt="failure_retry" /></p>
+
+<p><strong>Figure 6:</strong> The processing of an element within bundle B fails, and another worker
+retries the entire bundle.</p>
+
+<p>Because we encountered a failure while processing an element in the input
+bundle, we had to reprocess <em>all</em> of the elements in the input bundle. This means
+the runner must throw away the entire output bundle since all of the results it
+contains will be recomputed.</p>
+
+<p>Note that if the failed transform is a <code class="highlighter-rouge">ParDo</code>, then the <code class="highlighter-rouge">DoFn</code> instance is torn
+down and abandoned.</p>
+
+<h3 id="coupled-failure">Coupled failure: Failures between transforms</h3>
+
+<p>If a failure to process an element in <code class="highlighter-rouge">ParDo2</code> causes <code class="highlighter-rouge">ParDo1</code> to re-execute,
+these two steps are said to be <em>co-failing</em>.</p>
+
+<p>For this example, we will use the two <code class="highlighter-rouge">ParDo</code>s from figure 4.</p>
+
+<p>In figure 7, worker two successfully executes <code class="highlighter-rouge">ParDo1</code> on all elements in bundle
+B. However, the worker fails to process an element in bundle D, so <code class="highlighter-rouge">ParDo2</code>
+fails (shown as the red X). As a result, the runner must discard and recompute
+the output of <code class="highlighter-rouge">ParDo2</code>. Because the runner was executing <code class="highlighter-rouge">ParDo1</code> and <code class="highlighter-rouge">ParDo2</code>
+together, the output bundle from <code class="highlighter-rouge">ParDo1</code> must also be thrown away, and all
+elements in the input bundle must be retried. These two <code class="highlighter-rouge">ParDo</code>s are co-failing.</p>
+
+<p><img src="/images/execution_model_bundling_coupled_failure.svg" alt="bundling_coupled failure" /></p>
+
+<p><strong>Figure 7:</strong> Processing of an element within bundle D fails, so all elements in
+the input bundle are retried.</p>
+
+<p>Note that the retry does not necessarily have the same processing time as the
+original attempt, as shown in the diagram.</p>
+
+<p>All <code class="highlighter-rouge">DoFns</code> that experience coupled failures are terminated and must be torn
+down since they aren’t following the normal <code class="highlighter-rouge">DoFn</code> lifecycle .</p>
+
+<p>Executing transforms this way allows a runner to avoid persisting elements
+between transforms, saving on persistence costs.</p>
+
+
+    </div>
+    <footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/team/">Team</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
