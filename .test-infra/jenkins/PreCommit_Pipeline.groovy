@@ -46,7 +46,7 @@ def buildTypes = [
         ALL_BUILD_TYPE,
 ]
 
-String currentBuildType = allBuildType
+String currentBuildType = ALL_BUILD_TYPE
 String commentLower = ghprbCommentBody.toLowerCase()
 
 // Currently if there is nothing selected (e.g. the comment is just "retest this please") we select "all" by default.
@@ -67,7 +67,7 @@ if (!commentLower.isEmpty()) {
 stage('Build') {
     parallel (
         java: {
-            if (currentBuildType == javaBuildType || currentBuildType == allBuildType) {
+            if (currentBuildType == JAVA_BUILD_TYPE || currentBuildType == ALL_BUILD_TYPE) {
                 def javaBuild = build job: 'beam_Java_Build', parameters: commitArg + ghprbArgs
                 if (javaBuild.getResult() == Result.SUCCESS.toString()) {
                     javaBuildNum = javaBuild.getNumber()
@@ -77,7 +77,7 @@ stage('Build') {
             }
         },
         python_unit: { // Python doesn't have a build phase, so we include this here.
-            if (currentBuildType == pythonBuildType || currentBuildType == allBuildType) {
+            if (currentBuildType == PYTHON_BUILD_TYPE || currentBuildType == ALL_BUILD_TYPE) {
                 try {
                     build job: 'beam_Python_UnitTest', parameters: commitArg + ghprbArgs
                 } catch (Exception e) {
