@@ -732,15 +732,13 @@ public class SpannerIO {
 
     @Override
     public PDone expand(PCollection<MutationGroup> input) {
-      PBegin begin = input.getPipeline().begin();
-
       PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
           sampler = spec.getSampler();
       if (sampler == null) {
         sampler = createDefaultSampler();
       }
       // First, read the Cloud Spanner schema.
-      final PCollectionView<SpannerSchema> schemaView = begin
+      final PCollectionView<SpannerSchema> schemaView = input.getPipeline()
           .apply(Create.of((Void) null))
           .apply("Read information schema",
               ParDo.of(new ReadSpannerSchema(spec.getSpannerConfig())))
@@ -762,7 +760,7 @@ public class SpannerIO {
       // Assign partition based on the closest element in the sample and group mutations.
       serialized
           .apply("Partition input",
-              ParDo.of(new AssignPartitionFn(sample)).withSideInputs(sample, schemaView))
+              ParDo.of(new AssignPartitionFn(sample)).withSideInputs(sample))
           .apply("Group by partition", GroupByKey.<String, KV<KV<String, byte[]>, byte[]>>create())
           .apply("Batch mutations together",
               ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
@@ -906,13 +904,10 @@ public class SpannerIO {
         batchSizeBytes += MutationSizeEstimator.sizeOf(mg);
         if (batchSizeBytes >= maxBatchSizeBytes || mutations.size() > 1000) {
           submitBatch();
-          mutations = new ArrayList<>();
-          batchSizeBytes = 0;
         }
       }
       if (!mutations.isEmpty()) {
         submitBatch();
-        batchSizeBytes = 0;
       }
     }
 
@@ -935,6 +930,8 @@ public class SpannerIO {
           }
         }
       }
+      mutations = new ArrayList<>();
+      batchSizeBytes = 0;
     }
   }
 
