@@ -93,7 +93,14 @@ func Convert(value reflect.Value, to reflect.Type) reflect.Value {
 		return ret
 
 	default:
-		return value
+		switch {
+		// Perform conservative type conversions.
+		case from == reflectx.ByteSlice && to == reflectx.String:
+			return value.Convert(to)
+
+		default:
+			return value
+		}
 	}
 }
 

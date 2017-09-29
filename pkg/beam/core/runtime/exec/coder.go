@@ -12,6 +12,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/ioutilx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // StreamID represents the information needed to identify a data stream.
@@ -25,10 +26,12 @@ func (id StreamID) String() string {
 	return fmt.Sprintf("S:%v:[%v:%v]:%v", id.Port.ID, id.Target.ID, id.Target.Name, id.InstID)
 }
 
+// DataReader is the interface for reading data elements from a particular stream.
 type DataReader interface {
 	OpenRead(ctx context.Context, id StreamID) (io.ReadCloser, error)
 }
 
+// DataWriter is the interface for writing data elements to a particular stream.
 type DataWriter interface {
 	OpenWrite(ctx context.Context, id StreamID) (io.WriteCloser, error)
 }
@@ -45,12 +48,13 @@ type DataManager interface {
 // work, because each "element" can be too large to fit into memory. Instead,
 // we handle the top GBK/CoGBK layer in the processing node directly.
 
+// EncodeElement uses the supplied coder to write the data in val to the supplied io.Writer.
 func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 	switch c.Kind {
 	case coder.Bytes:
 		// Encoding: size (varint) + raw data
 
-		data := val.Elm.Interface().([]byte)
+		data := reflectx.UnderlyingType(val.Elm).Convert(reflectx.ByteSlice).Interface().([]byte)
 		size := len(data)
 
 		if err := coder.EncodeVarInt((int32)(size), w); err != nil {
@@ -97,6 +101,7 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 	}
 }
 
+// DecodeElement uses the supplied coder to read data from the supplied Reader and return a data element.
 func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 	switch c.Kind {
 	case coder.Bytes:
@@ -159,6 +164,7 @@ func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 
 // TODO(herohde) 4/7/2017: actually handle windows.
 
+// EncodeWindowedValueHeader uses the supplied coder to serialize a windowed value header.
 func EncodeWindowedValueHeader(c *coder.Coder, t typex.EventTime, w io.Writer) error {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
@@ -174,6 +180,7 @@ func EncodeWindowedValueHeader(c *coder.Coder, t typex.EventTime, w io.Writer) e
 	return err
 }
 
+// DecodeWindowedValueHeader uses the supplied coder to deserialize a windowed value header.
 func DecodeWindowedValueHeader(c *coder.Coder, r io.Reader) (typex.EventTime, error) {
 	// Encoding: Timestamp, Window, Pane (header) + Element
 
