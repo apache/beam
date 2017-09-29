@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Apache Hadoop MapReduce Runner</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/runners/mapreduce/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Example Walkthroughs</li>
+            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Resources</li>
+            <li><a href="/get-started/downloads">Downloads</a></li>
+            <li><a href="/get-started/support">Support</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/documentation">Using the Documentation</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Beam Concepts</li>
+            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
+            <li><a href="/documentation/execution-model/">Execution Model</a></li>
+            <li><a href="/documentation/resources/">Additional Resources</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Pipeline Fundamentals</li>
+            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">SDKs</li>
+            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Runners</li>
+            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
+            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
+            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
+            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">DSLs</li>
+            <li><a href="/documentation/dsls/sql/">SQL</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/contribute">Get Started Contributing</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Guides</li>
+            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="/contribute/testing/">Testing Guide</a></li>
+            <li><a href="/contribute/release-guide/">Release Guide</a></li>
+            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical References</li>
+            <li><a href="/contribute/design-principles/">Design Principles</a></li>
+            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
+            <li><a href="/contribute/source-repository/">Source Repository</a></li>
+            <li><a href="/contribute/docker-images/">Docker Images</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Promotion</li>
+            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="/contribute/logos/">Logos and Design</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+            <li><a href="/contribute/team/">Team</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+</nav>
+
+    <div class="body__contained">
+      <h1 id="using-the-apache-hadoop-mapreduce-runner">Using the Apache Hadoop MapReduce Runner</h1>
+
+<p>The Apache Hadoop MapReduce Runner can be used to execute Beam pipelines using <a href="http://hadoop.apache.org/">Apache Hadoop</a>.</p>
+
+<p>The <a href="/documentation/runners/capability-matrix/">Beam Capability Matrix</a> documents the currently supported capabilities of the Apache Hadoop MapReduce Runner.</p>
+
+<h2 id="apache-hadoop-mapreduce-runner-prerequisites-and-setup">Apache Hadoop MapReduce Runner prerequisites and setup</h2>
+<p>You need to have an Apache Hadoop environment with either <a href="https://hadoop.apache.org/docs/r1.2.1/single_node_setup.html">Single Node Setup</a> or <a href="https://hadoop.apache.org/docs/r1.2.1/cluster_setup.html">Cluster Setup</a></p>
+
+<p>The Apache Hadoop MapReduce runner currently supports Apache Hadoop version 2.8.1.</p>
+
+<p>You can add a dependency on the latest version of the Apache Hadoop MapReduce runner by adding the following to your pom.xml:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
+  &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
+  &lt;artifactId&gt;beam-runners-mapreduce&lt;/artifactId&gt;
+  &lt;version&gt;2.1.0&lt;/version&gt;
+&lt;/dependency&gt;
+</code></pre>
+</div>
+
+<h2 id="deploying-apache-hadoop-mapreduce-with-your-application">Deploying Apache Hadoop MapReduce with your application</h2>
+<p>To execute in a local Hadoop environment, use this command:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
+    -Pmapreduce-runner \
+    -Dexec.args="--runner=MapReduceRunner \
+      --inputFile=/path/to/pom.xml \
+      --output=/path/to/counts \
+      --fileOutputDir=&lt;directory for intermediate outputs&gt;"
+</code></pre>
+</div>
+
+<p>To execute in a Hadoop cluster, package your program along with all dependencies in a fat jar.</p>
+
+<p>If you are following through the <a href="/get-started/quickstart-java/">Beam Java SDK Quickstart</a>, you can run this command:</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>$ mvn package -Pflink-runner
+</code></pre>
+</div>
+
+<p>For actually running the pipeline you would use this command</p>
+<div class="highlighter-rouge"><pre class="highlight"><code>$ yarn jar word-count-beam-bundled-0.1.jar \
+    org.apache.beam.examples.WordCount \
+    --runner=MapReduceRunner \
+    --inputFile=/path/to/pom.xml \
+      --output=/path/to/counts \
+      --fileOutputDir=&lt;directory for intermediate outputs&gt;"
+</code></pre>
+</div>
+
+<h2 id="pipeline-options-for-the-apache-hadoop-mapreduce-runner">Pipeline options for the Apache Hadoop MapReduce Runner</h2>
+
+<p>When executing your pipeline with the Apache Hadoop MapReduce Runner, you should consider the following pipeline options.</p>
+
+<table class="table table-bordered">
+<tr>
+  <th>Field</th>
+  <th>Description</th>
+  <th>Default Value</th>
+</tr>
+<tr>
+  <td><code>runner</code></td>
+  <td>The pipeline runner to use. This option allows you to determine the pipeline runner at runtime.</td>
+  <td>Set to <code>MapReduceRunner</code> to run using Apache Hadoop MapReduce.</td>
+</tr>
+<tr>
+  <td><code>jarClass</code></td>
+  <td>The jar class of the user Beam program.</td>
+  <td>JarClassInstanceFactory.class</td>
+</tr>
+<tr>
+  <td><code>fileOutputDir</code></td>
+  <td>The directory for output files.</td>
+  <td>"/tmp/mapreduce/"</td>
+</tr>
+</table>
+
+    </div>
+    <footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/team/">Team</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
