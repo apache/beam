@@ -36,6 +36,30 @@ List<Object> commitArg = [string(name: 'sha1', value: "origin/pr/${ghprbPullId}/
 
 int javaBuildNum = NO_BUILD
 
+final String JAVA_BUILD_TYPE = "java"
+final String PYTHON_BUILD_TYPE = "python"
+final String ALL_BUILD_TYPE = "all"
+
+def buildTypes = [
+        JAVA_BUILD_TYPE,
+        PYTHON_BUILD_TYPE,
+        ALL_BUILD_TYPE,
+]
+
+String currentBuildType = ALL_BUILD_TYPE
+String commentLower = ghprbCommentBody.toLowerCase()
+
+// Currently if there is nothing selected (e.g. the comment is just "retest this please") we select "all" by default.
+// In the future we should provide some mechanism, either via commenting or the suite failure message, to enforce
+// selection of one of the build types.
+if (!commentLower.isEmpty()) {
+    commentSplit = commentLower.split(' ')
+    buildType = commentSplit[commentSplit.length-1]
+    if (buildTypes.contains(buildType)) {
+        currentBuildType = buildType
+    }
+}
+
 // This (and the below) define "Stages" of a pipeline. These stages run serially, and inside can
 // have "parallel" blocks which execute several work steps concurrently. This work is limited to
 // simple operations -- more complicated operations need to be performed on an actual node. In this
@@ -43,13 +67,25 @@ int javaBuildNum = NO_BUILD
 stage('Build') {
     parallel (
         java: {
-            def javaBuild = build job: 'beam_Java_Build', parameters: commitArg + ghprbArgs
-            if(javaBuild.getResult() == Result.SUCCESS.toString()) {
-                javaBuildNum = javaBuild.getNumber()
+            if (currentBuildType == JAVA_BUILD_TYPE || currentBuildType == ALL_BUILD_TYPE) {
+                def javaBuild = build job: 'beam_Java_Build', parameters: commitArg + ghprbArgs
+                if (javaBuild.getResult() == Result.SUCCESS.toString()) {
+                    javaBuildNum = javaBuild.getNumber()
+                }
+            } else {
+                echo 'Skipping Java due to comment selecting non-Java execution: ' + ghprbCommentBody
             }
         },
         python_unit: { // Python doesn't have a build phase, so we include this here.
-            build job: 'beam_Python_UnitTest', parameters: commitArg + ghprbArgs
+            if (currentBuildType == PYTHON_BUILD_TYPE || currentBuildType == ALL_BUILD_TYPE) {
+                try {
+                    build job: 'beam_Python_UnitTest', parameters: commitArg + ghprbArgs
+                } catch (Exception e) {
+                    echo 'Python build failed: ' + e.toString()
+                }
+            } else {
+                echo 'Skipping Python due to comment selecting non-Python execution: ' + ghprbCommentBody
+            }
         }
     )
 }
@@ -70,7 +106,11 @@ stage('Unit Test / Code Health') {
         },
         java_codehealth: {
             if(javaBuildNum != NO_BUILD) {
-                build job: 'beam_Java_CodeHealth', parameters: javaBuildArg + ghprbArgs
+                try {
+                    build job: 'beam_Java_CodeHealth', parameters: javaBuildArg + ghprbArgs
+                } catch (Exception e) {
+                    echo 'Java CodeHealth Build Failed: ' + e.toString()
+                }
             }
         }
     )

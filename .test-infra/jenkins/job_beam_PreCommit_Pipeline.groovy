@@ -58,7 +58,7 @@ pipelineJob('beam_PreCommit_Pipeline') {
       allowMembersOfWhitelistedOrgsAsAdmin()
       permitAll()
       // Remove once Pipeline Build is default.
-      triggerPhrase('Run PreCommit Pipeline')
+      triggerPhrase('^Run PreCommit Pipeline (((Python|Java))|All)$')
       onlyTriggerPhrase()
       displayBuildErrorsOnDownstreamBuilds()
       extensions {
