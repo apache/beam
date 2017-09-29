@@ -72,6 +72,7 @@ public class TikaIOTest {
   @Rule
   public TestPipeline p = TestPipeline.create();
 
+  @Ignore
   @Test
   public void testReadPdfFile() throws IOException {
 
