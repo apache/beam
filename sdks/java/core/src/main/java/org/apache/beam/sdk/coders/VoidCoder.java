@@ -41,7 +41,7 @@ public class VoidCoder extends AtomicCoder<Void> {
   @Override
   public void encode(Void value, OutputStream outStream) throws IOException {
     if (value != null) {
-      throw (new IOException("Attempting to encode non-null value with VoidCoder."));
+      throw new IOException("Attempting to encode non-null value with VoidCoder.");
     }
     // Nothing to write!
   }

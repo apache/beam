@@ -63,7 +63,7 @@ public class WithKeysTest {
     KV.of(100, "bbb")
   );
 
-  private static final List<KV<Void, String>> WITH_CONST_KEYS_NULL = Arrays.asList(
+  private static final List<KV<Void, String>> WITH_CONST_NULL_KEYS = Arrays.asList(
       KV.of((Void) null, "a"),
       KV.of((Void) null, "aa"),
       KV.of((Void) null, "b"),
@@ -117,7 +117,7 @@ public class WithKeysTest {
     PCollection<KV<Void, String>> output =
         input.apply(WithKeys.<Void, String>of((Void) null));
     PAssert.that(output)
-        .containsInAnyOrder(WITH_CONST_KEYS_NULL);
+        .containsInAnyOrder(WITH_CONST_NULL_KEYS);
 
     p.run();
   }
