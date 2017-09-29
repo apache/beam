@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.portability.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 

@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.triggers;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.joda.time.Duration;
 import org.joda.time.Instant;

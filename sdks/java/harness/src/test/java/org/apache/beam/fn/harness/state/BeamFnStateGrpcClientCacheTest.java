@@ -44,7 +44,7 @@ import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
 import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
 import org.apache.beam.fn.v1.BeamFnStateGrpc;
-import org.apache.beam.portability.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.After;
 import org.junit.Before;

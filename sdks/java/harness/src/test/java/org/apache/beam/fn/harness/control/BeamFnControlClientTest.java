@@ -42,7 +42,7 @@ import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.fn.harness.test.TestStreams;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnControlGrpc;
-import org.apache.beam.portability.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

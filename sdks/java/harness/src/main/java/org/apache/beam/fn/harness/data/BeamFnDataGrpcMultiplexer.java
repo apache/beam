@@ -27,14 +27,14 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.portability.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A gRPC multiplexer for a specific {@link
- * org.apache.beam.portability.v1.Endpoints.ApiServiceDescriptor}.
+ * Endpoints.ApiServiceDescriptor}.
  *
  * <p>Multiplexes data for inbound consumers based upon their individual {@link
  * org.apache.beam.fn.v1.BeamFnApi.Target}s.
