@@ -22,14 +22,8 @@ limit the distribution of output to other machines.
 
 ### Serialization and communication
 
-The runner may serialize elements between machines for communication purposes
-and for other reasons such as persistence. For example, a runner may serialize
-and persist elements in these two situations.
-
-1. When used as part of a stateful `DoFn`, the runner may persist values to some
-   state mechanism.
-1. When committing the results of processing, the runner may persist the outputs
-   as a checkpoint.
+The runner might serialize elements between machines for communication purposes
+and for other reasons such as persistence.
 
 A runner may decide to transfer elements between transforms in a variety of
 ways, such as:
@@ -45,6 +39,13 @@ ways, such as:
 1.  Passing elements between transforms that are running on the same worker.
     This may allow the runner to avoid serializing elements; instead, the runner
     can just pass the elements in memory.
+
+Some situations where the runner may serialize and persist elements are:
+
+1. When used as part of a stateful `DoFn`, the runner may persist values to some
+   state mechanism.
+1. When committing the results of processing, the runner may persist the outputs
+   as a checkpoint.
 
 ### Bundling and persistence
 
@@ -165,7 +166,7 @@ down and abandoned.
 If a failure to process an element in `ParDo2` causes `ParDo1` to re-execute,
 these two steps are said to be _co-failing_.
 
-For this example, we will use the dependently parallel `ParDo`s from figure 4.
+For this example, we will use the two `ParDo`s from figure 4.
 
 In figure 7, worker two successfully executes `ParDo1` on all elements in bundle
 B. However, the worker fails to process an element in bundle D, so `ParDo2`
