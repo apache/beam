@@ -57,13 +57,13 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public class BeamFnLoggingClient implements AutoCloseable {
   private static final String ROOT_LOGGER_NAME = "";
-  private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity> LOG_LEVEL_MAP =
-      ImmutableMap.<Level, BeamFnApi.LogEntry.Severity>builder()
-      .put(Level.SEVERE, BeamFnApi.LogEntry.Severity.ERROR)
-      .put(Level.WARNING, BeamFnApi.LogEntry.Severity.WARN)
-      .put(Level.INFO, BeamFnApi.LogEntry.Severity.INFO)
-      .put(Level.FINE, BeamFnApi.LogEntry.Severity.DEBUG)
-      .put(Level.FINEST, BeamFnApi.LogEntry.Severity.TRACE)
+  private static final ImmutableMap<Level, BeamFnApi.LogEntry.Severity.Enum> LOG_LEVEL_MAP =
+      ImmutableMap.<Level, BeamFnApi.LogEntry.Severity.Enum>builder()
+      .put(Level.SEVERE, BeamFnApi.LogEntry.Severity.Enum.ERROR)
+      .put(Level.WARNING, BeamFnApi.LogEntry.Severity.Enum.WARN)
+      .put(Level.INFO, BeamFnApi.LogEntry.Severity.Enum.INFO)
+      .put(Level.FINE, BeamFnApi.LogEntry.Severity.Enum.DEBUG)
+      .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
       .build();
 
   private static final ImmutableMap<DataflowWorkerLoggingOptions.Level, Level> LEVEL_CONFIGURATION =
@@ -190,7 +190,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
     @Override
     public void publish(LogRecord record) {
-      BeamFnApi.LogEntry.Severity severity = LOG_LEVEL_MAP.get(record.getLevel());
+      BeamFnApi.LogEntry.Severity.Enum severity = LOG_LEVEL_MAP.get(record.getLevel());
       if (severity == null) {
         return;
       }

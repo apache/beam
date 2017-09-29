@@ -74,7 +74,8 @@ class FnApiLogRecordHandlerTest(unittest.TestCase):
     num_received_log_entries = 0
     for outer in self.test_logging_service.log_records_received:
       for log_entry in outer.log_entries:
-        self.assertEqual(beam_fn_api_pb2.LogEntry.INFO, log_entry.severity)
+        self.assertEqual(beam_fn_api_pb2.LogEntry.Severity.INFO,
+                         log_entry.severity)
         self.assertEqual('%s: %s' % (msg, num_received_log_entries),
                          log_entry.message)
         self.assertEqual(u'log_handler_test._verify_fn_log_handler',

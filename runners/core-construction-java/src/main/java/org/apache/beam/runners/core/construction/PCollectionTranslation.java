@@ -62,19 +62,19 @@ public class PCollectionTranslation {
     return fromProto(pCollection.getIsBounded());
   }
 
-  static RunnerApi.IsBounded toProto(IsBounded bounded) {
+  static RunnerApi.IsBounded.Enum toProto(IsBounded bounded) {
     switch (bounded) {
       case BOUNDED:
-        return RunnerApi.IsBounded.BOUNDED;
+        return RunnerApi.IsBounded.Enum.BOUNDED;
       case UNBOUNDED:
-        return RunnerApi.IsBounded.UNBOUNDED;
+        return RunnerApi.IsBounded.Enum.UNBOUNDED;
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", IsBounded.class.getSimpleName(), bounded));
     }
   }
 
-  static IsBounded fromProto(RunnerApi.IsBounded isBounded) {
+  static IsBounded fromProto(RunnerApi.IsBounded.Enum isBounded) {
     switch (isBounded) {
       case BOUNDED:
         return IsBounded.BOUNDED;

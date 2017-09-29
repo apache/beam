@@ -148,7 +148,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
 
 class PipelineResult(runner.PipelineResult):
   def __init__(self, job_service, job_id):
-    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNKNOWN)
+    super(PipelineResult, self).__init__(beam_job_api_pb2.JobState.UNSPECIFIED)
     self._job_service = job_service
     self._job_id = job_id
     self._messages = []
@@ -167,11 +167,11 @@ class PipelineResult(runner.PipelineResult):
   def _runner_api_state_to_pipeline_state(runner_api_state):
     return getattr(
         runner.PipelineState,
-        beam_job_api_pb2.JobState.JobStateType.Name(runner_api_state))
+        beam_job_api_pb2.JobState.Enum.Name(runner_api_state))
 
   @staticmethod
   def _pipeline_state_to_runner_api_state(pipeline_state):
-    return beam_job_api_pb2.JobState.JobStateType.Value(pipeline_state)
+    return beam_job_api_pb2.JobState.Enum.Value(pipeline_state)
 
   def wait_until_finish(self):
     def read_messages():

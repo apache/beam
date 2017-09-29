@@ -1385,16 +1385,16 @@ class Windowing(object):
     return beam_runner_api_pb2.WindowingStrategy(
         window_fn=self.windowfn.to_runner_api(context),
         # TODO(robertwb): Prohibit implicit multi-level merging.
-        merge_status=(beam_runner_api_pb2.NEEDS_MERGE
+        merge_status=(beam_runner_api_pb2.MergeStatus.NEEDS_MERGE
                       if self.windowfn.is_merging()
-                      else beam_runner_api_pb2.NON_MERGING),
+                      else beam_runner_api_pb2.MergeStatus.NON_MERGING),
         window_coder_id=context.coders.get_id(
             self.windowfn.get_window_coder()),
         trigger=self.triggerfn.to_runner_api(context),
         accumulation_mode=self.accumulation_mode,
         output_time=self.timestamp_combiner,
         # TODO(robertwb): Support EMIT_IF_NONEMPTY
-        closing_behavior=beam_runner_api_pb2.EMIT_ALWAYS,
+        closing_behavior=beam_runner_api_pb2.ClosingBehavior.EMIT_ALWAYS,
         allowed_lateness=0)
 
   @staticmethod

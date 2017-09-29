@@ -58,8 +58,8 @@ __all__ = [
 class AccumulationMode(object):
   """Controls what to do with data when a trigger fires multiple times.
   """
-  DISCARDING = beam_runner_api_pb2.DISCARDING
-  ACCUMULATING = beam_runner_api_pb2.ACCUMULATING
+  DISCARDING = beam_runner_api_pb2.AccumulationMode.DISCARDING
+  ACCUMULATING = beam_runner_api_pb2.AccumulationMode.ACCUMULATING
   # TODO(robertwb): Provide retractions of previous outputs.
   # RETRACTING = 3
 

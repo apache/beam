@@ -630,29 +630,31 @@ message LogEntry {
   // common set of "good enough" severity levels so that logging front ends
   // can provide filtering and searching across log types. Users of the API are
   // free not to use all severity levels in their log messages.
-  enum Severity {
-    SEVERITY_UNSPECIFIED = 0;
-    // Trace level information, also the default log level unless
-    // another severity is specified.
-    TRACE = 1;
-    // Debugging information.
-    DEBUG = 2;
-    // Normal events.
-    INFO = 3;
-    // Normal but significant events, such as start up, shut down, or
-    // configuration.
-    NOTICE = 4;
-    // Warning events might cause problems.
-    WARN = 5;
-    // Error events are likely to cause problems.
-    ERROR = 6;
-    // Critical events cause severe problems or brief outages and may
-    // indicate that a person must take action.
-    CRITICAL = 7;
+  message Severity {
+    enum Enum {
+      UNSPECIFIED = 0;
+      // Trace level information, also the default log level unless
+      // another severity is specified.
+      TRACE = 1;
+      // Debugging information.
+      DEBUG = 2;
+      // Normal events.
+      INFO = 3;
+      // Normal but significant events, such as start up, shut down, or
+      // configuration.
+      NOTICE = 4;
+      // Warning events might cause problems.
+      WARN = 5;
+      // Error events are likely to cause problems.
+      ERROR = 6;
+      // Critical events cause severe problems or brief outages and may
+      // indicate that a person must take action.
+      CRITICAL = 7;
+    }
   }
 
   // (Required) The severity of the log statement.
-  Severity severity = 1;
+  Severity.Enum severity = 1;
 
   // (Required) The time at which this log statement occurred.
   google.protobuf.Timestamp timestamp = 2;
