@@ -82,6 +82,7 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.testing.UsesImplicitSideInputs;
 import org.apache.beam.sdk.testing.UsesMapState;
 import org.apache.beam.sdk.testing.UsesSetState;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -563,6 +564,111 @@ public class ParDoTest implements Serializable {
                    .forInput(inputs)
                    .andSideInputs(11, 222));
 
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesImplicitSideInputs.class})
+  public void testParDoWithImplicitSideInputs() {
+    final PCollectionView<String> foo = pipeline
+        .apply("Create foo", Create.of("foo"))
+        .apply("Singleton", View.<String>asSingleton());
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(1, 2, 3))
+            .apply(
+                ParDo.of(
+                        new DoFn<Integer, String>() {
+                          @ProcessElement
+                          public void process(ProcessContext c) {
+                            c.output(foo.get() + " " + c.element());
+                          }
+                        })
+                    .withSideInputs(foo));
+
+    PAssert.that(output).containsInAnyOrder("foo 1", "foo 2", "foo 3");
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesImplicitSideInputs.class})
+  public void testParDoWithImplicitSideInputsUndeclared() {
+    final PCollectionView<String> foo = pipeline
+        .apply("Create foo", Create.of("foo"))
+        .apply("As singleton", View.<String>asSingleton());
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                new DoFn<Integer, String>() {
+                  @ProcessElement
+                  public void process(ProcessContext c) {
+                    c.output(foo.get() + " " + c.element());
+                  }
+                }));
+
+    thrown.expectMessage("undeclared side input view");
+    thrown.expectMessage("Create foo");
+    thrown.expectMessage("As singleton");
+    thrown.expectMessage(".withSideInputs()");
+
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesImplicitSideInputs.class})
+  public void testParDoWithImplicitSideInputsFromStartBundle() {
+    final PCollectionView<String> foo = pipeline
+        .apply("Create foo", Create.of("foo"))
+        .apply("Singleton", View.<String>asSingleton());
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                    new DoFn<Integer, String>() {
+                      @ProcessElement
+                      public void process(ProcessContext c) {}
+
+                      @StartBundle
+                      public void startBundle(StartBundleContext c) {
+                        // Should fail
+                        foo.get();
+                      }
+                    })
+                .withSideInputs(foo));
+
+    thrown.expectMessage("currently not in a context where side inputs are available");
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesImplicitSideInputs.class})
+  public void testParDoWithImplicitSideInputsFromFinishBundle() {
+    final PCollectionView<String> foo = pipeline
+        .apply("Create foo", Create.of("foo"))
+        .apply("Singleton", View.<String>asSingleton());
+
+    pipeline
+        .apply(Create.of(1, 2, 3))
+        .apply(
+            ParDo.of(
+                    new DoFn<Integer, String>() {
+                      @ProcessElement
+                      public void process(ProcessContext c) {}
+
+                      @FinishBundle
+                      public void finishBundle(StartBundleContext c) {
+                        // Should fail
+                        foo.get();
+                      }
+                    })
+                .withSideInputs(foo));
+
+    thrown.expectMessage("Current thread is not in a context where side inputs are available");
     pipeline.run();
   }
 

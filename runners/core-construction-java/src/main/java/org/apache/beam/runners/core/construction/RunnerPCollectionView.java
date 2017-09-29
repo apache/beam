@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.core.construction;
 
+import static org.apache.beam.sdk.values.PCollectionViews.getCurrentSideInputContext;
+
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -35,6 +37,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** A {@link PCollectionView} created from the components of a {@link SideInput}. */
 class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> {
+  public static final long serialVersionUID = 2465466441736952633L;
+
   private final TupleTag<Iterable<WindowedValue<?>>> tag;
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
   private final WindowMappingFn<?> windowMappingFn;
@@ -58,6 +62,11 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
     this.windowMappingFn = windowMappingFn;
     this.windowingStrategy = windowingStrategy;
     this.coder = coder;
+  }
+
+  @Override
+  public T get() throws IllegalStateException {
+    return getCurrentSideInputContext().sideInput(this);
   }
 
   @Override

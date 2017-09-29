@@ -19,6 +19,7 @@ package org.apache.beam.runners.core;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.values.PCollectionViews.setCurrentSideInputContext;
 
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
@@ -31,8 +32,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
-import org.apache.beam.sdk.transforms.DoFn.StartBundleContext;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -40,6 +39,8 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionViews.SideInputContext;
 import org.apache.beam.sdk.values.TupleTag;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -98,65 +99,72 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       final WindowedValue<InputT> element,
       final TrackerT tracker) {
     final ProcessContext processContext = new ProcessContext(element, tracker);
-    DoFn.ProcessContinuation cont = invoker.invokeProcessElement(
-        new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
-          @Override
-          public DoFn<InputT, OutputT>.ProcessContext processContext(
-              DoFn<InputT, OutputT> doFn) {
-            return processContext;
-          }
+    DoFn.ProcessContinuation cont;
+    try (PCollectionViews.ScopedSideInputContext ignored =
+             setCurrentSideInputContext(processContext)) {
+      cont =
+          invoker.invokeProcessElement(
+              new DoFnInvoker.ArgumentProvider<InputT, OutputT>() {
+                @Override
+                public DoFn<InputT, OutputT>.ProcessContext processContext(
+                    DoFn<InputT, OutputT> doFn) {
+                  return processContext;
+                }
 
-          @Override
-          public RestrictionTracker<?> restrictionTracker() {
-            return tracker;
-          }
+                @Override
+                public RestrictionTracker<?> restrictionTracker() {
+                  return tracker;
+                }
 
-          // Unsupported methods below.
+                // Unsupported methods below.
 
-          @Override
-          public BoundedWindow window() {
-            throw new UnsupportedOperationException(
-                "Access to window of the element not supported in Splittable DoFn");
-          }
+                @Override
+                public BoundedWindow window() {
+                  throw new UnsupportedOperationException(
+                      "Access to window of the element not supported in Splittable DoFn");
+                }
 
-          @Override
-          public PipelineOptions pipelineOptions() {
-            return pipelineOptions;
-          }
+                @Override
+                public PipelineOptions pipelineOptions() {
+                  return pipelineOptions;
+                }
 
-          @Override
-          public StartBundleContext startBundleContext(DoFn<InputT, OutputT> doFn) {
-            throw new IllegalStateException(
-                "Should not access startBundleContext() from @"
-                    + DoFn.ProcessElement.class.getSimpleName());
-          }
+                @Override
+                public DoFn<InputT, OutputT>.StartBundleContext startBundleContext(
+                    DoFn<InputT, OutputT> doFn) {
+                  throw new IllegalStateException(
+                      "Should not access startBundleContext() from @"
+                          + DoFn.ProcessElement.class.getSimpleName());
+                }
 
-          @Override
-          public FinishBundleContext finishBundleContext(DoFn<InputT, OutputT> doFn) {
-            throw new IllegalStateException(
-                "Should not access finishBundleContext() from @"
-                    + DoFn.ProcessElement.class.getSimpleName());
-          }
+                @Override
+                public DoFn<InputT, OutputT>.FinishBundleContext finishBundleContext(
+                    DoFn<InputT, OutputT> doFn) {
+                  throw new IllegalStateException(
+                      "Should not access finishBundleContext() from @"
+                          + DoFn.ProcessElement.class.getSimpleName());
+                }
 
-          @Override
-          public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
-              DoFn<InputT, OutputT> doFn) {
-            throw new UnsupportedOperationException(
-                "Access to timers not supported in Splittable DoFn");
-          }
+                @Override
+                public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(
+                    DoFn<InputT, OutputT> doFn) {
+                  throw new UnsupportedOperationException(
+                      "Access to timers not supported in Splittable DoFn");
+                }
 
-          @Override
-          public State state(String stateId) {
-            throw new UnsupportedOperationException(
-                "Access to state not supported in Splittable DoFn");
-          }
+                @Override
+                public State state(String stateId) {
+                  throw new UnsupportedOperationException(
+                      "Access to state not supported in Splittable DoFn");
+                }
 
-          @Override
-          public Timer timer(String timerId) {
-            throw new UnsupportedOperationException(
-                "Access to timers not supported in Splittable DoFn");
-          }
-        });
+                @Override
+                public Timer timer(String timerId) {
+                  throw new UnsupportedOperationException(
+                      "Access to timers not supported in Splittable DoFn");
+                }
+              });
+    }
     // TODO: verify that if there was a failed tryClaim() call, then cont.shouldResume() is false.
     // Currently we can't verify this because there are no hooks into tryClaim().
     // See https://issues.apache.org/jira/browse/BEAM-2607
@@ -197,7 +205,8 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     return new Result(residual.getKey(), cont, residual.getValue());
   }
 
-  private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext {
+  private class ProcessContext extends DoFn<InputT, OutputT>.ProcessContext
+      implements SideInputContext {
     private final WindowedValue<InputT> element;
     private final TrackerT tracker;
 
