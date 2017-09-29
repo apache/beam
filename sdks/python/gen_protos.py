@@ -32,6 +32,9 @@ import warnings
 GRPC_TOOLS = 'grpcio-tools>=1.3.5'
 
 BEAM_PROTO_PATHS = [
+  os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
+  os.path.join('..', '..', 'model', 'job-management', 'src', 'main', 'proto'),
+  os.path.join('..', '..', 'model', 'fn-execution', 'src', 'main', 'proto'),
   os.path.join('..', 'common', 'runner-api', 'src', 'main', 'proto'),
   os.path.join('..', 'common', 'fn-api', 'src', 'main', 'proto')
 ]
