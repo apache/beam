@@ -36,16 +36,27 @@ List<Object> commitArg = [string(name: 'sha1', value: "origin/pr/${ghprbPullId}/
 
 int javaBuildNum = NO_BUILD
 
-boolean testJava = true
-boolean testPython = true
+final String JAVA_BUILD_TYPE = "java"
+final String PYTHON_BUILD_TYPE = "python"
+final String ALL_BUILD_TYPE = "all"
 
+def buildTypes = [
+        JAVA_BUILD_TYPE,
+        PYTHON_BUILD_TYPE,
+        ALL_BUILD_TYPE,
+]
+
+String currentBuildType = allBuildType
 String commentLower = ghprbCommentBody.toLowerCase()
 
+// Currently if there is nothing selected (e.g. the comment is just "retest this please") we select "all" by default.
+// In the future we should provide some mechanism, either via commenting or the suite failure message, to enforce
+// selection of one of the build types.
 if (!commentLower.isEmpty()) {
-    if (commentLower.endsWith('python only')) {
-        testJava = false
-    } else if (commentLower.endsWith('java only')) {
-        testPython = false
+    commentSplit = commentLower.split(' ')
+    buildType = commentSplit[commentSplit.length-1]
+    if (buildTypes.contains(buildType)) {
+        currentBuildType = buildType
     }
 }
 
@@ -56,24 +67,24 @@ if (!commentLower.isEmpty()) {
 stage('Build') {
     parallel (
         java: {
-            if (testJava) {
+            if (currentBuildType == javaBuildType || currentBuildType == allBuildType) {
                 def javaBuild = build job: 'beam_Java_Build', parameters: commitArg + ghprbArgs
                 if (javaBuild.getResult() == Result.SUCCESS.toString()) {
                     javaBuildNum = javaBuild.getNumber()
                 }
             } else {
-                echo 'Skipping Java due to comment ending in "python only": ' + ghprbCommentBody
+                echo 'Skipping Java due to comment selecting non-Java execution: ' + ghprbCommentBody
             }
         },
         python_unit: { // Python doesn't have a build phase, so we include this here.
-            if (testPython) {
+            if (currentBuildType == pythonBuildType || currentBuildType == allBuildType) {
                 try {
                     build job: 'beam_Python_UnitTest', parameters: commitArg + ghprbArgs
                 } catch (Exception e) {
                     echo 'Python build failed: ' + e.toString()
                 }
             } else {
-                echo 'Skipping Python due to comment ending in "java only": ' + ghprbCommentBody
+                echo 'Skipping Python due to comment selecting non-Python execution: ' + ghprbCommentBody
             }
         }
     )
