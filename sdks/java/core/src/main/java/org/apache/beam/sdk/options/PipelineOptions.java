@@ -380,7 +380,7 @@ public interface PipelineOptions extends HasDisplayData {
 
   /**
    * Returns a user agent string constructed from {@link ReleaseInfo#getName()} and
-   * {@link ReleaseInfo#getVersion()}, in the format "[name]/[version]".
+   * {@link ReleaseInfo#getVersion()}, in the format {@code [name]/[version]}.
    */
   class UserAgentFactory implements DefaultValueFactory<String> {
     @Override
