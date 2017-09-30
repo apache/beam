@@ -31,9 +31,6 @@ set -v
 # pip install --user installation location.
 LOCAL_PATH=$HOME/.local/bin/
 
-# Remove any tox cache from previous workspace
-rm -rf sdks/python/target/.tox
-
 # INFRA does not install virtualenv
 pip install virtualenv --user
 
@@ -42,9 +39,6 @@ ${LOCAL_PATH}/virtualenv sdks/python
 . sdks/python/bin/activate
 cd sdks/python
 pip install -e .[gcp,test]
-
-
-# Run tests on the service.
 
 # Where to store integration test outputs.
 GCS_LOCATION=gs://temp-storage-for-end-to-end-tests
