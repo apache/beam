@@ -1,0 +1,64 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// beamctl is a command line client for the Apache Beam portability services.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+)
+
+var (
+	rootCmd = &cobra.Command{
+		Use:   "beamctl",
+		Short: "Apache Beam command line client",
+	}
+
+	id       string
+	endpoint string
+)
+
+func init() {
+	rootCmd.AddCommand(artifactCmd)
+	rootCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", "", "Server endpoint, such as localhost:123")
+	rootCmd.PersistentFlags().StringVarP(&id, "id", "i", "", "Client ID")
+}
+
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
+// dial connects via gRPC to the given endpoint and returns the connection
+// and the context to use.
+func dial() (context.Context, *grpc.ClientConn, error) {
+	if endpoint == "" {
+		return nil, nil, errors.New("endpoint not defined")
+	}
+
+	ctx := grpcx.WriteWorkerId(context.Background(), id)
+	cc, err := grpcx.Dial(ctx, endpoint, time.Minute)
+	return ctx, cc, err
+}
