@@ -42,6 +42,7 @@
   </properties>
 
   <modules>
+    <module>amazon-web-services</module>
     <module>amqp</module>
     <module>cassandra</module>
     <module>common</module>
