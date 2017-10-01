@@ -34,6 +34,7 @@
 
   <modules>
     <module>common</module>
+    <module>go</module>
     <module>java</module>
     <module>python</module>
   </modules>

@@ -16,63 +16,23 @@
     limitations under the License.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-parent</artifactId>
+    <artifactId>beam-runners-parent</artifactId>
     <version>2.2.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-parent</artifactId>
+  <artifactId>beam-runners-gcp-parent</artifactId>
 
   <packaging>pom</packaging>
 
-  <name>Apache Beam :: Runners</name>
+  <name>Apache Beam :: Runners :: Google Cloud Platform</name>
 
   <modules>
-    <module>core-construction-java</module>
-    <module>core-java</module>
-    <module>local-artifact-service-java</module>
-    <module>direct-java</module>
-    <module>flink</module>
-    <module>google-cloud-dataflow-java</module>
-    <module>spark</module>
-    <module>apex</module>
-    <module>gcp</module>
+    <module>gcemd</module>
+    <module>gcsproxy</module>
   </modules>
-
-  <profiles>
-    <profile>
-      <id>release</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>findbugs-maven-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>java8</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>gearpump</module>
-      </modules>
-    </profile>
-  </profiles>
-
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 </project>

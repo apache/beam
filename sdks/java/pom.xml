@@ -54,6 +54,7 @@
       </activation>
       <modules>
         <module>harness</module>
+        <module>container</module>
         <module>java8tests</module>
       </modules>
     </profile>
