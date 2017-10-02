@@ -150,7 +150,7 @@ class ProcessContinuation(object):
   input element.
   """
 
-  def __init__(self, should_resume, resume_delay=0):
+  def __init__(self, resume_delay=0):
     """Initializes a ProcessContinuation object.
 
     Args:
