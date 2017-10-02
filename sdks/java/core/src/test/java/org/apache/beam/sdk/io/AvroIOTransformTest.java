@@ -41,11 +41,18 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Sample;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -271,6 +278,17 @@ public class AvroIOTransformTest {
         }
         return (List<T>) genericRecords;
       }
+    }
+
+    private List<GenericRecord> readAvroFileWithGenericRecords(final File avroFile) throws IOException {
+      final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA);
+      final List<GenericRecord> genericRecords = new ArrayList<>();
+      try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(avroFile, datumReader)) {
+        while (dataFileReader.hasNext()) {
+          genericRecords.add(dataFileReader.next());
+        }
+      }
+      return genericRecords;
     }
 
     @Parameterized.Parameters(name = "{0}_with_{1}")

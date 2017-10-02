@@ -24,7 +24,9 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.CodecFactory;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericDatumWriter;
+import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumWriter;
+import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumWriter;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -78,6 +80,10 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
     private DataFileWriter<OutputT> dataFileWriter;
     private final DynamicAvroDestinations<?, DestinationT, ?> dynamicDestinations;
     private final boolean genericRecords;
+    private WritableByteChannel channel;
+    private DatumWriter<OutputT> datumWriter;
+    private boolean dataFileWriterAlreadyLazyInitialized;
+    private Schema schema;
 
     public AvroWriter(
         WriteOperation<DestinationT, OutputT> writeOperation,
@@ -93,13 +99,17 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
     protected void prepareWrite(WritableByteChannel channel) throws Exception {
       DestinationT destination = getDestination();
       CodecFactory codec = dynamicDestinations.getCodec(destination);
-      Schema schema = dynamicDestinations.getSchema(destination);
+      schema = dynamicDestinations.getSchema(destination);
       Map<String, Object> metadata = dynamicDestinations.getMetadata(destination);
+      this.channel = channel;
 
-      DatumWriter<OutputT> datumWriter =
-          genericRecords
-              ? new GenericDatumWriter<OutputT>(schema)
-              : new ReflectDatumWriter<OutputT>(schema);
+
+      if (schema != null) {
+        datumWriter = genericRecords ? new GenericDatumWriter<OutputT>(schema) : new ReflectDatumWriter<OutputT>(
+            schema);
+      } else { // lazy init
+        datumWriter = genericRecords ? new GenericDatumWriter<OutputT>() : new ReflectDatumWriter<OutputT>();
+      }
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
         Object v = entry.getValue();
@@ -115,17 +125,35 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
                   + v.getClass().getSimpleName());
         }
       }
-      dataFileWriter.create(schema, Channels.newOutputStream(channel));
+      if (schema != null){ //else lazy init
+        dataFileWriter.create(schema, Channels.newOutputStream(channel));
+      }
     }
 
     @Override
     public void write(OutputT value) throws Exception {
+      // lazy init dataFileWriter at first write once we have the value to get the schema from
+      // if the schema was unspecified. Take care to init only once.
+      if (schema == null && !dataFileWriterAlreadyLazyInitialized) {
+        //TODO if empty bundle and unspecified schema,
+        // write will not be called and dataFileWriter will not be initialized
+        lazyInitDataFileWriter(value);
+        dataFileWriterAlreadyLazyInitialized = true;
+      }
       dataFileWriter.append(value);
+    }
+
+    private void lazyInitDataFileWriter(OutputT value) throws java.io.IOException {
+      schema = genericRecords ?
+            ((GenericRecord) value).getSchema() :
+            ReflectData.get().getSchema(value.getClass());
+        datumWriter.setSchema(schema);
+        dataFileWriter.create(schema, Channels.newOutputStream(channel));
     }
 
     @Override
     protected void finishWrite() throws Exception {
-      dataFileWriter.flush();
+        dataFileWriter.flush();
     }
   }
 }

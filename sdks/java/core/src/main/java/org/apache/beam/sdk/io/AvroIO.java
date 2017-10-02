@@ -181,23 +181,19 @@ import org.joda.time.Duration;
  *
  * <h3>Writing specific or generic records</h3>
  *
- * <p>To write specific records, such as Avro-generated classes, use {@link #write(Class)}. To write
- * {@link GenericRecord GenericRecords}, use either {@link #writeGenericRecords(Schema)} which takes
- * a {@link Schema} object, or {@link #writeGenericRecords(String)} which takes a schema in a
- * JSON-encoded string form. An exception will be thrown if a record doesn't match the specified
- * schema.
+ * <p>To write specific records, such as Avro-generated classes, use {@link #write()}. To write
+ * {@link GenericRecord GenericRecords}, use {@link #writeGenericRecords()}
  *
  * <p>For example:
  *
  * <pre>{@code
  * // A simple Write to a local file (only runs locally):
  * PCollection<AvroAutoGenClass> records = ...;
- * records.apply(AvroIO.write(AvroAutoGenClass.class).to("/path/to/file.avro"));
+ * records.apply(AvroIO.write().to("/path/to/file.avro"));
  *
  * // A Write to a sharded GCS file (runs locally and using remote execution):
- * Schema schema = new Schema.Parser().parse(new File("schema.avsc"));
  * PCollection<GenericRecord> records = ...;
- * records.apply("WriteToAvro", AvroIO.writeGenericRecords(schema)
+ * records.apply("WriteToAvro", AvroIO.writeGenericRecords()
  *     .to("gs://my_bucket/path/to/numbers")
  *     .withSuffix(".avro"));
  * }</pre>
@@ -355,6 +351,7 @@ public class AvroIO {
    * Writes a {@link PCollection} to an Avro file (or multiple Avro files matching a sharding
    * pattern).
    */
+  @Deprecated
   public static <T> Write<T> write(Class<T> recordClass) {
     return new Write<>(
         AvroIO.<T, T>defaultWriteBuilder()
@@ -363,12 +360,32 @@ public class AvroIO {
             .build());
   }
 
+  /**
+   * Writes a {@link PCollection} to an Avro file (or multiple Avro files matching a sharding
+   * pattern).
+   */
+  public static <T> Write<T> write() {
+    return new Write<>(
+        AvroIO.<T, T>defaultWriteBuilder()
+            .setGenericRecords(false)
+            .build());
+  }
+
+  @Deprecated
   /** Writes Avro records of the specified schema. */
   public static Write<GenericRecord> writeGenericRecords(Schema schema) {
     return new Write<>(
         AvroIO.<GenericRecord, GenericRecord>defaultWriteBuilder()
             .setGenericRecords(true)
             .setSchema(schema)
+            .build());
+  }
+
+  /** Writes Avro records determining the schema from the input collection. */
+  public static Write<GenericRecord> writeGenericRecords() {
+    return new Write<>(
+        AvroIO.<GenericRecord, GenericRecord>defaultWriteBuilder()
+            .setGenericRecords(true)
             .build());
   }
 
@@ -397,9 +414,8 @@ public class AvroIO {
 
   /**
    * Similar to {@link #writeCustomType()}, but specialized for the case where the output type is
-   * {@link GenericRecord}. A schema must be specified either in {@link
-   * DynamicAvroDestinations#getSchema} or if not using dynamic destinations, by using {@link
-   * TypedWrite#withSchema(Schema)}.
+   * {@link GenericRecord}. A schema can be specified in {@link DynamicAvroDestinations#getSchema}.
+   * If it is not specified then, it will be determined out of the input elements
    */
   public static <UserT> TypedWrite<UserT, Void, GenericRecord> writeCustomTypeToGenericRecords() {
     return AvroIO.<UserT, GenericRecord>defaultWriteBuilder().setGenericRecords(true).build();
@@ -408,6 +424,7 @@ public class AvroIO {
   /**
    * Writes Avro records of the specified schema. The schema is specified as a JSON-encoded string.
    */
+  @Deprecated
   public static Write<GenericRecord> writeGenericRecords(String schema) {
     return writeGenericRecords(new Schema.Parser().parse(schema));
   }
@@ -1003,6 +1020,7 @@ public class AvroIO {
      * Sets the the output schema. Can only be used when the output type is {@link GenericRecord}
      * and when not using {@link #to(DynamicAvroDestinations)}.
      */
+    @Deprecated
     public TypedWrite<UserT, DestinationT, OutputT> withSchema(Schema schema) {
       return toBuilder().setSchema(schema).build();
     }
