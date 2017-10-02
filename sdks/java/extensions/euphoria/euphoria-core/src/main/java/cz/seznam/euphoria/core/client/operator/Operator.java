@@ -67,7 +67,7 @@ public abstract class Operator<IN, OUT> implements Serializable {
    *
    * @return a newly created dataset associated with this operator as its output
    */
-  protected final Dataset<OUT> createOutput(final Dataset<IN> input) {
+  final Dataset<OUT> createOutput(final Dataset<IN> input) {
     Flow flow = input.getFlow();
     return Datasets.createOutputFor(flow, input, this);
   }
@@ -76,5 +76,4 @@ public abstract class Operator<IN, OUT> implements Serializable {
    * @return the output dataset
    */
   public abstract Dataset<OUT> output();
-
 }
