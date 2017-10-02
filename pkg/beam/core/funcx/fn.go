@@ -228,7 +228,7 @@ func New(dofn interface{}) (*Fn, error) {
 		case IsReIter(t):
 			kind = FnReIter
 		default:
-			return nil, fmt.Errorf("bad paramenter type for %s: %v", name, t)
+			return nil, fmt.Errorf("bad parameter type for %s: %v", name, t)
 		}
 
 		param = append(param, FnParam{Kind: kind, T: t})
