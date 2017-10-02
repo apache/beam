@@ -56,7 +56,10 @@ import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -310,6 +313,38 @@ public class FlattenTest implements Serializable {
 
     PAssert.that(output)
         .containsInAnyOrder(NO_LINES_ARRAY);
+
+    p.run();
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testFlattenMultiplePCollectionsHavingMultipleConsumers() {
+    PCollection<String> input = p.apply(Create.of("AA", "BBB", "CC"));
+    final TupleTag<String> outputEvenLengthTag = new TupleTag<String>() {};
+    final TupleTag<String> outputOddLengthTag = new TupleTag<String>() {};
+
+    PCollectionTuple tuple = input.apply(ParDo.of(new DoFn<String, String>() {
+      @ProcessElement
+      public void processElement(ProcessContext c) {
+        if (c.element().length() % 2 == 0) {
+          c.output(c.element());
+        } else {
+          c.output(outputOddLengthTag, c.element());
+        }
+      }
+    }).withOutputTags(outputEvenLengthTag, TupleTagList.of(outputOddLengthTag)));
+
+    PCollection<String> outputEvenLength = tuple.get(outputEvenLengthTag);
+    PCollection<String> outputOddLength = tuple.get(outputOddLengthTag);
+
+    PCollection<String> outputMerged = PCollectionList.of(outputEvenLength)
+        .and(outputOddLength)
+        .apply(Flatten.<String>pCollections());
+
+    PAssert.that(outputMerged).containsInAnyOrder("AA", "BBB", "CC");
+    PAssert.that(outputEvenLength).containsInAnyOrder("AA", "CC");
+    PAssert.that(outputOddLength).containsInAnyOrder("BBB");
 
     p.run();
   }
