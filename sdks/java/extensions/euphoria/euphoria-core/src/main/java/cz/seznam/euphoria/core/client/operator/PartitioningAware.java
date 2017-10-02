@@ -17,6 +17,7 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
+
 import javax.annotation.Nullable;
 import java.util.Objects;
 
@@ -29,7 +30,9 @@ public interface PartitioningAware<KEY> {
   Partitioning<KEY> getPartitioning();
 
   abstract class PartitioningBuilder<KEY, BUILDER> implements OptionalMethodBuilder<BUILDER> {
+
     private final DefaultPartitioning<KEY> defaultPartitioning;
+
     @Nullable
     private Partitioning<KEY> partitioning;
 
