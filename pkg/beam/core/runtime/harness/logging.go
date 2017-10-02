@@ -11,7 +11,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
-	"google.golang.org/grpc"
 )
 
 // setupRemoteLogging redirects local log messages to FnHarness. It will
@@ -41,7 +40,7 @@ func (w *remoteWriter) Run(ctx context.Context) error {
 }
 
 func (w *remoteWriter) connect(ctx context.Context) error {
-	conn, err := grpc.Dial(w.endpoint, grpc.WithInsecure())
+	conn, err := dial(w.endpoint, 30*time.Second)
 	if err != nil {
 		return err
 	}

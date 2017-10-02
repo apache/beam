@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
@@ -71,7 +72,7 @@ type DataChannel struct {
 }
 
 func NewDataChannel(ctx context.Context, port graph.Port) (*DataChannel, error) {
-	cc, err := connect(port.URL, 3)
+	cc, err := dial(port.URL, 15*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %v", err)
 	}
