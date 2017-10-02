@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.tika;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import org.apache.tika.metadata.Metadata;
 
@@ -30,9 +31,6 @@ public class ParseResult implements Serializable {
   private String content;
   private Metadata metadata;
   private String fileLocation;
-
-  public ParseResult() {
-  }
 
   public ParseResult(String fileLocation, String content) {
     this(fileLocation, content, new Metadata());
@@ -52,24 +50,10 @@ public class ParseResult implements Serializable {
   }
 
   /**
-   * Sets a file content.
-   */
-  public void setContent(String content) {
-    this.content = content;
-  }
-
-  /**
    * Gets a file metadata.
    */
   public Metadata getMetadata() {
-    return metadata;
-  }
-
-  /**
-   * Sets a file metadata.
-   */
-  public void setMetadata(Metadata metadata) {
-    this.metadata = metadata;
+    return getMetadataCopy();
   }
 
   /**
@@ -79,16 +63,9 @@ public class ParseResult implements Serializable {
     return fileLocation;
   }
 
-  /**
-   * Sets a file location.
-   */
-  public void setFileLocation(String fileLocation) {
-    this.fileLocation = fileLocation;
-  }
-
   @Override
   public int hashCode() {
-    return fileLocation.hashCode() + 37 * content.hashCode() + 37 * metadata.hashCode();
+    return fileLocation.hashCode() + 37 * content.hashCode() + 37 * getMetadataHashCode();
   }
 
   @Override
@@ -100,21 +77,23 @@ public class ParseResult implements Serializable {
     ParseResult pr = (ParseResult) obj;
     return this.fileLocation.equals(pr.fileLocation)
       && this.content.equals(pr.content)
-      && isMetadataEqual(this.metadata, pr.metadata);
+      && this.metadata.equals(pr.metadata);
   }
 
-  private static boolean isMetadataEqual(Metadata m1, Metadata m2) {
-    String[] names = m1.names();
-    if (names.length != m2.names().length) {
-      return false;
+  private int getMetadataHashCode() {
+    int hashCode = 0;
+    for (String name : metadata.names()) {
+      hashCode += name.hashCode() ^ Objects.hashCode(metadata.getValues(name));
     }
-    for (String n : names) {
-      String v1 = m1.get(n);
-      String v2 = m2.get(n);
-      if (!v1.equals(v2)) {
-        return false;
+    return hashCode;
+  }
+  private Metadata getMetadataCopy() {
+    Metadata metadataCopy = new Metadata();
+    for (String name : metadata.names()) {
+      for (String value : metadata.getValues(name)) {
+        metadataCopy.add(name, value);
       }
     }
-    return true;
+    return metadataCopy;
   }
 }

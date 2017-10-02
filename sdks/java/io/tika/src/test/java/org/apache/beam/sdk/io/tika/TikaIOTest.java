@@ -171,12 +171,11 @@ public class TikaIOTest {
     @ProcessElement
     public void processElement(ProcessContext c) {
       ParseResult result = c.element();
-      ParseResult newResult = new ParseResult(result.getFileLocation(), result.getContent());
       Metadata m = new Metadata();
       if (result.getFileLocation().endsWith("apache-beam-tika1.odt")) {
           m.set("Author", result.getMetadata().get("Author"));
       }
-      newResult.setMetadata(m);
+      ParseResult newResult = new ParseResult(result.getFileLocation(), result.getContent(), m);
       c.output(newResult);
     }
   }

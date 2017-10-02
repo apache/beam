@@ -23,9 +23,6 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.Read.Bounded;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -184,10 +181,7 @@ public class TikaIO {
     @Override
     public PCollection<ParseResult> expand(PBegin input) {
       checkNotNull(this.getFilepattern(), "Filepattern cannot be empty.");
-      final Bounded<ParseResult> read = org.apache.beam.sdk.io.Read.from(new TikaSource(this));
-      PCollection<ParseResult> pcol = input.getPipeline().apply(read);
-      pcol.setCoder(getDefaultOutputCoder());
-      return pcol;
+      return input.apply(org.apache.beam.sdk.io.Read.from(new TikaSource(this)));
     }
 
     @Override
@@ -220,12 +214,6 @@ public class TikaIO {
             .add(DisplayData.item("inputMetadata", sb.toString())
             .withLabel("Input Metadata"));
       }
-    }
-
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    @Override
-    protected Coder<ParseResult> getDefaultOutputCoder() {
-      return SerializableCoder.of((Class) ParseResult.class);
     }
   }
 }

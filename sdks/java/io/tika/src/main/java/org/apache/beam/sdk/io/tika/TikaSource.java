@@ -140,7 +140,7 @@ class TikaSource extends BoundedSource<ParseResult> {
 
   @SuppressWarnings({ "unchecked", "rawtypes" })
   @Override
-  public Coder<ParseResult> getDefaultOutputCoder() {
+  public Coder<ParseResult> getOutputCoder() {
     return SerializableCoder.of((Class) ParseResult.class);
   }
 
@@ -262,7 +262,6 @@ class TikaSource extends BoundedSource<ParseResult> {
     private String filePath;
     private TikaIO.Read spec;
     private org.apache.tika.metadata.Metadata tikaMetadata;
-    private volatile boolean docParsed;
 
     TikaReader(TikaSource source, String filePath) {
       this.source = source;
@@ -295,23 +294,13 @@ class TikaSource extends BoundedSource<ParseResult> {
       } finally {
         is.close();
       }
-      return advanceToNext();
+      current = tikaHandler.toString().trim();
+      return true;
     }
 
     @Override
     public boolean advance() throws IOException {
-      checkState(current != null, "Call start() before advance()");
-      return advanceToNext();
-    }
-
-    protected boolean advanceToNext() throws IOException {
-      if (!docParsed) {
-        current = tikaHandler.toString().trim();
-        docParsed = true;
-        return true;
-      } else {
-        return false;
-      }
+      return false;
     }
 
     @Override
@@ -319,11 +308,7 @@ class TikaSource extends BoundedSource<ParseResult> {
       if (current == null) {
         throw new NoSuchElementException();
       }
-      ParseResult result = new ParseResult();
-      result.setContent(current);
-      result.setMetadata(tikaMetadata);
-      result.setFileLocation(filePath);
-      return result;
+      return new ParseResult(filePath, current, tikaMetadata);
     }
 
     @Override
