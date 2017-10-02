@@ -64,7 +64,6 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private final SimplifiedKinesisClient kinesis;
   private final KinesisSource source;
   private final CheckpointGenerator initialCheckpointGenerator;
-  private RoundRobin<ShardRecordsIterator> shardIterators;
   private CustomOptional<KinesisRecord> currentRecord = CustomOptional.absent();
   private MovingFunction minReadTimestampMsSinceEpoch;
   private Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -72,6 +71,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
   private Instant backlogBytesLastCheckTime = new Instant(0L);
   private Duration upToDateThreshold;
   private Duration backlogBytesCheckThreshold;
+  private ShardReadersPool shardReadersPool;
 
   KinesisReader(SimplifiedKinesisClient kinesis,
       CheckpointGenerator initialCheckpointGenerator,
@@ -107,13 +107,13 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     LOG.info("Starting reader using {}", initialCheckpointGenerator);
 
     try {
-      KinesisReaderCheckpoint initialCheckpoint =
-          initialCheckpointGenerator.generate(kinesis);
+      KinesisReaderCheckpoint initialCheckpoint = initialCheckpointGenerator.generate(kinesis);
       List<ShardRecordsIterator> iterators = newArrayList();
       for (ShardCheckpoint checkpoint : initialCheckpoint) {
         iterators.add(checkpoint.getShardRecordsIterator(kinesis));
       }
-      shardIterators = new RoundRobin<>(iterators);
+      shardReadersPool = createShardReadersPool(iterators);
+      shardReadersPool.start();
     } catch (TransientKinesisException e) {
       throw new IOException(e);
     }
@@ -128,21 +128,12 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
    */
   @Override
   public boolean advance() throws IOException {
-    try {
-      for (int i = 0; i < shardIterators.size(); ++i) {
-        currentRecord = shardIterators.getCurrent().next();
-        if (currentRecord.isPresent()) {
-          Instant approximateArrivalTimestamp = currentRecord.get()
-              .getApproximateArrivalTimestamp();
-          minReadTimestampMsSinceEpoch.add(Instant.now().getMillis(),
-              approximateArrivalTimestamp.getMillis());
-          return true;
-        } else {
-          shardIterators.moveForward();
-        }
-      }
-    } catch (TransientKinesisException e) {
-      LOG.warn("Transient exception occurred", e);
+    currentRecord = shardReadersPool.nextRecord();
+    if (currentRecord.isPresent()) {
+      Instant approximateArrivalTimestamp = currentRecord.get().getApproximateArrivalTimestamp();
+      minReadTimestampMsSinceEpoch.add(Instant.now().getMillis(),
+          approximateArrivalTimestamp.getMillis());
+      return true;
     }
     return false;
   }
@@ -170,13 +161,14 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public void close() throws IOException {
+    shardReadersPool.stop();
   }
 
   @Override
   public Instant getWatermark() {
     Instant now = Instant.now();
     long readMin = minReadTimestampMsSinceEpoch.get(now.getMillis());
-    if (readMin == Long.MAX_VALUE) {
+    if (readMin == Long.MAX_VALUE && shardReadersPool.allShardsUpToDate()) {
       lastWatermark = now;
     } else if (minReadTimestampMsSinceEpoch.isSignificant()) {
       Instant minReadTime = new Instant(readMin);
@@ -189,7 +181,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    return KinesisReaderCheckpoint.asCurrentStateOf(shardIterators);
+    return KinesisReaderCheckpoint.asCurrentStateOf(shardReadersPool.getShardRecordsIterators());
   }
 
   @Override
@@ -220,5 +212,9 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     LOG.info("Total backlog bytes for {} stream with {} watermark: {}", source.getStreamName(),
         watermark, lastBacklogBytes);
     return lastBacklogBytes;
+  }
+
+  ShardReadersPool createShardReadersPool(List<ShardRecordsIterator> iterators) {
+    return new ShardReadersPool(iterators);
   }
 }
