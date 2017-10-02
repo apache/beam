@@ -27,7 +27,6 @@ import (
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// TODO: we need a way to tell the harness that we (re)started and it should
 	// assume we've seen no messages. Sleep, for now, to dodge startup race.
-	time.Sleep(1 * time.Minute)
 
 	setupRemoteLogging(ctx, loggingEndpoint)
 	setupDiagnosticRecording()
@@ -43,7 +42,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		}
 	}()
 
-	conn, err := connect(controlEndpoint, 20)
+	conn, err := dial(controlEndpoint, 60*time.Second)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -215,17 +214,20 @@ func fail(id, format string, args ...interface{}) *pb.InstructionResponse {
 	}
 }
 
-func connect(endpoint string, attempts int) (*grpc.ClientConn, error) {
+// dial to the specified endpoint. if timeout <=0, call blocks until
+// grpc.Dial succeeds.
+func dial(endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	log.Printf("Connecting via grpc @ %s ...", endpoint)
 
-	for i := 0; i < attempts; i++ {
-		conn, err := grpc.Dial(endpoint, grpc.WithInsecure())
-		if err == nil {
-			return conn, nil
-		}
+	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
 
-		log.Printf("Failed to connect to %s: %v", endpoint, err)
-		time.Sleep(5 * time.Second)
+	// TODO(wcn): Update this code to not use deprecated grpc.WithTimeout
+	if timeout > 0 {
+		opts = append(opts, grpc.WithTimeout(time.Duration(timeout)*time.Second))
 	}
-	return nil, fmt.Errorf("failed to connect to %s in %v attempts", endpoint, attempts)
+	conn, err := grpc.Dial(endpoint, opts...)
+	if err == nil {
+		return conn, nil
+	}
+	return nil, fmt.Errorf("failed to connect to %s after %v seconds", endpoint, timeout)
 }
