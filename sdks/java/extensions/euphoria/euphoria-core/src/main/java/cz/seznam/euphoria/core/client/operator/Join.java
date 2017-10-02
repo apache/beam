@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -33,10 +34,13 @@ import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shaded.guava.com.google.common.annotations.VisibleForTesting;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -45,15 +49,16 @@ import java.util.Objects;
 @Recommended(
     reason =
         "Might be useful to override because of performance reasons in a "
-      + "specific join types (e.g. sort join), which might reduce the space "
-      + "complexity",
+            + "specific join types (e.g. sort join), which might reduce the space "
+            + "complexity",
     state = StateComplexity.LINEAR,
     repartitions = 1
 )
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
-    Join<LEFT, RIGHT, KEY, OUT, W>> {
+    Join<LEFT, RIGHT, KEY, OUT, W>>
+    implements HintAware<JoinHint> {
 
   public static class OfBuilder {
     private final String name;
@@ -85,9 +90,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
         UnaryFunction<LEFT, KEY> leftKeyExtractor,
         UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
-      
+
       return new UsingBuilder<>(name, left, right,
-              leftKeyExtractor, rightKeyExtractor);
+          leftKeyExtractor, rightKeyExtractor);
     }
   }
 
@@ -103,7 +108,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                  Dataset<RIGHT> right,
                  UnaryFunction<LEFT, KEY> leftKeyExtractor,
                  UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
-      
+
       this.name = name;
       this.left = left;
       this.right = right;
@@ -112,10 +117,17 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     public <OUT> WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
-            BinaryFunctor<LEFT, RIGHT, OUT> functor)
-    {
+        BinaryFunctor<LEFT, RIGHT, OUT> functor) {
+
+      final DefaultPartitioning<KEY> defaultPartitioning =
+          new DefaultPartitioning<>(Math.max(left.getNumPartitions(), right.getNumPartitions()));
+      final PartitioningBuilder<KEY, ?> defaultPartitioningBuilder =
+          new PartitioningBuilder<KEY, Object>(defaultPartitioning) {
+          };
+
       return new WindowingBuilder<>(name, left, right,
-              leftKeyExtractor, rightKeyExtractor, functor);
+          leftKeyExtractor, rightKeyExtractor, functor,
+          defaultPartitioningBuilder, false, Collections.emptyList());
     }
   }
 
@@ -129,18 +141,21 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
     private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
     private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
-    private boolean outer;
+    private final boolean outer;
+    private final List<JoinHint> hints;
 
     WindowingBuilder(String name,
                      Dataset<LEFT> left,
                      Dataset<RIGHT> right,
                      UnaryFunction<LEFT, KEY> leftKeyExtractor,
                      UnaryFunction<RIGHT, KEY> rightKeyExtractor,
-                     BinaryFunctor<LEFT, RIGHT, OUT> joinFunc) {
-      
+                     BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
+                     PartitioningBuilder<KEY, ?> partitioning,
+                     boolean outer,
+                     List<JoinHint> hints) {
+
       // define default partitioning
-      super(new DefaultPartitioning<>(
-          Math.max(left.getNumPartitions(), right.getNumPartitions())));
+      super(partitioning);
 
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
@@ -148,11 +163,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
       this.joinFunc = Objects.requireNonNull(joinFunc);
+      this.outer = outer;
+      this.hints = Objects.requireNonNull(hints);
     }
 
     public WindowingBuilder<LEFT, RIGHT, KEY, OUT> outer() {
-      this.outer = true;
-      return this;
+      return new WindowingBuilder<>(name, left, right, leftKeyExtractor,
+          rightKeyExtractor, joinFunc, this, true, hints);
     }
 
     @Override
@@ -164,7 +181,12 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
     windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing) {
       return new OutputBuilder<>(name, left, right, leftKeyExtractor,
-              rightKeyExtractor, joinFunc, outer, this, windowing);
+          rightKeyExtractor, joinFunc, outer, this, windowing, hints);
+    }
+
+    public WindowingBuilder<LEFT, RIGHT, KEY, OUT> withHints(JoinHint... hints) {
+      return new WindowingBuilder<>(name, left, right, leftKeyExtractor,
+          rightKeyExtractor, joinFunc, this, outer, Arrays.asList(hints));
     }
   }
 
@@ -182,6 +204,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     private final boolean outer;
     @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
+    private final List<JoinHint> hints;
 
     OutputBuilder(String name,
                   Dataset<LEFT> left,
@@ -191,7 +214,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
                   boolean outer,
                   PartitioningBuilder<KEY, ?> partitioning,
-                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing) {
+                  @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
+                  List<JoinHint> hints) {
 
       super(partitioning);
 
@@ -203,6 +227,20 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       this.joinFunc = Objects.requireNonNull(joinFunc);
       this.outer = outer;
       this.windowing = windowing;
+      this.hints = hints;
+    }
+
+    public OutputBuilder<LEFT, RIGHT, KEY, OUT, W> withHints(JoinHint... hints) {
+      return new OutputBuilder<>(name,
+          left,
+          right,
+          leftKeyExtractor,
+          rightKeyExtractor,
+          joinFunc,
+          outer,
+          this,
+          windowing,
+          Arrays.asList(hints));
     }
 
     @Override
@@ -211,16 +249,15 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       Join<LEFT, RIGHT, KEY, OUT, W> join =
           new Join<>(name, flow, left, right,
               windowing, getPartitioning(),
-              leftKeyExtractor, rightKeyExtractor, joinFunc, outer);
+              leftKeyExtractor, rightKeyExtractor, joinFunc, outer, hints);
       flow.add(join);
-
       return join.output();
     }
   }
 
   public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
       Dataset<LEFT> left, Dataset<RIGHT> right) {
-    
+
     return new OfBuilder("Join").of(left, right);
   }
 
@@ -232,9 +269,13 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   private final Dataset<RIGHT> right;
   private final Dataset<Pair<KEY, OUT>> output;
   private final BinaryFunctor<LEFT, RIGHT, OUT> functor;
+  @VisibleForTesting
   final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+  @VisibleForTesting
   final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-  boolean outer = false;
+  @VisibleForTesting
+  final boolean outer;
+  private final List<JoinHint> hints;
 
   Join(String name,
        Flow flow,
@@ -244,7 +285,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
        UnaryFunction<LEFT, KEY> leftKeyExtractor,
        UnaryFunction<RIGHT, KEY> rightKeyExtractor,
        BinaryFunctor<LEFT, RIGHT, OUT> functor,
-       boolean outer) {
+       boolean outer,
+       List<JoinHint> hints) {
 
     super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
@@ -261,6 +303,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     Dataset<Pair<KEY, OUT>> output = createOutput((Dataset) left);
     this.output = output;
     this.outer = outer;
+    this.hints = hints;
   }
 
   @Override
@@ -275,15 +318,14 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   @SuppressWarnings("unchecked")
-  static final ListStorageDescriptor LEFT_STATE_DESCR =
-          ListStorageDescriptor.of("left", (Class) Object.class);
+  private static final ListStorageDescriptor LEFT_STATE_DESCR =
+      ListStorageDescriptor.of("left", (Class) Object.class);
   @SuppressWarnings("unchecked")
-  static final ListStorageDescriptor RIGHT_STATE_DESCR =
-          ListStorageDescriptor.of("right", (Class) Object.class);
+  private static final ListStorageDescriptor RIGHT_STATE_DESCR =
+      ListStorageDescriptor.of("right", (Class) Object.class);
 
 
-  private abstract class AbstractJoinState
-      implements State<Either<LEFT, RIGHT>, OUT> {
+  private abstract class AbstractJoinState implements State<Either<LEFT, RIGHT>, OUT> {
 
     final ListStorage<LEFT> leftElements;
     final ListStorage<RIGHT> rightElements;
@@ -301,7 +343,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
 
     void flushUnjoinedElems(
-            Collector<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
+        Collector<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
       boolean leftEmpty = !lefts.iterator().hasNext();
       boolean rightEmpty = !rights.iterator().hasNext();
       // if just a one collection is empty
@@ -389,7 +431,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   private class EarlyEmittingJoinState
       extends AbstractJoinState
       implements State<Either<LEFT, RIGHT>, OUT>,
-                 StateSupport.MergeFrom<EarlyEmittingJoinState> {
+      StateSupport.MergeFrom<EarlyEmittingJoinState> {
     private final Collector<OUT> context;
 
     @SuppressWarnings("unchecked")
@@ -473,6 +515,11 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
   public BinaryFunctor<LEFT, RIGHT, OUT> getJoiner() {
     return functor;
+  }
+
+  @Override
+  public List<JoinHint> getHints() {
+    return hints;
   }
 
   @Override

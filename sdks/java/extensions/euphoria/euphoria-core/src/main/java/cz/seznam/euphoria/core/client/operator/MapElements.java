@@ -17,16 +17,11 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
-import cz.seznam.euphoria.core.client.accumulators.Counter;
-import cz.seznam.euphoria.core.client.accumulators.Histogram;
-import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctionEnv;
 import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.Context;
 
 import java.util.Objects;
 
