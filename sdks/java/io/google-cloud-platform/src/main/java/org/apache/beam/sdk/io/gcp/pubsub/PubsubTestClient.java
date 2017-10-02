@@ -136,7 +136,8 @@ class PubsubTestClient extends PubsubClient implements Serializable {
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
-          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          @Nullable PubsubTimestampExtractor timestampExtractor,
+          @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient();
       }
@@ -182,7 +183,8 @@ class PubsubTestClient extends PubsubClient implements Serializable {
     return new PubsubTestClientFactory() {
       @Override
       public PubsubClient newClient(
-          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          @Nullable PubsubTimestampExtractor timestampExtractor,
+          @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient();
       }
@@ -226,7 +228,8 @@ class PubsubTestClient extends PubsubClient implements Serializable {
 
       @Override
       public PubsubClient newClient(
-          @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+          @Nullable PubsubTimestampExtractor timestampExtractor,
+          @Nullable String idAttribute, PubsubOptions options)
           throws IOException {
         return new PubsubTestClient() {
           @Override

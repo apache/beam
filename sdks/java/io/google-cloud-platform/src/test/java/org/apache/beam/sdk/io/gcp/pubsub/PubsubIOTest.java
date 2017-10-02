@@ -98,16 +98,18 @@ public class PubsubIOTest {
   public void testReadTopicDisplayData() {
     String topic = "projects/project/topics/topic";
     String subscription = "projects/project/subscriptions/subscription";
+    PubsubTimestampExtractor timestampExtractor =
+        new PubsubTimestampExtractor("mytimestamp");
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.readStrings()
         .fromTopic(StaticValueProvider.of(topic))
-        .withTimestampAttribute("myTimestamp")
+        .withTimestampExtractor(timestampExtractor)
         .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("topic", topic));
-    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("timestampExtractor", timestampExtractor.toString()));
     assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 
@@ -115,16 +117,18 @@ public class PubsubIOTest {
   public void testReadSubscriptionDisplayData() {
     String topic = "projects/project/topics/topic";
     String subscription = "projects/project/subscriptions/subscription";
+    PubsubTimestampExtractor timestampExtractor =
+        new PubsubTimestampExtractor("mytimestamp");
     Duration maxReadTime = Duration.standardMinutes(5);
     PubsubIO.Read<String> read = PubsubIO.readStrings()
         .fromSubscription(StaticValueProvider.of(subscription))
-        .withTimestampAttribute("myTimestamp")
+        .withTimestampExtractor(timestampExtractor)
         .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(read);
 
     assertThat(displayData, hasDisplayItem("subscription", subscription));
-    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("timestampExtractor", timestampExtractor.toString()));
     assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 
@@ -221,15 +225,17 @@ public class PubsubIOTest {
   @Test
   public void testWriteDisplayData() {
     String topic = "projects/project/topics/topic";
+    PubsubTimestampExtractor timestampExtractor =
+        new PubsubTimestampExtractor("mytimestamp");
     PubsubIO.Write<?> write = PubsubIO.writeStrings()
         .to(topic)
-        .withTimestampAttribute("myTimestamp")
+        .withTimestampExtractor(timestampExtractor)
         .withIdAttribute("myId");
 
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("topic", topic));
-    assertThat(displayData, hasDisplayItem("timestampAttribute", "myTimestamp"));
+    assertThat(displayData, hasDisplayItem("timestampExtractor", timestampExtractor.toString()));
     assertThat(displayData, hasDisplayItem("idAttribute", "myId"));
   }
 

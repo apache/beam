@@ -144,11 +144,12 @@ public class PubsubIO {
    * Populate common {@link DisplayData} between Pubsub source and sink.
    */
   private static void populateCommonDisplayData(DisplayData.Builder builder,
-      String timestampAttribute, String idAttribute, ValueProvider<PubsubTopic> topic) {
+      PubsubTimestampExtractor timestampExtractor, String idAttribute,
+      ValueProvider<PubsubTopic> topic) {
     builder
         .addIfNotNull(
-            DisplayData.item("timestampAttribute", timestampAttribute)
-                .withLabel("Timestamp Attribute"))
+            DisplayData.item("timestampExtractor", StaticValueProvider.of(timestampExtractor))
+                .withLabel("Timestamp Extractor"))
         .addIfNotNull(DisplayData.item("idAttribute", idAttribute).withLabel("ID Attribute"))
         .addIfNotNull(DisplayData.item("topic", topic).withLabel("Pubsub Topic"));
   }
@@ -538,15 +539,16 @@ public class PubsubIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read<T> extends PTransform<PBegin, PCollection<T>> {
+
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
     @Nullable
     abstract ValueProvider<PubsubSubscription> getSubscriptionProvider();
 
-    /** The name of the message attribute to read timestamps from. */
+    /** The extractor to extract timestamps from messages. */
     @Nullable
-    abstract String getTimestampAttribute();
+    abstract PubsubTimestampExtractor getTimestampExtractor();
 
     /** The name of the message attribute to read unique message IDs from. */
     @Nullable
@@ -566,11 +568,12 @@ public class PubsubIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topic);
 
       abstract Builder<T> setSubscriptionProvider(ValueProvider<PubsubSubscription> subscription);
 
-      abstract Builder<T> setTimestampAttribute(String timestampAttribute);
+      abstract Builder<T> setTimestampExtractor(PubsubTimestampExtractor timestampExtractor);
 
       abstract Builder<T> setIdAttribute(String idAttribute);
 
@@ -641,9 +644,12 @@ public class PubsubIO {
 
     /**
      * When reading from Cloud Pub/Sub where record timestamps are provided as Pub/Sub message
-     * attributes, specifies the name of the attribute that contains the timestamp.
+     * attributes, specifies the way to extract timestamps from the message. This extraction
+     * is either done by providing the name of the attribute that contains the timestamp,
+     * or a function that takes a {@link String} payload, parses the payload, and returns a
+     * timestamp.
      *
-     * <p>The timestamp value is expected to be represented in the attribute as either:
+     * <p>The timestamp value is expected to be represented as either:
      *
      * <ul>
      * <li>a numerical value representing the number of milliseconds since the Unix epoch. For
@@ -654,7 +660,7 @@ public class PubsubIO {
      * (i.e., time units smaller than milliseconds) will be ignored.
      * </ul>
      *
-     * <p>If {@code timestampAttribute} is not provided, the system will generate record timestamps
+     * <p>If {@code timestampExtractor} is not provided, the system will generate record timestamps
      * the first time it sees each record. All windowing will be done relative to these
      * timestamps.
      *
@@ -664,12 +670,12 @@ public class PubsubIO {
      * specified with the windowing strategy &ndash; by default it will be output immediately.
      *
      * <p>Note that the system can guarantee that no late data will ever be seen when it assigns
-     * timestamps by arrival time (i.e. {@code timestampAttribute} is not provided).
+     * timestamps by arrival time (i.e. {@code timestampExtractor} is not provided).
      *
      * @see <a href="https://www.ietf.org/rfc/rfc3339.txt">RFC 3339</a>
      */
-    public Read<T> withTimestampAttribute(String timestampAttribute) {
-      return toBuilder().setTimestampAttribute(timestampAttribute).build();
+    public Read<T> withTimestampExtractor(PubsubTimestampExtractor timestampExtractor) {
+      return toBuilder().setTimestampExtractor(timestampExtractor).build();
     }
 
     /**
@@ -727,7 +733,7 @@ public class PubsubIO {
               projectPath,
               topicPath,
               subscriptionPath,
-              getTimestampAttribute(),
+              getTimestampExtractor(),
               getIdAttribute(),
               getNeedsAttributes());
       return input.apply(source).apply(MapElements.via(getParseFn())).setCoder(getCoder());
@@ -737,7 +743,7 @@ public class PubsubIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
-          builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
+          builder, getTimestampExtractor(), getIdAttribute(), getTopicProvider());
       builder.addIfNotNull(DisplayData.item("subscription", getSubscriptionProvider())
           .withLabel("Pubsub Subscription"));
     }
@@ -748,16 +754,16 @@ public class PubsubIO {
   /** Disallow construction of utility class. */
   private PubsubIO() {}
 
-
   /** Implementation of {@link #write}. */
   @AutoValue
   public abstract static class Write<T> extends PTransform<PCollection<T>, PDone> {
+
     @Nullable
     abstract ValueProvider<PubsubTopic> getTopicProvider();
 
-    /** The name of the message attribute to publish message timestamps in. */
+    /** The extractor to extract timestamps from messages. */
     @Nullable
-    abstract String getTimestampAttribute();
+    abstract PubsubTimestampExtractor getTimestampExtractor();
 
     /** The name of the message attribute to publish unique message IDs in. */
     @Nullable
@@ -771,9 +777,10 @@ public class PubsubIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
+
       abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
 
-      abstract Builder<T> setTimestampAttribute(String timestampAttribute);
+      abstract Builder<T> setTimestampExtractor(PubsubTimestampExtractor timestampExtractor);
 
       abstract Builder<T> setIdAttribute(String idAttribute);
 
@@ -808,11 +815,11 @@ public class PubsubIO {
      * time classes, {@link Instant#Instant(long)} can be used to parse this value.
      *
      * <p>If the output from this sink is being read by another Beam pipeline, then
-     * {@link PubsubIO.Read#withTimestampAttribute(String)} can be used to ensure the other source
-     * reads these timestamps from the appropriate attribute.
+     * {@link PubsubIO.Read#withTimestampExtractor(PubsubTimestampExtractor)} can be used to
+     * ensure the other source reads these timestamps from the appropriate attribute.
      */
-    public Write<T> withTimestampAttribute(String timestampAttribute) {
-      return toBuilder().setTimestampAttribute(timestampAttribute).build();
+    public Write<T> withTimestampExtractor(PubsubTimestampExtractor timestampExtractor) {
+      return toBuilder().setTimestampExtractor(timestampExtractor).build();
     }
 
     /**
@@ -846,10 +853,9 @@ public class PubsubIO {
           input.apply(ParDo.of(new PubsubBoundedWriter()));
           return PDone.in(input.getPipeline());
         case UNBOUNDED:
-          return input.apply(MapElements.via(getFormatFn())).apply(new PubsubUnboundedSink(
-              FACTORY,
+          return input.apply(MapElements.via(getFormatFn())).apply(new PubsubUnboundedSink(FACTORY,
               NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator()),
-              getTimestampAttribute(),
+              getTimestampExtractor(),
               getIdAttribute(),
               100 /* numShards */));
       }
@@ -860,7 +866,7 @@ public class PubsubIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
-          builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
+          builder, getTimestampExtractor(), getIdAttribute(), getTopicProvider());
     }
 
     /**
@@ -879,7 +885,7 @@ public class PubsubIO {
         this.output = new ArrayList<>();
         // NOTE: idAttribute is ignored.
         this.pubsubClient =
-            FACTORY.newClient(getTimestampAttribute(), null,
+            FACTORY.newClient(getTimestampExtractor(), null,
                 c.getPipelineOptions().as(PubsubOptions.class));
       }
 

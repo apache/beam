@@ -601,7 +601,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       pubsubClient =
           new AtomicReference<>(
               outer.outer.pubsubFactory.newClient(
-                  outer.outer.timestampAttribute, outer.outer.idAttribute, options));
+                  outer.outer.timestampExtractor, outer.outer.idAttribute, options));
       ackTimeoutMs = -1;
       safeToAckIds = new HashSet<>();
       notYetRead = new ArrayDeque<>();
@@ -1201,7 +1201,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Nullable
     private final ValueProvider<TopicPath> topic;
     @Nullable
-    private final String timestampAttribute;
+    private final PubsubTimestampExtractor timestampExtractor;
     @Nullable
     private final String idAttribute;
 
@@ -1209,13 +1209,13 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         PubsubClientFactory pubsubFactory,
         @Nullable ValueProvider<SubscriptionPath> subscription,
         @Nullable ValueProvider<TopicPath> topic,
-        @Nullable String timestampAttribute,
+        @Nullable PubsubTimestampExtractor timestampExtractor,
         @Nullable String idAttribute) {
       checkArgument(pubsubFactory != null, "pubsubFactory should not be null");
       this.pubsubFactory = pubsubFactory;
       this.subscription = subscription;
       this.topic = topic;
-      this.timestampAttribute = timestampAttribute;
+      this.timestampExtractor = timestampExtractor;
       this.idAttribute = idAttribute;
     }
 
@@ -1232,7 +1232,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           .addIfNotNull(DisplayData.item("subscription", subscription))
           .addIfNotNull(DisplayData.item("topic", topic))
           .add(DisplayData.item("transport", pubsubFactory.getKind()))
-          .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute))
+          .addIfNotNull(DisplayData.item("timestampExtractor",
+              StaticValueProvider.of(timestampExtractor)))
           .addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
@@ -1277,11 +1278,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   private ValueProvider<SubscriptionPath> subscription;
 
   /**
-   * Pubsub metadata field holding timestamp of each element, or {@literal null} if should use
+   * Pubsub extractor to parse timestamp from pubsub messages, or {@literal null} if should use
    * Pubsub message publish timestamp instead.
    */
   @Nullable
-  private final String timestampAttribute;
+  private final PubsubTimestampExtractor timestampExtractor;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
@@ -1300,7 +1301,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
-      @Nullable String timestampAttribute,
+      @Nullable PubsubTimestampExtractor timestampExtractor,
       @Nullable String idAttribute,
       boolean needsAttributes) {
     checkArgument((topic == null) != (subscription == null),
@@ -1312,7 +1313,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     this.project = project;
     this.topic = topic;
     this.subscription = subscription;
-    this.timestampAttribute = timestampAttribute;
+    this.timestampExtractor = timestampExtractor;
     this.idAttribute = idAttribute;
     this.needsAttributes = needsAttributes;
   }
@@ -1325,7 +1326,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
       @Nullable ValueProvider<SubscriptionPath> subscription,
-      @Nullable String timestampAttribute,
+      @Nullable PubsubTimestampExtractor timestampExtractor,
       @Nullable String idAttribute,
       boolean needsAttributes) {
     this(
@@ -1334,7 +1335,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         project,
         topic,
         subscription,
-        timestampAttribute,
+        timestampExtractor,
         idAttribute,
         needsAttributes);
   }
@@ -1383,8 +1384,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
    * Get the timestamp attribute.
    */
   @Nullable
-  public String getTimestampAttribute() {
-    return timestampAttribute;
+  public PubsubTimestampExtractor getTimestampExtractor() {
+    return timestampExtractor;
   }
 
   /**
@@ -1405,14 +1406,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
                 .apply(Read.from(new PubsubSource(this)))
                 .apply("PubsubUnboundedSource.Stats",
                     ParDo.of(new StatsFn(
-                        pubsubFactory, subscription, topic, timestampAttribute, idAttribute)));
+                        pubsubFactory, subscription, topic, timestampExtractor, idAttribute)));
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
     try {
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(
-              timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
+              timestampExtractor, idAttribute, options.as(PubsubOptions.class))) {
         SubscriptionPath subscriptionPath =
             pubsubClient.createRandomSubscription(
                 project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);

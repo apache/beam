@@ -77,17 +77,17 @@ class PubsubGrpcClient extends PubsubClient {
   private static final int DEFAULT_TIMEOUT_S = 15;
 
   private static class PubsubGrpcClientFactory implements PubsubClientFactory {
-    @Override
-    public PubsubClient newClient(
-        @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
-        throws IOException {
+
+    @Override public PubsubClient newClient(
+        @Nullable PubsubTimestampExtractor timestampExtractor,
+        @Nullable String idAttribute, PubsubOptions options) throws IOException {
       ManagedChannel channel = NettyChannelBuilder
           .forAddress(PUBSUB_ADDRESS, PUBSUB_PORT)
           .negotiationType(NegotiationType.TLS)
           .sslContext(GrpcSslContexts.forClient().ciphers(null).build())
           .build();
 
-      return new PubsubGrpcClient(timestampAttribute,
+      return new PubsubGrpcClient(timestampExtractor,
                                   idAttribute,
                                   DEFAULT_TIMEOUT_S,
                                   channel,
@@ -126,14 +126,13 @@ class PubsubGrpcClient extends PubsubClient {
    * instead.
    */
   @Nullable
-  private final String timestampAttribute;
+  private final PubsubTimestampExtractor timestampExtractor;
 
   /**
    * Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids.
    */
   @Nullable
   private final String idAttribute;
-
 
   /**
    * Cached stubs, or null if not cached.
@@ -142,14 +141,16 @@ class PubsubGrpcClient extends PubsubClient {
   private PublisherGrpc.PublisherBlockingStub cachedPublisherStub;
   private SubscriberGrpc.SubscriberBlockingStub cachedSubscriberStub;
 
-  @VisibleForTesting
-  PubsubGrpcClient(
-      @Nullable String timestampAttribute,
+  @VisibleForTesting PubsubGrpcClient(
+      @Nullable PubsubTimestampExtractor timestampExtractor,
       @Nullable String idAttribute,
       int timeoutSec,
       ManagedChannel publisherChannel,
       Credentials credentials) {
-    this.timestampAttribute = timestampAttribute;
+    if (timestampExtractor == null) {
+      timestampExtractor = new PubsubTimestampExtractor();
+    }
+    this.timestampExtractor = timestampExtractor;
     this.idAttribute = idAttribute;
     this.timeoutSec = timeoutSec;
     this.publisherChannel = publisherChannel;
@@ -226,9 +227,9 @@ class PubsubGrpcClient extends PubsubClient {
         message.putAllAttributes(outgoingMessage.attributes);
       }
 
-      if (timestampAttribute != null) {
-        message.getMutableAttributes()
-               .put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+      if (timestampExtractor != null && timestampExtractor.hasTimestampAttribute()) {
+        message.getMutableAttributes().put(timestampExtractor.getTimestampAttribute(),
+            String.valueOf(outgoingMessage.timestampMsSinceEpoch));
       }
 
       if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
@@ -273,7 +274,8 @@ class PubsubGrpcClient extends PubsubClient {
                                                + timestampProto.getNanos() / 1000L);
       }
       long timestampMsSinceEpoch =
-          extractTimestamp(timestampAttribute, pubsubTimestampString, attributes);
+          timestampExtractor.extractTimestamp(pubsubMessage.getData().toStringUtf8(),
+              pubsubTimestampString, attributes);
 
       // Ack id.
       String ackId = message.getAckId();
@@ -359,8 +361,7 @@ class PubsubGrpcClient extends PubsubClient {
   }
 
   @Override
-  public void createSubscription(
-      TopicPath topic, SubscriptionPath subscription,
+  public void createSubscription(TopicPath topic, SubscriptionPath subscription,
       int ackDeadlineSeconds) throws IOException {
     Subscription request = Subscription.newBuilder()
                                        .setTopic(topic.getPath())
