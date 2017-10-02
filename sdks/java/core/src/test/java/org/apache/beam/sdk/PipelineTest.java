@@ -400,13 +400,13 @@ public class PipelineTest {
     class OriginalTransform extends PTransform<PCollection<String>, PCollection<Long>> {
       @Override
       public PCollection<Long> expand(PCollection<String> input) {
-        return input.apply("custom_name", Count.<String>globally());
+        return input.apply("original_name", Count.<String>globally());
       }
     }
     class ReplacementTransform extends PTransform<PCollection<String>, PCollection<Long>> {
       @Override
       public PCollection<Long> expand(PCollection<String> input) {
-        return input.apply("custom_name", Count.<String>globally());
+        return input.apply("replacement_name", Count.<String>globally());
       }
     }
     class ReplacementOverrideFactory
@@ -457,8 +457,8 @@ public class PipelineTest {
           }
         });
 
-    assertThat(names, hasItem("original_application/custom_name"));
-    assertThat(names, not(hasItem("original_application/custom_name2")));
+    assertThat(names, hasItem("original_application/replacement_name"));
+    assertThat(names, not(hasItem("original_application/original_name")));
   }
 
   static class GenerateSequenceToCreateOverride
