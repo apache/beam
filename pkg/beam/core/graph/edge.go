@@ -237,6 +237,11 @@ func NewSource(g *Graph, s *Scope, u *DoFn, typedefs map[string]reflect.Type) (*
 	return newDoFnNode(Source, g, s, u, nil, typedefs)
 }
 
+// NewSink inserts a Sink transform.
+func NewSink(g *Graph, s *Scope, u *DoFn, in *Node) (*MultiEdge, error) {
+	return newDoFnNode(Sink, g, s, u, []*Node{in}, nil)
+}
+
 func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {
 	// TODO(herohde) 5/22/2017: revisit choice of ProcessElement as representative. We should
 	// perhaps create a synthetic method for binding purposes? The main question is how to
