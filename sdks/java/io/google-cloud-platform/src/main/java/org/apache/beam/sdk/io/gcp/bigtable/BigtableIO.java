@@ -60,7 +60,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -289,10 +288,9 @@ public class BigtableIO {
 
       BigtableOptions.Builder clonedBuilder = options.toBuilder()
           .setUseCachedDataPool(true);
-      BigtableOptions optionsWithAgent =
-          clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
+      BigtableOptions clonedOptions = clonedBuilder.build();
 
-      return toBuilder().setBigtableOptions(optionsWithAgent).build();
+      return toBuilder().setBigtableOptions(clonedOptions).build();
     }
 
     /**
@@ -498,9 +496,8 @@ public class BigtableIO {
                   .setUseBulkApi(true)
                   .build())
           .setUseCachedDataPool(true);
-      BigtableOptions optionsWithAgent =
-          clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
-      return toBuilder().setBigtableOptions(optionsWithAgent).build();
+      BigtableOptions clonedOptions = clonedBuilder.build();
+      return toBuilder().setBigtableOptions(clonedOptions).build();
     }
 
     /** Disables validation that the table being written to exists. */
@@ -595,6 +592,7 @@ public class BigtableIO {
         return getBigtableService();
       }
       BigtableOptions.Builder clonedOptions = getBigtableOptions().toBuilder();
+      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
       if (getBigtableOptions().getCredentialOptions()
           .getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
@@ -1099,19 +1097,5 @@ public class BigtableIO {
               record.getValue()),
           cause);
     }
-  }
-
-  /**
-   * A helper function to produce a Cloud Bigtable user agent string. This need only include
-   * information about the Apache Beam SDK itself, because Bigtable will automatically append
-   * other relevant system and Bigtable client-specific version information.
-   *
-   * @see com.google.cloud.bigtable.config.BigtableVersionInfo
-   */
-  private static String getBeamSdkPartOfUserAgent() {
-    ReleaseInfo info = ReleaseInfo.getReleaseInfo();
-    return
-        String.format("%s/%s", info.getName(), info.getVersion())
-            .replace(" ", "_");
   }
 }
