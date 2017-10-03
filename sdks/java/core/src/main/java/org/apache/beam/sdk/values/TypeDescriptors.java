@@ -23,7 +23,6 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 

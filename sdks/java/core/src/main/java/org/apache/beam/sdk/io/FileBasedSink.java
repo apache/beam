@@ -319,7 +319,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
               DynamicDestinations.class,
               new TypeVariableExtractor<
                   DynamicDestinations<UserT, DestinationT, OutputT>, DestinationT>() {});
-      return registry.getCoder(descriptor);
+      try {
+        return registry.getCoder(descriptor);
+      } catch (CannotProvideCoderException e) {
+        throw new CannotProvideCoderException(
+            "Failed to infer coder for DestinationT from type "
+                + descriptor + ", please provide it explicitly by overriding getDestinationCoder()",
+            e);
+      }
     }
   }
 
