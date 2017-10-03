@@ -54,6 +54,7 @@ import org.apache.tika.sax.ToTextContentHandler;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
 
 
@@ -256,7 +257,7 @@ class TikaSource extends BoundedSource<ParseResult> {
   }
 
   static class TikaReader extends BoundedReader<ParseResult> {
-    private final ContentHandlerImpl tikaHandler = new ContentHandlerImpl();
+    private final ContentHandler tikaHandler = new ToTextContentHandler();
     private String current;
     private TikaSource source;
     private String filePath;
@@ -320,11 +321,5 @@ class TikaSource extends BoundedSource<ParseResult> {
     public void close() throws IOException {
       // complete
     }
-  }
-
-  /**
-   * Tika Parser Content Handler.
-   */
-  static class ContentHandlerImpl extends ToTextContentHandler {
   }
 }

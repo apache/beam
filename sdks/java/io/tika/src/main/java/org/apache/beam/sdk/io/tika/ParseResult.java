@@ -28,9 +28,10 @@ import org.apache.tika.metadata.Metadata;
  */
 public class ParseResult implements Serializable {
   private static final long serialVersionUID = 6133510503781405912L;
-  private String content;
-  private Metadata metadata;
-  private String fileLocation;
+  private final String fileLocation;
+  private final String content;
+  private final Metadata metadata;
+  private final String[] metadataNames;
 
   public ParseResult(String fileLocation, String content) {
     this(fileLocation, content, new Metadata());
@@ -40,6 +41,7 @@ public class ParseResult implements Serializable {
     this.fileLocation = fileLocation;
     this.content = content;
     this.metadata = metadata;
+    this.metadataNames = metadata.names();
   }
 
   /**
@@ -65,7 +67,11 @@ public class ParseResult implements Serializable {
 
   @Override
   public int hashCode() {
-    return fileLocation.hashCode() + 37 * content.hashCode() + 37 * getMetadataHashCode();
+    int hashCode = 1;
+    hashCode = 31 * hashCode + fileLocation.hashCode();
+    hashCode = 31 * hashCode + content.hashCode();
+    hashCode = 31 * hashCode + getMetadataHashCode();
+    return hashCode;
   }
 
   @Override
@@ -82,14 +88,14 @@ public class ParseResult implements Serializable {
 
   private int getMetadataHashCode() {
     int hashCode = 0;
-    for (String name : metadata.names()) {
+    for (String name : metadataNames) {
       hashCode += name.hashCode() ^ Objects.hashCode(metadata.getValues(name));
     }
     return hashCode;
   }
   private Metadata getMetadataCopy() {
     Metadata metadataCopy = new Metadata();
-    for (String name : metadata.names()) {
+    for (String name : metadataNames) {
       for (String value : metadata.getValues(name)) {
         metadataCopy.add(name, value);
       }
