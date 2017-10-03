@@ -61,9 +61,19 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
+
+          <!--
+          This configuration bundles the SDK with its private implementation-detail
+          dependencies, relocated so they are within a namespace owned by Beam
+          that will not collide with user dependencies. If a dependency makes up
+          part of the SDK's API surface (for examples, joda-time) then the dependency
+          is not relocated or bundled.
+          -->
           <executions>
+
+            <!-- Bundle all relocated implementation detail dependencies -->
             <execution>
-              <id>bundle-and-repackage</id>
+              <id>bundle-private-dependencies</id>
               <phase>package</phase>
               <goals>
                 <goal>shade</goal>
@@ -71,12 +81,22 @@
               <configuration>
                 <shadeTestJar>true</shadeTestJar>
                 <artifactSet>
-                  <includes>
-                    <include>com.google.guava:guava</include>
-                    <include>com.google.protobuf:protobuf-java</include>
-                    <include>net.bytebuddy:byte-buddy</include>
-                    <include>org.apache.commons:*</include>
-                  </includes>
+                  <!-- This excludes all API surface libraries from repackaging.
+                       The list should be complete, even if some of the entries
+                       do not match a relocation pattern. -->
+                  <excludes>
+                    <exclude>com.google.auto.service:auto-service</exclude>
+                    <exclude>com.google.code.findbugs:jsr305</exclude>
+                    <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
+                    <exclude>com.fasterxml.jackson.core:jackson-core</exclude>
+                    <exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
+                    <exclude>joda-time:joda-time</exclude>
+                    <exclude>junit:junit</exclude>
+                    <exclude>org.apache.avro:avro</exclude>
+                    <exclude>org.hamcrest:hamcrest-all</exclude>
+                    <exclude>org.slf4j:slf4j-api</exclude>
+                    <exclude>org.xerial.snappy:snappy-java</exclude>
+                  </excludes>
                 </artifactSet>
                 <filters>
                   <filter>
@@ -88,45 +108,57 @@
                     </excludes>
                   </filter>
                 </filters>
+                <!--
+                We relocate everything into "org.apache.beam.sdk.private". The
+                implementation of the shade plugin the relocates
+                non-class files as well (and fails to join directory
+                names with a "/") so we have a separate toplevel relocation for
+                every root package prefix in our private dependencies.
+
+                Additionally, inclusion/exclusion in the result jar (above) is
+                independent of relocation, so we must exclude the packages from
+                all of the public API surface dependencies here.
+                -->
                 <relocations>
                   <relocation>
-                    <pattern>com.google.common</pattern>
+                    <pattern>com.</pattern>
+                    <shadedPattern>org.apache.beam.sdk.private.com.</shadedPattern>
                     <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
+                      <exclude>com.fasterxml.jackson.**</exclude>
                     </excludes>
-                    <!--suppress MavenModelInspection -->
-                    <shadedPattern>
-                      org.apache.beam.sdk.repackaged.com.google.common
-                    </shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>com.google.thirdparty</pattern>
-                    <!--suppress MavenModelInspection -->
-                    <shadedPattern>
-                      org.apache.beam.sdk.repackaged.com.google.thirdparty
-                    </shadedPattern>
+                    <pattern>io.</pattern>
+                    <shadedPattern>org.apache.beam.sdk.private.io.</shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>com.google.protobuf</pattern>
-                    <!--suppress MavenModelInspection -->
-                    <shadedPattern>
-                      org.apache.beam.sdk.repackaged.com.google.protobuf
-                    </shadedPattern>
+                    <pattern>net.</pattern>
+                    <shadedPattern>org.apache.beam.sdk.private.net.</shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>net.bytebuddy</pattern>
-                    <!--suppress MavenModelInspection -->
-                    <shadedPattern>
-                      org.apache.beam.sdk.repackaged.net.bytebuddy
-                    </shadedPattern>
+                    <pattern>okio.</pattern>
+                    <shadedPattern>org.apache.beam.sdk.private.okio.</shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>org.apache.commons</pattern>
-                    <!--suppress MavenModelInspection -->
-                    <shadedPattern>
-                      org.apache.beam.sdk.repackaged.org.apache.commons
-                    </shadedPattern>
+                    <pattern>org.</pattern>
+                    <shadedPattern>org.apache.beam.sdk.private.org.</shadedPattern>
+                    <excludes>
+                      <exclude>org.apache.avro.**</exclude>
+                      <exclude>org.apache.beam.**</exclude>
+                      <exclude>org.hamcrest.**</exclude>
+                      <exclude>org.joda.time.**</exclude>
+                      <exclude>org.junit.**</exclude>
+                      <exclude>org.slf4j.**</exclude>
+                      <exclude>org.w3c.dom.**</exclude>
+                      <exclude>org.xerial.snappy.**</exclude>
+                    </excludes>
+                  </relocation>
+                  <relocation>
+                    <pattern>javax.</pattern>
+                    <shadedPattern>org.apache.beam.sdk.private.javax.</shadedPattern>
+                    <excludes>
+                      <exclude>javax.annotion</exclude>
+                    </excludes>
                   </relocation>
                 </relocations>
                 <transformers>
@@ -136,6 +168,7 @@
             </execution>
           </executions>
         </plugin>
+
       </plugins>
     </pluginManagement>
 
