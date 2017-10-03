@@ -341,6 +341,18 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   @Test
+  public void testFromOptionsUserAgentFromPipelineInfo() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner.fromOptions(options);
+
+    String expectedName = DataflowRunnerInfo.getDataflowRunnerInfo().getName().replace(" ", "_");
+    assertThat(options.getUserAgent(), containsString(expectedName));
+
+    String expectedVersion = DataflowRunnerInfo.getDataflowRunnerInfo().getVersion();
+    assertThat(options.getUserAgent(), containsString(expectedVersion));
+  }
+
+  @Test
   public void testRun() throws IOException {
     DataflowPipelineOptions options = buildPipelineOptions();
     Pipeline p = buildDataflowPipeline(options);
