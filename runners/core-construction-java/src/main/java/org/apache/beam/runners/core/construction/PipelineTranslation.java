@@ -24,7 +24,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -105,8 +104,7 @@ public class PipelineTranslation {
     return DisplayData.from(component);
   }
 
-  public static Pipeline fromProto(final RunnerApi.Pipeline pipelineProto)
-      throws IOException {
+  public static Pipeline fromProto(final RunnerApi.Pipeline pipelineProto) throws IOException {
     TransformHierarchy transforms = new TransformHierarchy();
     Pipeline pipeline = Pipeline.forTransformHierarchy(transforms, PipelineOptionsFactory.create());
 
@@ -184,11 +182,7 @@ public class PipelineTranslation {
     }
 
     RehydratedPTransform transform =
-        RehydratedPTransform.of(
-            transformSpec.getUrn(),
-            transformSpec.getPayload(),
-            additionalInputs,
-            additionalCoders);
+        RehydratedPTransform.of(transformSpec, additionalInputs, additionalCoders);
 
     if (isPrimitive(transformProto)) {
       transforms.addFinalizedPrimitiveNode(
@@ -234,32 +228,33 @@ public class PipelineTranslation {
   private static boolean isPrimitive(RunnerApi.PTransform transformProto) {
     return transformProto.getSubtransformsCount() == 0
         && !transformProto
-        .getInputsMap()
-        .values()
-        .containsAll(transformProto.getOutputsMap().values());
+            .getInputsMap()
+            .values()
+            .containsAll(transformProto.getOutputsMap().values());
   }
 
   @AutoValue
   abstract static class RehydratedPTransform extends RawPTransform<PInput, POutput> {
 
     @Nullable
-    public abstract String getUrn();
-
-    @Nullable
-    public abstract ByteString getPayload();
+    public abstract RunnerApi.FunctionSpec getSpec();
 
     @Override
     public abstract Map<TupleTag<?>, PValue> getAdditionalInputs();
 
     public abstract List<Coder<?>> getCoders();
 
+    @Override
+    public String getUrn() {
+      return getSpec().getUrn();
+    }
+
     public static RehydratedPTransform of(
-        String urn,
-        ByteString payload,
+        RunnerApi.FunctionSpec payload,
         Map<TupleTag<?>, PValue> additionalInputs,
         List<Coder<?>> additionalCoders) {
       return new AutoValue_PipelineTranslation_RehydratedPTransform(
-          urn, payload, additionalInputs, additionalCoders);
+          payload, additionalInputs, additionalCoders);
     }
 
     @Override
@@ -275,12 +270,12 @@ public class PipelineTranslation {
     public String toString() {
       return MoreObjects.toStringHelper(this)
           .add("urn", getUrn())
-          .add("payload", getPayload())
+          .add("payload", getSpec())
           .toString();
     }
 
     @Override
-    public void registerComponents(SdkComponents components) {
+    public RunnerApi.FunctionSpec migrate(SdkComponents components) {
       for (Coder<?> coder : getCoders()) {
         try {
           components.registerCoder(coder);
@@ -288,6 +283,7 @@ public class PipelineTranslation {
           throw new RuntimeException(e);
         }
       }
+      return getSpec();
     }
   }
 }

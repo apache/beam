@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,8 +65,8 @@ public class PTransformTranslation {
   public static final String WRITE_FILES_TRANSFORM_URN = "urn:beam:transform:write_files:0.1";
 
   /**
-   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this
-   * as part of the translation for a `ParDo` side input.
+   * @deprecated runners should move away from translating `CreatePCollectionView` and treat this as
+   *     part of the translation for a `ParDo` side input.
    */
   @Deprecated
   public static final String CREATE_VIEW_TRANSFORM_URN = "urn:beam:transform:create_view:v1";
@@ -85,8 +84,8 @@ public class PTransformTranslation {
       Map<Class<? extends PTransform>, TransformPayloadTranslator> newTranslators =
           (Map) registrar.getTransformPayloadTranslators();
 
-      Set<Class<? extends PTransform>> alreadyRegistered = Sets.intersection(
-          translators.keySet(), newTranslators.keySet());
+      Set<Class<? extends PTransform>> alreadyRegistered =
+          Sets.intersection(translators.keySet(), newTranslators.keySet());
 
       if (!alreadyRegistered.isEmpty()) {
         throw new IllegalArgumentException(
@@ -143,20 +142,13 @@ public class PTransformTranslation {
         DisplayDataTranslation.toProto(DisplayData.from(appliedPTransform.getTransform())));
 
     PTransform<?, ?> transform = appliedPTransform.getTransform();
+
     // A RawPTransform directly vends its payload. Because it will generally be
     // a subclass, we cannot do dictionary lookup in KNOWN_PAYLOAD_TRANSLATORS.
     if (transform instanceof RawPTransform) {
-      RawPTransform<?, ?> rawPTransform = (RawPTransform<?, ?>) transform;
-
-      if (rawPTransform.getUrn() != null) {
-        FunctionSpec.Builder payload = FunctionSpec.newBuilder().setUrn(rawPTransform.getUrn());
-        @Nullable ByteString parameter = rawPTransform.getPayload();
-        if (parameter != null) {
-          payload.setPayload(parameter);
-        }
-        transformBuilder.setSpec(payload);
-      }
-      rawPTransform.registerComponents(components);
+      // The raw transform was parsed in the context of other components; this puts it in the
+      // context of our current serialization
+      transformBuilder.setSpec(((RawPTransform<?, ?>) transform).migrate(components));
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       FunctionSpec payload =
           KNOWN_PAYLOAD_TRANSLATORS
@@ -186,9 +178,7 @@ public class PTransformTranslation {
     return tag.getId();
   }
 
-  /**
-   * Returns the URN for the transform if it is known, otherwise {@code null}.
-   */
+  /** Returns the URN for the transform if it is known, otherwise {@code null}. */
   @Nullable
   public static String urnForTransformOrNull(PTransform<?, ?> transform) {
 
@@ -205,9 +195,7 @@ public class PTransformTranslation {
     return translator.getUrn(transform);
   }
 
-  /**
-   * Returns the URN for the transform if it is known, otherwise throws.
-   */
+  /** Returns the URN for the transform if it is known, otherwise throws. */
   public static String urnForTransform(PTransform<?, ?> transform) {
     String urn = urnForTransformOrNull(transform);
     if (urn == null) {
@@ -235,24 +223,48 @@ public class PTransformTranslation {
    * #expand} method since the definition of the transform may be lost. The transform is already
    * fully expanded in the pipeline proto.
    */
-  public abstract static class RawPTransform<
-          InputT extends PInput, OutputT extends POutput>
+  public abstract static class RawPTransform<InputT extends PInput, OutputT extends POutput>
       extends PTransform<InputT, OutputT> {
 
+    /** The URN for this transform, if standardized. */
     @Nullable
-    public abstract String getUrn();
-
-    @Nullable
-    public ByteString getPayload() {
-      return null;
+    public String getUrn() {
+      return getSpec() == null ? null : getSpec().getUrn();
     }
 
-    public void registerComponents(SdkComponents components) {}
+    /** The payload for this transform, if any. */
+    @Nullable
+    public abstract FunctionSpec getSpec();
+
+    /**
+     * Build a new payload set in the context of the given {@link SdkComponents}, if applicable.
+     *
+     * <p>When re-serializing this transform, the ids reference in the rehydrated payload may
+     * conflict with those defined by the serialization context. In that case, the components must
+     * be re-registered and a new payload returned.
+     */
+    public FunctionSpec migrate(SdkComponents components) throws IOException {
+      return getSpec();
+    }
+
+    /**
+     * By default, throws an exception, but can be overridden.
+     *
+     * <p>It is permissible for runner-specific transforms to be both a {@link RawPTransform} that
+     * directly vends its proto representation and also to expand, for convenience of not having to
+     * register a translator.
+     */
+    @Override
+    public OutputT expand(InputT input) {
+      throw new IllegalStateException(
+          String.format(
+              "%s should never be asked to expand;"
+                  + " it is the result of deserializing an already-constructed Pipeline",
+              getClass().getSimpleName()));
+    }
   }
 
-  /**
-   * A translator that uses the explicit URN and payload from a {@link RawPTransform}.
-   */
+  /** A translator that uses the explicit URN and payload from a {@link RawPTransform}. */
   public static class RawPTransformTranslator
       implements TransformPayloadTranslator<RawPTransform<?, ?>> {
     @Override
@@ -262,27 +274,9 @@ public class PTransformTranslation {
 
     @Override
     public FunctionSpec translate(
-        AppliedPTransform<?, ?, RawPTransform<?, ?>> transform,
-        SdkComponents components) {
-
-      // Anonymous composites have no spec
-      if (transform.getTransform().getUrn() == null) {
-        return null;
-      }
-
-      FunctionSpec.Builder transformSpec =
-          FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform()));
-
-      ByteString payload = transform.getTransform().getPayload();
-      if (payload != null) {
-        transformSpec.setPayload(payload);
-      }
-
-      // Transforms like Combine may have Coders that need to be added but do not
-      // occur in a black-box traversal
-      transform.getTransform().registerComponents(components);
-
-      return transformSpec.build();
+        AppliedPTransform<?, ?, RawPTransform<?, ?>> transform, SdkComponents components)
+        throws IOException {
+      return transform.getTransform().migrate(components);
     }
   }
 }

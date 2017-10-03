@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.TestStreamTranslation;
@@ -217,6 +218,12 @@ class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
       @Override
       public String getUrn() {
         return DIRECT_TEST_STREAM_URN;
+      }
+
+      @Nullable
+      @Override
+      public RunnerApi.FunctionSpec getSpec() {
+        return null;
       }
     }
   }

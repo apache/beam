@@ -20,6 +20,8 @@ package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
@@ -92,6 +94,12 @@ class DirectGroupByKey<K, V>
     public String getUrn() {
       return DIRECT_GBKO_URN;
     }
+
+    @Nullable
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      return null;
+    }
   }
 
   static final class DirectGroupAlsoByWindow<K, V>
@@ -140,6 +148,12 @@ class DirectGroupByKey<K, V>
     @Override
     public String getUrn() {
       return DIRECT_GABW_URN;
+    }
+
+    @Nullable
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      return null;
     }
   }
 }

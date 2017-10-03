@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -260,6 +261,12 @@ class ParDoMultiOverrideFactory<InputT, OutputT>
     @Override
     public String getUrn() {
       return DIRECT_STATEFUL_PAR_DO_URN;
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      throw new UnsupportedOperationException(
+          String.format("%s should never be serialized to proto", getClass().getSimpleName()));
     }
   }
 

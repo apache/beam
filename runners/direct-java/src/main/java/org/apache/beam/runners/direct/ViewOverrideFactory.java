@@ -20,6 +20,8 @@ package org.apache.beam.runners.direct;
 
 import java.io.IOException;
 import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
@@ -127,6 +129,12 @@ class ViewOverrideFactory<ElemT, ViewT>
     @Override
     public String getUrn() {
       return DIRECT_WRITE_VIEW_URN;
+    }
+
+    @Nullable
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      return null;
     }
   }
 
