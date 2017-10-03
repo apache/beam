@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.coders;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -38,7 +39,10 @@ public class VoidCoder extends AtomicCoder<Void> {
   private VoidCoder() {}
 
   @Override
-  public void encode(Void value, OutputStream outStream) {
+  public void encode(Void value, OutputStream outStream) throws IOException {
+    if (value != null) {
+      throw new IOException("Attempting to encode non-null value with VoidCoder.");
+    }
     // Nothing to write!
   }
 
