@@ -401,12 +401,19 @@ public interface NexmarkOptions
 
   void setWatermarkValidationDelaySeconds(Long value);
 
-  @Description("Base name of Kafka topic in streaming mode.")
+  @Description("Base name of Kafka source topic in streaming mode.")
   @Nullable
-  @Default.String("nexmark")
-  String getKafkaTopic();
+  @Default.String("nexmark-source")
+  String getKafkaSourceTopic();
 
-  void setKafkaTopic(String value);
+  void setKafkaSourceTopic(String value);
+
+  @Description("Base name of Kafka sink topic in streaming mode.")
+  @Nullable
+  @Default.String("nexmark-sink")
+  String getKafkaSinkTopic();
+
+  void setKafkaSinkTopic(String value);
 
   @Description("Kafka Bootstrap Server domains.")
   @Nullable

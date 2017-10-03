@@ -90,7 +90,6 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.common.serialization.LongDeserializer;
@@ -762,8 +761,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             @ProcessElement
             public void processElement(ProcessContext c) {
               try {
-                byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                c.output(payload);
+                byte[] encodedEvent = CoderUtils.encodeToByteArray(Event.CODER, c.element());
+                c.output(encodedEvent);
               } catch (CoderException e1) {
                 LOG.error("Error while sending Event {} to Kafka: serialization error",
                         c.element().toString());
@@ -775,25 +774,16 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Send {@code events} to Kafka.
    */
   private void sinkEventsToKafka(PCollection<Event> events) {
+    if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
+      throw new RuntimeException("Missing --bootstrapServers");
+    }
+
     PTransform<PCollection<byte[]>, PDone> io = KafkaIO.<Long, byte[]>write()
-            .withBootstrapServers("localhost:9092")
-            .withTopic("generateEvent")
+            .withBootstrapServers(options.getBootstrapServers())
+            .withTopic(options.getKafkaSinkTopic())
             .withKeySerializer(LongSerializer.class)
             .withValueSerializer(ByteArraySerializer.class).values();
-//    PTransform<PCollection<String>, PDone> io = KafkaIO.<Long, String>write()
-//            .withBootstrapServers("localhost:9092")
-//            .withTopic("generateEvent")
-//            .withKeySerializer(LongSerializer.class)
-//            .withValueSerializer(StringSerializer.class).values();
-    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>(){};
-
-
-
-//    events.apply(
-//      MapElements.into(td)
-//              .via((Event e) -> Bytes.wrap(e.toString().getBytes()))
-//    ).apply(io);
-    events.apply("Event To String", EVENT_TO_BYTEARRAY).apply(io);
+    events.apply("Event to bytes", EVENT_TO_BYTEARRAY).apply(io);
   }
 
 
@@ -801,9 +791,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
           ParDo.of(new DoFn<KV<Long, byte[]>, Event>() {
             @ProcessElement
             public void processElement(ProcessContext c) {
-              byte[] payload = c.element().getValue();
+              byte[] encodedEvent = c.element().getValue();
               try {
-                Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+                Event event = CoderUtils.decodeFromByteArray(Event.CODER, encodedEvent);
                 c.output(event);
               } catch (CoderException e) {
                 LOG.error("Error while decoding Event from Kafka message: serialization error");
@@ -815,12 +805,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Return source of events from Kafka.
    */
   private PCollection<Event> sourceEventsFromKafka(Pipeline p) {
-    PCollection<Event> e = sourceEventsFromSynthetic(p);
-    sinkEventsToKafka(e);
-
-    NexmarkUtils.console("%s", "Here ->>>>>");
-    String filename = options.getInputPath();
-    NexmarkUtils.console("Reading events from Kafka %s", filename);
+    NexmarkUtils.console("Reading events from Kafka Topic %s", options.getKafkaSourceTopic());
 
     if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
       throw new RuntimeException("Missing --bootstrapServers");
@@ -828,9 +813,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     KafkaIO.Read<Long, byte[]> io = KafkaIO.<Long, byte[]>read()
             .withBootstrapServers(options.getBootstrapServers())
-            .withTopic("generateEvent")
+            .withTopic(options.getKafkaSourceTopic())
             .withKeyDeserializer(LongDeserializer.class)
             .withValueDeserializer(ByteArrayDeserializer.class);
+
     return p
       .apply(queryName + ".ReadKafkaEvents", io.withoutMetadata())
       .apply(queryName + ".KafkaToEvents", BYTEARRAY_TO_EVENT);
@@ -886,9 +872,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Send {@code formattedResults} to Kafka.
    */
   private void sinkResultsToKafka(PCollection<String> formattedResults) {
+    if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
+      throw new RuntimeException("Missing --bootstrapServers");
+    }
+
     PTransform<PCollection<String>, PDone> io = KafkaIO.<Long, String>write()
             .withBootstrapServers(options.getBootstrapServers())
-            .withTopic(options.getKafkaTopic())
+            .withTopic(options.getKafkaSinkTopic())
             .withKeySerializer(LongSerializer.class)
             .withValueSerializer(StringSerializer.class).values();
     formattedResults.apply(queryName + ".WriteKafkaResults", io);
@@ -1000,7 +990,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
-        sinkEventsToKafka(source);
         break;
       case AVRO:
         source = sourceEventsFromAvro(p);
