@@ -60,8 +60,8 @@ public class ArtifactServiceStager {
   // 2 MB per file-request
   private static final int DEFAULT_BUFFER_SIZE = 2 * 1024 * 1024;
 
-  public static ArtifactServiceStager create(Channel channel) {
-    return create(channel, DEFAULT_BUFFER_SIZE);
+  public static ArtifactServiceStager overChannel(Channel channel) {
+    return overChannel(channel, DEFAULT_BUFFER_SIZE);
   }
 
   /**
@@ -70,7 +70,7 @@ public class ArtifactServiceStager {
    *
    * @param bufferSize the maximum size of the artifact chunk, in bytes.
    */
-  static ArtifactServiceStager create(Channel channel, int bufferSize) {
+  static ArtifactServiceStager overChannel(Channel channel, int bufferSize) {
     return new ArtifactServiceStager(channel, bufferSize);
   }
 
