@@ -53,4 +53,9 @@ public final class Requirements implements Serializable {
   public static Requirements empty() {
     return new Requirements(Collections.<PCollectionView<?>>emptyList());
   }
+
+  /** Whether this is an empty set of requirements. */
+  public boolean isEmpty() {
+    return sideInputs.isEmpty();
+  }
 }
