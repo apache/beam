@@ -50,6 +50,10 @@ python setup.py sdist
 
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
+# Install test dependencies for ValidatesRunner tests.
+echo "pyhamcrest" > postcommit_requirements.txt
+echo "mock" >> postcommit_requirements.txt
+
 # Run ValidatesRunner tests on Google Cloud Dataflow service
 echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
 python setup.py nosetests \
@@ -63,4 +67,5 @@ python setup.py nosetests \
     --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
     --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
     --sdk_location=$SDK_LOCATION \
+    --requirements_file=postcommit_requirements.txt \
     --num_workers=1"
