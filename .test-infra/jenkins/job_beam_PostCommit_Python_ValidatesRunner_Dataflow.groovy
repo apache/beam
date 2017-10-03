@@ -20,7 +20,7 @@ import common_job_properties
 
 // This job runs the suite of Python ValidatesRunner tests against the
 // Dataflow runner.
-Job('beam_PostCommit_Python_ValidatesRunner_Dataflow') {
+job('beam_PostCommit_Python_ValidatesRunner_Dataflow') {
   description('Runs Python ValidatesRunner suite on the Dataflow runner.')
 
   // Set common parameters.
