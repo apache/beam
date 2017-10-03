@@ -122,11 +122,11 @@ class Operation(object):
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.operation_name + '-start')
+        self.operation_name, 'start')
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.operation_name + '-process')
+        self.operation_name, 'process')
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.operation_name + '-finish')
+        self.operation_name, 'finish')
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.scoped_metrics_container = None
