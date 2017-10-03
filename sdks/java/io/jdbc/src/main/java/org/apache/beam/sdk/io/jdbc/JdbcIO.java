@@ -172,6 +172,7 @@ public class JdbcIO {
    * An interface used by {@link JdbcIO.Read} for converting each row of the {@link ResultSet} into
    * an element of the resulting {@link PCollection}.
    */
+  @FunctionalInterface
   public interface RowMapper<T> extends Serializable {
     T mapRow(ResultSet resultSet) throws Exception;
   }
@@ -271,6 +272,7 @@ public class JdbcIO {
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
+  @FunctionalInterface
   public interface StatementPreparator extends Serializable {
     void setParameters(PreparedStatement preparedStatement) throws Exception;
   }
@@ -502,6 +504,7 @@ public class JdbcIO {
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
+  @FunctionalInterface
   public interface PreparedStatementSetter<T> extends Serializable {
     void setParameters(T element, PreparedStatement preparedStatement) throws Exception;
   }
