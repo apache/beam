@@ -26,4 +26,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 public interface TransformPayloadTranslatorRegistrar {
   Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
       getTransformPayloadTranslators();
+
+  Map<String, ? extends TransformPayloadTranslator> getTransformRehydrators();
 }

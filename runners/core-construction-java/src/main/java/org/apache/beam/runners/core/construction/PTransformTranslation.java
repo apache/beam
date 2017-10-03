@@ -20,7 +20,9 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import java.io.IOException;
@@ -74,6 +76,12 @@ public class PTransformTranslation {
   private static final Map<Class<? extends PTransform>, TransformPayloadTranslator>
       KNOWN_PAYLOAD_TRANSLATORS = loadTransformPayloadTranslators();
 
+  private static final Map<String, TransformPayloadTranslator> KNOWN_REHYDRATORS =
+      loadTransformRehydrators();
+
+  private static final TransformPayloadTranslator<?> DEFAULT_REHYDRATOR =
+      new RawPTransformTranslator();
+
   private static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       loadTransformPayloadTranslators() {
     HashMap<Class<? extends PTransform>, TransformPayloadTranslator> translators = new HashMap<>();
@@ -96,6 +104,29 @@ public class PTransformTranslation {
       translators.putAll(newTranslators);
     }
     return ImmutableMap.copyOf(translators);
+  }
+
+  private static Map<String, TransformPayloadTranslator> loadTransformRehydrators() {
+    HashMap<String, TransformPayloadTranslator> rehydrators = new HashMap<>();
+
+    for (TransformPayloadTranslatorRegistrar registrar :
+        ServiceLoader.load(TransformPayloadTranslatorRegistrar.class)) {
+
+      Map<String, ? extends TransformPayloadTranslator> newRehydrators =
+          registrar.getTransformRehydrators();
+
+      Set<String> alreadyRegistered =
+          Sets.intersection(rehydrators.keySet(), newRehydrators.keySet());
+
+      if (!alreadyRegistered.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "URNs already registered: %s", Joiner.on(", ").join(alreadyRegistered)));
+      }
+
+      rehydrators.putAll(newRehydrators);
+    }
+    return ImmutableMap.copyOf(rehydrators);
   }
 
   private PTransformTranslation() {}
@@ -150,14 +181,33 @@ public class PTransformTranslation {
       // context of our current serialization
       transformBuilder.setSpec(((RawPTransform<?, ?>) transform).migrate(components));
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
-      FunctionSpec payload =
+      transformBuilder.setSpec(
           KNOWN_PAYLOAD_TRANSLATORS
               .get(transform.getClass())
-              .translate(appliedPTransform, components);
-      transformBuilder.setSpec(payload);
+              .translate(appliedPTransform, components));
     }
 
     return transformBuilder.build();
+  }
+
+  /**
+   * Translates a {@link RunnerApi.PTransform} to a {@link RawPTransform} specialized for the URN
+   * and spec.
+   */
+  static RawPTransform<?, ?> rehydrate(
+      RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+      throws IOException {
+
+    @Nullable
+    TransformPayloadTranslator<?> rehydrator =
+        KNOWN_REHYDRATORS.get(
+            protoTransform.getSpec() == null ? null : protoTransform.getSpec().getUrn());
+
+    if (rehydrator == null) {
+      return DEFAULT_REHYDRATOR.rehydrate(protoTransform, rehydratedComponents);
+    } else {
+      return rehydrator.rehydrate(protoTransform, rehydratedComponents);
+    }
   }
 
   /**
@@ -206,14 +256,66 @@ public class PTransformTranslation {
   }
 
   /**
-   * A translator consumes a {@link PTransform} application and produces the appropriate
-   * FunctionSpec for a distinguished or primitive transform within the Beam runner API.
+   * A bi-directional translator between a Java-based {@link PTransform} and a protobuf payload for
+   * that transform.
+   *
+   * <p>When going to a protocol buffer message, the translator produces a payload corresponding to
+   * the Java representation while registering components that payload references.
+   *
+   * <p>When "rehydrating" a protocol buffer message, the translator returns a {@link RawPTransform}
+   * - because the transform may not be Java-based, it is not possible to rebuild a Java-based
+   * {@link PTransform}. The resulting {@link RawPTransform} subclass encapsulates the knowledge of
+   * which components are referenced in the payload.
    */
   public interface TransformPayloadTranslator<T extends PTransform<?, ?>> {
     String getUrn(T transform);
 
     FunctionSpec translate(AppliedPTransform<?, ?, T> application, SdkComponents components)
         throws IOException;
+
+    RawPTransform<?, ?> rehydrate(
+        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+        throws IOException;
+
+    /**
+     * A {@link TransformPayloadTranslator} for transforms that contain no references to components,
+     * so they do not need a specialized rehydration.
+     */
+    abstract class WithDefaultRehydration<T extends PTransform<?, ?>>
+        implements TransformPayloadTranslator<T> {
+      @Override
+      public final RawPTransform<?, ?> rehydrate(
+          RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+          throws IOException {
+        return UnknownRawPTransform.forSpec(protoTransform.getSpec());
+      }
+    }
+
+    /**
+     * A {@link TransformPayloadTranslator} for transforms that contain no references to components,
+     * so they do not need a specialized rehydration.
+     */
+    abstract class NotSerializable<T extends PTransform<?, ?>>
+        implements TransformPayloadTranslator<T> {
+      @Override
+      public final FunctionSpec translate(
+          AppliedPTransform<?, ?, T> transform, SdkComponents components) throws IOException {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s should never be translated",
+                transform.getTransform().getClass().getCanonicalName()));
+      }
+
+      @Override
+      public final RawPTransform<?, ?> rehydrate(
+          RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents)
+          throws IOException {
+        throw new UnsupportedOperationException(
+            String.format(
+                "%s.rehydrate should never be called; there is no serialized form",
+                getClass().getCanonicalName()));
+      }
+    }
   }
 
   /**
@@ -264,6 +366,43 @@ public class PTransformTranslation {
     }
   }
 
+  @AutoValue
+  abstract static class UnknownRawPTransform extends RawPTransform<PInput, POutput> {
+
+    @Override
+    public String getUrn() {
+      return getSpec() == null ? null : getSpec().getUrn();
+    }
+
+    @Nullable
+    public abstract RunnerApi.FunctionSpec getSpec();
+
+    public static UnknownRawPTransform forSpec(RunnerApi.FunctionSpec spec) {
+      return new AutoValue_PTransformTranslation_UnknownRawPTransform(spec);
+    }
+
+    @Override
+    public POutput expand(PInput input) {
+      throw new IllegalStateException(
+          String.format(
+              "%s should never be asked to expand;"
+                  + " it is the result of deserializing an already-constructed Pipeline",
+              getClass().getSimpleName()));
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("urn", getUrn())
+          .add("payload", getSpec())
+          .toString();
+    }
+
+    public RunnerApi.FunctionSpec getSpecForComponents(SdkComponents components) {
+      return getSpec();
+    }
+  }
+
   /** A translator that uses the explicit URN and payload from a {@link RawPTransform}. */
   public static class RawPTransformTranslator
       implements TransformPayloadTranslator<RawPTransform<?, ?>> {
@@ -277,6 +416,12 @@ public class PTransformTranslation {
         AppliedPTransform<?, ?, RawPTransform<?, ?>> transform, SdkComponents components)
         throws IOException {
       return transform.getTransform().migrate(components);
+    }
+
+    @Override
+    public RawPTransform<?, ?> rehydrate(
+        RunnerApi.PTransform protoTransform, RehydratedComponents rehydratedComponents) {
+      return UnknownRawPTransform.forSpec(protoTransform.getSpec());
     }
   }
 }

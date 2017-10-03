@@ -20,8 +20,6 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import java.io.IOException;
@@ -32,12 +30,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -47,8 +43,6 @@ import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
@@ -148,6 +142,8 @@ public class PipelineTranslation {
     }
 
     RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
+    RawPTransform<?, ?> transform =
+        PTransformTranslation.rehydrate(transformProto, rehydratedComponents);
 
     // By default, no "additional" inputs, since that is an SDK-specific thing.
     // Only ParDo and WriteFiles really separate main from side inputs
@@ -169,20 +165,6 @@ public class PipelineTranslation {
           sideInputMapToAdditionalInputs(
               transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
     }
-
-    // TODO: CombineTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
-    List<Coder<?>> additionalCoders = Collections.emptyList();
-    if (transformSpec.getUrn().equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
-      RunnerApi.CombinePayload payload =
-          RunnerApi.CombinePayload.parseFrom(transformSpec.getPayload());
-      additionalCoders =
-          (List)
-              Collections.singletonList(
-                  rehydratedComponents.getCoder(payload.getAccumulatorCoderId()));
-    }
-
-    RehydratedPTransform transform =
-        RehydratedPTransform.of(transformSpec, additionalInputs, additionalCoders);
 
     if (isPrimitive(transformProto)) {
       transforms.addFinalizedPrimitiveNode(
@@ -231,59 +213,5 @@ public class PipelineTranslation {
             .getInputsMap()
             .values()
             .containsAll(transformProto.getOutputsMap().values());
-  }
-
-  @AutoValue
-  abstract static class RehydratedPTransform extends RawPTransform<PInput, POutput> {
-
-    @Nullable
-    public abstract RunnerApi.FunctionSpec getSpec();
-
-    @Override
-    public abstract Map<TupleTag<?>, PValue> getAdditionalInputs();
-
-    public abstract List<Coder<?>> getCoders();
-
-    @Override
-    public String getUrn() {
-      return getSpec().getUrn();
-    }
-
-    public static RehydratedPTransform of(
-        RunnerApi.FunctionSpec payload,
-        Map<TupleTag<?>, PValue> additionalInputs,
-        List<Coder<?>> additionalCoders) {
-      return new AutoValue_PipelineTranslation_RehydratedPTransform(
-          payload, additionalInputs, additionalCoders);
-    }
-
-    @Override
-    public POutput expand(PInput input) {
-      throw new IllegalStateException(
-          String.format(
-              "%s should never be asked to expand;"
-                  + " it is the result of deserializing an already-constructed Pipeline",
-              getClass().getSimpleName()));
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(this)
-          .add("urn", getUrn())
-          .add("payload", getSpec())
-          .toString();
-    }
-
-    @Override
-    public RunnerApi.FunctionSpec migrate(SdkComponents components) {
-      for (Coder<?> coder : getCoders()) {
-        try {
-          components.registerCoder(coder);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
-      return getSpec();
-    }
   }
 }

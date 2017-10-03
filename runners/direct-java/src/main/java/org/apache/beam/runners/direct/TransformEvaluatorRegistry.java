@@ -35,14 +35,13 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -115,6 +114,11 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
               new SplittableParDoProcessElementsTranslator())
           .build();
     }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
+    }
   }
 
   /**
@@ -122,21 +126,13 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
    * once SDF is reorganized appropriately.
    */
   private static class SplittableParDoProcessElementsTranslator
-      implements TransformPayloadTranslator<ProcessElements<?, ?, ?, ?>> {
+      extends TransformPayloadTranslator.NotSerializable<ProcessElements<?, ?, ?, ?>> {
 
     private SplittableParDoProcessElementsTranslator() {}
 
     @Override
     public String getUrn(ProcessElements<?, ?, ?, ?> transform) {
       return SPLITTABLE_PROCESS_URN;
-    }
-
-    @Override
-    public FunctionSpec translate(
-        AppliedPTransform<?, ?, ProcessElements<?, ?, ?, ?>> transform, SdkComponents components) {
-      throw new UnsupportedOperationException(
-          String.format("%s should never be translated",
-          ProcessElements.class.getCanonicalName()));
     }
   }
 

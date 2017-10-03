@@ -172,7 +172,8 @@ public class TestStreamTranslation {
     }
   }
 
-  static class TestStreamTranslator implements TransformPayloadTranslator<TestStream<?>> {
+  static class TestStreamTranslator
+      extends TransformPayloadTranslator.WithDefaultRehydration<TestStream<?>> {
     @Override
     public String getUrn(TestStream<?> transform) {
       return TEST_STREAM_TRANSFORM_URN;
@@ -196,6 +197,11 @@ public class TestStreamTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(TestStream.class, new TestStreamTranslator());
+    }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 }

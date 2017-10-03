@@ -20,6 +20,7 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
@@ -173,10 +174,11 @@ public class WriteFilesTranslation {
             .getPayload());
   }
 
-  static class WriteFilesTranslator implements TransformPayloadTranslator<WriteFiles<?, ?, ?>> {
+  static class WriteFilesTranslator
+      extends TransformPayloadTranslator.WithDefaultRehydration<WriteFiles<?, ?, ?>> {
     @Override
     public String getUrn(WriteFiles<?, ?, ?> transform) {
-      return PTransformTranslation.WRITE_FILES_TRANSFORM_URN;
+      return WRITE_FILES_TRANSFORM_URN;
     }
 
     @Override
@@ -193,9 +195,15 @@ public class WriteFilesTranslation {
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class Registrar implements TransformPayloadTranslatorRegistrar {
     @Override
-    public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
+    public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
-      return Collections.singletonMap(WriteFiles.class, new WriteFilesTranslator());
+      return Collections.<Class<? extends PTransform>, TransformPayloadTranslator>singletonMap(
+          WriteFiles.class, new WriteFilesTranslator());
+    }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 }

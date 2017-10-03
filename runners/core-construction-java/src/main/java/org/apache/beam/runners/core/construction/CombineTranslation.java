@@ -54,11 +54,10 @@ import org.apache.beam.sdk.values.PCollection;
 public class CombineTranslation {
   public static final String JAVA_SERIALIZED_COMBINE_FN_URN = "urn:beam:combinefn:javasdk:v1";
 
-   /**
-   * A {@link TransformPayloadTranslator} for {@link Combine.PerKey}.
-   */
+  /** A {@link TransformPayloadTranslator} for {@link Combine.PerKey}. */
   public static class CombinePayloadTranslator
-      implements PTransformTranslation.TransformPayloadTranslator<Combine.PerKey<?, ?, ?>> {
+      extends PTransformTranslation.TransformPayloadTranslator.WithDefaultRehydration<
+          Combine.PerKey<?, ?, ?>> {
     public static TransformPayloadTranslator create() {
       return new CombinePayloadTranslator();
     }
@@ -81,15 +80,18 @@ public class CombineTranslation {
           .build();
     }
 
-    /**
-     * Registers {@link CombinePayloadTranslator}.
-     */
+    /** Registers {@link CombinePayloadTranslator}. */
     @AutoService(TransformPayloadTranslatorRegistrar.class)
     public static class Registrar implements TransformPayloadTranslatorRegistrar {
       @Override
       public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
           getTransformPayloadTranslators() {
         return Collections.singletonMap(Combine.PerKey.class, new CombinePayloadTranslator());
+      }
+
+      @Override
+      public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+        return Collections.emptyMap();
       }
     }
   }
@@ -136,8 +138,7 @@ public class CombineTranslation {
         .setSpec(
             FunctionSpec.newBuilder()
                 .setUrn(JAVA_SERIALIZED_COMBINE_FN_URN)
-                .setPayload(
-                    ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
+                .setPayload(ByteString.copyFrom(SerializableUtils.serializeToByteArray(combineFn)))
                 .build())
         .build();
   }
@@ -148,8 +149,8 @@ public class CombineTranslation {
     return components.getCoder(id);
   }
 
-  public static Coder<?> getAccumulatorCoder(
-      AppliedPTransform<?, ?, ?> transform) throws IOException {
+  public static Coder<?> getAccumulatorCoder(AppliedPTransform<?, ?, ?> transform)
+      throws IOException {
     SdkComponents sdkComponents = SdkComponents.create();
     String id = getCombinePayload(transform, sdkComponents).getAccumulatorCoderId();
     Components components = sdkComponents.toComponents();
@@ -157,17 +158,11 @@ public class CombineTranslation {
         components.getCodersOrThrow(id), RehydratedComponents.forComponents(components));
   }
 
-  public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload)
-      throws IOException {
+  public static GlobalCombineFn<?, ?, ?> getCombineFn(CombinePayload payload) throws IOException {
     checkArgument(payload.getCombineFn().getSpec().getUrn().equals(JAVA_SERIALIZED_COMBINE_FN_URN));
     return (GlobalCombineFn<?, ?, ?>)
         SerializableUtils.deserializeFromByteArray(
-            payload
-                .getCombineFn()
-                .getSpec()
-                .getPayload()
-                .toByteArray(),
-            "CombineFn");
+            payload.getCombineFn().getSpec().getPayload().toByteArray(), "CombineFn");
   }
 
   public static GlobalCombineFn<?, ?, ?> getCombineFn(AppliedPTransform<?, ?, ?> transform)
