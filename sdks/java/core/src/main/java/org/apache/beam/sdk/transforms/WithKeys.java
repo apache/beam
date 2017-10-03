@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -64,6 +66,8 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
    * be called on the result {@link PTransform}.
    */
   public static <K, V> WithKeys<K, V> of(SerializableFunction<V, K> fn) {
+    checkNotNull(fn,
+        "WithKeys constructed with null function. Did you mean WithKeys.of((Void) null)?");
     return new WithKeys<>(fn, null);
   }
 
@@ -82,7 +86,7 @@ public class WithKeys<K, V> extends PTransform<PCollection<V>,
             return key;
           }
         },
-        (Class<K>) (key == null ? null : key.getClass()));
+        (Class<K>) (key == null ? Void.class : key.getClass()));
   }
 
 
