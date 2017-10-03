@@ -111,6 +111,7 @@ class SdkWorker(object):
     self.fns = {}
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
+    self.bundle_processors = {}
 
   def do_instruction(self, request):
     request_type = request.WhichOneof('request')
@@ -129,16 +130,21 @@ class SdkWorker(object):
         register=beam_fn_api_pb2.RegisterResponse())
 
   def process_bundle(self, request, instruction_id):
-    bundle_processor.BundleProcessor(
-        self.fns[request.process_bundle_descriptor_reference],
-        self.state_handler,
-        self.data_channel_factory).process_bundle(instruction_id)
+    self.bundle_processors[
+        instruction_id] = processor = bundle_processor.BundleProcessor(
+            self.fns[request.process_bundle_descriptor_reference],
+            self.state_handler,
+            self.data_channel_factory)
+    try:
+      processor.process_bundle(instruction_id)
+    finally:
+      del self.bundle_processors[instruction_id]
 
     return beam_fn_api_pb2.InstructionResponse(
         instruction_id=instruction_id,
-        process_bundle=beam_fn_api_pb2.ProcessBundleResponse())
+        process_bundle=beam_fn_api_pb2.ProcessBundleResponse(
+            metrics=processor.metrics()))
 
   def process_bundle_progress(self, request, instruction_id):
-    return beam_fn_api_pb2.InstructionResponse(
-        instruction_id=instruction_id,
-        error='Not Supported')
+    # It is an error to get progress for a not-in-flight bundle.
+    return self.bundle_processors.get(instruction_id).metrics()

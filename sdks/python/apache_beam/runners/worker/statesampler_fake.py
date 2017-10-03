@@ -26,6 +26,18 @@ class StateSampler(object):
   def scoped_state(self, step_name, state_name=None, io_target=None):
     return _FakeScopedState()
 
+  def start(self):
+    pass
+
+  def stop(self):
+    pass
+
+  def stop_if_still_running(self):
+    self.stop()
+
+  def commit_counters(self):
+    pass
+
 
 class _FakeScopedState(object):
 
