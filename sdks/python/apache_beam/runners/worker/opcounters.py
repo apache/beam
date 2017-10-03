@@ -48,10 +48,10 @@ class OperationCounters(object):
   def __init__(self, counter_factory, step_name, coder, output_index):
     self._counter_factory = counter_factory
     self.element_counter = counter_factory.get_counter(
-        '%s-out%d-ElementCount' % (step_name, output_index), Counter.SUM)
+        '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
-        '%s-out%d-MeanByteCount' % (step_name, output_index), Counter.MEAN)
-    self.coder_impl = coder.get_impl()
+        '%s-out%s-MeanByteCount' % (step_name, output_index), Counter.MEAN)
+    self.coder_impl = coder.get_impl() if coder else None
     self.active_accumulator = None
     self._sample_counter = 0
     self._next_sample = 0
@@ -138,7 +138,8 @@ class OperationCounters(object):
     Returns:
       True if it is time to compute another element's size.
     """
-
+    if self.coder_impl is None:
+      return False
     self._sample_counter += 1
     if self._next_sample == 0:
       if random.randint(1, self._sample_counter) <= 10:
