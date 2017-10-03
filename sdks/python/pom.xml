@@ -226,8 +226,7 @@
                 <configuration>
                   <executable>${python.user.base}/bin/tox</executable>
                   <arguments>
-                    <argument>-e</argument>
-                    <argument>py27,py27gcp,py27cython,lint,docs</argument>
+                    <argument>envlist</argument>
                     <argument>-c</argument>
                     <argument>tox.ini</argument>
                   </arguments>
