@@ -219,7 +219,7 @@ import org.slf4j.LoggerFactory;
  *  strings.apply(KafkaIO.<Void, String>write()
  *      .withBootstrapServers("broker_1:9092,broker_2:9092")
  *      .withTopic("results")
- *      .withValueSerializer(new StringSerializer()) // just need serializer for value
+ *      .withValueSerializer(StringSerializer.class) // just need serializer for value
  *      .values()
  *    );
  * }</pre>

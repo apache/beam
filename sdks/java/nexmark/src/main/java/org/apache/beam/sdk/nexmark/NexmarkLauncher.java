@@ -37,11 +37,13 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -79,13 +81,23 @@ import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.kafka.common.serialization.ByteArrayDeserializer;
+import org.apache.kafka.common.serialization.LongDeserializer;
+import org.apache.kafka.common.serialization.LongSerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -747,6 +759,96 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }));
   }
 
+//  DoFn eventProcess = new DoFn<Event, String>(){
+//    @ProcessElement
+//    public void processElement(ProcessContext c) {
+//      c.output(c.element().toString());
+//    }
+//  };
+
+  /**
+   * Send {@code events} to Kafka.
+   */
+  private void sinkEventsToKafka(PCollection<Event> events) {
+//    PTransform<PCollection<byte[]>, PDone> io = KafkaIO.<Long, byte[]>write()
+//            .withBootstrapServers("localhost:9092")
+//            .withTopic("generateEvent")
+//            .withKeySerializer(LongSerializer.class)
+//            .withValueSerializer(ByteArraySerializer.class).values();
+    PTransform<PCollection<String>, PDone> io = KafkaIO.<Long, String>write()
+            .withBootstrapServers("localhost:9092")
+            .withTopic("generateEvent")
+            .withKeySerializer(LongSerializer.class)
+            .withValueSerializer(StringSerializer.class).values();
+    TypeDescriptor<byte[]> td = new TypeDescriptor<byte[]>(){};
+
+
+//    SerializableFunction<Event, String> f = new SerializableFunction<Event, String>() {
+//      @Override
+//      public String apply(Event element) {
+//        return element.toString();
+//      }
+//    };
+
+//    SerializableFunction<Event, String> f = new SerializableFunction<Event, String>() {
+//      @Override
+//      public String apply(Event input) {
+//        return input.toString();
+//      }
+//    };
+//
+//    events.apply(MapElements.into(TypeDescriptors.strings()).via(f
+//    )).apply(io);
+
+//    events.apply(ParDo.of(eventProcess)).getPipeline()
+//            .apply(queryName + ".WriteKafkaEvents", io);
+
+        events.apply(
+            MapElements.into(td).via(new SimpleFunction<Event, String>() {
+              @Override
+              public String apply(Event input) {
+                return input.toString();
+              }
+            })
+    ).setCoder(StringUtf8Coder.of()).apply(io);
+  }
+
+  /**
+   * Return source of events from Kafka.
+   */
+  private PCollection<Event> sourceEventsFromKafka(Pipeline p) {
+    PCollection<Event> e = sourceEventsFromSynthetic(p);
+    sinkEventsToKafka(e);
+
+    NexmarkUtils.console("%s", "Here ->>>>>");
+    String filename = options.getInputPath();
+    NexmarkUtils.console("Reading events from Kafka %s", filename);
+
+    if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
+      throw new RuntimeException("Missing --bootstrapServers");
+    }
+
+    KafkaIO.Read<Long, byte[]> io = KafkaIO.<Long, byte[]>read()
+            .withBootstrapServers(options.getBootstrapServers())
+            .withTopic("generateEvent")
+            .withKeyDeserializer(LongDeserializer.class)
+            .withValueDeserializer(ByteArrayDeserializer.class);
+    return p
+      .apply(queryName + ".ReadKafkaEvents", io.withoutMetadata())
+      .apply(queryName + ".KafkaToEvents", ParDo.of(new DoFn<KV<Long, byte[]>, Event>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          byte[] payload = c.element().getValue();
+          try {
+            Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
+            c.output(event);
+          } catch (CoderException e) {
+            LOG.error("Error while decoding Event from Kafka message: serialization error");
+          }
+        }
+      }));
+  }
+
   /**
    * Return Avro source of events from {@code options.getInputFilePrefix}.
    */
@@ -791,6 +893,19 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             })
         )
         .apply(queryName + ".WritePubsubEvents", io);
+  }
+
+  /**
+   * Send {@code formattedResults} to Kafka.
+   */
+  private void sinkResultsToKafka(PCollection<String> formattedResults) {
+    PTransform<PCollection<String>, PDone> io = KafkaIO.<Long, String>write()
+            .withBootstrapServers("localhost:9092")
+            .withTopic("writeToTest")
+            .withKeySerializer(LongSerializer.class)
+            .withValueSerializer(StringSerializer.class).values();
+    formattedResults
+            .apply(queryName + ".WriteKafkaResults", io);
   }
 
   /**
@@ -899,9 +1014,13 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     switch (configuration.sourceType) {
       case DIRECT:
         source = sourceEventsFromSynthetic(p);
+        sinkEventsToKafka(source);
         break;
       case AVRO:
         source = sourceEventsFromAvro(p);
+        break;
+      case KAFKA:
+        source = sourceEventsFromKafka(p);
         break;
       case PUBSUB:
         // Setup the sink for the publisher.
@@ -988,6 +1107,9 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         break;
       case PUBSUB:
         sinkResultsToPubsub(formattedResults, now);
+        break;
+      case KAFKA:
+        sinkResultsToKafka(formattedResults);
         break;
       case TEXT:
         sinkResultsToText(formattedResults, now);

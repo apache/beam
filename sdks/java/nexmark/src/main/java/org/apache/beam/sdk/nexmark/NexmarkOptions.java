@@ -400,4 +400,17 @@ public interface NexmarkOptions
   Long getWatermarkValidationDelaySeconds();
 
   void setWatermarkValidationDelaySeconds(Long value);
+
+  @Description("Base name of Kafka topic in streaming mode.")
+  @Nullable
+  @Default.String("nexmark")
+  String getKafkaTopic();
+
+  void setKafkaTopic(String value);
+
+  @Description("Kafka Bootstrap Server domains.")
+  @Nullable
+  String getBootstrapServers();
+
+  void setBootstrapServers(String value);
 }
