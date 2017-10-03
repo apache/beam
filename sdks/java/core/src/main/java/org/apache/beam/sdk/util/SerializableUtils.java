@@ -88,7 +88,7 @@ public class SerializableUtils {
 
   public static <T extends Serializable> T clone(T value) {
     final Thread thread = Thread.currentThread();
-    final ClassLoader tccl = ReflectHelpers.findClassLoader();
+    final ClassLoader tccl = thread.getContextClassLoader();
     ClassLoader loader = tccl;
     try {
       if (tccl.loadClass(value.getClass().getName()) != value.getClass()) {
