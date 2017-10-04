@@ -48,7 +48,8 @@ class FnApiLogRecordHandler(logging.Handler):
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
     self._log_channel = grpc.insecure_channel(log_service_descriptor.url)
-    self._logging_stub = beam_fn_api_pb2.BeamFnLoggingStub(self._log_channel)
+    self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
+        self._log_channel)
     self._log_entry_queue = queue.Queue()
 
     log_control_messages = self._logging_stub.Logging(self._write_log_entries())
