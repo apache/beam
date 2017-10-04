@@ -27,7 +27,6 @@ import time
 from concurrent import futures
 
 import grpc
-from google.protobuf import wrappers_pb2
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam.coders import WindowedValueCoder
