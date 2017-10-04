@@ -58,8 +58,8 @@ IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 PYTHON_ITERABLE_VIEWFN_URN = 'urn:org.apache.beam:viewfn:iterable:python:0.1'
 PYTHON_CODER_URN = 'urn:org.apache.beam:coder:python:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate python urns.
-PYTHON_DOFN_URN = 'urn:org.apache.beam:dofn:java:0.1'
-PYTHON_SOURCE_URN = 'urn:org.apache.beam:source:java:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
 
 
 def side_input_tag(transform_id, tag):
@@ -358,7 +358,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
 
-@BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, None)
+@BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_READ_URN, None)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # The Dataflow runner harness strips the base64 encoding.
   source = pickler.loads(base64.b64encode(parameter))
@@ -393,7 +393,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
-@BeamTransformFactory.register_urn(PYTHON_DOFN_URN, None)
+@BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   dofn_data = pickler.loads(parameter)
   if len(dofn_data) == 2:
