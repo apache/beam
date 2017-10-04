@@ -77,6 +77,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.slf4j.Logger;
@@ -1256,6 +1257,24 @@ public class PipelineOptionsFactory {
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
+  }
+
+  private boolean checkDerivedFrom(Class<?> checkClass, Class fromClass) {
+    if (checkClass.getInterfaces().length == 0) {
+      return checkClass.getName() == fromClass.getName();
+    }
+
+    boolean valid = true;
+
+    for (Class<?> klass: checkClass.getInterfaces()){
+      valid &= checkDerivedFrom(klass, fromClass);
+    }
+
+    return valid;
+  }
+
+  private static void validateAllDerivedFromPipelineOptions(Class<?> root) {
+
   }
 
   private static class MultipleDefinitions {

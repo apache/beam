@@ -58,6 +58,7 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1735,5 +1736,55 @@ public class PipelineOptionsFactoryTest {
         SerializerProvider serializerProvider) throws IOException, JsonProcessingException {
       jsonGenerator.writeString(jacksonIncompatible.value);
     }
+  }
+
+  interface Foo extends Bar, BarBar1, Bar2, PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  interface Bar extends PipelineOptions{
+    String getBar();
+    void setBar(String value);
+  }
+
+  interface BarBar1 extends Bar1{
+    String getBar();
+    void setBar(String value);
+  }
+
+  interface Bar1 extends PipelineOptions{
+    String getBar();
+    void setBar(String value);
+  }
+
+  interface Bar2  extends PipelineOptions{
+    String getBar();
+    void setBar(String value);
+  }
+
+  private boolean checkDerivedFrom(Class<?> checkClass, Class fromClass) {
+    if (checkClass.getInterfaces().length == 0) {
+      return checkClass.getName() == fromClass.getName();
+    }
+
+    boolean valid = true;
+
+    for (Class<?> klass: checkClass.getInterfaces()){
+      valid &= checkDerivedFrom(klass, fromClass);
+    }
+
+    return valid;
+  }
+
+  @Test
+  public void testAllFromPipelineOptions() {
+//    Class<? extends PipelineOptions> foo = Foo.class;
+//    Class<?>[] a = foo.getInterfaces();
+//    Class<?>[] b = a[0].getInterfaces();
+//    int alen = b.length;
+//    Class<?>[] c = a[1].getInterfaces();
+
+    assertEquals(checkDerivedFrom(Foo.class, HasDisplayData.class), true);
   }
 }
