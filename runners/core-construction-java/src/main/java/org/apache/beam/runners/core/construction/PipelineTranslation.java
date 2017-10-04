@@ -141,30 +141,8 @@ public class PipelineTranslation {
           rehydratedComponents.getPCollection(outputEntry.getValue()));
     }
 
-    RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
     RawPTransform<?, ?> transform =
         PTransformTranslation.rehydrate(transformProto, rehydratedComponents);
-
-    // By default, no "additional" inputs, since that is an SDK-specific thing.
-    // Only ParDo and WriteFiles really separate main from side inputs
-    Map<TupleTag<?>, PValue> additionalInputs = Collections.emptyMap();
-
-    // TODO: ParDoTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
-    if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
-      RunnerApi.ParDoPayload payload = RunnerApi.ParDoPayload.parseFrom(transformSpec.getPayload());
-      additionalInputs =
-          sideInputMapToAdditionalInputs(
-              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
-    }
-
-    // TODO: WriteFilesTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
-    if (transformSpec.getUrn().equals(PTransformTranslation.WRITE_FILES_TRANSFORM_URN)) {
-      RunnerApi.WriteFilesPayload payload =
-          RunnerApi.WriteFilesPayload.parseFrom(transformSpec.getPayload());
-      additionalInputs =
-          sideInputMapToAdditionalInputs(
-              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
-    }
 
     if (isPrimitive(transformProto)) {
       transforms.addFinalizedPrimitiveNode(
