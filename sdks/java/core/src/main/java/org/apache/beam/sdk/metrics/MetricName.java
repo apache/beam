@@ -47,6 +47,7 @@ public abstract class MetricName implements Serializable {
   }
 
   public static MetricName named(Class<?> namespace, String name) {
+    checkArgument(namespace != null, "Metric namespace must be non-null");
     checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
     return new AutoValue_MetricName(namespace.getName(), name);
   }
