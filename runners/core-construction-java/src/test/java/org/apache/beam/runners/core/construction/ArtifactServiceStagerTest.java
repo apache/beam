@@ -59,7 +59,8 @@ public class ArtifactServiceStagerTest {
   @Before
   public void setup() throws IOException {
     stager =
-        ArtifactServiceStager.overChannel(InProcessChannelBuilder.forName("service_stager").build(), 6);
+        ArtifactServiceStager.overChannel(
+            InProcessChannelBuilder.forName("service_stager").build(), 6);
     service = new InMemoryArtifactStagerService();
     server =
         InProcessServerBuilder.forName("service_stager")
