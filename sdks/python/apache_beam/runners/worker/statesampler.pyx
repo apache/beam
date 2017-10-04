@@ -174,6 +174,13 @@ cdef class StateSampler(object):
     # pythread doesn't support conditions.
     self.sampling_thread.join()
 
+  def current_state(self):
+    """Returns the current ScopedState.
+
+    This operation is not thread safe, and should only be used to check, not to
+    update information in the current state."""
+    return self.scoped_states_by_index[self.current_state_index]
+
   def stop_if_still_running(self):
     if self.started and not self.finished:
       self.stop()

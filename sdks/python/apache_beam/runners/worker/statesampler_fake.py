@@ -17,14 +17,19 @@
 
 # This module is experimental. No backwards-compatibility guarantees.
 
+from apache_beam.utils.counters import CounterName
+
 
 class StateSampler(object):
 
   def __init__(self, *args, **kwargs):
-    pass
+    self._current_state = _FakeScopedState(self, 'unknown', 'unknown')
 
   def scoped_state(self, step_name, state_name=None, io_target=None):
-    return _FakeScopedState()
+    return _FakeScopedState(self, step_name, state_name)
+
+  def current_state(self):
+    return self._current_state
 
   def start(self):
     pass
@@ -41,11 +46,17 @@ class StateSampler(object):
 
 class _FakeScopedState(object):
 
+  def __init__(self, sampler, step_name, state_name):
+    self.name = CounterName(state_name + '-msecs',
+                            step_name=step_name)
+    self.sampler = sampler
+
   def __enter__(self):
-    pass
+    self.old_state = self.sampler.current_state()
+    self.sampler._current_state = self
 
   def __exit__(self, *unused_args):
-    pass
+    self.sampler._current_state = self.old_state
 
   def sampled_seconds(self):
     return 0

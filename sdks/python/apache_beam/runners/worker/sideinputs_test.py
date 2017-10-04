@@ -21,6 +21,8 @@ import logging
 import time
 import unittest
 
+import mock
+
 from apache_beam.runners.worker import sideinputs
 
 
@@ -43,6 +45,11 @@ class FakeSourceReader(object):
     self.items = items
     self.entered = False
     self.exited = False
+    self._progress = mock.MagicMock()
+    self._progress.position.byte_offset = 0
+
+  def get_progress(self):
+    return self._progress
 
   def __iter__(self):
     return iter(self.items)

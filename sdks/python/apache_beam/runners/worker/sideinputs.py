@@ -24,6 +24,7 @@ import threading
 import traceback
 
 from apache_beam.io import iobase
+from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -51,9 +52,12 @@ class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
 
   def __init__(self, sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS):
+               max_reader_threads=MAX_SOURCE_READER_THREADS,
+               read_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
+    self.read_counter = read_counter or opcounters.TransformIoCounter()
+    # self.read_counter = opcounters.TransformIoCounter()
 
     # Queue for sources that are to be read.
     self.sources_queue = Queue.Queue()
@@ -78,6 +82,14 @@ class PrefetchingSourceSetIterable(object):
       t.start()
       self.reader_threads.append(t)
 
+  def _get_source_position(self, range_tracker=None, reader=None):
+    if reader:
+      return reader.get_progress().position.byte_offset
+    else:
+      return range_tracker.position_at_fraction(
+          range_tracker.fraction_consumed()) if range_tracker else 0
+
+
   def _reader_thread(self):
     # pylint: disable=too-many-nested-blocks
     try:
@@ -85,22 +97,37 @@ class PrefetchingSourceSetIterable(object):
         try:
           source = self.sources_queue.get_nowait()
           if isinstance(source, iobase.BoundedSource):
-            for value in source.read(source.get_range_tracker(None, None)):
+            rt = source.get_range_tracker(None, None)
+            initial_position = self._get_source_position(range_tracker=rt)
+            for value in source.read(rt):
               if self.has_errored:
                 # If any reader has errored, just return.
                 return
+
+              current_position = self._get_source_position(range_tracker=rt)
+              consumed_bytes =  current_position - initial_position
+              self.read_counter.add_bytes_read(consumed_bytes)
+              initial_position = initial_position + consumed_bytes
+
               if isinstance(value, window.WindowedValue):
                 self.element_queue.put(value)
               else:
                 self.element_queue.put(_globally_windowed(value))
           else:
-            # Native dataflow source.
+            # Native dataflow source / testing FakeSource
             with source.reader() as reader:
+              initial_offset = self._get_source_position(reader=reader)
+
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:
-                  # If any reader has errored, just return.
+                  # If any reader has errored, just return.`
                   return
+
+                new_offset = self._get_source_position(reader=reader)
+                self.read_counter.add_bytes_read(new_offset - initial_offset)
+                initial_offset = new_offset
+
                 if returns_windowed_values:
                   self.element_queue.put(value)
                 else:
@@ -128,7 +155,14 @@ class PrefetchingSourceSetIterable(object):
     num_readers_finished = 0
     try:
       while True:
-        element = self.element_queue.get()
+        if self.element_queue.empty():
+          # The queue is empty. We check the current state.
+          self.read_counter.check_step()
+          with self.read_counter:
+            element = self.element_queue.get()
+        else:
+          element = self.element_queue.get()
+
         if element is READER_THREAD_IS_DONE_SENTINEL:
           num_readers_finished += 1
           if num_readers_finished == self.num_reader_threads:
@@ -150,11 +184,13 @@ class PrefetchingSourceSetIterable(object):
 
 
 def get_iterator_fn_for_sources(
-    sources, max_reader_threads=MAX_SOURCE_READER_THREADS):
+    sources, max_reader_threads=MAX_SOURCE_READER_THREADS, read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
     return iter(PrefetchingSourceSetIterable(
-        sources, max_reader_threads=max_reader_threads))
+        sources,
+        max_reader_threads=max_reader_threads,
+        read_counter=read_counter))
   return _inner
 
 
