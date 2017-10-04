@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
