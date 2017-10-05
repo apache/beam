@@ -89,7 +89,6 @@ class PrefetchingSourceSetIterable(object):
       return range_tracker.position_at_fraction(
           range_tracker.fraction_consumed()) if range_tracker else 0
 
-
   def _reader_thread(self):
     # pylint: disable=too-many-nested-blocks
     try:
@@ -105,7 +104,7 @@ class PrefetchingSourceSetIterable(object):
                 return
 
               current_position = self._get_source_position(range_tracker=rt)
-              consumed_bytes =  current_position - initial_position
+              consumed_bytes = current_position - initial_position
               self.read_counter.add_bytes_read(consumed_bytes)
               initial_position = initial_position + consumed_bytes
 
