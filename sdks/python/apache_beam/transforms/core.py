@@ -89,6 +89,8 @@ class DoFnContext(object):
 class DoFnProcessContext(DoFnContext):
   """A processing context passed to DoFn process() during execution.
 
+  Experimental; no backwards-compatibility guarantees.
+
   Most importantly, a DoFn.process method will access context.element
   to get the element it is supposed to process.
 
@@ -137,6 +139,126 @@ class DoFnProcessContext(DoFnContext):
       self.windows = windowed_value.windows
 
 
+class ProcessContinuation(object):
+  """An object that may be produced as the last element of a process method
+    invocation.
+
+  Experimental; no backwards-compatibility guarantees.
+
+  If produced, indicates that there is more work to be done for the current
+  input element.
+  """
+
+  def __init__(self, resume_delay=0):
+    """Initializes a ProcessContinuation object.
+
+    Args:
+      resume_delay: indicates the minimum time, in seconds, that should elapse
+        before re-invoking process() method for resuming the invocation of the
+        current element.
+    """
+    self.resume_delay = resume_delay
+
+  @staticmethod
+  def resume(resume_delay=0):
+    """A convenient method that produces a ``ProcessContinuation``.
+
+    Args:
+      resume_delay: delay after which processing current element should be
+        resumed.
+    Returns: a ``ProcessContinuation`` for signalling the runner that current
+      input element has not been fully processed and should be resumed later.
+    """
+    return ProcessContinuation(resume_delay=resume_delay)
+
+
+class RestrictionProvider(object):
+  """Provides methods for generating and manipulating restrictions.
+
+  This class should be implemented to support Splittable ``DoFn``s in Python
+  SDK. See https://s.apache.org/splittable-do-fn for more details about
+  Splittable ``DoFn``s.
+
+  To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
+  method of that class should have exactly one parameter whose default value is
+  an instance of ``RestrictionProvider``.
+
+  The provided ``RestrictionProvider`` instance must provide suitable overrides
+  for the following methods.
+  * create_tracker()
+  * initial_restriction()
+
+  Optionally, ``RestrictionProvider`` may override default implementations of
+  following methods.
+  * restriction_coder()
+  * split()
+
+  ** Pausing and resuming processing of an element **
+
+  As the last element produced by the iterator returned by the
+  ``DoFn.process()`` method, a Splittable ``DoFn`` may return an object of type
+  ``ProcessContinuation``.
+
+  If provided, ``ProcessContinuation`` object specifies that runner should
+  later re-invoke ``DoFn.process()`` method to resume processing the current
+  element and the manner in which the re-invocation should be performed. A
+  ``ProcessContinuation`` object must only be specified as the last element of
+  the iterator. If a ``ProcessContinuation`` object is not provided the runner
+  will assume that the current input element has been fully processed.
+
+  ** Updating output watermark **
+
+  ``DoFn.process()`` method of Splittable ``DoFn``s could contain a parameter
+  with default value ``DoFn.WatermarkReporterParam``. If specified this asks the
+  runner to provide a function that can be used to give the runner a
+  (best-effort) lower bound about the timestamps of future output associated
+  with the current element processed by the ``DoFn``. If the ``DoFn`` has
+  multiple outputs, the watermark applies to all of them. Provided function must
+  be invoked with a single parameter of type ``Timestamp`` or as an integer that
+  gives the watermark in number of seconds.
+  """
+
+  def create_tracker(self, restriction):
+    """Produces a new ``RestrictionTracker`` for the given restriction.
+
+    Args:
+      restriction: an object that defines a restriction as identified by a
+        Splittable ``DoFn`` that utilizes the current ``RestrictionProvider``.
+        For example, a tuple that gives a range of positions for a Splittable
+        ``DoFn`` that reads files based on byte positions.
+    Returns: an object of type ``RestrictionTracker``.
+    """
+    raise NotImplementedError
+
+  def initial_restriction(self, element):
+    """Produces an initial restriction for the given element."""
+    raise NotImplementedError
+
+  def split(self, element, restriction):
+    """Splits the given element and restriction.
+
+    Returns an iterator of restrictions. The total set of elements produced by
+    reading input element for each of the returned restrictions should be the
+    same as the total set of elements produced by reading the input element for
+    the input restriction.
+
+    TODO(chamikara): give suitable hints for performing splitting, for example
+    number of parts or size in bytes.
+    """
+    yield restriction
+
+  def restriction_coder(self):
+    """Returns a ``Coder`` for restrictions.
+
+    Returned``Coder`` will be used for the restrictions produced by the current
+    ``RestrictionProvider``.
+
+    Returns:
+      an object of type ``Coder``.
+    """
+    return coders.registry.get_coder(object)
+
+
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -153,6 +275,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   SideInputParam = 'SideInputParam'
   TimestampParam = 'TimestampParam'
   WindowParam = 'WindowParam'
+  WatermarkReporterParam = 'WatermarkReporterParam'
 
   DoFnParams = [ElementParam, SideInputParam, TimestampParam, WindowParam]
 
@@ -164,13 +287,27 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     return self.__class__.__name__
 
   def process(self, element, *args, **kwargs):
-    """Called for each element of a pipeline. The default arguments are needed
-    for the DoFnRunner to be able to pass the parameters correctly.
+    """Method to use for processing elements.
+
+    This is invoked by ``DoFnRunner`` for each element of a input
+    ``PCollection``.
+
+    If specified, following default arguments are used by the ``DoFnRunner`` to
+    be able to pass the parameters correctly.
+
+    ``DoFn.ElementParam``: element to be processed.
+    ``DoFn.SideInputParam``: a side input that may be used when processing.
+    ``DoFn.TimestampParam``: timestamp of the input element.
+    ``DoFn.WindowParam``: ``Window`` the input element belongs to.
+    A ``RestrictionProvider`` instance: an ``iobase.RestrictionTracker`` will be
+    provided here to allow treatment as a Splittable `DoFn``.
+    ``DoFn.WatermarkReporterParam``: a function that can be used to report
+    output watermark of Splittable ``DoFn`` implementations.
 
     Args:
       element: The element to be processed
       *args: side inputs
-      **kwargs: keyword side inputs
+      **kwargs: other keyword arguments.
     """
     raise NotImplementedError
 
