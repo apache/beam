@@ -62,8 +62,8 @@ message ArtifactMetadata {
   // (Optional) The Unix-like permissions of the artifact
   uint32 permissions = 2;
 
-  // (Optional) The md5 checksum of the artifact. Used, among other things, by harness boot code to
-  // validate the integrity of the artifact.
+  // (Optional) The base64-encoded md5 checksum of the artifact. Used, among other things, by
+  // harness boot code to validate the integrity of the artifact.
   string md5 = 3;
 }
 
