@@ -35,6 +35,7 @@ import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.portability.v1.Endpoints;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -113,7 +114,7 @@ public class BeamFnDataReadRunner<OutputT> {
     }
   }
 
-  private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
+  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClientFactory;

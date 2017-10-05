@@ -22,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.portability.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -43,7 +44,7 @@ public interface BeamFnDataClient {
    * <p>The consumer is not required to be thread safe.
    */
   <T> CompletableFuture<Void> forInboundConsumer(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       KV<String, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer);
@@ -58,7 +59,7 @@ public interface BeamFnDataClient {
    * <p>The returned closeable consumer is not thread safe.
    */
   <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder);
 }

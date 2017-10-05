@@ -31,9 +31,9 @@ from concurrent import futures
 import grpc
 from google.protobuf import text_format
 
-from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners import runner
 from apache_beam.runners.portability import fn_api_runner
 
@@ -337,7 +337,7 @@ class SubprocessSdkWorker(object):
 
   def run(self):
     control_descriptor = text_format.MessageToString(
-        beam_fn_api_pb2.ApiServiceDescriptor(url=self._control_address))
+        endpoints_pb2.ApiServiceDescriptor(url=self._control_address))
     p = subprocess.Popen(
         self._worker_command_line,
         shell=True,
