@@ -401,7 +401,7 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
     serialized_fn, side_input_data = dofn_data
   else:
     # No side input data.
-    serialized_fn, side_input_data = parameter.value, []
+    serialized_fn, side_input_data = parameter, []
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
       serialized_fn, side_input_data)
