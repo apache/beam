@@ -79,7 +79,8 @@ class ConstantAvroDestination<UserT, OutputT>
       SerializableFunction<UserT, OutputT> formatFunction) {
     this.filenamePolicy = filenamePolicy;
     if (schema != null) {
-      this.schema = Suppliers.compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
+      this.schema = Suppliers
+          .compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
     } else {
       this.schema = null;
     }

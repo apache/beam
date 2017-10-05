@@ -105,10 +105,13 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
 
 
       if (schema != null) {
-        datumWriter = genericRecords ? new GenericDatumWriter<OutputT>(schema) : new ReflectDatumWriter<OutputT>(
-            schema);
+        datumWriter = genericRecords
+            ? new GenericDatumWriter<OutputT>(schema) :
+            new ReflectDatumWriter<OutputT>(schema);
       } else { // lazy init
-        datumWriter = genericRecords ? new GenericDatumWriter<OutputT>() : new ReflectDatumWriter<OutputT>();
+        datumWriter = genericRecords
+            ? new GenericDatumWriter<OutputT>() :
+            new ReflectDatumWriter<OutputT>();
       }
       dataFileWriter = new DataFileWriter<>(datumWriter).setCodec(codec);
       for (Map.Entry<String, Object> entry : metadata.entrySet()) {
@@ -144,8 +147,8 @@ class AvroSink<UserT, DestinationT, OutputT> extends FileBasedSink<UserT, Destin
     }
 
     private void lazyInitDataFileWriter(OutputT value) throws java.io.IOException {
-      schema = genericRecords ?
-            ((GenericRecord) value).getSchema() :
+      schema = genericRecords
+            ? ((GenericRecord) value).getSchema() :
             ReflectData.get().getSchema(value.getClass());
         datumWriter.setSchema(schema);
         dataFileWriter.create(schema, Channels.newOutputStream(channel));
