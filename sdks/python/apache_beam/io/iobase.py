@@ -1058,9 +1058,6 @@ class RestrictionTracker(object):
     ``current_restriction()`` and the return value of this method invocation
     combined.
 
-    This method must be called at most once on a given ``RestrictionTracker``
-    object.
-
     ** Thread safety **
 
     Methods of the class ``RestrictionTracker`` including this method may get
