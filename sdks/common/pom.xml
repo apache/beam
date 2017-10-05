@@ -34,6 +34,5 @@
 
   <modules>
     <module>fn-api</module>
-    <module>runner-api</module>
   </modules>
 </project>

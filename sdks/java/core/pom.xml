@@ -309,7 +309,7 @@
         <!-- We only rely on the standard_coders.yaml -->
         <exclusion>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-sdks-common-runner-api</artifactId>
+          <artifactId>beam-model-pipeline</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

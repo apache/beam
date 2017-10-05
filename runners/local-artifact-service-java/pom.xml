@@ -53,7 +53,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-runner-api</artifactId>
+      <artifactId>beam-model-job-management</artifactId>
     </dependency>
 
     <!-- build dependencies -->
