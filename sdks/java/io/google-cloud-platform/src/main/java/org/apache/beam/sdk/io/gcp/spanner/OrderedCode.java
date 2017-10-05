@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.io.gcp.spanner;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -47,7 +47,7 @@ import java.util.Arrays;
  *
  * <p><b>This class is NOT thread safe.</b>
  */
-public class OrderedCode {
+class OrderedCode {
   // We want to encode a few extra symbols in strings:
   //      <sep>           Separator between items
   //      <infinity>      Infinite string
