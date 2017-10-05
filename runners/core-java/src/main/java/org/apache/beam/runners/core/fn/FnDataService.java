@@ -19,7 +19,7 @@ package org.apache.beam.runners.core.fn;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -32,8 +32,8 @@ public interface FnDataService {
 
   /**
    * A logical endpoint is a pair of an instruction ID corresponding to the {@link
-   * org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest} and the {@link
-   * org.apache.beam.fn.v1.BeamFnApi.Target} within the processing graph. This enables the same
+   * BeamFnApi.ProcessBundleRequest} and the {@link
+   * BeamFnApi.Target} within the processing graph. This enables the same
    * {@link FnDataService} to be re-used across multiple bundles.
    */
   @AutoValue

@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * Endpoints.ApiServiceDescriptor}.
  *
  * <p>Multiplexes data for inbound consumers based upon their individual {@link
- * org.apache.beam.fn.v1.BeamFnApi.Target}s.
+ * org.apache.beam.model.fnexecution.v1.BeamFnApi.Target}s.
  *
  * <p>Multiplexing inbound and outbound streams is as thread safe as the consumers of those streams.
  * For inbound streams, this is as thread safe as the inbound observers. For outbound streams, this

@@ -43,11 +43,11 @@ import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
-import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -57,7 +57,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Processes {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s by materializing
+ * Processes {@link BeamFnApi.ProcessBundleRequest}s by materializing
  * the set of required runners for each {@link RunnerApi.FunctionSpec},
  * wiring them together based upon the {@code input} and {@code output} map definitions.
  *

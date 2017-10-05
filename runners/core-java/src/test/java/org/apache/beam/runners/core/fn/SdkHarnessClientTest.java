@@ -23,7 +23,7 @@ import static org.mockito.Mockito.when;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.SettableFuture;
 import java.util.concurrent.Future;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

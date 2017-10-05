@@ -23,9 +23,9 @@
 
 syntax = "proto3";
 
-package org.apache.beam.fn.v1;
+package org.apache.beam.model.fn_execution.v1;
 
-option java_package = "org.apache.beam.fn.v1";
+option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "ProvisionApi";
 
 import "google/protobuf/struct.proto";
