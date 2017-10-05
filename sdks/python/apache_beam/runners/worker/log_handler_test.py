@@ -100,8 +100,9 @@ def _create_test(name, num_logs):
           lambda self: self._verify_fn_log_handler(num_logs))
 
 
-if __name__ == '__main__':
-  for test_name, num_logs_entries in data.iteritems():
-    _create_test(test_name, num_logs_entries)
+for test_name, num_logs_entries in data.iteritems():
+  _create_test(test_name, num_logs_entries)
 
+
+if __name__ == '__main__':
   unittest.main()
