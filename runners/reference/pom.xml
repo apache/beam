@@ -21,58 +21,55 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-parent</artifactId>
+    <artifactId>beam-runners-parent</artifactId>
     <version>2.2.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-runners-parent</artifactId>
+  <artifactId>beam-runners-reference</artifactId>
+  <name>Apache Beam :: Runners :: Reference</name>
+  <description>A Pipeline Runner which executes on the local machine using the
+  Beam portability framework to execute an arbitrary Pipeline.</description>
 
-  <packaging>pom</packaging>
+  <packaging>jar</packaging>
 
-  <name>Apache Beam :: Runners</name>
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-common-runner-api</artifactId>
+    </dependency>
 
-  <modules>
-    <module>core-construction-java</module>
-    <module>core-java</module>
-    <module>local-artifact-service-java</module>
-    <module>reference</module>
-    <module>direct-java</module>
-    <module>flink</module>
-    <module>google-cloud-dataflow-java</module>
-    <module>spark</module>
-    <module>apex</module>
-  </modules>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-core</artifactId>
+    </dependency>
 
-  <profiles>
-    <profile>
-      <id>release</id>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.codehaus.mojo</groupId>
-            <artifactId>findbugs-maven-plugin</artifactId>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>java8</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-      <modules>
-        <module>gearpump</module>
-      </modules>
-    </profile>
-  </profiles>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-checkstyle-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
+    <dependency>
+      <groupId>args4j</groupId>
+      <artifactId>args4j</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+
+    <!-- test dependencies -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-jdk14</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 </project>
