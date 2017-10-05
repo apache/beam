@@ -24,6 +24,7 @@ import threading
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
 
