@@ -1738,53 +1738,27 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
-  interface Foo extends Bar, BarBar1, Bar2, PipelineOptions {
+  interface OptionsDerivedValid extends PipelineOptions {
     String getFoo();
     void setFoo(String value);
   }
 
-  interface Bar extends PipelineOptions{
-    String getBar();
-    void setBar(String value);
+  interface OptionsDerivedNotValid extends OptionFromNonPipelineOptions, PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
   }
 
-  interface BarBar1 extends Bar1{
+  interface OptionFromNonPipelineOptions {
     String getBar();
     void setBar(String value);
-  }
-
-  interface Bar1 extends PipelineOptions{
-    String getBar();
-    void setBar(String value);
-  }
-
-  interface Bar2  extends PipelineOptions{
-    String getBar();
-    void setBar(String value);
-  }
-
-  private boolean checkDerivedFrom(Class<?> checkClass, Class fromClass) {
-    if (checkClass.getInterfaces().length == 0) {
-      return checkClass.getName() == fromClass.getName();
-    }
-
-    boolean valid = true;
-
-    for (Class<?> klass: checkClass.getInterfaces()){
-      valid &= checkDerivedFrom(klass, fromClass);
-    }
-
-    return valid;
   }
 
   @Test
   public void testAllFromPipelineOptions() {
-//    Class<? extends PipelineOptions> foo = Foo.class;
-//    Class<?>[] a = foo.getInterfaces();
-//    Class<?>[] b = a[0].getInterfaces();
-//    int alen = b.length;
-//    Class<?>[] c = a[1].getInterfaces();
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+            "All Options must extend from PipelineOptions.");
 
-    assertEquals(checkDerivedFrom(Foo.class, HasDisplayData.class), true);
+    OptionsDerivedNotValid options = PipelineOptionsFactory.as(OptionsDerivedNotValid.class);
   }
 }

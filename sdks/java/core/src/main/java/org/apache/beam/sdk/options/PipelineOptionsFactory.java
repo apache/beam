@@ -603,6 +603,9 @@ public class PipelineOptionsFactory {
       Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
     checkArgument(iface.isInterface(), "Only interface types are supported.");
 
+    // Validate that
+    validateAllDerivedFromPipelineOptions(iface);
+
     @SuppressWarnings("unchecked")
     Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
         FluentIterable.from(validatedPipelineOptionsInterfaces).append(iface).toSet();
@@ -1259,9 +1262,9 @@ public class PipelineOptionsFactory {
         iface.getName());
   }
 
-  private boolean checkDerivedFrom(Class<?> checkClass, Class fromClass) {
+  private static boolean checkDerivedFrom(Class<?> checkClass, Class fromClass) {
     if (checkClass.getInterfaces().length == 0) {
-      return checkClass.getName() == fromClass.getName();
+      return checkClass.equals(fromClass);
     }
 
     boolean valid = true;
@@ -1273,8 +1276,10 @@ public class PipelineOptionsFactory {
     return valid;
   }
 
-  private static void validateAllDerivedFromPipelineOptions(Class<?> root) {
-
+  private static void validateAllDerivedFromPipelineOptions(Class<?> klass) {
+    if (!checkDerivedFrom(klass, HasDisplayData.class)) {
+      throw new IllegalArgumentException("All Options must extend from PipelineOptions.");
+    }
   }
 
   private static class MultipleDefinitions {
