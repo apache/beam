@@ -582,6 +582,7 @@ public class PipelineOptionsFactory {
   /**
    * Validates that the interface conforms to the following:
    * <ul>
+   *   <li>Every interface must be inherited from {@link PipelineOptions}.
    *   <li>Any property with the same name must have the same return type for all derived
    *       interfaces of {@link PipelineOptions}.
    *   <li>Every bean property of any interface derived from {@link PipelineOptions} must have a
@@ -603,8 +604,8 @@ public class PipelineOptionsFactory {
       Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
     checkArgument(iface.isInterface(), "Only interface types are supported.");
 
-    // Validate that
-    validateAllDerivedFromPipelineOptions(iface);
+    // Validate that all interfaces are inherited from PipelineOptions.
+    validateInheritedFromPipelineOptions(iface);
 
     @SuppressWarnings("unchecked")
     Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
@@ -1262,7 +1263,7 @@ public class PipelineOptionsFactory {
         iface.getName());
   }
 
-  private static boolean checkDerivedFrom(Class<?> checkClass, Class fromClass) {
+  private static boolean checkInheritedFrom(Class<?> checkClass, Class fromClass) {
     if (checkClass.getInterfaces().length == 0) {
       return checkClass.equals(fromClass);
     }
@@ -1270,15 +1271,16 @@ public class PipelineOptionsFactory {
     boolean valid = true;
 
     for (Class<?> klass: checkClass.getInterfaces()){
-      valid &= checkDerivedFrom(klass, fromClass);
+      valid &= checkInheritedFrom(klass, fromClass);
     }
 
     return valid;
   }
 
-  private static void validateAllDerivedFromPipelineOptions(Class<?> klass) {
-    if (!checkDerivedFrom(klass, HasDisplayData.class)) {
-      throw new IllegalArgumentException("All Options must extend from PipelineOptions.");
+  private static void validateInheritedFromPipelineOptions(Class<?> klass) {
+    if (!checkInheritedFrom(klass, HasDisplayData.class)) {
+      throw new IllegalArgumentException("all derived PipelineOptions must be inherited " +
+              "from interface PipelineOptions.");
     }
   }
 

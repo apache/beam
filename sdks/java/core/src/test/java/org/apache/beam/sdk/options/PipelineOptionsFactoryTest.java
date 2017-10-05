@@ -58,7 +58,6 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1630,9 +1629,35 @@ public class PipelineOptionsFactoryTest {
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
+  interface OptionsDerivedValid extends PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  interface OptionsDerivedNotValid extends OptionFromNonPipelineOptions, PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  interface OptionFromNonPipelineOptions {
+    String getBar();
+    void setBar(String value);
+  }
+
+  @Test
+  public void testAllFromPipelineOptions() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+            "all derived PipelineOptions must be inherited from " +
+                    "interface PipelineOptions.");
+
+    OptionsDerivedNotValid options = PipelineOptionsFactory.as(OptionsDerivedNotValid.class);
+  }
+
   private String emptyStringErrorMessage() {
     return emptyStringErrorMessage(null);
   }
+
   private String emptyStringErrorMessage(String type) {
     String msg = "Empty argument value is only allowed for String, String Array, "
         + "Collections of Strings or any of these types in a parameterized ValueProvider";
@@ -1738,27 +1763,4 @@ public class PipelineOptionsFactoryTest {
     }
   }
 
-  interface OptionsDerivedValid extends PipelineOptions {
-    String getFoo();
-    void setFoo(String value);
-  }
-
-  interface OptionsDerivedNotValid extends OptionFromNonPipelineOptions, PipelineOptions {
-    String getFoo();
-    void setFoo(String value);
-  }
-
-  interface OptionFromNonPipelineOptions {
-    String getBar();
-    void setBar(String value);
-  }
-
-  @Test
-  public void testAllFromPipelineOptions() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-            "All Options must extend from PipelineOptions.");
-
-    OptionsDerivedNotValid options = PipelineOptionsFactory.as(OptionsDerivedNotValid.class);
-  }
 }
