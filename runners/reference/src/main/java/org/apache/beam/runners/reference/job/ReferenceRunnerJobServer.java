@@ -48,7 +48,8 @@ public class ReferenceRunnerJobServer {
     System.err.println();
   }
 
-  private static void runServer(ServerConfiguration configuration) throws IOException, InterruptedException {
+  private static void runServer(ServerConfiguration configuration)
+      throws IOException, InterruptedException {
     ReferenceRunnerJobService service = ReferenceRunnerJobService.create();
     Server server = ServerBuilder.forPort(configuration.port).addService(service).build();
     server.start();
