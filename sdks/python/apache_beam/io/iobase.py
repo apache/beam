@@ -1034,8 +1034,8 @@ class RestrictionTracker(object):
     current ``DoFn.process()`` call will do, including already completed work.
 
     The current restriction returned by method may be updated dynamically due
-    to invocation of other methods of the ``RestrictionTracker``, For example,
-    ``checkpoint()``.
+    to due to concurrent invocation of other methods of the
+    ``RestrictionTracker``, For example, ``checkpoint()``.
 
     ** Thread safety **
 

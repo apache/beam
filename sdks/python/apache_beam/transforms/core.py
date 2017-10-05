@@ -181,15 +181,15 @@ class RestrictionProvider(object):
   Splittable ``DoFn``s.
 
   To denote a ``DoFn`` class to be Splittable ``DoFn``, ``DoFn.process()``
-  method of that class should have exactly one parameter of a type that is a
-  sub-class of ``RestrictionProvider``.
+  method of that class should have exactly one parameter whose default value is
+  an instance of ``RestrictionProvider``.
 
-  The provided ``RestrictionProvider`` object must provide suitable overrides
+  The provided ``RestrictionProvider`` instance must provide suitable overrides
   for the following methods.
-  * new_tracker()
+  * create_tracker()
   * initial_restriction()
 
-  Optionally, RestrictionProvider may override default implementations of
+  Optionally, ``RestrictionProvider`` may override default implementations of
   following methods.
   * restriction_coder()
   * split()
@@ -219,7 +219,7 @@ class RestrictionProvider(object):
   gives the watermark in number of seconds.
   """
 
-  def new_tracker(self, restriction):
+  def create_tracker(self, restriction):
     """Produces a new ``RestrictionTracker`` for the given restriction.
 
     Args:
@@ -230,17 +230,6 @@ class RestrictionProvider(object):
     Returns: an object of type ``RestrictionTracker``.
     """
     raise NotImplementedError
-
-  def restriction_coder(self):
-    """Returns a ``Coder`` for restrictions.
-
-    Returned``Coder`` will be used for the restrictions produced by the current
-    ``RestrictionProvider``.
-
-    Returns:
-      an object of type ``Coder``.
-    """
-    return coders.registry.get_coder(object)
 
   def initial_restriction(self, element):
     """Produces an initial restriction for the given element."""
@@ -258,6 +247,17 @@ class RestrictionProvider(object):
     number of parts or size in bytes.
     """
     yield restriction
+
+  def restriction_coder(self):
+    """Returns a ``Coder`` for restrictions.
+
+    Returned``Coder`` will be used for the restrictions produced by the current
+    ``RestrictionProvider``.
+
+    Returns:
+      an object of type ``Coder``.
+    """
+    return coders.registry.get_coder(object)
 
 
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
@@ -300,10 +300,8 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     ``DoFn.SideInputParam``: a side input that may be used when processing.
     ``DoFn.TimestampParam``: timestamp of the input element.
     ``DoFn.WindowParam``: ``Window`` the input element belongs to.
-    An object of type ``RestrictionProvider``: having a parameter of a type that
-    is a sub-class of ``RestrictionProvider`` identifies current ``DoFn``
-    to be a Splittable ``DoFn``. Please see documentation in class
-    ``RestrictionProvider`` for more details.
+    A ``RestrictionProvider`` instance: an ``iobase.RestrictionTracker`` will be
+    provided here to allow treatment as a Splittable `DoFn``.
     ``DoFn.WatermarkReporterParam``: a function that can be used to report
     output watermark of Splittable ``DoFn`` implementations.
 
