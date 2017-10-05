@@ -371,7 +371,7 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <artifactId>beam-model-fn-execution</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
