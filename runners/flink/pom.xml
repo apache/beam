@@ -219,7 +219,7 @@
     <!-- Beam -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-runner-api</artifactId>
+      <artifactId>beam-model-pipeline</artifactId>
     </dependency>
 
     <dependency>
