@@ -279,6 +279,8 @@ public class AvroIOTransformTest {
       final String generatedClass = "GeneratedClass";
       final String genericRecordsfromSchema = "GenericRecordsFromSchemaObject";
       final String genericRecordsfromSchemaString = "GenericRecordsFromSchemaString";
+      final String generatedClassWithoutSchema = "GeneratedClassWithoutSchema";
+      final String genericRecordsWithoutSchema = "GenericRecordsWithoutSchema";
 
       return
           ImmutableList.<Object[]>builder()
@@ -303,13 +305,13 @@ public class AvroIOTransformTest {
                   },
                   new Object[] {
                       AvroIO.write(),
-                      generatedClass,
+                      generatedClassWithoutSchema,
                       AvroIOTransformTest.generateAvroObjects(),
                       false
                   },
                   new Object[] {
                       AvroIO.writeGenericRecords(),
-                      genericRecordsfromSchema,
+                      genericRecordsWithoutSchema,
                       AvroIOTransformTest.generateAvroGenericRecords(),
                       true
                   })

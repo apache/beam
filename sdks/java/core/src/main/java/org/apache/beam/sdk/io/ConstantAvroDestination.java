@@ -111,11 +111,7 @@ class ConstantAvroDestination<UserT, OutputT>
 
   @Override
   public Schema getSchema(Void destination) {
-    if (schema != null) {
-      return schema.get();
-    } else {
-      return null;
-    }
+    return schema != null ? schema.get() : null;
   }
 
   @Override

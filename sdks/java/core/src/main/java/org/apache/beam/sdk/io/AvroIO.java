@@ -385,7 +385,7 @@ public class AvroIO {
             .build());
   }
 
-  /** Writes Avro records determining the schema from the input collection. */
+  /** Writes Avro {@link GenericRecord}s.  */
   public static Write<GenericRecord> writeGenericRecords() {
     return new Write<>(
         AvroIO.<GenericRecord, GenericRecord>defaultWriteBuilder()
@@ -418,8 +418,10 @@ public class AvroIO {
 
   /**
    * Similar to {@link #writeCustomType()}, but specialized for the case where the output type is
-   * {@link GenericRecord}. A schema can be specified in {@link DynamicAvroDestinations#getSchema}.
-   * If it is not specified then, it will be determined out of the input elements
+   * {@link GenericRecord}. A schema can be specified in {@link DynamicAvroDestinations#getSchema}
+   * for example to write objects with different schemas depending on the destination
+   * (see Writing data to multiple destinations in {@link AvroIO}.
+   * If the schema is not specified, then it will be determined out of the input elements
    */
   public static <UserT> TypedWrite<UserT, Void, GenericRecord> writeCustomTypeToGenericRecords() {
     return AvroIO.<UserT, GenericRecord>defaultWriteBuilder().setGenericRecords(true).build();
