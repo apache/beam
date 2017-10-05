@@ -791,9 +791,13 @@ public class KafkaIOTest {
   }
 
   @Test
-  public void testEOSink() throws Exception {
-    // similar to testSink(), enables to EOS.
-    // This does not actually test exactly-once-semantics. Mainly exercises the code.
+  public void testEOSink() {
+    // testSink() with EOS enabled.
+    // This does not actually inject retries in a stage to test exactly-once-semantics.
+    // It mainly exercises the code in normal flow without retries.
+    // Ideally we should test EOS Sink by triggering replays of a messages between stages.
+    // It is not feasible to test such retries with direct runner. When DoFnTester supports
+    // state, we can test KafkaEOWriter DoFn directly to ensure it handles retries correctly.
 
     if (!ProducerSpEL.supportsTransactions()) {
       LOG.warn("testEOSink() is disabled as Kafka client version does not support transactions.");
@@ -831,7 +835,6 @@ public class KafkaIOTest {
       verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
     }
   }
-
 
   @Test
   public void testSinkWithSendErrors() throws Throwable {

@@ -549,6 +549,18 @@ public class KafkaIO {
     }
 
     /**
+     * Sets "isolation_level" to "read_committed" in Kafka consumer configuration. This is
+     * ensures that the consumer does not read uncommitted messages. Kafka version 0.11
+     * introduced transactional writes. Applications requiring end-to-end exactly-once
+     * semantics should only read committed messages. See JavaDoc for {@link KafkaConsumer}
+     * for more description.
+     */
+    public Read<K, V> withReadCommitted() {
+      return updateConsumerProperties(
+        ImmutableMap.<String, Object>of("isolation.level", "read_committed"));
+    }
+
+    /**
      * Returns a {@link PTransform} for PCollection of {@link KV}, dropping Kafka metatdata.
      */
     public PTransform<PBegin, PCollection<KV<K, V>>> withoutMetadata() {
@@ -1275,6 +1287,9 @@ public class KafkaIO {
     private void updateLatestOffsets() {
       for (PartitionState p : partitionStates) {
         try {
+          // If "read_committed" is enabled in the config, this seeks to 'Last Stable Offset'.
+          // As a result uncommitted messages are not counted in backlog. It is correct since
+          // the reader can not read them anyway.
           consumerSpEL.evaluateSeek2End(offsetConsumer, p.topicPartition);
           long offset = offsetConsumer.position(p.topicPartition);
           p.setLatestOffset(offset);
@@ -1571,6 +1586,22 @@ public class KafkaIO {
         input.apply(ParDo.of(new KafkaWriter<>(this)));
       }
       return PDone.in(input.getPipeline());
+    }
+
+    public void validate(PipelineOptions options) {
+      if (isEOS()) {
+        String runner = options.getRunner().getName();
+        if (runner.equals("org.apache.beam.runners.direct.DirectRunner")
+          || runner.startsWith("org.apache.beam.runners.dataflow.")
+          || runner.startsWith("org.apache.beam.runners.spark.")) {
+          return;
+        }
+        throw new UnsupportedOperationException(
+          runner + " is not whitelisted among runners compatible with Kafka exactly-once sink. "
+          + "This implementation of exactly-once sink relies on specific checkpoint guarantees. "
+          + "Only the runners with known to have compatible checkpoint semantics are whitelisted."
+        );
+      }
     }
 
     // set config defaults
