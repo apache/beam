@@ -33,6 +33,5 @@
   <name>Apache Beam :: SDKs :: Common</name>
 
   <modules>
-    <module>fn-api</module>
   </modules>
 </project>
