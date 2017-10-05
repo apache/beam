@@ -20,14 +20,14 @@ package org.apache.beam.runners.reference.job;
 
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.beam.sdk.common.runner.v1.JobApi;
-import org.apache.beam.sdk.common.runner.v1.JobApi.CancelJobRequest;
-import org.apache.beam.sdk.common.runner.v1.JobApi.CancelJobResponse;
-import org.apache.beam.sdk.common.runner.v1.JobApi.GetJobStateRequest;
-import org.apache.beam.sdk.common.runner.v1.JobApi.GetJobStateResponse;
-import org.apache.beam.sdk.common.runner.v1.JobApi.PrepareJobResponse;
-import org.apache.beam.sdk.common.runner.v1.JobApi.RunJobRequest;
-import org.apache.beam.sdk.common.runner.v1.JobServiceGrpc.JobServiceImplBase;
+import org.apache.beam.model.jobmanagement.v1.JobApi;
+import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
+import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
+import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

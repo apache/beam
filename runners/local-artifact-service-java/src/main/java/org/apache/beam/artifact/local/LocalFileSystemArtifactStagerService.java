@@ -32,18 +32,14 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest.ContentCase;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An {@code ArtifactStagingService} which stages files to a local temp directory. */
-public class LocalFileSystemArtifactStagerService extends ArtifactStagingServiceImplBase {
+public class LocalFileSystemArtifactStagerService
+    extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase {
   private static final Logger LOG =
       LoggerFactory.getLogger(LocalFileSystemArtifactStagerService.class);
 
@@ -69,14 +65,15 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
   }
 
   @Override
-  public StreamObserver<PutArtifactRequest> putArtifact(
-      final StreamObserver<PutArtifactResponse> responseObserver) {
+  public StreamObserver<ArtifactApi.PutArtifactRequest> putArtifact(
+      final StreamObserver<ArtifactApi.PutArtifactResponse> responseObserver) {
     return new CreateAndWriteFileObserver(responseObserver);
   }
 
   @Override
   public void commitManifest(
-      CommitManifestRequest request, StreamObserver<CommitManifestResponse> responseObserver) {
+      ArtifactApi.CommitManifestRequest request,
+      StreamObserver<ArtifactApi.CommitManifestResponse> responseObserver) {
     try {
       commitManifestOrThrow(request, responseObserver);
     } catch (StatusRuntimeException e) {
@@ -93,10 +90,11 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
   }
 
   private void commitManifestOrThrow(
-      CommitManifestRequest request, StreamObserver<CommitManifestResponse> responseObserver)
+      ArtifactApi.CommitManifestRequest request,
+      StreamObserver<ArtifactApi.CommitManifestResponse> responseObserver)
       throws IOException {
-    Collection<ArtifactMetadata> missing = new ArrayList<>();
-    for (ArtifactMetadata artifact : request.getManifest().getArtifactList()) {
+    Collection<ArtifactApi.ArtifactMetadata> missing = new ArrayList<>();
+    for (ArtifactApi.ArtifactMetadata artifact : request.getManifest().getArtifactList()) {
       // TODO: Validate the checksums on the server side, to fail more aggressively if require
       if (!getArtifactFile(artifact.getName()).exists()) {
         missing.add(artifact);
@@ -114,7 +112,7 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
       request.getManifest().writeTo(mfOut);
     }
     responseObserver.onNext(
-        CommitManifestResponse.newBuilder()
+        ArtifactApi.CommitManifestResponse.newBuilder()
             .setStagingToken(stagingBase.getCanonicalPath())
             .build());
     responseObserver.onCompleted();
@@ -124,24 +122,27 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
     return new File(artifactsBase, artifactName);
   }
 
-  private class CreateAndWriteFileObserver implements StreamObserver<PutArtifactRequest> {
-    private final StreamObserver<PutArtifactResponse> responseObserver;
+  private class CreateAndWriteFileObserver
+      implements StreamObserver<ArtifactApi.PutArtifactRequest> {
+    private final StreamObserver<ArtifactApi.PutArtifactResponse> responseObserver;
     private FileWritingObserver writer;
 
-    private CreateAndWriteFileObserver(StreamObserver<PutArtifactResponse> responseObserver) {
+    private CreateAndWriteFileObserver(
+        StreamObserver<ArtifactApi.PutArtifactResponse> responseObserver) {
       this.responseObserver = responseObserver;
     }
 
     @Override
-    public void onNext(PutArtifactRequest value) {
+    public void onNext(ArtifactApi.PutArtifactRequest value) {
       try {
         if (writer == null) {
-          if (!value.getContentCase().equals(ContentCase.METADATA)) {
+          if (!value.getContentCase().equals(ArtifactApi.PutArtifactRequest.ContentCase.METADATA)) {
             throw Status.INVALID_ARGUMENT
                 .withDescription(
                     String.format(
                         "Expected the first %s to contain the Artifact Name, got %s",
-                        PutArtifactRequest.class.getSimpleName(), value.getContentCase()))
+                        ArtifactApi.PutArtifactRequest.class.getSimpleName(),
+                        value.getContentCase()))
                 .asRuntimeException();
           }
           writer = createFile(value.getMetadata());
@@ -159,7 +160,8 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
       }
     }
 
-    private FileWritingObserver createFile(ArtifactMetadata metadata) throws IOException {
+    private FileWritingObserver createFile(ArtifactApi.ArtifactMetadata metadata)
+        throws IOException {
       File destination = getArtifactFile(metadata.getName());
       if (!destination.createNewFile()) {
         throw Status.ALREADY_EXISTS
@@ -189,22 +191,23 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
     }
   }
 
-  private static class FileWritingObserver implements StreamObserver<PutArtifactRequest> {
+  private static class FileWritingObserver
+      implements StreamObserver<ArtifactApi.PutArtifactRequest> {
     private final File destination;
     private final OutputStream target;
-    private final StreamObserver<PutArtifactResponse> responseObserver;
+    private final StreamObserver<ArtifactApi.PutArtifactResponse> responseObserver;
 
     private FileWritingObserver(
         File destination,
         OutputStream target,
-        StreamObserver<PutArtifactResponse> responseObserver) {
+        StreamObserver<ArtifactApi.PutArtifactResponse> responseObserver) {
       this.destination = destination;
       this.target = target;
       this.responseObserver = responseObserver;
     }
 
     @Override
-    public void onNext(PutArtifactRequest value) {
+    public void onNext(ArtifactApi.PutArtifactRequest value) {
       try {
         if (value.getData() == null) {
           StatusRuntimeException e = Status.INVALID_ARGUMENT.withDescription(String.format(
@@ -234,7 +237,7 @@ public class LocalFileSystemArtifactStagerService extends ArtifactStagingService
         cleanedUp(e);
         return;
       }
-      responseObserver.onNext(PutArtifactResponse.getDefaultInstance());
+      responseObserver.onNext(ArtifactApi.PutArtifactResponse.getDefaultInstance());
       responseObserver.onCompleted();
     }
 
