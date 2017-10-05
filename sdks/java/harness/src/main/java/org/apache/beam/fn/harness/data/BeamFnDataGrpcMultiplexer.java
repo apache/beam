@@ -27,26 +27,28 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.portability.v1.Endpoints;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A gRPC multiplexer for a specific {@link org.apache.beam.fn.v1.BeamFnApi.ApiServiceDescriptor}.
+ * A gRPC multiplexer for a specific {@link
+ * org.apache.beam.portability.v1.Endpoints.ApiServiceDescriptor}.
  *
- * <p>Multiplexes data for inbound consumers based upon their individual
- * {@link org.apache.beam.fn.v1.BeamFnApi.Target}s.
+ * <p>Multiplexes data for inbound consumers based upon their individual {@link
+ * org.apache.beam.fn.v1.BeamFnApi.Target}s.
  *
- * <p>Multiplexing inbound and outbound streams is as thread safe as the consumers of those
- * streams. For inbound streams, this is as thread safe as the inbound observers. For outbound
- * streams, this is as thread safe as the underlying stream observer.
+ * <p>Multiplexing inbound and outbound streams is as thread safe as the consumers of those streams.
+ * For inbound streams, this is as thread safe as the inbound observers. For outbound streams, this
+ * is as thread safe as the underlying stream observer.
  *
- * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying
- * the output location with a specific outbound observer.
+ * <p>TODO: Add support for multiplexing over multiple outbound observers by stickying the output
+ * location with a specific outbound observer.
  */
 public class BeamFnDataGrpcMultiplexer {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
-  private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
+  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   @VisibleForTesting
@@ -55,7 +57,7 @@ public class BeamFnDataGrpcMultiplexer {
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       Function<StreamObserver<BeamFnApi.Elements>,
                StreamObserver<BeamFnApi.Elements>> outboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;

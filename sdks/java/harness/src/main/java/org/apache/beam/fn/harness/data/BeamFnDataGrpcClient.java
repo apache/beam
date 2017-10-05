@@ -29,6 +29,7 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.v1.BeamFnApi;
 import org.apache.beam.fn.v1.BeamFnDataGrpc;
+import org.apache.beam.portability.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -44,8 +45,8 @@ import org.slf4j.LoggerFactory;
 public class BeamFnDataGrpcClient implements BeamFnDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcClient.class);
 
-  private final ConcurrentMap<BeamFnApi.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
-  private final Function<BeamFnApi.ApiServiceDescriptor, ManagedChannel> channelFactory;
+  private final ConcurrentMap<Endpoints.ApiServiceDescriptor, BeamFnDataGrpcMultiplexer> cache;
+  private final Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory;
   private final BiFunction<Function<StreamObserver<BeamFnApi.Elements>,
                                     StreamObserver<BeamFnApi.Elements>>,
                            StreamObserver<BeamFnApi.Elements>,
@@ -54,7 +55,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
   public BeamFnDataGrpcClient(
       PipelineOptions options,
-      Function<BeamFnApi.ApiServiceDescriptor, ManagedChannel> channelFactory,
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
       BiFunction<Function<StreamObserver<BeamFnApi.Elements>, StreamObserver<BeamFnApi.Elements>>,
                  StreamObserver<BeamFnApi.Elements>,
                  StreamObserver<BeamFnApi.Elements>> streamObserverFactory) {
@@ -74,7 +75,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    */
   @Override
   public <T> CompletableFuture<Void> forInboundConsumer(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       KV<String, BeamFnApi.Target> inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer) {
@@ -101,7 +102,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
    */
   @Override
   public <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       KV<String, BeamFnApi.Target> outputLocation,
       Coder<WindowedValue<T>> coder) {
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
@@ -114,9 +115,9 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   }
 
   private BeamFnDataGrpcMultiplexer getClientFor(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor) {
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor) {
     return cache.computeIfAbsent(apiServiceDescriptor,
-        (BeamFnApi.ApiServiceDescriptor descriptor) -> new BeamFnDataGrpcMultiplexer(
+        (Endpoints.ApiServiceDescriptor descriptor) -> new BeamFnDataGrpcMultiplexer(
             descriptor,
             (StreamObserver<BeamFnApi.Elements> inboundObserver) -> streamObserverFactory.apply(
                 BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor))::data,

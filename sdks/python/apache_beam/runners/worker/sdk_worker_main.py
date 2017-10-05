@@ -23,7 +23,7 @@ import sys
 
 from google.protobuf import text_format
 
-from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 
@@ -33,7 +33,7 @@ from apache_beam.runners.worker.sdk_worker import SdkHarness
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
   if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
-    logging_service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
+    logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
                       logging_service_descriptor)
 
@@ -47,7 +47,7 @@ def main(unused_argv):
 
   try:
     logging.info('Python sdk harness started.')
-    service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
+    service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
     # TODO(robertwb): Support credentials.
