@@ -32,7 +32,7 @@ func TestStage(t *testing.T) {
 	defer cc.Close()
 	client := pb.NewArtifactStagingServiceClient(cc)
 
-	ctx := grpcx.WriteWorkerId(context.Background(), "idA")
+	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
 	keys := []string{"foo", "bar", "baz/baz/baz"}
 
 	src := makeTempDir(t)
@@ -60,7 +60,7 @@ func TestStageDir(t *testing.T) {
 	defer cc.Close()
 	client := pb.NewArtifactStagingServiceClient(cc)
 
-	ctx := grpcx.WriteWorkerId(context.Background(), "idB")
+	ctx := grpcx.WriteWorkerID(context.Background(), "idB")
 	keys := []string{"1", "2", "3", "4", "a/5", "a/6", "a/7", "a/8", "a/a/9", "a/a/10", "a/b/11", "a/b/12"}
 
 	src := makeTempDir(t)

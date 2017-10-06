@@ -27,7 +27,7 @@ import (
 const idKey = "id"
 
 // ReadWorkerID reads the worker ID from an incoming gRPC request context.
-func ReadWorkerId(ctx context.Context) (string, error) {
+func ReadWorkerID(ctx context.Context) (string, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return "", errors.New("failed to read metadata from context")
@@ -44,7 +44,7 @@ func ReadWorkerId(ctx context.Context) (string, error) {
 
 // WriteWorkerID write the worker ID to an outgoing gRPC request context. It
 // merges the information with any existing gRPC metadata.
-func WriteWorkerId(ctx context.Context, id string) context.Context {
+func WriteWorkerID(ctx context.Context, id string) context.Context {
 	md := metadata.New(map[string]string{
 		idKey: id,
 	})

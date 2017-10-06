@@ -34,7 +34,7 @@ func TestRetrieve(t *testing.T) {
 	cc := startServer(t)
 	defer cc.Close()
 
-	ctx := grpcx.WriteWorkerId(context.Background(), "idA")
+	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
 	keys := []string{"foo", "bar", "baz/baz/baz"}
 	artifacts := populate(ctx, cc, t, keys, 300)
 
@@ -58,7 +58,7 @@ func TestMultiRetrieve(t *testing.T) {
 	cc := startServer(t)
 	defer cc.Close()
 
-	ctx := grpcx.WriteWorkerId(context.Background(), "idB")
+	ctx := grpcx.WriteWorkerID(context.Background(), "idB")
 	keys := []string{"1", "2", "3", "4", "a/5", "a/6", "a/7", "a/8", "a/a/9", "a/a/10", "a/b/11", "a/b/12"}
 	artifacts := populate(ctx, cc, t, keys, 300)
 
@@ -81,7 +81,7 @@ func TestDirtyRetrieve(t *testing.T) {
 	cc := startServer(t)
 	defer cc.Close()
 
-	ctx := grpcx.WriteWorkerId(context.Background(), "idC")
+	ctx := grpcx.WriteWorkerID(context.Background(), "idC")
 	scl := pb.NewArtifactStagingServiceClient(cc)
 
 	list := []*pb.ArtifactMetadata{

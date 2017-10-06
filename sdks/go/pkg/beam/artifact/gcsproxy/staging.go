@@ -33,7 +33,7 @@ import (
 	"google.golang.org/api/storage/v1"
 )
 
-// StaginServer is a artifact staging server backed by Google Cloud Storage
+// StagingServer is a artifact staging server backed by Google Cloud Storage
 // (GCS). It commits a single manifest and ignores the staging id.
 type StagingServer struct {
 	manifest     string

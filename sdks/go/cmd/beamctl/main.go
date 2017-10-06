@@ -17,48 +17,15 @@
 package main
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"os"
-	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
+	"github.com/apache/beam/sdks/go/cmd/beamctl/cmd"
 )
-
-var (
-	rootCmd = &cobra.Command{
-		Use:   "beamctl",
-		Short: "Apache Beam command line client",
-	}
-
-	id       string
-	endpoint string
-)
-
-func init() {
-	rootCmd.AddCommand(artifactCmd)
-	rootCmd.PersistentFlags().StringVarP(&endpoint, "endpoint", "e", "", "Server endpoint, such as localhost:123")
-	rootCmd.PersistentFlags().StringVarP(&id, "id", "i", "", "Client ID")
-}
 
 func main() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := cmd.RootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-}
-
-// dial connects via gRPC to the given endpoint and returns the connection
-// and the context to use.
-func dial() (context.Context, *grpc.ClientConn, error) {
-	if endpoint == "" {
-		return nil, nil, errors.New("endpoint not defined")
-	}
-
-	ctx := grpcx.WriteWorkerId(context.Background(), id)
-	cc, err := grpcx.Dial(ctx, endpoint, time.Minute)
-	return ctx, cc, err
 }

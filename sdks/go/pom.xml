@@ -66,7 +66,7 @@
               <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <outputDirectory>${go.source.base}/github.com/apache/beam/cmd</outputDirectory>
+              <outputDirectory>${go.source.dir}/cmd</outputDirectory>
               <resources>
                 <resource>
                   <directory>cmd</directory>
@@ -124,7 +124,7 @@
             <phase>compile</phase>
             <configuration>
               <packages>
-                <package>github.com/apache/beam/cmd/beamctl</package>
+                <package>github.com/apache/beam/sdks/go/cmd/beamctl</package>
               </packages>
               <resultName>beamctl</resultName>
             </configuration>
@@ -137,7 +137,7 @@
             <phase>compile</phase>
             <configuration>
               <packages>
-                <package>github.com/apache/beam/cmd/beamctl</package>
+                <package>github.com/apache/beam/sdks/go/cmd/beamctl</package>
               </packages>
               <resultName>linux_amd64/beamctl</resultName>
               <targetArch>amd64</targetArch>
