@@ -821,9 +821,7 @@ public class KafkaIOTest {
                  .withTopic(topic)
                  .withKeySerializer(IntegerSerializer.class)
                  .withValueSerializer(LongSerializer.class)
-                 .withEOS()
-                 .withSinkGroupId("test")
-                 .withNumShards(1)
+                 .withEOS(1, "test")
                  .withConsumerFactoryFn(new ConsumerFactoryFn(
                    Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
                  .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));

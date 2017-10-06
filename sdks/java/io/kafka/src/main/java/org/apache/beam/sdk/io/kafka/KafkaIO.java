@@ -174,10 +174,13 @@ import org.slf4j.LoggerFactory;
  *       .updateConsumerProperties(ImmutableMap.of("receive.buffer.bytes", 1024 * 1024))
  *
  *       // custom function for calculating record timestamp (default is processing time)
- *       .withTimestampFn(new MyTypestampFunction())
+ *       .withTimestampFn(new MyTimestampFunction())
  *
  *       // custom function for watermark (default is record timestamp)
  *       .withWatermarkFn(new MyWatermarkFunction())
+ *
+ *       // restrict reader to committed messages on Kafka (see method documentation).
+ *       .withReadCommitted()
  *
  *       // finally, if you don't need Kafka metadata, you can drop it
  *       .withoutMetadata() // PCollection<KV<Long, String>>
@@ -235,6 +238,9 @@ import org.slf4j.LoggerFactory;
  *       // you can further customize KafkaProducer used to write the records by adding more
  *       // settings for ProducerConfig. e.g, to enable compression :
  *       .updateProducerProperties(ImmutableMap.of("compression.type", "gzip"))
+ *
+ *       // Optionally enable exactly-once sink (on supported runners). See JavaDoc for withEOS().
+ *       .withEOS(20, "eos-sink-group-id");
  *    );
  * }</pre>
  *
@@ -1530,29 +1536,62 @@ public class KafkaIO {
     }
 
     /**
-     * TODO: User friendly javadoc.
-     * Note on performance: Exactly-once sink involves two shuffles of input records in order to
-     * provide the right semantics. As a result, the input records go through 2
-     * serialization-deserialization cycles. Depending on volume and cost of serialization, the
-     * CPU cost might be noticeable. The cost could be minimized by writing byte arrays.
+     * Provides exactly-once semantics while writing to Kafka, which enables applications with
+     * end-to-end exactly-once guarantees on top of exactly-once semantics <i>within</i> Beam
+     * pipelines. It ensures that records written to sink are committed on Kafka exactly once,
+     * even in the case of retries during pipeline execution even when some processing is retried.
+     * Retries typically occur when workers restart (as in failure recovery), or when the work is
+     * redistributed (as in an autoscaling event).
+     *
+     * <p>Beam runners typically provide exactly-once semantics for results of a pipeline, but not
+     * for side effects from user code in transform.  If a transform such as Kafka sink writes
+     * to an external system, those writes might occur more than once. When EOS is enabled here,
+     * the sink transform ties checkpointing semantics in compatible Beam runners and transactions
+     * in Kafka (version 0.11+) to ensure a record is written only once. As the implementation
+     * relies on runners checkpoint semantics, not all the runners are compatible. The sink throws
+     * an exception during initialization if the runner is not whitelisted. Flink runner is
+     * one of the runners whose checkpoint semantics are not compatible with current
+     * implementation (hope to provide a solution in near future). Dataflow runner and Spark
+     * runners are whitelisted as compatible.
+     *
+     * <p>Note on performance: Exactly-once sink involves two shuffles of the records. In addition
+     * to cost of shuffling the records among workers, the records go through 2
+     * serialization-deserialization cycles. Depending on volume and cost of serialization,
+     * the CPU cost might be noticeable. The CPU cost can be reduced by writing byte arrays
+     * (i.e. serializing them to byte before writing to Kafka sink).
+     *
+     * @param numShards Sets sink parallelism. The state metadata stored on Kafka is stored across
+     *    this many virtual partitions using {@code sinkGroupId}. A good rule of thumb is to set
+     *    this to be around number of partitions in Kafka topic.
+     *
+     * @param sinkGroupId The <i>group id</i> used to store small amount of state as metadata on
+     *    Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
+     *    job should use a unique group id so that restarts/updates of job preserve the state to
+     *    ensure exactly-once semantics. The state is committed atomically with sink transactions
+     *    on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
+     *    information. The sink performs multiple sanity checks during initialization to catch
+     *    common mistakes so that it does not end up using state that does not <i>seem</i> to
+     *    be written by the same job.
      */
-    public Write<K, V> withEOS() {
+    public Write<K, V> withEOS(int numShards, String sinkGroupId) {
       EOSWrite.ensureEOSSupport();
-      return toBuilder().setEOS(true).build();
+      checkArgument(numShards >= 1, "numShards should be >= 1");
+      checkArgument(sinkGroupId != null, "sinkGroupId is required for exactly-once sink");
+      return toBuilder()
+        .setEOS(true)
+        .setNumShards(numShards)
+        .setSinkGroupId(sinkGroupId)
+        .build();
     }
 
     /**
-     * Should be unique for the job. This is also used in naming the producers used in EOS sink.
-     * TODO: expand javaDoc.
+     * When exactly-once semantics are enabled (see {@link #withEOS(int, String)}), the sink needs
+     * to fetch previously stored state with Kafka topic. Fetching the metadata requires a
+     * consumer. Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory
+     * function can be supplied if required in a specific case.
+     * The default is {@link KafkaConsumer}.
+     * @param consumerFactoryFn
      */
-    public Write<K, V> withSinkGroupId(String sinkGroupId) {
-      return toBuilder().setSinkGroupId(sinkGroupId).build();
-    }
-
-    public Write<K, V> withNumShards(int numShards) {
-      return toBuilder().setNumShards(numShards).build();
-    }
-
     public Write<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
       return toBuilder().setConsumerFactoryFn(consumerFactoryFn).build();
@@ -1579,7 +1618,9 @@ public class KafkaIO {
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
         //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
-        //       across multiple runs or across multiple jobs.
+        //       across multiple runs or across multiple jobs. This is checked when the sink
+        //       transform initializes while processing the output. It might be better to
+        //       check here to catch common mistake.
 
         input.apply(new EOSWrite<>(this));
       } else {
