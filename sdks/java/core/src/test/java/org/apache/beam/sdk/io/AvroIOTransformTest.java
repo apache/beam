@@ -249,7 +249,17 @@ public class AvroIOTransformTest {
     private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
 
     private <T> List<T> readAvroFile(final File avroFile, boolean generic) throws IOException {
-      if (!generic) {
+      if (generic) {
+        final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA);
+        final List<GenericRecord> genericRecords = new ArrayList<>();
+        try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(avroFile,
+            datumReader)) {
+          while (dataFileReader.hasNext()) {
+            genericRecords.add(dataFileReader.next());
+          }
+        }
+        return (List<T>) genericRecords;
+      } else {
         final DatumReader<AvroGeneratedUser> datumReader = new SpecificDatumReader<>(
             AvroGeneratedUser.class);
         final List<AvroGeneratedUser> output = new ArrayList<>();
@@ -260,16 +270,6 @@ public class AvroIOTransformTest {
           }
         }
         return (List<T>) output;
-      } else {
-        final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA);
-        final List<GenericRecord> genericRecords = new ArrayList<>();
-        try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(avroFile,
-            datumReader)) {
-          while (dataFileReader.hasNext()) {
-            genericRecords.add(dataFileReader.next());
-          }
-        }
-        return (List<T>) genericRecords;
       }
     }
 
