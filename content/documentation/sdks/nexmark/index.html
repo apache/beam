@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nexmark benchmark suite</title>
+  <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
+">
+  <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
+  <link rel="stylesheet" href="/css/site.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+  <script src="/js/bootstrap.min.js"></script>
+  <script src="/js/language-switch.js"></script>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/nexmark/" data-proofer-ignore>
+  <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+  <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+    ga('create', 'UA-73650088-1', 'auto');
+    ga('send', 'pageview');
+  </script>
+</head>
+
+  <body class="body ">
+    <nav class="header navbar navbar-fixed-top">
+    <div class="navbar-header">
+      <a href="/" class="navbar-brand" >
+        <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
+      </a>
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
+            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
+            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Example Walkthroughs</li>
+            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
+            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Resources</li>
+            <li><a href="/get-started/downloads">Downloads</a></li>
+            <li><a href="/get-started/support">Support</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/documentation">Using the Documentation</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Beam Concepts</li>
+            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
+            <li><a href="/documentation/execution-model/">Execution Model</a></li>
+            <li><a href="/documentation/resources/">Additional Resources</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Pipeline Fundamentals</li>
+            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">SDKs</li>
+            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
+            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
+            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                               width="14" height="14"
+                                                                                                                                                          alt="External link."></a>
+            </li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Runners</li>
+            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
+            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
+            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
+            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
+            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
+            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
+            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
+
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">DSLs</li>
+            <li><a href="/documentation/dsls/sql/">SQL</a></li>
+          </ul>
+        </li>
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
+          <ul class="dropdown-menu">
+            <li><a href="/contribute">Get Started Contributing</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Guides</li>
+            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+            <li><a href="/contribute/testing/">Testing Guide</a></li>
+            <li><a href="/contribute/release-guide/">Release Guide</a></li>
+            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
+            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Technical References</li>
+            <li><a href="/contribute/design-principles/">Design Principles</a></li>
+            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
+            <li><a href="/contribute/source-repository/">Source Repository</a></li>
+            <li><a href="/contribute/docker-images/">Docker Images</a></li>
+            <li role="separator" class="divider"></li>
+            <li class="dropdown-header">Promotion</li>
+            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
+            <li><a href="/contribute/logos/">Logos and Design</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+            <li><a href="/contribute/team/">Team</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/blog">Blog</a></li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li class="dropdown">
+          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false"><img src="https://www.apache.org/foundation/press/kit/feather_small.png" alt="Apache Logo" style="height:20px;"><span class="caret"></span></a>
+          <ul class="dropdown-menu dropdown-menu-right">
+            <li><a href="http://www.apache.org/">ASF Homepage</a></li>
+            <li><a href="http://www.apache.org/licenses/">License</a></li>
+            <li><a href="http://www.apache.org/security/">Security</a></li>
+            <li><a href="http://www.apache.org/foundation/thanks.html">Thanks</a></li>
+            <li><a href="http://www.apache.org/foundation/sponsorship.html">Sponsorship</a></li>
+            <li><a href="https://www.apache.org/foundation/policies/conduct">Code of Conduct</a></li>
+          </ul>
+        </li>
+      </ul>
+    </div><!--/.nav-collapse -->
+</nav>
+
+    <div class="body__contained">
+      <h1 id="nexmark-benchmark-suite">Nexmark benchmark suite</h1>
+
+<h2 id="what-it-is">What it is</h2>
+
+<p>Nexmark is a suite of pipelines inspired by the ‘continuous data stream’
+queries in <a href="http://datalab.cs.pdx.edu/niagaraST/NEXMark/">Nexmark research paper</a></p>
+
+<p>These are multiple queries over a three entities model representing on online auction system:</p>
+
+<ul>
+  <li><strong>Person</strong> represents a person submitting an item for auction and/or making a bid
+ on an auction.</li>
+  <li><strong>Auction</strong> represents an item under auction.</li>
+  <li><strong>Bid</strong> represents a bid for an item under auction.</li>
+</ul>
+
+<h2 id="the-queries">The queries</h2>
+
+<p>The queries exercise many aspects of Beam model:</p>
+
+<ul>
+  <li><strong>Query1</strong>: What are the bid values in Euro’s?
+Illustrates a simple map.</li>
+  <li><strong>Query2</strong>: What are the auctions with particular auction numbers?
+Illustrates a simple filter.</li>
+  <li><strong>Query3</strong>: Who is selling in particular US states?
+Illustrates an incremental join (using per-key state and timer) and filter.</li>
+  <li><strong>Query4</strong>: What is the average selling price for each auction
+category?
+Illustrates complex join (using custom window functions) and
+aggregation.</li>
+  <li><strong>Query5</strong>: Which auctions have seen the most bids in the last period?
+Illustrates sliding windows and combiners.</li>
+  <li><strong>Query6</strong>: What is the average selling price per seller for their
+last 10 closed auctions.
+Shares the same ‘winning bids’ core as for <strong>Query4</strong>, and
+illustrates a specialized combiner.</li>
+  <li><strong>Query7</strong>: What are the highest bids per period?
+Deliberately implemented using a side input to illustrate fanout.</li>
+  <li><strong>Query8</strong>: Who has entered the system and created an auction in
+the last period?
+Illustrates a simple join.</li>
+</ul>
+
+<p>We have augmented the original queries with five more:</p>
+
+<ul>
+  <li><strong>Query0</strong>: Pass-through.
+Allows us to measure the monitoring overhead.</li>
+  <li><strong>Query9</strong>: Winning-bids.
+A common sub-query shared by <strong>Query4</strong> and <strong>Query6</strong>.</li>
+  <li><strong>Query10</strong>: Log all events to GCS files.
+Illustrates windows with large side effects on firing.</li>
+  <li><strong>Query11</strong>: How many bids did a user make in each session they
+were active?
+Illustrates session windows.</li>
+  <li><strong>Query12</strong>: How many bids does a user make within a fixed
+processing time limit?
+Illustrates working in processing time in the Global window, as
+compared with event time in non-Global windows for all the other
+queries.</li>
+</ul>
+
+<h2 id="benchmark-workload-configuration">Benchmark workload configuration</h2>
+<p>Here are some of the knobs of the benchmark workload (see <a href="https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java">NexmarkConfiguration.java</a>).</p>
+
+<p>These configuration items can be passed to the launch command line.</p>
+
+<h3 id="events-generation-defaults">Events generation (defaults)</h3>
+<ul>
+  <li>100 000 events generated</li>
+  <li>100 generator threads</li>
+  <li>Event rate in SIN curve</li>
+  <li>Initial event rate of 10 000</li>
+  <li>Event rate step of 10 000</li>
+  <li>100 concurrent auctions</li>
+  <li>1000 concurrent persons bidding / creating auctions</li>
+</ul>
+
+<h3 id="windows-defaults">Windows (defaults)</h3>
+<ul>
+  <li>size 10s</li>
+  <li>sliding period 5s</li>
+  <li>watermark hold for 0s</li>
+</ul>
+
+<h3 id="events-proportions-defaults">Events Proportions (defaults)</h3>
+<ul>
+  <li>Hot Auctions = ½</li>
+  <li>Hot Bidders =¼</li>
+  <li>Hot Sellers=¼</li>
+</ul>
+
+<h3 id="technical">Technical</h3>
+<ul>
+  <li>Artificial CPU load</li>
+  <li>Artificial IO load</li>
+</ul>
+
+<h2 id="nexmark-output">Nexmark output</h2>
+<p>Here is an example output of the Nexmark benchmark run in streaming mode with the SMOKE suite on the (local) direct runner:</p>
+
+<pre>
+Performance:
+  Conf       Runtime(sec)         Events(/sec)         Results
+  0000                5,5              18138,9          100000
+  0001                4,2              23657,4           92000
+  0002                2,2              45683,0             351
+  0003                3,9              25348,5             444
+  0004                1,6               6207,3              40
+  0005                5,0              20173,5              12
+  0006                0,9              11376,6             401
+  0007              121,4                823,5               1
+  0008                2,5              40273,9            6000
+  0009                0,9              10695,2             298
+  0010                4,0              25025,0               1
+  0011                4,4              22655,2            1919
+  0012                3,5              28208,7            1919
+</pre>
+
+<h2 id="benchmark-launch-configuration">Benchmark launch configuration</h2>
+
+<p>We can specify the Beam runner to use with maven profiles, available profiles are:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>direct-runner
+spark-runner
+flink-runner
+apex-runner
+</code></pre>
+</div>
+
+<p>The runner must also be specified like in any other Beam pipeline using:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--runner
+</code></pre>
+</div>
+
+<p>Test data is deterministically synthesized on demand. The test
+data may be synthesized in the same pipeline as the query itself,
+or may be published to Pub/Sub.</p>
+
+<p>The query results may be:</p>
+
+<ul>
+  <li>Published to Pub/Sub.</li>
+  <li>Written to text files as plain text.</li>
+  <li>Written to text files using an Avro encoding.</li>
+  <li>Sent to BigQuery.</li>
+  <li>Discarded.</li>
+</ul>
+
+<h3 id="common-configuration-parameters">Common configuration parameters</h3>
+
+<p>Decide if batch or streaming:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--streaming=true
+</code></pre>
+</div>
+
+<p>Number of events generators:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--numEventGenerators=4
+</code></pre>
+</div>
+
+<p>Run query N:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--query=N
+</code></pre>
+</div>
+
+<h3 id="available-suites">Available Suites</h3>
+<p>The suite to run can be chosen using this configuration parameter:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--suite=SUITE
+</code></pre>
+</div>
+
+<p>Available suites are:</p>
+<ul>
+  <li>DEFAULT: Test default configuration with query 0.</li>
+  <li>SMOKE: Run the 12 default configurations.</li>
+  <li>STRESS: Like smoke but for 1m events.</li>
+  <li>FULL_THROTTLE: Like SMOKE but 100m events.</li>
+</ul>
+
+<h3 id="apex-runner-specific-configuration">Apex runner specific configuration</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=false
+</code></pre>
+</div>
+
+<h3 id="google-cloud-dataflow-runner-specific-configuration">Google Cloud Dataflow runner specific configuration</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+--enforceEncodability=false --enforceImmutability=false
+--project=&lt;your project&gt; \
+--zone=&lt;your zone&gt; \
+--workerMachineType=n1-highmem-8 \
+--stagingLocation=&lt;a gs path for staging&gt; \
+--runner=DataflowRunner \
+--tempLocation=gs://talend-imejia/nexmark/temp/ \
+--stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
+--filesToStage=target/beam-sdks-java-nexmark-2.1.0-SNAPSHOT.jar
+</code></pre>
+</div>
+
+<h3 id="direct-runner-specific-configuration">Direct runner specific configuration</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+--enforceEncodability=false --enforceImmutability=false
+</code></pre>
+</div>
+
+<h3 id="flink-runner-specific-configuration">Flink runner specific configuration</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+--flinkMaster=local --parallelism=#numcores
+</code></pre>
+</div>
+
+<h3 id="spark-runner-specific-configuration">Spark runner specific configuration</h3>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>--manageResources=false --monitorJobs=true \
+--sparkMaster=local \
+-Dspark.ui.enabled=false -DSPARK_LOCAL_IP=localhost -Dsun.io.serialization.extendedDebugInfo=true
+</code></pre>
+</div>
+
+<h2 id="current-status">Current status</h2>
+
+<p>These tables contain statuses of the queries runs in the different runners. Google Cloud Dataflow and Apache Gearpump statuses are yet to come.</p>
+
+<h3 id="batch--synthetic--local">Batch / Synthetic / Local</h3>
+
+<table class="table table-bordered">
+    <tr>
+      <th>Query</th>
+      <th>Direct</th>
+      <th>Spark</th>
+      <th>Flink</th>
+      <th>Apex</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>ok</td>
+      <td><a href="https://issues.apache.org/jira/browse/BEAM-1035">BEAM-1035</a></td>
+      <td>ok</td>
+      <td><a href="https://issues.apache.org/jira/browse/BEAM-1037">BEAM-1037</a></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+</table>
+
+<h3 id="streaming--synthetic--local">Streaming / Synthetic / Local</h3>
+
+<table class="table table-bordered">
+    <tr>
+      <th>Query</th>
+      <th>Direct</th>
+      <th>Spark <a href="https://issues.apache.org/jira/browse/BEAM-2847">BEAM-2847</a></th>
+      <th>Flink</th>
+      <th>Apex</th>
+    </tr>
+    <tr>
+      <td>0</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>ok</td>
+      <td><a href="https://issues.apache.org/jira/browse/BEAM-1035">BEAM-1035</a></td>
+      <td>ok</td>
+      <td><a href="https://issues.apache.org/jira/browse/BEAM-1037">BEAM-1037</a></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>ok</td>
+      <td><a href="https://issues.apache.org/jira/browse/BEAM-2112">BEAM-2112</a></td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+      <td>ok</td>
+    </tr>
+</table>
+
+<h3 id="batch--synthetic--cluster">Batch / Synthetic / Cluster</h3>
+
+<p>Yet to come</p>
+
+<h3 id="streaming--synthetic--cluster">Streaming / Synthetic / Cluster</h3>
+
+<p>Yet to come</p>
+
+<h2 id="running-nexmark">Running Nexmark</h2>
+
+<h3 id="running-smoke-suite-on-the-directrunner-local">Running SMOKE suite on the DirectRunner (local)</h3>
+
+<p>Batch Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=false --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
+</code></pre>
+</div>
+
+<p>Streaming Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=true --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
+</code></pre>
+</div>
+
+<h3 id="running-smoke-suite-on-the-sparkrunner-local">Running SMOKE suite on the SparkRunner (local)</h3>
+
+<p>Batch Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true"
+</code></pre>
+</div>
+
+<p>Streaming Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true"
+</code></pre>
+</div>
+
+<h3 id="running-smoke-suite-on-the-flinkrunner-local">Running SMOKE suite on the FlinkRunner (local)</h3>
+
+<p>Batch Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true  --flinkMaster=local"
+</code></pre>
+</div>
+
+<p>Streaming Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true  --flinkMaster=local"
+</code></pre>
+</div>
+
+<h3 id="running-smoke-suite-on-the-apexrunner-local">Running SMOKE suite on the ApexRunner (local)</h3>
+
+<p>Batch Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=false"
+</code></pre>
+</div>
+
+<p>Streaming Mode:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=false"
+</code></pre>
+</div>
+
+<h3 id="running-smoke-suite-on-google-cloud-dataflow">Running SMOKE suite on Google Cloud Dataflow</h3>
+
+<p>Building package:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn clean package -Pdataflow-runner
+</code></pre>
+</div>
+
+<p>Submit to Google Dataflow service:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+  org.apache.beam.sdk.nexmark.Main \
+  --runner=DataflowRunner
+  --project=&lt;your project&gt; \
+  --zone=&lt;your zone&gt; \
+  --workerMachineType=n1-highmem-8 \
+  --stagingLocation=&lt;a gs path for staging&gt; \
+  --streaming=true \
+  --sourceType=PUBSUB \
+  --pubSubMode=PUBLISH_ONLY \
+  --pubsubTopic=&lt;an existing Pubsub topic&gt; \
+  --resourceNameMode=VERBATIM \
+  --manageResources=false \
+  --monitorJobs=false \
+  --numEventGenerators=64 \
+  --numWorkers=16 \
+  --maxNumWorkers=16 \
+  --suite=SMOKE \
+  --firstEventRate=100000 \
+  --nextEventRate=100000 \
+  --ratePeriodSec=3600 \
+  --isRateLimited=true \
+  --avgPersonByteSize=500 \
+  --avgAuctionByteSize=500 \
+  --avgBidByteSize=500 \
+  --probDelayedEvent=0.000001 \
+  --occasionalDelaySec=3600 \
+  --numEvents=0 \
+  --useWallclockEventTime=true \
+  --usePubsubPublishTime=true \
+  --experiments=enable_custom_pubsub_sink
+</code></pre>
+</div>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar \
+  org.apache.beam.sdk.nexmark.Main \
+  --runner=DataflowRunner
+  --project=&lt;your project&gt; \
+  --zone=&lt;your zone&gt; \
+  --workerMachineType=n1-highmem-8 \
+  --stagingLocation=&lt;a gs path for staging&gt; \
+  --streaming=true \
+  --sourceType=PUBSUB \
+  --pubSubMode=SUBSCRIBE_ONLY \
+  --pubsubSubscription=&lt;an existing Pubsub subscription to above topic&gt; \
+  --resourceNameMode=VERBATIM \
+  --manageResources=false \
+  --monitorJobs=false \
+  --numWorkers=64 \
+  --maxNumWorkers=64 \
+  --suite=SMOKE \
+  --usePubsubPublishTime=true \
+  --outputPath=&lt;a gs path under which log files will be written&gt; \
+  --windowSizeSec=600 \
+  --occasionalDelaySec=3600 \
+  --maxLogEvents=10000 \
+  --experiments=enable_custom_pubsub_source
+</code></pre>
+</div>
+
+<h3 id="running-query-0-on-a-spark-cluster-with-apache-hadoop-yarn">Running query 0 on a Spark cluster with Apache Hadoop YARN</h3>
+
+<p>Building package:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>mvn clean package -Pspark-runner
+</code></pre>
+</div>
+
+<p>Submit to the cluster:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
+</code></pre>
+</div>
+
+
+    </div>
+    <footer class="footer">
+  <div class="footer__contained">
+    <div class="footer__cols">
+      <div class="footer__cols__col">
+        <div class="footer__cols__col__logo">
+          <img src="/images/beam_logo_circle.svg" class="footer__logo" alt="Beam logo">
+        </div>
+        <div class="footer__cols__col__logo">
+          <img src="/images/apache_logo_circle.svg" class="footer__logo" alt="Apache logo">
+        </div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Start</div>
+        <div class="footer__cols__col__link"><a href="/get-started/beam-overview/">Overview</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-java/">Quickstart (Java)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/quickstart-py/">Quickstart (Python)</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/downloads/">Downloads</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Docs</div>
+        <div class="footer__cols__col__link"><a href="/documentation/programming-guide/">Concepts</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/pipelines/design-your-pipeline/">Pipelines</a></div>
+        <div class="footer__cols__col__link"><a href="/documentation/runners/capability-matrix/">Runners</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Community</div>
+        <div class="footer__cols__col__link"><a href="/contribute/">Contribute</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/team/">Team</a></div>
+        <div class="footer__cols__col__link"><a href="/contribute/presentation-materials/">Media</a></div>
+      </div>
+      <div class="footer__cols__col footer__cols__col--md">
+        <div class="footer__cols__col__title">Resources</div>
+        <div class="footer__cols__col__link"><a href="/blog/">Blog</a></div>
+        <div class="footer__cols__col__link"><a href="/get-started/support/">Support</a></div>
+        <div class="footer__cols__col__link"><a href="https://github.com/apache/beam">GitHub</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer__bottom">
+    &copy;
+    <a href="http://www.apache.org">The Apache Software Foundation</a>
+    | <a href="/privacy_policy">Privacy Policy</a>
+    | <a href="/feed.xml">RSS Feed</a>
+    <br><br>
+    Apache Beam, Apache, Beam, the Beam logo, and the Apache feather logo are
+    either registered trademarks or trademarks of The Apache Software
+    Foundation. All other products or name brands are trademarks of their
+    respective holders, including The Apache Software Foundation.
+  </div>
+</footer>
+
+  </body>
+</html>
