@@ -42,6 +42,7 @@
     <module>google-cloud-dataflow-java</module>
     <module>spark</module>
     <module>apex</module>
+    <module>gcp</module>
   </modules>
 
   <profiles>
