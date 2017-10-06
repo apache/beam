@@ -72,6 +72,16 @@ message Manifest {
   repeated ArtifactMetadata artifact = 1;
 }
 
+// A manifest with location information.
+message ProxyManifest {
+  Manifest manifest = 1;
+  message Location {
+     string name = 1;
+     string uri = 2;
+  }
+  repeated Location location = 2;
+}
+
 // A request to get the manifest of a Job.
 message GetManifestRequest {}
 
