@@ -63,8 +63,8 @@ type ArtifactMetadata struct {
 	Name string `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
 	// (Optional) The Unix-like permissions of the artifact
 	Permissions uint32 `protobuf:"varint,2,opt,name=permissions" json:"permissions,omitempty"`
-	// (Optional) The md5 checksum of the artifact. Used, among other things, by harness boot code to
-	// validate the integrity of the artifact.
+	// (Optional) The base64-encoded md5 checksum of the artifact. Used, among other things, by
+	// harness boot code to validate the integrity of the artifact.
 	Md5 string `protobuf:"bytes,3,opt,name=md5" json:"md5,omitempty"`
 }
 

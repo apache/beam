@@ -63,7 +63,7 @@ func main() {
 
 	log.Printf("Initializing java harness: %v", strings.Join(os.Args, " "))
 
-	ctx := grpcx.WriteWorkerId(context.Background(), *id)
+	ctx := grpcx.WriteWorkerID(context.Background(), *id)
 
 	// (1) Obtain the pipeline options
 
@@ -88,8 +88,8 @@ func main() {
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
 	os.Setenv("PIPELINE_OPTIONS", options)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", fmt.Sprintf("id: \"1\"\nurl: \"%v\"\n", *loggingEndpoint))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", fmt.Sprintf("id: \"2\"\nurl: \"%v\"\n", *controlEndpoint))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", fmt.Sprintf("url: \"%v\"\n", *loggingEndpoint))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", fmt.Sprintf("url: \"%v\"\n", *controlEndpoint))
 
 	const jarsDir = "/opt/apache/beam/jars"
 	cp := []string{

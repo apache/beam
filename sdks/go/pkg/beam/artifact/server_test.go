@@ -72,7 +72,7 @@ type server struct {
 }
 
 func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) error {
-	id, err := grpcx.ReadWorkerId(ps.Context())
+	id, err := grpcx.ReadWorkerID(ps.Context())
 	if err != nil {
 		return fmt.Errorf("expected worker id: %v", err)
 	}
@@ -122,7 +122,7 @@ func (s *server) PutArtifact(ps pb.ArtifactStagingService_PutArtifactServer) err
 }
 
 func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestRequest) (*pb.CommitManifestResponse, error) {
-	id, err := grpcx.ReadWorkerId(ctx)
+	id, err := grpcx.ReadWorkerID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("expected worker id: %v", err)
 	}
@@ -151,7 +151,7 @@ func (s *server) CommitManifest(ctx context.Context, req *pb.CommitManifestReque
 }
 
 func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*pb.GetManifestResponse, error) {
-	id, err := grpcx.ReadWorkerId(ctx)
+	id, err := grpcx.ReadWorkerID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("expected worker id: %v", err)
 	}
@@ -167,7 +167,7 @@ func (s *server) GetManifest(ctx context.Context, req *pb.GetManifestRequest) (*
 }
 
 func (s *server) GetArtifact(req *pb.GetArtifactRequest, stream pb.ArtifactRetrievalService_GetArtifactServer) error {
-	id, err := grpcx.ReadWorkerId(stream.Context())
+	id, err := grpcx.ReadWorkerID(stream.Context())
 	if err != nil {
 		return fmt.Errorf("expected worker id: %v", err)
 	}

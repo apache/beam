@@ -18,9 +18,9 @@
 
 import common_job_properties
 
-// This is the Python precommit which runs a maven install, and the current set
+// This is the Go precommit which runs a maven install, and the current set
 // of precommit tests.
-mavenJob('beam_PreCommit_Python_MavenInstall') {
+mavenJob('beam_PreCommit_Go_MavenInstall') {
   description('Runs an install of the current GitHub Pull Request.')
 
   previousNames('beam_PreCommit_MavenVerify')
@@ -38,20 +38,14 @@ mavenJob('beam_PreCommit_Python_MavenInstall') {
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/python -am -amd')
-  
-  // Enable Triggering these tests with a comment in the pull request
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Python SDK PreCommit Tests',
-    'Run Python PreCommit')
+  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/go -am -amd')
 
-  // Maven goals for this job: The Python SDK, its dependencies, and things that depend on it.
+  // Maven goals for this job: The Go SDK, its dependencies, and things that depend on it.
   goals('''\
     --batch-mode \
     --errors \
     --activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/python \
+    --projects sdks/go \
     --also-make \
     --also-make-dependents \
     -D pullRequest=$ghprbPullId \
