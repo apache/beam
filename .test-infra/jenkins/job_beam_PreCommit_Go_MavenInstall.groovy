@@ -38,7 +38,7 @@ mavenJob('beam_PreCommit_Go_MavenInstall') {
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/go -am -amd')
+  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/go -am -amd', 'Run Go PreCommit')
 
   // Maven goals for this job: The Go SDK, its dependencies, and things that depend on it.
   goals('''\
