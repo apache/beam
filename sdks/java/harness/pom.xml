@@ -55,6 +55,7 @@
                     <include>org.apache.beam:beam-runners-google-cloud-dataflow-java</include>
                     <include>org.apache.beam:beam-sdks-common-runner-api</include>
                     <include>org.apache.beam:beam-sdks-common-fn-api</include>
+                    <include>io.netty:netty-transport-native-epoll</include>
                   </includes>
                 </artifactSet>
                 <filters>
