@@ -38,7 +38,7 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   common_job_properties.setMavenConfig(delegate)
 
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/java/core -am -amd')
+  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/java/core -am -amd', 'Run Java PreCommit')
 
   // Maven goals for this job: The Java SDK, its dependencies, and things that depend on it.
   goals('''\
