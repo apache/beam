@@ -822,18 +822,4 @@ public class ApiSurface {
     return 0 != (modifiers & (Modifier.PUBLIC | Modifier.PROTECTED));
   }
 
-  ////////////////////////////////////////////////////////////////////////////
-
-  /**
-   * All classes transitively reachable via only public method signatures of the SDK.
-   *
-   * <p>Note that our idea of "public" does not include various internal-only APIs.
-   */
-  public static ApiSurface getSdkApiSurface(final ClassLoader classLoader) throws IOException {
-    return ApiSurface.ofPackage("org.apache.beam", classLoader)
-        .pruningPattern("org[.]apache[.]beam[.].*Test")
-        // Exposes Guava, but not intended for users
-        .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
-        .pruningPrefix("java");
-  }
 }
