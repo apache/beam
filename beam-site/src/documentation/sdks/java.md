@@ -31,3 +31,4 @@ The Java SDK has the following extensions:
 
 - [join-library]({{site.baseurl}}/documentation/sdks/java-extensions/#join-library) provides inner join, outer left join, and outer right join functions.
 - [sorter]({{site.baseurl}}/documentation/sdks/java-extensions/#sorter) is an efficient and scalable sorter for large iterables.
+- [Nexmark]({{site.baseurl}}/documentation/sdks/nexmark) is a benchmark suite that runs in batch and streaming modes.
