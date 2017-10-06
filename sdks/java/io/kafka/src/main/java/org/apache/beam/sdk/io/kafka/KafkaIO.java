@@ -1614,7 +1614,6 @@ public class KafkaIO {
 
       if (isEOS()) {
         EOSWrite.ensureEOSSupport();
-        checkNotNull(getSinkGroupId(), "A group id is required for exactly-once sink");
 
         // TODO: Verify that the group_id does not have existing state stored on Kafka unless
         //       this is an upgrade. This avoids issues with simple mistake of reusing group_id
