@@ -18,7 +18,7 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a maven install, and the current set
+// This is the Python precommit which runs a maven install, and the current set
 // of precommit tests.
 mavenJob('beam_PreCommit_Python_MavenInstall') {
   description('Runs an install of the current GitHub Pull Request.')
