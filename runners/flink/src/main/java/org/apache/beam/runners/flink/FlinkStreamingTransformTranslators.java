@@ -188,9 +188,9 @@ class FlinkStreamingTransformTranslators {
         if (transform.getSource().requiresDeduping()) {
           source = nonDedupSource.keyBy(
               new ValueWithRecordIdKeySelector<T>())
-              .transform("debuping", outputTypeInfo, new DedupingOperator<T>());
+              .transform("deduping", outputTypeInfo, new DedupingOperator<T>());
         } else {
-          source = nonDedupSource.flatMap(new StripIdsMap<T>());
+          source = nonDedupSource.flatMap(new StripIdsMap<T>()).returns(outputTypeInfo);
         }
       } catch (Exception e) {
         throw new RuntimeException(
