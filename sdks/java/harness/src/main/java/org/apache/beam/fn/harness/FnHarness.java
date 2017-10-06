@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.TextFormat;
-import java.io.PrintStream;
 import java.util.EnumMap;
 import org.apache.beam.fn.harness.channel.ManagedChannelFactory;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -93,13 +92,10 @@ public class FnHarness {
       Endpoints.ApiServiceDescriptor controlApiServiceDescriptor) throws Exception {
     ManagedChannelFactory channelFactory = ManagedChannelFactory.from(options);
     StreamObserverFactory streamObserverFactory = StreamObserverFactory.fromOptions(options);
-    PrintStream originalErrStream = System.err;
-
     try (BeamFnLoggingClient logging = new BeamFnLoggingClient(
         options,
         loggingApiServiceDescriptor,
-        channelFactory::forDescriptor,
-        streamObserverFactory::from)) {
+        channelFactory::forDescriptor)) {
 
       LOG.info("Fn Harness started");
       EnumMap<BeamFnApi.InstructionRequest.RequestCase,
@@ -134,9 +130,9 @@ public class FnHarness {
       LOG.info("Entering instruction processing loop");
       control.processInstructionRequests(options.as(GcsOptions.class).getExecutorService());
     } catch (Throwable t) {
-      t.printStackTrace(originalErrStream);
+      t.printStackTrace();
     } finally {
-      originalErrStream.println("Shutting SDK harness down.");
+      System.out.println("Shutting SDK harness down.");
     }
   }
 }
