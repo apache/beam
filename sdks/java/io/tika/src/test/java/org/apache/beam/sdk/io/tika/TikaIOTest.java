@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -45,19 +44,23 @@ import org.junit.Test;
  */
 public class TikaIOTest {
   private static final String PDF_FILE =
-      "Combining\n\nApache Beam\n\nand\n\nApache Tika\n\ncan help to ingest\n\n"
-      + "the content from the files\n\nin most known formats.";
+      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+      + "Combining\n\nApache Beam\n\nand\n\nApache Tika\n\ncan help to ingest\n\n"
+      + "the content from the files\n\nin most known formats.\n\n\n";
 
   private static final String PDF_ZIP_FILE =
-      "apache-beam-tika.pdf\n\n\nCombining\n\n\nApache Beam\n\n\nand\n\n\nApache Tika\n\n\n"
-      + "can help to ingest\n\n\nthe content from the files\n\n\nin most known formats.";
+      "\n\n\n\n\n\n\n\napache-beam-tika.pdf\n\n\nCombining\n\n\nApache Beam\n\n\n"
+      + "and\n\n\nApache Tika\n\n\ncan help to ingest\n\n\nthe content from the files\n\n\n"
+      + "in most known formats.\n\n\n\n\n\n\n";
 
   private static final String ODT_FILE =
-      "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\n"
-      + "the content from the files\nin most known formats.";
+      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+      + "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\nthe content from the"
+      + " files\nin most known formats.\n";
 
   private static final String ODT_FILE2 =
-      "Open Office\nPDF\nExcel\nText\nScientific\nand other formats\nare supported.";
+      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+      + "Open Office\nPDF\nExcel\nText\nScientific\nand other formats\nare supported.\n";
 
   @Rule
   public TestPipeline p = TestPipeline.create();
@@ -119,29 +122,25 @@ public class TikaIOTest {
         p.run();
         fail("Transform failure is expected");
     } catch (RuntimeException ex) {
-      assertTrue(ex.getCause().getCause() instanceof TikaException);
+      assertTrue(ex.getCause() instanceof TikaException);
     }
   }
 
   @Test
-  @Ignore
   public void testReadDisplayData() {
     TikaIO.ParseAll read = TikaIO.parseAll()
-        .from("foo.*")
         .withTikaConfigPath("tikaconfigpath")
         .withContentTypeHint("application/pdf");
 
     DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("filePattern", "foo.*"));
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "tikaconfigpath"));
     assertThat(displayData, hasDisplayItem("inputMetadata",
-        "[Content-Type=application/pdf]"));
-    assertEquals(3, displayData.items().size());
+        "Content-Type=application/pdf"));
+    assertEquals(2, displayData.items().size());
   }
 
   @Test
-  @Ignore
   public void testReadDisplayDataWithCustomOptions() {
     final String[] args = new String[]{"--input=/input/tika.pdf",
                                        "--tikaConfigPath=/tikaConfigPath",
@@ -149,17 +148,15 @@ public class TikaIOTest {
     TikaOptions options = PipelineOptionsFactory.fromArgs(args)
         .withValidation().as(TikaOptions.class);
     TikaIO.ParseAll read = TikaIO.parseAll()
-        .from(options.getInput())
         .withTikaConfigPath(options.getTikaConfigPath())
         .withContentTypeHint(options.getContentTypeHint());
 
     DisplayData displayData = DisplayData.from(read);
 
-    assertThat(displayData, hasDisplayItem("filePattern", "/input/tika.pdf"));
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "/tikaConfigPath"));
     assertThat(displayData, hasDisplayItem("inputMetadata",
-        "[Content-Type=application/pdf]"));
-    assertEquals(3, displayData.items().size());
+        "Content-Type=application/pdf"));
+    assertEquals(2, displayData.items().size());
   }
 
   static class FilterMetadataFn extends DoFn<ParseResult, ParseResult> {
