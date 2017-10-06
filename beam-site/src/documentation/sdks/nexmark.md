@@ -63,7 +63,7 @@ We have augmented the original queries with five more:
 ## Benchmark workload configuration
 Here are some of the knobs of the benchmark workload (see [NexmarkConfiguration.java](https://github.com/apache/beam/blob/master/sdks/java/nexmark/src/main/java/org/apache/beam/sdk/nexmark/NexmarkConfiguration.java)).
 
-These configuration items can be passed to the launch command line
+These configuration items can be passed to the launch command line.
 
 ### Events generation (defaults)
 * 100 000 events generated
@@ -89,7 +89,7 @@ These configuration items can be passed to the launch command line
 * Artificial IO load
 
 ## Nexmark output
-Here is an example output of the Nexmark benchmark run in streaming mode with the SMOKE suite on the (local) direct runner.
+Here is an example output of the Nexmark benchmark run in streaming mode with the SMOKE suite on the (local) direct runner:
 
 <pre>
 Performance:
@@ -118,21 +118,21 @@ We can specify the Beam runner to use with maven profiles, available profiles ar
     flink-runner
     apex-runner
 
-The runner must also be specified like in any other Beam pipeline using
+The runner must also be specified like in any other Beam pipeline using:
 
     --runner
 
 
 Test data is deterministically synthesized on demand. The test
 data may be synthesized in the same pipeline as the query itself,
-or may be published to Pubsub.
+or may be published to Pub/Sub.
 
 The query results may be:
 
-* Published to Pubsub.
+* Published to Pub/Sub.
 * Written to text files as plain text.
 * Written to text files using an Avro encoding.
-* Send to BigQuery.
+* Sent to BigQuery.
 * Discarded.
 
 ### Common configuration parameters
@@ -141,11 +141,11 @@ Decide if batch or streaming:
 
     --streaming=true
 
-Number of events generators
+Number of events generators:
 
     --numEventGenerators=4
 
-Run query N
+Run query N:
 
     --query=N
 
@@ -161,11 +161,11 @@ Available suites are:
 * FULL_THROTTLE: Like SMOKE but 100m events.
 
 
-### Apex specific configuration
+### Apex runner specific configuration
 
     --manageResources=false --monitorJobs=false
 
-### Google Cloud Dataflow specific configuration
+### Google Cloud Dataflow runner specific configuration
 
     --manageResources=false --monitorJobs=true \
     --enforceEncodability=false --enforceImmutability=false
@@ -178,17 +178,17 @@ Available suites are:
     --stagingLocation=gs://talend-imejia/nexmark/temp/staging/ \
     --filesToStage=target/beam-sdks-java-nexmark-2.1.0-SNAPSHOT.jar
 
-### Direct specific configuration
+### Direct runner specific configuration
 
     --manageResources=false --monitorJobs=true \
     --enforceEncodability=false --enforceImmutability=false
 
-### Flink specific configuration
+### Flink runner specific configuration
 
     --manageResources=false --monitorJobs=true \
     --flinkMaster=local --parallelism=#numcores
 
-### Spark specific configuration
+### Spark runner specific configuration
 
     --manageResources=false --monitorJobs=true \
     --sparkMaster=local \
@@ -417,55 +417,55 @@ Yet to come
 
 ### Running SMOKE suite on the DirectRunner (local)
 
-Batch Mode
+Batch Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=false --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
 
-Streaming Mode
+Streaming Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pdirect-runner -Dexec.args="--runner=DirectRunner --suite=SMOKE --streaming=true --manageResources=false --monitorJobs=true --enforceEncodability=true --enforceImmutability=true"
 
 
 ### Running SMOKE suite on the SparkRunner (local)
 
-Batch Mode
+Batch Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true"
 
-Streaming Mode
+Streaming Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pspark-runner "-Dexec.args=--runner=SparkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true"
 
 
 ### Running SMOKE suite on the FlinkRunner (local)
 
-Batch Mode
+Batch Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true  --flinkMaster=local"
 
-Streaming Mode
+Streaming Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Pflink-runner "-Dexec.args=--runner=FlinkRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=true  --flinkMaster=local"
 
 
 ### Running SMOKE suite on the ApexRunner (local)
 
-Batch Mode
+Batch Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=false"
 
-Streaming Mode
+Streaming Mode:
 
     mvn exec:java -Dexec.mainClass=org.apache.beam.sdk.nexmark.Main -Papex-runner "-Dexec.args=--runner=ApexRunner --suite=SMOKE --streamTimeout=60 --streaming=true --manageResources=false --monitorJobs=false"
 
 
 ### Running SMOKE suite on Google Cloud Dataflow
 
-Building package
+Building package:
 
     mvn clean package -Pdataflow-runner
 
-Submit to Google Dataflow service
+Submit to Google Dataflow service:
 
 
 ```
@@ -531,11 +531,11 @@ java -cp sdks/java/nexmark/target/beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.
 ### Running query 0 on a Spark cluster with Apache Hadoop YARN
 
 
-Building package
+Building package:
 
     mvn clean package -Pspark-runner
 
-Submit to the cluster
+Submit to the cluster:
 
     spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
 
