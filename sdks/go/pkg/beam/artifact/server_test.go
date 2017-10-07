@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"time"
 )
 
 // startServer starts an in-memory staging and retrieval artifact server
@@ -47,7 +48,7 @@ func startServer(t *testing.T) *grpc.ClientConn {
 
 	t.Logf("server listening on %v", endpoint)
 
-	cc, err := grpc.Dial(endpoint, grpc.WithInsecure())
+	cc, err := grpcx.Dial(context.Background(), endpoint, time.Minute)
 	if err != nil {
 		t.Fatalf("failed to dial fake server at %v: %v", endpoint, err)
 	}
