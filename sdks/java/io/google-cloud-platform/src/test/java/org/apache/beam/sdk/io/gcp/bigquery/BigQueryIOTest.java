@@ -662,8 +662,8 @@ public class BigQueryIOTest implements Serializable {
     testNumFiles(tempDir, 0);
 
     Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
-    for (int i = 0; i < userList.size(); ++i) {
-      Matcher matcher = userPattern.matcher(userList.get(i));
+    for (String user : userList) {
+      Matcher matcher = userPattern.matcher(user);
       checkState(matcher.matches());
       String nickname = matcher.group(1);
       int userid = Integer.valueOf(matcher.group(2));
