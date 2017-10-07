@@ -131,7 +131,7 @@ public class ReshuffleTest implements Serializable {
                         return input;
                       }
                     }))
-            .apply("ReifyOriginalTimestamps", ReifyTimestamps.<String, String>inValues());
+            .apply("ReifyOriginalTimestamps", Reify.<String, String>timestampsInValue());
 
     // The outer TimestampedValue is the reified timestamp post-reshuffle. The inner
     // TimestampedValue is the pre-reshuffle timestamp.
@@ -140,7 +140,7 @@ public class ReshuffleTest implements Serializable {
             .apply(Reshuffle.<String, TimestampedValue<String>>of())
             .apply(
                 "ReifyReshuffledTimestamps",
-                ReifyTimestamps.<String, TimestampedValue<String>>inValues())
+                Reify.<String, TimestampedValue<String>>timestampsInValue())
             .apply(Values.<TimestampedValue<TimestampedValue<String>>>create());
 
     PAssert.that(output)
