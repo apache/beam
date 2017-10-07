@@ -98,13 +98,6 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
-  private static class ReifyTimestampsFn<T> extends DoFn<T, TimestampedValue<T>> {
-    @ProcessElement
-    public void process(ProcessContext c) {
-      c.output(TimestampedValue.of(c.element(), c.timestamp()));
-    }
-  }
-
   private static PipelineOptions streamingTestPipelineOptions() {
     // Using testing options with streaming=true makes it possible to enable UsesSplittableParDo
     // tests in Dataflow runner, because as of writing, it can run Splittable DoFn only in
@@ -176,7 +169,7 @@ public class SplittableDoFnTest implements Serializable {
     assertEquals(windowFn, res.getWindowingStrategy().getWindowFn());
 
     PCollection<TimestampedValue<KV<String, Integer>>> timestamped =
-        res.apply("Reify timestamps", ParDo.of(new ReifyTimestampsFn<KV<String, Integer>>()));
+        res.apply(Reify.<KV<String, Integer>>timestamps());
 
     for (int i = 0; i < 4; ++i) {
       Instant base = now.minus(Duration.standardSeconds(i));
