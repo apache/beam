@@ -1629,17 +1629,23 @@ public class PipelineOptionsFactoryTest {
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
-  interface OptionsDerivedValid extends PipelineOptions {
+  interface PipelineOptionsInheritedInvalid extends invalid1,
+          invalidPipelineOptions2, PipelineOptions {
     String getFoo();
     void setFoo(String value);
   }
 
-  interface OptionsDerivedNotValid extends OptionFromNonPipelineOptions, PipelineOptions {
-    String getFoo();
-    void setFoo(String value);
+  interface invalidPipelineOptions1 {
+    String getBar();
+    void setBar(String value);
   }
 
-  interface OptionFromNonPipelineOptions {
+  interface invalid1 extends invalidPipelineOptions1 {
+    String getBar();
+    void setBar(String value);
+  }
+
+  interface invalidPipelineOptions2 {
     String getBar();
     void setBar(String value);
   }
@@ -1648,10 +1654,17 @@ public class PipelineOptionsFactoryTest {
   public void testAllFromPipelineOptions() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-            "all derived PipelineOptions must be inherited from " +
-                    "interface PipelineOptions.");
+            "All inherited PipelineOptions interface must extend interface PipelineOptions except" +
+                    " for PipelineOptions itself.\n" +
+                    " Interface [org.apache.beam.sdk.options.PipelineOptionsFactoryTest" +
+                    "$PipelineOptionsInheritedInvalid] should be inherited from PipelineOptions interfaces:\n" +
+                    " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest" +
+                    "$invalidPipelineOptions1\n" +
+                    " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest" +
+                    "$invalidPipelineOptions2");
 
-    OptionsDerivedNotValid options = PipelineOptionsFactory.as(OptionsDerivedNotValid.class);
+    PipelineOptionsInheritedInvalid options = PipelineOptionsFactory.as(
+            PipelineOptionsInheritedInvalid.class);
   }
 
   private String emptyStringErrorMessage() {
