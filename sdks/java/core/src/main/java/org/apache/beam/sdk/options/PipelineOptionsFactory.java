@@ -78,7 +78,6 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.util.StringUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.slf4j.Logger;
@@ -1285,12 +1284,12 @@ public class PipelineOptionsFactory {
   private static void throwNonPipelineOptions(Class<?> klass,
                                               Set<Class<?>> nonPipelineOptionsClasses) {
     StringBuilder errorBuilder = new StringBuilder(String.format(
-            "All inherited PipelineOptions interface must extend" +
-                    " interface PipelineOptions except for PipelineOptions itself."));
-    errorBuilder.append(String.format("%n Interface [%s] should be inherited from PipelineOptions" +
-                    " interfaces:", klass.getName()));
+            "All inherited PipelineOptions interface must extend interface PipelineOptions except"
+                    + " for PipelineOptions itself."));
+    errorBuilder.append(String.format("%n Interface [%s] should be inherited from PipelineOptions"
+            + " interfaces:", klass.getName()));
 
-    for(Class<?> invalidKlass: nonPipelineOptionsClasses) {
+    for (Class<?> invalidKlass: nonPipelineOptionsClasses) {
       errorBuilder.append(String.format("%n - %s", invalidKlass.getName()));
     }
     throw new IllegalArgumentException(errorBuilder.toString());

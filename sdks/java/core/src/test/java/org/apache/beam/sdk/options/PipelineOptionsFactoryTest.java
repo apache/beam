@@ -1629,23 +1629,23 @@ public class PipelineOptionsFactoryTest {
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
-  interface PipelineOptionsInheritedInvalid extends invalid1,
-          invalidPipelineOptions2, PipelineOptions {
+  interface PipelineOptionsInheritedInvalid extends Invalid1,
+          InvalidPipelineOptions2, PipelineOptions {
     String getFoo();
     void setFoo(String value);
   }
 
-  interface invalidPipelineOptions1 {
+  interface InvalidPipelineOptions1 {
     String getBar();
     void setBar(String value);
   }
 
-  interface invalid1 extends invalidPipelineOptions1 {
+  interface Invalid1 extends InvalidPipelineOptions1 {
     String getBar();
     void setBar(String value);
   }
 
-  interface invalidPipelineOptions2 {
+  interface InvalidPipelineOptions2 {
     String getBar();
     void setBar(String value);
   }
@@ -1654,14 +1654,15 @@ public class PipelineOptionsFactoryTest {
   public void testAllFromPipelineOptions() {
     expectedException.expect(IllegalArgumentException.class);
     expectedException.expectMessage(
-            "All inherited PipelineOptions interface must extend interface PipelineOptions except" +
-                    " for PipelineOptions itself.\n" +
-                    " Interface [org.apache.beam.sdk.options.PipelineOptionsFactoryTest" +
-                    "$PipelineOptionsInheritedInvalid] should be inherited from PipelineOptions interfaces:\n" +
-                    " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest" +
-                    "$invalidPipelineOptions1\n" +
-                    " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest" +
-                    "$invalidPipelineOptions2");
+            "All inherited PipelineOptions interface must extend interface PipelineOptions except"
+                    + " for PipelineOptions itself.\n"
+                    + " Interface [org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$PipelineOptionsInheritedInvalid] should be inherited from PipelineOptions"
+                    + " interfaces:\n"
+                    + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$invalidPipelineOptions1\n"
+                    + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+                    + "$invalidPipelineOptions2");
 
     PipelineOptionsInheritedInvalid options = PipelineOptionsFactory.as(
             PipelineOptionsInheritedInvalid.class);
