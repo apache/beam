@@ -125,16 +125,17 @@ IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
 1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
 1. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
+1. Set Checkstyle version to the same as in `/pom.xml` (e.g. 6.19)
 1. Set the "Scan Scope" to "Only Java sources (including tests)".
 1. In the "Configuration File" pane, add a new configuration using the plus icon:
     1. Set the "Description" to "Beam".
     1. Select "Use a local Checkstyle file", and point it to
-      "sdks/java/build-tools/src/main/resources/beam/checkstyle.xml" within
+      `sdks/java/build-tools/src/main/resources/beam/checkstyle.xml` within
       your repository.
     1. Check the box for "Store relative to project location", and click
       "Next".
-    1. Configure the "checkstyle.suppressions.file" property value to
-      "suppressions.xml", and click "Next", then "Finish".
+    1. Configure the `checkstyle.suppressions.file` property value to
+      `suppressions.xml`, and click "Next", then "Finish".
 1. Select "Beam" as the only active configuration file, and click "Apply" and
    "OK".
 1. Checkstyle will now give warnings in the editor for any Checkstyle
