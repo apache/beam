@@ -1660,9 +1660,9 @@ public class PipelineOptionsFactoryTest {
                     + "$PipelineOptionsInheritedInvalid] should be inherited from PipelineOptions"
                     + " interfaces:\n"
                     + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-                    + "$invalidPipelineOptions1\n"
+                    + "$InvalidPipelineOptions1\n"
                     + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
-                    + "$invalidPipelineOptions2");
+                    + "$InvalidPipelineOptions2");
 
     PipelineOptionsInheritedInvalid options = PipelineOptionsFactory.as(
             PipelineOptionsInheritedInvalid.class);
