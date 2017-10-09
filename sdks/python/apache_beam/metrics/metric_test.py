@@ -98,6 +98,22 @@ class MetricsTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       Metrics.get_namespace(object())
 
+  def test_counter_empty_name(self):
+    with self.assertRaises(ValueError):
+      Metrics.counter("namespace", "")
+
+  def test_counter_empty_namespace(self):
+    with self.assertRaises(ValueError):
+      Metrics.counter("", "names")
+
+  def test_distribution_empty_name(self):
+    with self.assertRaises(ValueError):
+      Metrics.distribution("namespace", "")
+
+  def test_distribution_empty_namespace(self):
+    with self.assertRaises(ValueError):
+      Metrics.distribution("", "names")
+
   def test_create_counter_distribution(self):
     MetricsEnvironment.set_current_container(MetricsContainer('mystep'))
     counter_ns = 'aCounterNamespace'
