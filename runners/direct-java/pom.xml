@@ -88,6 +88,20 @@
                     </shadedPattern>
                   </relocation>
                   <relocation>
+                    <!-- portability protos currently contain a typo, to be fixed later -->
+                    <pattern>org.apache.beam.sdks.common</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.sdks.common
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <!-- portability protos also invent this namespace -->
+                    <pattern>org.apache.beam.portability</pattern>
+                    <shadedPattern>
+                      org.apache.beam.runners.direct.repackaged.portability
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
                     <pattern>com.google.common</pattern>
                     <excludes>
                       <!-- com.google.common is too generic, need to exclude guava-testlib -->
