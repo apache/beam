@@ -40,6 +40,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -622,6 +623,12 @@ public class DatastoreV1Test {
     List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), numSplits);
+
+    // Confirms that sub-queries are not equal to original when there is more than one split.
+    for (Query subQuery : queries) {
+      assertNotEquals(subQuery, QUERY);
+    }
+
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
     verifyZeroInteractions(mockDatastore);
@@ -991,8 +998,14 @@ public class DatastoreV1Test {
   /** Generate dummy query splits. */
   private List<Query> splitQuery(Query query, int numSplits) {
     List<Query> queries = new LinkedList<>();
+    int offsetOfOriginal = query.getOffset();
     for (int i = 0; i < numSplits; i++) {
-      queries.add(query.toBuilder().build());
+      Query.Builder q = Query.newBuilder();
+      q.addKindBuilder().setName(KIND);
+      // Making sub-queries unique (and not equal to the original query) by setting different
+      // offsets.
+      q.setOffset(++offsetOfOriginal);
+      queries.add(q.build());
     }
     return queries;
   }

@@ -807,7 +807,7 @@ public class DatastoreV1 {
 
         // assign unique keys to query splits.
         for (Query subquery : querySplits) {
-          c.output(query);
+          c.output(subquery);
         }
       }
 
