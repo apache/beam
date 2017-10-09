@@ -623,30 +623,15 @@ public class DatastoreV1Test {
     List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), numSplits);
-    verify(mockQuerySplitter, times(1)).getSplits(
-        eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
-    verifyZeroInteractions(mockDatastore);
-  }
 
-  /**
-   * Tests {@link SplitQueryFn} to make sure that sub-queries are different from the original query
-   * when there is more than one split.
-   */
-  @Test
-  public void testSplitsNotEqualToOriginal() throws Exception {
-    int numSplits = 5;
-    when(mockQuerySplitter.getSplits(
-            eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class)))
-            .thenReturn(splitQuery(QUERY, numSplits));
-
-    SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
-    doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<Query> queries = doFnTester.processBundle(QUERY);
-
+    // Confirms that sub-queries are not equal to original when there is more than one split.
     for (Query subQuery : queries) {
       assertNotEquals(subQuery, QUERY);
     }
+
+    verify(mockQuerySplitter, times(1)).getSplits(
+        eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
+    verifyZeroInteractions(mockDatastore);
   }
 
   /**
