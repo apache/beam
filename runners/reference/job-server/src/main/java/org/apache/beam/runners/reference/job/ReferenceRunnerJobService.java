@@ -46,6 +46,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase {
       JobApi.PrepareJobRequest request,
       StreamObserver<JobApi.PrepareJobResponse> responseObserver) {
     LOG.trace("{} {}", PrepareJobResponse.class.getSimpleName(), request);
+    System.err.println("Preparation Job Blah");
     responseObserver.onError(Status.UNIMPLEMENTED.asException());
   }
 
@@ -53,6 +54,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase {
   public void run(
       JobApi.RunJobRequest request, StreamObserver<JobApi.RunJobResponse> responseObserver) {
     LOG.trace("{} {}", RunJobRequest.class.getSimpleName(), request);
+    System.err.println("Run Job Blah");
     responseObserver.onError(Status.UNIMPLEMENTED.asException());
   }
 
