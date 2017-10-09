@@ -34,9 +34,9 @@
 
   <properties>
     <!-- Necessary to make sure that integration with perfkit in io-it-suite works -->
-    <integrationTestPipelineOptions></integrationTestPipelineOptions>
-    <pkbBeamRunnerProfile></pkbBeamRunnerProfile>
-    <pkbBeamRunnerOption></pkbBeamRunnerOption>
+    <integrationTestPipelineOptions />
+    <pkbBeamRunnerProfile />
+    <pkbBeamRunnerOption />
   </properties>
 
   <modules>
