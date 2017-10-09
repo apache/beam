@@ -45,7 +45,7 @@ mavenJob('beam_PreCommit_Python_MavenInstall') {
     --batch-mode \
     --errors \
     --activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/python \
+    --projects sdks/python,!sdks/python/container \
     --also-make \
     --also-make-dependents \
     -D pullRequest=$ghprbPullId \
