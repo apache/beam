@@ -46,7 +46,7 @@ mavenJob('beam_Release_NightlySnapshot') {
 
   // Maven goals for this job.
   goals('''\
-      clean deploy
+      clean deploy \
       --batch-mode \
       --errors \
       -P release,dataflow-runner \
