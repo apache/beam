@@ -1,5 +1,3 @@
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -69,6 +67,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.utils import processes
 
+import pkg_resources
+
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
@@ -96,6 +96,8 @@ BEAM_PACKAGE_NAME = 'apache-beam'
 # SDK identifiers for different distributions
 GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
 BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
 
 
 def _dependency_file_copy(from_path, to_path):
@@ -488,6 +490,22 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
         'type of location: %s' % sdk_remote_location)
 
 
+def get_runner_harness_container_image():
+  """For internal use only; no backwards-compatibility guarantees.
+
+   Returns:
+     str: Runner harness container image that shall be used by default
+       for current SDK version or None if the runner harness container image
+       bundled with the service shall be used.
+  """
+  try:
+    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
+    return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+            version)
+  except pkg_resources.DistributionNotFound:
+    return None
+
+
 def get_default_container_image_for_current_sdk(job_type):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -517,17 +535,17 @@ def _get_required_container_version(job_type=None):
       current version of the SDK.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
     # We drop any pre/post parts of the version and we keep only the X.Y.Z
     # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
-    container_version = '%s.%s.%s' % pkg.parse_version(version)._version.release
+    container_version = (
+        '%s.%s.%s' % pkg_resources.parse_version(version)._version.release)
     # We do, however, keep the ".dev" suffix if it is present.
     if re.match(r'.*\.dev[0-9]*$', version):
       container_version += '.dev'
     return container_version
-  except pkg.DistributionNotFound:
+  except pkg_resources.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
     if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
@@ -540,12 +558,11 @@ def get_sdk_name_and_version():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
-  import pkg_resources as pkg
   container_version = _get_required_container_version()
   try:
-    pkg.get_distribution(GOOGLE_PACKAGE_NAME)
+    pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME)
     return (GOOGLE_SDK_NAME, container_version)
-  except pkg.DistributionNotFound:
+  except pkg_resources.DistributionNotFound:
     return (BEAM_SDK_NAME, beam_version.__version__)
 
 
@@ -563,10 +580,9 @@ def get_sdk_package_name():
 def _download_pypi_sdk_package(temp_dir):
   """Downloads SDK package from PyPI and returns path to local path."""
   package_name = get_sdk_package_name()
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(package_name).version
-  except pkg.DistributionNotFound:
+    version = pkg_resources.get_distribution(package_name).version
+  except pkg_resources.DistributionNotFound:
     raise RuntimeError('Please set --sdk_location command-line option '
                        'or install a valid {} distribution.'
                        .format(package_name))

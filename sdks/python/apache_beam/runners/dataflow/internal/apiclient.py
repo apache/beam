@@ -162,6 +162,14 @@ class Environment(object):
             value=to_json_value(job_type)),
         dataflow.Environment.VersionValue.AdditionalProperty(
             key='major', value=to_json_value(environment_version))])
+    # TODO: Use enumerated type instead of strings for job types.
+    if job_type.startswith('FNAPI_'):
+      runner_harness_override = (
+          dependency.get_runner_harness_container_image())
+      if runner_harness_override:
+        self.debug_options.experiments = self.debug_options.experiments or []
+        self.debug_options.experiments.append(
+            'runner_harness_container_image=' + runner_harness_override)
     # Experiments
     if self.debug_options.experiments:
       for experiment in self.debug_options.experiments:

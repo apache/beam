@@ -16,11 +16,11 @@
 #
 """Unit tests for the apiclient module."""
 import unittest
-
-from mock import Mock
+import mock
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.runners.dataflow.internal import dependency
 from apache_beam.runners.dataflow.internal.clients import dataflow
 
 # Protect against environments where apitools library is not available.
@@ -31,6 +31,7 @@ except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+import pkg_resources
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
@@ -102,7 +103,7 @@ class UtilTest(unittest.TestCase):
 
   def test_translate_means(self):
     metric_update = dataflow.CounterUpdate()
-    accumulator = Mock()
+    accumulator = mock.Mock()
     accumulator.sum = 16
     accumulator.count = 2
     apiclient.MetricUpdateTranslators.translate_scalar_mean_int(accumulator,
@@ -142,6 +143,34 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
 
+  def test_harness_override_present_in_dataflow_distributions(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    override = ''.join(
+        ['runner_harness_container_image=',
+         dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+         '/harness:2.2.0'])
+    distribution = pkg_resources.Distribution(version='2.2.0')
+    with mock.patch(
+        'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
+        '.get_distribution',
+        mock.MagicMock(return_value=distribution)):
+      env = apiclient.Environment([], pipeline_options, '2.2.0')
+      self.assertIn(override, env.proto.experiments)
+
+  def test_harness_override_absent_in_unreleased_sdk(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    override = ''.join(
+        ['runner_harness_container_image=',
+         dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
+         '/harness:2.2.0'])
+    with mock.patch(
+        'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
+        '.get_distribution',
+        mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
+      env = apiclient.Environment([], pipeline_options, '2.2.0')
+      self.assertNotIn(override, env.proto.experiments)
 
 if __name__ == '__main__':
   unittest.main()
