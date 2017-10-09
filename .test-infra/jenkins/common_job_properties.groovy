@@ -122,8 +122,9 @@ class common_job_properties {
   // below to insulate callers from internal parameter defaults.
   private static void setPullRequestBuildTrigger(context,
                                                  String commitStatusContext,
-                                                 String successComment = '--none--',
-                                                 String prTriggerPhrase = '') {
+                                                 String prTriggerPhrase = '',
+                                                 boolean onlyTriggerPhraseToggle = true,
+                                                 String successComment = '--none--') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -138,6 +139,8 @@ class common_job_properties {
         // required to start it.
         if (prTriggerPhrase) {
           triggerPhrase(prTriggerPhrase)
+        }
+        if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
 
@@ -182,9 +185,10 @@ class common_job_properties {
   // Sets common config for PreCommit jobs.
   static void setPreCommit(context,
                            String commitStatusName,
+                           String prTriggerPhrase = '',
                            String successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, successComment)
+    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false, successComment)
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -196,8 +200,9 @@ class common_job_properties {
     setPullRequestBuildTrigger(
       context,
       commitStatusName,
-      '--none--',
-      prTriggerPhrase)
+      prTriggerPhrase,
+      true,
+      '--none--')
   }
 
   // Sets common config for PostCommit jobs.
