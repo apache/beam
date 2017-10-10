@@ -130,7 +130,7 @@ public class CommonCoderTest {
   private static List<OneCoderTestSpec> loadStandardCodersSuite() throws IOException {
     InputStream stream = CommonCoderTest.class.getResourceAsStream(STANDARD_CODERS_YAML_PATH);
     if (stream == null) {
-      fail("null stream");
+      fail("Could not load standard coder specs as resource:" + STANDARD_CODERS_YAML_PATH);
     }
 
     // Would like to use the InputStream directly with Jackson, but Jackson does not seem to
