@@ -51,6 +51,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
       --also-make-dependents \
       --batch-mode \
       --errors \
+      --fail-at-end \
       -P release,dataflow-runner \
       -DrepoToken=$COVERALLS_REPO_TOKEN \
       -DskipITs=false \
