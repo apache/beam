@@ -152,7 +152,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
       derived = ((pcoll,) | beam.Flatten()
                  | beam.Map(lambda x: (x, x))
                  | beam.GroupByKey()
-                 | 'Unkey' >> beam.Map(lambda x__: x__[0]))
+                 | 'Unkey' >> beam.Map(lambda kv: kv[0]))
       assert_that(
           pcoll | beam.FlatMap(cross_product, AsList(derived)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))

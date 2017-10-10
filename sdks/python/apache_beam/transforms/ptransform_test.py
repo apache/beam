@@ -647,7 +647,7 @@ class PTransformTest(unittest.TestCase):
                 | beam.Flatten()
                 | beam.Map(lambda x: (x, None))
                 | beam.GroupByKey()
-                | beam.Map(lambda x__: x__[0]))
+                | beam.Map(lambda kv: kv[0]))
     self.assertEqual([1, 2, 3], sorted(([1, 2], [2, 3]) | DisjointUnion()))
 
   def test_apply_to_crazy_pvaluish(self):
@@ -1593,8 +1593,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'C' >> beam.Create(range(5)).with_output_types(int)
          | 'Mean' >> combine.Mean.Globally())
 
-    assert_that(d, equal_to([2.0]))
     self.assertEqual(float, d.element_type)
+    assert_that(d, equal_to([2.0]))
     self.p.run()
 
   def test_mean_globally_pipeline_checking_violated(self):
@@ -1616,8 +1616,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'C' >> beam.Create(range(5)).with_output_types(int)
          | 'Mean' >> combine.Mean.Globally())
 
-    assert_that(d, equal_to([2.0]))
     self.assertEqual(float, d.element_type)
+    assert_that(d, equal_to([2.0]))
     self.p.run()
 
   def test_mean_globally_runtime_checking_violated(self):
@@ -1709,8 +1709,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'P' >> beam.Create(range(5)).with_output_types(int)
          | 'CountInt' >> combine.Count.Globally())
 
-    assert_that(d, equal_to([5]))
     self.assertEqual(int, d.element_type)
+    assert_that(d, equal_to([5]))
     self.p.run()
 
   def test_count_globally_runtime_type_checking_satisfied(self):
@@ -1720,8 +1720,8 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'P' >> beam.Create(range(5)).with_output_types(int)
          | 'CountInt' >> combine.Count.Globally())
 
-    assert_that(d, equal_to([5]))
     self.assertEqual(int, d.element_type)
+    assert_that(d, equal_to([5]))
     self.p.run()
 
   def test_count_perkey_pipeline_type_checking_satisfied(self):
