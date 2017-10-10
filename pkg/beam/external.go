@@ -10,17 +10,18 @@ import (
 )
 
 // External defines a Beam external transform. The interpretation of this primitive is runner
-// specific. The runner is responsible for parsing the payload to implement the behavior of
-// the operation. Transform libraries should expose an API that captures the user's intent and
-// serialize the payload as a byte slice that the runner will deserialize.
-func External(p *Pipeline, payload []byte, in []PCollection, out []reflect.Type) []PCollection {
-	return MustN(TryExternal(p, payload, in, out))
+// specific. The runner is responsible for parsing the payload based on the
+// spec provided to implement the behavior of the operation. Transform
+// libraries should expose an API that captures the user's intent and serialize
+// the payload as a byte slice that the runner will deserialize.
+func External(p *Pipeline, spec string, payload []byte, in []PCollection, out []reflect.Type) []PCollection {
+	return MustN(TryExternal(p, spec, payload, in, out))
 }
 
 // TryExternal attempts to perform the work of External, returning an error indicating why the operation
 // failed. Failure reasons include the use of side inputs, or an external transform that has both inputs
 // and outputs.
-func TryExternal(p *Pipeline, payload []byte, in []PCollection, out []reflect.Type) ([]PCollection, error) {
+func TryExternal(p *Pipeline, spec string, payload []byte, in []PCollection, out []reflect.Type) ([]PCollection, error) {
 	switch {
 	case len(in) == 0 && len(out) == 0:
 		return []PCollection{}, fmt.Errorf("External node not well-formed: out and in both empty")
@@ -31,9 +32,9 @@ func TryExternal(p *Pipeline, payload []byte, in []PCollection, out []reflect.Ty
 	case len(out) > 1:
 		return []PCollection{}, fmt.Errorf("External operations with side outputs are not currently supported")
 	case len(in) == 1:
-		return tryExternalSource(p, payload, out[0])
+		return tryExternalSource(p, spec, payload, out[0])
 	case len(out) == 1:
-		return tryExternalSink(p, in[0], payload)
+		return tryExternalSink(p, in[0], spec, payload)
 	}
 
 	panic(fmt.Errorf("Impossible case: len[in]=%d, len[out]=%d", len(in), len(out)))
@@ -45,7 +46,7 @@ func TryExternal(p *Pipeline, payload []byte, in []PCollection, out []reflect.Ty
 // primitive. Runners depending on this coding do so AT THEIR OWN RISK and will be broken when we convert
 // this implementation to its final internal representation.
 
-func tryExternalSource(p *Pipeline, payload []byte, out reflect.Type) ([]PCollection, error) {
+func tryExternalSource(p *Pipeline, spec string, payload []byte, out reflect.Type) ([]PCollection, error) {
 	emit := reflect.FuncOf([]reflect.Type{out}, nil, false)
 	fnT := reflect.FuncOf([]reflect.Type{emit}, []reflect.Type{reflectx.Error}, false)
 
@@ -65,7 +66,7 @@ func tryExternalSource(p *Pipeline, payload []byte, out reflect.Type) ([]PCollec
 	return []PCollection{ret}, nil
 }
 
-func tryExternalSink(p *Pipeline, in PCollection, payload []byte) ([]PCollection, error) {
+func tryExternalSink(p *Pipeline, in PCollection, spec string, payload []byte) ([]PCollection, error) {
 	if !in.IsValid() {
 		return []PCollection{}, fmt.Errorf("invalid main pcollection")
 	}
