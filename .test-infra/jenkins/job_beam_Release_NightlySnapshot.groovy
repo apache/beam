@@ -49,6 +49,7 @@ mavenJob('beam_Release_NightlySnapshot') {
       clean deploy \
       --batch-mode \
       --errors \
+      --fail-at-end \
       -P release,dataflow-runner \
       -D skipITs=false \
       -D integrationTestPipelineOptions=\'[ \
