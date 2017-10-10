@@ -77,7 +77,7 @@ func query(p *beam.Pipeline, project, query string, t reflect.Type) beam.PCollec
 	mustInferSchema(t)
 
 	imp := beam.Impulse(p)
-	return beam.ParDo(p, &queryFn{Project: project, Query: query, Type: beam.EncodedType{T: t}}, imp, beam.TypeDefinition{Var: typex.XType, T: t})
+	return beam.ParDo(p, &queryFn{Project: project, Query: query, Type: beam.EncodedType{T: t}}, imp, beam.TypeDefinition{Var: beam.XType, T: t})
 }
 
 type queryFn struct {
@@ -89,7 +89,7 @@ type queryFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(typex.X)) error {
+func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X)) error {
 	client, err := bigquery.NewClient(ctx, f.Project)
 	if err != nil {
 		return err
@@ -160,7 +160,7 @@ type writeFn struct {
 	Type beam.EncodedType `json:"type"`
 }
 
-func (f *writeFn) ProcessElement(ctx context.Context, _ []byte, iter func(*typex.X) bool) error {
+func (f *writeFn) ProcessElement(ctx context.Context, _ []byte, iter func(*beam.X) bool) error {
 	client, err := bigquery.NewClient(ctx, f.Project)
 	if err != nil {
 		return err
@@ -185,7 +185,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ []byte, iter func(*typex
 	}
 
 	var data []reflect.Value
-	var val typex.X
+	var val beam.X
 	for iter(&val) {
 		data = append(data, reflect.ValueOf(val.(interface{})))
 

@@ -3,13 +3,13 @@ package stats
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
 type student struct {
-	Name string
+	Name  string
 	Grade float64
 }
 
@@ -92,16 +92,16 @@ func TestMaxKeyed(t *testing.T) {
 		exp []student
 	}{
 		{
-			[]student{{"alpha", 1}, {"beta", 4}, {"charlie",3.5}},
-			[]student{{"alpha", 1}, {"beta", 4}, {"charlie",3.5}},
+			[]student{{"alpha", 1}, {"beta", 4}, {"charlie", 3.5}},
+			[]student{{"alpha", 1}, {"beta", 4}, {"charlie", 3.5}},
 		},
 		{
 			[]student{{"alpha", 1}},
-			[]student{{"alpha",1}},
+			[]student{{"alpha", 1}},
 		},
 		{
-			[]student{{"alpha", 1}, {"alpha", -4},{"beta", 4}, {"charlie",0},{"charlie",5.5}},
-			[]student{{"alpha", 1},{"beta", 4},{"charlie",5.5}},
+			[]student{{"alpha", 1}, {"alpha", -4}, {"beta", 4}, {"charlie", 0}, {"charlie", 5.5}},
+			[]student{{"alpha", 1}, {"beta", 4}, {"charlie", 5.5}},
 		},
 	}
 

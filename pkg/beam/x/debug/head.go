@@ -1,8 +1,9 @@
 package debug
 
 import (
-	"github.com/apache/beam/sdks/go/pkg/beam"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
@@ -29,11 +30,11 @@ func Head(p *beam.Pipeline, col beam.PCollection, n int) beam.PCollection {
 }
 
 type headFn struct {
-	N int `json:"n"`
+	N       int `json:"n"`
 	Current int `json:"current"`
 }
 
-func (h *headFn) ProcessElement(t typex.T, emit func(typex.T)) {
+func (h *headFn) ProcessElement(t beam.T, emit func(beam.T)) {
 	if h.Current < h.N {
 		h.Current++
 		emit(t)
@@ -41,11 +42,11 @@ func (h *headFn) ProcessElement(t typex.T, emit func(typex.T)) {
 }
 
 type headKVFn struct {
-	N int `json:"n"`
+	N       int `json:"n"`
 	Current int `json:"current"`
 }
 
-func (h *headKVFn) ProcessElement(x typex.X, y typex.Y, emit func(typex.X, typex.Y)) {
+func (h *headKVFn) ProcessElement(x beam.X, y beam.Y, emit func(beam.X, beam.Y)) {
 	if h.Current < h.N {
 		h.Current++
 		emit(x, y)
@@ -53,11 +54,11 @@ func (h *headKVFn) ProcessElement(x typex.X, y typex.Y, emit func(typex.X, typex
 }
 
 type headGBKFn struct {
-	N int `json:"n"`
+	N       int `json:"n"`
 	Current int `json:"current"`
 }
 
-func (h *headGBKFn) ProcessElement(x typex.X, iter func(*typex.Y) bool, emit func(typex.X, func(*typex.Y) bool)) {
+func (h *headGBKFn) ProcessElement(x beam.X, iter func(*beam.Y) bool, emit func(beam.X, func(*beam.Y) bool)) {
 	if h.Current < h.N {
 		h.Current++
 		emit(x, iter)

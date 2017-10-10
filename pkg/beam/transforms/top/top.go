@@ -10,11 +10,10 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 var (
-	sig = funcx.MakePredicate(typex.TType, typex.TType) // (T, T) -> bool
+	sig = funcx.MakePredicate(beam.TType, beam.TType) // (T, T) -> bool
 )
 
 func init() {
@@ -44,7 +43,7 @@ func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) be
 		panic(fmt.Sprintf("n must be > 0"))
 	}
 	t := beam.FindCombineType(col)
-	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t))
 
 	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
@@ -72,7 +71,7 @@ func Smallest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) b
 		panic(fmt.Sprintf("n must be > 0"))
 	}
 	t := beam.FindCombineType(col)
-	funcx.MustSatisfy(less, funcx.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t))
 
 	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
 }
@@ -106,7 +105,7 @@ func (f *combineFn) CreateAccumulator() accum {
 	return accum{}
 }
 
-func (f *combineFn) AddInput(a accum, val typex.T) accum {
+func (f *combineFn) AddInput(a accum, val beam.T) accum {
 	t := f.Less.Fn.Type().In(0)                                  // == underlying type, A
 	ret := append(a.list, exec.Convert(reflect.ValueOf(val), t)) // unwrap T
 	return f.trim(ret)
@@ -120,8 +119,8 @@ func (f *combineFn) MergeAccumulators(list []accum) accum {
 	return f.trim(ret)
 }
 
-func (f *combineFn) ExtractOutput(a accum) []typex.T {
-	var ret []typex.T
+func (f *combineFn) ExtractOutput(a accum) []beam.T {
+	var ret []beam.T
 	for _, elm := range a.list {
 		ret = append(ret, elm.Interface()) // implicitly wrap T
 	}

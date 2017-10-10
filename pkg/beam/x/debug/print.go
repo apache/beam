@@ -14,7 +14,6 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*printFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*printKVFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*printGBKFn)(nil)))
-
 }
 
 // Print prints out all data. Use with care.
@@ -41,7 +40,7 @@ type printFn struct {
 	Format string `json:"format"`
 }
 
-func (f *printFn) ProcessElement(t typex.T) typex.T {
+func (f *printFn) ProcessElement(t beam.T) beam.T {
 	log.Printf(f.Format, t)
 	return t
 }
@@ -50,7 +49,7 @@ type printKVFn struct {
 	Format string `json:"format"`
 }
 
-func (f *printKVFn) ProcessElement(x typex.X, y typex.Y) (typex.X, typex.Y) {
+func (f *printKVFn) ProcessElement(x beam.X, y beam.Y) (beam.X, beam.Y) {
 	log.Printf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
 	return x, y
 }
@@ -59,9 +58,9 @@ type printGBKFn struct {
 	Format string `json:"format"`
 }
 
-func (f *printGBKFn) ProcessElement(x typex.X, iter func(*typex.Y) bool) typex.X {
+func (f *printGBKFn) ProcessElement(x beam.X, iter func(*beam.Y) bool) beam.X {
 	var ys []string
-	var y typex.Y
+	var y beam.Y
 	for iter(&y) {
 		ys = append(ys, fmt.Sprintf("%v", y))
 	}
@@ -75,6 +74,6 @@ func Discard(p *beam.Pipeline, col beam.PCollection) {
 	beam.ParDo0(p, discardFn, col)
 }
 
-func discardFn(t typex.T) {
+func discardFn(t beam.T) {
 	// nop
 }

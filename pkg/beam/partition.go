@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	sig = &funcx.Signature{Args: []reflect.Type{typex.TType}, Return: []reflect.Type{reflectx.Int}} // T -> int
+	sig = &funcx.Signature{Args: []reflect.Type{TType}, Return: []reflect.Type{reflectx.Int}} // T -> int
 )
 
 // Partition takes a PCollection<T> and a PartitionFn, uses the PartitionFn to
@@ -26,14 +26,14 @@ func Partition(p *Pipeline, n int, fn interface{}, col PCollection) []PCollectio
 		panic(fmt.Sprintf("n must be > 0"))
 	}
 	t := typex.SkipW(col.Type()).Type()
-	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(fn, funcx.Replace(sig, TType, t))
 
 	// The partitionFn is a DoFn with a signature that is dependent on the input, so
 	// neither reflection nor type-specialization is adequate. Instead, it uses a
 	// dynamic function.
 
-	emit := reflect.FuncOf([]reflect.Type{typex.EventTimeType, t}, nil, false)
-	in := []reflect.Type{typex.EventTimeType, t}
+	emit := reflect.FuncOf([]reflect.Type{EventTimeType, t}, nil, false)
+	in := []reflect.Type{EventTimeType, t}
 	for i := 0; i < n; i++ {
 		in = append(in, emit)
 	}

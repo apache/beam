@@ -2,7 +2,6 @@ package filter
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // Dedup removes all duplicates from a collection, under coder equality. It
@@ -16,10 +15,10 @@ func Dedup(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	return beam.ParDo(p, keyFn, post)
 }
 
-func mapFn(elm typex.T) (typex.T, int) {
+func mapFn(elm beam.T) (beam.T, int) {
 	return elm, 1
 }
 
-func keyFn(key typex.T, _ func(*int) bool) typex.T {
+func keyFn(key beam.T, _ func(*int) bool) beam.T {
 	return key
 }

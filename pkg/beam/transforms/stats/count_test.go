@@ -3,13 +3,13 @@ package stats
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
 type count struct {
-	Elm int
+	Elm   int
 	Count int
 }
 
@@ -25,19 +25,19 @@ func TestCountInt(t *testing.T) {
 	}{
 		{
 			[]int{0},
-			[]count{{0,1}},
+			[]count{{0, 1}},
 		},
 		{
 			[]int{0, 0},
-			[]count{{0,2}},
+			[]count{{0, 2}},
 		},
 		{
 			[]int{1, -4, 1, -1},
-			[]count{{1, 2},{-1, 1},{-4, 1}},
+			[]count{{1, 2}, {-1, 1}, {-4, 1}},
 		},
 		{
 			[]int{1, -1, 1, -1, 1},
-			[]count{{1, 3},{-1, 2}},
+			[]count{{1, 3}, {-1, 2}},
 		},
 	}
 

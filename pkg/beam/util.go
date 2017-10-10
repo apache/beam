@@ -1,7 +1,5 @@
 package beam
 
-import "github.com/apache/beam/sdks/go/pkg/beam/core/typex"
-
 // We have some freedom to create various utilities, users can use depending on
 // preferences. One point of keeping Pipeline transformation functions plain Go
 // functions is that such utilities are more readily possible.
@@ -34,7 +32,7 @@ func DropKey(p *Pipeline, col PCollection) PCollection {
 	return ParDo(p, dropKeyFn, col)
 }
 
-func dropKeyFn(_ typex.X, y typex.Y) typex.Y {
+func dropKeyFn(_ X, y Y) Y {
 	return y
 }
 
@@ -44,7 +42,7 @@ func DropValue(p *Pipeline, col PCollection) PCollection {
 	return ParDo(p, dropValueFn, col)
 }
 
-func dropValueFn(x typex.X, _ typex.Y) typex.X {
+func dropValueFn(x X, _ Y) X {
 	return x
 }
 
@@ -54,7 +52,7 @@ func SwapKV(p *Pipeline, col PCollection) PCollection {
 	return ParDo(p, swapKVFn, col)
 }
 
-func swapKVFn(x typex.X, y typex.Y) (typex.Y, typex.X) {
+func swapKVFn(x X, y Y) (Y, X) {
 	return y, x
 }
 

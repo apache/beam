@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_api_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	df "google.golang.org/api/dataflow/v1b3"
 )
@@ -155,7 +155,7 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 		// URL Query-escaped windowed _unnested_ value. It is read back in
 		// a nested context at runtime.
 		var buf bytes.Buffer
-		if err := exec.EncodeWindowedValueHeader(c, typex.EventTime(time.Time{}), &buf); err != nil {
+		if err := exec.EncodeWindowedValueHeader(c, beam.EventTime(time.Time{}), &buf); err != nil {
 			return "", properties{}, err
 		}
 		value := string(append(buf.Bytes(), edge.Value...))

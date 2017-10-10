@@ -2,7 +2,6 @@ package stats
 
 import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // Count counts the number of elements in a collection. It expects a
@@ -15,6 +14,6 @@ func Count(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	return Sum(p, pre)
 }
 
-func mapFn(elm typex.T) (typex.T, int) {
+func mapFn(elm beam.T) (beam.T, int) {
 	return elm, 1
 }
