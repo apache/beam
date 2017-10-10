@@ -32,6 +32,10 @@
 
   <name>Apache Beam :: SDKs :: Python</name>
 
+  <modules>
+    <module>container</module>
+  </modules>
+
   <properties>
     <!-- python.interpreter.bin & python.pip.bin
          is set dynamically by findSupportedPython.groovy -->
@@ -59,6 +63,7 @@
         <groupId>org.codehaus.gmaven</groupId>
         <artifactId>groovy-maven-plugin</artifactId>
         <version>${groovy-maven-plugin.version}</version>
+        <inherited>false</inherited>
         <executions>
           <execution>
             <id>find-supported-python-for-clean</id>
@@ -85,6 +90,7 @@
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>exec-maven-plugin</artifactId>
+        <inherited>false</inherited>
         <executions>
           <execution>
             <id>setuptools-clean</id>
@@ -189,6 +195,7 @@
           <plugin>
             <groupId>org.codehaus.mojo</groupId>
             <artifactId>exec-maven-plugin</artifactId>
+            <inherited>false</inherited>
             <executions>
               <execution>
                 <id>setuptools-test</id>
