@@ -134,7 +134,7 @@ public class ReadTranslation {
     checkArgument(payload.getIsBounded().equals(IsBounded.Enum.UNBOUNDED));
     return (UnboundedSource<?, ?>)
         SerializableUtils.deserializeFromByteArray(
-            payload.getSource().getSpec().getPayload().toByteArray(), "BoundedSource");
+            payload.getSource().getSpec().getPayload().toByteArray(), "UnboundedSource");
   }
 
   public static PCollection.IsBounded sourceIsBounded(AppliedPTransform<?, ?, ?> transform) {
