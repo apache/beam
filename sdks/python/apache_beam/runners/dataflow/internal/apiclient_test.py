@@ -16,7 +16,9 @@
 #
 """Unit tests for the apiclient module."""
 import unittest
+
 import mock
+import pkg_resources
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -31,7 +33,6 @@ except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
-import pkg_resources
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
@@ -171,6 +172,7 @@ class UtilTest(unittest.TestCase):
         mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
       env = apiclient.Environment([], pipeline_options, '2.2.0')
       self.assertNotIn(override, env.proto.experiments)
+
 
 if __name__ == '__main__':
   unittest.main()
