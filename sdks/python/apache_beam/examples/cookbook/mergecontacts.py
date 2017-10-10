@@ -118,12 +118,9 @@ def run(argv=None, assert_results=None):
       (_, (_, _, snailmail)) = name_email_phone_snailmail
       return not next(iter(snailmail), None)
 
-    luddites = grouped | beam.Filter(  # People without email.
-        without_email)
-    writers = grouped | beam.Filter(   # People without phones.
-        without_phones)
-    nomads = grouped | beam.Filter(    # People without addresses.
-        without_address)
+    luddites = grouped | beam.Filter(without_email) # People without email.
+    writers = grouped | beam.Filter(without_phones) # People without phones.
+    nomads = grouped | beam.Filter(without_address) # People without addresses.
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
