@@ -64,7 +64,7 @@ func TryFlatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
 	return ret, nil
 }
 
-func flattenListFn(list []typex.T, emit func(typex.T)) {
+func flattenListFn(list []T, emit func(T)) {
 	for _, elm := range list {
 		emit(elm)
 	}

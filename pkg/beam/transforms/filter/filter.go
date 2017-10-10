@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	sig = funcx.MakePredicate(typex.TType) // T -> bool
+	sig = funcx.MakePredicate(beam.TType) // T -> bool
 )
 
 func init() {
@@ -33,7 +33,7 @@ func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PColle
 	p = p.Composite("filter.Include")
 
 	t := typex.SkipW(col.Type()).Type()
-	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
 
 	return beam.ParDo(p, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: true}, col)
 }
@@ -53,7 +53,7 @@ func Exclude(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PColle
 	p = p.Composite("filter.Exclude")
 
 	t := typex.SkipW(col.Type()).Type()
-	funcx.MustSatisfy(fn, funcx.Replace(sig, typex.TType, t))
+	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
 
 	return beam.ParDo(p, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: false}, col)
 }
@@ -65,7 +65,7 @@ type filterFn struct {
 	Include bool `json:"include"`
 }
 
-func (f *filterFn) ProcessElement(elm typex.T, emit func(typex.T)) {
+func (f *filterFn) ProcessElement(elm beam.T, emit func(beam.T)) {
 	ret := f.Predicate.Fn.Call([]reflect.Value{reflect.ValueOf(elm)})
 	if ret[0].Bool() == f.Include {
 		emit(elm)

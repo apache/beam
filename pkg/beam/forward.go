@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // IMPLEMENTATION NOTE: functions and types in this file are assumed to be
@@ -44,19 +45,25 @@ func Init() {
 // remote execution workers. Global options should be used sparingly.
 var PipelineOptions = runtime.GlobalOptions
 
-// TODO(herohde) 5/1/2017: add type aliases to the well-known types for Go 1.9.
+// We forward typex types used in UserFn signatures to avoid having such code
+// depend on the typex package directly.
 
-// type T = typex.T
-// type U = typex.U
-// type V = typex.V
-// type W = typex.W
-// type X = typex.X
-// type Y = typex.Y
-// type Z = typex.Z
+type T = typex.T
+type U = typex.U
+type V = typex.V
+type W = typex.W
+type X = typex.X
+type Y = typex.Y
+type Z = typex.Z
 
-// type EventTime = typex.EventTime
+type EventTime = typex.EventTime
 
-// type KV = typex.KV
-// type GBK = typex.GBK
-// type CoGBK = typex.CoGBK
-// type WindowedValue = typex.WindowededValue
+var TType = typex.TType
+var UType = typex.UType
+var VType = typex.VType
+var WType = typex.WType
+var XType = typex.XType
+var YType = typex.YType
+var ZType = typex.ZType
+
+var EventTimeType = typex.EventTimeType

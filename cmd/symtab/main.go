@@ -2,8 +2,8 @@
 package main
 
 import (
-	"os"
 	"log"
+	"os"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"

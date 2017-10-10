@@ -26,7 +26,7 @@ import (
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
 
 var (
-	endpoint        = flag.String("api_root_url", "", "Dataflow endpoint (optional).")
+	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
 	project         = flag.String("project", "", "Dataflow project.")
 	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
 	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")

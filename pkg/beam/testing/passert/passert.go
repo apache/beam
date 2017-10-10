@@ -63,7 +63,7 @@ type diffFn struct {
 	Coder beam.EncodedCoder `json:"coder"`
 }
 
-func (f *diffFn) ProcessElement(_ []byte, ls, rs func(*typex.T) bool, left, both, right func(t typex.T)) error {
+func (f *diffFn) ProcessElement(_ []byte, ls, rs func(*beam.T) bool, left, both, right func(t beam.T)) error {
 	c := coder.SkipW(beam.UnwrapCoder(f.Coder.Coder))
 
 	indexL, err := index(c, ls)
@@ -109,7 +109,7 @@ func (f *diffFn) ProcessElement(_ []byte, ls, rs func(*typex.T) bool, left, both
 	return nil
 }
 
-func emitN(val typex.T, n int, emit func(t typex.T)) {
+func emitN(val beam.T, n int, emit func(t beam.T)) {
 	for i := 0; i < n; i++ {
 		emit(val)
 	}
@@ -117,13 +117,13 @@ func emitN(val typex.T, n int, emit func(t typex.T)) {
 
 type indexEntry struct {
 	count int
-	value typex.T
+	value beam.T
 }
 
-func index(c *coder.Coder, iter func(*typex.T) bool) (map[string]indexEntry, error) {
+func index(c *coder.Coder, iter func(*beam.T) bool) (map[string]indexEntry, error) {
 	ret := make(map[string]indexEntry)
 
-	var val typex.T
+	var val beam.T
 	for iter(&val) {
 		encoded, err := encode(c, val)
 		if err != nil {
@@ -182,7 +182,7 @@ type failFn struct {
 	Format string `json:"format"`
 }
 
-func (f *failFn) ProcessElement(x typex.X) error {
+func (f *failFn) ProcessElement(x beam.X) error {
 	return fmt.Errorf(f.Format, x)
 }
 
@@ -190,7 +190,7 @@ type failKVFn struct {
 	Format string `json:"format"`
 }
 
-func (f *failKVFn) ProcessElement(x typex.X, y typex.Y) error {
+func (f *failKVFn) ProcessElement(x beam.X, y beam.Y) error {
 	return fmt.Errorf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
 }
 
@@ -198,6 +198,6 @@ type failGBKFn struct {
 	Format string `json:"format"`
 }
 
-func (f *failGBKFn) ProcessElement(x typex.X, _ func(*typex.Y) bool) error {
+func (f *failGBKFn) ProcessElement(x beam.X, _ func(*beam.Y) bool) error {
 	return fmt.Errorf(f.Format, fmt.Sprintf("(%v,*)", x))
 }

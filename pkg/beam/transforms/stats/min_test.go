@@ -3,9 +3,9 @@ package stats
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
-	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
 // TestMinInt verifies that Min works correctly for ints.
@@ -79,16 +79,16 @@ func TestMinKeyed(t *testing.T) {
 		exp []student
 	}{
 		{
-			[]student{{"alpha", 1}, {"beta", 4}, {"charlie",3.5}},
-			[]student{{"alpha", 1}, {"beta", 4}, {"charlie",3.5}},
+			[]student{{"alpha", 1}, {"beta", 4}, {"charlie", 3.5}},
+			[]student{{"alpha", 1}, {"beta", 4}, {"charlie", 3.5}},
 		},
 		{
 			[]student{{"alpha", 1}},
-			[]student{{"alpha",1}},
+			[]student{{"alpha", 1}},
 		},
 		{
-			[]student{{"alpha", 1}, {"alpha", -4},{"beta", 4}, {"charlie",0},{"charlie",5.5}},
-			[]student{{"alpha", -4},{"beta", 4},{"charlie",0}},
+			[]student{{"alpha", 1}, {"alpha", -4}, {"beta", 4}, {"charlie", 0}, {"charlie", 5.5}},
+			[]student{{"alpha", -4}, {"beta", 4}, {"charlie", 0}},
 		},
 	}
 

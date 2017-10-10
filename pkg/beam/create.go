@@ -3,8 +3,6 @@ package beam
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 func init() {
@@ -62,7 +60,7 @@ func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
 
 	imp := Impulse(p)
 
-	ret, err := TryParDo(p, fn, imp, TypeDefinition{Var: typex.TType, T: t})
+	ret, err := TryParDo(p, fn, imp, TypeDefinition{Var: TType, T: t})
 	if err != nil || len(ret) != 1 {
 		panic(fmt.Sprintf("internal error: %v", err))
 	}
@@ -75,7 +73,7 @@ type createFn struct {
 	Values []interface{} `json:"values"`
 }
 
-func (c *createFn) ProcessElement(_ []byte, emit func(typex.T)) {
+func (c *createFn) ProcessElement(_ []byte, emit func(T)) {
 	for _, value := range c.Values {
 		emit(value)
 	}
