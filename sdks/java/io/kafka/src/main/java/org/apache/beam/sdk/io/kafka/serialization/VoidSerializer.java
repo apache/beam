@@ -26,7 +26,8 @@ import org.apache.kafka.common.serialization.Serializer;
  * Kafka {@link Serializer} for {@link Void}.
  *
  * <p>Will always serialize the given data as null.
- * This is useful for {@link Producer} where the key is always null.
+ * This is useful for {@link org.apache.kafka.clients.producer.Producer}
+ * where the key is always null.
  */
 public class VoidSerializer<V> implements Serializer<V> {
 
