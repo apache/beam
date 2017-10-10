@@ -18,7 +18,7 @@
 package org.apache.beam.sdk.io.tika;
 
 import java.io.Serializable;
-import java.util.Objects;
+import java.util.Arrays;
 
 import org.apache.tika.metadata.Metadata;
 
@@ -89,7 +89,7 @@ public class ParseResult implements Serializable {
   private int getMetadataHashCode() {
     int hashCode = 0;
     for (String name : metadataNames) {
-      hashCode += name.hashCode() ^ Objects.hashCode(metadata.getValues(name));
+      hashCode += name.hashCode() ^ Arrays.hashCode(metadata.getValues(name));
     }
     return hashCode;
   }
