@@ -41,6 +41,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
@@ -64,6 +65,7 @@ import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -187,6 +189,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
+
+  @VisibleForTesting
+  static final String PIPELINE_FILE_NAME = "pipeline";
+
+  @VisibleForTesting
+  static final String SERIALIZED_PROTOBUF_EXTENSION = ".pb";
+
+  private static final String STAGED_PIPELINE_METADATA_PROPERTY = "pipeline_url";
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
@@ -516,6 +526,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
+    RunnerApi.Pipeline protoPipeline = PipelineTranslation.toProto(pipeline);
+    File serializedProtoPipeline;
+    try {
+      serializedProtoPipeline =
+          File.createTempFile(PIPELINE_FILE_NAME, SERIALIZED_PROTOBUF_EXTENSION);
+      protoPipeline.writeDelimitedTo(new FileOutputStream(serializedProtoPipeline));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    LOG.info("Staging pipeline description to {}", options.getStagingLocation());
+    DataflowPackage stagedPipeline =
+        options
+            .getStager()
+            .stageFiles(ImmutableList.of(serializedProtoPipeline.getAbsolutePath()))
+            .get(0);
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
@@ -560,6 +586,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     String workerHarnessContainerImage = getContainerImageForJob(options);
     for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
+      workerPool.setMetadata(
+          ImmutableMap.of(STAGED_PIPELINE_METADATA_PROPERTY, stagedPipeline.getLocation()));
     }
 
     newJob.getEnvironment().setVersion(getEnvironmentVersion(options));
