@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "PTransform Style Guide"
+section_menu: section-menu/contribute.html
 permalink: /contribute/ptransform-style-guide/
 ---
 
@@ -345,7 +346,7 @@ public class Thumbs {
   public static Twiddle<T> twiddle() {
     return new AutoValue_Thumbs_Twiddle.Builder<T>().build();
   }
-  
+
   @AutoValue
   public abstract static class Twiddle<T>
        extends PTransform<PCollection<Foo>, PCollection<Bar<T>>> {
@@ -540,4 +541,3 @@ If the type of the collection involves generic type variables, the situation is 
 * If it coincides with the transform's input type or is a simple wrapper over it, you can reuse the coder of the input `PCollection`, available via `input.getCoder()`.
 * Attempt to infer the coder via `input.getPipeline().getCoderRegistry().getCoder(TypeDescriptor)`. Use utilities in `TypeDescriptors` to obtain the `TypeDescriptor` for the generic type. For an example of this approach, see the implementation of `AvroIO.parseGenericRecords()`. However, coder inference for generic types is best-effort and in some cases it may fail due to Java type erasure.
 * Always make it possible for the user to explicitly specify a `Coder` for the relevant type variable(s) as a configuration parameter of your `PTransform`. (e.g. `AvroIO.<T>parseGenericRecords().withCoder(Coder<T>)`). Fall back to inference if the coder was not explicitly specified.
-

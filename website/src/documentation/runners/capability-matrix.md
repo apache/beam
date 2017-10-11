@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Beam Capability Matrix"
+section_menu: section-menu/runners.html
 permalink: /documentation/runners/capability-matrix/
 redirect_from:
   - /learn/runners/capability-matrix/

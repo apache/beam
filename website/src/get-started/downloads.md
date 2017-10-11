@@ -1,7 +1,8 @@
 ---
-layout: default
+layout: section
 title: "Beam Releases"
 permalink: get-started/downloads/
+section_menu: section-menu/get-started.html
 redirect_from:
   - /get-started/releases/
   - /use/releases/

@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: 'Design Principles in Beam'
+section_menu: section-menu/contribute.html
 permalink: /contribute/design-principles/
 ---
 
@@ -14,7 +15,7 @@ Joshua Bloch’s [API Design Bumper Stickers](https://www.infoq.com/articles/API
 ## Use cases
 
 ### Unify the model
-Provide one model that works over both bounded (aka. batch) and unbounded (aka. streaming) datasets. Pay special attention to windows / triggers / state / timers, which often trip up folks used to a batch world.  Provide users with the right abstractions to adjust latency and completeness guarantees to cover both traditional batch and streaming use cases. 
+Provide one model that works over both bounded (aka. batch) and unbounded (aka. streaming) datasets. Pay special attention to windows / triggers / state / timers, which often trip up folks used to a batch world.  Provide users with the right abstractions to adjust latency and completeness guarantees to cover both traditional batch and streaming use cases.
 
 ### Separate data shapes and runtime requirements
 The model should focus on letting users describe their data and processing, without exposing any details of a specific runtime system. For example, bounded and unbounded describe the shape of data, but batch and streaming describe the behavior of specific runtime systems. Good test cases are to imagine a mythical micro-batching runner that sits somewhere between batch and streaming or a engine that dynamically switches between streaming and batch depending on the backlog.
@@ -31,7 +32,7 @@ Validate constraints on graph shape, runner requirements, etc as early in the co
 Backwards incompatible changes can only be made in the next major version. Because of the burden major versions place on users (code has to be modified, conflicting dependency nightmares, etc), we aim to do this infrequently. Clearly mark APIs that are considered experimental (may change at any point) and deprecated (will be removed in the next major version). Consider what APIs are more amenable to future changes (abstract classes vs. interfaces, etc.)
 
 ### Examples should be pedagogical
-Canonical examples help people ingrain the principles. Design examples that teach complex concepts in modular chunks. If you can’t explain the concept easily, then the API isn’t right. Examples should withstand random copy-pasting. 
+Canonical examples help people ingrain the principles. Design examples that teach complex concepts in modular chunks. If you can’t explain the concept easily, then the API isn’t right. Examples should withstand random copy-pasting.
 
 ## Extensibility
 
@@ -50,4 +51,3 @@ Many use cases or user communities can be served by provided ‘wrapper’ SDKs 
 ### Design for the model, not specific runners
 
 The Beam APIs should serve all runners. Behind every runner-specific hook, there is a general principle in the model. Design APIs that generalize across multiple runners.
-

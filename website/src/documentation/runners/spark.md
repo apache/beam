@@ -1,12 +1,13 @@
 ---
-layout: default
+layout: section
 title: "Apache Spark Runner"
+section_menu: section-menu/runners.html
 permalink: /documentation/runners/spark/
 redirect_from: /learn/runners/spark/
 ---
 # Using the Apache Spark Runner
 
-The Apache Spark Runner can be used to execute Beam pipelines using [Apache Spark](http://spark.apache.org/). 
+The Apache Spark Runner can be used to execute Beam pipelines using [Apache Spark](http://spark.apache.org/).
 The Spark Runner can execute Spark pipelines just like a native Spark application; deploying a self-contained application for local mode, running on Spark's Standalone RM, or using YARN or Mesos.
 
 The Spark Runner executes Beam pipelines on top of Apache Spark, providing:

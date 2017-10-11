@@ -1,7 +1,8 @@
 ---
-layout: default
+layout: section
 title: "Beam Quickstart for Python"
 permalink: /get-started/quickstart-py/
+section_menu: section-menu/get-started.html
 ---
 
 # Apache Beam Python SDK Quickstart
@@ -125,4 +126,3 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
 * Join the Beam [users@]({{ site.baseurl }}/get-started/support#mailing-lists) mailing list.
 
 Please don't hesitate to [reach out]({{ site.baseurl }}/get-started/support) if you encounter any issues!
-

@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Test Your Pipeline"
+section_menu: section-menu/documentation.html
 permalink: /documentation/pipelines/test-your-pipeline/
 ---
 # Test Your Pipeline
@@ -14,7 +15,7 @@ Before running your pipeline on the runner of your choice, unit testing your pip
 
 You can use [DirectRunner]({{ site.baseurl }}/documentation/runners/direct), a local runner helpful for testing and local development.
 
-After you test your pipeline using the `DirectRunner`, you can use the runner of your choice to test on a small scale. For example, use the Flink runner with a local or remote Flink cluster. 
+After you test your pipeline using the `DirectRunner`, you can use the runner of your choice to test on a small scale. For example, use the Flink runner with a local or remote Flink cluster.
 
 
 
@@ -46,7 +47,7 @@ The Beam SDK for Java provides a convenient way to test an individual `DoFn` cal
 
 To create a `DoFnTester`, first create an instance of the `DoFn` you want to test. You then use that instance when you create a `DoFnTester` using the `.of()` static factory method:
 
-```java 
+```java
 static class MyDoFn extends DoFn<String, Integer> { ... }
   MyDoFn myDoFn = ...;
 
@@ -177,7 +178,7 @@ PAssert.that(output)
 
 Any code that uses `PAssert` must link in `JUnit` and `Hamcrest`. If you're using Maven, you can link in `Hamcrest` by adding the following dependency to your project's `pom.xml` file:
 
-```java 
+```java
 <dependency>
     <groupId>org.hamcrest</groupId>
     <artifactId>hamcrest-all</artifactId>
