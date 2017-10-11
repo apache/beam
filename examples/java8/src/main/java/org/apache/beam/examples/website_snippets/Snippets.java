@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -61,17 +60,14 @@ public class Snippets {
       Pipeline p,
       TupleTag<String> emailsTag,
       TupleTag<String> phonesTag,
-      List<KV<String, String>> emailList,
-      List<KV<String, String>> phoneList) {
+      PCollection<KV<String, String>> emails,
+      PCollection<KV<String, String>> phones) {
 
     // [START CoGroupByKeyTuple]
-    PCollection<KV<String, String>> emailsPColl = p.apply("create emails", Create.of(emailList));
-    PCollection<KV<String, String>> phonesPColl = p.apply("create phones", Create.of(phoneList));
-
     PCollection<KV<String, CoGbkResult>> results =
         KeyedPCollectionTuple
-        .of(emailsTag, emailsPColl)
-        .and(phonesTag, phonesPColl)
+        .of(emailsTag, emails)
+        .and(phonesTag, phones)
         .apply(CoGroupByKey.<String>create());
 
     PCollection<String> formattedResults = results.apply(ParDo.of(
@@ -80,9 +76,9 @@ public class Snippets {
         public void processElement(ProcessContext c) {
           KV<String, CoGbkResult> e = c.element();
           String name = e.getKey();
-          Iterable<String> emails = e.getValue().getAll(emailsTag);
-          Iterable<String> phones = e.getValue().getAll(phonesTag);
-          String formattedResult = formatCoGbkResults(name, emails, phones);
+          Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
+          Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
+          String formattedResult = Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
           c.output(formattedResult);
         }
       }

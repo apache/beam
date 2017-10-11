@@ -48,17 +48,20 @@ public class SnippetsTest implements Serializable {
   @Test
   public void testCoGroupByKeyTuple() throws IOException {
     // [START CoGroupByKeyTupleInputs]
-    final List<KV<String, String>> emailList = Arrays.asList(
+    final List<KV<String, String>> emailsList = Arrays.asList(
         KV.of("amy", "amy@example.com"),
         KV.of("carl", "carl@example.com"),
         KV.of("julia", "julia@example.com"),
         KV.of("carl", "carl@email.com"));
 
-    final List<KV<String, String>> phoneList = Arrays.asList(
+    final List<KV<String, String>> phonesList = Arrays.asList(
         KV.of("amy", "111-222-3333"),
         KV.of("james", "222-333-4444"),
         KV.of("amy", "333-444-5555"),
         KV.of("carl", "444-555-6666"));
+
+    PCollection<KV<String, String>> emails = p.apply("CreateEmails", Create.of(emailsList));
+    PCollection<KV<String, String>> phones = p.apply("CreatePhones", Create.of(phonesList));
     // [END CoGroupByKeyTupleInputs]
 
     // [START CoGroupByKeyTupleOutputs]
@@ -81,7 +84,7 @@ public class SnippetsTest implements Serializable {
     // [END CoGroupByKeyTupleOutputs]
 
     PCollection<String> actualFormattedResults =
-        Snippets.coGroupByKeyTuple(p, emailsTag, phonesTag, emailList, phoneList);
+        Snippets.coGroupByKeyTuple(p, emailsTag, phonesTag, emails, phones);
 
     // [START CoGroupByKeyTupleFormattedOutputs]
     final List<String> formattedResults = Arrays.asList(
@@ -96,9 +99,9 @@ public class SnippetsTest implements Serializable {
     List<String> expectedFormattedResultsList = new ArrayList<String>(expectedResults.size());
     for (KV<String, CoGbkResult> e : expectedResults) {
       String name = e.getKey();
-      Iterable<String> emails = e.getValue().getAll(emailsTag);
-      Iterable<String> phones = e.getValue().getAll(phonesTag);
-      String formattedResult = Snippets.formatCoGbkResults(name, emails, phones);
+      Iterable<String> emailsIter = e.getValue().getAll(emailsTag);
+      Iterable<String> phonesIter = e.getValue().getAll(phonesTag);
+      String formattedResult = Snippets.formatCoGbkResults(name, emailsIter, phonesIter);
       expectedFormattedResultsList.add(formattedResult);
     }
     PCollection<String> expectedFormattedResultsPColl =
@@ -106,6 +109,6 @@ public class SnippetsTest implements Serializable {
     PAssert.that(expectedFormattedResultsPColl).containsInAnyOrder(formattedResults);
     PAssert.that(actualFormattedResults).containsInAnyOrder(formattedResults);
 
-    p.run().waitUntilFinish();
+    p.run();
   }
 }
