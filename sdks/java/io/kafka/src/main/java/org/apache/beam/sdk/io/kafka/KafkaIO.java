@@ -66,6 +66,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
@@ -898,8 +899,9 @@ public class KafkaIO {
     private final String name;
     private Consumer<byte[], byte[]> consumer;
     private final List<PartitionState> partitionStates;
-    private KafkaRecord<K, V> curRecord;
-    private Instant curTimestamp;
+    // curRecord and curTimestamp are accessed outside advance(), which might be another thread.
+    private AtomicReference<KafkaRecord<K, V>> curRecord = new AtomicReference<>();
+    private AtomicReference<Instant> curTimestamp = new AtomicReference<>();
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private Deserializer<K> keyDeserializerInstance = null;
@@ -1248,18 +1250,10 @@ public class KafkaIO {
             continue;
           }
 
-          long offsetGap = offset - expected; // could be > 0 when Kafka log compaction is enabled.
-
-          if (curRecord == null) {
-            LOG.info("{}: first record offset {}", name, offset);
-            offsetGap = 0;
-          }
-
-          curRecord = null; // user coders below might throw.
-
-          // apply user deserializers.
+          // Apply user deserializers. User deserializers might throw, which will be propagated up.
+          // 'curRecord' remains unchanged. The runner should close this reader.
           // TODO: write records that can't be deserialized to a "dead-letter" additional output.
-          KafkaRecord<K, V> record = new KafkaRecord<K, V>(
+          KafkaRecord<K, V> record = new KafkaRecord<>(
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
@@ -1267,10 +1261,19 @@ public class KafkaIO {
               keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
               valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
-          curTimestamp = (source.spec.getTimestampFn() == null)
-              ? Instant.now() : source.spec.getTimestampFn().apply(record);
-          curRecord = record;
+          curTimestamp.set((source.spec.getTimestampFn() == null)
+              ? Instant.now() : source.spec.getTimestampFn().apply(record));
 
+          KafkaRecord<?, ?> prevRecord = curRecord.getAndSet(record);
+
+          long offsetGap;
+          if (prevRecord == null) {
+            LOG.info("{}: first record offset {}", name, offset);
+            offsetGap = 0;
+          } else {
+             offsetGap = offset - expected;
+            // could be > 0 when Kafka log compaction is enabled or when trasactions are aborted.
+          }
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
           pState.recordConsumed(offset, recordSize, offsetGap);
@@ -1331,13 +1334,14 @@ public class KafkaIO {
 
     @Override
     public Instant getWatermark() {
-      if (curRecord == null) {
+      KafkaRecord<K, V> record = curRecord.get();
+      if (record == null) {
         LOG.debug("{}: getWatermark() : no records have been read yet.", name);
         return initialWatermark;
       }
 
       return source.spec.getWatermarkFn() != null
-          ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
+          ? source.spec.getWatermarkFn().apply(record) : curTimestamp.get();
     }
 
     @Override
@@ -1364,12 +1368,12 @@ public class KafkaIO {
     @Override
     public KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
       // should we delay updating consumed offset till this point? Mostly not required.
-      return curRecord;
+      return curRecord.get();
     }
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return curTimestamp;
+      return curTimestamp.get();
     }
 
 
