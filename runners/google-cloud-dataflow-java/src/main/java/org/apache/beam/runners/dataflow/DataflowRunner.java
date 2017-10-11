@@ -514,7 +514,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
         + "related to Google Compute Engine usage and other Google Cloud Services.");
 
-    List<DataflowPackage> packages = options.getStager().stageFiles();
+    List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
 
     // Set a unique client_request_id in the CreateJob request.
