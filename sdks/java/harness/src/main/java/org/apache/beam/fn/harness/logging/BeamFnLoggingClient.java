@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.protobuf.Timestamp;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import java.util.ArrayList;
@@ -93,7 +94,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
   private final Collection<Logger> configuredLoggers;
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final ManagedChannel channel;
-  private final ClientCallStreamObserver<BeamFnApi.LogEntry.List> outboundObserver;
+  private final CallStreamObserver<BeamFnApi.LogEntry.List> outboundObserver;
   private final LogControlObserver inboundObserver;
   private final LogRecordHandler logRecordHandler;
   private final CompletableFuture<Object> inboundObserverCompletion;
@@ -137,7 +138,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logRecordHandler = new LogRecordHandler(options.as(GcsOptions.class).getExecutorService());
     logRecordHandler.setLevel(Level.ALL);
     outboundObserver =
-        (ClientCallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
+        (CallStreamObserver<BeamFnApi.LogEntry.List>) stub.logging(inboundObserver);
     rootLogger.addHandler(logRecordHandler);
   }
 
@@ -242,7 +243,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
           // Attempt to honor flow control. Phaser termination causes await advance to return
           // immediately.
           int phase = phaser.getPhase();
-          while (!outboundObserver.isReady()) {
+          if (!outboundObserver.isReady()) {
             phaser.awaitAdvance(phase);
           }
 
