@@ -18,16 +18,14 @@
 package org.apache.beam.sdk.io.tika;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.io.IOException;
 
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -38,6 +36,7 @@ import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 /**
  * Tests TikaInput.
@@ -64,6 +63,8 @@ public class TikaIOTest {
 
   @Rule
   public TestPipeline p = TestPipeline.create();
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testReadPdfFile() throws IOException {
@@ -112,18 +113,13 @@ public class TikaIOTest {
 
   @Test
   public void testReadDamagedPdfFile() throws IOException {
-
+    thrown.expectCause(isA(TikaException.class));
     String resourcePath = getClass().getResource("/damaged.pdf").getPath();
 
     p.apply("ParseInvalidPdfFile", FileIO.match().filepattern(resourcePath))
       .apply(FileIO.readMatches())
       .apply(TikaIO.parseAll());
-    try {
-        p.run();
-        fail("Transform failure is expected");
-    } catch (RuntimeException ex) {
-      assertTrue(ex.getCause() instanceof TikaException);
-    }
+    p.run();
   }
 
   @Test
@@ -142,14 +138,9 @@ public class TikaIOTest {
 
   @Test
   public void testReadDisplayDataWithCustomOptions() {
-    final String[] args = new String[]{"--input=/input/tika.pdf",
-                                       "--tikaConfigPath=/tikaConfigPath",
-                                       "--contentTypeHint=application/pdf"};
-    TikaOptions options = PipelineOptionsFactory.fromArgs(args)
-        .withValidation().as(TikaOptions.class);
     TikaIO.ParseAll read = TikaIO.parseAll()
-        .withTikaConfigPath(options.getTikaConfigPath())
-        .withContentTypeHint(options.getContentTypeHint());
+        .withTikaConfigPath("/tikaConfigPath")
+        .withContentTypeHint("application/pdf");
 
     DisplayData displayData = DisplayData.from(read);
 

@@ -86,6 +86,8 @@ public class ParseResult implements Serializable {
       && this.metadata.equals(pr.metadata);
   }
 
+  //TODO:
+  // Remove this function and use metadata.hashCode() once Apache Tika 1.17 gets released.
   private int getMetadataHashCode() {
     int hashCode = 0;
     for (String name : metadataNames) {

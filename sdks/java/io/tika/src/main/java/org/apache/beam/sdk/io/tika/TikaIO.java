@@ -161,6 +161,7 @@ public class TikaIO {
       }
       Metadata metadata = getInputMetadata();
       if (metadata != null) {
+        //TODO: use metadata.toString() only without a trim() once Apache Tika 1.17 gets released
         builder
             .add(DisplayData.item("inputMetadata", metadata.toString().trim())
             .withLabel("Input Metadata"));
@@ -170,7 +171,7 @@ public class TikaIO {
     private static class ParseToStringFn extends DoFn<ReadableFile, ParseResult> {
 
       private static final long serialVersionUID = 6837207505313720989L;
-      private TikaIO.ParseAll spec;
+      private final TikaIO.ParseAll spec;
       ParseToStringFn(TikaIO.ParseAll spec) {
         this.spec = spec;
       }
@@ -193,7 +194,7 @@ public class TikaIO {
 
           final ParseContext context = new ParseContext();
           context.set(Parser.class, parser);
-          org.apache.tika.metadata.Metadata tikaMetadata = spec.getInputMetadata() != null
+          Metadata tikaMetadata = spec.getInputMetadata() != null
             ? spec.getInputMetadata() : new org.apache.tika.metadata.Metadata();
 
           ContentHandler tikaHandler = new ToTextContentHandler();

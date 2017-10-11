@@ -30,11 +30,14 @@ public class ParseResultTest {
     ParseResult p1 = new ParseResult("a.txt", "hello", getMetadata());
     ParseResult p2 = new ParseResult("a.txt", "hello", getMetadata());
     assertEquals(p1, p2);
+    assertEquals(p1.hashCode(), p2.hashCode());
   }
 
   static Metadata getMetadata() {
     Metadata m = new Metadata();
-    m.set("Author", "BeamTikaUser");
+    m.add("Author", "BeamTikaUser");
+    m.add("Author", "BeamTikaUser2");
+    m.add("Date", "2017-09-01");
     return m;
   }
 }
