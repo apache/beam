@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Beam Source Repository"
+section_menu: section-menu/contribute.html
 permalink: /contribute/source-repository/
 redirect_from: /source_repository/
 ---

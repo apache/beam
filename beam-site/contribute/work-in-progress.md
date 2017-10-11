@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: 'In Progress Work in Beam'
+section_menu: section-menu/contribute.html
 permalink: /contribute/work-in-progress/
 ---
 
@@ -30,4 +31,3 @@ Current branches include:
 | Tez Runner | [tez-runner](https://github.com/apache/beam/tree/tez-runner) | [runner-tez](https://issues.apache.org/jira/browse/BEAM/component/12333014) | [BEAM-2709](https://issues.apache.org/jira/browse/BEAM-2709) |
 | Beam SQL DSL | [DSL_SQL](https://github.com/apache/beam/tree/DSL_SQL) | [dsl-sql](https://issues.apache.org/jira/browse/BEAM/component/12332480) | [BEAM-301](https://issues.apache.org/jira/browse/BEAM-301) |
 {:.table}
-

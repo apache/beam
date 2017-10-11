@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Authoring I/O Transforms - Python"
+section_menu: section-menu/documentation.html
 permalink: /documentation/io/authoring-python/
 ---
 

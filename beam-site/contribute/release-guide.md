@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Beam Release Guide"
+section_menu: section-menu/contribute.html
 permalink: /contribute/release-guide/
 ---
 
@@ -377,7 +378,7 @@ Start the review-and-vote thread on the dev@ mailing list. Here’s an email tem
     * source code tag "v1.2.3-RC3" [5],
     * website pull request listing the release and publishing the API reference manual [6].
     * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-    * Python artifacts are deployed along with the source release to the dist.apache.org [2]. 
+    * Python artifacts are deployed along with the source release to the dist.apache.org [2].
 
     The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 

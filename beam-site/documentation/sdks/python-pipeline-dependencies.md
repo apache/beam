@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Managing Python Pipeline Dependencies"
+section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/python-pipeline-dependencies/
 ---
 # Managing Python Pipeline Dependencies
@@ -12,7 +13,7 @@ When you run your pipeline locally, the packages that your pipeline depends on a
 **Note:** Remote workers used for pipeline execution typically have a standard Python 2.7 distribution installation. If your code relies only on standard Python packages, then you probably don't need to do anything on this page.
 
 
-## <a name="pypi"></a>PyPI Dependencies
+## PyPI Dependencies {#pypi-dependencies}
 
 If your pipeline uses public packages from the [Python Package Index](https://pypi.python.org/pypi), make these packages available remotely by performing the following steps:
 
@@ -35,7 +36,7 @@ If your pipeline uses public packages from the [Python Package Index](https://py
 **Important:** Remote workers will install all packages listed in the `requirements.txt` file. Because of this, it's very important that you delete non-PyPI packages from the `requirements.txt` file, as stated in step 2. If you don't remove non-PyPI packages, the remote workers will fail when attempting to install packages from sources that are unknown to them.
 
 
-## <a name="localnonpypi"></a>Local or non-PyPI Dependencies
+## Local or non-PyPI Dependencies {#local-or-nonpypi}
 
 If your pipeline uses packages that are not available publicly (e.g. packages that you've downloaded from a GitHub repo), make these packages available remotely by performing the following steps:
 
@@ -56,7 +57,7 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
    See the [sdist documentation](https://docs.python.org/2/distutils/sourcedist.html) for more details on this command.
 
-## <a name="multfiles"></a>Multiple File Dependencies
+## Multiple File Dependencies
 
 Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
 
@@ -82,10 +83,10 @@ Often, your pipeline code spans multiple files. To run your project remotely, yo
 
         --setup_file /path/to/setup.py
 
-**Note:** If you [created a requirements.txt file](#pypi) and your project spans multiple files, you can get rid of the `requirements.txt` file and instead, add all packages contained in `requirements.txt` to the `install_requires` field of the setup call (in step 1).
+**Note:** If you [created a requirements.txt file](#pypi-dependencies) and your project spans multiple files, you can get rid of the `requirements.txt` file and instead, add all packages contained in `requirements.txt` to the `install_requires` field of the setup call (in step 1).
 
 
-## <a name="nonpython"></a>Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies
+## Non-Python Dependencies or PyPI Dependencies with Non-Python Dependencies {#nonpython}
 
 If your pipeline uses non-Python packages (e.g. packages that require installation using the `apt-get install` command), or uses a PyPI package that depends on non-Python dependencies during package installation, you must perform the following steps.
 
@@ -109,4 +110,3 @@ If your pipeline uses non-Python packages (e.g. packages that require installati
         --setup_file /path/to/setup.py
 
 **Note:** Because custom commands execute after the dependencies for your workflow are installed (by `pip`), you should omit the PyPI package dependency from the pipeline's `requirements.txt` file and from the `install_requires` parameter in the `setuptools.setup()` call of your `setup.py` file.
-

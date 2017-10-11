@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Built-in I/O Transforms"
+section_menu: section-menu/documentation.html
 permalink: /documentation/io/built-in/
 ---
 

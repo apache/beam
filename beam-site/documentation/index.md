@@ -1,7 +1,8 @@
 ---
-layout: default
+layout: section
 title: "Learn about Beam"
 permalink: /documentation/
+section_menu: section-menu/documentation.html
 redirect_from:
   - /learn/
   - /docs/learn/

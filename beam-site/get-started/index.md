@@ -1,7 +1,8 @@
 ---
-layout: default
+layout: section
 title: "Use Beam"
 permalink: /get-started/
+section_menu: section-menu/get-started.html
 redirect_from:
   - /use/
   - /docs/use/

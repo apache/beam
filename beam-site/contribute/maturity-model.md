@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Maturity Model Assessment for Apache Beam"
+section_menu: section-menu/contribute.html
 permalink: /contribute/maturity-model/
 ---
 
@@ -680,7 +681,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] Scanning for projects...
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Build Order:
-[INFO] 
+[INFO]
 [INFO] Apache Beam :: Parent
 [INFO] Apache Beam :: SDKs :: Java :: Build Tools
 [INFO] Apache Beam :: SDKs
@@ -717,35 +718,35 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Parent 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-parent ---
 [INFO] org.apache.beam:beam-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Build Tools 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-build-tools ---
 [INFO] org.apache.beam:beam-sdks-java-build-tools:jar:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-parent ---
 [INFO] org.apache.beam:beam-sdks-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-parent ---
 [INFO] org.apache.beam:beam-sdks-java-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Core 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-core ---
 [INFO] org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- io.grpc:grpc-auth:jar:1.0.1:compile
@@ -917,14 +918,14 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-parent ---
 [INFO] org.apache.beam:beam-runners-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Core Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-core-java ---
 [INFO] org.apache.beam:beam-runners-core-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1118,7 +1119,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Direct Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-direct-java ---
 [INFO] org.apache.beam:beam-runners-direct-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1340,7 +1341,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Google Cloud Dataflow 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-google-cloud-dataflow-java ---
 [INFO] org.apache.beam:beam-runners-google-cloud-dataflow-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1562,14 +1563,14 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-parent ---
 [INFO] org.apache.beam:beam-sdks-java-io-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-google-cloud-platform ---
 [INFO] org.apache.beam:beam-sdks-java-io-google-cloud-platform:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1851,7 +1852,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: HDFS 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-hdfs ---
 [INFO] org.apache.beam:beam-sdks-java-io-hdfs:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2244,7 +2245,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: JMS 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-jms ---
 [INFO] org.apache.beam:beam-sdks-java-io-jms:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2428,7 +2429,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: Kafka 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-kafka ---
 [INFO] org.apache.beam:beam-sdks-java-io-kafka:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2602,7 +2603,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: Kinesis 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-kinesis ---
 [INFO] org.apache.beam:beam-sdks-java-io-kinesis:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2800,7 +2801,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: MongoDB 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-mongodb ---
 [INFO] org.apache.beam:beam-sdks-java-io-mongodb:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2981,7 +2982,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: JDBC 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-jdbc ---
 [INFO] org.apache.beam:beam-sdks-java-io-jdbc:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -3157,14 +3158,14 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Maven Archetypes 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-maven-archetypes-parent ---
 [INFO] org.apache.beam:beam-sdks-java-maven-archetypes-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-maven-archetypes-starter ---
 [INFO] org.apache.beam:beam-sdks-java-maven-archetypes-starter:maven-archetype:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:runtime
@@ -3311,7 +3312,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-maven-archetypes-examples ---
 [INFO] org.apache.beam:beam-sdks-java-maven-archetypes-examples:maven-archetype:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:runtime
@@ -3560,14 +3561,14 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Extensions 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-extensions-parent ---
 [INFO] org.apache.beam:beam-sdks-java-extensions-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Extensions :: Join library 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-extensions-join-library ---
 [INFO] org.apache.beam:beam-sdks-java-extensions-join-library:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -3731,7 +3732,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Extensions :: Sorter 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-extensions-sorter ---
 [INFO] org.apache.beam:beam-sdks-java-extensions-sorter:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -4046,7 +4047,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Java 8 Tests 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-java8tests ---
 [INFO] org.apache.beam:beam-sdks-java-java8tests:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:test
@@ -4211,14 +4212,14 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Flink 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-flink-parent ---
 [INFO] org.apache.beam:beam-runners-flink-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Flink :: Core 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-flink_2.10 ---
 [INFO] org.apache.beam:beam-runners-flink_2.10:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.flink:flink-streaming-java_2.10:jar:1.1.2:compile
@@ -4657,7 +4658,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Flink :: Examples 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-flink_2.10-examples ---
 [WARNING] The parameter output is deprecated. Use outputFile instead.
 [INFO] Wrote dependency tree to: /usr/local/google/home/davor/GitHub/incubator-beam/runners/flink/examples/wordcounts.txt
@@ -4665,7 +4666,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Spark 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-spark ---
 [INFO] org.apache.beam:beam-runners-spark:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.spark:spark-core_2.10:jar:1.6.2:provided
@@ -5249,7 +5250,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Apex 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-apex ---
 [INFO] org.apache.beam:beam-runners-apex:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.apex:apex-common:jar:3.5.0-SNAPSHOT:compile
@@ -5683,14 +5684,14 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Examples 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-examples-parent ---
 [INFO] org.apache.beam:beam-examples-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Examples :: Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-examples-java ---
 [INFO] org.apache.beam:beam-examples-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -5925,7 +5926,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Examples :: Java 8 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-examples-java8 ---
 [INFO] org.apache.beam:beam-examples-java8:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -6619,7 +6620,7 @@ The following is a verbose dependency tree of the project. This complements the 
 [INFO]    \- (org.spark-project.spark:unused:jar:1.0.0:runtime - omitted for duplicate)
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary:
-[INFO] 
+[INFO]
 [INFO] Apache Beam :: Parent ............................. SUCCESS [0.821s]
 [INFO] Apache Beam :: SDKs :: Java :: Build Tools ........ SUCCESS [0.008s]
 [INFO] Apache Beam :: SDKs ............................... SUCCESS [0.007s]

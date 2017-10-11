@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "JStorm Runner"
+section_menu: section-menu/documentation.html
 permalink: /documentation/runners/jstorm/
 ---
 # Using the JStorm Runner

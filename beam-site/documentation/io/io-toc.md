@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Pipeline I/O"
+section_menu: section-menu/documentation.html
 permalink: /documentation/io/io-toc/
 ---
 

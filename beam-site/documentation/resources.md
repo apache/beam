@@ -1,12 +1,13 @@
 ---
-layout: default
+layout: section
 title: "Beam Learning Resources"
 permalink: /documentation/resources/
+section_menu: section-menu/documentation.html
 redirect_from: /learn/resources/
 ---
 # Additional Resources for Learning about Apache Beam
 
-This page provides links to some of our favorite videos, podcasts, and articles that will help you get started and learn more about Apache Beam. 
+This page provides links to some of our favorite videos, podcasts, and articles that will help you get started and learn more about Apache Beam.
 
 * TOC
 {:toc}
@@ -26,9 +27,9 @@ Presented by Tyler Akidau, *Apache Beam PPMC member*
 
 ### Apache Beam: A Unified Model for Batch and Streaming Data Processing
 
-Hadoop Summit, San Jose, CA, 2016 
+Hadoop Summit, San Jose, CA, 2016
 
-Presented by Davor Bonaci, *Apache Beam PPMC member* 
+Presented by Davor Bonaci, *Apache Beam PPMC member*
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/7DZ8ONmeP5A" frameborder="0" allowfullscreen></iframe>
 <br>
@@ -62,29 +63,29 @@ Click on the image to read the article.
 
 ### Software Engineering Radio Podcast Episode 272: Apache Beam
 
-Presented by Frances Perry, *Apache Beam PPMC member* 
+Presented by Frances Perry, *Apache Beam PPMC member*
 
 <a href="http://www.se-radio.net/2016/10/se-radio-episode-272-frances-perry-on-apache-beam/" target="_blank">![alt text]({{ site.baseurl }}/images/resources/se-radio-podcast.png)</a>
 <br>
 
 ## Beam & Friends
 
-The following resources present Apache Beam partnerships. 
+The following resources present Apache Beam partnerships.
 
 ### Flink and Beam: Current State & Roadmap
 
-Flink Forward, Berlin, 2016 
+Flink Forward, Berlin, 2016
 
-Presented by Maximilian Michels, *Apache Beam PPMC member* 
+Presented by Maximilian Michels, *Apache Beam PPMC member*
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/msdjh6KRXC8" frameborder="0" allowfullscreen></iframe>
 <br>
 
-### Lessons learned from developing a stream processing platform at scale 
+### Lessons learned from developing a stream processing platform at scale
 
 Big Things Meetup, Tel Aviv, 2016
 
-By Amit Sela, *Apache Beam PPMC member* 
+By Amit Sela, *Apache Beam PPMC member*
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/fc-YigLn_gs" frameborder="0" allowfullscreen></iframe>
 <br>
@@ -102,10 +103,10 @@ Presented by Slava Chernyak, *Software Engineer at Google*
 <iframe width="560" height="315" src="https://www.youtube.com/embed/TWxSLmkWPm4" frameborder="0" allowfullscreen></iframe>
 <br>
 
-### Triggers in Apache Beam 
+### Triggers in Apache Beam
 
 Strata+Hadoop World, New York, 2016
 
-Presented by Kenneth Knowles, *Apache Beam PPMC member* 
+Presented by Kenneth Knowles, *Apache Beam PPMC member*
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/E1k0B9LN46M" frameborder="0" allowfullscreen></iframe>

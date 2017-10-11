@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: 'Contribute to Beam'
+section_menu: section-menu/contribute.html
 redirect_from: '/docs/contribute'
 ---
 

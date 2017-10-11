@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Authoring I/O Transforms - Java"
+section_menu: section-menu/documentation.html
 permalink: /documentation/io/authoring-java/
 ---
 

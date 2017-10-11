@@ -80,12 +80,25 @@ $(document).ready(function() {
             },
             "toggle": function() {
                 var pref=localStorage.getItem(this.dbKey) || this.default;
+                var isPrefSelected = false;
+
                 // Adjusting active elements in navigation header.
                 $("." + this.wrapper + " li").removeClass("active").each(function() {
                     if ($(this).data("type") === pref) {
                         $(this).addClass("active");
+                        isPrefSelected = true;
                     }
                 });
+
+                if(!isPrefSelected) {
+                  pref = this.default;
+                  
+                  $("." + this.wrapper + " li").each(function() {
+                      if ($(this).data("type") === pref) {
+                          $(this).addClass("active");
+                      }
+                  });
+               }
 
                 // Swapping visibility of code blocks.
                 $(this.selector).hide();

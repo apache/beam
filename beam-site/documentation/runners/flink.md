@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Flink Runner"
+section_menu: section-menu/runners.html
 permalink: /documentation/runners/flink/
 redirect_from: /learn/runners/flink/
 ---
@@ -149,4 +150,3 @@ You can monitor a running Flink job using the Flink JobManager Dashboard. By def
 ### Streaming Execution
 
 If your pipeline uses an unbounded data source or sink, the Flink Runner will automatically switch to streaming mode. You can enforce streaming mode by using the `streaming` setting mentioned above.
-

@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Ensuring Python Type Safety"
+section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/python-type-safety/
 ---
 #  Ensuring Python Type Safety
@@ -135,4 +136,3 @@ The following code shows the example `Player` class and how to define a `Coder` 
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:type_hints_deterministic_key %}```
-

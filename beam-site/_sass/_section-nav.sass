@@ -1,0 +1,73 @@
+.section-nav
+  max-width: 250px
+  position: fixed
+  width: 100%
+
+  nav
+    background-color: #F7F7F7
+    padding: 15px
+    max-height: calc(100vh - 130px)
+    overflow-y: auto
+
+    ul
+      list-style: none
+
+    li
+      margin-bottom: 5px
+
+      &:last-child
+        margin-bottom: 0
+
+    a
+      font-size: 12px
+
+    > .section-nav-list
+      padding: 0
+
+      .section-nav-list
+        padding-left: 15px
+
+    @media (max-width: $ak-breakpoint-lg)
+      background-color: $color-white
+      max-height: 100vh
+
+  &-back
+    display: none
+    padding: 15px
+
+    @media (max-width: $ak-breakpoint-lg)
+      display: block
+
+  &-list-title
+    display: block
+    font-size: 12px
+    margin-bottom: 5px
+    padding-top: 5px
+
+  &-list-main-title
+    display: block
+    font-size: 12px
+    font-weight: bold
+    margin-bottom: 15px
+    text-transform: uppercase
+
+  @media (max-width: $ak-breakpoint-lg)
+    background-color: $color-light-gray
+    bottom: 0
+    left: 0
+    max-width: 256px
+    position: fixed
+    top: 0
+    transition: transform 100ms linear
+    width: calc(100% - 32px)
+    z-index: 10000
+
+    nav
+      height: calc(100vh - 44px)
+      overflow-y: auto
+
+    &.closed
+      transform: translateX(-100%)
+
+    &.open
+      transform: translateX(0)

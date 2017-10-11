@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Beam Execution Model"
+section_menu: section-menu/documentation.html
 permalink: /documentation/execution-model/
 ---
 
@@ -188,4 +189,3 @@ down since they aren’t following the normal `DoFn` lifecycle .
 
 Executing transforms this way allows a runner to avoid persisting elements
 between transforms, saving on persistence costs.
-

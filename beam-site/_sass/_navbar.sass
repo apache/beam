@@ -14,13 +14,64 @@
   .navbar-right
     margin-right: $pad
   a
-    color: #555
+    color: $color-dark-gray
     &:hover
       color: $color-brand
       span
         color: $color-brand
     span
-      color: #555
+      color: $color-dark-gray
 
-  .navbar-toggle .icon-bar
-    background-color: #555
+  .navbar-toggle
+    float: left
+
+    .icon-bar
+      background-color: $color-dark-gray
+
+    @media (max-width: $ak-breakpoint-lg)
+      display: block
+
+  .navbar-container
+    @media (max-width: $ak-breakpoint-lg)
+      background-color: $color-white
+      bottom: 0
+      min-height: 100vh
+      max-width: 256px
+      padding: 15px
+      position: fixed
+      top: 0
+      transition: transform 100ms linear
+      width: calc(100% - 32px)
+
+      .navbar-nav > li
+        width: 100%
+
+      &.closed
+        transform: translateX(-100%)
+
+      &.open
+        transform: translateX(0)
+
+  .navbar-mask
+    background: #212121
+    bottom: 0
+    display: none
+    min-height: 100vh
+    position: fixed
+    top: 0
+    transition: opacity 200ms
+
+    @media (max-width: $ak-breakpoint-lg)
+      display: block
+
+      &.closed
+        opacity: 0
+        width: 0
+
+      &.open
+        opacity: 0.5
+        width: 100%
+
+  @media (max-width: $ak-breakpoint-lg)
+    .navbar-right
+      margin-right: -15px

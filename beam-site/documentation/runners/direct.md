@@ -1,7 +1,8 @@
 ---
-layout: default
+layout: section
 title: "Direct Runner"
 permalink: /documentation/runners/direct/
+section_menu: section-menu/runners.html
 redirect_from: /learn/runners/direct/
 ---
 # Using the Direct Runner
@@ -61,4 +62,3 @@ interface for defaults and additional pipeline configuration options.
 ## Additional information and caveats
 
 Local execution is limited by the memory available in your local environment. It is highly recommended that you run your pipeline with data sets small enough to fit in local memory. You can create a small in-memory data set using a <span class="language-java">[`Create`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/transforms/Create.html)</span><span class="language-py">[`Create`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/transforms/core.py)</span> transform, or you can use a <span class="language-java">[`Read`]({{ site.baseurl }}/documentation/sdks/javadoc/{{ site.release_latest }}/index.html?org/apache/beam/sdk/io/Read.html)</span><span class="language-py">[`Read`](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py)</span> transform to work with small local or remote files.
-

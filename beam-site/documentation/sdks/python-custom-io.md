@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Beam: Creating New Sources and Sinks with the Python SDK"
+section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/python-custom-io/
 ---
 # Creating New Sources and Sinks with the Python SDK
@@ -20,7 +21,7 @@ In simple cases, you may not need to create a new source or sink. For example, i
 However, if you'd like to use advanced features such as dynamic splitting and size estimation, you should use Beam's APIs and create a new source or sink.
 
 
-## <a name="basic-code-reqs"></a>Basic Code Requirements for New Sources and Sinks
+## Basic Code Requirements for New Sources and Sinks {#basic-code-reqs}
 
 Services use the classes you provide to read and/or write data using multiple worker instances in parallel. As such, the code you provide for `Source` and `Sink` subclasses must meet some basic requirements:
 
@@ -43,7 +44,7 @@ It is critical to exhaustively unit-test all of your `Source` and `Sink` subclas
 You can use test harnesses and utility methods available in the [source_test_utils module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/source_test_utils.py) to develop tests for your source.
 
 
-## <a name="creating-sources"></a>Creating a New Source
+## Creating a New Source
 
 You should create a new source if you'd like to use the advanced features that the Source API provides:
 
@@ -157,7 +158,7 @@ To create a source for a new file type, you need to create a sub-class of `FileB
 See [AvroSource](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/avroio.py) for an example implementation of `FileBasedSource`.
 
 
-## <a name="reading-sources"></a>Reading from a New Source
+## Reading from a New Source
 
 The following example, `CountingSource`, demonstrates an implementation of `BoundedSource` and uses the SDK-provided `RangeTracker` called `OffsetRangeTracker`.
 
@@ -172,7 +173,7 @@ To read data from the source in your pipeline, use the `Read` transform:
 **Note:** When you create a source that end-users are going to use, it's recommended that you do not expose the code for the source itself as demonstrated in the example above, but rather use a wrapping `PTransform` instead. See [PTransform wrappers](#ptransform-wrappers) to see how and why to avoid exposing your sources.
 
 
-## <a name="creating-sinks"></a>Creating a New Sink
+## Creating a New Sink
 
 You should create a new sink if you'd like to use the advanced features that the Sink API provides, such as global initialization and finalization that allow the write operation to appear "atomic" (i.e. either all data is written or none is).
 
@@ -235,7 +236,7 @@ If your data source uses files, you can derive your `Sink` and `Writer` classes 
 * Setting the output MIME type
 
 
-## <a name="writing-sinks"></a>Writing to a New Sink
+## Writing to a New Sink
 
 Consider a simple key-value storage that writes a given set of key-value pairs to a set of tables. The following is the key-value storage's API:
 
@@ -262,7 +263,7 @@ The following code demonstrates how to write to the sink using the `Write` trans
 **Note:** When you create a sink that end-users are going to use, it's recommended that you do not expose the code for the sink itself as demonstrated in the example above, but rather use a wrapping `PTransform` instead. See [PTransform wrappers](#ptransform-wrappers) to see how and why to avoid exposing your sinks.
 
 
-## <a name="ptransform-wrappers"></a>PTransform Wrappers
+## PTransform Wrappers
 
 If you create a new source or sink for your own use, such as for learning purposes, you should create them as explained in the sections above and use them as demonstrated in the examples.
 
@@ -291,4 +292,3 @@ Finally, write to the sink:
 
 ```
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_custom_sink_use_ptransform %}```
-

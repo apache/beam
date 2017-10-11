@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Beam Team"
+section_menu: section-menu/contribute.html
 permalink: /contribute/team/
 redirect_from:
   - /project/team/
