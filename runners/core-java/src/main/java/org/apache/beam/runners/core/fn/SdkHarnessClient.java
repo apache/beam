@@ -24,7 +24,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import java.io.IOException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
 /**
  * A high-level client for an SDK harness.
@@ -54,7 +54,7 @@ public class SdkHarnessClient {
 
   /**
    * An active bundle for a particular {@link
-   * org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor}.
+   * BeamFnApi.ProcessBundleDescriptor}.
    */
   @AutoValue
   public abstract static class ActiveBundle<InputT> {
@@ -96,7 +96,7 @@ public class SdkHarnessClient {
   }
 
   /**
-   * Registers a {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor} for future
+   * Registers a {@link BeamFnApi.ProcessBundleDescriptor} for future
    * processing.
    *
    * <p>A client may block on the result future, but may also proceed without blocking.
@@ -128,10 +128,10 @@ public class SdkHarnessClient {
 
   /**
    * Start a new bundle for the given {@link
-   * org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor} identifier.
+   * BeamFnApi.ProcessBundleDescriptor} identifier.
    *
    * <p>The input channels for the returned {@link ActiveBundle} are derived from the
-   * instructions in the {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor}.
+   * instructions in the {@link BeamFnApi.ProcessBundleDescriptor}.
    */
   public ActiveBundle newBundle(String processBundleDescriptorId) {
     String bundleId = idGenerator.getId();

@@ -22,7 +22,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 import io.grpc.ManagedChannel;
-import org.apache.beam.portability.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Rule;
 import org.junit.Test;
@@ -37,9 +37,8 @@ public class ManagedChannelFactoryTest {
 
   @Test
   public void testDefaultChannel() {
-    ApiServiceDescriptor apiServiceDescriptor = ApiServiceDescriptor.newBuilder()
-        .setUrl("localhost:123")
-        .build();
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder().setUrl("localhost:123").build();
     ManagedChannel channel = ManagedChannelFactory.from(PipelineOptionsFactory.create())
         .forDescriptor(apiServiceDescriptor);
     assertEquals("localhost:123", channel.authority());
@@ -49,9 +48,8 @@ public class ManagedChannelFactoryTest {
   @Test
   public void testEpollHostPortChannel() {
     assumeTrue(io.netty.channel.epoll.Epoll.isAvailable());
-    ApiServiceDescriptor apiServiceDescriptor = ApiServiceDescriptor.newBuilder()
-        .setUrl("localhost:123")
-        .build();
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder().setUrl("localhost:123").build();
     ManagedChannel channel = ManagedChannelFactory.from(
         PipelineOptionsFactory.fromArgs(new String[]{ "--experiments=beam_fn_api_epoll" }).create())
         .forDescriptor(apiServiceDescriptor);
@@ -62,9 +60,10 @@ public class ManagedChannelFactoryTest {
   @Test
   public void testEpollDomainSocketChannel() throws Exception {
     assumeTrue(io.netty.channel.epoll.Epoll.isAvailable());
-    ApiServiceDescriptor apiServiceDescriptor = ApiServiceDescriptor.newBuilder()
-        .setUrl("unix://" + tmpFolder.newFile().getAbsolutePath())
-        .build();
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl("unix://" + tmpFolder.newFile().getAbsolutePath())
+            .build();
     ManagedChannel channel = ManagedChannelFactory.from(
         PipelineOptionsFactory.fromArgs(new String[]{ "--experiments=beam_fn_api_epoll" }).create())
         .forDescriptor(apiServiceDescriptor);

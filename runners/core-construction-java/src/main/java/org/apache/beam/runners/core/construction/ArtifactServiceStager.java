@@ -45,15 +45,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.ArtifactChunk;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.Manifest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactChunk;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceBlockingStub;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
 
 /** A client to stage files on an {@link ArtifactStagingServiceGrpc ArtifactService}. */
 public class ArtifactServiceStager {

@@ -50,11 +50,11 @@
                   <includes>
                     <include>com.google.guava:guava</include>
                     <!-- java harness dependencies that are not staged -->
+                    <include>org.apache.beam:beam-model-pipeline</include>
+                    <include>org.apache.beam:beam-model-fn-execution</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                     <include>org.apache.beam:beam-runners-core-java</include>
                     <include>org.apache.beam:beam-runners-google-cloud-dataflow-java</include>
-                    <include>org.apache.beam:beam-sdks-common-runner-api</include>
-                    <include>org.apache.beam:beam-sdks-common-fn-api</include>
                     <include>io.netty:netty-transport-native-epoll</include>
                   </includes>
                 </artifactSet>
@@ -126,6 +126,16 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-pipeline</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-fn-execution</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
@@ -156,16 +166,6 @@
       <!-- TODO: BEAM-2566 remove this dependency -->
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-runner-api</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-fn-api</artifactId>
     </dependency>
 
     <dependency>

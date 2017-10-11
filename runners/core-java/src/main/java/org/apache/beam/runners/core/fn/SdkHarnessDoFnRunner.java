@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -46,11 +47,11 @@ public class SdkHarnessDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT,
 
   /**
    * Returns a new {@link SdkHarnessDoFnRunner} suitable for just a particular {@link
-   * org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor} (referenced by id here).
+   * ProcessBundleDescriptor} (referenced by id here).
    *
    * <p>The {@link FnDataReceiver} must be the correct data plane service referenced
    * in the primitive instructions in the
-   * {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleDescriptor}.
+   * {@link ProcessBundleDescriptor}.
    *
    * <p>Also outside of this class, the appropriate receivers must be registered with the
    * output data plane channels of the descriptor.

@@ -32,9 +32,9 @@ syntax = "proto3";
  * and lanaguage namespaces for re-use with Runner Api.
  */
 
-package org.apache.beam.fn.v1;
+package org.apache.beam.model.fn_execution.v1;
 
-option java_package = "org.apache.beam.fn.v1";
+option java_package = "org.apache.beam.model.fnexecution.v1";
 option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
@@ -74,7 +74,7 @@ message Target {
 message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
-  org.apache.beam.portability.v1.ApiServiceDescriptor api_service_descriptor = 1;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor api_service_descriptor = 1;
 }
 
 /*
@@ -158,24 +158,24 @@ message ProcessBundleDescriptor {
   string id = 1;
 
   // (Required) A map from pipeline-scoped id to PTransform.
-  map<string, org.apache.beam.runner_api.v1.PTransform> transforms = 2;
+  map<string, org.apache.beam.model.pipeline.v1.PTransform> transforms = 2;
 
   // (Required) A map from pipeline-scoped id to PCollection.
-  map<string, org.apache.beam.runner_api.v1.PCollection> pcollections = 3;
+  map<string, org.apache.beam.model.pipeline.v1.PCollection> pcollections = 3;
 
   // (Required) A map from pipeline-scoped id to WindowingStrategy.
-  map<string, org.apache.beam.runner_api.v1.WindowingStrategy> windowing_strategies = 4;
+  map<string, org.apache.beam.model.pipeline.v1.WindowingStrategy> windowing_strategies = 4;
 
   // (Required) A map from pipeline-scoped id to Coder.
-  map<string, org.apache.beam.runner_api.v1.Coder> coders = 5;
+  map<string, org.apache.beam.model.pipeline.v1.Coder> coders = 5;
 
   // (Required) A map from pipeline-scoped id to Environment.
-  map<string, org.apache.beam.runner_api.v1.Environment> environments = 6;
+  map<string, org.apache.beam.model.pipeline.v1.Environment> environments = 6;
 
   // A descriptor describing the end point to use for State API
   // calls. Required if the Runner intends to send remote references over the
   // data plane or if any of the transforms rely on user state or side inputs.
-  org.apache.beam.portability.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
 // A request to process a given bundle.
@@ -334,14 +334,14 @@ message PrimitiveTransformSplit {
   //
   // For example, a remote GRPC source will have a specific urn and data
   // block containing an ElementCountRestriction.
-  org.apache.beam.runner_api.v1.FunctionSpec completed_restriction = 2;
+  org.apache.beam.model.pipeline.v1.FunctionSpec completed_restriction = 2;
 
   // (Required) A function specification describing the restriction
   // representing the remainder of work for the primitive transform.
   //
   // FOr example, a remote GRPC source will have a specific urn and data
   // block contain an ElemntCountSkipRestriction.
-  org.apache.beam.runner_api.v1.FunctionSpec remaining_restriction = 3;
+  org.apache.beam.model.pipeline.v1.FunctionSpec remaining_restriction = 3;
 }
 
 message ProcessBundleSplitResponse {

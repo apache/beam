@@ -33,7 +33,6 @@
   Beam portability framework to execute an arbitrary Pipeline.</description>
 
   <packaging>pom</packaging>
-
   <modules>
     <module>job-server</module>
   </modules>

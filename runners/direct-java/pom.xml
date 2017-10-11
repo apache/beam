@@ -58,9 +58,9 @@
                   <includes>
                     <include>com.google.guava:guava</include>
                     <include>com.google.protobuf:protobuf-java</include>
+                    <include>org.apache.beam:beam-model-pipeline</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                     <include>org.apache.beam:beam-runners-core-java</include>
-                    <include>org.apache.beam:beam-sdks-common-runner-api</include>
                     <include>com.google.code.findbugs:jsr305</include>
                   </includes>
                 </artifactSet>
@@ -191,12 +191,12 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-java-core</artifactId>
+      <artifactId>beam-model-pipeline</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-runner-api</artifactId>
+      <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>
@@ -327,7 +327,7 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <artifactId>beam-model-fn-execution</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

@@ -23,9 +23,9 @@
 
 syntax = "proto3";
 
-package org.apache.beam.runner_api.v1;
+package org.apache.beam.model.job_management.v1;
 
-option java_package = "org.apache.beam.sdk.common.runner.v1";
+option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "ArtifactApi";
 
 // A service to stage artifacts for use in a Job.

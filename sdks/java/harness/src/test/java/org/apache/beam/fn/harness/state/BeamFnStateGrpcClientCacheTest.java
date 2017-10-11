@@ -41,10 +41,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.IdGenerator;
 import org.apache.beam.fn.harness.test.TestStreams;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
-import org.apache.beam.fn.v1.BeamFnStateGrpc;
-import org.apache.beam.portability.v1.Endpoints.ApiServiceDescriptor;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnStateGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.After;
 import org.junit.Before;
@@ -60,7 +60,7 @@ public class BeamFnStateGrpcClientCacheTest {
   private static final String TEST_ERROR = "TEST ERROR";
   private static final String SERVER_ERROR = "SERVER ERROR";
 
-  private ApiServiceDescriptor apiServiceDescriptor;
+  private Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private ManagedChannel testChannel;
   private Server testServer;
   private BeamFnStateGrpcClientCache clientCache;
@@ -75,7 +75,7 @@ public class BeamFnStateGrpcClientCacheTest {
         TestStreams.withOnNext(values::add).build();
 
     apiServiceDescriptor =
-        ApiServiceDescriptor.newBuilder()
+        Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
     testServer = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -95,7 +95,7 @@ public class BeamFnStateGrpcClientCacheTest {
     clientCache = new BeamFnStateGrpcClientCache(
         PipelineOptionsFactory.create(),
         IdGenerator::generate,
-        (ApiServiceDescriptor descriptor) -> testChannel,
+        (Endpoints.ApiServiceDescriptor descriptor) -> testChannel,
         this::createStreamForTest);
   }
 
@@ -111,7 +111,7 @@ public class BeamFnStateGrpcClientCacheTest {
         clientCache.forApiServiceDescriptor(apiServiceDescriptor));
     assertNotSame(clientCache.forApiServiceDescriptor(apiServiceDescriptor),
         clientCache.forApiServiceDescriptor(
-            ApiServiceDescriptor.getDefaultInstance()));
+            Endpoints.ApiServiceDescriptor.getDefaultInstance()));
   }
 
   @Test

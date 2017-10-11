@@ -29,14 +29,14 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.Manifest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest.ContentCase;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.ArtifactMetadata;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.CommitManifestResponse;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactRequest.ContentCase;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.PutArtifactResponse;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase;
 
 /**
  * An {@link ArtifactStagingServiceImplBase ArtifactStagingService} which stores the bytes of the

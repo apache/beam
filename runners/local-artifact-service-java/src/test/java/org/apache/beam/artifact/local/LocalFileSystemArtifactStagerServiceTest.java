@@ -34,15 +34,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.ArtifactChunk;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.ArtifactMetadata;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.CommitManifestResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.Manifest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactRequest;
-import org.apache.beam.sdk.common.runner.v1.ArtifactApi.PutArtifactResponse;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc;
-import org.apache.beam.sdk.common.runner.v1.ArtifactStagingServiceGrpc.ArtifactStagingServiceStub;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
+import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.Assert;
@@ -58,7 +51,7 @@ import org.junit.runners.JUnit4;
 public class LocalFileSystemArtifactStagerServiceTest {
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-  private ArtifactStagingServiceStub stub;
+  private ArtifactStagingServiceGrpc.ArtifactStagingServiceStub stub;
 
   private LocalFileSystemArtifactStagerService stager;
   private ServerImpl server;
@@ -87,17 +80,20 @@ public class LocalFileSystemArtifactStagerServiceTest {
   @Test
   public void singleDataPutArtifactSucceeds() throws Exception {
     byte[] data = "foo-bar-baz".getBytes();
-    RecordingStreamObserver<PutArtifactResponse> responseObserver = new RecordingStreamObserver<>();
-    StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
+    RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
+        new RecordingStreamObserver<>();
+    StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
+        stub.putArtifact(responseObserver);
 
     String name = "my-artifact";
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setMetadata(ArtifactMetadata.newBuilder().setName(name).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
             .build());
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(data)).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(
+                ArtifactApi.ArtifactChunk.newBuilder().setData(ByteString.copyFrom(data)).build())
             .build());
     requestObserver.onCompleted();
 
@@ -115,25 +111,36 @@ public class LocalFileSystemArtifactStagerServiceTest {
     byte[] partOne = "foo-".getBytes();
     byte[] partTwo = "bar-".getBytes();
     byte[] partThree = "baz".getBytes();
-    RecordingStreamObserver<PutArtifactResponse> responseObserver = new RecordingStreamObserver<>();
-    StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
+    RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
+        new RecordingStreamObserver<>();
+    StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
+        stub.putArtifact(responseObserver);
 
     String name = "my-artifact";
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setMetadata(ArtifactMetadata.newBuilder().setName(name).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
             .build());
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(partOne)).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(
+                ArtifactApi.ArtifactChunk.newBuilder()
+                    .setData(ByteString.copyFrom(partOne))
+                    .build())
             .build());
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(partTwo)).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(
+                ArtifactApi.ArtifactChunk.newBuilder()
+                    .setData(ByteString.copyFrom(partTwo))
+                    .build())
             .build());
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(partThree)).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(
+                ArtifactApi.ArtifactChunk.newBuilder()
+                    .setData(ByteString.copyFrom(partThree))
+                    .build())
             .build());
     requestObserver.onCompleted();
 
@@ -149,12 +156,15 @@ public class LocalFileSystemArtifactStagerServiceTest {
   @Test
   public void putArtifactBeforeNameFails() {
     byte[] data = "foo-".getBytes();
-    RecordingStreamObserver<PutArtifactResponse> responseObserver = new RecordingStreamObserver<>();
-    StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
+    RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
+        new RecordingStreamObserver<>();
+    StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
+        stub.putArtifact(responseObserver);
 
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder()
-            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(data)).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(
+                ArtifactApi.ArtifactChunk.newBuilder().setData(ByteString.copyFrom(data)).build())
             .build());
 
     responseObserver.awaitTerminalState();
@@ -164,11 +174,15 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
   @Test
   public void putArtifactWithNoContentFails() {
-    RecordingStreamObserver<PutArtifactResponse> responseObserver = new RecordingStreamObserver<>();
-    StreamObserver<PutArtifactRequest> requestObserver = stub.putArtifact(responseObserver);
+    RecordingStreamObserver<ArtifactApi.PutArtifactResponse> responseObserver =
+        new RecordingStreamObserver<>();
+    StreamObserver<ArtifactApi.PutArtifactRequest> requestObserver =
+        stub.putArtifact(responseObserver);
 
     requestObserver.onNext(
-        PutArtifactRequest.newBuilder().setData(ArtifactChunk.getDefaultInstance()).build());
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(ArtifactApi.ArtifactChunk.getDefaultInstance())
+            .build());
 
     responseObserver.awaitTerminalState();
 
@@ -177,36 +191,48 @@ public class LocalFileSystemArtifactStagerServiceTest {
 
   @Test
   public void commitManifestWithAllArtifactsSucceeds() {
-    ArtifactMetadata firstArtifact = stageBytes("first-artifact", "foo, bar, baz, quux".getBytes());
-    ArtifactMetadata secondArtifact = stageBytes("second-artifact", "spam, ham, eggs".getBytes());
+    ArtifactApi.ArtifactMetadata firstArtifact =
+        stageBytes("first-artifact", "foo, bar, baz, quux".getBytes());
+    ArtifactApi.ArtifactMetadata secondArtifact =
+        stageBytes("second-artifact", "spam, ham, eggs".getBytes());
 
-    Manifest manifest =
-        Manifest.newBuilder().addArtifact(firstArtifact).addArtifact(secondArtifact).build();
+    ArtifactApi.Manifest manifest =
+        ArtifactApi.Manifest.newBuilder()
+            .addArtifact(firstArtifact)
+            .addArtifact(secondArtifact)
+            .build();
 
-    RecordingStreamObserver<CommitManifestResponse> commitResponseObserver =
+    RecordingStreamObserver<ArtifactApi.CommitManifestResponse> commitResponseObserver =
         new RecordingStreamObserver<>();
     stub.commitManifest(
-        CommitManifestRequest.newBuilder().setManifest(manifest).build(), commitResponseObserver);
+        ArtifactApi.CommitManifestRequest.newBuilder().setManifest(manifest).build(),
+        commitResponseObserver);
 
     commitResponseObserver.awaitTerminalState();
 
     assertThat(commitResponseObserver.completed, is(true));
     assertThat(commitResponseObserver.responses, Matchers.hasSize(1));
-    CommitManifestResponse commitResponse = commitResponseObserver.responses.get(0);
+    ArtifactApi.CommitManifestResponse commitResponse = commitResponseObserver.responses.get(0);
     assertThat(commitResponse.getStagingToken(), Matchers.not(Matchers.nullValue()));
   }
 
   @Test
   public void commitManifestWithMissingArtifactFails() {
-    ArtifactMetadata firstArtifact = stageBytes("first-artifact", "foo, bar, baz, quux".getBytes());
-    ArtifactMetadata absentArtifact = ArtifactMetadata.newBuilder().setName("absent").build();
+    ArtifactApi.ArtifactMetadata firstArtifact =
+        stageBytes("first-artifact", "foo, bar, baz, quux".getBytes());
+    ArtifactApi.ArtifactMetadata absentArtifact =
+        ArtifactApi.ArtifactMetadata.newBuilder().setName("absent").build();
 
-    Manifest manifest =
-        Manifest.newBuilder().addArtifact(firstArtifact).addArtifact(absentArtifact).build();
+    ArtifactApi.Manifest manifest =
+        ArtifactApi.Manifest.newBuilder()
+            .addArtifact(firstArtifact)
+            .addArtifact(absentArtifact)
+            .build();
 
-    RecordingStreamObserver<CommitManifestResponse> commitResponseObserver =
+    RecordingStreamObserver<ArtifactApi.CommitManifestResponse> commitResponseObserver =
         new RecordingStreamObserver<>();
-    stub.commitManifest(CommitManifestRequest.newBuilder().setManifest(manifest).build(),
+    stub.commitManifest(
+        ArtifactApi.CommitManifestRequest.newBuilder().setManifest(manifest).build(),
         commitResponseObserver);
 
     commitResponseObserver.awaitTerminalState();
@@ -214,19 +240,20 @@ public class LocalFileSystemArtifactStagerServiceTest {
     assertThat(commitResponseObserver.error, Matchers.not(Matchers.nullValue()));
   }
 
-  private ArtifactMetadata stageBytes(String name, byte[] bytes) {
-    StreamObserver<PutArtifactRequest> requests =
-        stub.putArtifact(new RecordingStreamObserver<PutArtifactResponse>());
+  private ArtifactApi.ArtifactMetadata stageBytes(String name, byte[] bytes) {
+    StreamObserver<ArtifactApi.PutArtifactRequest> requests =
+        stub.putArtifact(new RecordingStreamObserver<ArtifactApi.PutArtifactResponse>());
     requests.onNext(
-        PutArtifactRequest.newBuilder()
-            .setMetadata(ArtifactMetadata.newBuilder().setName(name).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setMetadata(ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build())
             .build());
     requests.onNext(
-        PutArtifactRequest.newBuilder()
-            .setData(ArtifactChunk.newBuilder().setData(ByteString.copyFrom(bytes)).build())
+        ArtifactApi.PutArtifactRequest.newBuilder()
+            .setData(
+                ArtifactApi.ArtifactChunk.newBuilder().setData(ByteString.copyFrom(bytes)).build())
             .build());
     requests.onCompleted();
-    return ArtifactMetadata.newBuilder().setName(name).build();
+    return ArtifactApi.ArtifactMetadata.newBuilder().setName(name).build();
   }
 
   private static class RecordingStreamObserver<T> implements StreamObserver<T> {

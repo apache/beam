@@ -27,9 +27,9 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.stream.DataStreams;
-import org.apache.beam.fn.v1.BeamFnApi.StateAppendRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateClearRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.sdk.coders.Coder;
 
 /**

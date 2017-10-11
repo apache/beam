@@ -181,6 +181,8 @@
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
+                    <include>com.google.protobuf:protobuf-java</include>
+                    <include>org.apache.beam:beam-model-pipeline</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                   </includes>
                 </artifactSet>
@@ -207,8 +209,16 @@
                     <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.common</shadedPattern>
                   </relocation>
                   <relocation>
+                    <pattern>com.google.protobuf</pattern>
+                    <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.protobuf</shadedPattern>
+                  </relocation>
+                  <relocation>
                     <pattern>com.google.thirdparty</pattern>
                     <shadedPattern>org.apache.beam.runners.dataflow.repackaged.com.google.thirdparty</shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.beam.model</pattern>
+                    <shadedPattern>org.apache.beam.runners.dataflow.repackaged.org.apache.beam.model</shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>org.apache.beam.runners.core</pattern>
@@ -270,17 +280,17 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-pipeline</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-extensions-google-cloud-platform-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-runner-api</artifactId>
     </dependency>
 
     <dependency>
@@ -466,7 +476,7 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <artifactId>beam-model-fn-execution</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>

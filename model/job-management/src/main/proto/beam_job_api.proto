@@ -23,9 +23,9 @@
 
 syntax = "proto3";
 
-package org.apache.beam.runner_api.v1;
+package org.apache.beam.model.job_management.v1;
 
-option java_package = "org.apache.beam.sdk.common.runner.v1";
+option java_package = "org.apache.beam.model.jobmanagement.v1";
 option java_outer_classname = "JobApi";
 
 import "beam_runner_api.proto";
@@ -61,7 +61,7 @@ service JobService {
 // Throws error ALREADY_EXISTS if the jobName is reused. Runners are permitted to deduplicate based on the name of the job.
 // Throws error UNKNOWN for all other issues
 message PrepareJobRequest {
-  org.apache.beam.runner_api.v1.Pipeline pipeline = 1; // (required)
+  org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
   google.protobuf.Struct pipeline_options = 2; // (required)
   string job_name = 3;  // (required)
 }
@@ -73,7 +73,7 @@ message PrepareJobResponse {
 
   // An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
   // staged to this endpoint, and will be available during job execution.
-  org.apache.beam.portability.v1.ApiServiceDescriptor artifact_staging_endpoint = 2;
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_staging_endpoint = 2;
 }
 
 
