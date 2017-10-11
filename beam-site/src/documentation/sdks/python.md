@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Beam Python SDK"
+section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/python/
 ---
 # Apache Beam Python SDK
@@ -24,4 +25,3 @@ When you run your pipeline locally, the packages that your pipeline depends on a
 ## Creating New Sources and Sinks
 
 The Beam SDK for Python provides an extensible API that you can use to create new data sources and sinks. [Creating New Sources and Sinks with the Python SDK]({{ site.baseurl }}/documentation/sdks/python-custom-io) shows how to create new sources and sinks using [Beam's Source and Sink API](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/iobase.py).
-

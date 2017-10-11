@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Apex Runner"
+section_menu: section-menu/runners.html
 permalink: /documentation/runners/apex/
 ---
 # Using the Apache Apex Runner
@@ -61,4 +62,3 @@ Depending on your installation, you may be able to monitor the progress of your 
 
 * YARN : Using YARN web UI generally running on 8088 on the node running resource manager.
 * Apex command-line interface: [Using the Apex CLI to get running application information](http://apex.apache.org/docs/apex/apex_cli/#apex-cli-commands).
-
