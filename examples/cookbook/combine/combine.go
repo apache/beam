@@ -5,13 +5,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"reflect"
 
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
 
@@ -71,12 +71,9 @@ func main() {
 	beam.Init()
 
 	if *output == "" {
-		log.Fatal("no output table specified")
+		log.Fatal("No output table specified. Use --output=<table>")
 	}
-
-	// TODO(herohde) 7/14/2017: hack to grab the Dataflow flag. We should reconcile
-	// such information somehow. Maybe add a wrapper to get-or-define flags?
-	project := flag.Lookup("project").Value.String()
+	project := gcpopts.GetProject()
 
 	log.Print("Running combine")
 

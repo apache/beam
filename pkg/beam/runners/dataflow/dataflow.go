@@ -3,6 +3,7 @@ package dataflow
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -18,6 +19,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
@@ -27,10 +29,9 @@ import (
 
 var (
 	endpoint        = flag.String("dataflow_endpoint", "", "Dataflow endpoint (optional).")
-	project         = flag.String("project", "", "Dataflow project.")
 	jobName         = flag.String("job_name", "", "Dataflow job name (optional).")
-	stagingLocation = flag.String("staging_location", os.ExpandEnv("gs://foo"), "GCS staging location.")
-	image           = flag.String("worker_harness_container_image", "", "Worker harness container image.")
+	stagingLocation = flag.String("staging_location", "", "GCS staging location (required).")
+	image           = flag.String("worker_harness_container_image", "", "Worker harness container image (required).")
 	numWorkers      = flag.Int64("num_workers", 0, "Number of workers (optional).")
 	experiments     = flag.String("experiments", "", "Comma-separated list of experiments (optional).")
 
@@ -51,6 +52,17 @@ func init() {
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
 // default application credentials to submit the job.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
+	project := *gcpopts.Project
+	if project == "" {
+		return errors.New("no Google Cloud project specified. Use --project=<project>")
+	}
+	if *stagingLocation == "" {
+		return errors.New("no GCS staging location specified. Use --staging_location=gs://<bucket>/<path>")
+	}
+	if *image == "" {
+		return errors.New("no container image specified. Use --worker_harness_container_image=<image>")
+	}
+
 	if *jobName == "" {
 		*jobName = fmt.Sprintf("go-%v-%v", username(), time.Now().UnixNano())
 	}
@@ -78,7 +90,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	binary, err := stageWorker(ctx, *project, *stagingLocation, worker)
+	binary, err := stageWorker(ctx, project, *stagingLocation, worker)
 	if err != nil {
 		return err
 	}
@@ -91,7 +103,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	}
 
 	job := &df.Job{
-		ProjectId: *project,
+		ProjectId: project,
 		Name:      *jobName,
 		Type:      "JOB_TYPE_BATCH",
 		Environment: &df.Environment{
@@ -121,7 +133,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		Steps: steps,
 	}
 
-	if *numWorkers != 0 {
+	if *numWorkers > 0 {
 		job.Environment.WorkerPools[0].NumWorkers = *numWorkers
 	}
 	if *teardownPolicy != "" {
@@ -143,7 +155,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
-	upd, err := client.Projects.Jobs.Create(*project, job).Do()
+	upd, err := client.Projects.Jobs.Create(project, job).Do()
 	if err != nil {
 		return err
 	}
@@ -151,9 +163,9 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Printf("Submitted job: %v", upd.Id)
 	printJob(upd)
 	if *endpoint == "" {
-		log.Printf("Console: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, *project)
+		log.Printf("Console: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, project)
 	}
-	log.Printf("Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", *project, upd.Id)
+	log.Printf("Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", project, upd.Id)
 
 	if !*block {
 		return nil
@@ -161,7 +173,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	time.Sleep(1 * time.Minute)
 	for {
-		j, err := client.Projects.Jobs.Get(*project, upd.Id).Do()
+		j, err := client.Projects.Jobs.Get(project, upd.Id).Do()
 		if err != nil {
 			return fmt.Errorf("failed to get job: %v", err)
 		}
@@ -271,8 +283,8 @@ func findPipelineFlags() []*displayData {
 }
 
 // newClient creates a new dataflow client with default application credentials
-// and CloudPlatformScope. The BasePath is optionally overridden.
-func newClient(ctx context.Context, basePath string) (*df.Service, error) {
+// and CloudPlatformScope. The Dataflow endpoint is optionally overridden.
+func newClient(ctx context.Context, endpoint string) (*df.Service, error) {
 	cl, err := google.DefaultClient(ctx, df.CloudPlatformScope)
 	if err != nil {
 		return nil, err
@@ -281,9 +293,9 @@ func newClient(ctx context.Context, basePath string) (*df.Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	if basePath != "" {
-		log.Printf("Dataflow base path override: %s", basePath)
-		client.BasePath = basePath
+	if endpoint != "" {
+		log.Printf("Dataflow endpoint override: %s", endpoint)
+		client.BasePath = endpoint
 	}
 	return client, nil
 }
