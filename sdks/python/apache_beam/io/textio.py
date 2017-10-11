@@ -78,6 +78,10 @@ class _TextSource(filebasedsource.FileBasedSource):
                          'size of data %d.', value, len(self._data))
       self._position = value
 
+    def reset(self):
+      self.data = ''
+      self.position = 0
+
   def __init__(self,
                file_pattern,
                min_bundle_size,
@@ -86,7 +90,8 @@ class _TextSource(filebasedsource.FileBasedSource):
                coder,
                buffer_size=DEFAULT_READ_BUFFER_SIZE,
                validate=True,
-               skip_header_lines=0):
+               skip_header_lines=0,
+               header_matcher_predicate=None):
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
                                       compression_type=compression_type,
                                       validate=validate)
@@ -103,6 +108,7 @@ class _TextSource(filebasedsource.FileBasedSource):
           'Skipping %d header lines. Skipping large number of header '
           'lines might significantly slow down processing.')
     self._skip_header_lines = skip_header_lines
+    self._header_matcher_predicate = header_matcher_predicate
 
   def display_data(self):
     parent_dd = super(_TextSource, self).display_data()
@@ -130,18 +136,18 @@ class _TextSource(filebasedsource.FileBasedSource):
     range_tracker.set_split_points_unclaimed_callback(split_points_unclaimed)
 
     with self.open_file(file_name) as file_to_read:
-      position_after_skipping_header_lines = self._skip_lines(
-          file_to_read, read_buffer,
-          self._skip_header_lines) if self._skip_header_lines else 0
-      start_offset = max(start_offset, position_after_skipping_header_lines)
-      if start_offset > position_after_skipping_header_lines:
+      position_after_processing_header_lines, header_lines = (
+          self._process_header(file_to_read, read_buffer))
+      self.process_header_lines_matching_predicate(file_name, header_lines)
+      start_offset = max(start_offset, position_after_processing_header_lines)
+      if start_offset > position_after_processing_header_lines:
         # Seeking to one position before the start index and ignoring the
         # current line. If start_position is at beginning if the line, that line
         # belongs to the current bundle, hence ignoring that is incorrect.
         # Seeking to one byte before prevents that.
 
         file_to_read.seek(start_offset - 1)
-        read_buffer = _TextSource.ReadBuffer('', 0)
+        read_buffer.reset()
         sep_bounds = self._find_separator_bounds(file_to_read, read_buffer)
         if not sep_bounds:
           # Could not find a separator after (start_offset - 1). This means that
@@ -152,7 +158,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         read_buffer.data = read_buffer.data[sep_end:]
         next_record_start_position = start_offset - 1 + sep_end
       else:
-        next_record_start_position = position_after_skipping_header_lines
+        next_record_start_position = position_after_processing_header_lines
 
       while range_tracker.try_claim(next_record_start_position):
         record, num_bytes_to_next_record = self._read_record(file_to_read,
@@ -174,6 +180,36 @@ class _TextSource(filebasedsource.FileBasedSource):
         yield self._coder.decode(record)
         if num_bytes_to_next_record < 0:
           break
+
+  def process_header_lines_matching_predicate(self, file_name, header_lines):
+    # Performs any special processing based on header lines that match the
+    # 'header_matcher_predicate'. Implementation is currently intended for
+    # subclasses that handle special header-processing logic.
+    # TODO(BEAM-2776): Implement generic header processing functionality here.
+    pass
+
+  def _process_header(self, file_to_read, read_buffer):
+    # Returns a tuple containing the position in file after processing header
+    # records and a list of decoded header lines that match
+    # 'header_matcher_predicate'.
+    header_lines_to_return = []
+    position = self._skip_lines(
+        file_to_read, read_buffer,
+        self._skip_header_lines) if self._skip_header_lines else 0
+    while self._header_matcher_predicate:
+      record, num_bytes_to_next_record = self._read_record(file_to_read,
+                                                           read_buffer)
+      decoded_line = self._coder.decode(record)
+      if not self._header_matcher_predicate(decoded_line):
+        # We've read past the header section at this point, so go back a line.
+        file_to_read.seek(position)
+        read_buffer.reset()
+        break
+      header_lines_to_return.append(decoded_line)
+      if num_bytes_to_next_record < 0:
+        break
+      position += num_bytes_to_next_record
+    return position, header_lines_to_return
 
   def _find_separator_bounds(self, file_to_read, read_buffer):
     # Determines the start and end positions within 'read_buffer.data' of the
