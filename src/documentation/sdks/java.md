@@ -1,12 +1,13 @@
 ---
-layout: default
+layout: section
 title: "Beam Java SDK"
+section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/java/
 redirect_from: /learn/sdks/java/
 ---
 # Apache Beam Java SDK
 
-The Java SDK for Apache Beam provides a simple, powerful API for building both batch and streaming parallel data processing pipelines in Java. 
+The Java SDK for Apache Beam provides a simple, powerful API for building both batch and streaming parallel data processing pipelines in Java.
 
 
 ## Get Started with the Java SDK

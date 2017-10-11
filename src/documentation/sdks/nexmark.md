@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Nexmark benchmark suite"
+section_menu: section-menu/documentation.html
 permalink: /documentation/sdks/nexmark/
 ---
 # Nexmark benchmark suite
@@ -538,4 +539,3 @@ Building package:
 Submit to the cluster:
 
     spark-submit --master yarn-client --class org.apache.beam.sdk.nexmark.Main --driver-memory 512m --executor-memory 512m --executor-cores 1 beam-sdks-java-nexmark-bundled-2.1.0-SNAPSHOT.jar --runner=SparkRunner --query=0 --streamTimeout=60 --streaming=false --manageResources=false --monitorJobs=true
-

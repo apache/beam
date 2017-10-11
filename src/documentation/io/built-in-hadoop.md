@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Hadoop InputFormat IO"
+section_menu: section-menu/documentation.html
 permalink: /documentation/io/built-in/hadoop/
 ---
 
@@ -68,7 +69,7 @@ p.apply("read",
   # The Beam SDK for Python does not support Hadoop InputFormat IO.
 ```
 
-#### Read data with configuration and key translation 
+#### Read data with configuration and key translation
 
 For example, a Beam `Coder` is not available for `Key` class, so key translation is required.
 
@@ -98,7 +99,7 @@ p.apply("read",
   # The Beam SDK for Python does not support Hadoop InputFormat IO.
 ```
 
-#### Read data with configuration, value translation and key translation 
+#### Read data with configuration, value translation and key translation
 
 For example, Beam Coders are not available for both `Key` class and `Value` classes of `InputFormat`, so key and value translation are required.
 
@@ -164,9 +165,9 @@ SimpleFunction<Row, String> cassandraOutputValueType = SimpleFunction<Row, Strin
 ```py
   # The Beam SDK for Python does not support Hadoop InputFormat IO.
 ```
- 
+
 ### Elasticsearch - EsInputFormat
- 
+
 To read data from Elasticsearch, use `EsInputFormat`, which needs following properties to be set:
 
 ```java
@@ -230,7 +231,7 @@ PCollection<KV<Long, HCatRecord>> hcatData =
 ### Amazon DynamoDB - DynamoDBInputFormat
 
 To read data from Amazon DynamoDB, use `org.apache.hadoop.dynamodb.read.DynamoDBInputFormat`.
-DynamoDBInputFormat implements the older `org.apache.hadoop.mapred.InputFormat` interface and to make it compatible with HadoopInputFormatIO which uses the newer abstract class `org.apache.hadoop.mapreduce.InputFormat`, 
+DynamoDBInputFormat implements the older `org.apache.hadoop.mapred.InputFormat` interface and to make it compatible with HadoopInputFormatIO which uses the newer abstract class `org.apache.hadoop.mapreduce.InputFormat`,
 a wrapper API is required which acts as an adapter between HadoopInputFormatIO and DynamoDBInputFormat (or in general any InputFormat implementing `org.apache.hadoop.mapred.InputFormat`)
 The below example uses one such available wrapper API - <https://github.com/twitter/elephant-bird/blob/master/core/src/main/java/com/twitter/elephantbird/mapreduce/input/MapReduceInputFormatWrapper.java>
 
