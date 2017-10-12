@@ -18,11 +18,13 @@
 """Unit tests for the PTransform and descendants."""
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 import collections
 import operator
 import re
 import unittest
+from functools import reduce
 
 import hamcrest as hc
 from nose.plugins.attrib import attr
@@ -353,14 +355,16 @@ class PTransformTest(unittest.TestCase):
     def create_accumulator(self):
       return (0, 0)
 
-    def add_input(self, (sum_, count), element):
+    def add_input(self, sum_count, element):
+      (sum_, count) = sum_count
       return sum_ + element, count + 1
 
     def merge_accumulators(self, accumulators):
       sums, counts = zip(*accumulators)
       return sum(sums), sum(counts)
 
-    def extract_output(self, (sum_, count)):
+    def extract_output(self, sum_count):
+      (sum_, count) = sum_count
       if not count:
         return float('nan')
       return sum_ / float(count)
@@ -619,7 +623,7 @@ class PTransformTest(unittest.TestCase):
     pipeline = TestPipeline()
     t = (beam.Map(lambda x: (x, 1))
          | beam.GroupByKey()
-         | beam.Map(lambda (x, ones): (x, sum(ones))))
+         | beam.Map(lambda x_ones: (x_ones[0], sum(x_ones[1]))))
     result = pipeline | 'Start' >> beam.Create(['a', 'a', 'b']) | t
     assert_that(result, equal_to([('a', 2), ('b', 1)]))
     pipeline.run()
@@ -643,7 +647,7 @@ class PTransformTest(unittest.TestCase):
                 | beam.Flatten()
                 | beam.Map(lambda x: (x, None))
                 | beam.GroupByKey()
-                | beam.Map(lambda (x, _): x))
+                | beam.Map(lambda kv: kv[0]))
     self.assertEqual([1, 2, 3], sorted(([1, 2], [2, 3]) | DisjointUnion()))
 
   def test_apply_to_crazy_pvaluish(self):
@@ -720,7 +724,7 @@ class PTransformLabelsTest(unittest.TestCase):
     pipeline = TestPipeline()
     map1 = 'Map1' >> beam.Map(lambda x: (x, 1))
     gbk = 'Gbk' >> beam.GroupByKey()
-    map2 = 'Map2' >> beam.Map(lambda (x, ones): (x, sum(ones)))
+    map2 = 'Map2' >> beam.Map(lambda x_ones2: (x_ones2[0], sum(x_ones2[1])))
     t = (map1 | gbk | map2)
     result = pipeline | 'Start' >> beam.Create(['a', 'a', 'b']) | t
     self.assertTrue('Map1|Gbk|Map2/Map1' in pipeline.applied_labels)
@@ -1320,7 +1324,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | beam.Create([(1, 3.0), (2, 4.9), (3, 9.5)])
-       | ('Add' >> beam.FlatMap(lambda (x, y): [x + y])
+       | ('Add' >> beam.FlatMap(lambda x_y: [x_y[0] + x_y[1]])
           .with_input_types(typehints.Tuple[int, int]).with_output_types(int))
       )
       self.p.run()
@@ -1328,9 +1332,11 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     self.assertStartswith(
         e.exception.message,
         "Runtime type violation detected within ParDo(Add): "
-        "Type-hint for argument: 'y' violated. "
-        "Expected an instance of <type 'int'>, "
-        "instead found 3.0, an instance of <type 'float'>.")
+        "Type-hint for argument: 'x_y' violated: "
+        "Tuple[int, int] hint type-constraint violated. "
+        "The type of element #1 in the passed tuple is incorrect. "
+        "Expected an instance of type int, instead received an instance "
+        "of type float.")
 
   def test_pipeline_runtime_checking_violation_simple_type_output(self):
     self.p._options.view_as(TypeOptions).runtime_type_check = True
@@ -1339,9 +1345,9 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     # The type-hinted applied via the 'returns()' method indicates the ParDo
     # should output an instance of type 'int', however a 'float' will be
     # generated instead.
-    print "HINTS", ('ToInt' >> beam.FlatMap(
+    print("HINTS", ('ToInt' >> beam.FlatMap(
         lambda x: [float(x)]).with_input_types(int).with_output_types(
-            int)).get_type_hints()
+            int)).get_type_hints())
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | beam.Create([1, 2, 3])
@@ -1368,7 +1374,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
     with self.assertRaises(typehints.TypeCheckError) as e:
       (self.p
        | beam.Create([(1, 3.0), (2, 4.9), (3, 9.5)])
-       | ('Swap' >> beam.FlatMap(lambda (x, y): [x + y])
+       | ('Swap' >> beam.FlatMap(lambda x_y1: [x_y1[0] + x_y1[1]])
           .with_input_types(typehints.Tuple[int, float])
           .with_output_types(typehints.Tuple[float, int]))
       )
@@ -1587,7 +1593,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'C' >> beam.Create(range(5)).with_output_types(int)
          | 'Mean' >> combine.Mean.Globally())
 
-    self.assertTrue(d.element_type is float)
+    self.assertEqual(float, d.element_type)
     assert_that(d, equal_to([2.0]))
     self.p.run()
 
@@ -1610,7 +1616,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'C' >> beam.Create(range(5)).with_output_types(int)
          | 'Mean' >> combine.Mean.Globally())
 
-    self.assertTrue(d.element_type is float)
+    self.assertEqual(float, d.element_type)
     assert_that(d, equal_to([2.0]))
     self.p.run()
 
@@ -1703,7 +1709,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'P' >> beam.Create(range(5)).with_output_types(int)
          | 'CountInt' >> combine.Count.Globally())
 
-    self.assertTrue(d.element_type is int)
+    self.assertEqual(int, d.element_type)
     assert_that(d, equal_to([5]))
     self.p.run()
 
@@ -1714,7 +1720,7 @@ class PTransformTypeCheckTestCase(TypeHintTestCase):
          | 'P' >> beam.Create(range(5)).with_output_types(int)
          | 'CountInt' >> combine.Count.Globally())
 
-    self.assertTrue(d.element_type is int)
+    self.assertEqual(int, d.element_type)
     assert_that(d, equal_to([5]))
     self.p.run()
 

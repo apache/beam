@@ -41,6 +41,7 @@ import inspect
 import operator
 import os
 import sys
+from functools import reduce
 
 from google.protobuf import wrappers_pb2
 
@@ -714,8 +715,8 @@ def label_from_callable(fn):
   elif hasattr(fn, '__name__'):
     if fn.__name__ == '<lambda>':
       return '<lambda at %s:%s>' % (
-          os.path.basename(fn.func_code.co_filename),
-          fn.func_code.co_firstlineno)
+          os.path.basename(fn.__code__.co_filename),
+          fn.__code__.co_firstlineno)
     return fn.__name__
   return str(fn)
 

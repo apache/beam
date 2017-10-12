@@ -277,7 +277,7 @@ class QueryIterator(object):
     self._project = project
     self._namespace = namespace
     self._start_cursor = None
-    self._limit = self._query.limit.value or sys.maxint
+    self._limit = self._query.limit.value or sys.maxsize
     self._req = make_request(project, namespace, query)
 
   @retry.with_exponential_backoff(num_retries=5,
