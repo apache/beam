@@ -1,27 +1,90 @@
 package harness
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"os"
-	"regexp"
 	"time"
+
+	"runtime"
 
 	"github.com/golang/protobuf/ptypes"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
+
+// TODO(herohde) 10/12/2017: make this file a separate package. Then
+// populate InstructionReference and PrimitiveTransformReference properly.
+
+// TODO(herohde) 10/13/2017: add top-level harness.Main panic handler that flushes logs.
+// Also make logger flush on Fatal severity messages.
+
+const instKey = "beam:inst"
+
+func setInstID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, instKey, id)
+}
+
+func tryGetInstID(ctx context.Context) (string, bool) {
+	id := ctx.Value(instKey)
+	if id == nil {
+		return "", false
+	}
+	return id.(string), true
+}
+
+type logger struct {
+	out chan<- *pb.LogEntry
+}
+
+func (l *logger) Log(ctx context.Context, sev log.Severity, calldepth int, msg string) {
+	now, _ := ptypes.TimestampProto(time.Now())
+
+	entry := &pb.LogEntry{
+		Timestamp: now,
+		Severity:  convertSeverity(sev),
+		Message:   msg,
+	}
+	if _, file, line, ok := runtime.Caller(calldepth); ok {
+		entry.LogLocation = fmt.Sprintf("%v:%v", file, line)
+	}
+	if id, ok := tryGetInstID(ctx); ok {
+		entry.InstructionReference = id
+	}
+
+	select {
+	case l.out <- entry:
+		// ok
+	default:
+		// buffer full: drop to stderr.
+		fmt.Fprintln(os.Stderr, msg)
+	}
+}
+
+func convertSeverity(sev log.Severity) pb.LogEntry_Severity_Enum {
+	switch sev {
+	case log.SevDebug:
+		return pb.LogEntry_Severity_DEBUG
+	case log.SevInfo:
+		return pb.LogEntry_Severity_INFO
+	case log.SevWarn:
+		return pb.LogEntry_Severity_WARN
+	case log.SevError:
+		return pb.LogEntry_Severity_ERROR
+	case log.SevFatal:
+		return pb.LogEntry_Severity_CRITICAL
+	default:
+		return pb.LogEntry_Severity_INFO
+	}
+}
 
 // setupRemoteLogging redirects local log messages to FnHarness. It will
 // try to reconnect, if a connection goes bad. Falls back to stdout.
 func setupRemoteLogging(ctx context.Context, endpoint string) {
-	w := &remoteWriter{make(chan *pb.LogEntry, 2000), endpoint}
+	buf := make(chan *pb.LogEntry, 2000)
+	log.SetLogger(&logger{out: buf})
 
-	// Set up log prefix: "2015/08/24 10:10:55 foo.go:12: Foo .."
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-	log.SetOutput(w)
-
+	w := &remoteWriter{buf, endpoint}
 	go w.Run(ctx)
 }
 
@@ -40,7 +103,7 @@ func (w *remoteWriter) Run(ctx context.Context) error {
 }
 
 func (w *remoteWriter) connect(ctx context.Context) error {
-	conn, err := dial(w.endpoint, 30*time.Second)
+	conn, err := dial(ctx, w.endpoint, 30*time.Second)
 	if err != nil {
 		return err
 	}
@@ -71,65 +134,4 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 		// fmt.Fprintf(os.Stderr, "SENT: %v\n", msg)
 	}
 	return fmt.Errorf("Internal: buffer closed?")
-}
-
-// Match time, such as "2015/08/24 11:30:07.400423 " or "2015/08/24 11:30:07 "
-var timeExp = regexp.MustCompile(`\A(\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}(?:\.\d{6})?) `)
-
-// Match source location, such as "main.go:12: "
-var lineExp = regexp.MustCompile(`\A(.*\.go:(?:\d*)?): `)
-
-// Write converts a log message and queues it for gRPC delivery. Non-blocking.
-//
-// The log string will have a (customizable) prefix added by the log.Print
-// family as well as a trailing newline, if not already present in the original
-// log string. The log string may itself contain newlines and other control
-// characters. Fortunately, the log package guarantees that one log invocation
-// results in exactly one call to Write, so we do not have to detect log string
-// alignment.
-//
-// For a log.Print("MESSAGE"), we thus expect the message by the
-// standard logger to look like:
-//
-//       "2015/08/24 11:48:18 main.go:16: MESSAGE\n".
-//
-// We are strict with the expected format and fallback to a simple INFO message
-// if we can't parse it. Logs to stderr if buffer is full.
-func (w *remoteWriter) Write(p []byte) (n int, err error) {
-	raw := p
-	if bytes.HasSuffix(raw, []byte{'\n'}) {
-		raw = raw[:len(raw)-1]
-	}
-
-	now, _ := ptypes.TimestampProto(time.Now())
-	entry := &pb.LogEntry{
-		Timestamp: now,
-		Severity:  pb.LogEntry_Severity_INFO,
-	}
-
-	if res := timeExp.FindSubmatch(raw); len(res) > 1 {
-		if t, err := time.Parse("2006/01/02 15:04:05.000000", string(res[1])); err == nil {
-			entry.Timestamp, _ = ptypes.TimestampProto(t)
-			raw = raw[len(res[0]):]
-
-			if res := lineExp.FindSubmatch(raw); len(res) > 1 {
-				entry.LogLocation = string(res[1])
-				raw = raw[len(res[0]):]
-			} // else ignore: no source information.
-		} // else ignore: cannot parse timestamp
-	}
-
-	entry.Message = string(raw)
-
-	w.buffer <- entry
-	return len(p), nil
-
-	/*
-		select {
-		case :
-			return len(p), nil
-		case <-time.After(200 * time.Millisecond):
-			return fmt.Fprint(os.Stderr, p)
-		}
-	*/
 }

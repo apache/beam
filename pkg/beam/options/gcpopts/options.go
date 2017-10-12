@@ -2,8 +2,10 @@
 package gcpopts
 
 import (
+	"context"
 	"flag"
-	"log"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 var (
@@ -11,11 +13,11 @@ var (
 	Project = flag.String("project", "", "Google Cloud Platform project ID.")
 )
 
-// GetProject returns the project, if non empty and log.Fatals otherwise.
+// GetProject returns the project, if non empty and exits otherwise.
 // Convenience function.
-func GetProject() string {
+func GetProject(ctx context.Context) string {
 	if *Project == "" {
-		log.Fatal("No Google Cloud project specified. Use --project=<project>")
+		log.Exit(ctx, "No Google Cloud project specified. Use --project=<project>")
 	}
 	return *Project
 }

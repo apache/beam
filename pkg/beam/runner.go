@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"log"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // TODO(herohde) 7/6/2017: do we want to make the selected runner visible to
@@ -30,7 +30,7 @@ func RegisterRunner(name string, fn func(ctx context.Context, p *Pipeline) error
 func Run(ctx context.Context, runner string, p *Pipeline) error {
 	fn, ok := runners[runner]
 	if !ok {
-		log.Fatalf("Runner %v not registed. Forgot to _ import it?", runner)
+		log.Exitf(ctx, "Runner %v not registed. Forgot to _ import it?", runner)
 	}
 	return fn(ctx, p)
 }

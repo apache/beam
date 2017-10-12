@@ -2,7 +2,6 @@ package beam
 
 import (
 	"fmt"
-
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"

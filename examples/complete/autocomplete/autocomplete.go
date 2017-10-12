@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"os"
 	"regexp"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
@@ -33,12 +33,14 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
-	log.Print("Running autocomplete")
+	ctx := context.Background()
+
+	log.Info(ctx, "Running autocomplete")
 
 	p := beam.NewPipeline()
 	lines, err := textio.Immediate(p, *input)
 	if err != nil {
-		log.Fatalf("Failed to read %v: %v", *input, err)
+		log.Exitf(ctx, "Failed to read %v: %v", *input, err)
 	}
 	words := beam.ParDo(p, extractFn, lines)
 
@@ -47,7 +49,7 @@ func main() {
 	})
 	debug.Print(p, hits)
 
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

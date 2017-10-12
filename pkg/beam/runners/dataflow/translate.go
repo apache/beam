@@ -3,7 +3,6 @@ package dataflow
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net/url"
 	"path"
 	"time"
@@ -235,8 +234,6 @@ func serializeFn(edge *graph.MultiEdge) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("Failed to serialize %v: %v", edge, err)
 	}
-
-	log.Printf("SerializedFn: %v", proto.MarshalTextString(ref))
 	return protox.EncodeBase64(ref)
 }
 

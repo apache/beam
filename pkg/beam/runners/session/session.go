@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -21,6 +20,7 @@ import (
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	rapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_api_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"google.golang.org/grpc"
 )
 
@@ -237,19 +237,19 @@ func (l *loggingServer) Logging(stream fnapi_pb.BeamFnLogging_LoggingServer) err
 		}
 
 		for _, e := range in.GetLogEntries() {
-			log.Print(e.GetMessage())
+			log.Info(stream.Context(), e.GetMessage())
 		}
 	}
 }
 
 // Execute launches the supplied pipeline using a session file as the source of inputs.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
-	worker, err := buildLocalBinary()
+	worker, err := buildLocalBinary(ctx)
 	if err != nil {
 		return fmt.Errorf("Couldn't build worker binary: %v", err)
 	}
 
-	fmt.Printf("built worker binary at %s\n", worker)
+	log.Infof(ctx, "built worker binary at %s\n", worker)
 
 	// Start up the grpc logging service.
 	ls := grpc.NewServer()
@@ -293,7 +293,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 // buildLocalBinary is cribbed from the Dataflow runner, but doesn't force the
 // Linux architecture, since the worker runs in the pipeline launch
 // environment.
-func buildLocalBinary() (string, error) {
+func buildLocalBinary(ctx context.Context) (string, error) {
 	ret := filepath.Join(os.TempDir(), fmt.Sprintf("session-runner-%v", time.Now().UnixNano()))
 
 	program := ""
@@ -308,14 +308,14 @@ func buildLocalBinary() (string, error) {
 		return "", fmt.Errorf("could not detect user main")
 	}
 
-	log.Printf("Compiling %v as %v", program, ret)
+	log.Infof(ctx, "Compiling %v as %v", program, ret)
 
 	// Cross-compile given go program. Not awesome.
 	build := []string{"go", "build", "-o", ret, program}
 
 	cmd := exec.Command(build[0], build[1:]...)
 	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Print(string(out))
+		log.Info(ctx, string(out))
 		return "", fmt.Errorf("failed to compile %v: %v", program, err)
 	}
 	return ret, nil

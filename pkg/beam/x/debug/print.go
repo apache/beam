@@ -1,13 +1,14 @@
 package debug
 
 import (
-	"log"
+	"fmt"
 	"reflect"
 
-	"fmt"
+	"context"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 func init() {
@@ -40,8 +41,8 @@ type printFn struct {
 	Format string `json:"format"`
 }
 
-func (f *printFn) ProcessElement(t beam.T) beam.T {
-	log.Printf(f.Format, t)
+func (f *printFn) ProcessElement(ctx context.Context, t beam.T) beam.T {
+	log.Infof(ctx, f.Format, t)
 	return t
 }
 
@@ -49,8 +50,8 @@ type printKVFn struct {
 	Format string `json:"format"`
 }
 
-func (f *printKVFn) ProcessElement(x beam.X, y beam.Y) (beam.X, beam.Y) {
-	log.Printf(f.Format, fmt.Sprintf("(%v,%v)", x, y))
+func (f *printKVFn) ProcessElement(ctx context.Context, x beam.X, y beam.Y) (beam.X, beam.Y) {
+	log.Infof(ctx, f.Format, fmt.Sprintf("(%v,%v)", x, y))
 	return x, y
 }
 
@@ -58,13 +59,13 @@ type printGBKFn struct {
 	Format string `json:"format"`
 }
 
-func (f *printGBKFn) ProcessElement(x beam.X, iter func(*beam.Y) bool) beam.X {
+func (f *printGBKFn) ProcessElement(ctx context.Context, x beam.X, iter func(*beam.Y) bool) beam.X {
 	var ys []string
 	var y beam.Y
 	for iter(&y) {
 		ys = append(ys, fmt.Sprintf("%v", y))
 	}
-	log.Printf(f.Format, fmt.Sprintf("(%v,%v)", x, ys))
+	log.Infof(ctx, f.Format, fmt.Sprintf("(%v,%v)", x, ys))
 	return x
 }
 

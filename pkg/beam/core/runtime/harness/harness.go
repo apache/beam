@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"runtime/pprof"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 	"google.golang.org/grpc"
 )
@@ -25,9 +25,6 @@ import (
 // "pipeline-construction time" -- on each worker. It is a Fn API client and
 // ultimately responsible for correctly executing user code.
 func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
-	// TODO: we need a way to tell the harness that we (re)started and it should
-	// assume we've seen no messages. Sleep, for now, to dodge startup race.
-
 	setupRemoteLogging(ctx, loggingEndpoint)
 	setupDiagnosticRecording()
 
@@ -36,13 +33,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// Connect to FnAPI control server. Receive and execute work.
 	// TODO: setup data manager, DoFn register
 
-	go func() {
-		for t := range time.Tick(30 * time.Second) {
-			log.Printf("Tick: %v", t)
-		}
-	}()
-
-	conn, err := dial(controlEndpoint, 60*time.Second)
+	conn, err := dial(ctx, controlEndpoint, 60*time.Second)
 	if err != nil {
 		return fmt.Errorf("Failed to connect: %v", err)
 	}
@@ -53,7 +44,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		return fmt.Errorf("Failed to connect to control service: %v", err)
 	}
 
-	log.Printf("Successfully connected to control @ %v", controlEndpoint)
+	log.Debugf(ctx, "Successfully connected to control @ %v", controlEndpoint)
 
 	// Each ProcessBundle is a sub-graph of the original one.
 
@@ -64,10 +55,10 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	go func() {
 		defer wg.Done()
 		for resp := range respc {
-			log.Printf("RESP: %v", proto.MarshalTextString(resp))
+			log.Debugf(ctx, "RESP: %v", proto.MarshalTextString(resp))
 
 			if err := client.Send(resp); err != nil {
-				log.Printf("Failed to respond: %v", err)
+				log.Errorf(ctx, "Failed to respond: %v", err)
 			}
 		}
 	}()
@@ -91,7 +82,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			return fmt.Errorf("Recv failed: %v", err)
 		}
 
-		log.Printf("RECV: %v", proto.MarshalTextString(req))
+		log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
 		recordInstructionRequest(req)
 
 		if isEnabled("cpu_profiling") {
@@ -103,7 +94,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 		if isEnabled("cpu_profiling") {
 			pprof.StopCPUProfile()
 			if err := ioutil.WriteFile(fmt.Sprintf("%s/cpu_prof%s", storagePath, req.InstructionId), cpuProfBuf.Bytes(), 0644); err != nil {
-				log.Printf("Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
+				log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
 			}
 		}
 
@@ -123,6 +114,7 @@ type control struct {
 
 func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequest) *pb.InstructionResponse {
 	id := req.GetInstructionId()
+	ctx = context.WithValue(ctx, instKey, id)
 
 	switch {
 	case req.GetRegister() != nil:
@@ -134,7 +126,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 				return fail(id, "Invalid bundle desc: %v", err)
 			}
 			c.graphs[desc.GetId()] = g
-			log.Printf("Added subgraph %v:\n %v", desc.GetId(), g)
+			log.Debugf(ctx, "Added subgraph %v:\n %v", desc.GetId(), g)
 		}
 
 		return &pb.InstructionResponse{
@@ -149,7 +141,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 
 		// NOTE: the harness sends a 0-length process bundle request to sources (changed?)
 
-		log.Printf("PB: %v", msg)
+		log.Debugf(ctx, "PB: %v", msg)
 
 		ref := msg.GetProcessBundleDescriptorReference()
 		g, ok := c.graphs[ref]
@@ -178,7 +170,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 	case req.GetProcessBundleProgress() != nil:
 		msg := req.GetProcessBundleProgress()
 
-		log.Printf("PB Progress: %v", msg)
+		log.Debugf(ctx, "PB Progress: %v", msg)
 
 		return &pb.InstructionResponse{
 			InstructionId: id,
@@ -190,7 +182,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 	case req.GetProcessBundleSplit() != nil:
 		msg := req.GetProcessBundleSplit()
 
-		log.Printf("PB Split: %v", msg)
+		log.Debugf(ctx, "PB Split: %v", msg)
 
 		return &pb.InstructionResponse{
 			InstructionId: id,
@@ -216,8 +208,8 @@ func fail(id, format string, args ...interface{}) *pb.InstructionResponse {
 
 // dial to the specified endpoint. if timeout <=0, call blocks until
 // grpc.Dial succeeds.
-func dial(endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
-	log.Printf("Connecting via grpc @ %s ...", endpoint)
+func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
+	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
 
 	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
 
