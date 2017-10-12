@@ -179,6 +179,7 @@ public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
   private static final long MAX_NUM_KEYS = (long) 1e6;
+  // TODO calculate number of samples based on the size of the input.
   private static final int DEFAULT_NUM_SAMPLES = 1000;
 
   /**
@@ -615,7 +616,6 @@ public class SpannerIO {
           PTransform<PCollection<KV<String, byte[]>>, PCollection<KV<String, List<byte[]>>>>
               sampler);
 
-
       abstract Write build();
     }
 
@@ -676,7 +676,6 @@ public class SpannerIO {
       return toBuilder().setSampler(sampler).build();
     }
 
-
     /**
      * Same transform but can be applied to {@link PCollection} of {@link MutationGroup}.
      */
@@ -698,7 +697,6 @@ public class SpannerIO {
           .apply("Write mutations to Cloud Spanner", new WriteGrouped(this));
       return PDone.in(input.getPipeline());
     }
-
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {

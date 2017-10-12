@@ -37,7 +37,6 @@ public class SdkCoreApiSurfaceTest {
     @SuppressWarnings("unchecked")
     final Set<String> allowed =
         ImmutableSet.of(
-            "com.google.common",
             "org.apache.beam",
             "com.fasterxml.jackson.annotation",
             "com.fasterxml.jackson.core",
