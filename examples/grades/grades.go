@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/top"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
@@ -25,16 +25,18 @@ func alphabetically(a, b Grade) bool {
 	return a.Name < b.Name
 }
 
-func printTopFn(list []Grade) {
-	log.Printf("TOP %v student(s):", len(list))
+func printTopFn(ctx context.Context, list []Grade) {
+	log.Infof(ctx, "TOP %v student(s):", len(list))
 	for i, student := range list {
-		log.Printf(" %v:\t%v\t(GPA: %v)", i+1, student.Name, student.GPA)
+		log.Infof(ctx, " %v:\t%v\t(GPA: %v)", i+1, student.Name, student.GPA)
 	}
 }
 
 func main() {
 	flag.Parse()
 	beam.Init()
+
+	ctx := context.Background()
 
 	data := []Grade{
 		{"Adam", 2.3},
@@ -47,7 +49,7 @@ func main() {
 		{"Chad", 1.1},
 	}
 
-	log.Print("Running grades")
+	log.Info(ctx, "Running grades")
 
 	p := beam.NewPipeline()
 	students := beam.CreateList(p, data)
@@ -81,7 +83,7 @@ func main() {
 	debug.Printf(p, "Sum: %v", stats.Sum(p, grades))
 	debug.Printf(p, "Mean: %v", stats.Mean(p, grades))
 
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

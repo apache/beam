@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"reflect"
 	"regexp"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
@@ -62,18 +62,22 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
+	ctx := context.Background()
+
 	if *search == "" {
-		log.Fatal("No search string provided")
+		log.Exit(ctx, "No search string provided")
 	}
 
-	log.Print("Running contains")
+	log.Info(ctx, "Running contains")
+
 	// Construct a pipeline that only keeps 10 words that contain the provided search string.
 	p := beam.NewPipeline()
 	lines := textio.Read(p, *input)
 	filtered := FilterWords(p, lines)
 	formatted := beam.ParDo(p, formatFn, filtered)
 	debug.Print(p, formatted)
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

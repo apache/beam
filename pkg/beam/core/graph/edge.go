@@ -2,8 +2,6 @@ package graph
 
 import (
 	"fmt"
-	"log"
-
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
@@ -188,8 +186,6 @@ func NewGBK(g *Graph, s *Scope, n *Node) (*MultiEdge, error) {
 	edge.Op = GBK
 	edge.Input = []*Inbound{{Kind: Main, From: n, Type: inT}}
 	edge.Output = []*Outbound{{To: out, Type: outT}}
-
-	log.Printf("EDGE: %v", edge)
 	return edge, nil
 }
 
@@ -221,8 +217,6 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: t})
 	}
 	edge.Output = []*Outbound{{To: g.NewNode(t, w), Type: t}}
-
-	log.Printf("EDGE: %v", edge)
 	return edge, nil
 }
 
@@ -262,8 +256,6 @@ func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs ma
 		n := g.NewNode(out[i], inputWindow(in))
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
-
-	log.Printf("EDGE: %v", edge)
 	return edge, nil
 }
 
@@ -349,8 +341,6 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 		n := g.NewNode(out[i], inputWindow(in))
 		edge.Output = append(edge.Output, &Outbound{To: n, Type: outbound[i]})
 	}
-
-	log.Printf("EDGE: %v", edge)
 	return edge, nil
 }
 
@@ -366,8 +356,6 @@ func NewImpulse(g *Graph, s *Scope, value []byte) *MultiEdge {
 	edge.Op = Impulse
 	edge.Value = value
 	edge.Output = []*Outbound{{To: n, Type: ft}}
-
-	log.Printf("EDGE: %v", edge)
 	return edge
 }
 

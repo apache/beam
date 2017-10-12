@@ -6,11 +6,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/bigqueryio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
@@ -70,19 +70,21 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
-	if *output == "" {
-		log.Fatal("No output table specified. Use --output=<table>")
-	}
-	project := gcpopts.GetProject()
+	ctx := context.Background()
 
-	log.Print("Running combine")
+	if *output == "" {
+		log.Exit(ctx, "No output table specified. Use --output=<table>")
+	}
+	project := gcpopts.GetProject(ctx)
+
+	log.Info(ctx, "Running combine")
 
 	p := beam.NewPipeline()
 	rows := bigqueryio.Read(p, project, *input, reflect.TypeOf(WordRow{}))
 	out := PlaysForWords(p, rows)
 	bigqueryio.Write(p, project, *output, out)
 
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

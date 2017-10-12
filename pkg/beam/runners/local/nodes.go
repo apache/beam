@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // Impulse emits its single element in one invocation.
@@ -176,7 +176,7 @@ func (w *Wait) notify(ctx context.Context) error {
 	// All ready: continue the processing. We may or may not have buffered
 	// all the data. If not, Wait is a pass-through going forward.
 
-	log.Printf("Wait[%v] unblocked w/ %v [%v]", w.UID, len(w.buf), w.down)
+	log.Debugf(ctx, "Wait[%v] unblocked w/ %v [%v]", w.UID, len(w.buf), w.down)
 
 	if err := w.next.Up(ctx); err != nil {
 		return err
@@ -193,7 +193,7 @@ func (w *Wait) notify(ctx context.Context) error {
 		}
 	}
 
-	log.Printf("Wait[%v] done", w.UID)
+	log.Debugf(ctx, "Wait[%v] done", w.UID)
 	return nil
 }
 

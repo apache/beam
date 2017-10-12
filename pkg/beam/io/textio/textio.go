@@ -5,12 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"reflect"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 func init() {
@@ -88,7 +88,7 @@ func expandFn(ctx context.Context, glob string, emit func(string)) error {
 }
 
 func readFn(ctx context.Context, filename string, emit func(string)) error {
-	log.Printf("Reading from %v", filename)
+	log.Infof(ctx, "Reading from %v", filename)
 
 	fs, err := newFileSystem(ctx, filename)
 	if err != nil {
@@ -140,7 +140,7 @@ func (w *writeFileFn) Setup(ctx context.Context) error {
 		return err
 	}
 
-	log.Printf("Writing to %v", w.Filename)
+	log.Infof(ctx, "Writing to %v", w.Filename)
 
 	w.fs = fs
 	w.fd = fd

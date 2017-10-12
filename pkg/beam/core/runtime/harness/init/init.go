@@ -7,8 +7,12 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"log"
 	"time"
+
+	"fmt"
+	"os"
+
+	"runtime/debug"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness"
@@ -55,27 +59,40 @@ func hook() {
 		return
 	}
 
-	// TODO(herohde) 7/7/2017: options should be acquired through the FnAPI
-	// instead, for example as part of a "login" message response.
+	// Initialization logging
+	//
+	// We use direct output to stderr here, because it is expected that logging
+	// will be captured by the framework -- which may not be functional if
+	// harness.Main returns. We want to be sure any error makes it out.
 
 	if *options != "" {
 		var opt wrapper
 		if err := json.Unmarshal([]byte(*options), &opt); err != nil {
-			log.Fatalf("Failed to parse pipeline options: %v", err)
+			fmt.Fprintf(os.Stderr, "Failed to parse pipeline options '%v': %v", *options, err)
+			os.Exit(1)
 		}
 		runtime.GlobalOptions.Import(opt.Options)
 	}
 
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "Worker panic: %v", r)
+			debug.PrintStack()
+			os.Exit(2)
+		}
+	}()
+
 	// Since Init() is hijacking main, it's appropriate to do as main
 	// does, and establish the background context here.
-	ctx := context.Background()
-	if err := harness.Main(ctx, *loggingEndpoint, *controlEndpoint); err != nil {
-		log.Fatalf("Worker failed: %v", err)
+
+	if err := harness.Main(context.Background(), *loggingEndpoint, *controlEndpoint); err != nil {
+		fmt.Fprintf(os.Stderr, "Worker failed: %v", err)
+		os.Exit(1)
 	}
 
-	log.Print("Worker exited successfully!")
+	fmt.Fprint(os.Stderr, "Worker exited successfully!")
 	for {
-		// TODO: Flush logs? For now, just hang around until we're terminated.
+		// Just hang around until we're terminated.
 		time.Sleep(time.Hour)
 	}
 }

@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"google.golang.org/grpc"
 )
 
@@ -72,7 +72,7 @@ type DataChannel struct {
 }
 
 func NewDataChannel(ctx context.Context, port graph.Port) (*DataChannel, error) {
-	cc, err := dial(port.URL, 15*time.Second)
+	cc, err := dial(ctx, port.URL, 15*time.Second)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %v", err)
 	}
@@ -108,8 +108,8 @@ func (m *DataChannel) read(ctx context.Context) {
 		msg, err := m.client.Recv()
 		if err != nil {
 			if err == io.EOF {
-				// TODO: can this happen before shutdown? Reconnect?
-				log.Printf("DataChannel %v closed", m.port)
+				// TODO(herohde) 10/12/2017: can this happen before shutdown? Reconnect?
+				log.Warnf(ctx, "DataChannel %v closed", m.port)
 				return
 			}
 			panic(fmt.Errorf("channel %v bad: %v", m.port, err))

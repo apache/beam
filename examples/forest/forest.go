@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/debug"
 )
@@ -36,7 +36,9 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
-	log.Print("Running forest")
+	ctx := context.Background()
+
+	log.Info(ctx, "Running forest")
 
 	// Build a forest of processing nodes with flatten "branches".
 	p := beam.NewPipeline()
@@ -45,7 +47,7 @@ func main() {
 		debug.Print(p, t)
 	}
 
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

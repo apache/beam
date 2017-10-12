@@ -6,11 +6,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"regexp"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 	"github.com/apache/beam/sdks/go/pkg/beam/x/beamx"
 )
@@ -45,12 +45,14 @@ func main() {
 	flag.Parse()
 	beam.Init()
 
+	ctx := context.Background()
+
 	// Input validation is done as usual. Note that it must be after Init().
 	if *output == "" {
-		log.Fatal("No output provided")
+		log.Exit(ctx, "No output provided")
 	}
 
-	log.Print("Running wordcount")
+	log.Info(ctx, "Running wordcount")
 
 	// Construct a pipeline to count words.
 	p := beam.NewPipeline()
@@ -59,7 +61,7 @@ func main() {
 	formatted := beam.ParDo(p, formatFn, counted)
 	textio.Write(p, *output, formatted)
 
-	if err := beamx.Run(context.Background(), p); err != nil {
-		log.Fatalf("Failed to execute job: %v", err)
+	if err := beamx.Run(ctx, p); err != nil {
+		log.Exitf(ctx, "Failed to execute job: %v", err)
 	}
 }

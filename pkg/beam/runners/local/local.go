@@ -3,11 +3,11 @@ package local
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 func init() {
@@ -16,8 +16,8 @@ func init() {
 
 // Execute runs the pipeline in-process.
 func Execute(ctx context.Context, p *beam.Pipeline) error {
-	log.Print("Pipeline:")
-	log.Print(p)
+	log.Info(ctx, "Pipeline:")
+	log.Info(ctx, p)
 
 	list, _, err := p.Build()
 	if err != nil {
@@ -37,9 +37,9 @@ func ExecuteInternal(ctx context.Context, mgr exec.DataManager, instID string, l
 		return fmt.Errorf("translation failed: %v", err)
 	}
 
-	log.Print("Execution units:")
+	log.Debug(ctx, "Execution units:")
 	for _, u := range units {
-		log.Printf("%v: %v", u.ID(), u)
+		log.Debugf(ctx, "%v: %v", u.ID(), u)
 	}
 	return exec.Execute(ctx, units)
 }

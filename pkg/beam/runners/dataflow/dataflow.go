@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"os/user"
@@ -19,6 +18,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	// Importing to get the side effect of the remote execution hook. See init().
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
 	"golang.org/x/oauth2/google"
@@ -86,7 +86,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	// (1) Upload Go binary to GCS.
 
-	worker, err := buildLocalBinary()
+	worker, err := buildLocalBinary(ctx)
 	if err != nil {
 		return err
 	}
@@ -142,10 +142,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if *experiments != "" {
 		job.Environment.Experiments = strings.Split(*experiments, ",")
 	}
-	printJob(job)
+	printJob(ctx, job)
 
 	if *dryRun {
-		log.Print("Dry-run: not submitting job!")
+		log.Info(ctx, "Dry-run: not submitting job!")
 		return nil
 	}
 
@@ -160,12 +160,12 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return err
 	}
 
-	log.Printf("Submitted job: %v", upd.Id)
-	printJob(upd)
+	log.Infof(ctx, "Submitted job: %v", upd.Id)
+	printJob(ctx, upd)
 	if *endpoint == "" {
-		log.Printf("Console: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, project)
+		log.Infof(ctx, "Console: https://console.cloud.google.com/dataflow/job/%v?project=%v", upd.Id, project)
 	}
-	log.Printf("Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", project, upd.Id)
+	log.Infof(ctx, "Logs: https://console.cloud.google.com/logs/viewer?project=%v&resource=dataflow_step%%2Fjob_id%%2F%v", project, upd.Id)
 
 	if !*block {
 		return nil
@@ -180,17 +180,17 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 		switch j.CurrentState {
 		case "JOB_STATE_DONE":
-			log.Print("Job succeeded!")
+			log.Info(ctx, "Job succeeded!")
 			return nil
 
 		case "JOB_STATE_FAILED":
 			return fmt.Errorf("job %s failed", upd.Id)
 
 		case "JOB_STATE_RUNNING":
-			log.Print("Job still running ...")
+			log.Info(ctx, "Job still running ...")
 
 		default:
-			log.Printf("Job state: %v ...", j.CurrentState)
+			log.Infof(ctx, "Job state: %v ...", j.CurrentState)
 		}
 
 		time.Sleep(30 * time.Second)
@@ -206,7 +206,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	obj := path.Join(prefix, fmt.Sprintf("worker-%v", time.Now().UnixNano()))
 	if *dryRun {
 		full := fmt.Sprintf("gs://%v/%v", bucket, obj)
-		log.Printf("Dry-run: not uploading binary %v", full)
+		log.Infof(ctx, "Dry-run: not uploading binary %v", full)
 		return full, nil
 	}
 
@@ -231,10 +231,10 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 // * /Users/herohde/go/src/github.com/apache/beam/sdks/go/examples/wordcount/wordcount.go (skip: 3)
 //   /usr/local/go/src/runtime/proc.go (skip: 4)
 //   /usr/local/go/src/runtime/asm_amd64.s (skip: 5)
-func buildLocalBinary() (string, error) {
+func buildLocalBinary(ctx context.Context) (string, error) {
 	ret := filepath.Join(os.TempDir(), fmt.Sprintf("dataflow-go-%v", time.Now().UnixNano()))
 	if *dryRun {
-		log.Printf("Dry-run: not building binary %v", ret)
+		log.Infof(ctx, "Dry-run: not building binary %v", ret)
 		return ret, nil
 	}
 
@@ -250,7 +250,7 @@ func buildLocalBinary() (string, error) {
 		return "", fmt.Errorf("could not detect user main")
 	}
 
-	log.Printf("Cross-compiling %v as %v", program, ret)
+	log.Infof(ctx, "Cross-compiling %v as %v", program, ret)
 
 	// Cross-compile given go program. Not awesome.
 	build := []string{"go", "build", "-o", ret, program}
@@ -258,7 +258,7 @@ func buildLocalBinary() (string, error) {
 	cmd := exec.Command(build[0], build[1:]...)
 	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64")
 	if out, err := cmd.CombinedOutput(); err != nil {
-		log.Print(string(out))
+		log.Infof(ctx, string(out))
 		return "", fmt.Errorf("failed to cross-compile %v: %v", program, err)
 	}
 	return ret, nil
@@ -294,16 +294,16 @@ func newClient(ctx context.Context, endpoint string) (*df.Service, error) {
 		return nil, err
 	}
 	if endpoint != "" {
-		log.Printf("Dataflow endpoint override: %s", endpoint)
+		log.Infof(ctx, "Dataflow endpoint override: %s", endpoint)
 		client.BasePath = endpoint
 	}
 	return client, nil
 }
 
-func printJob(job *df.Job) {
+func printJob(ctx context.Context, job *df.Job) {
 	str, err := json.MarshalIndent(job, "", "  ")
 	if err != nil {
-		log.Printf("Failed to print job %v: %v", job.Id, err)
+		log.Infof(ctx, "Failed to print job %v: %v", job.Id, err)
 	}
-	log.Print(string(str))
+	log.Info(ctx, string(str))
 }

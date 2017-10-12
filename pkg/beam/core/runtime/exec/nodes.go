@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"path"
 	"reflect"
 
@@ -635,7 +634,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 			if size > -1 {
 				// Single chunk stream.
 
-				log.Printf("Fixed size=%v", size)
+				// log.Printf("Fixed size=%v", size)
 
 				for i := int32(0); i < size; i++ {
 					value, err := DecodeElement(cv, r)
