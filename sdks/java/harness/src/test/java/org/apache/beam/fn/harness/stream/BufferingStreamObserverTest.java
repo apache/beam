@@ -61,7 +61,7 @@ public class BufferingStreamObserverTest {
                     // critical section. Any thread that enters purposefully blocks by sleeping
                     // to increase the contention between threads artificially.
                     assertFalse(isCriticalSectionShared.getAndSet(true));
-                    Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+                    Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
                     onNextValues.add(t);
                     assertTrue(isCriticalSectionShared.getAndSet(false));
                   }
@@ -134,7 +134,7 @@ public class BufferingStreamObserverTest {
     }
 
     // Have them wait and then flip that we do allow elements and wake up those awaiting
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     elementsAllowed.set(true);
     phaser.arrive();
 
