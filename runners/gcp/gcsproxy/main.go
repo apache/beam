@@ -24,7 +24,7 @@ import (
 	"net"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact/gcsproxy"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/org_apache_beam_runner_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"google.golang.org/grpc"
 )
 
