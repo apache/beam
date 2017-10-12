@@ -289,6 +289,52 @@
     </profile>
 
     <profile>
+      <id>java8-enable-like-dependencies</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <build>
+        <plugins>
+          <!-- Override Beam parent to allow Java8 dependencies -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <version>${maven-enforcer-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>enforce</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <enforceBytecodeVersion>
+                      <maxJdkVersion>1.8</maxJdkVersion>
+                      <excludes>
+                        <!--
+                          Supplied by the user JDK and compiled with matching
+                          version. Is not shaded, so safe to ignore.
+                        -->
+                        <exclude>jdk.tools:jdk.tools</exclude>
+                      </excludes>
+                    </enforceBytecodeVersion>
+                    <requireJavaVersion>
+                      <version>[1.7,)</version>
+                    </requireJavaVersion>
+                    <requireMavenVersion>
+                      <!-- Keep aligned with preqrequisite section below. -->
+                      <version>[3.2,)</version>
+                    </requireMavenVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>
@@ -462,6 +508,19 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-harness</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -601,7 +660,7 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-	    <version>${project.version}</version>
+        <version>${project.version}</version>
       </dependency>
 
       <dependency>

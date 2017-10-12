@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.test;
+package org.apache.beam.harness.test;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;

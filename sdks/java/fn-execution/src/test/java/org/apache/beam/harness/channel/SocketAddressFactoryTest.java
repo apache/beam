@@ -16,9 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.channel;
+package org.apache.beam.harness.channel;
 
-import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -26,6 +25,7 @@ import io.netty.channel.unix.DomainSocketAddress;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -40,7 +40,7 @@ public class SocketAddressFactoryTest {
   @Test
   public void testHostPortSocket() {
     SocketAddress socketAddress = SocketAddressFactory.createFrom("localhost:123");
-    assertThat(socketAddress, instanceOf(InetSocketAddress.class));
+    assertThat(socketAddress, Matchers.instanceOf(InetSocketAddress.class));
     assertEquals("localhost", ((InetSocketAddress) socketAddress).getHostString());
     assertEquals(123, ((InetSocketAddress) socketAddress).getPort());
   }
@@ -50,7 +50,7 @@ public class SocketAddressFactoryTest {
     File tmpFile = tmpFolder.newFile();
     SocketAddress socketAddress = SocketAddressFactory.createFrom(
         "unix://" + tmpFile.getAbsolutePath());
-    assertThat(socketAddress, instanceOf(DomainSocketAddress.class));
+    assertThat(socketAddress, Matchers.instanceOf(DomainSocketAddress.class));
     assertEquals(tmpFile.getAbsolutePath(), ((DomainSocketAddress) socketAddress).path());
   }
 }

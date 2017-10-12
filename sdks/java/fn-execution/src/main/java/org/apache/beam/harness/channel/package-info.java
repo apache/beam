@@ -19,4 +19,4 @@
 /**
  * gRPC channel management.
  */
-package org.apache.beam.fn.harness.channel;
+package org.apache.beam.harness.channel;
