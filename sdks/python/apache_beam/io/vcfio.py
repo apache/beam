@@ -26,6 +26,7 @@ import collections
 from apache_beam.coders import coders
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
+from apache_beam.io import filebasedsource
 from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.transforms import PTransform
 
@@ -173,7 +174,7 @@ class VariantCall(object):
         [str(s) for s in [self.name, self.genotype, self.phaseset, self.info]])
 
 
-class _VcfSource(TextSource):
+class _VcfSource(filebasedsource.FileBasedSource):
   r"""A source for reading VCF files.
 
   Parses VCF files (version 4) using PyVCF library. If file_pattern specifies
@@ -190,26 +191,33 @@ class _VcfSource(TextSource):
                compression_type=CompressionTypes.AUTO,
                buffer_size=DEFAULT_VCF_READ_BUFFER_SIZE,
                validate=True):
-    super(_VcfSource, self).__init__(
+    super(_VcfSource, self).__init__(file_pattern, min_bundle_size,
+                                     compression_type=compression_type,
+                                     validate=validate)
+
+    self._coder = coders.StrUtf8Coder() # VCF files are UTF-8 per schema.
+    self._header_lines_per_file = {}
+    self._text_source = TextSource(
         file_pattern,
         min_bundle_size,
         compression_type,
         strip_trailing_newlines=True,
-        coder=coders.StrUtf8Coder(),  # VCF files are UTF-8 per schema.
+        coder=self._coder,
         buffer_size=buffer_size,
         validate=validate,
         skip_header_lines=0,
         header_matcher_predicate=lambda x: x.startswith('#'))
-    self._header_lines_per_file = {}
 
-  def process_header_lines_matching_predicate(self, file_name, header_lines):
+  def _process_header_lines_matching_predicate(self, file_name, header_lines):
     self._header_lines_per_file[file_name] = header_lines
 
   def read_records(self, file_name, range_tracker):
     def line_generator():
       header_processed = False
-      for line in super(_VcfSource, self).read_records(file_name,
-                                                       range_tracker):
+      for line in self._text_source.read_records(
+          file_name,
+          range_tracker,
+          self._process_header_lines_matching_predicate):
         if not header_processed and file_name in self._header_lines_per_file:
           for header in self._header_lines_per_file[file_name]:
             yield header

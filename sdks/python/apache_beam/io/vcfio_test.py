@@ -47,14 +47,17 @@ _SAMPLE_HEADER_LINES = [
     '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample1	Sample2\r\n',
 ]
 
+
 def get_full_file_path(file_name):
   """Returns the full path of the specified ``file_name`` from ``data``."""
   return os.path.join(
       os.path.dirname(__file__), '..', 'testing', 'data', 'vcf', file_name)
 
+
 def get_full_dir():
   """Returns the full path of the  ``data`` directory."""
   return os.path.join(os.path.dirname(__file__), '..', 'testing', 'data', 'vcf')
+
 
 # Helper method for comparing variants.
 def _variant_comparator(v1, v2):
@@ -111,7 +114,11 @@ class _TestCaseWithTempDirCleanUp(unittest.TestCase):
         f.write(line)
     return f.name
 
+
 class VcfSourceTest(_TestCaseWithTempDirCleanUp):
+
+  # Distribution should skip tests that need VCF files due to large size
+  VCF_FILE_DIR_MISSING = not os.path.exists(get_full_dir())
 
   def _read_records(self, file_or_pattern):
     source = VcfSource(file_or_pattern)
@@ -174,6 +181,7 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
                     info={'GQ': None}))
     return variant, vcf_line
 
+  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_read_single_file(self):
     test_data_conifgs = [
         {'file': 'valid-4.0.vcf', 'num_records': 5},
@@ -187,6 +195,7 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
           get_full_file_path(config['file']))
       self.assertEqual(config['num_records'], len(read_data))
 
+  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_read_file_pattern(self):
     read_data = self._read_records(
         os.path.join(get_full_dir(), 'valid-*.vcf'))
@@ -229,6 +238,7 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
     self.assertEqual(3, len(read_data))
     self._assert_variants_equal([variant_1, variant_2, variant_3], read_data)
 
+  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_read_after_splitting(self):
     file_name = get_full_file_path('valid-4.1-large.vcf')
     source = VcfSource(file_name)
@@ -418,6 +428,7 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
     self.assertEqual(1, len(read_data))
     self.assertEqual(expected_variant, read_data[0])
 
+  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_pipeline_read_single_file(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromVcf(
@@ -425,12 +436,14 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
     assert_that(pcoll, _count_equals_to(5))
     pipeline.run()
 
+  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_pipeline_read_file_pattern(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromVcf(
         os.path.join(get_full_dir(), 'valid-*.vcf'))
     assert_that(pcoll, _count_equals_to(9900))
     pipeline.run()
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

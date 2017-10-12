@@ -123,7 +123,7 @@ class _TextSource(filebasedsource.FileBasedSource):
         label='Coder')
     return parent_dd
 
-  def read_records(self, file_name, range_tracker):
+  def read_records(self, file_name, range_tracker, process_header_fn=None):
     start_offset = range_tracker.start_position()
     read_buffer = _TextSource.ReadBuffer('', 0)
 
@@ -138,7 +138,8 @@ class _TextSource(filebasedsource.FileBasedSource):
     with self.open_file(file_name) as file_to_read:
       position_after_processing_header_lines, header_lines = (
           self._process_header(file_to_read, read_buffer))
-      self.process_header_lines_matching_predicate(file_name, header_lines)
+      if process_header_fn:
+        process_header_fn(file_name, header_lines)
       start_offset = max(start_offset, position_after_processing_header_lines)
       if start_offset > position_after_processing_header_lines:
         # Seeking to one position before the start index and ignoring the
@@ -180,13 +181,6 @@ class _TextSource(filebasedsource.FileBasedSource):
         yield self._coder.decode(record)
         if num_bytes_to_next_record < 0:
           break
-
-  def process_header_lines_matching_predicate(self, file_name, header_lines):
-    # Performs any special processing based on header lines that match the
-    # 'header_matcher_predicate'. Implementation is currently intended for
-    # subclasses that handle special header-processing logic.
-    # TODO(BEAM-2776): Implement generic header processing functionality here.
-    pass
 
   def _process_header(self, file_to_read, read_buffer):
     # Returns a tuple containing the position in file after processing header
