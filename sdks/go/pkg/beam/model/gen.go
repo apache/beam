@@ -17,5 +17,5 @@ package model
 
 // TODO(herohde) 9/1/2017: for now, install protoc as described on grpc.io before running go generate.
 
-//go:generate protoc -I../../../../common/runner-api/src/main/proto ../../../../common/runner-api/src/main/proto/beam_artifact_api.proto --go_out=org_apache_beam_runner_v1,plugins=grpc:org_apache_beam_runner_v1
-//go:generate protoc -I../../../../common/fn-api/src/main/proto ../../../../common/fn-api/src/main/proto/beam_provision_api.proto --go_out=org_apache_beam_fn_v1,plugins=grpc:org_apache_beam_fn_v1
+//go:generate protoc -I../../../../../model/job-management/src/main/proto ../../../../../model/job-management/src/main/proto/beam_artifact_api.proto --go_out=jobmanagement_v1,plugins=grpc:jobmanagement_v1
+//go:generate protoc -I../../../../../model/fn-execution/src/main/proto ../../../../../model/fn-execution/src/main/proto/beam_provision_api.proto --go_out=fnexecution_v1,plugins=grpc:fnexecution_v1

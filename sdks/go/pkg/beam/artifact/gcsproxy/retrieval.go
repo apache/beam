@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"io"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/org_apache_beam_runner_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context"
