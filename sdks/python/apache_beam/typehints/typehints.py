@@ -65,6 +65,7 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 import collections
 import copy
+import sys
 import types
 
 __all__ = [
@@ -184,7 +185,21 @@ def bind_type_variables(type_constraint, bindings):
   return type_constraint
 
 
-class SequenceTypeConstraint(TypeConstraint):
+class IndexableTypeConstraint(TypeConstraint):
+  """An internal common base-class for all type constraints with indexing.
+  E.G. SequenceTypeConstraint + Tuple's of fixed size.
+  """
+
+  def _constraint_for_index(self, idx):
+    """Returns the type at the given index. This is used to allow type inference
+    to determine the correct type for a specific index. On lists this will also
+    be the same, however for tuples the value will depend on the position. This
+    was added as part of the futurize changes since more of the expressions now
+    index into tuples."""
+    raise NotImplementedError
+
+
+class SequenceTypeConstraint(IndexableTypeConstraint):
   """A common base-class for all sequence related type-constraint classes.
 
   A sequence is defined as an arbitrary length homogeneous container type. Type
@@ -213,6 +228,10 @@ class SequenceTypeConstraint(TypeConstraint):
 
   def _inner_types(self):
     yield self.inner_type
+
+  def _constraint_for_index(self, idx):
+    """Returns the type at the given index."""
+    return self.inner_type
 
   def _consistent_with_check_(self, sub):
     return (isinstance(sub, self.__class__)
@@ -314,8 +333,11 @@ def validate_composite_type_param(type_param, error_msg_prefix):
       parameter for a :class:`CompositeTypeHint`.
   """
   # Must either be a TypeConstraint instance or a basic Python type.
+  possible_classes = [type, TypeConstraint]
+  if sys.version_info[0] == 2:
+    possible_classes.append(types.ClassType)
   is_not_type_constraint = (
-      not isinstance(type_param, (type, types.ClassType, TypeConstraint))
+      not isinstance(type_param, tuple(possible_classes))
       and type_param is not None)
   is_forbidden_type = (isinstance(type_param, type) and
                        type_param in DISALLOWED_PRIMITIVE_TYPES)
@@ -340,7 +362,7 @@ def _unified_repr(o):
     A qualified name for the passed Python object fit for string formatting.
   """
   return repr(o) if isinstance(
-      o, (TypeConstraint, types.NoneType)) else o.__name__
+      o, (TypeConstraint, type(None))) else o.__name__
 
 
 def check_constraint(type_constraint, object_instance):
@@ -491,7 +513,7 @@ class UnionHint(CompositeTypeHint):
     if Any in params:
       return Any
     elif len(params) == 1:
-      return iter(params).next()
+      return next(iter(params))
     return self.UnionConstraint(params)
 
 
@@ -546,7 +568,7 @@ class TupleHint(CompositeTypeHint):
                    for elem in sub.tuple_types)
       return super(TupleSequenceConstraint, self)._consistent_with_check_(sub)
 
-  class TupleConstraint(TypeConstraint):
+  class TupleConstraint(IndexableTypeConstraint):
 
     def __init__(self, type_params):
       self.tuple_types = tuple(type_params)
@@ -565,6 +587,10 @@ class TupleHint(CompositeTypeHint):
     def _inner_types(self):
       for t in self.tuple_types:
         yield t
+
+    def _constraint_for_index(self, idx):
+      """Returns the type at the given index."""
+      return self.tuple_types[idx]
 
     def _consistent_with_check_(self, sub):
       return (isinstance(sub, self.__class__)

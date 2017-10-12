@@ -95,20 +95,32 @@ def run(argv=None, assert_results=None):
 
     # Prepare tab-delimited output; something like this:
     # "name"<TAB>"email_1,email_2"<TAB>"phone"<TAB>"first_snailmail_only"
-    tsv_lines = grouped | beam.Map(
-        lambda (name, (email, phone, snailmail)): '\t'.join(
-            ['"%s"' % name,
-             '"%s"' % ','.join(email),
-             '"%s"' % ','.join(phone),
-             '"%s"' % next(iter(snailmail), '')]))
+    def format_as_tsv(name_email_phone_snailmail):
+      (name, (email, phone, snailmail)) = name_email_phone_snailmail
+      return '\t'.join(
+          ['"%s"' % name,
+           '"%s"' % ','.join(email),
+           '"%s"' % ','.join(phone),
+           '"%s"' % next(iter(snailmail), '')])
+
+    tsv_lines = grouped | beam.Map(format_as_tsv)
 
     # Compute some stats about our database of people.
-    luddites = grouped | beam.Filter(  # People without email.
-        lambda (name, (email, phone, snailmail)): not next(iter(email), None))
-    writers = grouped | beam.Filter(   # People without phones.
-        lambda (name, (email, phone, snailmail)): not next(iter(phone), None))
-    nomads = grouped | beam.Filter(    # People without addresses.
-        lambda (name, (e, p, snailmail)): not next(iter(snailmail), None))
+    def without_email(name_email_phone_snailmail):
+      (_, (email, _, _)) = name_email_phone_snailmail
+      return not next(iter(email), None)
+
+    def without_phones(name_email_phone_snailmail):
+      (_, (_, phone, _)) = name_email_phone_snailmail
+      return not next(iter(phone), None)
+
+    def without_address(name_email_phone_snailmail):
+      (_, (_, _, snailmail)) = name_email_phone_snailmail
+      return not next(iter(snailmail), None)
+
+    luddites = grouped | beam.Filter(without_email) # People without email.
+    writers = grouped | beam.Filter(without_phones) # People without phones.
+    nomads = grouped | beam.Filter(without_address) # People without addresses.
 
     num_luddites = luddites | 'Luddites' >> beam.combiners.Count.Globally()
     num_writers = writers | 'Writers' >> beam.combiners.Count.Globally()
