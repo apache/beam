@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.test;
+package org.apache.beam.harness.test;
 
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;

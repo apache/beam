@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.test;
+package org.apache.beam.harness.test;
 
 import com.google.common.util.concurrent.ForwardingExecutorService;
 import java.util.concurrent.ExecutorService;
