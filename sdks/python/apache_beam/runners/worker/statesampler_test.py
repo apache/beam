@@ -40,7 +40,7 @@ class StateSamplerTest(unittest.TestCase):
   def test_basic_sampler(self):
     # Set up state sampler.
     counter_factory = CounterFactory()
-    sampler = statesampler.StateSampler('basic-', counter_factory,
+    sampler = statesampler.StateSampler('basic', counter_factory,
                                         sampling_period_ms=1)
 
     # Run basic workload transitioning between 3 states.

@@ -54,7 +54,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -106,17 +105,6 @@ class BigQueryServicesImpl implements BigQueryServices {
   @Override
   public DatasetService getDatasetService(BigQueryOptions options) {
     return new DatasetServiceImpl(options);
-  }
-
-  @Override
-  public BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef) {
-    return BigQueryJsonReaderImpl.fromTable(bqOptions, tableRef);
-  }
-
-  @Override
-  public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, projectId, queryConfig);
   }
 
   private static BackOff createDefaultBackoff() {
@@ -586,10 +574,20 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void createDataset(
-        String projectId, String datasetId, @Nullable String location, @Nullable String description)
+        String projectId,
+        String datasetId,
+        @Nullable String location,
+        @Nullable String description,
+        @Nullable Long defaultTableExpirationMs)
         throws IOException, InterruptedException {
       createDataset(
-          projectId, datasetId, location, description, Sleeper.DEFAULT, createDefaultBackoff());
+          projectId,
+          datasetId,
+          location,
+          description,
+          defaultTableExpirationMs,
+          Sleeper.DEFAULT,
+          createDefaultBackoff());
     }
 
     private void createDataset(
@@ -597,6 +595,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         String datasetId,
         @Nullable String location,
         @Nullable String description,
+        @Nullable Long defaultTableExpirationMs,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       DatasetReference datasetRef = new DatasetReference()
@@ -610,6 +609,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (description != null) {
         dataset.setFriendlyName(description);
         dataset.setDescription(description);
+      }
+      if (defaultTableExpirationMs != null) {
+        dataset.setDefaultTableExpirationMs(defaultTableExpirationMs);
       }
 
       Exception lastException;
@@ -833,58 +835,6 @@ class BigQueryServicesImpl implements BigQueryServices {
           Sleeper.DEFAULT,
           createDefaultBackoff(),
           ALWAYS_RETRY);
-    }
-  }
-
-  private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {
-    private BigQueryTableRowIterator iterator;
-
-    private BigQueryJsonReaderImpl(BigQueryTableRowIterator iterator) {
-      this.iterator = iterator;
-    }
-
-    private static BigQueryJsonReader fromQuery(
-        BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
-      return new BigQueryJsonReaderImpl(
-          BigQueryTableRowIterator.fromQuery(
-              queryConfig, projectId, newBigQueryClient(bqOptions).build()));
-    }
-
-    private static BigQueryJsonReader fromTable(
-        BigQueryOptions bqOptions, TableReference tableRef) {
-      return new BigQueryJsonReaderImpl(BigQueryTableRowIterator.fromTable(
-          tableRef, newBigQueryClient(bqOptions).build()));
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      try {
-        iterator.open();
-        return iterator.advance();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted during start() operation", e);
-      }
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      try {
-        return iterator.advance();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted during advance() operation", e);
-      }
-    }
-
-    @Override
-    public TableRow getCurrent() throws NoSuchElementException {
-      return iterator.getCurrent();
-    }
-
-    @Override
-    public void close() throws IOException {
-      iterator.close();
     }
   }
 

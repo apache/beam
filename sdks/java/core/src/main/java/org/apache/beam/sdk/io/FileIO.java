@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
@@ -150,6 +151,11 @@ public class FileIO {
     /** Returns the full contents of the file as a {@link String} decoded as UTF-8. */
     public String readFullyAsUTF8String() throws IOException {
       return new String(readFullyAsBytes(), StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public String toString() {
+      return "ReadableFile{metadata=" + metadata + ", compression=" + compression + '}';
     }
   }
 
@@ -305,12 +311,13 @@ public class FileIO {
 
     @Override
     public PCollection<MatchResult.Metadata> expand(PCollection<String> input) {
+      PCollection<MatchResult.Metadata> res;
       if (getConfiguration().getWatchInterval() == null) {
-        return input.apply(
+        res = input.apply(
             "Match filepatterns",
             ParDo.of(new MatchFn(getConfiguration().getEmptyMatchTreatment())));
       } else {
-        return input
+        res = input
             .apply(
                 "Continuously match filepatterns",
                 Watch.growthOf(new MatchPollFn())
@@ -318,6 +325,7 @@ public class FileIO {
                     .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
             .apply(Values.<MatchResult.Metadata>create());
       }
+      return res.apply(Reshuffle.<MatchResult.Metadata>viaRandomKey());
     }
 
     private static class MatchFn extends DoFn<String, MatchResult.Metadata> {

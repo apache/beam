@@ -1,15 +1,3 @@
-package org.apache.beam.fn.harness.state;
-
-import com.google.common.base.Throwables;
-import com.google.protobuf.ByteString;
-import java.util.Iterator;
-import java.util.NoSuchElementException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.function.Supplier;
-import org.apache.beam.fn.v1.BeamFnApi.StateGetRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -27,7 +15,19 @@ import org.apache.beam.fn.v1.BeamFnApi.StateRequest.Builder;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
+package org.apache.beam.fn.harness.state;
+
+import com.google.common.base.Throwables;
+import com.google.protobuf.ByteString;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 
 /**
  * Adapters which convert a a logical series of chunks using continuation tokens over the Beam

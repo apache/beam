@@ -355,14 +355,12 @@ public class HBaseIOTest {
   public void testWritingFailsTableDoesNotExist() throws Exception {
     final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
-
-
-        // Exception will be thrown by write.expand() when write is applied.
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(String.format("Table %s does not exist", table));
-        p.apply(Create.empty(HBaseMutationCoder.of()))
-         .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
-    }
+    // Exception will be thrown by write.expand() when write is applied.
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage(String.format("Table %s does not exist", table));
+    p.apply(Create.empty(HBaseMutationCoder.of()))
+        .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
+  }
 
   /** Tests that when writing an element fails, the write fails. */
   @Test

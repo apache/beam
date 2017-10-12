@@ -25,14 +25,14 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import org.apache.beam.fn.v1.BeamFnApi.StateAppendResponse;
-import org.apache.beam.fn.v1.BeamFnApi.StateClearResponse;
-import org.apache.beam.fn.v1.BeamFnApi.StateGetResponse;
-import org.apache.beam.fn.v1.BeamFnApi.StateKey;
-import org.apache.beam.fn.v1.BeamFnApi.StateKey.TypeCase;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest;
-import org.apache.beam.fn.v1.BeamFnApi.StateRequest.RequestCase;
-import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateAppendResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateClearResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateGetResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.RequestCase;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 
 /** A fake implementation of a {@link BeamFnStateClient} to aid with testing. */
 public class FakeBeamFnStateClient implements BeamFnStateClient {

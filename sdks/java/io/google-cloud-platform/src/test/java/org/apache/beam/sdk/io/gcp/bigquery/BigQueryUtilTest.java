@@ -19,9 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -40,7 +38,6 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,9 +49,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.hamcrest.Matchers;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -160,14 +155,6 @@ public class BigQueryUtilTest {
         .thenReturn(result);
   }
 
-  private void verifyTabledataList() throws IOException {
-    verify(mockClient, atLeastOnce()).tabledata();
-    verify(mockTabledata, atLeastOnce()).list("project", "dataset", "table");
-    verify(mockTabledataList, atLeastOnce()).execute();
-    // Max results may be set when testing for an empty table.
-    verify(mockTabledataList, atLeast(0)).setMaxResults(anyLong());
-  }
-
   private Table basicTableSchema() {
     return new Table()
         .setSchema(new TableSchema()
@@ -181,186 +168,12 @@ public class BigQueryUtilTest {
             )));
   }
 
-  private Table basicTableSchemaWithTime() {
-    return new Table()
-        .setSchema(new TableSchema()
-            .setFields(Arrays.asList(
-                new TableFieldSchema()
-                    .setName("time")
-                    .setType("TIMESTAMP")
-            )));
-  }
-
-  @Test
-  public void testReadWithTime() throws IOException, InterruptedException {
-    // The BigQuery JSON API returns timestamps in the following format: floating-point seconds
-    // since epoch (UTC) with microsecond precision. Test that we faithfully preserve a set of
-    // known values.
-    TableDataList input = rawDataList(
-        rawRow("1.430397296789E9"),
-        rawRow("1.45206228E9"),
-        rawRow("1.452062291E9"),
-        rawRow("1.4520622911E9"),
-        rawRow("1.45206229112E9"),
-        rawRow("1.452062291123E9"),
-        rawRow("1.4520622911234E9"),
-        rawRow("1.45206229112345E9"),
-        rawRow("1.452062291123456E9"));
-    onTableGet(basicTableSchemaWithTime());
-    onTableList(input);
-
-    // Known results verified from BigQuery's export to JSON on GCS API.
-    List<String> expected = ImmutableList.of(
-        "2015-04-30 12:34:56.789 UTC",
-        "2016-01-06 06:38:00 UTC",
-        "2016-01-06 06:38:11 UTC",
-        "2016-01-06 06:38:11.1 UTC",
-        "2016-01-06 06:38:11.12 UTC",
-        "2016-01-06 06:38:11.123 UTC",
-        "2016-01-06 06:38:11.1234 UTC",
-        "2016-01-06 06:38:11.12345 UTC",
-        "2016-01-06 06:38:11.123456 UTC");
-
-    // Download the rows, verify the interactions.
-    List<TableRow> rows = new ArrayList<>();
-    try (BigQueryTableRowIterator iterator =
-            BigQueryTableRowIterator.fromTable(
-                BigQueryHelpers.parseTableSpec("project:dataset.table"), mockClient)) {
-      iterator.open();
-      while (iterator.advance()) {
-        rows.add(iterator.getCurrent());
-      }
-    }
-    verifyTableGet();
-    verifyTabledataList();
-
-    // Verify the timestamp converted as desired.
-    assertEquals("Expected input and output rows to have the same size",
-        expected.size(), rows.size());
-    for (int i = 0; i < expected.size(); ++i) {
-      assertEquals("i=" + i, expected.get(i), rows.get(i).get("time"));
-    }
-
-  }
-
   private TableRow rawRow(Object...args) {
     List<TableCell> cells = new LinkedList<>();
     for (Object a : args) {
       cells.add(new TableCell().setV(a));
     }
     return new TableRow().setF(cells);
-  }
-
-  private TableDataList rawDataList(TableRow...rows) {
-    return new TableDataList()
-        .setRows(Arrays.asList(rows));
-  }
-
-  @Test
-  public void testRead() throws IOException, InterruptedException {
-    onTableGet(basicTableSchema());
-
-    TableDataList dataList = rawDataList(rawRow("Arthur", 42));
-    onTableList(dataList);
-
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryHelpers.parseTableSpec("project:dataset.table"),
-        mockClient)) {
-      iterator.open();
-      Assert.assertTrue(iterator.advance());
-      TableRow row = iterator.getCurrent();
-
-      Assert.assertTrue(row.containsKey("name"));
-      Assert.assertTrue(row.containsKey("answer"));
-      Assert.assertEquals("Arthur", row.get("name"));
-      Assert.assertEquals(42, row.get("answer"));
-
-      Assert.assertFalse(iterator.advance());
-
-      verifyTableGet();
-      verifyTabledataList();
-    }
-  }
-
-  @Test
-  public void testReadEmpty() throws IOException, InterruptedException {
-    onTableGet(basicTableSchema());
-
-    // BigQuery may respond with a page token for an empty table, ensure we
-    // handle it.
-    TableDataList dataList = new TableDataList()
-        .setPageToken("FEED==")
-        .setTotalRows(0L);
-    onTableList(dataList);
-
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryHelpers.parseTableSpec("project:dataset.table"),
-        mockClient)) {
-      iterator.open();
-
-      Assert.assertFalse(iterator.advance());
-
-      verifyTableGet();
-      verifyTabledataList();
-    }
-  }
-
-  @Test
-  public void testReadMultiPage() throws IOException, InterruptedException {
-    onTableGet(basicTableSchema());
-
-    TableDataList page1 = rawDataList(rawRow("Row1", 1))
-        .setPageToken("page2");
-    TableDataList page2 = rawDataList(rawRow("Row2", 2))
-        .setTotalRows(2L);
-
-    when(mockClient.tabledata())
-        .thenReturn(mockTabledata);
-    when(mockTabledata.list(anyString(), anyString(), anyString()))
-        .thenReturn(mockTabledataList);
-    when(mockTabledataList.execute())
-        .thenReturn(page1)
-        .thenReturn(page2);
-
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryHelpers.parseTableSpec("project:dataset.table"),
-        mockClient)) {
-      iterator.open();
-
-      List<String> names = new LinkedList<>();
-      while (iterator.advance()) {
-        names.add((String) iterator.getCurrent().get("name"));
-      }
-
-      Assert.assertThat(names, Matchers.hasItems("Row1", "Row2"));
-
-      verifyTableGet();
-      verifyTabledataList();
-      // The second call should have used a page token.
-      verify(mockTabledataList).setPageToken("page2");
-    }
-  }
-
-  @Test
-  public void testReadOpenFailure() throws IOException, InterruptedException {
-    thrown.expect(IOException.class);
-
-    when(mockClient.tables())
-        .thenReturn(mockTables);
-    when(mockTables.get(anyString(), anyString(), anyString()))
-        .thenReturn(mockTablesGet);
-    when(mockTablesGet.execute())
-        .thenThrow(new IOException("No such table"));
-
-    try (BigQueryTableRowIterator iterator = BigQueryTableRowIterator.fromTable(
-        BigQueryHelpers.parseTableSpec("project:dataset.table"),
-        mockClient)) {
-      try {
-        iterator.open(); // throws.
-      } finally {
-        verifyTableGet();
-      }
-    }
   }
 
   @Test

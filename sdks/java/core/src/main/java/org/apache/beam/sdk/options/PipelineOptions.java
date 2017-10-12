@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -351,6 +352,41 @@ public interface PipelineOptions extends HasDisplayData {
     @Override
     public Long create(PipelineOptions options) {
       return NEXT_ID.getAndIncrement();
+    }
+  }
+
+  /**
+   * A user agent string as per RFC2616, describing the pipeline to external services.
+   *
+   * <p>https://www.ietf.org/rfc/rfc2616.txt
+   *
+   * <p>It should follow the BNF Form:
+   * <pre><code>
+   * user agent         = 1*(product | comment)
+   * product            = token ["/" product-version]
+   * product-version    = token
+   * </code></pre>
+   * Where a token is a series of characters without a separator.
+   *
+   * <p>The string defaults to {@code [name]/[version]} based on the properties of the Apache Beam
+   * release.
+   */
+  @Description("A user agent string describing the pipeline to external services."
+      + " The format should follow RFC2616. This option defaults to \"[name]/[version]\""
+      + " where name and version are properties of the Apache Beam release.")
+  @Default.InstanceFactory(UserAgentFactory.class)
+  String getUserAgent();
+  void setUserAgent(String userAgent);
+
+  /**
+   * Returns a user agent string constructed from {@link ReleaseInfo#getName()} and
+   * {@link ReleaseInfo#getVersion()}, in the format {@code [name]/[version]}.
+   */
+  class UserAgentFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      ReleaseInfo info = ReleaseInfo.getReleaseInfo();
+      return String.format("%s/%s", info.getName(), info.getVersion()).replace(" ", "_");
     }
   }
 }

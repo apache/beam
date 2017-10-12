@@ -711,14 +711,33 @@ class SnippetsTest(unittest.TestCase):
     result_path = self.create_temp_file()
     snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
     # [START model_group_by_key_cogroupbykey_tuple_outputs]
-    contact_lines = [
+    results = [
+        ('amy', {
+            'emails': ['amy@example.com'],
+            'phones': ['111-222-3333', '333-444-5555']}),
+        ('carl', {
+            'emails': ['carl@email.com', 'carl@example.com'],
+            'phones': ['444-555-6666']}),
+        ('james', {
+            'emails': [],
+            'phones': ['222-333-4444']}),
+        ('julia', {
+            'emails': ['julia@example.com'],
+            'phones': []}),
+    ]
+    # [END model_group_by_key_cogroupbykey_tuple_outputs]
+    # [START model_group_by_key_cogroupbykey_tuple_formatted_outputs]
+    formatted_results = [
         "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
         "carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']",
         "james; []; ['222-333-4444']",
         "julia; ['julia@example.com']; []",
     ]
-    # [END model_group_by_key_cogroupbykey_tuple_outputs]
-    self.assertEqual(contact_lines, self.get_output(result_path))
+    # [END model_group_by_key_cogroupbykey_tuple_formatted_outputs]
+    expected_results = ['%s; %s; %s' % (name, info['emails'], info['phones'])
+                        for name, info in results]
+    self.assertEqual(expected_results, formatted_results)
+    self.assertEqual(formatted_results, self.get_output(result_path))
 
   def test_model_use_and_query_metrics(self):
     """DebuggingWordCount example snippets."""

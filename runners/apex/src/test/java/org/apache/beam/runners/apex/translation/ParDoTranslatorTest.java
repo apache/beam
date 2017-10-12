@@ -42,7 +42,6 @@ import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInput
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -202,7 +201,6 @@ public class ParDoTranslatorTest {
         .as(ApexPipelineOptions.class);
     options.setRunner(TestApexRunner.class);
     Pipeline pipeline = Pipeline.create(options);
-    Coder<WindowedValue<Integer>> coder = WindowedValue.getValueOnlyCoder(VarIntCoder.of());
 
     PCollectionView<Integer> singletonView = pipeline.apply(Create.of(1))
             .apply(Sum.integersGlobally().asSingletonView());
@@ -215,7 +213,7 @@ public class ParDoTranslatorTest {
             TupleTagList.empty().getAll(),
             WindowingStrategy.globalDefault(),
             Collections.<PCollectionView<?>>singletonList(singletonView),
-            coder,
+            VarIntCoder.of(),
             new ApexStateInternals.ApexStateBackend());
     operator.setup(null);
     operator.beginWindow(0);

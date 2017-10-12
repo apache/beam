@@ -40,6 +40,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -611,7 +612,7 @@ public class DatastoreV1Test {
         .thenReturn(splitQuery(QUERY, numSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
      * mock factory using a when clause for unit testing purposes, it is not serializable
@@ -619,10 +620,15 @@ public class DatastoreV1Test {
      * doFn from being serialized.
      */
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+    List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), numSplits);
-    verifyUniqueKeys(queries);
+
+    // Confirms that sub-queries are not equal to original when there is more than one split.
+    for (Query subQuery : queries) {
+      assertNotEquals(subQuery, QUERY);
+    }
+
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
     verifyZeroInteractions(mockDatastore);
@@ -657,12 +663,11 @@ public class DatastoreV1Test {
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+    List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), expectedNumSplits);
-    verifyUniqueKeys(queries);
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
     verify(mockDatastore, times(1)).runQuery(latestTimestampRequest);
@@ -679,12 +684,11 @@ public class DatastoreV1Test {
         .build();
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
+    List<Query> queries = doFnTester.processBundle(queryWithLimit);
 
     assertEquals(queries.size(), 1);
-    verifyUniqueKeys(queries);
     verifyNoMoreInteractions(mockDatastore);
     verifyNoMoreInteractions(mockQuerySplitter);
   }
@@ -994,8 +998,14 @@ public class DatastoreV1Test {
   /** Generate dummy query splits. */
   private List<Query> splitQuery(Query query, int numSplits) {
     List<Query> queries = new LinkedList<>();
+    int offsetOfOriginal = query.getOffset();
     for (int i = 0; i < numSplits; i++) {
-      queries.add(query.toBuilder().build());
+      Query.Builder q = Query.newBuilder();
+      q.addKindBuilder().setName(KIND);
+      // Making sub-queries unique (and not equal to the original query) by setting different
+      // offsets.
+      q.setOffset(++offsetOfOriginal);
+      queries.add(q.build());
     }
     return queries;
   }

@@ -1159,15 +1159,15 @@ def model_co_group_by_key_tuple(email_list, phone_list, output_path):
     # For instance, if 'emails' contained ('joe', 'joe@example.com') and
     # ('joe', 'joe@gmail.com'), then 'result' will contain the element:
     # ('joe', {'emails': ['joe@example.com', 'joe@gmail.com'], 'phones': ...})
-    result = ({'emails': emails_pcoll, 'phones': phones_pcoll}
-              | beam.CoGroupByKey())
+    results = ({'emails': emails_pcoll, 'phones': phones_pcoll}
+               | beam.CoGroupByKey())
 
-    contact_lines = result | beam.Map(
+    formatted_results = results | beam.Map(
         lambda (name, info):\
            '%s; %s; %s' %\
            (name, sorted(info['emails']), sorted(info['phones'])))
     # [END model_group_by_key_cogroupbykey_tuple]
-    contact_lines | beam.io.WriteToText(output_path)
+    formatted_results | beam.io.WriteToText(output_path)
 
 
 def model_join_using_side_inputs(

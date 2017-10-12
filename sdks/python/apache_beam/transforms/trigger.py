@@ -58,8 +58,8 @@ __all__ = [
 class AccumulationMode(object):
   """Controls what to do with data when a trigger fires multiple times.
   """
-  DISCARDING = beam_runner_api_pb2.DISCARDING
-  ACCUMULATING = beam_runner_api_pb2.ACCUMULATING
+  DISCARDING = beam_runner_api_pb2.AccumulationMode.DISCARDING
+  ACCUMULATING = beam_runner_api_pb2.AccumulationMode.ACCUMULATING
   # TODO(robertwb): Provide retractions of previous outputs.
   # RETRACTING = 3
 
@@ -859,6 +859,19 @@ class TriggerDriver(object):
   def process_timer(self, window_id, name, time_domain, timestamp, state):
     pass
 
+  def process_entire_key(
+      self, key, windowed_values, output_watermark=MIN_TIMESTAMP):
+    state = InMemoryUnmergedState()
+    for wvalue in self.process_elements(
+        state, windowed_values, output_watermark):
+      yield wvalue.with_value((key, wvalue.value))
+    while state.timers:
+      fired = state.get_and_clear_timers()
+      for timer_window, (name, time_domain, fire_time) in fired:
+        for wvalue in self.process_timer(
+            timer_window, name, time_domain, fire_time, state):
+          yield wvalue.with_value((key, wvalue.value))
+
 
 class _UnwindowedValues(observable.ObservableMixin):
   """Exposes iterable of windowed values as iterable of unwindowed values."""
@@ -1063,6 +1076,15 @@ class InMemoryUnmergedState(UnmergedState):
     self.state = collections.defaultdict(lambda: collections.defaultdict(list))
     self.global_state = {}
     self.defensive_copy = defensive_copy
+
+  def copy(self):
+    cloned_object = InMemoryUnmergedState(defensive_copy=self.defensive_copy)
+    cloned_object.timers = copy.deepcopy(self.timers)
+    cloned_object.global_state = copy.deepcopy(self.global_state)
+    for window in self.state:
+      for tag in self.state[window]:
+        cloned_object.state[window][tag] = copy.copy(self.state[window][tag])
+    return cloned_object
 
   def set_global_state(self, tag, value):
     assert isinstance(tag, _ValueStateTag)

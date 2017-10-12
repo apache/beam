@@ -66,6 +66,7 @@ import org.apache.beam.runners.flink.translation.wrappers.streaming.state.KeyGro
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -87,6 +88,7 @@ import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.KeyedStateCheckpointOutputStream;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
+import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
@@ -98,6 +100,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
+import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.joda.time.Instant;
 
@@ -214,6 +217,20 @@ public class DoFnOperator<InputT, OutputT>
   // the DoFn
   protected DoFn<InputT, OutputT> getDoFn() {
     return doFn;
+  }
+
+  @Override
+  public void setup(
+      StreamTask<?, ?> containingTask,
+      StreamConfig config,
+      Output<StreamRecord<WindowedValue<OutputT>>> output) {
+
+    // make sure that FileSystems is initialized correctly
+    FlinkPipelineOptions options =
+        serializedOptions.get().as(FlinkPipelineOptions.class);
+    FileSystems.setDefaultPipelineOptions(options);
+
+    super.setup(containingTask, config, output);
   }
 
   @Override

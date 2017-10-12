@@ -17,10 +17,8 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.io.ByteArrayOutputStream;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
  * An abstract base class to implement a {@link Coder} that defines equality, hashing, and printing
@@ -99,36 +97,4 @@ public abstract class StructuredCoder<T> extends Coder<T> {
     return builder.toString();
   }
 
-  /**
-   * {@inheritDoc}
-   *
-   * @return {@code false} for {@link StructuredCoder} unless overridden.
-   */
-  @Override
-  public boolean consistentWithEquals() {
-    return false;
-  }
-
-  @Override
-  public Object structuralValue(T value) {
-    if (value != null && consistentWithEquals()) {
-      return value;
-    } else {
-      try {
-        ByteArrayOutputStream os = new ByteArrayOutputStream();
-        encode(value, os, Context.OUTER);
-        return new StructuralByteArray(os.toByteArray());
-      } catch (Exception exn) {
-        throw new IllegalArgumentException(
-            "Unable to encode element '" + value + "' with coder '" + this + "'.", exn);
-      }
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  @Override
-  public TypeDescriptor<T> getEncodedTypeDescriptor() {
-    return (TypeDescriptor<T>)
-        TypeDescriptor.of(getClass()).resolveType(new TypeDescriptor<T>() {}.getType());
-  }
 }

@@ -30,6 +30,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -75,7 +76,7 @@ class WriteBundlesToFiles<DestinationT>
    * The result of the {@link WriteBundlesToFiles} transform. Corresponds to a single output file,
    * and encapsulates the table it is destined to as well as the file byte size.
    */
-  public static final class Result<DestinationT> implements Serializable {
+  static final class Result<DestinationT> implements Serializable {
     private static final long serialVersionUID = 1L;
     public final String filename;
     public final Long fileByteSize;
@@ -86,6 +87,31 @@ class WriteBundlesToFiles<DestinationT>
       this.filename = filename;
       this.fileByteSize = fileByteSize;
       this.destination = destination;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (other instanceof Result) {
+        Result<DestinationT> o = (Result<DestinationT>) other;
+        return Objects.equals(this.filename, o.filename)
+            && Objects.equals(this.fileByteSize, o.fileByteSize)
+            && Objects.equals(this.destination, o.destination);
+      }
+      return  false;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(filename, fileByteSize, destination);
+    }
+
+    @Override
+    public String toString() {
+      return "Result{"
+          + "filename='" + filename + '\''
+          + ", fileByteSize=" + fileByteSize
+          + ", destination=" + destination
+          + '}';
     }
   }
 
