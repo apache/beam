@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,9 +40,11 @@ class ShardRecordsIterator {
 
   private final SimplifiedKinesisClient kinesis;
   private final RecordFilter filter;
-  private volatile ShardCheckpoint checkpoint;
+  private final String streamName;
+  private final String shardId;
+  private AtomicReference<ShardCheckpoint> checkpoint;
   private String shardIterator;
-  private volatile long millisBehindLatest = Long.MAX_VALUE;
+  private AtomicLong millisBehindLatest = new AtomicLong(Long.MAX_VALUE);
 
   ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
       SimplifiedKinesisClient simplifiedKinesisClient) throws TransientKinesisException {
@@ -50,47 +54,45 @@ class ShardRecordsIterator {
   ShardRecordsIterator(final ShardCheckpoint initialCheckpoint,
       SimplifiedKinesisClient simplifiedKinesisClient,
       RecordFilter filter) throws TransientKinesisException {
-    this.checkpoint = checkNotNull(initialCheckpoint, "initialCheckpoint");
+    this.checkpoint = new AtomicReference<>(checkNotNull(initialCheckpoint, "initialCheckpoint"));
     this.filter = checkNotNull(filter, "filter");
     this.kinesis = checkNotNull(simplifiedKinesisClient, "simplifiedKinesisClient");
-    shardIterator = checkpoint.getShardIterator(kinesis);
+    this.streamName = initialCheckpoint.getStreamName();
+    this.shardId = initialCheckpoint.getShardId();
+    this.shardIterator = initialCheckpoint.getShardIterator(kinesis);
   }
 
   List<KinesisRecord> readNextBatch() throws TransientKinesisException {
     GetKinesisRecordsResult response = fetchRecords();
     LOG.debug("Fetched {} new records", response.getRecords().size());
 
-    List<KinesisRecord> filteredRecords = filter.apply(response.getRecords(), checkpoint);
-    millisBehindLatest = response.getMillisBehindLatest();
+    List<KinesisRecord> filteredRecords = filter.apply(response.getRecords(), checkpoint.get());
+    millisBehindLatest.set(response.getMillisBehindLatest());
     return filteredRecords;
   }
 
   private GetKinesisRecordsResult fetchRecords() throws TransientKinesisException {
     try {
-      GetKinesisRecordsResult response = kinesis.getRecords(shardIterator,
-          checkpoint.getStreamName(), checkpoint.getShardId());
+      GetKinesisRecordsResult response = kinesis.getRecords(shardIterator, streamName, shardId);
       shardIterator = response.getNextShardIterator();
       return response;
     } catch (ExpiredIteratorException e) {
       LOG.info("Refreshing expired iterator", e);
-      shardIterator = checkpoint.getShardIterator(kinesis);
+      shardIterator = checkpoint.get().getShardIterator(kinesis);
       return fetchRecords();
     }
   }
 
   ShardCheckpoint getCheckpoint() {
-    return checkpoint;
+    return checkpoint.get();
   }
 
   boolean isUpToDate() {
-    return millisBehindLatest == 0L;
+    return millisBehindLatest.get() == 0L;
   }
 
   void ackRecord(KinesisRecord record) {
-    checkpoint = checkpoint.moveAfter(record);
+    checkpoint.set(checkpoint.get().moveAfter(record));
   }
 
-  String getShardId() {
-    return checkpoint.getShardId();
-  }
 }

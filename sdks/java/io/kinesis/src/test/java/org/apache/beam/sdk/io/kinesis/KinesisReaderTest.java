@@ -26,8 +26,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-import com.google.common.collect.ImmutableList;
-
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
@@ -54,8 +52,6 @@ public class KinesisReaderTest {
   @Mock
   private ShardCheckpoint firstCheckpoint, secondCheckpoint;
   @Mock
-  private ShardRecordsIterator firstIterator, secondIterator;
-  @Mock
   private KinesisRecord a, b, c, d;
   @Mock
   private KinesisSource kinesisSource;
@@ -69,8 +65,6 @@ public class KinesisReaderTest {
     when(generator.generate(kinesis)).thenReturn(new KinesisReaderCheckpoint(
         asList(firstCheckpoint, secondCheckpoint)
     ));
-    when(firstCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(firstIterator);
-    when(secondCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(secondIterator);
     when(shardReadersPool.nextRecord()).thenReturn(CustomOptional.<KinesisRecord>absent());
     when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
     when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
@@ -80,11 +74,12 @@ public class KinesisReaderTest {
     reader = createReader(Duration.ZERO);
   }
 
-  private KinesisReader createReader(Duration backlogBytesCheckThreshold) {
+  private KinesisReader createReader(Duration backlogBytesCheckThreshold)
+      throws TransientKinesisException {
     KinesisReader kinesisReader = spy(new KinesisReader(kinesis, generator, kinesisSource,
         Duration.ZERO, backlogBytesCheckThreshold));
     doReturn(shardReadersPool).when(kinesisReader)
-        .createShardReadersPool(ImmutableList.of(firstIterator, secondIterator));
+        .createShardReadersPool();
     return kinesisReader;
   }
 

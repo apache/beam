@@ -1,9 +1,27 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.apache.beam.sdk.io.kinesis;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Maps;
+import static com.google.common.collect.Iterables.transform;
 
-import java.util.Collection;
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -11,6 +29,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,28 +47,30 @@ class ShardReadersPool {
   private ExecutorService executorService;
   private BlockingQueue<KinesisRecord> recordsQueue;
   private Map<String, ShardRecordsIterator> shardIteratorsMap;
-  private final int queueCapacity;
-  private volatile boolean poolOpened = true;
+  private SimplifiedKinesisClient kinesis;
+  private KinesisReaderCheckpoint initialCheckpoint;
+  private final int queueCapacityPerShard;
+  private AtomicBoolean poolOpened = new AtomicBoolean(true);
 
-  ShardReadersPool(List<ShardRecordsIterator> iterators) {
-    this(iterators, DEFAULT_CAPACITY_PER_SHARD);
+  ShardReadersPool(SimplifiedKinesisClient kinesis, KinesisReaderCheckpoint initialCheckpoint) {
+    this(kinesis, initialCheckpoint, DEFAULT_CAPACITY_PER_SHARD);
   }
 
-  ShardReadersPool(List<ShardRecordsIterator> iterators, int queueCapacity) {
-    this.shardIteratorsMap = Maps
-        .uniqueIndex(iterators, new Function<ShardRecordsIterator, String>() {
-
-          @Override
-          public String apply(ShardRecordsIterator input) {
-            return input.getShardId();
-          }
-        });
-    this.queueCapacity = queueCapacity;
+  ShardReadersPool(SimplifiedKinesisClient kinesis, KinesisReaderCheckpoint initialCheckpoint,
+      int queueCapacityPerShard) {
+    this.kinesis = kinesis;
+    this.initialCheckpoint = initialCheckpoint;
+    this.queueCapacityPerShard = queueCapacityPerShard;
   }
 
-  void start() {
+  void start() throws TransientKinesisException {
+    ImmutableMap.Builder<String, ShardRecordsIterator> shardsMap = ImmutableMap.builder();
+    for (ShardCheckpoint checkpoint : initialCheckpoint) {
+      shardsMap.put(checkpoint.getShardId(), createShardIterator(kinesis, checkpoint));
+    }
+    shardIteratorsMap = shardsMap.build();
     executorService = Executors.newFixedThreadPool(shardIteratorsMap.size());
-    recordsQueue = new LinkedBlockingQueue<>(queueCapacity * shardIteratorsMap.size());
+    recordsQueue = new LinkedBlockingQueue<>(queueCapacityPerShard * shardIteratorsMap.size());
     for (final ShardRecordsIterator shardRecordsIterator : shardIteratorsMap.values()) {
       executorService.submit(new Runnable() {
 
@@ -61,7 +83,7 @@ class ShardReadersPool {
   }
 
   private void readLoop(ShardRecordsIterator shardRecordsIterator) {
-    while (poolOpened) {
+    while (poolOpened.get()) {
       try {
         List<KinesisRecord> kinesisRecords = shardRecordsIterator.readNextBatch();
         for (KinesisRecord kinesisRecord : kinesisRecords) {
@@ -95,17 +117,21 @@ class ShardReadersPool {
 
   void stop() {
     LOG.info("Closing shard iterators pool");
-    poolOpened = false;
+    poolOpened.set(false);
     executorService.shutdownNow();
     boolean isShutdown = false;
-    while (!isShutdown) {
+    int attemptsLeft = 3;
+    while (!isShutdown && attemptsLeft-- > 0) {
       try {
         isShutdown = executorService.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         LOG.error("Interrupted while waiting for the executor service to shutdown");
         throw new RuntimeException(e);
       }
-      LOG.warn("Executor service is taking long time to shutdown, will retry");
+      if (!isShutdown && attemptsLeft > 0) {
+        LOG.warn("Executor service is taking long time to shutdown, will retry. {} attempts left",
+            attemptsLeft);
+      }
     }
   }
 
@@ -117,8 +143,22 @@ class ShardReadersPool {
     return shardsUpToDate;
   }
 
-  Collection<ShardRecordsIterator> getShardRecordsIterators() {
-    return shardIteratorsMap.values();
+  KinesisReaderCheckpoint getCheckpointMark() {
+    return new KinesisReaderCheckpoint(transform(shardIteratorsMap.values(),
+        new Function<ShardRecordsIterator, ShardCheckpoint>() {
+
+          @Nullable
+          @Override
+          public ShardCheckpoint apply(@Nullable ShardRecordsIterator shardRecordsIterator) {
+            assert shardRecordsIterator != null;
+            return shardRecordsIterator.getCheckpoint();
+          }
+        }));
+  }
+
+  ShardRecordsIterator createShardIterator(SimplifiedKinesisClient kinesis,
+      ShardCheckpoint checkpoint) throws TransientKinesisException {
+    return new ShardRecordsIterator(checkpoint, kinesis);
   }
 
 }

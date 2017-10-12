@@ -18,10 +18,8 @@
 package org.apache.beam.sdk.io.kinesis;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.Lists.newArrayList;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.NoSuchElementException;
 
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -107,12 +105,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     LOG.info("Starting reader using {}", initialCheckpointGenerator);
 
     try {
-      KinesisReaderCheckpoint initialCheckpoint = initialCheckpointGenerator.generate(kinesis);
-      List<ShardRecordsIterator> iterators = newArrayList();
-      for (ShardCheckpoint checkpoint : initialCheckpoint) {
-        iterators.add(checkpoint.getShardRecordsIterator(kinesis));
-      }
-      shardReadersPool = createShardReadersPool(iterators);
+      shardReadersPool = createShardReadersPool();
       shardReadersPool.start();
     } catch (TransientKinesisException e) {
       throw new IOException(e);
@@ -181,7 +174,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   @Override
   public UnboundedSource.CheckpointMark getCheckpointMark() {
-    return KinesisReaderCheckpoint.asCurrentStateOf(shardReadersPool.getShardRecordsIterators());
+    return shardReadersPool.getCheckpointMark();
   }
 
   @Override
@@ -214,7 +207,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
     return lastBacklogBytes;
   }
 
-  ShardReadersPool createShardReadersPool(List<ShardRecordsIterator> iterators) {
-    return new ShardReadersPool(iterators);
+  ShardReadersPool createShardReadersPool() throws TransientKinesisException {
+    return new ShardReadersPool(kinesis, initialCheckpointGenerator.generate(kinesis));
   }
 }
