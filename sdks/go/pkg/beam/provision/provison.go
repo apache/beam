@@ -24,7 +24,7 @@ import (
 
 	"time"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/org_apache_beam_fn_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/jsonpb"
 	google_protobuf "github.com/golang/protobuf/ptypes/struct"

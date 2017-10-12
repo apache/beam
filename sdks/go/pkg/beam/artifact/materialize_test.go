@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/org_apache_beam_runner_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"google.golang.org/grpc"
 )

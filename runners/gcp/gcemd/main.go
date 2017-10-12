@@ -22,7 +22,7 @@ import (
 	"net"
 
 	"cloud.google.com/go/compute/metadata"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/org_apache_beam_fn_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
