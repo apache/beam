@@ -20,7 +20,6 @@ package org.apache.beam.examples;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.join.CoGbkResult;
@@ -57,7 +56,6 @@ public class Snippets {
   }
 
   public static PCollection<String> coGroupByKeyTuple(
-      Pipeline p,
       TupleTag<String> emailsTag,
       TupleTag<String> phonesTag,
       PCollection<KV<String, String>> emails,

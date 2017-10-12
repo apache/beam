@@ -84,7 +84,7 @@ public class SnippetsTest implements Serializable {
     // [END CoGroupByKeyTupleOutputs]
 
     PCollection<String> actualFormattedResults =
-        Snippets.coGroupByKeyTuple(p, emailsTag, phonesTag, emails, phones);
+        Snippets.coGroupByKeyTuple(emailsTag, phonesTag, emails, phones);
 
     // [START CoGroupByKeyTupleFormattedOutputs]
     final List<String> formattedResults = Arrays.asList(

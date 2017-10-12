@@ -714,7 +714,7 @@ class SnippetsTest(unittest.TestCase):
       # [END model_group_by_key_cogroupbykey_tuple_inputs]
 
       result_path = self.create_temp_file()
-      snippets.model_co_group_by_key_tuple(p, emails, phones, result_path)
+      snippets.model_co_group_by_key_tuple(emails, phones, result_path)
 
     # [START model_group_by_key_cogroupbykey_tuple_outputs]
     results = [
