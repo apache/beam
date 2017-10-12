@@ -337,7 +337,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     f = getattr(self, func)
     return inspect.getargspec(f)
 
-  # TODO(sourabhbajaj): Do we want to remove the responsiblity of these from
+  # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
   def infer_output_type(self, input_type):
     # TODO(robertwb): Side inputs types.
@@ -473,6 +473,10 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
      accumulator value left.
   5. The extract_output operation is invoked on the final accumulator to get
      the output value.
+
+  Note: If this **CombineFn** is used with a transform that has defaults,
+  **apply** will be called with an empty list at expansion time to get the
+  default value.
   """
 
   def default_label(self):
