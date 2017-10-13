@@ -240,15 +240,6 @@ import org.slf4j.LoggerFactory;
  * <p>For the most general form of dynamic table destinations and schemas, look at {@link
  * BigQueryIO.Write#to(DynamicDestinations)}.
  *
- * <h3>Permissions</h3>
- *
- * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
- * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for more
- * details.
- *
- * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
- * </a> for security and permission related information specific to BigQuery.
- *
  * <h3>Insertion Method</h3>
  *
  * {@link BigQueryIO.Write} supports two methods of inserting data into BigQuery specified using
@@ -257,6 +248,30 @@ import org.slf4j.LoggerFactory;
  * about the methods. The different insertion methods provide different tradeoffs of cost, quota,
  * and data consistency; please see BigQuery documentation for more information about these
  * tradeoffs.
+ *
+ * <h3>Usage with templates</h3>
+ *
+ * <p>When using {@link #read} or {@link #readTableRows()} in a template, it's required to specify
+ * {@link Read#withTemplateCompatibility()}. Specifying this in a non-template pipeline is not
+ * recommended because it has somewhat lower performance.
+ *
+ * <p>When using {@link #write()} or {@link #writeTableRows()} with batch loads in a template, it is
+ * recommended to specify {@link Write#withCustomGcsTempLocation}. Writing to BigQuery via batch
+ * loads involves writing temporary files to this location, so the location must be accessible at
+ * pipeline execution time. By default, this location is captured at pipeline <i>construction</i>
+ * time, may be inaccessible if the template may be reused from a different project or at a moment
+ * when the original location no longer exists.
+ * {@link Write#withCustomGcsTempLocation(ValueProvider)} allows specifying the location as an
+ * argument to the template invocation.
+ *
+ * <h3>Permissions</h3>
+ *
+ * <p>Permission requirements depend on the {@link PipelineRunner} that is used to execute the
+ * pipeline. Please refer to the documentation of corresponding {@link PipelineRunner}s for more
+ * details.
+ *
+ * <p>Please see <a href="https://cloud.google.com/bigquery/access-control">BigQuery Access Control
+ * </a> for security and permission related information specific to BigQuery.
  */
 public class BigQueryIO {
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIO.class);
@@ -1031,6 +1046,8 @@ public class BigQueryIO {
 
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
+    @Nullable abstract ValueProvider<String> getCustomGcsTempLocation();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1058,6 +1075,8 @@ public class BigQueryIO {
       abstract Builder<T> setMethod(Method method);
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
+
+      abstract Builder<T> setCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation);
 
       abstract Write<T> build();
     }
@@ -1303,6 +1322,15 @@ public class BigQueryIO {
       return toBuilder().setNumFileShards(numFileShards).build();
     }
 
+    /**
+     * Provides a custom location on GCS for storing temporary files to be loaded via BigQuery
+     * batch load jobs. See "Usage with templates" in {@link BigQueryIO} documentation for
+     * discussion.
+     */
+    public Write<T> withCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation) {
+      return toBuilder().setCustomGcsTempLocation(customGcsTempLocation).build();
+    }
+
     @VisibleForTesting
     Write<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
@@ -1479,7 +1507,8 @@ public class BigQueryIO {
             getCreateDisposition(),
             getJsonTableRef() != null,
             dynamicDestinations,
-            destinationCoder);
+            destinationCoder,
+            getCustomGcsTempLocation());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
