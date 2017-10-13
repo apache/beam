@@ -118,7 +118,7 @@ func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
 	p = p.Composite("textio.Write")
 
 	validateScheme(filename)
-	beam.Sink(p, &writeFileFn{Filename: filename}, col)
+	beam.ParDo0(p, &writeFileFn{Filename: filename}, col)
 }
 
 type writeFileFn struct {
