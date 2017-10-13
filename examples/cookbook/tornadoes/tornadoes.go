@@ -20,14 +20,21 @@ var (
 	output = flag.String("output", "", "Output BQ table.")
 )
 
+// Month is represented as 'int' in BQ. A Go type definition allows
+// us to write more type-safe transformations.
+type Month int
+
+// WeatherDataRow defines a BQ schema using field annotations.
+// It is used as a projection to extract data from a table.
 type WeatherDataRow struct {
-	Tornado bool `bigquery:"tornado"`
-	Month   int  `bigquery:"month"`
+	Tornado bool  `bigquery:"tornado"`
+	Month   Month `bigquery:"month"`
 }
 
+// TornadoRow defines the output BQ schema.
 type TornadoRow struct {
-	Month int `bigquery:"month"`
-	Count int `bigquery:"tornado_count"`
+	Month Month `bigquery:"month"`
+	Count int   `bigquery:"tornado_count"`
 }
 
 // CountTornadoes computes the number of tornadoes pr month. It takes a
@@ -41,13 +48,14 @@ func CountTornadoes(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
 }
 
 // extractFn outputs the month iff a tornado happened.
-func extractFn(row WeatherDataRow, emit func(int)) {
+func extractFn(row WeatherDataRow, emit func(Month)) {
 	if row.Tornado {
 		emit(row.Month)
 	}
 }
 
-func formatFn(month, count int) TornadoRow {
+// formatFn converts a KV<Month, int> to a TornadoRow.
+func formatFn(month Month, count int) TornadoRow {
 	return TornadoRow{Month: month, Count: count}
 }
 
