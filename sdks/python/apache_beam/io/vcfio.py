@@ -21,16 +21,17 @@ The 4.2 spec is available at https://samtools.github.io/hts-specs/VCFv4.2.pdf.
 """
 
 from __future__ import absolute_import
-import collections
 
-from apache_beam.coders import coders
-from apache_beam.io.filesystem import CompressionTypes
-from apache_beam.io.iobase import Read
-from apache_beam.io import filebasedsource
-from apache_beam.io.textio import _TextSource as TextSource
-from apache_beam.transforms import PTransform
+from collections import namedtuple
 
 import vcf
+
+from apache_beam.coders import coders
+from apache_beam.io import filebasedsource
+from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.iobase import Read
+from apache_beam.io.textio import _TextSource as TextSource
+from apache_beam.transforms import PTransform
 
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo']
 
@@ -43,7 +44,7 @@ __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo']
 #   - `A`: one value per alternate allele.
 #   - `G`: one value for each possible genotype.
 #   - `R`: one value for each possible allele (including the reference).
-VariantInfo = collections.namedtuple('VariantInfo', ['data', 'field_count'])
+VariantInfo = namedtuple('VariantInfo', ['data', 'field_count'])
 MISSING_FIELD_VALUE = '.'  # Indicates field is missing in VCF record.
 PASS_FILTER = 'PASS'  # Indicates that all filters have been passed.
 END_INFO_KEY = 'END'  # The info key that explicitly specifies end of a record.
@@ -187,59 +188,62 @@ class _VcfSource(filebasedsource.FileBasedSource):
 
   def __init__(self,
                file_pattern,
-               min_bundle_size=0,
                compression_type=CompressionTypes.AUTO,
                buffer_size=DEFAULT_VCF_READ_BUFFER_SIZE,
                validate=True):
-    super(_VcfSource, self).__init__(file_pattern, min_bundle_size,
+    super(_VcfSource, self).__init__(file_pattern,
                                      compression_type=compression_type,
                                      validate=validate)
 
-    self._coder = coders.StrUtf8Coder() # VCF files are UTF-8 per schema.
     self._header_lines_per_file = {}
-    self._text_source = TextSource(
-        file_pattern,
-        min_bundle_size,
-        compression_type,
-        strip_trailing_newlines=True,
-        coder=self._coder,
-        buffer_size=buffer_size,
-        validate=validate,
-        skip_header_lines=0,
-        header_matcher_predicate=lambda x: x.startswith('#'))
-
-  def _process_header_lines_matching_predicate(self, file_name, header_lines):
-    self._header_lines_per_file[file_name] = header_lines
+    self._file_pattern = file_pattern
+    self._compression_type = compression_type
+    self._buffer_size = buffer_size
+    self._validate = validate
 
   def read_records(self, file_name, range_tracker):
     def line_generator():
+      header_lines = []
+
+      def store_header_lines(header):
+        for line in header:
+          header_lines.append(line)
+
+      text_source = TextSource(
+          self._file_pattern,
+          0,  # min_bundle_size
+          self._compression_type,
+          strip_trailing_newlines=True,
+          coder=coders.StrUtf8Coder(),
+          buffer_size=self._buffer_size,
+          validate=self._validate,
+          skip_header_lines=0,
+          header_matcher_predicate=lambda x: x.startswith('#'),
+          header_processor=store_header_lines)
+
+      records = text_source.read_records(file_name, range_tracker)
       header_processed = False
-      for line in self._text_source.read_records(
-          file_name,
-          range_tracker,
-          self._process_header_lines_matching_predicate):
-        if not header_processed and file_name in self._header_lines_per_file:
-          for header in self._header_lines_per_file[file_name]:
+      for line in records:
+        if not header_processed and header_lines:
+          for header in header_lines:
             yield header
           header_processed = True
         # PyVCF has explicit str() calls when parsing INFO fields, which fails
         # with UTF-8 decoded strings. Encode the line back to UTF-8.
-        yield self._coder.encode(line)
+        yield line.encode('utf-8')
+
     try:
       vcf_reader = vcf.Reader(fsock=line_generator())
-    except SyntaxError as e:
-      raise ValueError('Invalid VCF header: %s' % str(e))
-    while True:
-      try:
+      while True:
         record = next(vcf_reader)
         yield self._convert_to_variant_record(
             record, vcf_reader.infos, vcf_reader.formats)
-      except StopIteration:
-        break
-      except (LookupError, ValueError) as e:
-        # TODO: Add 'strict' and 'loose' modes to not throw an
-        # exception in case of such failures.
-        raise ValueError('Invalid record in VCF file. Error: %s' % str(e))
+    except SyntaxError as e:
+      raise ValueError('Invalid VCF header: %s' % str(e))
+    except (LookupError, ValueError) as e:
+      # TODO: Add 'strict' and 'loose' modes to not throw an
+      # exception in case of such failures.
+      raise ValueError('Invalid record in VCF file. Error: %s' % str(e))
 
   def _convert_to_variant_record(self, record, infos, formats):
     """Converts the PyVCF record to a :class:`Variant` object.
@@ -337,28 +341,26 @@ class _VcfSource(filebasedsource.FileBasedSource):
 
 
 class ReadFromVcf(PTransform):
-  r"""A :class:`~apache_beam.transforms.ptransform.PTransform` for reading VCF
+  """A :class:`~apache_beam.transforms.ptransform.PTransform` for reading VCF
   files.
 
   Parses VCF files (version 4) using PyVCF library. If file_pattern specifies
   multiple files, then the header from each file is used separately to parse
-  the content. However, the output will be a uniform PCollection of
+  the content. However, the output will be a PCollection of
   :class:`Variant` objects.
   """
 
   def __init__(
       self,
       file_pattern=None,
-      min_bundle_size=0,
       compression_type=CompressionTypes.AUTO,
       validate=True,
       **kwargs):
     """Initialize the :class:`ReadFromVcf` transform.
 
     Args:
-      file_pattern (str): The file path to read from as a local file path or a
-        GCS ``gs://`` path. The path can contain glob characters
-        (``*``, ``?``, and ``[...]`` sets).
+      file_pattern (str): The file path to read from as a local file path.
+        The path can contain glob characters (``*``, ``?``, and ``[...]`` sets).
       min_bundle_size (int): Minimum size of bundles that should be generated
         when splitting this source into bundles. See
         :class:`~apache_beam.io.filebasedsource.FileBasedSource` for more
@@ -372,7 +374,7 @@ class ReadFromVcf(PTransform):
     """
     super(ReadFromVcf, self).__init__(**kwargs)
     self._source = _VcfSource(
-        file_pattern, min_bundle_size, compression_type, validate=validate)
+        file_pattern, compression_type, validate=validate)
 
   def expand(self, pvalue):
     return pvalue.pipeline | Read(self._source)

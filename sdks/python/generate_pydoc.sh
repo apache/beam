@@ -115,6 +115,9 @@ ignore_identifiers = [
   'Set',
   'Tuple',
 
+  # Ignore broken built-in type references
+  'tuple',
+
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
