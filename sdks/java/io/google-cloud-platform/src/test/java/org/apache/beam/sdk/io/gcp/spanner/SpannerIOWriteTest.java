@@ -26,7 +26,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
@@ -68,9 +67,6 @@ import org.mockito.ArgumentMatcher;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
-
-  private static final DatabaseId DATABASE_ID = DatabaseId
-      .of("test-project", "test-instance", "test-database");
 
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -170,8 +166,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withDatabaseId("test-database")
             .withServiceFactory(serviceFactory));
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DATABASE_ID);
 
     verifyBatches(
         batch(m(2L))
@@ -191,8 +185,6 @@ public class SpannerIOWriteTest implements Serializable {
             .withServiceFactory(serviceFactory)
             .grouped());
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DATABASE_ID);
 
     verifyBatches(
         batch(m(1L), m(2L), m(3L))
@@ -214,8 +206,6 @@ public class SpannerIOWriteTest implements Serializable {
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DATABASE_ID);
 
     verifyBatches(
         batch(m(1L), m(2L))
@@ -236,8 +226,6 @@ public class SpannerIOWriteTest implements Serializable {
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DATABASE_ID);
 
     verifyBatches(
         batch(m(1L), m(2L), del(3L), del(4L))
@@ -272,9 +260,6 @@ public class SpannerIOWriteTest implements Serializable {
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
     pipeline.run();
-
-    verify(serviceFactory.mockSpanner(), times(8))
-        .getDatabaseClient(DATABASE_ID);
 
     verifyBatches(
         batch(m(1L), m(2L)),
@@ -312,9 +297,6 @@ public class SpannerIOWriteTest implements Serializable {
         .grouped());
 
     pipeline.run();
-
-    verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DATABASE_ID);
 
     // The content of batches is not deterministic. Just verify that the size is correct.
     verify(serviceFactory.mockDatabaseClient(), times(1))
@@ -384,8 +366,6 @@ public class SpannerIOWriteTest implements Serializable {
         .grouped());
 
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(3))
-        .getDatabaseClient(DATABASE_ID);
 
     verifyBatches(
         batch(m(1L)),
