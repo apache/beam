@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"google.golang.org/grpc"

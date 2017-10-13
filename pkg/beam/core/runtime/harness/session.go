@@ -23,7 +23,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
 )
 

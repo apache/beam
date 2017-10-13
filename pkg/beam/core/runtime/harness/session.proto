@@ -57,10 +57,10 @@ message EntryHeader {
 message Entry {
   Kind kind = 1;
   oneof msg {
-    org.apache.beam.fn.v1.InstructionRequest inst_req= 1000;
-    org.apache.beam.fn.v1.InstructionResponse inst_resp= 1001;
-    org.apache.beam.fn.v1.Elements elems = 1002;
-    org.apache.beam.fn.v1.LogEntry.List log_entries = 1003;
+    org.apache.beam.model.fn_execution.v1.InstructionRequest inst_req= 1000;
+    org.apache.beam.model.fn_execution.v1.InstructionResponse inst_resp= 1001;
+    org.apache.beam.model.fn_execution.v1.Elements elems = 1002;
+    org.apache.beam.model.fn_execution.v1.LogEntry.List log_entries = 1003;
     Header header = 1004;
     Footer footer = 1005;
   }

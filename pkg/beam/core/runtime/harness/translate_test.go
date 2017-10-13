@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
-	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_api_v1"
+	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
+	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 )
@@ -222,7 +222,7 @@ func getCoders() map[string]*rnapi_pb.Coder {
 			Spec: &rnapi_pb.SdkFunctionSpec{
 				Spec: &rnapi_pb.FunctionSpec{
 					// TODO(wcn): this blob will go away once coders are implemented as components rather than monoliths.
-					Payload: []byte("{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"@type\":\"kind:pair\",\"component_encodings\":[{\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIDBpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}],\"@type\":\"kind:length_prefix\"},{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIAhpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]}]},{\"@type\":\"kind:global_window\"}]}"),
+					Payload: []byte("{\"@type\":\"kind:windowed_value\",\"component_encodings\":[{\"@type\":\"kind:pair\",\"component_encodings\":[{\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIAhpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}],\"@type\":\"kind:length_prefix\"},{\"@type\":\"kind:length_prefix\",\"component_encodings\":[{\"@type\":\"CgRqc29uEgIIAhpMCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkVuYxIWCBYiBAgZQA8qBggUEgIICCoECBlAASJSCjJnaXRodWIuY29tL2dvb2dsZS9nby1iZWFtLXNkay1kZXYvcGtnL2JlYW0uSlNPTkRlYxIcCBYiBAgZQAMiBggUEgIICCoECBlADyoECBlAAQ==\"}]}]},{\"@type\":\"kind:global_window\"}]}"),
 				},
 			},
 		},
