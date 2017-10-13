@@ -1035,6 +1035,8 @@ public class BigQueryIO {
 
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
+    @Nullable abstract ValueProvider<String> getCustomTempLocation();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1062,6 +1064,8 @@ public class BigQueryIO {
       abstract Builder<T> setMethod(Method method);
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
+
+      abstract Builder<T> setCustomTempLocation(ValueProvider<String> customTempLocation);
 
       abstract Write<T> build();
     }
@@ -1322,6 +1326,16 @@ public class BigQueryIO {
       return toBuilder().setMaxFileSize(maxFileSize).build();
     }
 
+    @VisibleForTesting
+    Write<T> withCustomTempLocation(ValueProvider<String> customTempLocation) {
+      return toBuilder().setCustomTempLocation(customTempLocation).build();
+    }
+
+    @VisibleForTesting
+    Write<T> withCustomTempLocation(String customTempLocation) {
+      return toBuilder().setCustomTempLocation(StaticValueProvider.of(customTempLocation)).build();
+    }
+
     @Override
     public void validate(PipelineOptions pipelineOptions) {
       BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
@@ -1483,7 +1497,8 @@ public class BigQueryIO {
             getCreateDisposition(),
             getJsonTableRef() != null,
             dynamicDestinations,
-            destinationCoder);
+            destinationCoder,
+            getCustomTempLocation());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
