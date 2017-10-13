@@ -173,6 +173,28 @@ class UtilTest(unittest.TestCase):
       env = apiclient.Environment([], pipeline_options, '2.2.0')
       self.assertNotIn(override, env.proto.experiments)
 
+  def test_labels(self):
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp'])
+    job = apiclient.Job(pipeline_options)
+    self.assertIsNone(job.proto.labels)
+
+    pipeline_options = PipelineOptions(
+        ['--project', 'test_project', '--job_name', 'test_job_name',
+         '--temp_location', 'gs://test-location/temp',
+         '--label', 'key1=value1',
+         '--label', 'key2',
+         '--label', 'key3=value3'])
+    job = apiclient.Job(pipeline_options)
+    self.assertEqual(3, len(job.proto.labels.additionalProperties))
+    self.assertEqual('key1', job.proto.labels.additionalProperties[0].key)
+    self.assertEqual('value1', job.proto.labels.additionalProperties[0].value)
+    self.assertEqual('key2', job.proto.labels.additionalProperties[1].key)
+    self.assertEqual('', job.proto.labels.additionalProperties[1].value)
+    self.assertEqual('key3', job.proto.labels.additionalProperties[2].key)
+    self.assertEqual('value3', job.proto.labels.additionalProperties[2].value)
+
 
 if __name__ == '__main__':
   unittest.main()
