@@ -364,13 +364,13 @@ class Job(object):
     else:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
 
-    # Labels
+    # Labels.
     if self.google_cloud_options.labels:
       self.proto.labels = dataflow.Job.LabelsValue()
       for label in self.google_cloud_options.labels:
-        label = label.split('=')
-        key = label[0]
-        value = label[1] if len(label) > 1 else ''
+        parts = label.split('=', 1)
+        key = parts[0]
+        value = parts[1] if len(parts) > 1 else ''
         self.proto.labels.additionalProperties.append(
             dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
 

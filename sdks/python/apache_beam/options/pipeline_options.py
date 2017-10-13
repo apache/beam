@@ -379,8 +379,8 @@ class GoogleCloudOptions(PipelineOptions):
         dest='labels',
         action='append',
         default=None,
-        help='Labels that will be applied to the billing records for this job. '
-        'Labels are key value pairs separated by = (e.g. --label key=value).')
+        help='Labels that will be applied to this Dataflow job. Labels are key '
+        'value pairs separated by = (e.g. --label key=value).')
 
   def validate(self, validator):
     errors = []
