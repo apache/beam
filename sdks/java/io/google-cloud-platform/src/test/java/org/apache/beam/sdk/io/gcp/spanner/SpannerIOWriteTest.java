@@ -68,7 +68,11 @@ import org.mockito.ArgumentMatcher;
  */
 @RunWith(JUnit4.class)
 public class SpannerIOWriteTest implements Serializable {
-  @Rule public final transient TestPipeline pipeline = TestPipeline.create();
+
+  private static final DatabaseId DATABASE_ID = DatabaseId
+      .of("test-project", "test-instance", "test-database");
+
+  @Rule public transient TestPipeline pipeline = TestPipeline.create();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   private FakeServiceFactory serviceFactory;
@@ -167,10 +171,11 @@ public class SpannerIOWriteTest implements Serializable {
             .withServiceFactory(serviceFactory));
     pipeline.run();
     verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    int size = 1;
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(iterableOfSize(size));
+        .getDatabaseClient(DATABASE_ID);
+
+    verifyBatches(
+        batch(m(2L))
+    );
   }
 
   @Test
@@ -187,9 +192,11 @@ public class SpannerIOWriteTest implements Serializable {
             .grouped());
     pipeline.run();
     verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(1L), m(2L), m(3L)));
+        .getDatabaseClient(DATABASE_ID);
+
+    verifyBatches(
+        batch(m(1L), m(2L), m(3L))
+    );
   }
 
   @Test
@@ -208,9 +215,11 @@ public class SpannerIOWriteTest implements Serializable {
         .grouped());
     pipeline.run();
     verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(1L), m(2L)));
+        .getDatabaseClient(DATABASE_ID);
+
+    verifyBatches(
+        batch(m(1L), m(2L))
+    );
   }
 
   @Test
@@ -228,9 +237,11 @@ public class SpannerIOWriteTest implements Serializable {
         .grouped());
     pipeline.run();
     verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(1L), m(2L), del(3L), del(4L)));
+        .getDatabaseClient(DATABASE_ID);
+
+    verifyBatches(
+        batch(m(1L), m(2L), del(3L), del(4L))
+    );
   }
 
   @Test
@@ -240,9 +251,18 @@ public class SpannerIOWriteTest implements Serializable {
     Mutation prefix = Mutation.delete("test", KeySet.prefixRange(Key.of(1L)));
     Mutation range = Mutation.delete("test", KeySet.range(KeyRange.openOpen(Key.of(1L), Key
         .newBuilder().build())));
+
     PCollection<MutationGroup> mutations = pipeline.apply(Create
-        .of(g(m(1L)), g(m(2L)), g(del(5L, 6L)), g(delRange(50L, 55L)), g(delRange(11L, 20L)),
-            g(all), g(prefix), g(range)));
+        .of(
+            g(m(1L)),
+            g(m(2L)),
+            g(del(5L, 6L)),
+            g(delRange(50L, 55L)),
+            g(delRange(11L, 20L)),
+            g(all),
+            g(prefix), g(range)
+        )
+    );
     mutations.apply(SpannerIO.write()
         .withProjectId("test-project")
         .withInstanceId("test-instance")
@@ -252,22 +272,26 @@ public class SpannerIOWriteTest implements Serializable {
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
     pipeline.run();
+
     verify(serviceFactory.mockSpanner(), times(8))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(1L), m(2L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(del(5L, 6L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(delRange(11L, 20L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(delRange(50L, 55L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(all));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(prefix));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(range));
+        .getDatabaseClient(DATABASE_ID);
+
+    verifyBatches(
+        batch(m(1L), m(2L)),
+        batch(del(5L, 6L)),
+        batch(delRange(11L, 20L)),
+        batch(delRange(50L, 55L)),
+        batch(all),
+        batch(prefix),
+        batch(range)
+    );
+  }
+
+  private void verifyBatches(Iterable<Mutation>... batches) {
+    for (Iterable<Mutation> b : batches) {
+      verify(serviceFactory.mockDatabaseClient(), times(1)).writeAtLeastOnce(mutationsInNoOrder(b));
+    }
+
   }
 
   @Test
@@ -286,11 +310,13 @@ public class SpannerIOWriteTest implements Serializable {
         .withBatchSizeBytes(batchSize)
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
+
     pipeline.run();
 
     verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
+        .getDatabaseClient(DATABASE_ID);
 
+    // The content of batches is not deterministic. Just verify that the size is correct.
     verify(serviceFactory.mockDatabaseClient(), times(1))
         .writeAtLeastOnce(iterableOfSize(2));
     verify(serviceFactory.mockDatabaseClient(), times(1))
@@ -310,12 +336,11 @@ public class SpannerIOWriteTest implements Serializable {
         .withSampler(fakeSampler(m(1000L)))
         .grouped());
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(2))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(1L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(2L)));
+
+    verifyBatches(
+        batch(m(1L)),
+        batch(m(2L))
+    );
   }
 
   @Test
@@ -326,6 +351,7 @@ public class SpannerIOWriteTest implements Serializable {
             g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)),  g(m(5L)),
             g(m(6L)), g(m(7L)), g(m(8L)), g(m(9L)),  g(m(10L)))
         );
+
     mutations.apply(SpannerIO.write()
         .withProjectId("test-project")
         .withInstanceId("test-instance")
@@ -335,14 +361,12 @@ public class SpannerIOWriteTest implements Serializable {
         .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
         .grouped());
     pipeline.run();
-    verify(serviceFactory.mockSpanner(), times(4))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(1L), m(2L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(3L), m(4L), m(5L)));
-    verify(serviceFactory.mockDatabaseClient(), times(1))
-        .writeAtLeastOnce(mutationsInNoOrder(m(6L), m(7L), m(8L), m(9L), m(10L)));
+
+    verifyBatches(
+        batch(m(1L), m(2L)),
+        batch(m(3L), m(4L), m(5L)),
+        batch(m(6L), m(7L), m(8L), m(9L), m(10L))
+    );
   }
 
   @Test
@@ -358,10 +382,18 @@ public class SpannerIOWriteTest implements Serializable {
         .withBatchSizeBytes(1)
         .withSampler(fakeSampler(m(2L)))
         .grouped());
+
     pipeline.run();
     verify(serviceFactory.mockSpanner(), times(3))
-        .getDatabaseClient(DatabaseId.of("test-project", "test-instance", "test-database"));
-    verify(serviceFactory.mockDatabaseClient(), times(5)).writeAtLeastOnce(iterableOfSize(1));
+        .getDatabaseClient(DATABASE_ID);
+
+    verifyBatches(
+        batch(m(1L)),
+        batch(m(2L)),
+        batch(m(3L)),
+        batch(m(4L)),
+        batch(m(5L))
+    );
   }
 
   @Test
@@ -389,6 +421,10 @@ public class SpannerIOWriteTest implements Serializable {
     return Mutation.newInsertOrUpdateBuilder("test").set("key").to(key).build();
   }
 
+  private static Iterable<Mutation> batch(Mutation... m) {
+    return Arrays.asList(m);
+  }
+
   private static Mutation del(Long... keys) {
 
     KeySet.Builder builder = KeySet.newBuilder();
@@ -402,8 +438,8 @@ public class SpannerIOWriteTest implements Serializable {
     return Mutation.delete("test", KeySet.range(KeyRange.closedClosed(Key.of(start), Key.of(end))));
   }
 
-  private static Iterable<Mutation> mutationsInNoOrder(Mutation... mutations) {
-    final ImmutableSet<Mutation> expected = ImmutableSet.copyOf(mutations);
+  private static Iterable<Mutation> mutationsInNoOrder(Iterable<Mutation> expected) {
+    final ImmutableSet<Mutation> mutations = ImmutableSet.copyOf(expected);
     return argThat(new ArgumentMatcher<Iterable<Mutation>>() {
 
       @Override
@@ -412,12 +448,12 @@ public class SpannerIOWriteTest implements Serializable {
           return false;
         }
         ImmutableSet<Mutation> actual = ImmutableSet.copyOf((Iterable) argument);
-        return actual.equals(expected);
+        return actual.equals(mutations);
       }
 
       @Override
       public void describeTo(Description description) {
-        description.appendText("Iterable must match ").appendValue(expected);
+        description.appendText("Iterable must match ").appendValue(mutations);
       }
 
     });
@@ -437,7 +473,6 @@ public class SpannerIOWriteTest implements Serializable {
       }
     });
   }
-
 
   private static FakeSampler fakeSampler(Mutation... mutations) {
     SpannerSchema.Builder schema = SpannerSchema.builder();
