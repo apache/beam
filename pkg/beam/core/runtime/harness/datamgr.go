@@ -46,7 +46,7 @@ func (m *DataManager) open(ctx context.Context, port graph.Port) (*DataChannel, 
 	if m.ports == nil {
 		m.ports = make(map[string]*DataChannel)
 	}
-	if con, ok := m.ports[port.ID]; ok {
+	if con, ok := m.ports[port.URL]; ok {
 		return con, nil
 	}
 
@@ -54,7 +54,7 @@ func (m *DataManager) open(ctx context.Context, port graph.Port) (*DataChannel, 
 	if err != nil {
 		return nil, err
 	}
-	m.ports[port.ID] = ch
+	m.ports[port.URL] = ch
 	return ch, nil
 }
 

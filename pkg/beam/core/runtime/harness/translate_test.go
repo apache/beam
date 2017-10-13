@@ -4,7 +4,6 @@ import (
 	"reflect"
 	"testing"
 
-	google_protobuf "github.com/golang/protobuf/ptypes/any"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_api_v1"
@@ -61,7 +60,7 @@ func windowedString() *v1.FullType {
 	}
 }
 
-func makeDoFn() *google_protobuf.Any {
+func makeDoFn() []byte {
 	// This is a schematic for a DoFn that takes a windowed string
 	// and produces a windowed string.
 	me := v1.MultiEdge{
@@ -97,14 +96,14 @@ func makeDoFn() *google_protobuf.Any {
 		},
 	}
 
-	res, err := protox.PackBase64Proto(&me)
+	res, err := protox.EncodeBase64(&me)
 	if err != nil {
 		panic(err)
 	}
-	return res
+	return []byte(res)
 }
 
-func makeSource() *google_protobuf.Any {
+func makeSource() []byte {
 	me := v1.MultiEdge{
 		Outbound: []*v1.MultiEdge_Outbound{
 			&v1.MultiEdge_Outbound{
@@ -124,11 +123,11 @@ func makeSource() *google_protobuf.Any {
 		},
 	}
 
-	res, err := protox.PackProto(&me)
+	res, err := protox.EncodeBase64(&me)
 	if err != nil {
 		panic(err)
 	}
-	return res
+	return []byte(res)
 }
 
 func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
@@ -137,34 +136,31 @@ func createReferenceGraph() *fnapi_pb.ProcessBundleDescriptor {
 		Transforms: map[string]*rnapi_pb.PTransform{
 			"-14": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn:      "urn:org.apache.beam:source:java:0.1",
-					AnyParam: makeSource(),
+					Urn:     "urn:org.apache.beam:source:java:0.1",
+					Payload: makeSource(),
 				},
 				Outputs: map[string]string{"-6": "-9"},
 			},
 			"-17": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn:      "urn:beam:dofn:javasdk:0.1",
-					AnyParam: makeDoFn(),
+					Urn:     "urn:beam:dofn:javasdk:0.1",
+					Payload: makeDoFn(),
 				},
 				Inputs:  map[string]string{"-16": "-11"},
 				Outputs: map[string]string{"out": "-13"},
 			},
 			"-20": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn:      "urn:beam:dofn:javasdk:0.1",
-					AnyParam: makeDoFn(),
+					Urn:     "urn:beam:dofn:javasdk:0.1",
+					Payload: makeDoFn(),
 				},
 				Inputs:  map[string]string{"-19": "-9"},
 				Outputs: map[string]string{"out": "-11"},
 			},
 			"-4": &rnapi_pb.PTransform{
 				Spec: &rnapi_pb.FunctionSpec{
-					Urn: "urn:org.apache.beam:sink:runner:0.1",
-					AnyParam: &google_protobuf.Any{
-						TypeUrl: "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort",
-						Value:   []byte("\n\025\n\002-1\022\017localhost:36335"),
-					},
+					Urn:     "urn:org.apache.beam:sink:runner:0.1",
+					Payload: []byte("\n\025\n\002-1\022\017localhost:36335"),
 				},
 				Inputs: map[string]string{"-3": "-13"},
 			},

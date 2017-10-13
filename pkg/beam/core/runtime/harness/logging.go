@@ -104,7 +104,7 @@ func (w *remoteWriter) Write(p []byte) (n int, err error) {
 	now, _ := ptypes.TimestampProto(time.Now())
 	entry := &pb.LogEntry{
 		Timestamp: now,
-		Severity:  pb.LogEntry_INFO,
+		Severity:  pb.LogEntry_Severity_INFO,
 	}
 
 	if res := timeExp.FindSubmatch(raw); len(res) > 1 {

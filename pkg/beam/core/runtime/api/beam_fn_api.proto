@@ -38,7 +38,8 @@ option java_package = "org.apache.beam.fn.v1";
 option java_outer_classname = "BeamFnApi";
 
 import "beam_runner_api.proto";
-import "github.com/golang/protobuf/ptypes/timestamp/timestamp.proto";
+import "endpoints.proto";
+import "google/protobuf/timestamp.proto";
 
 /*
  * Constructs that define the pipeline shape.
@@ -73,7 +74,7 @@ message Target {
 message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
-  ApiServiceDescriptor api_service_descriptor = 1;
+  org.apache.beam.portability.v1.ApiServiceDescriptor api_service_descriptor = 1;
 }
 
 /*
@@ -89,11 +90,11 @@ service BeamFnControl {
   // Instructions sent by the runner to the SDK requesting different types
   // of work.
   rpc Control(
-    // A stream of responses to instructions the SDK was asked to be performed.
-    stream InstructionResponse
+  // A stream of responses to instructions the SDK was asked to be performed.
+  stream InstructionResponse
   ) returns (
-    // A stream of instructions requested of the SDK to be performed.
-    stream InstructionRequest
+  // A stream of instructions requested of the SDK to be performed.
+  stream InstructionRequest
   ) {}
 }
 
@@ -174,7 +175,7 @@ message ProcessBundleDescriptor {
   // A descriptor describing the end point to use for State API
   // calls. Required if the Runner intends to send remote references over the
   // data plane or if any of the transforms rely on user state or side inputs.
-  ApiServiceDescriptor state_api_service_descriptor = 7;
+  org.apache.beam.portability.v1.ApiServiceDescriptor state_api_service_descriptor = 7;
 }
 
 // A request to process a given bundle.
@@ -437,11 +438,11 @@ message Elements {
 service BeamFnData {
   // Used to send data between harnesses.
   rpc Data(
-    // A stream of data representing input.
-    stream Elements
+  // A stream of data representing input.
+  stream Elements
   ) returns (
-    // A stream of data representing output.
-    stream Elements
+  // A stream of data representing output.
+  stream Elements
   ) {}
 }
 
@@ -507,12 +508,12 @@ message StateResponse {
 service BeamFnState {
   // Used to get/append/clear state stored by the runner on behalf of the SDK.
   rpc State(
-    // A stream of state instructions requested of the runner.
-    stream StateRequest
+  // A stream of state instructions requested of the runner.
+  stream StateRequest
   ) returns (
-    // A stream of responses to state instructions the runner was asked to be
-    // performed.
-    stream StateResponse
+  // A stream of responses to state instructions the runner was asked to be
+  // performed.
+  stream StateResponse
   ) {}
 }
 
@@ -630,28 +631,31 @@ message LogEntry {
   // common set of "good enough" severity levels so that logging front ends
   // can provide filtering and searching across log types. Users of the API are
   // free not to use all severity levels in their log messages.
-  enum Severity {
-    // Trace level information, also the default log level unless
-    // another severity is specified.
-    TRACE = 0;
-    // Debugging information.
-    DEBUG = 10;
-    // Normal events.
-    INFO = 20;
-    // Normal but significant events, such as start up, shut down, or
-    // configuration.
-    NOTICE = 30;
-    // Warning events might cause problems.
-    WARN = 40;
-    // Error events are likely to cause problems.
-    ERROR = 50;
-    // Critical events cause severe problems or brief outages and may
-    // indicate that a person must take action.
-    CRITICAL = 60;
+  message Severity {
+    enum Enum {
+      UNSPECIFIED = 0;
+      // Trace level information, also the default log level unless
+      // another severity is specified.
+      TRACE = 1;
+      // Debugging information.
+      DEBUG = 2;
+      // Normal events.
+      INFO = 3;
+      // Normal but significant events, such as start up, shut down, or
+      // configuration.
+      NOTICE = 4;
+      // Warning events might cause problems.
+      WARN = 5;
+      // Error events are likely to cause problems.
+      ERROR = 6;
+      // Critical events cause severe problems or brief outages and may
+      // indicate that a person must take action.
+      CRITICAL = 7;
+    }
   }
 
   // (Required) The severity of the log statement.
-  Severity severity = 1;
+  Severity.Enum severity = 1;
 
   // (Required) The time at which this log statement occurred.
   google.protobuf.Timestamp timestamp = 2;
@@ -692,39 +696,17 @@ service BeamFnLogging {
   // Allows for the SDK to emit log entries which the runner can
   // associate with the active job.
   rpc Logging(
-    // A stream of log entries batched into lists emitted by the SDK harness.
-    stream LogEntry.List
+  // A stream of log entries batched into lists emitted by the SDK harness.
+  stream LogEntry.List
   ) returns (
-    // A stream of log control messages used to configure the SDK.
-    stream LogControl
+  // A stream of log control messages used to configure the SDK.
+  stream LogControl
   ) {}
 }
 
 /*
  * Environment types
  */
-message ApiServiceDescriptor {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  string id = 1;
-
-  // (Required) The URL to connect to.
-  string url = 2;
-
-  // (Optional) The method for authentication. If unspecified, access to the
-  // url is already being performed in a trusted context (e.g. localhost,
-  // private network).
-  oneof authentication {
-    OAuth2ClientCredentialsGrant oauth2_client_credentials_grant = 3;
-  }
-}
-
-message OAuth2ClientCredentialsGrant {
-  // (Required) The URL to submit a "client_credentials" grant type request for
-  // an OAuth access token which will be used as a bearer token for requests.
-  string url = 1;
-}
-
 // A Docker container configuration for launching the SDK harness to execute
 // user specified functions.
 message DockerContainer {

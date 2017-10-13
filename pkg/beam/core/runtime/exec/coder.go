@@ -23,7 +23,7 @@ type StreamID struct {
 }
 
 func (id StreamID) String() string {
-	return fmt.Sprintf("S:%v:[%v:%v]:%v", id.Port.ID, id.Target.ID, id.Target.Name, id.InstID)
+	return fmt.Sprintf("S:%v:[%v:%v]:%v", id.Port.URL, id.Target.ID, id.Target.Name, id.InstID)
 }
 
 // DataReader is the interface for reading data elements from a particular stream.
