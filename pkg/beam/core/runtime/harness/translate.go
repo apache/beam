@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	protobuf "github.com/golang/protobuf/ptypes/any"
+	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
@@ -132,7 +132,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 		switch spec.GetUrn() {
 		case "urn:org.apache.beam:source:java:0.1": // using Java's for now.
 			var me v1.MultiEdge
-			if err := protox.UnpackProto(spec.GetAnyParam(), &me); err != nil {
+			if err := protox.DecodeBase64(string(spec.GetPayload()), &me); err != nil {
 				return nil, err
 			}
 
@@ -152,7 +152,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 
 		case "urn:beam:dofn:javasdk:0.1": // We are using Java's for now.
 			var me v1.MultiEdge
-			if err := protox.UnpackBase64Proto(spec.GetAnyParam(), &me); err != nil {
+			if err := protox.DecodeBase64(string(spec.GetPayload()), &me); err != nil {
 				return nil, err
 			}
 
@@ -181,7 +181,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 
 		case "urn:org.apache.beam:source:runner:0.1":
-			port, err := translatePort(spec.GetAnyParam())
+			port, err := translatePort(spec.GetPayload())
 			if err != nil {
 				return nil, err
 			}
@@ -206,7 +206,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			edge.Output[0].Type = edge.Output[0].To.Coder.T
 
 		case "urn:org.apache.beam:sink:runner:0.1":
-			port, err := translatePort(spec.GetAnyParam())
+			port, err := translatePort(spec.GetPayload())
 			if err != nil {
 				return nil, err
 			}
@@ -237,13 +237,12 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 	return g, nil
 }
 
-func translatePort(data *protobuf.Any) (*graph.Port, error) {
+func translatePort(data []byte) (*graph.Port, error) {
 	var port fnapi_pb.RemoteGrpcPort
-	if err := protox.Unpack(data, "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort", &port); err != nil {
+	if err := proto.Unmarshal(data, &port); err != nil {
 		return nil, err
 	}
 	return &graph.Port{
-		ID:  port.GetApiServiceDescriptor().GetId(),
 		URL: port.GetApiServiceDescriptor().GetUrl(),
 	}, nil
 }

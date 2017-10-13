@@ -28,7 +28,7 @@ package org.apache.beam.runner_api.v1;
 option java_package = "org.apache.beam.sdk.common.runner.v1";
 option java_outer_classname = "RunnerApi";
 
-import "github.com/golang/protobuf/ptypes/any/any.proto";
+import "google/protobuf/any.proto";
 
 // A set of mappings from id to message. This is included as an optional field
 // on any proto message that may contain references needing resolution.
@@ -191,7 +191,7 @@ message PCollection {
   string coder_id = 2;
 
   // (Required) Whether this PCollection is bounded or unbounded
-  IsBounded is_bounded = 3;
+  IsBounded.Enum is_bounded = 3;
 
   // (Required) The id of the windowing strategy for this PCollection.
   string windowing_strategy_id = 4;
@@ -242,12 +242,15 @@ message ParDoPayload {
 // TODO: the evolution of the Fn API will influence what needs explicit
 // representation here
 message Parameter {
-  Type type = 1;
+  Type.Enum type = 1;
 
-  enum Type {
-    WINDOW = 0;
-    PIPELINE_OPTIONS = 1;
-    RESTRICTION_TRACKER = 2;
+  message Type {
+    enum Enum {
+      UNSPECIFIED = 0;
+      WINDOW = 1;
+      PIPELINE_OPTIONS = 2;
+      RESTRICTION_TRACKER = 3;
+    }
   }
 }
 
@@ -284,12 +287,15 @@ message SetStateSpec {
 }
 
 message TimerSpec {
-  TimeDomain time_domain = 1;
+  TimeDomain.Enum time_domain = 1;
 }
 
-enum IsBounded {
-  UNBOUNDED = 0;
-  BOUNDED = 1;
+message IsBounded {
+  enum Enum {
+    UNSPECIFIED = 0;
+    UNBOUNDED = 1;
+    BOUNDED = 2;
+  }
 }
 
 // The payload for the primitive Read transform.
@@ -299,7 +305,7 @@ message ReadPayload {
   SdkFunctionSpec source = 1;
 
   // (Required) Whether the source is bounded or unbounded
-  IsBounded is_bounded = 2;
+  IsBounded.Enum is_bounded = 2;
 
   // TODO: full audit of fields required by runners as opposed to SDK harness
 }
@@ -410,7 +416,7 @@ message WindowingStrategy {
   // (Required) Whether or not the window fn is merging.
   //
   // This knowledge is required for many optimizations.
-  MergeStatus merge_status = 2;
+  MergeStatus.Enum merge_status = 2;
 
   // (Required) The coder for the windows of this PCollection.
   string window_coder_id = 3;
@@ -422,7 +428,7 @@ message WindowingStrategy {
   // replacement for prior panes or whether they are deltas to be combined
   // with other panes (the combine should correspond to whatever the upstream
   // grouping transform is).
-  AccumulationMode accumulation_mode = 5;
+  AccumulationMode.Enum accumulation_mode = 5;
 
   // (Required) The OutputTime specifies, for a grouping transform, how to
   // compute the aggregate timestamp. The window_fn will first possibly shift
@@ -432,17 +438,17 @@ message WindowingStrategy {
   // This is actually only for input to grouping transforms, but since they
   // may be introduced in runner-specific ways, it is carried along with the
   // windowing strategy.
-  OutputTime output_time = 6;
+  OutputTime.Enum output_time = 6;
 
   // (Required) Indicate when output should be omitted upon window expiration.
-  ClosingBehavior closing_behavior = 7;
+  ClosingBehavior.Enum closing_behavior = 7;
 
   // (Required) The duration, in milliseconds, beyond the end of a window at
   // which the window becomes droppable.
   int64 allowed_lateness = 8;
 
   // (Required) Indicate whether empty on-time panes should be omitted.
-  OnTimeBehavior OnTimeBehavior = 9;
+  OnTimeBehavior.Enum OnTimeBehavior = 9;
 
   // (Required) Whether or not the window fn assigns inputs to exactly one window
   //
@@ -453,88 +459,109 @@ message WindowingStrategy {
 // Whether or not a PCollection's WindowFn is non-merging, merging, or
 // merging-but-already-merged, in which case a subsequent GroupByKey is almost
 // always going to do something the user does not want
-enum MergeStatus {
-  // The WindowFn does not require merging.
-  // Examples: global window, FixedWindows, SlidingWindows
-  NON_MERGING = 0;
+message MergeStatus {
+  enum Enum {
+    UNSPECIFIED = 0;
 
-  // The WindowFn is merging and the PCollection has not had merging
-  // performed.
-  // Example: Sessions prior to a GroupByKey
-  NEEDS_MERGE = 1;
+    // The WindowFn does not require merging.
+    // Examples: global window, FixedWindows, SlidingWindows
+    NON_MERGING = 1;
 
-  // The WindowFn is merging and the PCollection has had merging occur
-  // already.
-  // Example: Sessions after a GroupByKey
-  ALREADY_MERGED = 2;
+    // The WindowFn is merging and the PCollection has not had merging
+    // performed.
+    // Example: Sessions prior to a GroupByKey
+    NEEDS_MERGE = 2;
+
+    // The WindowFn is merging and the PCollection has had merging occur
+    // already.
+    // Example: Sessions after a GroupByKey
+    ALREADY_MERGED = 3;
+  }
 }
 
 // Whether or not subsequent outputs of aggregations should be entire
 // replacement values or just the aggregation of inputs received since
 // the prior output.
-enum AccumulationMode {
+message AccumulationMode {
+  enum Enum {
+    UNSPECIFIED = 0;
 
-  // The aggregation is discarded when it is output
-  DISCARDING = 0;
+    // The aggregation is discarded when it is output
+    DISCARDING = 1;
 
-  // The aggregation is accumulated across outputs
-  ACCUMULATING = 1;
+    // The aggregation is accumulated across outputs
+    ACCUMULATING = 2;
+  }
 }
 
 // Controls whether or not an aggregating transform should output data
 // when a window expires.
-enum ClosingBehavior {
+message ClosingBehavior {
+  enum Enum {
+    UNSPECIFIED = 0;
 
-  // Emit output when a window expires, whether or not there has been
-  // any new data since the last output.
-  EMIT_ALWAYS = 0;
+    // Emit output when a window expires, whether or not there has been
+    // any new data since the last output.
+    EMIT_ALWAYS = 1;
 
-  // Only emit output when new data has arrives since the last output
-  EMIT_IF_NONEMPTY = 1;
+    // Only emit output when new data has arrives since the last output
+    EMIT_IF_NONEMPTY = 2;
+  }
 }
 
 // Controls whether or not an aggregating transform should output data
 // when an on-time pane is empty.
-enum OnTimeBehavior {
-  // Always fire the on-time pane. Even if there is no new data since
-  // the previous firing, an element will be produced.
-  FIRE_ALWAYS = 0;
+message OnTimeBehavior {
+  enum Enum {
+    UNSPECIFIED = 0;
 
-  // Only fire the on-time pane if there is new data since the previous firing.
-  FIRE_IF_NONEMPTY = 1;
+    // Always fire the on-time pane. Even if there is no new data since
+    // the previous firing, an element will be produced.
+    FIRE_ALWAYS = 1;
+
+    // Only fire the on-time pane if there is new data since the previous firing.
+    FIRE_IF_NONEMPTY = 2;
+  }
 }
 
 // When a number of windowed, timestamped inputs are aggregated, the timestamp
 // for the resulting output.
-enum OutputTime {
-  // The output has the timestamp of the end of the window.
-  END_OF_WINDOW = 0;
+message OutputTime {
+  enum Enum {
+    UNSPECIFIED = 0;
 
-  // The output has the latest timestamp of the input elements since
-  // the last output.
-  LATEST_IN_PANE = 1;
+    // The output has the timestamp of the end of the window.
+    END_OF_WINDOW = 1;
 
-  // The output has the earliest timestamp of the input elements since
-  // the last output.
-  EARLIEST_IN_PANE = 2;
+    // The output has the latest timestamp of the input elements since
+    // the last output.
+    LATEST_IN_PANE = 2;
+
+    // The output has the earliest timestamp of the input elements since
+    // the last output.
+    EARLIEST_IN_PANE = 3;
+  }
 }
 
 // The different time domains in the Beam model.
-enum TimeDomain {
+message TimeDomain {
+  enum Enum {
+    UNSPECIFIED = 0;
 
-  // Event time is time from the perspective of the data
-  EVENT_TIME = 0;
+    // Event time is time from the perspective of the data
+    EVENT_TIME = 1;
 
-  // Processing time is time from the perspective of the
-  // execution of your pipeline
-  PROCESSING_TIME = 1;
+    // Processing time is time from the perspective of the
+    // execution of your pipeline
+    PROCESSING_TIME = 2;
 
-  // Synchronized processing time is the minimum of the
-  // processing time of all pending elements.
-  //
-  // The "processing time" of an element refers to
-  // the local processing time at which it was emitted
-  SYNCHRONIZED_PROCESSING_TIME = 2;
+    // Synchronized processing time is the minimum of the
+    // processing time of all pending elements.
+    //
+    // The "processing time" of an element refers to
+    // the local processing time at which it was emitted
+    SYNCHRONIZED_PROCESSING_TIME = 3;
+  }
 }
 
 // A small DSL for expressing when to emit new aggregations
@@ -755,9 +782,6 @@ message FunctionSpec {
   // passed as-is.
   string urn = 1;
 
-  // (Deprecated)
-  google.protobuf.Any any_param = 2;
-
   // (Optional) The data specifying any parameters to the URN. If
   // the URN does not require any arguments, this may be omitted.
   bytes payload = 3;
@@ -788,7 +812,7 @@ message DisplayData {
     Identifier id = 1;
 
     // (Required)
-    Type type = 2;
+    Type.Enum type = 2;
 
     // (Required)
     google.protobuf.Any value = 3;
@@ -803,13 +827,16 @@ message DisplayData {
     string link_url = 6;
   }
 
-  enum Type {
-    STRING = 0;
-    INTEGER = 1;
-    FLOAT = 2;
-    BOOLEAN = 3;
-    TIMESTAMP = 4;
-    DURATION = 5;
-    JAVA_CLASS = 6;
+  message Type {
+    enum Enum {
+      UNSPECIFIED = 0;
+      STRING = 1;
+      INTEGER = 2;
+      FLOAT = 3;
+      BOOLEAN = 4;
+      TIMESTAMP = 5;
+      DURATION = 6;
+      JAVA_CLASS = 7;
+    }
   }
 }

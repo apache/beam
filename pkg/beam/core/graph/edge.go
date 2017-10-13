@@ -121,7 +121,6 @@ func (o *Outbound) String() string {
 
 // Port represents the connection port of external operations.
 type Port struct {
-	ID  string
 	URL string
 }
 

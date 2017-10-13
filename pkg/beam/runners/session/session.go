@@ -21,7 +21,6 @@ import (
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
 	rapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_runner_api_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"google.golang.org/grpc"
 )
 
@@ -181,7 +180,7 @@ func (c *controlServer) handleEntry(msg *session.Entry) {
 
 func extractPortSpec(spec *rapi_pb.FunctionSpec) string {
 	var port fnapi_pb.RemoteGrpcPort
-	if err := protox.Unpack(spec.GetAnyParam(), "type.googleapis.com/org.apache.beam.fn.v1.RemoteGrpcPort", &port); err != nil {
+	if err := proto.Unmarshal(spec.GetPayload(), &port); err != nil {
 		panic(err)
 	}
 	lp := port.ApiServiceDescriptor.Url
