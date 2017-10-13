@@ -363,6 +363,17 @@ class Job(object):
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_STREAMING
     else:
       self.proto.type = dataflow.Job.TypeValueValuesEnum.JOB_TYPE_BATCH
+
+    # Labels.
+    if self.google_cloud_options.labels:
+      self.proto.labels = dataflow.Job.LabelsValue()
+      for label in self.google_cloud_options.labels:
+        parts = label.split('=', 1)
+        key = parts[0]
+        value = parts[1] if len(parts) > 1 else ''
+        self.proto.labels.additionalProperties.append(
+            dataflow.Job.LabelsValue.AdditionalProperty(key=key, value=value))
+
     self.base64_str_re = re.compile(r'^[A-Za-z0-9+/]*=*$')
     self.coder_str_re = re.compile(r'^([A-Za-z]+\$)([A-Za-z0-9+/]*=*)$')
 
