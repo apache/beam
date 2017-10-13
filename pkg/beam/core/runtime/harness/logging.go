@@ -19,12 +19,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
-	"runtime"
-
 	"github.com/golang/protobuf/ptypes"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/org_apache_beam_fn_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
