@@ -266,6 +266,8 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
   OffsetRangeTracker copy() {
     synchronized (this) {
       OffsetRangeTracker res = new OffsetRangeTracker();
+      // This synchronized is not really necessary, because there's no concurrent access to "res",
+      // however it is necessary to prevent findbugs from complaining about unsynchronized access.
       synchronized (res) {
         res.startOffset = this.startOffset;
         res.stopOffset = this.stopOffset;

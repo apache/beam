@@ -370,7 +370,7 @@ class _Reshard(PTransform):
 
     return (keyed_pc | 'GroupByKey' >> GroupByKey()
             # Using FlatMap below due to the possibility of key collisions.
-            | 'DropKey' >> FlatMap(lambda (k, values): values))
+            | 'DropKey' >> FlatMap(lambda k_values: k_values[1]))
 
 
 class _ReadRange(DoFn):

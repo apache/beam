@@ -122,11 +122,11 @@ class Operation(object):
 
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
-        self.operation_name + '-start')
+        self.operation_name, 'start')
     self.scoped_process_state = self.state_sampler.scoped_state(
-        self.operation_name + '-process')
+        self.operation_name, 'process')
     self.scoped_finish_state = self.state_sampler.scoped_state(
-        self.operation_name + '-finish')
+        self.operation_name, 'finish')
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.scoped_metrics_container = None
@@ -434,7 +434,7 @@ class PGBKCVOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.combine_fn)[:3]
     self.combine_fn = curry_combine_fn(fn, args, kwargs)
     if (getattr(fn.add_input, 'im_func', None)
-        is core.CombineFn.add_input.im_func):
+        is core.CombineFn.add_input.__func__):
       # Old versions of the SDK have CombineFns that don't implement add_input.
       self.combine_fn_add_input = (
           lambda a, e: self.combine_fn.add_inputs(a, [e]))

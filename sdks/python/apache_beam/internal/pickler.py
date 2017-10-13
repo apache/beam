@@ -52,7 +52,7 @@ def _find_containing_class(nested_class):
     for k, v in outer.__dict__.items():
       if v is nested_class:
         return outer, k
-      elif isinstance(v, (type, types.ClassType)) and hasattr(v, '__dict__'):
+      elif isinstance(v, type) and hasattr(v, '__dict__'):
         res = _find_containing_class_inner(v)
         if res: return res
 

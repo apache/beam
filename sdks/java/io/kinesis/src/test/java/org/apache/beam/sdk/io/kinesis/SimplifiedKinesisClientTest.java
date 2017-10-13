@@ -21,9 +21,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.failBecauseExceptionWasNotThrown;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verifyZeroInteractions;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.AmazonServiceException.ErrorType;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.cloudwatch.model.Datapoint;
+import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsRequest;
+import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
@@ -38,6 +43,7 @@ import com.amazonaws.services.kinesis.model.StreamDescription;
 import java.util.List;
 
 import org.joda.time.Instant;
+import org.joda.time.Minutes;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -58,6 +64,8 @@ public class SimplifiedKinesisClientTest {
 
   @Mock
   private AmazonKinesis kinesis;
+  @Mock
+  private AmazonCloudWatch cloudWatch;
   @InjectMocks
   private SimplifiedKinesisClient underTest;
 
@@ -211,6 +219,105 @@ public class SimplifiedKinesisClientTest {
     given(kinesis.describeStream(STREAM, null)).willThrow(thrownException);
     try {
       underTest.listShards(STREAM);
+      failBecauseExceptionWasNotThrown(expectedExceptionClass);
+    } catch (Exception e) {
+      assertThat(e).isExactlyInstanceOf(expectedExceptionClass);
+    } finally {
+      reset(kinesis);
+    }
+  }
+
+  @Test
+  public void shouldCountBytesWhenSingleDataPointReturned() throws Exception {
+    Instant countSince = new Instant("2017-04-06T10:00:00.000Z");
+    Instant countTo = new Instant("2017-04-06T11:00:00.000Z");
+    Minutes periodTime = Minutes.minutesBetween(countSince, countTo);
+    GetMetricStatisticsRequest metricStatisticsRequest =
+        underTest.createMetricStatisticsRequest(STREAM, countSince, countTo, periodTime);
+    GetMetricStatisticsResult result = new GetMetricStatisticsResult()
+        .withDatapoints(new Datapoint().withSum(1.0));
+
+    given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willReturn(result);
+
+    long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
+
+    assertThat(backlogBytes).isEqualTo(1L);
+  }
+
+  @Test
+  public void shouldCountBytesWhenMultipleDataPointsReturned() throws Exception {
+    Instant countSince = new Instant("2017-04-06T10:00:00.000Z");
+    Instant countTo = new Instant("2017-04-06T11:00:00.000Z");
+    Minutes periodTime = Minutes.minutesBetween(countSince, countTo);
+    GetMetricStatisticsRequest metricStatisticsRequest =
+        underTest.createMetricStatisticsRequest(STREAM, countSince, countTo, periodTime);
+    GetMetricStatisticsResult result = new GetMetricStatisticsResult()
+        .withDatapoints(
+            new Datapoint().withSum(1.0),
+            new Datapoint().withSum(3.0),
+            new Datapoint().withSum(2.0)
+        );
+
+    given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willReturn(result);
+
+    long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
+
+    assertThat(backlogBytes).isEqualTo(6L);
+  }
+
+  @Test
+  public void shouldNotCallCloudWatchWhenSpecifiedPeriodTooShort() throws Exception {
+    Instant countSince = new Instant("2017-04-06T10:00:00.000Z");
+    Instant countTo = new Instant("2017-04-06T10:00:02.000Z");
+
+    long backlogBytes = underTest.getBacklogBytes(STREAM, countSince, countTo);
+
+    assertThat(backlogBytes).isEqualTo(0L);
+    verifyZeroInteractions(cloudWatch);
+  }
+
+  @Test
+  public void shouldHandleLimitExceededExceptionForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(new LimitExceededException(""),
+        TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleProvisionedThroughputExceededExceptionForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(new ProvisionedThroughputExceededException(""),
+        TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleServiceErrorForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(newAmazonServiceException(ErrorType.Service),
+        TransientKinesisException.class);
+  }
+
+  @Test
+  public void shouldHandleClientErrorForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(newAmazonServiceException(ErrorType.Client),
+        RuntimeException.class);
+  }
+
+  @Test
+  public void shouldHandleUnexpectedExceptionForGetBacklogBytes() {
+    shouldHandleGetBacklogBytesError(new NullPointerException(),
+        RuntimeException.class);
+  }
+
+  private void shouldHandleGetBacklogBytesError(
+      Exception thrownException,
+      Class<? extends Exception> expectedExceptionClass) {
+    Instant countSince = new Instant("2017-04-06T10:00:00.000Z");
+    Instant countTo = new Instant("2017-04-06T11:00:00.000Z");
+    Minutes periodTime = Minutes.minutesBetween(countSince, countTo);
+    GetMetricStatisticsRequest metricStatisticsRequest =
+        underTest.createMetricStatisticsRequest(STREAM, countSince, countTo, periodTime);
+
+    given(cloudWatch.getMetricStatistics(metricStatisticsRequest)).willThrow(thrownException);
+    try {
+      underTest.getBacklogBytes(STREAM, countSince, countTo);
       failBecauseExceptionWasNotThrown(expectedExceptionClass);
     } catch (Exception e) {
       assertThat(e).isExactlyInstanceOf(expectedExceptionClass);

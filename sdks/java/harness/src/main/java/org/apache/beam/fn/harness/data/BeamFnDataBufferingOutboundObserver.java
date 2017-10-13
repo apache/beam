@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * A buffering outbound {@link Consumer} for the Beam Fn Data API.
  *
  * <p>Encodes individually consumed elements with the provided {@link Coder} producing
- * a single {@link org.apache.beam.fn.v1.BeamFnApi.Elements} message when the buffer threshold
+ * a single {@link BeamFnApi.Elements} message when the buffer threshold
  * is surpassed.
  *
  * <p>The default buffer threshold can be overridden by specifying the experiment

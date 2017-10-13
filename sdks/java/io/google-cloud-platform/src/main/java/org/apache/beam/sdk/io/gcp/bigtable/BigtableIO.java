@@ -60,7 +60,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -190,7 +189,10 @@ public class BigtableIO {
    */
   @Experimental
   public static Read read() {
-    return new AutoValue_BigtableIO_Read.Builder().setKeyRange(ByteKeyRange.ALL_KEYS).setTableId("")
+    return new AutoValue_BigtableIO_Read.Builder()
+        .setKeyRange(ByteKeyRange.ALL_KEYS)
+        .setTableId("")
+        .setValidate(true)
         .build();
   }
 
@@ -203,7 +205,10 @@ public class BigtableIO {
    */
   @Experimental
   public static Write write() {
-    return new AutoValue_BigtableIO_Write.Builder().setTableId("").build();
+    return new AutoValue_BigtableIO_Write.Builder()
+        .setTableId("")
+        .setValidate(true)
+        .build();
   }
 
   /**
@@ -234,6 +239,8 @@ public class BigtableIO {
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
+    public abstract boolean getValidate();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -248,6 +255,8 @@ public class BigtableIO {
       abstract Builder setBigtableOptions(BigtableOptions options);
 
       abstract Builder setBigtableService(BigtableService bigtableService);
+
+      abstract Builder setValidate(boolean validate);
 
       abstract Read build();
     }
@@ -279,10 +288,9 @@ public class BigtableIO {
 
       BigtableOptions.Builder clonedBuilder = options.toBuilder()
           .setUseCachedDataPool(true);
-      BigtableOptions optionsWithAgent =
-          clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
+      BigtableOptions clonedOptions = clonedBuilder.build();
 
-      return toBuilder().setBigtableOptions(optionsWithAgent).build();
+      return toBuilder().setBigtableOptions(clonedOptions).build();
     }
 
     /**
@@ -316,6 +324,11 @@ public class BigtableIO {
       return toBuilder().setTableId(tableId).build();
     }
 
+    /** Disables validation that the table being read from exists. */
+    public Read withoutValidation() {
+      return toBuilder().setValidate(false).build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       checkArgument(getBigtableOptions() != null, "withBigtableOptions() is required");
@@ -332,13 +345,15 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      try {
-        checkArgument(
-            getBigtableService(options).tableExists(getTableId()),
-            "Table %s does not exist",
-            getTableId());
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+      if (getValidate()) {
+        try {
+          checkArgument(
+              getBigtableService(options).tableExists(getTableId()),
+              "Table %s does not exist",
+              getTableId());
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+        }
       }
     }
 
@@ -432,6 +447,8 @@ public class BigtableIO {
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
+    abstract boolean getValidate();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -442,6 +459,8 @@ public class BigtableIO {
       abstract Builder setBigtableOptions(BigtableOptions options);
 
       abstract Builder setBigtableService(BigtableService bigtableService);
+
+      abstract Builder setValidate(boolean validate);
 
       abstract Write build();
     }
@@ -477,9 +496,13 @@ public class BigtableIO {
                   .setUseBulkApi(true)
                   .build())
           .setUseCachedDataPool(true);
-      BigtableOptions optionsWithAgent =
-          clonedBuilder.setUserAgent(getBeamSdkPartOfUserAgent()).build();
-      return toBuilder().setBigtableOptions(optionsWithAgent).build();
+      BigtableOptions clonedOptions = clonedBuilder.build();
+      return toBuilder().setBigtableOptions(clonedOptions).build();
+    }
+
+    /** Disables validation that the table being written to exists. */
+    public Write withoutValidation() {
+      return toBuilder().setValidate(false).build();
     }
 
     /**
@@ -509,13 +532,15 @@ public class BigtableIO {
 
     @Override
     public void validate(PipelineOptions options) {
-      try {
-        checkArgument(
-            getBigtableService(options).tableExists(getTableId()),
-            "Table %s does not exist",
-            getTableId());
-      } catch (IOException e) {
-        LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+      if (getValidate()) {
+        try {
+          checkArgument(
+              getBigtableService(options).tableExists(getTableId()),
+              "Table %s does not exist",
+              getTableId());
+        } catch (IOException e) {
+          LOG.warn("Error checking whether table {} exists; proceeding.", getTableId(), e);
+        }
       }
     }
 
@@ -567,6 +592,7 @@ public class BigtableIO {
         return getBigtableService();
       }
       BigtableOptions.Builder clonedOptions = getBigtableOptions().toBuilder();
+      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
       if (getBigtableOptions().getCredentialOptions()
           .getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
@@ -1071,19 +1097,5 @@ public class BigtableIO {
               record.getValue()),
           cause);
     }
-  }
-
-  /**
-   * A helper function to produce a Cloud Bigtable user agent string. This need only include
-   * information about the Apache Beam SDK itself, because Bigtable will automatically append
-   * other relevant system and Bigtable client-specific version information.
-   *
-   * @see com.google.cloud.bigtable.config.BigtableVersionInfo
-   */
-  private static String getBeamSdkPartOfUserAgent() {
-    ReleaseInfo info = ReleaseInfo.getReleaseInfo();
-    return
-        String.format("%s/%s", info.getName(), info.getVersion())
-            .replace(" ", "_");
   }
 }

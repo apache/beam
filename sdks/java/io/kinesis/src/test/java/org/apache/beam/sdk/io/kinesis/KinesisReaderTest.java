@@ -19,16 +19,23 @@ package org.apache.beam.sdk.io.kinesis;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.stubbing.OngoingStubbing;
 
 /**
  * Tests {@link KinesisReader}.
@@ -46,6 +53,8 @@ public class KinesisReaderTest {
   private ShardRecordsIterator firstIterator, secondIterator;
   @Mock
   private KinesisRecord a, b, c, d;
+  @Mock
+  private KinesisSource kinesisSource;
 
   private KinesisReader reader;
 
@@ -58,8 +67,12 @@ public class KinesisReaderTest {
     when(secondCheckpoint.getShardRecordsIterator(kinesis)).thenReturn(secondIterator);
     when(firstIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
     when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+    when(a.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
+    when(b.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
+    when(c.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
+    when(d.getApproximateArrivalTimestamp()).thenReturn(Instant.now());
 
-    reader = new KinesisReader(kinesis, generator, null);
+    reader = new KinesisReader(kinesis, generator, kinesisSource, Duration.ZERO, Duration.ZERO);
   }
 
   @Test
@@ -119,4 +132,99 @@ public class KinesisReaderTest {
     assertThat(reader.advance()).isFalse();
   }
 
+  @Test
+  public void watermarkDoesNotChangeWhenToFewSampleRecords()
+      throws IOException, TransientKinesisException {
+    final long timestampMs = 1000L;
+
+    prepareRecordsWithArrivalTimestamps(timestampMs, 1, KinesisReader.MIN_WATERMARK_MESSAGES / 2);
+    when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+
+    for (boolean more = reader.start(); more; more = reader.advance()) {
+      assertThat(reader.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+    }
+  }
+
+  @Test
+  public void watermarkAdvancesWhenEnoughRecordsReadRecently()
+      throws IOException, TransientKinesisException {
+    long timestampMs = 1000L;
+
+    prepareRecordsWithArrivalTimestamps(timestampMs, 1, KinesisReader.MIN_WATERMARK_MESSAGES);
+    when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+
+    int recordsNeededForWatermarkAdvancing = KinesisReader.MIN_WATERMARK_MESSAGES;
+    for (boolean more = reader.start(); more; more = reader.advance()) {
+      if (--recordsNeededForWatermarkAdvancing > 0) {
+        assertThat(reader.getWatermark()).isEqualTo(BoundedWindow.TIMESTAMP_MIN_VALUE);
+      } else {
+        assertThat(reader.getWatermark()).isEqualTo(new Instant(timestampMs));
+      }
+    }
+  }
+
+  @Test
+  public void watermarkMonotonicallyIncreases()
+      throws IOException, TransientKinesisException {
+    long timestampMs = 1000L;
+
+    prepareRecordsWithArrivalTimestamps(timestampMs, -1, KinesisReader.MIN_WATERMARK_MESSAGES * 2);
+    when(secondIterator.next()).thenReturn(CustomOptional.<KinesisRecord>absent());
+
+    Instant lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+    for (boolean more = reader.start(); more; more = reader.advance()) {
+      Instant currentWatermark = reader.getWatermark();
+      assertThat(currentWatermark).isGreaterThanOrEqualTo(lastWatermark);
+      lastWatermark = currentWatermark;
+    }
+    assertThat(reader.advance()).isFalse();
+  }
+
+  private void prepareRecordsWithArrivalTimestamps(long initialTimestampMs, int increment,
+      int count) throws TransientKinesisException {
+    long timestampMs = initialTimestampMs;
+    KinesisRecord firstRecord = prepareRecordMockWithArrivalTimestamp(timestampMs);
+    OngoingStubbing<CustomOptional<KinesisRecord>> firstIteratorStubbing =
+        when(firstIterator.next()).thenReturn(CustomOptional.of(firstRecord));
+    for (int i = 0; i < count; i++) {
+      timestampMs += increment;
+      KinesisRecord record = prepareRecordMockWithArrivalTimestamp(timestampMs);
+      firstIteratorStubbing = firstIteratorStubbing.thenReturn(CustomOptional.of(record));
+    }
+    firstIteratorStubbing.thenReturn(CustomOptional.<KinesisRecord>absent());
+  }
+
+  private KinesisRecord prepareRecordMockWithArrivalTimestamp(long timestampMs) {
+    KinesisRecord record = mock(KinesisRecord.class);
+    when(record.getApproximateArrivalTimestamp()).thenReturn(new Instant(timestampMs));
+    return record;
+  }
+
+  @Test
+  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenKinesisExceptionsOccur()
+      throws TransientKinesisException {
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
+        .thenReturn(10L)
+        .thenThrow(TransientKinesisException.class)
+        .thenReturn(20L);
+
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(reader.getTotalBacklogBytes()).isEqualTo(20);
+  }
+
+  @Test
+  public void getTotalBacklogBytesShouldReturnLastSeenValueWhenCalledFrequently()
+      throws TransientKinesisException {
+    KinesisReader backlogCachingReader = new KinesisReader(kinesis, generator, kinesisSource,
+        Duration.ZERO, Duration.standardSeconds(30));
+    when(kinesisSource.getStreamName()).thenReturn("stream1");
+    when(kinesis.getBacklogBytes(eq("stream1"), any(Instant.class)))
+        .thenReturn(10L)
+        .thenReturn(20L);
+
+    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+    assertThat(backlogCachingReader.getTotalBacklogBytes()).isEqualTo(10);
+  }
 }

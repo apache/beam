@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.options;
 
 import java.util.Map;
-
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;

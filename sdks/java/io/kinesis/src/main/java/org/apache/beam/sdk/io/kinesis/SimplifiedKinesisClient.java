@@ -17,7 +17,15 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
+import com.amazonaws.services.cloudwatch.model.Datapoint;
+import com.amazonaws.services.cloudwatch.model.Dimension;
+import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsRequest;
+import com.amazonaws.services.cloudwatch.model.GetMetricStatisticsResult;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.amazonaws.services.kinesis.model.ExpiredIteratorException;
@@ -31,11 +39,13 @@ import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import com.amazonaws.services.kinesis.model.StreamDescription;
 import com.google.common.collect.Lists;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Callable;
 
 import org.joda.time.Instant;
+import org.joda.time.Minutes;
 
 /**
  * Wraps {@link AmazonKinesis} class providing much simpler interface and
@@ -43,14 +53,22 @@ import org.joda.time.Instant;
  */
 class SimplifiedKinesisClient {
 
+  private static final String KINESIS_NAMESPACE = "AWS/Kinesis";
+  private static final String INCOMING_RECORDS_METRIC = "IncomingBytes";
+  private static final int PERIOD_GRANULARITY_IN_SECONDS = 60;
+  private static final String SUM_STATISTIC = "Sum";
+  private static final String STREAM_NAME_DIMENSION = "StreamName";
   private final AmazonKinesis kinesis;
+  private final AmazonCloudWatch cloudWatch;
 
-  public SimplifiedKinesisClient(AmazonKinesis kinesis) {
-    this.kinesis = kinesis;
+  public SimplifiedKinesisClient(AmazonKinesis kinesis, AmazonCloudWatch cloudWatch) {
+    this.kinesis = checkNotNull(kinesis, "kinesis");
+    this.cloudWatch = checkNotNull(cloudWatch, "cloudWatch");
   }
 
-  public static SimplifiedKinesisClient from(KinesisClientProvider provider) {
-    return new SimplifiedKinesisClient(provider.get());
+  public static SimplifiedKinesisClient from(AWSClientsProvider provider) {
+    return new SimplifiedKinesisClient(provider.getKinesisClient(),
+        provider.getCloudWatchClient());
   }
 
   public String getShardIterator(final String streamName, final String shardId,
@@ -126,19 +144,76 @@ class SimplifiedKinesisClient {
         return new GetKinesisRecordsResult(
             UserRecord.deaggregate(response.getRecords()),
             response.getNextShardIterator(),
+            response.getMillisBehindLatest(),
             streamName, shardId);
       }
     });
   }
 
   /**
+   * Gets total size in bytes of all events that remain in Kinesis stream after specified instant.
+   *
+   * @return total size in bytes of all Kinesis events after specified instant
+   */
+  public long getBacklogBytes(String streamName, Instant countSince)
+      throws TransientKinesisException {
+    return getBacklogBytes(streamName, countSince, new Instant());
+  }
+
+  /**
+   * Gets total size in bytes of all events that remain in Kinesis stream between specified
+   * instants.
+   *
+   * @return total size in bytes of all Kinesis events after specified instant
+   */
+  public long getBacklogBytes(final String streamName, final Instant countSince,
+      final Instant countTo) throws TransientKinesisException {
+    return wrapExceptions(new Callable<Long>() {
+
+      @Override
+      public Long call() throws Exception {
+        Minutes period = Minutes.minutesBetween(countSince, countTo);
+        if (period.isLessThan(Minutes.ONE)) {
+          return 0L;
+        }
+
+        GetMetricStatisticsRequest request = createMetricStatisticsRequest(streamName,
+            countSince, countTo, period);
+
+        long totalSizeInBytes = 0;
+        GetMetricStatisticsResult result = cloudWatch.getMetricStatistics(request);
+        for (Datapoint point : result.getDatapoints()) {
+          totalSizeInBytes += point
+              .getSum()
+              .longValue();
+        }
+        return totalSizeInBytes;
+      }
+    });
+  }
+
+  GetMetricStatisticsRequest createMetricStatisticsRequest(String streamName, Instant countSince,
+      Instant countTo, Minutes period) {
+    return new GetMetricStatisticsRequest()
+        .withNamespace(KINESIS_NAMESPACE)
+        .withMetricName(INCOMING_RECORDS_METRIC)
+        .withPeriod(period.getMinutes() * PERIOD_GRANULARITY_IN_SECONDS)
+        .withStartTime(countSince.toDate())
+        .withEndTime(countTo.toDate())
+        .withStatistics(Collections.singletonList(SUM_STATISTIC))
+        .withDimensions(Collections.singletonList(new Dimension()
+            .withName(STREAM_NAME_DIMENSION)
+            .withValue(streamName)));
+  }
+
+  /**
    * Wraps Amazon specific exceptions into more friendly format.
    *
-   * @throws TransientKinesisException              - in case of recoverable situation, i.e.
-   *                                  the request rate is too high, Kinesis remote service
-   *                                  failed, network issue, etc.
-   * @throws ExpiredIteratorException - if iterator needs to be refreshed
-   * @throws RuntimeException         - in all other cases
+   * @throws TransientKinesisException - in case of recoverable situation, i.e.
+   *                                   the request rate is too high, Kinesis remote service
+   *                                   failed, network issue, etc.
+   * @throws ExpiredIteratorException  - if iterator needs to be refreshed
+   * @throws RuntimeException          - in all other cases
    */
   private <T> T wrapExceptions(Callable<T> callable) throws TransientKinesisException {
     try {
@@ -154,6 +229,11 @@ class SimplifiedKinesisClient {
             "Kinesis backend failed. Wait some time and retry.", e);
       }
       throw new RuntimeException("Kinesis client side failure", e);
+    } catch (AmazonClientException e) {
+      if (e.isRetryable()) {
+        throw new TransientKinesisException("Retryable client failure", e);
+      }
+      throw new RuntimeException("Not retryable client failure", e);
     } catch (Exception e) {
       throw new RuntimeException("Unknown kinesis failure, when trying to reach kinesis", e);
     }

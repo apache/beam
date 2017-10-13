@@ -589,6 +589,32 @@ public class BigtableIOTest {
         + "display data", displayData, Matchers.hasItem(hasDisplayItem("rowFilter")));
   }
 
+  @Test
+  public void testReadWithoutValidate() {
+    final String table = "fooTable";
+    BigtableIO.Read read = BigtableIO.read()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId(table)
+        .withBigtableService(service)
+        .withoutValidation();
+
+    // validate() will throw if withoutValidation() isn't working
+    read.validate(TestPipeline.testingPipelineOptions());
+  }
+
+  @Test
+  public void testWriteWithoutValidate() {
+    final String table = "fooTable";
+    BigtableIO.Write write = BigtableIO.write()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId(table)
+        .withBigtableService(service)
+        .withoutValidation();
+
+    // validate() will throw if withoutValidation() isn't working
+    write.validate(TestPipeline.testingPipelineOptions());
+  }
+
   /** Tests that a record gets written to the service and messages are logged. */
   @Test
   public void testWriting() throws Exception {

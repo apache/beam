@@ -25,7 +25,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -38,10 +37,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -172,6 +169,7 @@ public class JdbcIO {
    * An interface used by {@link JdbcIO.Read} for converting each row of the {@link ResultSet} into
    * an element of the resulting {@link PCollection}.
    */
+  @FunctionalInterface
   public interface RowMapper<T> extends Serializable {
     T mapRow(ResultSet resultSet) throws Exception;
   }
@@ -271,6 +269,7 @@ public class JdbcIO {
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
+  @FunctionalInterface
   public interface StatementPreparator extends Serializable {
     void setParameters(PreparedStatement preparedStatement) throws Exception;
   }
@@ -502,6 +501,7 @@ public class JdbcIO {
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
+  @FunctionalInterface
   public interface PreparedStatementSetter<T> extends Serializable {
     void setParameters(T element, PreparedStatement preparedStatement) throws Exception;
   }
@@ -647,26 +647,7 @@ public class JdbcIO {
                         }
                       })
                   .withSideInputs(empty));
-      return materialized
-          .apply(
-              "Pair with random key",
-              ParDo.of(
-                  new DoFn<T, KV<Integer, T>>() {
-                    private int shard;
-
-                    @Setup
-                    public void setup() {
-                      shard = ThreadLocalRandom.current().nextInt();
-                    }
-
-                    @ProcessElement
-                    public void processElement(ProcessContext context) {
-                      context.output(KV.of(++shard, context.element()));
-                    }
-                  }))
-          .apply(Reshuffle.<Integer, T>of())
-          .apply(Values.<T>create());
-
+      return materialized.apply(Reshuffle.<T>viaRandomKey());
     }
   }
 }

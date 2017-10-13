@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
@@ -54,7 +55,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Combine;
@@ -188,9 +188,9 @@ class FlinkStreamingTransformTranslators {
         if (transform.getSource().requiresDeduping()) {
           source = nonDedupSource.keyBy(
               new ValueWithRecordIdKeySelector<T>())
-              .transform("debuping", outputTypeInfo, new DedupingOperator<T>());
+              .transform("deduping", outputTypeInfo, new DedupingOperator<T>());
         } else {
-          source = nonDedupSource.flatMap(new StripIdsMap<T>());
+          source = nonDedupSource.flatMap(new StripIdsMap<T>()).returns(outputTypeInfo);
         }
       } catch (Exception e) {
         throw new RuntimeException(

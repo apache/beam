@@ -17,23 +17,21 @@
  */
 package org.apache.beam.runners.core.construction;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
 import java.io.IOException;
 import java.io.Serializable;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.OutputTime;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.StandardWindowFns;
-import org.apache.beam.sdk.common.runner.v1.StandardWindowFns.FixedWindowsPayload;
-import org.apache.beam.sdk.common.runner.v1.StandardWindowFns.SessionsPayload;
-import org.apache.beam.sdk.common.runner.v1.StandardWindowFns.SlidingWindowsPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.OutputTime;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
+import org.apache.beam.model.pipeline.v1.StandardWindowFns;
+import org.apache.beam.model.pipeline.v1.StandardWindowFns.FixedWindowsPayload;
+import org.apache.beam.model.pipeline.v1.StandardWindowFns.SessionsPayload;
+import org.apache.beam.model.pipeline.v1.StandardWindowFns.SlidingWindowsPayload;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
@@ -51,7 +49,7 @@ import org.joda.time.Duration;
 /** Utilities for working with {@link WindowingStrategy WindowingStrategies}. */
 public class WindowingStrategyTranslation implements Serializable {
 
-  public static AccumulationMode fromProto(RunnerApi.AccumulationMode proto) {
+  public static AccumulationMode fromProto(RunnerApi.AccumulationMode.Enum proto) {
     switch (proto) {
       case DISCARDING:
         return AccumulationMode.DISCARDING_FIRED_PANES;
@@ -71,12 +69,12 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.AccumulationMode toProto(AccumulationMode accumulationMode) {
+  public static RunnerApi.AccumulationMode.Enum toProto(AccumulationMode accumulationMode) {
     switch (accumulationMode) {
       case DISCARDING_FIRED_PANES:
-        return RunnerApi.AccumulationMode.DISCARDING;
+        return RunnerApi.AccumulationMode.Enum.DISCARDING;
       case ACCUMULATING_FIRED_PANES:
-        return RunnerApi.AccumulationMode.ACCUMULATING;
+        return RunnerApi.AccumulationMode.Enum.ACCUMULATING;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -87,12 +85,12 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.ClosingBehavior toProto(ClosingBehavior closingBehavior) {
+  public static RunnerApi.ClosingBehavior.Enum toProto(ClosingBehavior closingBehavior) {
     switch (closingBehavior) {
       case FIRE_ALWAYS:
-        return RunnerApi.ClosingBehavior.EMIT_ALWAYS;
+        return RunnerApi.ClosingBehavior.Enum.EMIT_ALWAYS;
       case FIRE_IF_NON_EMPTY:
-        return RunnerApi.ClosingBehavior.EMIT_IF_NONEMPTY;
+        return RunnerApi.ClosingBehavior.Enum.EMIT_IF_NONEMPTY;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -103,7 +101,7 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static ClosingBehavior fromProto(RunnerApi.ClosingBehavior proto) {
+  public static ClosingBehavior fromProto(RunnerApi.ClosingBehavior.Enum proto) {
     switch (proto) {
       case EMIT_ALWAYS:
         return ClosingBehavior.FIRE_ALWAYS;
@@ -123,12 +121,12 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.OnTimeBehavior toProto(OnTimeBehavior onTimeBehavior) {
+  public static RunnerApi.OnTimeBehavior.Enum toProto(OnTimeBehavior onTimeBehavior) {
     switch (onTimeBehavior) {
       case FIRE_ALWAYS:
-        return RunnerApi.OnTimeBehavior.FIRE_ALWAYS;
+        return RunnerApi.OnTimeBehavior.Enum.FIRE_ALWAYS;
       case FIRE_IF_NON_EMPTY:
-        return RunnerApi.OnTimeBehavior.FIRE_IF_NONEMPTY;
+        return RunnerApi.OnTimeBehavior.Enum.FIRE_IF_NONEMPTY;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -139,7 +137,7 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static OnTimeBehavior fromProto(RunnerApi.OnTimeBehavior proto) {
+  public static OnTimeBehavior fromProto(RunnerApi.OnTimeBehavior.Enum proto) {
     switch (proto) {
       case FIRE_ALWAYS:
         return OnTimeBehavior.FIRE_ALWAYS;
@@ -159,14 +157,14 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static RunnerApi.OutputTime toProto(TimestampCombiner timestampCombiner) {
+  public static RunnerApi.OutputTime.Enum toProto(TimestampCombiner timestampCombiner) {
     switch(timestampCombiner) {
       case EARLIEST:
-        return OutputTime.EARLIEST_IN_PANE;
+        return OutputTime.Enum.EARLIEST_IN_PANE;
       case END_OF_WINDOW:
-        return OutputTime.END_OF_WINDOW;
+        return OutputTime.Enum.END_OF_WINDOW;
       case LATEST:
-        return OutputTime.LATEST_IN_PANE;
+        return OutputTime.Enum.LATEST_IN_PANE;
       default:
         throw new IllegalArgumentException(
             String.format(
@@ -176,7 +174,7 @@ public class WindowingStrategyTranslation implements Serializable {
     }
   }
 
-  public static TimestampCombiner timestampCombinerFromProto(RunnerApi.OutputTime proto) {
+  public static TimestampCombiner timestampCombinerFromProto(RunnerApi.OutputTime.Enum proto) {
     switch (proto) {
       case EARLIEST_IN_PANE:
         return TimestampCombiner.EARLIEST;
@@ -223,7 +221,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(OLD_SERIALIZED_JAVA_WINDOWFN_URN)
-                  .setAnyParam(Any.pack(BytesValue.newBuilder().setValue(serializedFn).build()))
                   .setPayload(serializedFn)
                   .build())
           .build();
@@ -241,7 +238,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(FIXED_WINDOWS_FN)
-                  .setAnyParam(Any.pack(fixedWindowsPayload))
                   .setPayload(fixedWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof SlidingWindows) {
@@ -254,7 +250,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SLIDING_WINDOWS_FN)
-                  .setAnyParam(Any.pack(slidingWindowsPayload))
                   .setPayload(slidingWindowsPayload.toByteString()))
           .build();
     } else if (windowFn instanceof Sessions) {
@@ -266,7 +261,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SESSION_WINDOWS_FN)
-                  .setAnyParam(Any.pack(sessionsPayload))
                   .setPayload(sessionsPayload.toByteString()))
           .build();
     } else {
@@ -274,7 +268,6 @@ public class WindowingStrategyTranslation implements Serializable {
           .setSpec(
               FunctionSpec.newBuilder()
                   .setUrn(SERIALIZED_JAVA_WINDOWFN_URN)
-                  .setAnyParam(Any.pack(BytesValue.newBuilder().setValue(serializedFn).build()))
                   .setPayload(serializedFn))
           .build();
     }

@@ -155,7 +155,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override public int hashCode() {
-      return Objects.hash(isAuctionWindow, auction);
+      return Objects.hash(super.hashCode(), isAuctionWindow, auction);
     }
   }
 
@@ -192,6 +192,11 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
     }
 
     @Override public void verifyDeterministic() throws NonDeterministicException {}
+
+    @Override
+    public Object structuralValue(AuctionOrBidWindow value) {
+      return value;
+    }
   }
 
   /** Assign events to auction windows and merges them intelligently. */

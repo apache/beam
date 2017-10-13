@@ -69,13 +69,17 @@ def run(argv=None):
     lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
     # Capitalize the characters in each line.
+    def count_ones(word_ones):
+      (word, ones) = word_ones
+      return (word, sum(ones))
+
     transformed = (lines
                    | 'Split' >> (beam.FlatMap(find_words)
                                  .with_output_types(unicode))
                    | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
                    | beam.WindowInto(window.FixedWindows(2*60, 0))
                    | 'Group' >> beam.GroupByKey()
-                   | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+                   | 'Count' >> beam.Map(count_ones)
                    | 'Format' >> beam.ParDo(FormatDoFn()))
 
     # Write to BigQuery.

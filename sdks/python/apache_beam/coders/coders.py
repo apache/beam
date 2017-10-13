@@ -19,6 +19,7 @@
 
 Only those coders listed in __all__ are part of the public API of this module.
 """
+from __future__ import absolute_import
 
 import base64
 import cPickle as pickle
@@ -32,9 +33,9 @@ from apache_beam.utils import urns
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from stream import get_varint_size
+  from .stream import get_varint_size
 except ImportError:
-  from slow_stream import get_varint_size
+  from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -234,7 +235,6 @@ class Coder(object):
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
                 urn=urn,
-                any_param=proto_utils.pack_Any(typed_param),
                 payload=typed_param.SerializeToString()
                 if typed_param is not None else None)),
         component_coder_ids=[context.coders.get_id(c) for c in components])

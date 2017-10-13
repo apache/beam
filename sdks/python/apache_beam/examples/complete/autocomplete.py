@@ -45,13 +45,15 @@ def run(argv=None):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
   with beam.Pipeline(options=pipeline_options) as p:
+    def format_result(prefix_candidates):
+      (prefix, candidates) = prefix_candidates
+      return '%s: %s' % (prefix, candidates)
 
     (p  # pylint: disable=expression-not-assigned
      | 'read' >> ReadFromText(known_args.input)
      | 'split' >> beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
      | 'TopPerPrefix' >> TopPerPrefix(5)
-     | 'format' >> beam.Map(
-         lambda (prefix, candidates): '%s: %s' % (prefix, candidates))
+     | 'format' >> beam.Map(format_result)
      | 'write' >> WriteToText(known_args.output))
 
 

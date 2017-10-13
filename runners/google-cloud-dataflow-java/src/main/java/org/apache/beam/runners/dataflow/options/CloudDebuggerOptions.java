@@ -23,6 +23,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Options for controlling Cloud Debugger.
@@ -30,7 +31,7 @@ import org.apache.beam.sdk.options.Hidden;
 @Description("[Experimental] Used to configure the Cloud Debugger")
 @Experimental
 @Hidden
-public interface CloudDebuggerOptions {
+public interface CloudDebuggerOptions extends PipelineOptions {
 
   /** Whether to enable the Cloud Debugger snapshot agent for the current job. */
   @Description("Whether to enable the Cloud Debugger snapshot agent for the current job.")
