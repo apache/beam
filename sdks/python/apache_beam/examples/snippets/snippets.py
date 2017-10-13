@@ -1161,12 +1161,14 @@ def model_co_group_by_key_tuple(emails, phones, output_path):
   results = ({'emails': emails, 'phones': phones}
              | beam.CoGroupByKey())
 
-  formatted_results = results | beam.Map(
-      lambda (name, info):\
-         '%s; %s; %s' %\
-         (name, sorted(info['emails']), sorted(info['phones'])))
+  def join_info(name_info):
+    (name, info) = name_info
+    return '%s; %s; %s' %\
+        (name, sorted(info['emails']), sorted(info['phones'])))
+
+  contact_lines = results | beam.Map(join_info)
   # [END model_group_by_key_cogroupbykey_tuple]
-  formatted_results | beam.io.WriteToText(output_path)
+  contact_lines | beam.io.WriteToText(output_path)
 
 
 def model_join_using_side_inputs(
