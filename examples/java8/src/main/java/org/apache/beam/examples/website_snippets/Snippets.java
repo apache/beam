@@ -68,7 +68,7 @@ public class Snippets {
         .and(phonesTag, phones)
         .apply(CoGroupByKey.<String>create());
 
-    PCollection<String> formattedResults = results.apply(ParDo.of(
+    PCollection<String> contactLines = results.apply(ParDo.of(
       new DoFn<KV<String, CoGbkResult>, String>() {
         @ProcessElement
         public void processElement(ProcessContext c) {
@@ -82,6 +82,6 @@ public class Snippets {
       }
     ));
     // [END CoGroupByKeyTuple]
-    return formattedResults;
+    return contactLines;
   }
 }
