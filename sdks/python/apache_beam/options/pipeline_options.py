@@ -374,6 +374,13 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
+    parser.add_argument(
+        '--label', '--labels',
+        dest='labels',
+        action='append',
+        default=None,
+        help='Labels that will be applied to the billing records for this job. '
+        'Labels are key value pairs separated by = (e.g. --label key=value).')
 
   def validate(self, validator):
     errors = []
