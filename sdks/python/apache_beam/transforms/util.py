@@ -359,7 +359,6 @@ class _WindowAwareBatchingDoFn(DoFn):
       del self._batches[window]
       self._batch_size = self._batch_size_estimator.next_batch_size()
 
-
   def finish_bundle(self):
     for window, batch in self._batches.items():
       if batch:
