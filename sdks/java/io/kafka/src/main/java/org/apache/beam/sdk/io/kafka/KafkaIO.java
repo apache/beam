@@ -66,8 +66,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -899,9 +899,10 @@ public class KafkaIO {
     private final String name;
     private Consumer<byte[], byte[]> consumer;
     private final List<PartitionState> partitionStates;
-    // curRecord and curTimestamp are accessed outside advance(), which might be another thread.
-    private AtomicReference<KafkaRecord<K, V>> curRecord = new AtomicReference<>();
-    private AtomicReference<Instant> curTimestamp = new AtomicReference<>();
+    @GuardedBy("this")
+    private KafkaRecord<K, V> curRecord = null;
+    @GuardedBy("this")
+    private Instant curTimestamp = null;
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private Deserializer<K> keyDeserializerInstance = null;
@@ -1261,19 +1262,26 @@ public class KafkaIO {
               keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
               valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
-          curTimestamp.set((source.spec.getTimestampFn() == null)
-              ? Instant.now() : source.spec.getTimestampFn().apply(record));
+          Instant timestamp = (source.spec.getTimestampFn() == null)
+            ? Instant.now() : source.spec.getTimestampFn().apply(record);
 
-          KafkaRecord<?, ?> prevRecord = curRecord.getAndSet(record);
+          // Update curRecord and curTimestamp under lock.
+          boolean isFirstRecord;
+          synchronized (this) {
+            isFirstRecord = curRecord == null;
+            curRecord = record;
+            curTimestamp = timestamp;
+          }
 
           long offsetGap;
-          if (prevRecord == null) {
+          if (isFirstRecord) {
             LOG.info("{}: first record offset {}", name, offset);
             offsetGap = 0;
           } else {
-             offsetGap = offset - expected;
-            // could be > 0 when Kafka log compaction is enabled or when trasactions are aborted.
+            offsetGap = offset - expected;
+            // Gap could be due to log compaction or aborted transactions.
           }
+
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
           pState.recordConsumed(offset, recordSize, offsetGap);
@@ -1334,14 +1342,20 @@ public class KafkaIO {
 
     @Override
     public Instant getWatermark() {
-      KafkaRecord<K, V> record = curRecord.get();
+      KafkaRecord<K, V> record;
+      Instant timestamp;
+      synchronized (this) {
+        record = curRecord;
+        timestamp = curTimestamp;
+      }
+
       if (record == null) {
         LOG.debug("{}: getWatermark() : no records have been read yet.", name);
         return initialWatermark;
       }
 
       return source.spec.getWatermarkFn() != null
-          ? source.spec.getWatermarkFn().apply(record) : curTimestamp.get();
+          ? source.spec.getWatermarkFn().apply(record) : timestamp;
     }
 
     @Override
@@ -1366,16 +1380,15 @@ public class KafkaIO {
     }
 
     @Override
-    public KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
+    public synchronized KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
       // should we delay updating consumed offset till this point? Mostly not required.
-      return curRecord.get();
+      return curRecord;
     }
 
     @Override
-    public Instant getCurrentTimestamp() throws NoSuchElementException {
-      return curTimestamp.get();
+    public synchronized Instant getCurrentTimestamp() throws NoSuchElementException {
+      return curTimestamp;
     }
-
 
     @Override
     public long getSplitBacklogBytes() {
