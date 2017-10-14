@@ -95,7 +95,6 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
@@ -547,15 +546,12 @@ public class BigQueryIO {
         return getCoder();
       }
 
-      TypeDescriptor<T> descriptor = TypeDescriptors.outputOf(getParseFn());
-
-      String message =
-          "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().";
-      checkArgument(descriptor != null, message);
       try {
-        return coderRegistry.getCoder(descriptor);
+        return coderRegistry.getCoder(TypeDescriptors.outputOf(getParseFn()));
       } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException(message, e);
+        throw new IllegalArgumentException(
+            "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().",
+            e);
       }
     }
 

@@ -346,12 +346,12 @@ public class FileIO {
       }
     }
 
-    private static class MatchPollFn implements Watch.Growth.PollFn<String, MatchResult.Metadata> {
+    private static class MatchPollFn extends Watch.Growth.PollFn<String, MatchResult.Metadata> {
       @Override
-      public Watch.Growth.PollResult<MatchResult.Metadata> apply(String input, Instant timestamp)
+      public Watch.Growth.PollResult<MatchResult.Metadata> apply(String element, Context c)
           throws Exception {
         return Watch.Growth.PollResult.incomplete(
-            Instant.now(), FileSystems.match(input, EmptyMatchTreatment.ALLOW).metadata());
+            Instant.now(), FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata());
       }
     }
   }
