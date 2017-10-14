@@ -45,7 +45,7 @@ class SdkHarness(object):
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
   def run(self):
-    contol_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
+    control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
     # TODO(robertwb): Wire up to new state api.
     state_stub = None
     self.worker = SdkWorker(state_stub, self._data_channel_factory)
@@ -60,7 +60,7 @@ class SdkHarness(object):
           return
         yield response
 
-    for work_request in contol_stub.Control(get_responses()):
+    for work_request in control_stub.Control(get_responses()):
       logging.info('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
       if request_type == ['process_bundle_progress']:
