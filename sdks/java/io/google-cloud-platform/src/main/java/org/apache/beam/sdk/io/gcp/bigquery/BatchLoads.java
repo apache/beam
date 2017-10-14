@@ -128,13 +128,13 @@ class BatchLoads<DestinationT>
   private long maxFileSize;
   private int numFileShards;
   private Duration triggeringFrequency;
-  private ValueProvider<String> customTempLocation;
+  private ValueProvider<String> customGcsTempLocation;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations,
              Coder<DestinationT> destinationCoder,
-             ValueProvider<String> customTempLocation) {
+             ValueProvider<String> customGcsTempLocation) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -145,7 +145,7 @@ class BatchLoads<DestinationT>
     this.maxFileSize = DEFAULT_MAX_FILE_SIZE;
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
     this.triggeringFrequency = null;
-    this.customTempLocation = customTempLocation;
+    this.customGcsTempLocation = customGcsTempLocation;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -364,10 +364,10 @@ class BatchLoads<DestinationT>
                   @ProcessElement
                   public void getTempFilePrefix(ProcessContext c) {
                     String tempLocationRoot;
-                    if (customTempLocation == null) {
+                    if (customGcsTempLocation.isAccessible()) {
                       tempLocationRoot = c.getPipelineOptions().getTempLocation();
                     } else {
-                      tempLocationRoot = customTempLocation.get();
+                      tempLocationRoot = customGcsTempLocation.get();
                     }
                     String tempLocation =
                         resolveTempLocation(

@@ -1035,7 +1035,7 @@ public class BigQueryIO {
 
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
-    @Nullable abstract ValueProvider<String> getCustomTempLocation();
+    @Nullable abstract ValueProvider<String> getCustomGcsTempLocation();
 
     abstract Builder<T> toBuilder();
 
@@ -1065,7 +1065,7 @@ public class BigQueryIO {
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
 
-      abstract Builder<T> setCustomTempLocation(ValueProvider<String> customTempLocation);
+      abstract Builder<T> setCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation);
 
       abstract Write<T> build();
     }
@@ -1311,6 +1311,15 @@ public class BigQueryIO {
       return toBuilder().setNumFileShards(numFileShards).build();
     }
 
+    public Write<T> withCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation) {
+      return toBuilder().setCustomGcsTempLocation(customGcsTempLocation).build();
+    }
+
+    public Write<T> withCustomGcsTempLocation(String customGcsTempLocation) {
+      return toBuilder().setCustomGcsTempLocation(
+          StaticValueProvider.of(customGcsTempLocation)).build();
+    }
+
     @VisibleForTesting
     Write<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
@@ -1324,16 +1333,6 @@ public class BigQueryIO {
     @VisibleForTesting
     Write<T> withMaxFileSize(long maxFileSize) {
       return toBuilder().setMaxFileSize(maxFileSize).build();
-    }
-
-    @VisibleForTesting
-    Write<T> withCustomTempLocation(ValueProvider<String> customTempLocation) {
-      return toBuilder().setCustomTempLocation(customTempLocation).build();
-    }
-
-    @VisibleForTesting
-    Write<T> withCustomTempLocation(String customTempLocation) {
-      return toBuilder().setCustomTempLocation(StaticValueProvider.of(customTempLocation)).build();
     }
 
     @Override
@@ -1498,7 +1497,7 @@ public class BigQueryIO {
             getJsonTableRef() != null,
             dynamicDestinations,
             destinationCoder,
-            getCustomTempLocation());
+            getCustomGcsTempLocation());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
