@@ -6152,7 +6152,7 @@ body {
 
 .cards {
   background-image: url(../images/cards_bg.svg);
-  background-size: 100%;
+  background-size: cover;
   background-repeat: no-repeat;
   background-position: top;
   text-align: center;
@@ -6280,7 +6280,7 @@ body {
 .hero-bg {
   background-image: url(../images/hero_bg_flat.svg);
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: cover;
   background-position: top center;
   margin-top: -50px; }
   @media (min-width: 1024px) {
