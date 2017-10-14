@@ -46,3 +46,6 @@ class _FakeScopedState(object):
 
   def __exit__(self, *unused_args):
     pass
+
+  def sampled_seconds(self):
+    return 0
