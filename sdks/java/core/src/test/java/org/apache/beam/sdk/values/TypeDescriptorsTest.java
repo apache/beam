@@ -25,10 +25,12 @@ import static org.apache.beam.sdk.values.TypeDescriptors.sets;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 import java.util.List;
 import java.util.Set;
+import org.hamcrest.CoreMatchers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -115,8 +117,17 @@ public class TypeDescriptorsTest {
   @Test
   public void testTypeDescriptorsTypeParameterOfErased() throws Exception {
     Generic<Integer, String> instance = TypeDescriptorsTest.typeErasedGeneric();
-    assertNull(extractFooT(instance));
+
+    TypeDescriptor<Integer> fooT = extractFooT(instance);
+    assertNotNull(fooT);
+    // Using toString() assertions because verifying the contents of a Type is very cumbersome,
+    // and the expected types can not be easily constructed directly.
+    assertEquals("ActualFooT", fooT.toString());
+
     assertEquals(strings(), extractBarT(instance));
-    assertNull(extractKV(instance));
+
+    TypeDescriptor<KV<Integer, String>> kvT = extractKV(instance);
+    assertNotNull(kvT);
+    assertThat(kvT.toString(), CoreMatchers.containsString("KV<ActualFooT, java.lang.String>"));
   }
 }
