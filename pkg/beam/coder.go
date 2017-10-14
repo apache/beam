@@ -74,8 +74,7 @@ func inferCoder(t typex.FullType) (*coder.Coder, error) {
 		// equivalently because they are essentially equivalent in the language.
 		// Notably, we do not (currently) support equivalences in numeric data types
 		// due to risks around inadvertent widening or narrowing of data.
-		case reflectx.String:
-		case reflectx.ByteSlice:
+		case reflectx.String, reflectx.ByteSlice:
 			return &coder.Coder{Kind: coder.Bytes}, nil
 		}
 		c, err := newJSONCoder(t.Type())
