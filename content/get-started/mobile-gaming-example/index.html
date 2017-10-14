@@ -350,11 +350,14 @@
   <span class="n">args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
 
   <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="n">pipeline_args</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="k">def</span> <span class="nf">format_user_score_sums</span><span class="p">(</span><span class="n">user_score</span><span class="p">):</span>
+      <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="o">=</span> <span class="n">user_score</span>
+      <span class="k">return</span> <span class="s">'user: </span><span class="si">%</span><span class="s">s, total_score: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span>
+
     <span class="p">(</span><span class="n">p</span>  <span class="c"># pylint: disable=expression-not-assigned</span>
      <span class="o">|</span> <span class="s">'ReadInputText'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">ReadFromText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="nb">input</span><span class="p">)</span>
      <span class="o">|</span> <span class="s">'UserScore'</span> <span class="o">&gt;&gt;</span> <span class="n">UserScore</span><span class="p">()</span>
-     <span class="o">|</span> <span class="s">'FormatUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span>
-         <span class="k">lambda</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">):</span> <span class="s">'user: </span><span class="si">%</span><span class="s">s, total_score: </span><span class="si">%</span><span class="s">s'</span> <span class="o">%</span> <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">))</span>
+     <span class="o">|</span> <span class="s">'FormatUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">format_user_score_sums</span><span class="p">)</span>
      <span class="o">|</span> <span class="s">'WriteUserScoreSums'</span> <span class="o">&gt;&gt;</span> <span class="n">beam</span><span class="o">.</span><span class="n">io</span><span class="o">.</span><span class="n">WriteToText</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">output</span><span class="p">))</span>
 </code></pre>
 </div>
