@@ -41,6 +41,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -127,11 +128,13 @@ class BatchLoads<DestinationT>
   private long maxFileSize;
   private int numFileShards;
   private Duration triggeringFrequency;
+  private ValueProvider<String> customGcsTempLocation;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations,
-             Coder<DestinationT> destinationCoder) {
+             Coder<DestinationT> destinationCoder,
+             ValueProvider<String> customGcsTempLocation) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -142,6 +145,7 @@ class BatchLoads<DestinationT>
     this.maxFileSize = DEFAULT_MAX_FILE_SIZE;
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
     this.triggeringFrequency = null;
+    this.customGcsTempLocation = customGcsTempLocation;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -174,7 +178,16 @@ class BatchLoads<DestinationT>
   @Override
   public void validate(PipelineOptions options) {
     // We will use a BigQuery load job -- validate the temp location.
-    String tempLocation = options.getTempLocation();
+    String tempLocation;
+    if (customGcsTempLocation == null) {
+      tempLocation = options.getTempLocation();
+    } else {
+      if (!customGcsTempLocation.isAccessible()) {
+        // Can't perform verification in this case.
+        return;
+      }
+      tempLocation = customGcsTempLocation.get();
+    }
     checkArgument(
         !Strings.isNullOrEmpty(tempLocation),
         "BigQueryIO.Write needs a GCS temp location to store temp files.");
@@ -359,9 +372,15 @@ class BatchLoads<DestinationT>
                 new DoFn<String, String>() {
                   @ProcessElement
                   public void getTempFilePrefix(ProcessContext c) {
+                    String tempLocationRoot;
+                    if (customGcsTempLocation != null) {
+                      tempLocationRoot = customGcsTempLocation.get();
+                    } else {
+                      tempLocationRoot = c.getPipelineOptions().getTempLocation();
+                    }
                     String tempLocation =
                         resolveTempLocation(
-                            c.getPipelineOptions().getTempLocation(),
+                            tempLocationRoot,
                             "BigQueryWriteTemp",
                             c.element());
                     LOG.info(
