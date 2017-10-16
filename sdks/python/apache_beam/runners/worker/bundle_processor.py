@@ -187,17 +187,19 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
-
-  def create_execution_tree(self, descriptor):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
     # from StateSampler.
-    counter_factory = counters.CounterFactory()
-    state_sampler = statesampler.StateSampler(
-        'fnapi-step%s' % descriptor.id, counter_factory)
+    self.counter_factory = counters.CounterFactory()
+    self.state_sampler = statesampler.StateSampler(
+        'fnapi-step-%s' % self.process_bundle_descriptor.id,
+        self.counter_factory)
+    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+
+  def create_execution_tree(self, descriptor):
 
     transform_factory = BeamTransformFactory(
-        descriptor, self.data_channel_factory, counter_factory, state_sampler,
-        self.state_handler)
+        descriptor, self.data_channel_factory, self.counter_factory,
+        self.state_sampler, self.state_handler)
 
     pcoll_consumers = collections.defaultdict(list)
     for transform_id, transform_proto in descriptor.transforms.items():
@@ -223,15 +225,15 @@ class BundleProcessor(object):
            for pcoll in descriptor.transforms[transform_id].outputs.values()
            for consumer in pcoll_consumers[pcoll]])
 
-    return [get_operation(transform_id)
-            for transform_id in sorted(
-                descriptor.transforms, key=topological_height, reverse=True)]
+    return collections.OrderedDict([
+        (transform_id, get_operation(transform_id))
+        for transform_id in sorted(
+            descriptor.transforms, key=topological_height, reverse=True)])
 
   def process_bundle(self, instruction_id):
-    ops = self.create_execution_tree(self.process_bundle_descriptor)
 
     expected_inputs = []
-    for op in ops:
+    for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
@@ -241,22 +243,54 @@ class BundleProcessor(object):
         # We must wait until we receive "end of stream" for each of these ops.
         expected_inputs.append(op)
 
-    # Start all operations.
-    for op in reversed(ops):
-      logging.info('start %s', op)
-      op.start()
+    try:
+      self.state_sampler.start()
+      # Start all operations.
+      for op in reversed(self.ops.values()):
+        logging.info('start %s', op)
+        op.start()
 
-    # Inject inputs from data plane.
-    for input_op in expected_inputs:
-      for data in input_op.data_channel.input_elements(
-          instruction_id, [input_op.target]):
-        # ignores input name
-        input_op.process_encoded(data.data)
+      # Inject inputs from data plane.
+      for input_op in expected_inputs:
+        for data in input_op.data_channel.input_elements(
+            instruction_id, [input_op.target]):
+          # ignores input name
+          input_op.process_encoded(data.data)
 
-    # Finish all operations.
-    for op in ops:
-      logging.info('finish %s', op)
-      op.finish()
+      # Finish all operations.
+      for op in self.ops.values():
+        logging.info('finish %s', op)
+        op.finish()
+    finally:
+      self.state_sampler.stop_if_still_running()
+
+  def metrics(self):
+    return beam_fn_api_pb2.Metrics(
+        # TODO(robertwb): Rename to progress?
+        ptransforms=
+        {transform_id:
+         self._fix_output_tags(transform_id, op.progress_metrics())
+         for transform_id, op in self.ops.items()})
+
+  def _fix_output_tags(self, transform_id, metrics):
+    # Outputs are still referred to by index, not by name, in many Operations.
+    # However, if there is exactly one output, we can fix up the name here.
+    def fix_only_output_tag(actual_output_tag, mapping):
+      if len(mapping) == 1:
+        fake_output_tag, count = only_element(mapping.items())
+        if fake_output_tag != actual_output_tag:
+          del mapping[fake_output_tag]
+          mapping[actual_output_tag] = count
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    if len(actual_output_tags) == 1:
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.processed_elements.measured.output_element_counts)
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.active_elements.measured.output_element_counts)
+    return metrics
 
 
 class BeamTransformFactory(object):

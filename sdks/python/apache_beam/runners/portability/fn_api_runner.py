@@ -632,16 +632,18 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
     else:
       controller = FnApiRunner.DirectController()
+    metrics_by_stage = {}
 
     try:
       pcoll_buffers = collections.defaultdict(list)
       for stage in stages:
-        self.run_stage(
-            controller, pipeline_components, stage, pcoll_buffers, safe_coders)
+        metrics_by_stage[stage.name] = self.run_stage(
+            controller, pipeline_components, stage,
+            pcoll_buffers, safe_coders).process_bundle.metrics
     finally:
       controller.close()
 
-    return maptask_executor_runner.WorkerRunnerResult(PipelineState.DONE)
+    return RunnerResult(PipelineState.DONE, metrics_by_stage)
 
   def run_stage(
       self, controller, pipeline_components, stage, pcoll_buffers, safe_coders):
@@ -757,6 +759,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           # These should be the only two identifiers we produce for now,
           # but special side input writes may go here.
           raise NotImplementedError(pcoll_id)
+    return result
 
   # This is the "old" way of executing pipelines.
   # TODO(robertwb): Remove once runner API supports side inputs.
@@ -1069,6 +1072,12 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.data_plane_handler.close()
       self.control_server.stop(5).wait()
       self.data_server.stop(5).wait()
+
+
+class RunnerResult(maptask_executor_runner.WorkerRunnerResult):
+  def __init__(self, state, metrics_by_stage):
+    super(RunnerResult, self).__init__(state)
+    self._metrics_by_stage = metrics_by_stage
 
 
 def only_element(iterable):
