@@ -364,7 +364,7 @@ class BatchLoads<DestinationT>
                   @ProcessElement
                   public void getTempFilePrefix(ProcessContext c) {
                     String tempLocationRoot;
-                    if (customGcsTempLocation != null && customGcsTempLocation.isAccessible()) {
+                    if (customGcsTempLocation != null) {
                       tempLocationRoot = customGcsTempLocation.get();
                     } else {
                       tempLocationRoot = c.getPipelineOptions().getTempLocation();
