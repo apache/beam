@@ -269,11 +269,6 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
 
         for (W window : assignedWindows) {
           activeWindows.addActiveForTesting(window);
-
-          // Today, triggers assume onTimer firing at the watermark time, whether or not they
-          // explicitly set the timer themselves. So this tester must set it.
-          timerInternals.setTimer(
-              TimerData.of(windowNamespace(window), window.maxTimestamp(), TimeDomain.EVENT_TIME));
         }
 
         windowedValues.add(WindowedValue.of(value, timestamp, assignedWindows, PaneInfo.NO_FIRING));
@@ -357,8 +352,6 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
         executableTrigger.invokeOnMerge(contextFactory.createOnMergeContext(mergeResult,
             new TestTimers(windowNamespace(mergeResult)), executableTrigger,
             getFinishedSet(mergeResult), mergingFinishedSets));
-        timerInternals.setTimer(TimerData.of(
-            windowNamespace(mergeResult), mergeResult.maxTimestamp(), TimeDomain.EVENT_TIME));
       }
     });
   }
