@@ -28,7 +28,7 @@ cdef type _global_window_type
 
 cdef class ConsumerSet(Receiver):
   cdef list consumers
-  cdef opcounters.OperationCounters opcounter
+  cdef readonly opcounters.OperationCounters opcounter
   cdef public step_name
   cdef public output_index
   cdef public coder
@@ -71,6 +71,7 @@ cdef class ReadOperation(Operation):
 cdef class DoOperation(Operation):
   cdef object dofn_runner
   cdef Receiver dofn_receiver
+  cdef object tagged_receivers
 
 cdef class CombineOperation(Operation):
   cdef object phased_combine_fn

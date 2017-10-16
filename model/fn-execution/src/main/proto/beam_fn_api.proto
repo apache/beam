@@ -216,8 +216,10 @@ message Metrics {
   message PTransform {
     // Metrics that are measured for processed and active element groups.
     message Measured {
-      // (Required) Map from local input name to number of elements processed
+      // (Optional) Map from local input name to number of elements processed
       // from this input.
+      // If unset, assumed to be the sum of the outputs of all producers to
+      // this transform (for ProcessedElements) and 0 (for ActiveElements).
       map<string, int64> input_element_counts = 1;
 
       // (Required) Map from local output name to number of elements produced
@@ -225,8 +227,8 @@ message Metrics {
       map<string, int64> output_element_counts = 2;
 
       // (Optional) The total time spent so far in processing the elements in
-      // this group.
-      int64 total_time_spent = 3;
+      // this group, in seconds.
+      double total_time_spent = 3;
 
       // TODO: Add other element group level metrics.
     }
@@ -542,7 +544,7 @@ message StateKey {
     string ptransform_id = 1;
     // (Required) The id of the user state.
     string user_state_id = 2;
-    // (Required) The window encoded in a nested context. 
+    // (Required) The window encoded in a nested context.
     bytes window = 3;
     // (Required) The key of the currently executing element encoded in a
     // nested context.
