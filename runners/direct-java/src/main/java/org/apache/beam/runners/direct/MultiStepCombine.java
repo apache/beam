@@ -213,8 +213,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
                     inputCoder.getKeyCoder())))
         .setCoder(KvCoder.of(inputCoder.getKeyCoder(), accumulatorCoder))
         .apply(GroupByKey.<K, AccumT>create())
-        .apply(new MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>(combineFn))
-        .setCoder(outputCoder);
+        .apply(new MergeAndExtractAccumulatorOutput<>(combineFn, outputCoder));
   }
 
   private static class CombineInputs<K, InputT, AccumT> extends DoFn<KV<K, InputT>, KV<K, AccumT>> {
@@ -320,9 +319,12 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
   static class MergeAndExtractAccumulatorOutput<K, AccumT, OutputT>
       extends RawPTransform<PCollection<KV<K, Iterable<AccumT>>>, PCollection<KV<K, OutputT>>> {
     private final CombineFn<?, AccumT, OutputT> combineFn;
+    private final Coder<KV<K, OutputT>> outputCoder;
 
-    private MergeAndExtractAccumulatorOutput(CombineFn<?, AccumT, OutputT> combineFn) {
+    private MergeAndExtractAccumulatorOutput(
+        CombineFn<?, AccumT, OutputT> combineFn, Coder<KV<K, OutputT>> outputCoder) {
       this.combineFn = combineFn;
+      this.outputCoder = outputCoder;
     }
 
     CombineFn<?, AccumT, OutputT> getCombineFn() {
@@ -332,7 +334,7 @@ class MultiStepCombine<K, InputT, AccumT, OutputT>
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, Iterable<AccumT>>> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), outputCoder);
     }
 
     @Nullable

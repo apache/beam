@@ -524,12 +524,15 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * <li>It must return {@code void}.
    * </ul>
    *
-   * <h2>Splittable DoFn's (WARNING: work in progress, do not use)</h2>
+   * <h2>Splittable DoFn's</h2>
    *
    * <p>A {@link DoFn} is <i>splittable</i> if its {@link ProcessElement} method has a parameter
    * whose type is a subtype of {@link RestrictionTracker}. This is an advanced feature and an
-   * overwhelming majority of users will never need to write a splittable {@link DoFn}. Right now
-   * the implementation of this feature is in progress and it's not ready for any use.
+   * overwhelming majority of users will never need to write a splittable {@link DoFn}.
+   *
+   * <p>Not all runners support Splittable DoFn. See the
+   * <a href="https://beam.apache.org/documentation/runners/capability-matrix/">capability
+   * matrix</a>.
    *
    * <p>See <a href="https://s.apache.org/splittable-do-fn">the proposal</a> for an overview of the
    * involved concepts (<i>splittable DoFn</i>, <i>restriction</i>, <i>restriction tracker</i>).
@@ -558,8 +561,6 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
    * </ul>
    *
    * <p>A non-splittable {@link DoFn} <i>must not</i> define any of these methods.
-   *
-   * <p>More documentation will be added when the feature becomes ready for general usage.
    */
   @Documented
   @Retention(RetentionPolicy.RUNTIME)

@@ -264,8 +264,12 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       }
 
       private boolean containedInUnderlying(StateNamespace namespace, StateTag<?> tag) {
-        return underlying.isPresent() && underlying.get().isNamespaceInUse(namespace)
-            && underlying.get().getTagsInUse(namespace).containsKey(tag);
+        return underlying.isPresent()
+            && underlying.get().isNamespaceInUse(namespace)
+            && underlying
+                .get()
+                .getTagsInUse(namespace)
+                .containsKey(tag);
       }
 
       @Override
@@ -388,7 +392,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
       public Instant readThroughAndGetEarliestHold(StateTable readTo) {
         Instant earliestHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
         for (StateNamespace namespace : underlying.getNamespacesInUse()) {
-          for (Map.Entry<StateTag<?>, ? extends State> existingState :
+          for (Map.Entry<StateTag, State> existingState :
               underlying.getTagsInUse(namespace).entrySet()) {
             if (!((InMemoryState<?>) existingState.getValue()).isCleared()) {
               // Only read through non-cleared values to ensure that completed windows are

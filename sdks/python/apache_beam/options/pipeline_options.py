@@ -19,11 +19,10 @@
 
 import argparse
 
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
-
+from apache_beam.transforms.display import HasDisplayData
 
 __all__ = [
     'PipelineOptions',
@@ -51,7 +50,7 @@ def _static_value_provider_of(value_type):
 
   """
   def _f(value):
-    _f.func_name = value_type.__name__
+    _f.__name__ = value_type.__name__
     return StaticValueProvider(value_type, value)
   return _f
 
@@ -314,6 +313,13 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_retry',
+        action='store_true',
+        default=False,
+        help=
+        ('Whether to allow bundle retries. If True the maximum'
+         'number of attempts to process a bundle is 4. '))
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -368,6 +374,13 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
+    parser.add_argument(
+        '--label', '--labels',
+        dest='labels',
+        action='append',
+        default=None,
+        help='Labels that will be applied to this Dataflow job. Labels are key '
+        'value pairs separated by = (e.g. --label key=value).')
 
   def validate(self, validator):
     errors = []

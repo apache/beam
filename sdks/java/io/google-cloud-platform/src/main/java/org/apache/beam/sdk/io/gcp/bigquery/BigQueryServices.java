@@ -31,7 +31,6 @@ import com.google.api.services.bigquery.model.TableRow;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
-import java.util.NoSuchElementException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 
@@ -47,17 +46,6 @@ interface BigQueryServices extends Serializable {
    * Returns a real, mock, or fake {@link DatasetService}.
    */
   DatasetService getDatasetService(BigQueryOptions bqOptions);
-
-  /**
-   * Returns a real, mock, or fake {@link BigQueryJsonReader} to read tables.
-   */
-  BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef);
-
-  /**
-   * Returns a real, mock, or fake {@link BigQueryJsonReader} to query tables.
-   */
-  BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig);
 
   /**
    * An interface for the Cloud BigQuery load service.
@@ -145,10 +133,15 @@ interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
 
     /**
-     * Create a {@link Dataset} with the given {@code location} and {@code description}.
+     * Create a {@link Dataset} with the given {@code location}, {@code description} and default
+     * expiration time for tables in the dataset (if {@code null}, tables don't expire).
      */
     void createDataset(
-        String projectId, String datasetId, @Nullable String location, @Nullable String description)
+        String projectId,
+        String datasetId,
+        @Nullable String location,
+        @Nullable String description,
+        @Nullable Long defaultTableExpirationMs)
         throws IOException, InterruptedException;
 
     /**
@@ -177,36 +170,4 @@ interface BigQueryServices extends Serializable {
         throws IOException, InterruptedException;
   }
 
-  /**
-   * An interface to read the Cloud BigQuery directly.
-   */
-  interface BigQueryJsonReader {
-    /**
-     * Initializes the reader and advances the reader to the first record.
-     */
-    boolean start() throws IOException;
-
-    /**
-     * Advances the reader to the next valid record.
-     */
-    boolean advance() throws IOException;
-
-    /**
-     * Returns the value of the data item that was read by the last {@link #start} or
-     * {@link #advance} call. The returned value must be effectively immutable and remain valid
-     * indefinitely.
-     *
-     * <p>Multiple calls to this method without an intervening call to {@link #advance} should
-     * return the same result.
-     *
-     * @throws java.util.NoSuchElementException if {@link #start} was never called, or if
-     *         the last {@link #start} or {@link #advance} returned {@code false}.
-     */
-    TableRow getCurrent() throws NoSuchElementException;
-
-    /**
-     * Closes the reader. The reader cannot be used after this method is called.
-     */
-    void close() throws IOException;
-  }
 }

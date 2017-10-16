@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +74,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<OutputT> mainOutputTag;
   private final TupleTagList additionalOutputTags;
+  private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
 
   public static final String SPLITTABLE_PROCESS_URN =
       "urn:beam:runners_core:transforms:splittable_process:v1";
@@ -85,34 +87,18 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
 
   private SplittableParDo(
       DoFn<InputT, OutputT> doFn,
-      TupleTag<OutputT> mainOutputTag,
       List<PCollectionView<?>> sideInputs,
-      TupleTagList additionalOutputTags) {
+      TupleTag<OutputT> mainOutputTag,
+      TupleTagList additionalOutputTags,
+      Map<TupleTag<?>, Coder<?>> outputTagsToCoders) {
     checkArgument(
         DoFnSignatures.getSignature(doFn.getClass()).processElement().isSplittable(),
         "fn must be a splittable DoFn");
     this.doFn = doFn;
-    this.mainOutputTag = mainOutputTag;
     this.sideInputs = sideInputs;
+    this.mainOutputTag = mainOutputTag;
     this.additionalOutputTags = additionalOutputTags;
-  }
-
-  /**
-   * Creates a {@link SplittableParDo} from an original Java {@link ParDo}.
-   *
-   * @param parDo The splittable {@link ParDo} transform.
-   */
-  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?> forJavaParDo(
-      ParDo.MultiOutput<InputT, OutputT> parDo) {
-    checkArgument(parDo != null, "parDo must not be null");
-    checkArgument(
-        DoFnSignatures.getSignature(parDo.getFn().getClass()).processElement().isSplittable(),
-        "fn must be a splittable DoFn");
-    return new SplittableParDo(
-        parDo.getFn(),
-        parDo.getMainOutputTag(),
-        parDo.getSideInputs(),
-        parDo.getAdditionalOutputTags());
+    this.outputTagsToCoders = outputTagsToCoders;
   }
 
   /**
@@ -121,15 +107,22 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
    * <p>The input may generally be a deserialized transform so it may not actually be a {@link
    * ParDo}. Instead {@link ParDoTranslation} will be used to extract fields.
    */
-  public static SplittableParDo<?, ?, ?> forAppliedParDo(AppliedPTransform<?, ?, ?> parDo) {
+  @SuppressWarnings({"unchecked", "rawtypes"})
+  public static <InputT, OutputT> SplittableParDo<InputT, OutputT, ?> forAppliedParDo(
+      AppliedPTransform<PCollection<InputT>, PCollectionTuple, ?> parDo) {
     checkArgument(parDo != null, "parDo must not be null");
 
     try {
-      return new SplittableParDo<>(
+      Map<TupleTag<?>, Coder<?>> outputTagsToCoders = Maps.newHashMap();
+      for (Map.Entry<TupleTag<?>, PValue> entry : parDo.getOutputs().entrySet()) {
+        outputTagsToCoders.put(entry.getKey(), ((PCollection) entry.getValue()).getCoder());
+      }
+      return new SplittableParDo(
           ParDoTranslation.getDoFn(parDo),
-          (TupleTag) ParDoTranslation.getMainOutputTag(parDo),
           ParDoTranslation.getSideInputs(parDo),
-          ParDoTranslation.getAdditionalOutputTags(parDo));
+          ParDoTranslation.getMainOutputTag(parDo),
+          ParDoTranslation.getAdditionalOutputTags(parDo),
+          outputTagsToCoders);
     } catch (IOException exc) {
       throw new RuntimeException(exc);
     }
@@ -168,7 +161,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
             (WindowingStrategy<InputT, ?>) input.getWindowingStrategy(),
             sideInputs,
             mainOutputTag,
-            additionalOutputTags));
+            additionalOutputTags,
+            outputTagsToCoders));
   }
 
   @Override
@@ -202,6 +196,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
     private final List<PCollectionView<?>> sideInputs;
     private final TupleTag<OutputT> mainOutputTag;
     private final TupleTagList additionalOutputTags;
+    private final Map<TupleTag<?>, Coder<?>> outputTagsToCoders;
 
     /**
      * @param fn the splittable {@link DoFn}.
@@ -209,7 +204,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
      * @param sideInputs list of side inputs that should be available to the {@link DoFn}.
      * @param mainOutputTag {@link TupleTag Tag} of the {@link DoFn DoFn's} main output.
      * @param additionalOutputTags {@link TupleTagList Tags} of the {@link DoFn DoFn's} additional
-     *     outputs.
+     * @param outputTagsToCoders A map from output tag to the coder for that output, which should
+     *     provide mappings for the main and all additional tags.
      */
     public ProcessKeyedElements(
         DoFn<InputT, OutputT> fn,
@@ -218,7 +214,8 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         WindowingStrategy<InputT, ?> windowingStrategy,
         List<PCollectionView<?>> sideInputs,
         TupleTag<OutputT> mainOutputTag,
-        TupleTagList additionalOutputTags) {
+        TupleTagList additionalOutputTags,
+        Map<TupleTag<?>, Coder<?>> outputTagsToCoders) {
       this.fn = fn;
       this.elementCoder = elementCoder;
       this.restrictionCoder = restrictionCoder;
@@ -226,6 +223,7 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
+      this.outputTagsToCoders = outputTagsToCoders;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -256,10 +254,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
       return additionalOutputTags;
     }
 
+    public Map<TupleTag<?>, Coder<?>> getOutputTagsToCoders() {
+      return outputTagsToCoders;
+    }
+
     @Override
     public PCollectionTuple expand(PCollection<KV<String, KV<InputT, RestrictionT>>> input) {
       return createPrimitiveOutputFor(
-          input, fn, mainOutputTag, additionalOutputTags, windowingStrategy);
+          input, fn, mainOutputTag, additionalOutputTags, outputTagsToCoders, windowingStrategy);
     }
 
     public static <OutputT> PCollectionTuple createPrimitiveOutputFor(
@@ -267,12 +269,14 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
         DoFn<?, OutputT> fn,
         TupleTag<OutputT> mainOutputTag,
         TupleTagList additionalOutputTags,
+        Map<TupleTag<?>, Coder<?>> outputTagsToCoders,
         WindowingStrategy<?, ?> windowingStrategy) {
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       PCollectionTuple outputs =
           PCollectionTuple.ofPrimitiveOutputsInternal(
               input.getPipeline(),
               TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+              outputTagsToCoders,
               windowingStrategy,
               input.isBounded().and(signature.isBoundedPerElement()));
 

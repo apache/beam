@@ -245,10 +245,7 @@ public class TestCountingSource
   }
 
   @Override
-  public void validate() {}
-
-  @Override
-  public Coder<KV<Integer, Integer>> getDefaultOutputCoder() {
+  public Coder<KV<Integer, Integer>> getOutputCoder() {
     return KvCoder.of(VarIntCoder.of(), VarIntCoder.of());
   }
 }

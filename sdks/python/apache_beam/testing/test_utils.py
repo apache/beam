@@ -22,10 +22,12 @@ For internal use only; no backwards-compatibility guarantees.
 
 import hashlib
 import imp
-from mock import Mock, patch
 
+from mock import Mock
+from mock import patch
+
+from apache_beam.io.filesystems import FileSystems
 from apache_beam.utils import retry
-
 
 DEFAULT_HASHING_ALG = 'sha1'
 
@@ -71,3 +73,20 @@ def patch_retry(testcase, module):
     imp.reload(module)
 
   testcase.addCleanup(remove_patches)
+
+
+@retry.with_exponential_backoff(
+    num_retries=3,
+    retry_filter=retry.retry_on_beam_io_error_filter)
+def delete_files(file_paths):
+  """A function to clean up files or directories using ``FileSystems``.
+
+  Glob is supported in file path and directories will be deleted recursively.
+
+  Args:
+    file_paths: A list of strings contains file paths or directories.
+  """
+  if len(file_paths) == 0:
+    raise RuntimeError('Clean up failed. Invalid file path: %s.' %
+                       file_paths)
+  FileSystems.delete(file_paths)

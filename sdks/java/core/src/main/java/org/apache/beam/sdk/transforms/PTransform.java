@@ -277,13 +277,16 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   }
 
   /**
-   * Returns the default {@code Coder} to use for the output of this
-   * single-output {@code PTransform}.
+   * Returns the default {@code Coder} to use for the output of this single-output {@code
+   * PTransform}.
    *
    * <p>By default, always throws
    *
    * @throws CannotProvideCoderException if no coder can be inferred
+   * @deprecated Instead, the PTransform should explicitly call {@link PCollection#setCoder} on the
+   *     returned PCollection.
    */
+  @Deprecated
   protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
     throw new CannotProvideCoderException("PTransform.getOutputCoder called.");
   }
@@ -295,7 +298,10 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>By default, always throws.
    *
    * @throws CannotProvideCoderException if none can be inferred.
+   * @deprecated Instead, the PTransform should explicitly call {@link PCollection#setCoder} on the
+   *     returned PCollection.
    */
+  @Deprecated
   protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
       throws CannotProvideCoderException {
     return getDefaultOutputCoder();
@@ -308,7 +314,10 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>By default, always throws.
    *
    * @throws CannotProvideCoderException if none can be inferred.
+   * @deprecated Instead, the PTransform should explicitly call {@link PCollection#setCoder} on the
+   *     returned PCollection.
    */
+  @Deprecated
   public <T> Coder<T> getDefaultOutputCoder(
       InputT input, @SuppressWarnings("unused") PCollection<T> output)
       throws CannotProvideCoderException {

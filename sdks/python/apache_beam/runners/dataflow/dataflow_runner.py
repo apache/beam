@@ -21,37 +21,35 @@ The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
 
-from collections import defaultdict
 import logging
 import threading
 import time
 import traceback
 import urllib
+from collections import defaultdict
 
 import apache_beam as beam
-from apache_beam import error
 from apache_beam import coders
+from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal.gcp import json_value
+from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.options.pipeline_options import StandardOptions
+from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.pvalue import AsSideInput
 from apache_beam.runners.dataflow.dataflow_metrics import DataflowMetrics
 from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 from apache_beam.runners.dataflow.internal.names import TransformNames
-from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-from apache_beam.runners.runner import PValueCache
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
+from apache_beam.runners.runner import PValueCache
 from apache_beam.transforms.display import DisplayData
 from apache_beam.typehints import typehints
-from apache_beam.options.pipeline_options import SetupOptions
-from apache_beam.options.pipeline_options import StandardOptions
-from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.utils.plugin import BeamPlugin
-
 
 __all__ = ['DataflowRunner']
 
@@ -72,6 +70,11 @@ class DataflowRunner(PipelineRunner):
   # not change.
   # For internal SDK use only. This should not be updated by Beam pipeline
   # authors.
+
+  # Imported here to avoid circular dependencies.
+  # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
+  from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
+
   _PTRANSFORM_OVERRIDES = [
       CreatePTransformOverride(),
   ]
@@ -87,8 +90,18 @@ class DataflowRunner(PipelineRunner):
     return 's%s' % self._unique_step_id
 
   @staticmethod
-  def poll_for_job_completion(runner, result):
-    """Polls for the specified job to finish running (successfully or not)."""
+  def poll_for_job_completion(runner, result, duration):
+    """Polls for the specified job to finish running (successfully or not).
+
+    Updates the result with the new job information before returning.
+
+    Args:
+      runner: DataflowRunner instance to use for polling job state.
+      result: DataflowPipelineResult instance used for job information.
+      duration (int): The time to wait (in milliseconds) for job to finish.
+        If it is set to :data:`None`, it will wait indefinitely until the job
+        is finished.
+    """
     last_message_time = None
     last_message_hash = None
 
@@ -108,6 +121,10 @@ class DataflowRunner(PipelineRunner):
       elif 'Traceback' in msg:
         return 1
       return 0
+
+    if duration:
+      start_secs = time.time()
+      duration_secs = duration / 1000
 
     job_id = result.job_id()
     while True:
@@ -161,6 +178,13 @@ class DataflowRunner(PipelineRunner):
         if not page_token:
           break
 
+      if duration:
+        passed_secs = time.time() - start_secs
+        if passed_secs > duration_secs:
+          logging.warning('Timing out on waiting for job %s after %d seconds',
+                          job_id, passed_secs)
+          break
+
     result._job = response
     runner.last_error_msg = last_error_msg
 
@@ -188,18 +212,31 @@ class DataflowRunner(PipelineRunner):
           if not input_type:
             input_type = typehints.Any
 
-          if not isinstance(input_type, typehints.TupleHint.TupleConstraint):
-            if isinstance(input_type, typehints.AnyTypeConstraint):
+          def coerce_to_kv_type(element_type):
+            if isinstance(element_type, typehints.TupleHint.TupleConstraint):
+              if len(element_type.tuple_types) == 2:
+                return element_type
+              else:
+                raise ValueError(
+                    "Tuple input to GroupByKey must be have two components. "
+                    "Found %s for %s" % (element_type, pcoll))
+            elif isinstance(input_type, typehints.AnyTypeConstraint):
               # `Any` type needs to be replaced with a KV[Any, Any] to
               # force a KV coder as the main output coder for the pcollection
               # preceding a GroupByKey.
-              pcoll.element_type = typehints.KV[typehints.Any, typehints.Any]
+              return typehints.KV[typehints.Any, typehints.Any]
+            elif isinstance(element_type, typehints.UnionConstraint):
+              union_types = [
+                  coerce_to_kv_type(t) for t in element_type.union_types]
+              return typehints.KV[
+                  typehints.Union[tuple(t.tuple_types[0] for t in union_types)],
+                  typehints.Union[tuple(t.tuple_types[1] for t in union_types)]]
             else:
-              # TODO: Handle other valid types,
-              # e.g. Union[KV[str, int], KV[str, float]]
+              # TODO: Possibly handle other valid types.
               raise ValueError(
                   "Input to GroupByKey must be of Tuple or Any type. "
-                  "Found %s for %s" % (input_type, pcoll))
+                  "Found %s for %s" % (element_type, pcoll))
+          pcoll.element_type = coerce_to_kv_type(input_type)
 
     return GroupByKeyInputVisitor()
 
@@ -267,7 +304,10 @@ class DataflowRunner(PipelineRunner):
     self.dataflow_client = apiclient.DataflowApplicationClient(
         pipeline._options)
 
-    # Create the job
+    # Create the job description and send a request to the service. The result
+    # can be None if there is no need to send a request to the service (e.g.
+    # template creation). If a request was sent and failed then the call will
+    # raise an exception.
     result = DataflowPipelineResult(
         self.dataflow_client.create_job(self.job), self)
 
@@ -517,10 +557,12 @@ class DataflowRunner(PipelineRunner):
       si_labels[side_pval] = si_label
 
     # Now create the step for the ParDo transform being handled.
+    transform_name = transform_node.full_label.rsplit('/', 1)[-1]
     step = self._add_step(
         TransformNames.DO,
         transform_node.full_label + (
-            '/Do' if transform_node.side_inputs else ''),
+            '/{}'.format(transform_name)
+            if transform_node.side_inputs else ''),
         transform_node,
         transform_node.transform.output_tags)
     fn_data = self._pardo_fn_data(transform_node, lookup_label)
@@ -592,7 +634,7 @@ class DataflowRunner(PipelineRunner):
     # Note that the accumulator must not have a WindowedValue encoding, while
     # the output of this step does in fact have a WindowedValue encoding.
     accumulator_encoding = self._get_cloud_encoding(
-        transform_node.fn.get_accumulator_coder())
+        transform_node.transform.fn.get_accumulator_coder())
     output_encoding = self._get_encoded_output_coder(transform_node)
 
     step.encoding = output_encoding
@@ -823,10 +865,22 @@ class DataflowPipelineResult(PipelineResult):
   """Represents the state of a pipeline run on the Dataflow service."""
 
   def __init__(self, job, runner):
-    """Job is a Job message from the Dataflow API."""
+    """Initialize a new DataflowPipelineResult instance.
+
+    Args:
+      job: Job message from the Dataflow API. Could be :data:`None` if a job
+        request was not sent to Dataflow service (e.g. template jobs).
+      runner: DataflowRunner instance.
+    """
     self._job = job
     self._runner = runner
     self.metric_results = None
+
+  def _update_job(self):
+    # We need the job id to be able to update job information. There is no need
+    # to update the job if we are in a known terminal state.
+    if self.has_job and not self._is_in_terminal_state():
+      self._job = self._runner.dataflow_client.get_job(self.job_id())
 
   def job_id(self):
     return self._job.id
@@ -848,7 +902,12 @@ class DataflowPipelineResult(PipelineResult):
     if not self.has_job:
       return PipelineState.UNKNOWN
 
+    self._update_job()
+
     values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+
+    # TODO: Move this table to a another location.
+    # Ordered by the enum values.
     api_jobstate_map = {
         values_enum.JOB_STATE_UNKNOWN: PipelineState.UNKNOWN,
         values_enum.JOB_STATE_STOPPED: PipelineState.STOPPED,
@@ -859,6 +918,8 @@ class DataflowPipelineResult(PipelineResult):
         values_enum.JOB_STATE_UPDATED: PipelineState.UPDATED,
         values_enum.JOB_STATE_DRAINING: PipelineState.DRAINING,
         values_enum.JOB_STATE_DRAINED: PipelineState.DRAINED,
+        values_enum.JOB_STATE_PENDING: PipelineState.PENDING,
+        values_enum.JOB_STATE_CANCELLING: PipelineState.CANCELLING,
     }
 
     return (api_jobstate_map[self._job.currentState] if self._job.currentState
@@ -868,21 +929,20 @@ class DataflowPipelineResult(PipelineResult):
     if not self.has_job:
       return True
 
-    return self.state in [
-        PipelineState.STOPPED, PipelineState.DONE, PipelineState.FAILED,
-        PipelineState.CANCELLED, PipelineState.DRAINED]
+    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+    return self._job.currentState in [
+        values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
+        values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
+        values_enum.JOB_STATE_DRAINED]
 
   def wait_until_finish(self, duration=None):
     if not self._is_in_terminal_state():
       if not self.has_job:
         raise IOError('Failed to get the Dataflow job id.')
-      if duration:
-        raise NotImplementedError(
-            'DataflowRunner does not support duration argument.')
 
       thread = threading.Thread(
           target=DataflowRunner.poll_for_job_completion,
-          args=(self._runner, self))
+          args=(self._runner, self, duration))
 
       # Mark the thread as a daemon thread so a keyboard interrupt on the main
       # thread will terminate everything. This is also the reason we will not
@@ -891,12 +951,40 @@ class DataflowPipelineResult(PipelineResult):
       thread.start()
       while thread.isAlive():
         time.sleep(5.0)
-      if self.state != PipelineState.DONE:
-        # TODO(BEAM-1290): Consider converting this to an error log based on the
-        # resolution of the issue.
+
+      # TODO: Merge the termination code in poll_for_job_completion and
+      # _is_in_terminal_state.
+      terminated = (str(self._job.currentState) != 'JOB_STATE_RUNNING')
+      assert duration or terminated, (
+          'Job did not reach to a terminal state after waiting indefinitely.')
+
+      if terminated and self.state != PipelineState.DONE:
+        # TODO(BEAM-1290): Consider converting this to an error log based on
+        # theresolution of the issue.
         raise DataflowRuntimeException(
             'Dataflow pipeline failed. State: %s, Error:\n%s' %
             (self.state, getattr(self._runner, 'last_error_msg', None)), self)
+    return self.state
+
+  def cancel(self):
+    if not self.has_job:
+      raise IOError('Failed to get the Dataflow job id.')
+
+    self._update_job()
+
+    if self._is_in_terminal_state():
+      logging.warning(
+          'Cancel failed because job %s is already terminated in state %s.',
+          self.job_id(), self.state)
+    else:
+      if not self._runner.dataflow_client.modify_job_state(
+          self.job_id(), 'JOB_STATE_CANCELLED'):
+        cancel_failed_message = (
+            'Failed to cancel job %s, please go to the Developers Console to '
+            'cancel it manually.') % self.job_id()
+        logging.error(cancel_failed_message)
+        raise DataflowRuntimeException(cancel_failed_message, self)
+
     return self.state
 
   def __str__(self):

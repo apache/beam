@@ -21,15 +21,13 @@ package org.apache.beam.runners.core.construction;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -79,9 +77,7 @@ public class CreatePCollectionViewTranslation {
         SerializableUtils.deserializeFromByteArray(
             transformProto
                 .getSpec()
-                .getParameter()
-                .unpack(BytesValue.class)
-                .getValue()
+                .getPayload()
                 .toByteArray(),
             PCollectionView.class.getSimpleName());
   }
@@ -104,14 +100,9 @@ public class CreatePCollectionViewTranslation {
         SdkComponents components) {
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
-          .setParameter(
-              Any.pack(
-                  BytesValue.newBuilder()
-                      .setValue(
-                          ByteString.copyFrom(
-                              SerializableUtils.serializeToByteArray(
-                                  transform.getTransform().getView())))
-                      .build()))
+          .setPayload(
+              ByteString.copyFrom(
+                  SerializableUtils.serializeToByteArray(transform.getTransform().getView())))
           .build();
     }
   }

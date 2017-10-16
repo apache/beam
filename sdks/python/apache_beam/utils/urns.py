@@ -25,7 +25,6 @@ from google.protobuf import wrappers_pb2
 from apache_beam.internal import pickler
 from apache_beam.utils import proto_utils
 
-
 PICKLED_WINDOW_FN = "beam:windowfn:pickled_python:v0.1"
 GLOBAL_WINDOWS_FN = "beam:windowfn:global_windows:v0.1"
 FIXED_WINDOWS_FN = "beam:windowfn:fixed_windows:v0.1"
@@ -35,7 +34,6 @@ SESSION_WINDOWS_FN = "beam:windowfn:session_windows:v0.1"
 PICKLED_DO_FN = "beam:dofn:pickled_python:v0.1"
 PICKLED_DO_FN_INFO = "beam:dofn:pickled_python_info:v0.1"
 PICKLED_COMBINE_FN = "beam:combinefn:pickled_python:v0.1"
-PICKLED_CODER = "beam:coder:pickled_python:v0.1"
 
 PICKLED_TRANSFORM = "beam:ptransform:pickled_python:v0.1"
 PARDO_TRANSFORM = "beam:ptransform:pardo:v0.1"
@@ -49,6 +47,16 @@ READ_TRANSFORM = "beam:ptransform:read:v0.1"
 WINDOW_INTO_TRANSFORM = "beam:ptransform:window_into:v0.1"
 
 PICKLED_SOURCE = "beam:source:pickled_python:v0.1"
+
+PICKLED_CODER = "beam:coder:pickled_python:v0.1"
+BYTES_CODER = "urn:beam:coders:bytes:0.1"
+VAR_INT_CODER = "urn:beam:coders:varint:0.1"
+INTERVAL_WINDOW_CODER = "urn:beam:coders:interval_window:0.1"
+ITERABLE_CODER = "urn:beam:coders:stream:0.1"
+KV_CODER = "urn:beam:coders:kv:0.1"
+LENGTH_PREFIX_CODER = "urn:beam:coders:length_prefix:0.1"
+GLOBAL_WINDOW_CODER = "urn:beam:coders:urn:beam:coders:global_window:0.1"
+WINDOWED_VALUE_CODER = "urn:beam:coders:windowed_value:0.1"
 
 
 class RunnerApiFn(object):
@@ -120,7 +128,8 @@ class RunnerApiFn(object):
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            parameter=proto_utils.pack_Any(typed_param)))
+            payload=typed_param.SerializeToString()
+            if typed_param is not None else None))
 
   @classmethod
   def from_runner_api(cls, fn_proto, context):
@@ -130,5 +139,5 @@ class RunnerApiFn(object):
     """
     parameter_type, constructor = cls._known_urns[fn_proto.spec.urn]
     return constructor(
-        proto_utils.unpack_Any(fn_proto.spec.parameter, parameter_type),
+        proto_utils.parse_Bytes(fn_proto.spec.payload, parameter_type),
         context)

@@ -30,7 +30,6 @@ import itertools
 
 from apache_beam import typehints
 
-
 __all__ = [
     'PCollection',
     'TaggedOutput',
@@ -134,7 +133,7 @@ class PCollection(PValue):
         unique_name='%d%s.%s' % (
             len(self.producer.full_label), self.producer.full_label, self.tag),
         coder_id=pickler.dumps(self.element_type),
-        is_bounded=beam_runner_api_pb2.BOUNDED,
+        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
 
@@ -329,8 +328,9 @@ class AsSingleton(AsSideInput):
     elif len(head) == 1:
       return head[0]
     raise ValueError(
-        'PCollection with more than one element accessed as '
-        'a singleton view.')
+        'PCollection of size %d with more than one element accessed as a '
+        'singleton view. First two elements encountered are "%s", "%s".' % (
+            len(head), str(head[0]), str(head[1])))
 
   @property
   def element_type(self):

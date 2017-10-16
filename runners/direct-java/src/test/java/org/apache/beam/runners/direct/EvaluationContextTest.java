@@ -40,6 +40,7 @@ import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -127,8 +128,11 @@ public class EvaluationContextTest {
   public void writeToViewWriterThenReadReads() {
     PCollectionViewWriter<Integer, Iterable<Integer>> viewWriter =
         context.createPCollectionViewWriter(
-            PCollection.<Iterable<Integer>>createPrimitiveOutputInternal(
-                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED),
+            PCollection.createPrimitiveOutputInternal(
+                p,
+                WindowingStrategy.globalDefault(),
+                IsBounded.BOUNDED,
+                IterableCoder.of(VarIntCoder.of())),
             view);
     BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
     BoundedWindow second = new TestBoundedWindow(new Instant(899999L));

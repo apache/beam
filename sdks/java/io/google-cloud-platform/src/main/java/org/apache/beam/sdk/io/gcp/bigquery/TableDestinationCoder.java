@@ -33,6 +33,8 @@ public class TableDestinationCoder extends AtomicCoder<TableDestination> {
   private static final Coder<String> tableSpecCoder = StringUtf8Coder.of();
   private static final Coder<String> tableDescriptionCoder = NullableCoder.of(StringUtf8Coder.of());
 
+  private TableDestinationCoder() {}
+
   public static TableDestinationCoder of() {
     return INSTANCE;
   }

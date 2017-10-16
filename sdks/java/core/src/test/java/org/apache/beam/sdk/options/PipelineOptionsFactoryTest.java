@@ -1629,9 +1629,47 @@ public class PipelineOptionsFactoryTest {
         containsString("The pipeline runner that will be used to execute the pipeline."));
   }
 
+  interface PipelineOptionsInheritedInvalid extends Invalid1,
+          InvalidPipelineOptions2, PipelineOptions {
+    String getFoo();
+    void setFoo(String value);
+  }
+
+  interface InvalidPipelineOptions1 {
+    String getBar();
+    void setBar(String value);
+  }
+
+  interface Invalid1 extends InvalidPipelineOptions1 {
+    String getBar();
+    void setBar(String value);
+  }
+
+  interface InvalidPipelineOptions2 {
+    String getBar();
+    void setBar(String value);
+  }
+
+  @Test
+  public void testAllFromPipelineOptions() {
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage(
+       "All inherited interfaces of [org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+       + "$PipelineOptionsInheritedInvalid] should inherit from the PipelineOptions interface. "
+       + "The following inherited interfaces do not:\n"
+       + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+       + "$InvalidPipelineOptions1\n"
+       + " - org.apache.beam.sdk.options.PipelineOptionsFactoryTest"
+       + "$InvalidPipelineOptions2");
+
+    PipelineOptionsInheritedInvalid options = PipelineOptionsFactory.as(
+            PipelineOptionsInheritedInvalid.class);
+  }
+
   private String emptyStringErrorMessage() {
     return emptyStringErrorMessage(null);
   }
+
   private String emptyStringErrorMessage(String type) {
     String msg = "Empty argument value is only allowed for String, String Array, "
         + "Collections of Strings or any of these types in a parameterized ValueProvider";
@@ -1736,4 +1774,5 @@ public class PipelineOptionsFactoryTest {
       jsonGenerator.writeString(jacksonIncompatible.value);
     }
   }
+
 }

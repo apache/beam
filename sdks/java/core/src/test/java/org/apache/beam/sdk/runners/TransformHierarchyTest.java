@@ -35,6 +35,7 @@ import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor.Defaults;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
@@ -110,7 +111,7 @@ public class TransformHierarchyTest implements Serializable {
   public void emptyCompositeSucceeds() {
     PCollection<Long> created =
         PCollection.createPrimitiveOutputInternal(
-            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarLongCoder.of());
     TransformHierarchy.Node node = hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
     hierarchy.setOutput(created);
     hierarchy.popNode();
@@ -139,7 +140,7 @@ public class TransformHierarchyTest implements Serializable {
   public void producingOwnAndOthersOutputsFails() {
     PCollection<Long> created =
         PCollection.createPrimitiveOutputInternal(
-            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarLongCoder.of());
     hierarchy.pushNode("Create", PBegin.in(pipeline), Create.of(1));
     hierarchy.setOutput(created);
     hierarchy.popNode();
@@ -147,8 +148,11 @@ public class TransformHierarchyTest implements Serializable {
 
     final PCollectionList<Long> appended =
         pcList.and(
-            PCollection.<Long>createPrimitiveOutputInternal(
-                    pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
+            PCollection.createPrimitiveOutputInternal(
+                    pipeline,
+                    WindowingStrategy.globalDefault(),
+                    IsBounded.BOUNDED,
+                    VarLongCoder.of())
                 .setName("prim"));
     hierarchy.pushNode(
         "AddPc",
@@ -171,7 +175,7 @@ public class TransformHierarchyTest implements Serializable {
   public void producingOwnOutputWithCompositeFails() {
     final PCollection<Long> comp =
         PCollection.createPrimitiveOutputInternal(
-            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarLongCoder.of());
     PTransform<PBegin, PCollection<Long>> root =
         new PTransform<PBegin, PCollection<Long>>() {
           @Override
@@ -327,7 +331,7 @@ public class TransformHierarchyTest implements Serializable {
 
     PCollection<Long> created =
         PCollection.createPrimitiveOutputInternal(
-            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarLongCoder.of());
 
     SingleOutput<Long, Long> pardo =
         ParDo.of(
@@ -340,7 +344,7 @@ public class TransformHierarchyTest implements Serializable {
 
     PCollection<Long> mapped =
         PCollection.createPrimitiveOutputInternal(
-            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarLongCoder.of());
 
     TransformHierarchy.Node compositeNode = hierarchy.pushNode("Create", begin, create);
     hierarchy.finishSpecifyingInput();
@@ -499,13 +503,11 @@ public class TransformHierarchyTest implements Serializable {
   @Test
   public void visitIsTopologicallyOrdered() {
     PCollection<String> one =
-        PCollection.<String>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-            .setCoder(StringUtf8Coder.of());
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
     final PCollection<Integer> two =
-        PCollection.<Integer>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-            .setCoder(VarIntCoder.of());
+        PCollection.createPrimitiveOutputInternal(
+            pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED, VarIntCoder.of());
     final PDone done = PDone.in(pipeline);
     final TupleTag<String> oneTag = new TupleTag<String>() {};
     final TupleTag<Integer> twoTag = new TupleTag<Integer>() {};
@@ -617,13 +619,14 @@ public class TransformHierarchyTest implements Serializable {
   @Test
   public void visitDoesNotVisitSkippedNodes() {
     PCollection<String> one =
-        PCollection.<String>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED)
-            .setCoder(StringUtf8Coder.of());
+        PCollection.createPrimitiveOutputInternal(
+                pipeline,
+                WindowingStrategy.globalDefault(),
+                IsBounded.BOUNDED,
+                StringUtf8Coder.of());
     final PCollection<Integer> two =
-        PCollection.<Integer>createPrimitiveOutputInternal(
-                pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-            .setCoder(VarIntCoder.of());
+        PCollection.createPrimitiveOutputInternal(
+                pipeline, WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED, VarIntCoder.of());
     final PDone done = PDone.in(pipeline);
     final TupleTag<String> oneTag = new TupleTag<String>() {};
     final TupleTag<Integer> twoTag = new TupleTag<Integer>() {};

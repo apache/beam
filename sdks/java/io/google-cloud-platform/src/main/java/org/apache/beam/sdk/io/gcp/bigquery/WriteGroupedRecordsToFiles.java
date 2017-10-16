@@ -48,18 +48,21 @@ class WriteGroupedRecordsToFiles<DestinationT>
   public void processElement(ProcessContext c) throws Exception {
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
     TableRowWriter writer = new TableRowWriter(tempFilePrefix);
-    try (TableRowWriter ignored = writer) {
+    try {
       for (TableRow tableRow : c.element().getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
+          writer = new TableRowWriter(tempFilePrefix);
           TableRowWriter.Result result = writer.getResult();
           c.output(new WriteBundlesToFiles.Result<>(
               result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
-          writer = new TableRowWriter(tempFilePrefix);
         }
         writer.write(tableRow);
       }
+    } finally {
+      writer.close();
     }
+
     TableRowWriter.Result result = writer.getResult();
     c.output(
         new WriteBundlesToFiles.Result<>(

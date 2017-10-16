@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
+import static org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions.RESOLVE_FILE;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasItem;
@@ -28,13 +29,14 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -62,7 +64,6 @@ import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.OutputFileHints;
-import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
@@ -72,14 +73,19 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -216,6 +222,31 @@ public class AvroIOTest {
 
   @Test
   @Category(NeedsRunner.class)
+  public void testAvroIOWriteAndReadViaValueProvider() throws Throwable {
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    writePipeline
+        .apply(Create.of(values))
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
+    writePipeline.run().waitUntilFinish();
+
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.read(GenericClass.class)
+                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
   public void testAvroIOWriteAndReadMultipleFilepatterns() throws Throwable {
     List<GenericClass> firstValues = Lists.newArrayList();
     List<GenericClass> secondValues = Lists.newArrayList();
@@ -239,19 +270,7 @@ public class AvroIOTest {
                 .withNumShards(3));
     writePipeline.run().waitUntilFinish();
 
-    // Test read(), readAll(), and parseAllGenericRecords().
-    PAssert.that(
-            readPipeline.apply(
-                "Read first",
-                AvroIO.read(GenericClass.class)
-                    .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")))
-        .containsInAnyOrder(firstValues);
-    PAssert.that(
-            readPipeline.apply(
-                "Read second",
-                AvroIO.read(GenericClass.class)
-                    .from(tmpFolder.getRoot().getAbsolutePath() + "/second*")))
-        .containsInAnyOrder(secondValues);
+    // Test readAll() and parseAllGenericRecords().
     PCollection<String> paths =
         readPipeline.apply(
             "Create paths",
@@ -267,6 +286,98 @@ public class AvroIOTest {
                 "Parse all",
                 AvroIO.parseAllGenericRecords(new ParseGenericClass())
                     .withCoder(AvroCoder.of(GenericClass.class))
+                    .withDesiredBundleSizeBytes(10)))
+        .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+
+    readPipeline.run();
+  }
+
+  private static class CreateGenericClass extends SimpleFunction<Long, GenericClass> {
+    @Override
+    public GenericClass apply(Long i) {
+      return new GenericClass(i.intValue(), "value" + i);
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testAvroIOContinuouslyWriteAndReadMultipleFilepatterns() throws Throwable {
+    SimpleFunction<Long, GenericClass> mapFn = new CreateGenericClass();
+    List<GenericClass> firstValues = Lists.newArrayList();
+    List<GenericClass> secondValues = Lists.newArrayList();
+    for (int i = 0; i < 7; ++i) {
+      (i < 3 ? firstValues : secondValues).add(mapFn.apply((long) i));
+    }
+    // Configure windowing of the input so that it fires every time a new element is generated,
+    // so that files are written continuously.
+    Window<Long> window = Window.<Long>into(FixedWindows.of(Duration.millis(100)))
+        .withAllowedLateness(Duration.ZERO)
+        .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+        .discardingFiredPanes();
+    readPipeline.apply(
+            "Sequence first",
+            GenerateSequence.from(0).to(3).withRate(1, Duration.millis(300)))
+        .apply("Window first", window)
+        .apply("Map first", MapElements.via(mapFn))
+        .apply(
+            "Write first",
+            AvroIO.write(GenericClass.class)
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/first")
+                .withNumShards(2).withWindowedWrites());
+    readPipeline.apply(
+            "Sequence second",
+            GenerateSequence.from(3).to(7).withRate(1, Duration.millis(300)))
+        .apply("Window second", window)
+        .apply("Map second", MapElements.via(mapFn))
+        .apply(
+            "Write second",
+            AvroIO.write(GenericClass.class)
+                .to(tmpFolder.getRoot().getAbsolutePath() + "/second")
+                .withNumShards(3).withWindowedWrites());
+
+    // Test read(), readAll(), parse(), and parseAllGenericRecords() with watchForNewFiles().
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.read(GenericClass.class)
+                    .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
+                    .watchForNewFiles(
+                        Duration.millis(100),
+                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
+        .containsInAnyOrder(firstValues);
+    PAssert.that(
+            readPipeline.apply(
+                "Parse",
+                AvroIO.parseGenericRecords(new ParseGenericClass())
+                    .from(tmpFolder.getRoot().getAbsolutePath() + "/first*")
+                    .watchForNewFiles(
+                        Duration.millis(100),
+                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))))
+        .containsInAnyOrder(firstValues);
+
+    PCollection<String> paths =
+        readPipeline.apply(
+            "Create paths",
+            Create.of(
+                tmpFolder.getRoot().getAbsolutePath() + "/first*",
+                tmpFolder.getRoot().getAbsolutePath() + "/second*"));
+    PAssert.that(
+            paths.apply(
+                "Read all",
+                AvroIO.readAll(GenericClass.class)
+                    .watchForNewFiles(
+                        Duration.millis(100),
+                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))
+                    .withDesiredBundleSizeBytes(10)))
+        .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
+    PAssert.that(
+            paths.apply(
+                "Parse all",
+                AvroIO.parseAllGenericRecords(new ParseGenericClass())
+                    .withCoder(AvroCoder.of(GenericClass.class))
+                    .watchForNewFiles(
+                        Duration.millis(100),
+                        Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))
                     .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
 
@@ -422,7 +533,7 @@ public class AvroIOTest {
               outputFileHints.getSuggestedFilenameSuffix());
       return outputFilePrefix
           .getCurrentDirectory()
-          .resolve(filename, StandardResolveOptions.RESOLVE_FILE);
+          .resolve(filename, RESOLVE_FILE);
     }
 
     @Override
@@ -606,16 +717,20 @@ public class AvroIOTest {
     public FilenamePolicy getFilenamePolicy(String destination) {
       return DefaultFilenamePolicy.fromStandardParameters(
           StaticValueProvider.of(
-              baseDir.resolve("file_" + destination + ".txt", StandardResolveOptions.RESOLVE_FILE)),
+              baseDir.resolve("file_" + destination + ".txt", RESOLVE_FILE)),
           null,
           null,
           false);
     }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testDynamicDestinations() throws Exception {
+  private enum Sharding {
+    RUNNER_DETERMINED,
+    WITHOUT_SHARDING,
+    FIXED_3_SHARDS
+  }
+
+  private void testDynamicDestinationsWithSharding(Sharding sharding) throws Exception {
     ResourceId baseDir =
         FileSystems.matchNewResource(
             Files.createTempDirectory(tmpFolder.getRoot().toPath(), "testDynamicDestinations")
@@ -623,13 +738,14 @@ public class AvroIOTest {
             true);
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
-    List<GenericRecord> expectedElements = Lists.newArrayListWithExpectedSize(elements.size());
+    Multimap<String, GenericRecord> expectedElements = ArrayListMultimap.create();
     Map<String, String> schemaMap = Maps.newHashMap();
     for (String element : elements) {
       String prefix = element.substring(0, 1);
       String jsonSchema = schemaFromPrefix(prefix);
       schemaMap.put(prefix, jsonSchema);
-      expectedElements.add(createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
+      expectedElements.put(
+          prefix, createRecord(element, prefix, new Schema.Parser().parse(jsonSchema)));
     }
     PCollectionView<Map<String, String>> schemaView =
         writePipeline
@@ -638,38 +754,72 @@ public class AvroIOTest {
 
     PCollection<String> input =
         writePipeline.apply("createInput", Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(
+    AvroIO.TypedWrite<String, String, GenericRecord> write =
         AvroIO.<String>writeCustomTypeToGenericRecords()
             .to(new TestDynamicDestinations(baseDir, schemaView))
-            .withoutSharding()
-            .withTempDirectory(baseDir));
+            .withTempDirectory(baseDir);
+
+    switch (sharding) {
+      case RUNNER_DETERMINED:
+        break;
+      case WITHOUT_SHARDING:
+        write = write.withoutSharding();
+        break;
+      case FIXED_3_SHARDS:
+        write = write.withNumShards(3);
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown sharding " + sharding);
+    }
+
+    input.apply(write);
     writePipeline.run();
 
     // Validate that the data written matches the expected elements in the expected order.
 
-    List<String> prefixes = Lists.newArrayList();
-    for (String element : elements) {
-      prefixes.add(element.substring(0, 1));
-    }
-    prefixes = ImmutableSet.copyOf(prefixes).asList();
-
-    List<GenericRecord> actualElements = new ArrayList<>();
-    for (String prefix : prefixes) {
-      File expectedFile =
-          new File(
-              baseDir
-                  .resolve(
-                      "file_" + prefix + ".txt-00000-of-00001", StandardResolveOptions.RESOLVE_FILE)
-                  .toString());
-      assertTrue("Expected output file " + expectedFile.getAbsolutePath(), expectedFile.exists());
-      Schema schema = new Schema.Parser().parse(schemaFromPrefix(prefix));
-      try (DataFileReader<GenericRecord> reader =
-          new DataFileReader<>(expectedFile, new GenericDatumReader<GenericRecord>(schema))) {
-        Iterators.addAll(actualElements, reader);
+    for (String prefix : expectedElements.keySet()) {
+      String shardPattern;
+      switch (sharding) {
+        case RUNNER_DETERMINED:
+          shardPattern = "*";
+          break;
+        case WITHOUT_SHARDING:
+          shardPattern = "00000-of-00001";
+          break;
+        case FIXED_3_SHARDS:
+          shardPattern = "*-of-00003";
+          break;
+        default:
+          throw new IllegalArgumentException("Unknown sharding " + sharding);
       }
-      expectedFile.delete();
+      String expectedFilepattern =
+          baseDir.resolve("file_" + prefix + ".txt-" + shardPattern, RESOLVE_FILE).toString();
+
+      PCollection<GenericRecord> records =
+          readPipeline.apply(
+              "read_" + prefix,
+              AvroIO.readGenericRecords(schemaFromPrefix(prefix)).from(expectedFilepattern));
+      PAssert.that(records).containsInAnyOrder(expectedElements.get(prefix));
     }
-    assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsRunnerDeterminedSharding() throws Exception {
+    testDynamicDestinationsWithSharding(Sharding.RUNNER_DETERMINED);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsWithoutSharding() throws Exception {
+    testDynamicDestinationsWithSharding(Sharding.WITHOUT_SHARDING);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsWithNumShards() throws Exception {
+    testDynamicDestinationsWithSharding(Sharding.FIXED_3_SHARDS);
   }
 
   @Test

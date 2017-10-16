@@ -19,8 +19,6 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
@@ -66,12 +64,6 @@ public class StreamingInserts<DestinationT>
   StreamingInserts<DestinationT> withTestServices(BigQueryServices bigQueryServices) {
     return new StreamingInserts<>(
         createDisposition, dynamicDestinations, bigQueryServices, retryPolicy);  }
-
-
-  @Override
-  protected Coder<Void> getDefaultOutputCoder() {
-    return VoidCoder.of();
-  }
 
   @Override
   public WriteResult expand(PCollection<KV<DestinationT, TableRow>> input) {

@@ -23,7 +23,6 @@ import com.google.common.collect.Ordering;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -453,11 +452,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   @Override
-  protected Coder<?> getDefaultOutputCoder(PCollection<T> input) {
-    return input.getCoder();
-  }
-
-  @Override
   protected String getKindString() {
     return "Window.Into()";
   }
@@ -484,7 +478,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), updatedStrategy, input.isBounded());
+          input.getPipeline(), updatedStrategy, input.isBounded(), input.getCoder());
     }
 
     @Override

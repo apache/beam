@@ -115,9 +115,8 @@ class ViewOverrideFactory<ElemT, ViewT>
     @Override
     @SuppressWarnings("deprecation")
     public PCollection<Iterable<ElemT>> expand(PCollection<Iterable<ElemT>> input) {
-      return PCollection.<Iterable<ElemT>>createPrimitiveOutputInternal(
-              input.getPipeline(), input.getWindowingStrategy(), input.isBounded())
-          .setCoder(input.getCoder());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(), input.getCoder());
     }
 
     @SuppressWarnings("deprecation")

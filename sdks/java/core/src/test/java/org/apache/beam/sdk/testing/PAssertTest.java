@@ -121,27 +121,34 @@ public class PAssertTest implements Serializable {
     }
   }
 
-  @Test
-  public void testFailureEncodedDecoded() throws IOException {
-    AssertionError error = null;
+  private void throwNestedError() {
+    throw new RuntimeException("Nested error");
+  }
+
+  private void throwWrappedError() {
     try {
-      assertEquals(0, 1);
-    } catch (AssertionError e) {
+      throwNestedError();
+    } catch (Exception e) {
+      throw new RuntimeException("Wrapped error", e);
+    }
+  }
+
+  @Test
+  public void testFailureWithExceptionEncodedDecoded() throws IOException {
+    Throwable error;
+    try {
+      throwWrappedError();
+      throw new IllegalStateException("Should have failed");
+    } catch (Throwable e) {
       error = e;
     }
-    SuccessOrFailure failure = SuccessOrFailure.failure(
-        new PAssert.PAssertionSite(error.getMessage(), error.getStackTrace()));
-    SerializableCoder<SuccessOrFailure> coder = SerializableCoder.of(SuccessOrFailure.class);
-
-    byte[] encoded = CoderUtils.encodeToByteArray(coder, failure);
-    SuccessOrFailure res = CoderUtils.decodeFromByteArray(coder, encoded);
-
-    // Should compare strings, because throwables are not directly comparable.
-    assertEquals("Encode-decode failed SuccessOrFailure",
-        failure.assertionError().toString(), res.assertionError().toString());
-    String resultStacktrace = Throwables.getStackTraceAsString(res.assertionError());
-    String failureStacktrace = Throwables.getStackTraceAsString(failure.assertionError());
-    assertThat(resultStacktrace, is(failureStacktrace));
+    SuccessOrFailure failure =
+        SuccessOrFailure.failure(PAssert.PAssertionSite.capture("here"), error);
+    SuccessOrFailure res = CoderUtils.clone(SerializableCoder.of(SuccessOrFailure.class), failure);
+    assertEquals(
+        "Encode-decode failed SuccessOrFailure",
+        Throwables.getStackTraceAsString(failure.assertionError()),
+        Throwables.getStackTraceAsString(res.assertionError()));
   }
 
   @Test

@@ -57,6 +57,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -211,6 +212,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   public static AvroSource<GenericRecord> from(ValueProvider<String> fileNameOrPattern) {
     return new AvroSource<>(
         fileNameOrPattern,
+        EmptyMatchTreatment.DISALLOW,
         DEFAULT_MIN_BUNDLE_SIZE,
         readGenericRecordsWithSchema(null /* will need to be specified in withSchema */));
   }
@@ -220,26 +222,36 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     return from(ValueProvider.StaticValueProvider.of(fileNameOrPattern));
   }
 
+  public AvroSource<T> withEmptyMatchTreatment(EmptyMatchTreatment emptyMatchTreatment) {
+    return new AvroSource<T>(
+            getFileOrPatternSpecProvider(),
+            emptyMatchTreatment,
+            getMinBundleSize(),
+            mode);
+  }
+
   /** Reads files containing records that conform to the given schema. */
   public AvroSource<GenericRecord> withSchema(String schema) {
-    checkNotNull(schema, "schema");
+    checkArgument(schema != null, "schema can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
+        getEmptyMatchTreatment(),
         getMinBundleSize(),
         readGenericRecordsWithSchema(schema));
   }
 
   /** Like {@link #withSchema(String)}. */
   public AvroSource<GenericRecord> withSchema(Schema schema) {
-    checkNotNull(schema, "schema");
+    checkArgument(schema != null, "schema can not be null");
     return withSchema(schema.toString());
   }
 
   /** Reads files containing records of the given class. */
   public <X> AvroSource<X> withSchema(Class<X> clazz) {
-    checkNotNull(clazz, "clazz");
+    checkArgument(clazz != null, "clazz can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
+        getEmptyMatchTreatment(),
         getMinBundleSize(),
         readGeneratedClasses(clazz));
   }
@@ -250,10 +262,11 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   public <X> AvroSource<X> withParseFn(
       SerializableFunction<GenericRecord, X> parseFn, Coder<X> coder) {
-    checkNotNull(parseFn, "parseFn");
-    checkNotNull(parseFn, "coder");
+    checkArgument(parseFn != null, "parseFn can not be null");
+    checkArgument(coder != null, "coder can not be null");
     return new AvroSource<>(
         getFileOrPatternSpecProvider(),
+        getEmptyMatchTreatment(),
         getMinBundleSize(),
         parseGenericRecords(parseFn, coder));
   }
@@ -263,15 +276,17 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    * minBundleSize} and its use.
    */
   public AvroSource<T> withMinBundleSize(long minBundleSize) {
-    return new AvroSource<>(getFileOrPatternSpecProvider(), minBundleSize, mode);
+    return new AvroSource<>(
+        getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), minBundleSize, mode);
   }
 
   /** Constructor for FILEPATTERN mode. */
   private AvroSource(
       ValueProvider<String> fileNameOrPattern,
+      EmptyMatchTreatment emptyMatchTreatment,
       long minBundleSize,
       Mode<T> mode) {
-    super(fileNameOrPattern, minBundleSize);
+    super(fileNameOrPattern, emptyMatchTreatment, minBundleSize);
     this.mode = mode;
   }
 
@@ -315,7 +330,7 @@ public class AvroSource<T> extends BlockBasedSource<T> {
   }
 
   @Override
-  public Coder<T> getDefaultOutputCoder() {
+  public Coder<T> getOutputCoder() {
     return mode.getOutputCoder();
   }
 
@@ -463,7 +478,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
         return new AvroSource<>(
             getSingleFileMetadata(), getMinBundleSize(), getStartOffset(), getEndOffset(), mode);
       case FILEPATTERN:
-        return new AvroSource<>(getFileOrPatternSpecProvider(), getMinBundleSize(), mode);
+        return new AvroSource<>(
+            getFileOrPatternSpecProvider(), getEmptyMatchTreatment(), getMinBundleSize(), mode);
         default:
           throw new InvalidObjectException(
               String.format("Unknown mode %s for AvroSource %s", getMode(), this));

@@ -31,14 +31,13 @@ import json
 import logging
 import random
 
-
 import apache_beam as beam
 from apache_beam.io import WriteToText
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.typehints import Any
 from apache_beam.typehints import Iterable
 from apache_beam.typehints import Tuple
-from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 
 
 @beam.typehints.with_output_types(Tuple[int, int, int])

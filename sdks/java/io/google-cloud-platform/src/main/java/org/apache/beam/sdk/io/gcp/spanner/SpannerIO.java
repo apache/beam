@@ -34,20 +34,15 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
-import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -288,27 +283,16 @@ public class SpannerIO {
 
     @Override
     public PCollection<Struct> expand(PCollection<ReadOperation> input) {
-      PCollection<ReadOperation> reshuffled =
-          input
-              .apply(
-                  "Pair with random key",
-                  WithKeys.of(
-                      new SerializableFunction<ReadOperation, String>() {
-                        @Override
-                        public String apply(ReadOperation ignored) {
-                          return UUID.randomUUID().toString();
-                        }
-                      }))
-              .apply("Reshuffle", Reshuffle.<String, ReadOperation>of())
-              .apply("Strip keys", Values.<ReadOperation>create());
       List<PCollectionView<Transaction>> sideInputs =
           getTransaction() == null
               ? Collections.<PCollectionView<Transaction>>emptyList()
               : Collections.singletonList(getTransaction());
-      return reshuffled.apply(
-          "Execute queries",
-          ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
-              .withSideInputs(sideInputs));
+      return input
+          .apply(Reshuffle.<ReadOperation>viaRandomKey())
+          .apply(
+              "Execute queries",
+              ParDo.of(new NaiveSpannerReadFn(getSpannerConfig(), getTransaction()))
+                  .withSideInputs(sideInputs));
     }
   }
 
@@ -432,10 +416,10 @@ public class SpannerIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      getSpannerConfig().validate(options);
-      checkNotNull(
-          getTimestampBound(),
+    public PCollection<Struct> expand(PBegin input) {
+      getSpannerConfig().validate();
+      checkArgument(
+          getTimestampBound() != null,
           "SpannerIO.read() runs in a read only transaction and requires timestamp to be set "
               + "with withTimestampBound or withTimestamp method");
 
@@ -455,10 +439,7 @@ public class SpannerIO {
         throw new IllegalArgumentException(
             "SpannerIO.read() requires configuring query or read operation.");
       }
-    }
 
-    @Override
-    public PCollection<Struct> expand(PBegin input) {
       PCollectionView<Transaction> transaction = getTransaction();
       if (transaction == null && getTimestampBound() != null) {
         transaction =
@@ -492,6 +473,8 @@ public class SpannerIO {
 
     @Override
     public PCollectionView<Transaction> expand(PBegin input) {
+      getSpannerConfig().validate();
+
       return input.apply(Create.of(1))
           .apply("Create transaction", ParDo.of(new CreateTransactionFn(this)))
           .apply("As PCollectionView", View.<Transaction>asSingleton());
@@ -544,11 +527,6 @@ public class SpannerIO {
 
     public CreateTransaction withTimestampBound(TimestampBound timestampBound) {
       return toBuilder().setTimestampBound(timestampBound).build();
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      getSpannerConfig().validate(options);
     }
 
     /** A builder for {@link CreateTransaction}. */
@@ -645,12 +623,9 @@ public class SpannerIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      getSpannerConfig().validate(options);
-    }
-
-    @Override
     public PDone expand(PCollection<Mutation> input) {
+      getSpannerConfig().validate();
+
       input
           .apply("To mutation group", ParDo.of(new ToMutationGroupFn()))
           .apply("Write mutations to Cloud Spanner", ParDo.of(new SpannerWriteGroupFn(this)));

@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.transforms.Contextful.Fn.Context.wrapProcessContext;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 
@@ -38,7 +39,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
-import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -47,6 +47,7 @@ import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
+import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DurationCoder;
@@ -63,6 +64,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.TypeDescriptors.TypeVariableExtractor;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -115,11 +118,23 @@ public class Watch {
 
   /** Watches the growth of the given poll function. See class documentation for more details. */
   public static <InputT, OutputT> Growth<InputT, OutputT> growthOf(
-      Growth.PollFn<InputT, OutputT> pollFn) {
+      Contextful<Growth.PollFn<InputT, OutputT>> pollFn) {
     return new AutoValue_Watch_Growth.Builder<InputT, OutputT>()
         .setTerminationPerInput(Watch.Growth.<InputT>never())
         .setPollFn(pollFn)
         .build();
+  }
+
+  /** Watches the growth of the given poll function. See class documentation for more details. */
+  public static <InputT, OutputT> Growth<InputT, OutputT> growthOf(
+      Growth.PollFn<InputT, OutputT> pollFn, Requirements requirements) {
+    return growthOf(Contextful.of(pollFn, requirements));
+  }
+
+  /** Watches the growth of the given poll function. See class documentation for more details. */
+  public static <InputT, OutputT> Growth<InputT, OutputT> growthOf(
+      Growth.PollFn<InputT, OutputT> pollFn) {
+    return growthOf(pollFn, Requirements.empty());
   }
 
   /** Implementation of {@link #growthOf}. */
@@ -200,12 +215,11 @@ public class Watch {
     }
 
     /**
-     * A function that computes the current set of outputs for the given input (given as a {@link
-     * TimestampedValue}), in the form of a {@link PollResult}.
+     * A function that computes the current set of outputs for the given input, in the form of a
+     * {@link PollResult}.
      */
-    public interface PollFn<InputT, OutputT> extends Serializable {
-      PollResult<OutputT> apply(InputT input, Instant timestamp) throws Exception;
-    }
+    public abstract static class PollFn<InputT, OutputT>
+        implements Contextful.Fn<InputT, PollResult<OutputT>> {}
 
     /**
      * A strategy for determining whether it is time to stop polling the current input regardless of
@@ -259,6 +273,15 @@ public class Watch {
      */
     public static <InputT> Never<InputT> never() {
       return new Never<>();
+    }
+
+    /**
+     * Wraps a given input-independent {@link TerminationCondition} as an equivalent condition
+     * with a given input type, passing {@code null} to the original condition as input.
+     */
+    public static <InputT, StateT> TerminationCondition<InputT, StateT> ignoreInput(
+        TerminationCondition<?, StateT> condition) {
+      return new IgnoreInput<>(condition);
     }
 
     /**
@@ -339,6 +362,39 @@ public class Watch {
       @Override
       public String toString(Integer state) {
         return "Never";
+      }
+    }
+
+    static class IgnoreInput<InputT, StateT> implements TerminationCondition<InputT, StateT> {
+      private final TerminationCondition<?, StateT> wrapped;
+
+      IgnoreInput(TerminationCondition<?, StateT> wrapped) {
+        this.wrapped = wrapped;
+      }
+
+      @Override
+      public Coder<StateT> getStateCoder() {
+        return wrapped.getStateCoder();
+      }
+
+      @Override
+      public StateT forNewInput(Instant now, InputT input) {
+        return wrapped.forNewInput(now, null);
+      }
+
+      @Override
+      public StateT onSeenNewOutput(Instant now, StateT state) {
+        return wrapped.onSeenNewOutput(now, state);
+      }
+
+      @Override
+      public boolean canStopPolling(Instant now, StateT state) {
+        return wrapped.canStopPolling(now, state);
+      }
+
+      @Override
+      public String toString(StateT state) {
+        return wrapped.toString(state);
       }
     }
 
@@ -492,7 +548,7 @@ public class Watch {
       }
     }
 
-    abstract PollFn<InputT, OutputT> getPollFn();
+    abstract Contextful<PollFn<InputT, OutputT>> getPollFn();
 
     @Nullable
     abstract Duration getPollInterval();
@@ -507,7 +563,7 @@ public class Watch {
 
     @AutoValue.Builder
     abstract static class Builder<InputT, OutputT> {
-      abstract Builder<InputT, OutputT> setPollFn(PollFn<InputT, OutputT> pollFn);
+      abstract Builder<InputT, OutputT> setPollFn(Contextful<PollFn<InputT, OutputT>> pollFn);
 
       abstract Builder<InputT, OutputT> setTerminationPerInput(
           TerminationCondition<InputT, ?> terminationPerInput);
@@ -553,14 +609,13 @@ public class Watch {
       if (outputCoder == null) {
         // If a coder was not specified explicitly, infer it from the OutputT type parameter
         // of the PollFn.
-        TypeDescriptor<?> superDescriptor =
-            TypeDescriptor.of(getPollFn().getClass()).getSupertype(PollFn.class);
-        TypeVariable typeVariable = superDescriptor.getTypeParameter("OutputT");
-        @SuppressWarnings("unchecked")
-        TypeDescriptor<OutputT> descriptor =
-            (TypeDescriptor<OutputT>) superDescriptor.resolveType(typeVariable);
+        TypeDescriptor<OutputT> outputT =
+            TypeDescriptors.extractFromTypeParameters(
+                getPollFn().getClosure(),
+                PollFn.class,
+                new TypeVariableExtractor<PollFn<InputT, OutputT>, OutputT>() {});
         try {
-          outputCoder = input.getPipeline().getCoderRegistry().getCoder(descriptor);
+          outputCoder = input.getPipeline().getCoderRegistry().getCoder(outputT);
         } catch (CannotProvideCoderException e) {
           throw new RuntimeException(
               "Unable to infer coder for OutputT. Specify it explicitly using withOutputCoder().");
@@ -574,7 +629,8 @@ public class Watch {
       }
 
       return input
-          .apply(ParDo.of(new WatchGrowthFn<>(this, outputCoder)))
+          .apply(ParDo.of(new WatchGrowthFn<>(this, outputCoder))
+          .withSideInputs(getPollFn().getRequirements().getSideInputs()))
           .setCoder(KvCoder.of(input.getCoder(), outputCoder));
     }
   }
@@ -595,7 +651,8 @@ public class Watch {
         throws Exception {
       if (!tracker.hasPending() && !tracker.currentRestriction().isOutputComplete) {
         LOG.debug("{} - polling input", c.element());
-        Growth.PollResult<OutputT> res = spec.getPollFn().apply(c.element(), c.timestamp());
+        Growth.PollResult<OutputT> res =
+            spec.getPollFn().getClosure().apply(c.element(), wrapProcessContext(c));
         // TODO (https://issues.apache.org/jira/browse/BEAM-2680):
         // Consider truncating the pending outputs if there are too many, to avoid blowing
         // up the state. In that case, we'd rely on the next poll cycle to provide more outputs.
@@ -958,7 +1015,7 @@ public class Watch {
       return new GrowthStateCoder<>(outputCoder, terminationStateCoder);
     }
 
-    private static final Coder<Integer> INT_CODER = VarIntCoder.of();
+    private static final Coder<Boolean> BOOLEAN_CODER = BooleanCoder.of();
     private static final Coder<Instant> INSTANT_CODER = NullableCoder.of(InstantCoder.of());
     private static final Coder<HashCode> HASH_CODE_CODER = HashCode128Coder.of();
 
@@ -980,7 +1037,7 @@ public class Watch {
         throws IOException {
       completedCoder.encode(value.completed, os);
       pendingCoder.encode(value.pending, os);
-      INT_CODER.encode(value.isOutputComplete ? 1 : 0, os);
+      BOOLEAN_CODER.encode(value.isOutputComplete, os);
       terminationStateCoder.encode(value.terminationState, os);
       INSTANT_CODER.encode(value.pollWatermark, os);
     }
@@ -989,7 +1046,7 @@ public class Watch {
     public GrowthState<OutputT, TerminationStateT> decode(InputStream is) throws IOException {
       Map<HashCode, Instant> completed = completedCoder.decode(is);
       List<TimestampedValue<OutputT>> pending = pendingCoder.decode(is);
-      boolean isOutputComplete = (INT_CODER.decode(is) == 1);
+      boolean isOutputComplete = BOOLEAN_CODER.decode(is);
       TerminationStateT terminationState = terminationStateCoder.decode(is);
       Instant pollWatermark = INSTANT_CODER.decode(is);
       return new GrowthState<>(

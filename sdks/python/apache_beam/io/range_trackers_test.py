@@ -23,6 +23,43 @@ import math
 import unittest
 
 from apache_beam.io import range_trackers
+from apache_beam.io.range_trackers import OffsetRange
+
+
+class OffsetRangeTest(unittest.TestCase):
+
+  def test_create(self):
+    OffsetRange(0, 10)
+    OffsetRange(10, 100)
+
+    with self.assertRaises(ValueError):
+      OffsetRange(10, 9)
+
+  def test_split_respects_desired_num_splits(self):
+    range = OffsetRange(10, 100)
+    splits = list(range.split(desired_num_offsets_per_split=25))
+    self.assertEqual(4, len(splits))
+    self.assertIn(OffsetRange(10, 35), splits)
+    self.assertIn(OffsetRange(35, 60), splits)
+    self.assertIn(OffsetRange(60, 85), splits)
+    self.assertIn(OffsetRange(85, 100), splits)
+
+  def test_split_respects_min_num_splits(self):
+    range = OffsetRange(10, 100)
+    splits = list(range.split(desired_num_offsets_per_split=5,
+                              min_num_offsets_per_split=25))
+    self.assertEqual(3, len(splits))
+    self.assertIn(OffsetRange(10, 35), splits)
+    self.assertIn(OffsetRange(35, 60), splits)
+    self.assertIn(OffsetRange(60, 100), splits)
+
+  def test_split_no_small_split_at_end(self):
+    range = OffsetRange(10, 90)
+    splits = list(range.split(desired_num_offsets_per_split=25))
+    self.assertEqual(3, len(splits))
+    self.assertIn(OffsetRange(10, 35), splits)
+    self.assertIn(OffsetRange(35, 60), splits)
+    self.assertIn(OffsetRange(60, 90), splits)
 
 
 class OffsetRangeTrackerTest(unittest.TestCase):

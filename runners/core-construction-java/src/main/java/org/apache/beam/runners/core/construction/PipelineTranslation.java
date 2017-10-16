@@ -24,7 +24,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
-import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,11 +34,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -152,37 +152,31 @@ public class PipelineTranslation {
     RunnerApi.FunctionSpec transformSpec = transformProto.getSpec();
 
     // By default, no "additional" inputs, since that is an SDK-specific thing.
-    // Only ParDo really separates main from side inputs
+    // Only ParDo and WriteFiles really separate main from side inputs
     Map<TupleTag<?>, PValue> additionalInputs = Collections.emptyMap();
 
-    // TODO: ParDoTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
+    // TODO: ParDoTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
     if (transformSpec.getUrn().equals(PTransformTranslation.PAR_DO_TRANSFORM_URN)) {
-      RunnerApi.ParDoPayload payload =
-          transformSpec.getParameter().unpack(RunnerApi.ParDoPayload.class);
+      RunnerApi.ParDoPayload payload = RunnerApi.ParDoPayload.parseFrom(transformSpec.getPayload());
+      additionalInputs =
+          sideInputMapToAdditionalInputs(
+              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
+    }
 
-      List<PCollectionView<?>> views = new ArrayList<>();
-      for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry :
-          payload.getSideInputsMap().entrySet()) {
-        String localName = sideInputEntry.getKey();
-        RunnerApi.SideInput sideInput = sideInputEntry.getValue();
-        PCollection<?> pCollection =
-            (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
-        views.add(
-            ParDoTranslation.viewFromProto(
-                sideInputEntry.getValue(),
-                sideInputEntry.getKey(),
-                pCollection,
-                transformProto,
-                rehydratedComponents));
-      }
-      additionalInputs = PCollectionViews.toAdditionalInputs(views);
+    // TODO: WriteFilesTranslation should own it - https://issues.apache.org/jira/browse/BEAM-2674
+    if (transformSpec.getUrn().equals(PTransformTranslation.WRITE_FILES_TRANSFORM_URN)) {
+      RunnerApi.WriteFilesPayload payload =
+          RunnerApi.WriteFilesPayload.parseFrom(transformSpec.getPayload());
+      additionalInputs =
+          sideInputMapToAdditionalInputs(
+              transformProto, rehydratedComponents, rehydratedInputs, payload.getSideInputsMap());
     }
 
     // TODO: CombineTranslator should own it - https://issues.apache.org/jira/browse/BEAM-2674
     List<Coder<?>> additionalCoders = Collections.emptyList();
     if (transformSpec.getUrn().equals(PTransformTranslation.COMBINE_TRANSFORM_URN)) {
       RunnerApi.CombinePayload payload =
-          transformSpec.getParameter().unpack(RunnerApi.CombinePayload.class);
+          RunnerApi.CombinePayload.parseFrom(transformSpec.getPayload());
       additionalCoders =
           (List)
               Collections.singletonList(
@@ -192,7 +186,7 @@ public class PipelineTranslation {
     RehydratedPTransform transform =
         RehydratedPTransform.of(
             transformSpec.getUrn(),
-            transformSpec.getParameter(),
+            transformSpec.getPayload(),
             additionalInputs,
             additionalCoders);
 
@@ -216,6 +210,25 @@ public class PipelineTranslation {
     }
   }
 
+  private static Map<TupleTag<?>, PValue> sideInputMapToAdditionalInputs(
+      RunnerApi.PTransform transformProto,
+      RehydratedComponents rehydratedComponents,
+      Map<TupleTag<?>, PValue> rehydratedInputs,
+      Map<String, RunnerApi.SideInput> sideInputsMap)
+      throws IOException {
+    List<PCollectionView<?>> views = new ArrayList<>();
+    for (Map.Entry<String, RunnerApi.SideInput> sideInputEntry : sideInputsMap.entrySet()) {
+      String localName = sideInputEntry.getKey();
+      RunnerApi.SideInput sideInput = sideInputEntry.getValue();
+      PCollection<?> pCollection =
+          (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
+      views.add(
+          ParDoTranslation.viewFromProto(
+              sideInput, localName, pCollection, transformProto, rehydratedComponents));
+    }
+    return PCollectionViews.toAdditionalInputs(views);
+  }
+
   // A primitive transform is one with outputs that are not in its input and also
   // not produced by a subtransform.
   private static boolean isPrimitive(RunnerApi.PTransform transformProto) {
@@ -233,7 +246,7 @@ public class PipelineTranslation {
     public abstract String getUrn();
 
     @Nullable
-    public abstract Any getPayload();
+    public abstract ByteString getPayload();
 
     @Override
     public abstract Map<TupleTag<?>, PValue> getAdditionalInputs();
@@ -242,7 +255,7 @@ public class PipelineTranslation {
 
     public static RehydratedPTransform of(
         String urn,
-        Any payload,
+        ByteString payload,
         Map<TupleTag<?>, PValue> additionalInputs,
         List<Coder<?>> additionalCoders) {
       return new AutoValue_PipelineTranslation_RehydratedPTransform(

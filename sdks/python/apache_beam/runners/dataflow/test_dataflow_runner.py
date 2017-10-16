@@ -16,11 +16,12 @@
 #
 
 """Wrapper of Beam runners that's built for running and verifying e2e tests."""
+from __future__ import print_function
 
 from apache_beam.internal import pickler
-from apache_beam.options.pipeline_options import TestOptions, GoogleCloudOptions
+from apache_beam.options.pipeline_options import GoogleCloudOptions
+from apache_beam.options.pipeline_options import TestOptions
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRunner
-
 
 __all__ = ['TestDataflowRunner']
 

@@ -60,12 +60,11 @@ from apache_beam.portability.api import standard_window_fns_pb2
 from apache_beam.transforms import timeutil
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
+from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
-
 
 __all__ = [
     'TimestampCombiner',
@@ -87,9 +86,9 @@ __all__ = [
 class TimestampCombiner(object):
   """Determines how output timestamps of grouping operations are assigned."""
 
-  OUTPUT_AT_EOW = beam_runner_api_pb2.END_OF_WINDOW
-  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.EARLIEST_IN_PANE
-  OUTPUT_AT_LATEST = beam_runner_api_pb2.LATEST_IN_PANE
+  OUTPUT_AT_EOW = beam_runner_api_pb2.OutputTime.END_OF_WINDOW
+  OUTPUT_AT_EARLIEST = beam_runner_api_pb2.OutputTime.EARLIEST_IN_PANE
+  OUTPUT_AT_LATEST = beam_runner_api_pb2.OutputTime.LATEST_IN_PANE
   # TODO(robertwb): Add this to the runner API or remove it.
   OUTPUT_AT_EARLIEST_TRANSFORMED = 'OUTPUT_AT_EARLIEST_TRANSFORMED'
 

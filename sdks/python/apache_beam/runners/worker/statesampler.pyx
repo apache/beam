@@ -40,11 +40,12 @@ import time
 
 
 from apache_beam.utils.counters import Counter
-
+from apache_beam.utils.counters import CounterName
 
 cimport cython
 from cpython cimport pythread
 from libc.stdint cimport int32_t, int64_t
+
 
 cdef extern from "Python.h":
   # This typically requires the GIL, but we synchronize the list modifications
@@ -110,7 +111,10 @@ cdef class StateSampler(object):
   def __init__(self, prefix, counter_factory,
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
 
-    self.prefix = prefix
+    # TODO(pabloem): Remove this once all dashed prefixes are removed from
+    # the worker.
+    # We stop using prefixes with included dash.
+    self.prefix = prefix[:-1] if prefix[-1] == '-' else prefix
     self.counter_factory = counter_factory
     self.sampling_period_ms = sampling_period_ms
 
@@ -180,21 +184,45 @@ cdef class StateSampler(object):
         self.scoped_states_by_index[self.current_state_index].name,
         self.state_transition_count)
 
-  def scoped_state(self, name):
-    """Returns a context manager managing transitions for a given state."""
-    cdef ScopedState scoped_state = self.scoped_states_by_name.get(name, None)
+  # TODO(pabloem): Make state_name required once all callers migrate,
+  #   and the legacy path is removed.
+  def scoped_state(self, step_name, state_name=None, io_target=None):
+    """Returns a context manager managing transitions for a given state.
+    Args:
+      step_name: A string with the name of the running step.
+      state_name: A string with the name of the state (e.g. 'process', 'start')
+      io_target: An IOTargetName object describing the io_target (e.g. writing
+        or reading to side inputs, shuffle or state). Will often be None.
+
+    Returns:
+      A ScopedState for the set of step-state-io_target.
+    """
+    cdef ScopedState scoped_state
+    if state_name is None:
+      # If state_name is None, the worker is still using old style
+      # msec counters.
+      counter_name = '%s-%s-msecs' % (self.prefix, step_name)
+      scoped_state = self.scoped_states_by_name.get(counter_name, None)
+    else:
+      counter_name = CounterName(state_name + '-msecs',
+                                 stage_name=self.prefix,
+                                 step_name=step_name,
+                                 io_target=io_target)
+      scoped_state = self.scoped_states_by_name.get(counter_name, None)
+
     if scoped_state is None:
-      output_counter = self.counter_factory.get_counter(
-          '%s%s-msecs' % (self.prefix,  name), Counter.SUM)
+      output_counter = self.counter_factory.get_counter(counter_name,
+                                                        Counter.SUM)
       new_state_index = len(self.scoped_states_by_index)
-      scoped_state = ScopedState(self, name, new_state_index, output_counter)
+      scoped_state = ScopedState(self, counter_name,
+                                 new_state_index, output_counter)
       # Both scoped_states_by_index and scoped_state.nsecs are accessed
       # by the sampling thread; initialize them under the lock.
       pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
       self.scoped_states_by_index.append(scoped_state)
       scoped_state.nsecs = 0
       pythread.PyThread_release_lock(self.lock)
-      self.scoped_states_by_name[name] = scoped_state
+      self.scoped_states_by_name[counter_name] = scoped_state
     return scoped_state
 
   def commit_counters(self):
@@ -235,3 +263,6 @@ cdef class ScopedState(object):
 
   def __repr__(self):
     return "ScopedState[%s, %s, %s]" % (self.name, self.state_index, self.nsecs)
+
+  def sampled_seconds(self):
+    return 1e-9 * self.nsecs

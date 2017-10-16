@@ -24,7 +24,6 @@ import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItemCoder;
 import org.apache.beam.runners.core.construction.ForwardingPTransform;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -78,20 +77,16 @@ class DirectGroupByKey<K, V>
     @Override
     public PCollection<KeyedWorkItem<K, V>> expand(PCollection<KV<K, V>> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), input.isBounded());
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          input.isBounded(),
+          KeyedWorkItemCoder.of(
+              GroupByKey.getKeyCoder(input.getCoder()),
+              GroupByKey.getInputValueCoder(input.getCoder()),
+              input.getWindowingStrategy().getWindowFn().windowCoder()));
     }
 
     DirectGroupByKeyOnly() {}
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder(
-        @SuppressWarnings("unused") PCollection<KV<K, V>> input)
-        throws CannotProvideCoderException {
-      return KeyedWorkItemCoder.of(
-          GroupByKey.getKeyCoder(input.getCoder()),
-          GroupByKey.getInputValueCoder(input.getCoder()),
-          input.getWindowingStrategy().getWindowFn().windowCoder());
-    }
 
     @Override
     public String getUrn() {
@@ -135,17 +130,11 @@ class DirectGroupByKey<K, V>
     }
 
     @Override
-    protected Coder<?> getDefaultOutputCoder(
-        @SuppressWarnings("unused") PCollection<KeyedWorkItem<K, V>> input)
-        throws CannotProvideCoderException {
-      KeyedWorkItemCoder<K, V> inputCoder = getKeyedWorkItemCoder(input.getCoder());
-      return KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder()));
-    }
-
-    @Override
     public PCollection<KV<K, Iterable<V>>> expand(PCollection<KeyedWorkItem<K, V>> input) {
+      KeyedWorkItemCoder<K, V> inputCoder = getKeyedWorkItemCoder(input.getCoder());
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), outputWindowingStrategy, input.isBounded());
+          input.getPipeline(), outputWindowingStrategy, input.isBounded(),
+          KvCoder.of(inputCoder.getKeyCoder(), IterableCoder.of(inputCoder.getElementCoder())));
     }
 
     @Override

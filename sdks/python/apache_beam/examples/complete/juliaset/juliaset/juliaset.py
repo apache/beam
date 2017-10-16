@@ -104,14 +104,18 @@ def run(argv=None):  # pylint: disable=missing-docstring
 
     coordinates = generate_julia_set_colors(p, complex(-.62772, .42193), n, 100)
 
+    def x_coord_key(x_y_i):
+      (x, y, i) = x_y_i
+      return (x, (x, y, i))
+
     # Group each coordinate triplet by its x value, then write the coordinates
     # to the output file with an x-coordinate grouping per line.
     # pylint: disable=expression-not-assigned
     (coordinates
-     | 'x coord key' >> beam.Map(lambda (x, y, i): (x, (x, y, i)))
+     | 'x coord key' >> beam.Map(x_coord_key)
      | 'x coord' >> beam.GroupByKey()
      | 'format' >> beam.Map(
-         lambda (k, coords): ' '.join('(%s, %s, %s)' % c for c in coords))
+         lambda k_coords: ' '.join('(%s, %s, %s)' % c for c in k_coords[1]))
      | WriteToText(known_args.coordinate_output))
 
     # Optionally render the image and save it to a file.

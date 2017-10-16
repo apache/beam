@@ -295,11 +295,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-        String topicString =
-            topic == null ? null
-            : topic.isAccessible() ? topic.get().getPath()
-            : topic.toString();
-      builder.add(DisplayData.item("topic", topicString));
+      builder.add(DisplayData.item("topic", topic));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
       builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
       builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));

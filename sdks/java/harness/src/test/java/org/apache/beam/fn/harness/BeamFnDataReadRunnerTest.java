@@ -37,7 +37,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.util.concurrent.Uninterruptibles;
-import com.google.protobuf.Any;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,12 +51,13 @@ import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.test.TestExecutors;
 import org.apache.beam.fn.harness.test.TestExecutors.TestExecutorService;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -78,9 +78,9 @@ import org.mockito.MockitoAnnotations;
 public class BeamFnDataReadRunnerTest {
 
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
-      .setApiServiceDescriptor(BeamFnApi.ApiServiceDescriptor.getDefaultInstance()).build();
+      .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()).build();
   private static final RunnerApi.FunctionSpec FUNCTION_SPEC = RunnerApi.FunctionSpec.newBuilder()
-      .setParameter(Any.pack(PORT_SPEC)).build();
+      .setPayload(PORT_SPEC.toByteString()).build();
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String CODER_SPEC_ID = "string-coder-id";
@@ -131,7 +131,7 @@ public class BeamFnDataReadRunnerTest {
 
     RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
         .setUrn("urn:org.apache.beam:source:runner:0.1")
-        .setParameter(Any.pack(PORT_SPEC))
+        .setPayload(PORT_SPEC.toByteString())
         .build();
 
     RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
@@ -142,6 +142,7 @@ public class BeamFnDataReadRunnerTest {
     new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
         mockBeamFnDataClient,
+        null /* beamFnStateClient */,
         "pTransformId",
         pTransform,
         Suppliers.ofInstance(bundleId)::get,

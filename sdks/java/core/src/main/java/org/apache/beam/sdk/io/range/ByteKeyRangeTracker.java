@@ -127,7 +127,12 @@ public final class ByteKeyRangeTracker implements RangeTracker<ByteKey> {
   public synchronized double getFractionConsumed() {
     if (position == null) {
       return 0;
+    } else if (done) {
+      return 1.0;
+    } else if (position.compareTo(range.getEndKey()) >= 0) {
+      return 1.0;
     }
+
     return range.estimateFractionForKey(position);
   }
 

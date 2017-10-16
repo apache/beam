@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -537,7 +536,8 @@ public class ParDo {
     if (methodSignature.windowT() != null) {
       checkArgument(
           methodSignature.windowT().isSupertypeOf(actualWindowT),
-          "%s expects window type %s, which is not a supertype of actual window type %s",
+          "%s unable to provide window -- expected window type from parameter (%s) is not a "
+              + "supertype of actual window type assigned by windowing (%s)",
           methodSignature.targetMethod(),
           methodSignature.windowT(),
           actualWindowT);
@@ -588,7 +588,7 @@ public class ParDo {
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
@@ -636,19 +636,21 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-      finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
+      CoderRegistry registry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
       TupleTag<OutputT> mainOutput = new TupleTag<>();
-      return input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
-        throws CannotProvideCoderException {
-      return input.getPipeline().getCoderRegistry().getCoder(
-          getFn().getOutputTypeDescriptor(),
-          getFn().getInputTypeDescriptor(),
-          ((PCollection<InputT>) input).getCoder());
+      PCollection<OutputT> res =
+          input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
+      try {
+        res.setCoder(
+            registry.getCoder(
+                getFn().getOutputTypeDescriptor(),
+                getFn().getInputTypeDescriptor(),
+                ((PCollection<InputT>) input).getCoder()));
+      } catch (CannotProvideCoderException e) {
+        // Ignore and leave coder unset.
+      }
+      return res;
     }
 
     @Override
@@ -714,7 +716,7 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
     }
 
@@ -757,7 +759,8 @@ public class ParDo {
       validateWindowType(input, fn);
 
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
-      finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
+      CoderRegistry registry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
 
       DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
       if (signature.usesState() || signature.usesTimers()) {
@@ -767,8 +770,22 @@ public class ParDo {
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+          // TODO
+          Collections.<TupleTag<?>, Coder<?>>emptyMap(),
           input.getWindowingStrategy(),
           input.isBounded());
+      @SuppressWarnings("unchecked")
+      Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
+      for (PCollection<?> out : outputs.getAll().values()) {
+        try {
+          out.setCoder(
+              (Coder)
+                  registry.getCoder(
+                      out.getTypeDescriptor(), getFn().getInputTypeDescriptor(), inputCoder));
+        } catch (CannotProvideCoderException e) {
+          // Ignore and let coder inference happen later.
+        }
+      }
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
@@ -777,24 +794,6 @@ public class ParDo {
 
       return outputs;
     }
-
-    @Override
-    protected Coder<OutputT> getDefaultOutputCoder() {
-      throw new RuntimeException(
-          "internal error: shouldn't be calling this on a multi-output ParDo");
-    }
-
-    @Override
-    public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends InputT> input, PCollection<T> output)
-        throws CannotProvideCoderException {
-      @SuppressWarnings("unchecked")
-      Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
-      return input.getPipeline().getCoderRegistry().getCoder(
-          output.getTypeDescriptor(),
-          getFn().getInputTypeDescriptor(),
-          inputCoder);
-      }
 
     @Override
     protected String getKindString() {

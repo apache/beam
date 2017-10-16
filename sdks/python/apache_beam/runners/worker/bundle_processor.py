@@ -28,17 +28,20 @@ import logging
 
 from google.protobuf import wrappers_pb2
 
-from apache_beam.coders import coder_impl
+import apache_beam as beam
 from apache_beam.coders import WindowedValueCoder
+from apache_beam.coders import coder_impl
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.portability.api import beam_fn_api_pb2
-from apache_beam.runners.dataflow.native_io import iobase as native_iobase
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
+from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -55,8 +58,8 @@ IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 PYTHON_ITERABLE_VIEWFN_URN = 'urn:org.apache.beam:viewfn:iterable:python:0.1'
 PYTHON_CODER_URN = 'urn:org.apache.beam:coder:python:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate python urns.
-PYTHON_DOFN_URN = 'urn:org.apache.beam:dofn:java:0.1'
-PYTHON_SOURCE_URN = 'urn:org.apache.beam:source:java:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
 
 
 def side_input_tag(transform_id, tag):
@@ -109,7 +112,7 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               consumers.itervalues().next(),
+                               next(consumers.itervalues()),
                                self.windowed_coder)]
 
   def process(self, windowed_value):
@@ -184,17 +187,19 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
-
-  def create_execution_tree(self, descriptor):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
     # from StateSampler.
-    counter_factory = counters.CounterFactory()
-    state_sampler = statesampler.StateSampler(
-        'fnapi-step%s-' % descriptor.id, counter_factory)
+    self.counter_factory = counters.CounterFactory()
+    self.state_sampler = statesampler.StateSampler(
+        'fnapi-step-%s' % self.process_bundle_descriptor.id,
+        self.counter_factory)
+    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+
+  def create_execution_tree(self, descriptor):
 
     transform_factory = BeamTransformFactory(
-        descriptor, self.data_channel_factory, counter_factory, state_sampler,
-        self.state_handler)
+        descriptor, self.data_channel_factory, self.counter_factory,
+        self.state_sampler, self.state_handler)
 
     pcoll_consumers = collections.defaultdict(list)
     for transform_id, transform_proto in descriptor.transforms.items():
@@ -220,15 +225,15 @@ class BundleProcessor(object):
            for pcoll in descriptor.transforms[transform_id].outputs.values()
            for consumer in pcoll_consumers[pcoll]])
 
-    return [get_operation(transform_id)
-            for transform_id in sorted(
-                descriptor.transforms, key=topological_height, reverse=True)]
+    return collections.OrderedDict([
+        (transform_id, get_operation(transform_id))
+        for transform_id in sorted(
+            descriptor.transforms, key=topological_height, reverse=True)])
 
   def process_bundle(self, instruction_id):
-    ops = self.create_execution_tree(self.process_bundle_descriptor)
 
     expected_inputs = []
-    for op in ops:
+    for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
@@ -238,22 +243,54 @@ class BundleProcessor(object):
         # We must wait until we receive "end of stream" for each of these ops.
         expected_inputs.append(op)
 
-    # Start all operations.
-    for op in reversed(ops):
-      logging.info('start %s', op)
-      op.start()
+    try:
+      self.state_sampler.start()
+      # Start all operations.
+      for op in reversed(self.ops.values()):
+        logging.info('start %s', op)
+        op.start()
 
-    # Inject inputs from data plane.
-    for input_op in expected_inputs:
-      for data in input_op.data_channel.input_elements(
-          instruction_id, [input_op.target]):
-        # ignores input name
-        input_op.process_encoded(data.data)
+      # Inject inputs from data plane.
+      for input_op in expected_inputs:
+        for data in input_op.data_channel.input_elements(
+            instruction_id, [input_op.target]):
+          # ignores input name
+          input_op.process_encoded(data.data)
 
-    # Finish all operations.
-    for op in ops:
-      logging.info('finish %s', op)
-      op.finish()
+      # Finish all operations.
+      for op in self.ops.values():
+        logging.info('finish %s', op)
+        op.finish()
+    finally:
+      self.state_sampler.stop_if_still_running()
+
+  def metrics(self):
+    return beam_fn_api_pb2.Metrics(
+        # TODO(robertwb): Rename to progress?
+        ptransforms=
+        {transform_id:
+         self._fix_output_tags(transform_id, op.progress_metrics())
+         for transform_id, op in self.ops.items()})
+
+  def _fix_output_tags(self, transform_id, metrics):
+    # Outputs are still referred to by index, not by name, in many Operations.
+    # However, if there is exactly one output, we can fix up the name here.
+    def fix_only_output_tag(actual_output_tag, mapping):
+      if len(mapping) == 1:
+        fake_output_tag, count = only_element(mapping.items())
+        if fake_output_tag != actual_output_tag:
+          del mapping[fake_output_tag]
+          mapping[actual_output_tag] = count
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    if len(actual_output_tags) == 1:
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.processed_elements.measured.output_element_counts)
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.active_elements.measured.output_element_counts)
+    return metrics
 
 
 class BeamTransformFactory(object):
@@ -279,9 +316,9 @@ class BeamTransformFactory(object):
   def create_operation(self, transform_id, consumers):
     transform_proto = self.descriptor.transforms[transform_id]
     creator, parameter_type = self._known_urns[transform_proto.spec.urn]
-    parameter = proto_utils.unpack_Any(
-        transform_proto.spec.parameter, parameter_type)
-    return creator(self, transform_id, transform_proto, parameter, consumers)
+    payload = proto_utils.parse_Bytes(
+        transform_proto.spec.payload, parameter_type)
+    return creator(self, transform_id, transform_proto, payload, consumers)
 
   def get_coder(self, coder_id):
     coder_proto = self.descriptor.coders[coder_id]
@@ -290,9 +327,7 @@ class BeamTransformFactory(object):
     else:
       # No URN, assume cloud object encoding json bytes.
       return operation_specs.get_coder_from_spec(
-          json.loads(
-              proto_utils.unpack_Any(coder_proto.spec.spec.parameter,
-                                     wrappers_pb2.BytesValue).value))
+          json.loads(coder_proto.spec.spec.payload))
 
   def get_output_coders(self, transform_proto):
     return {
@@ -357,10 +392,10 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
 
-@BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, wrappers_pb2.BytesValue)
+@BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_READ_URN, None)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # The Dataflow runner harness strips the base64 encoding.
-  source = pickler.loads(base64.b64encode(parameter.value))
+  source = pickler.loads(base64.b64encode(parameter))
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),
       [WindowedValueCoder(source.default_output_coder())])
@@ -374,16 +409,58 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
-@BeamTransformFactory.register_urn(PYTHON_DOFN_URN, wrappers_pb2.BytesValue)
+@BeamTransformFactory.register_urn(
+    urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  dofn_data = pickler.loads(parameter.value)
+  # The Dataflow runner harness strips the base64 encoding.
+  source = iobase.SourceBase.from_runner_api(parameter.source, factory.context)
+  spec = operation_specs.WorkerRead(
+      iobase.SourceBundle(1.0, source, None, None),
+      [WindowedValueCoder(source.default_output_coder())])
+  return factory.augment_oldstyle_op(
+      operations.ReadOperation(
+          transform_proto.unique_name,
+          spec,
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  dofn_data = pickler.loads(parameter)
   if len(dofn_data) == 2:
     # Has side input data.
     serialized_fn, side_input_data = dofn_data
   else:
     # No side input data.
-    serialized_fn, side_input_data = parameter.value, []
+    serialized_fn, side_input_data = parameter, []
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, side_input_data)
 
+
+@BeamTransformFactory.register_urn(
+    urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  assert parameter.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
+  serialized_fn = parameter.do_fn.spec.payload
+  dofn_data = pickler.loads(serialized_fn)
+  if len(dofn_data) == 2:
+    # Has side input data.
+    serialized_fn, side_input_data = dofn_data
+  else:
+    # No side input data.
+    side_input_data = []
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, side_input_data)
+
+
+def _create_pardo_operation(
+    factory, transform_id, transform_proto, consumers,
+    serialized_fn, side_input_data):
   def create_side_input(tag, coder):
     # TODO(robertwb): Extract windows (and keys) out of element data.
     # TODO(robertwb): Extract state key from ParDoPayload.
@@ -395,10 +472,27 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
                 key=side_input_tag(transform_id, tag)),
             coder=coder))
   output_tags = list(transform_proto.outputs.keys())
+
+  # Hack to match out prefix injected by dataflow runner.
+  def mutate_tag(tag):
+    if 'None' in output_tags:
+      if tag == 'None':
+        return 'out'
+      else:
+        return 'out_' + tag
+    else:
+      return tag
+  dofn_data = pickler.loads(serialized_fn)
+  if not dofn_data[-1]:
+    # Windowing not set.
+    pcoll_id, = transform_proto.inputs.values()
+    windowing = factory.context.windowing_strategies.get_by_id(
+        factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
+    serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
-      output_tags=output_tags,
+      output_tags=[mutate_tag(tag) for tag in output_tags],
       input=None,
       side_inputs=[
           create_side_input(tag, coder) for tag, coder in side_input_data],
@@ -414,12 +508,52 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       output_tags)
 
 
+def _create_simple_pardo_operation(
+    factory, transform_id, transform_proto, consumers, dofn):
+  serialized_fn = pickler.dumps((dofn, (), {}, [], None))
+  side_input_data = []
+  return _create_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      serialized_fn, side_input_data)
+
+
+@BeamTransformFactory.register_urn(
+    urns.GROUP_ALSO_BY_WINDOW_TRANSFORM, wrappers_pb2.BytesValue)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  # Perhaps this hack can go away once all apply overloads are gone.
+  from apache_beam.transforms.core import _GroupAlsoByWindowDoFn
+  return _create_simple_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      _GroupAlsoByWindowDoFn(
+          factory.context.windowing_strategies.get_by_id(parameter.value)))
+
+
+@BeamTransformFactory.register_urn(
+    urns.WINDOW_INTO_TRANSFORM, beam_runner_api_pb2.WindowingStrategy)
+def create(factory, transform_id, transform_proto, parameter, consumers):
+  class WindowIntoDoFn(beam.DoFn):
+    def __init__(self, windowing):
+      self.windowing = windowing
+
+    def process(self, element, timestamp=beam.DoFn.TimestampParam):
+      new_windows = self.windowing.windowfn.assign(
+          WindowFn.AssignContext(timestamp, element=element))
+      yield WindowedValue(element, timestamp, new_windows)
+  from apache_beam.transforms.core import Windowing
+  from apache_beam.transforms.window import WindowFn, WindowedValue
+  windowing = Windowing.from_runner_api(parameter, factory.context)
+  return _create_simple_pardo_operation(
+      factory, transform_id, transform_proto, consumers,
+      WindowIntoDoFn(windowing))
+
+
 @BeamTransformFactory.register_urn(IDENTITY_DOFN_URN, None)
 def create(factory, transform_id, transform_proto, unused_parameter, consumers):
   return factory.augment_oldstyle_op(
       operations.FlattenOperation(
           transform_proto.unique_name,
-          None,
+          operation_specs.WorkerFlatten(
+              None, [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,
           factory.state_sampler),
       transform_proto.unique_name,

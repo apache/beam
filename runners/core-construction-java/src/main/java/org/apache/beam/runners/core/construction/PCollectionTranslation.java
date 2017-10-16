@@ -19,9 +19,9 @@
 package org.apache.beam.runners.core.construction;
 
 import java.io.IOException;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 
@@ -52,29 +52,29 @@ public class PCollectionTranslation {
 
     Coder<?> coder = components.getCoder(pCollection.getCoderId());
     return PCollection.createPrimitiveOutputInternal(
-            pipeline,
-            components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
-            fromProto(pCollection.getIsBounded()))
-        .setCoder((Coder) coder);
+        pipeline,
+        components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
+        fromProto(pCollection.getIsBounded()),
+        (Coder) coder);
   }
 
   public static IsBounded isBounded(RunnerApi.PCollection pCollection) {
     return fromProto(pCollection.getIsBounded());
   }
 
-  static RunnerApi.IsBounded toProto(IsBounded bounded) {
+  static RunnerApi.IsBounded.Enum toProto(IsBounded bounded) {
     switch (bounded) {
       case BOUNDED:
-        return RunnerApi.IsBounded.BOUNDED;
+        return RunnerApi.IsBounded.Enum.BOUNDED;
       case UNBOUNDED:
-        return RunnerApi.IsBounded.UNBOUNDED;
+        return RunnerApi.IsBounded.Enum.UNBOUNDED;
       default:
         throw new IllegalArgumentException(
             String.format("Unknown %s %s", IsBounded.class.getSimpleName(), bounded));
     }
   }
 
-  static IsBounded fromProto(RunnerApi.IsBounded isBounded) {
+  static IsBounded fromProto(RunnerApi.IsBounded.Enum isBounded) {
     switch (isBounded) {
       case BOUNDED:
         return IsBounded.BOUNDED;

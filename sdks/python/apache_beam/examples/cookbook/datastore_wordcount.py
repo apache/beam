@@ -68,7 +68,8 @@ import uuid
 
 from google.cloud.proto.datastore.v1 import entity_pb2
 from google.cloud.proto.datastore.v1 import query_pb2
-from googledatastore import helper as datastore_helper, PropertyFilter
+from googledatastore import helper as datastore_helper
+from googledatastore import PropertyFilter
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -178,15 +179,23 @@ def read_from_datastore(project, user_options, pipeline_options):
       project, query, user_options.namespace)
 
   # Count the occurrences of each word.
+  def count_ones(word_ones):
+    (word, ones) = word_ones
+    return (word, sum(ones))
+
   counts = (lines
             | 'split' >> (beam.ParDo(WordExtractingDoFn())
                           .with_output_types(unicode))
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones))))
+            | 'count' >> beam.Map(count_ones))
 
   # Format the counts into a PCollection of strings.
-  output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+  def format_result(word_count):
+    (word, count) = word_count
+    return '%s: %s' % (word, count)
+
+  output = counts | 'format' >> beam.Map(format_result)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned

@@ -58,6 +58,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
@@ -89,7 +90,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
@@ -97,6 +97,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessageWithAttributesCoder;
@@ -131,7 +132,6 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -243,11 +243,15 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (dataflowOptions.getFilesToStage() == null) {
       dataflowOptions.setFilesToStage(detectClassPathResourcesToStage(
           DataflowRunner.class.getClassLoader()));
-      LOG.info("PipelineOptions.filesToStage was not specified. "
-          + "Defaulting to files from the classpath: will stage {} files. "
-          + "Enable logging at DEBUG level to see which files will be staged.",
-          dataflowOptions.getFilesToStage().size());
-      LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
+      if (dataflowOptions.getFilesToStage().isEmpty()) {
+        throw new IllegalArgumentException("No files to stage has been found.");
+      } else {
+        LOG.info("PipelineOptions.filesToStage was not specified. "
+                        + "Defaulting to files from the classpath: will stage {} files. "
+                        + "Enable logging at DEBUG level to see which files will be staged.",
+                dataflowOptions.getFilesToStage().size());
+        LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
+      }
     }
 
     // Verify jobName according to service requirements, truncating converting to lowercase if
@@ -293,6 +297,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
 
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String userAgent = String
+        .format("%s/%s", dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion())
+        .replace(" ", "_");
+    dataflowOptions.setUserAgent(userAgent);
+
     return new DataflowRunner(dataflowOptions);
   }
 
@@ -321,7 +331,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         overridesBuilder.add(
             PTransformOverride.of(
                 PTransformMatchers.classEqualTo(PubsubUnboundedSource.class),
-                new ReflectiveRootOverrideFactory(StreamingPubsubIORead.class, this)));
+                new StreamingPubsubIOReadOverrideFactory()));
       }
       if (!hasExperiment(options, "enable_custom_pubsub_sink")) {
         overridesBuilder.add(
@@ -359,11 +369,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               // must precede it
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Bounded.class),
-                  new ReflectiveRootOverrideFactory(StreamingBoundedRead.class, this)))
+                  new StreamingBoundedReadOverrideFactory()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
-                  new ReflectiveRootOverrideFactory(StreamingUnboundedRead.class, this)))
+                  new StreamingUnboundedReadOverrideFactory()))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
@@ -374,11 +384,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoMulti(),
-                  BatchStatefulParDoOverrides.multiOutputOverrideFactory()))
+                  BatchStatefulParDoOverrides.multiOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
-                  BatchStatefulParDoOverrides.singleOutputOverrideFactory()))
+                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.createViewWithViewFn(PCollectionViews.MapViewFn.class),
@@ -445,38 +455,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   (Class<TransformT>) transform.getTransform().getClass(), transform.getTransform())
               .build();
       return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform), rep);
-    }
-  }
-
-  private static class ReflectiveRootOverrideFactory<T>
-      implements PTransformOverrideFactory<
-          PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> {
-    private final Class<PTransform<PBegin, PCollection<T>>> replacement;
-    private final DataflowRunner runner;
-
-    private ReflectiveRootOverrideFactory(
-        Class<PTransform<PBegin, PCollection<T>>> replacement, DataflowRunner runner) {
-      this.replacement = replacement;
-      this.runner = runner;
-    }
-
-    @Override
-    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
-        AppliedPTransform<PBegin, PCollection<T>, PTransform<PInput, PCollection<T>>> transform) {
-      PTransform<PInput, PCollection<T>> original = transform.getTransform();
-      return PTransformReplacement.of(
-          transform.getPipeline().begin(),
-          InstanceBuilder.ofType(replacement)
-              .withArg(DataflowRunner.class, runner)
-              .withArg(
-                  (Class<? super PTransform<PInput, PCollection<T>>>) original.getClass(), original)
-              .build());
-    }
-
-    @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(
-        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
-      return ReplacementOutputs.singleton(outputs, newOutput);
     }
   }
 
@@ -560,14 +538,14 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     Job newJob = jobSpecification.getJob();
     newJob.setClientRequestId(requestId);
 
-    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
-    String version = releaseInfo.getVersion();
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String version = dataflowRunnerInfo.getVersion();
     checkState(
         !version.equals("${pom.version}"),
         "Unable to submit a job to the Dataflow service with unset version ${pom.version}");
     System.out.println("Dataflow SDK version: " + version);
 
-    newJob.getEnvironment().setUserAgent((Map) releaseInfo.getProperties());
+    newJob.getEnvironment().setUserAgent((Map) dataflowRunnerInfo.getProperties());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
     if (!isNullOrEmpty(options.getGcpTempLocation())) {
@@ -838,6 +816,24 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   // PubsubIO translations
   // ================================================================================
 
+  private static class StreamingPubsubIOReadOverrideFactory
+      implements PTransformOverrideFactory<
+          PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<PubsubMessage>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<PubsubMessage>, PubsubUnboundedSource> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new StreamingPubsubIORead(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<PubsubMessage> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
+
   /**
    * Suppress application of {@link PubsubUnboundedSource#expand} in streaming mode so that we can
    * instead defer to Windmill's implementation.
@@ -846,9 +842,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       extends PTransform<PBegin, PCollection<PubsubMessage>> {
     private final PubsubUnboundedSource transform;
 
-    /** Builds an instance of this class from the overridden transform. */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingPubsubIORead(DataflowRunner runner, PubsubUnboundedSource transform) {
+    public StreamingPubsubIORead(PubsubUnboundedSource transform) {
       this.transform = transform;
     }
 
@@ -858,9 +852,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     @Override
     public PCollection<PubsubMessage> expand(PBegin input) {
-      return PCollection.<PubsubMessage>createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED)
-          .setCoder(new PubsubMessageWithAttributesCoder());
+      return PCollection.createPrimitiveOutputInternal(
+          input.getPipeline(),
+          WindowingStrategy.globalDefault(),
+          IsBounded.UNBOUNDED,
+          new PubsubMessageWithAttributesCoder());
     }
 
     @Override
@@ -1112,7 +1108,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       @ProcessElement
       public void processElement(ProcessContext context) throws IOException {
         for (byte[] element : elements) {
-          context.output(CoderUtils.decodeFromByteArray(coder, element));
+          context.output(CoderUtils.decodeFromByteArray(getCoder(), element));
         }
       }
     }
@@ -1129,12 +1125,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     @Override
     public PCollection<byte[]> expand(PBegin input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), WindowingStrategy.globalDefault(), isBounded);
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return ByteArrayCoder.of();
+          input.getPipeline(), WindowingStrategy.globalDefault(), isBounded, ByteArrayCoder.of());
     }
 
     private static class Translator implements TransformTranslator<Impulse> {
@@ -1157,6 +1148,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class StreamingUnboundedReadOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Unbounded<T>> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Unbounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new StreamingUnboundedRead<>(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   /**
    * Specialized implementation for
    * {@link org.apache.beam.sdk.io.Read.Unbounded Read.Unbounded} for the
@@ -1168,15 +1175,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class StreamingUnboundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final UnboundedSource<T, ?> source;
 
-    /** Builds an instance of this class from the overridden transform. */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingUnboundedRead(DataflowRunner runner, Read.Unbounded<T> transform) {
+    public StreamingUnboundedRead(Read.Unbounded<T> transform) {
       this.source = transform.getSource();
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
     }
 
     @Override
@@ -1206,13 +1206,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
       @Override
       public final PCollection<ValueWithRecordId<T>> expand(PInput input) {
-        return PCollection.<ValueWithRecordId<T>>createPrimitiveOutputInternal(
-            input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED);
-      }
-
-      @Override
-      protected Coder<ValueWithRecordId<T>> getDefaultOutputCoder() {
-        return ValueWithRecordId.ValueWithRecordIdCoder.of(source.getDefaultOutputCoder());
+        return PCollection.createPrimitiveOutputInternal(
+            input.getPipeline(), WindowingStrategy.globalDefault(), IsBounded.UNBOUNDED,
+            ValueWithRecordId.ValueWithRecordIdCoder.of(source.getOutputCoder()));
       }
 
       @Override
@@ -1276,6 +1272,22 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
+  private static class StreamingBoundedReadOverrideFactory<T>
+      implements PTransformOverrideFactory<PBegin, PCollection<T>, Read.Bounded<T>> {
+    @Override
+    public PTransformReplacement<PBegin, PCollection<T>> getReplacementTransform(
+        AppliedPTransform<PBegin, PCollection<T>, Read.Bounded<T>> transform) {
+      return PTransformReplacement.of(
+          transform.getPipeline().begin(), new StreamingBoundedRead<>(transform.getTransform()));
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PCollection<T> newOutput) {
+      return ReplacementOutputs.singleton(outputs, newOutput);
+    }
+  }
+
   /**
    * Specialized implementation for {@link org.apache.beam.sdk.io.Read.Bounded Read.Bounded} for the
    * Dataflow runner in streaming mode.
@@ -1283,15 +1295,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static class StreamingBoundedRead<T> extends PTransform<PBegin, PCollection<T>> {
     private final BoundedSource<T> source;
 
-    /** Builds an instance of this class from the overridden transform. */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public StreamingBoundedRead(DataflowRunner runner, Read.Bounded<T> transform) {
+    public StreamingBoundedRead(Read.Bounded<T> transform) {
       this.source = transform.getSource();
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return source.getDefaultOutputCoder();
     }
 
     @Override
@@ -1404,15 +1409,19 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static class CombineGroupedValues<K, InputT, OutputT>
       extends PTransform<PCollection<KV<K, Iterable<InputT>>>, PCollection<KV<K, OutputT>>> {
     private final Combine.GroupedValues<K, InputT, OutputT> original;
+    private final Coder<KV<K, OutputT>> outputCoder;
 
-    CombineGroupedValues(GroupedValues<K, InputT, OutputT> original) {
+    CombineGroupedValues(
+        GroupedValues<K, InputT, OutputT> original, Coder<KV<K, OutputT>> outputCoder) {
       this.original = original;
+      this.outputCoder = outputCoder;
     }
 
     @Override
     public PCollection<KV<K, OutputT>> expand(PCollection<KV<K, Iterable<InputT>>> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), input.getWindowingStrategy(), input.isBounded());
+          input.getPipeline(), input.getWindowingStrategy(), input.isBounded(),
+          outputCoder);
     }
 
     public Combine.GroupedValues<K, InputT, OutputT> getOriginalCombine() {
@@ -1433,7 +1442,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 transform) {
       return PTransformReplacement.of(
           PTransformReplacements.getSingletonMainInput(transform),
-          new CombineGroupedValues<>(transform.getTransform()));
+          new CombineGroupedValues<>(
+              transform.getTransform(),
+              PTransformReplacements.getSingletonMainOutput(transform).getCoder()));
     }
 
     @Override
@@ -1472,7 +1483,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static class StreamingShardedWriteFactory<UserT, DestinationT, OutputT>
       implements PTransformOverrideFactory<
-          PCollection<UserT>, PDone, WriteFiles<UserT, DestinationT, OutputT>> {
+          PCollection<UserT>, WriteFilesResult<DestinationT>,
+          WriteFiles<UserT, DestinationT, OutputT>> {
     // We pick 10 as a a default, as it works well with the default number of workers started
     // by Dataflow.
     static final int DEFAULT_NUM_SHARDS = 10;
@@ -1483,9 +1495,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public PTransformReplacement<PCollection<UserT>, PDone> getReplacementTransform(
-        AppliedPTransform<PCollection<UserT>, PDone, WriteFiles<UserT, DestinationT, OutputT>>
-            transform) {
+    public PTransformReplacement<PCollection<UserT>, WriteFilesResult<DestinationT>>
+        getReplacementTransform(
+            AppliedPTransform<
+                    PCollection<UserT>, WriteFilesResult<DestinationT>,
+                    WriteFiles<UserT, DestinationT, OutputT>>
+                transform) {
       // By default, if numShards is not set WriteFiles will produce one file per bundle. In
       // streaming, there are large numbers of small bundles, resulting in many tiny files.
       // Instead we pick max workers * 2 to ensure full parallelism, but prevent too-many files.
@@ -1519,8 +1534,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs,
-                                                     PDone newOutput) {
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
       return Collections.emptyMap();
     }
   }

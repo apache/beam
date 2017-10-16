@@ -180,7 +180,13 @@ class BigtableServiceImpl implements BigtableService {
     @Override
     public void flush() throws IOException {
       if (bulkMutation != null) {
-        bulkMutation.flush();
+        try {
+          bulkMutation.flush();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          // We fail since flush() operation was interrupted.
+          throw new IOException(e);
+        }
         executor.flush();
       }
     }
@@ -189,7 +195,13 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       try {
         if (bulkMutation != null) {
-          bulkMutation.flush();
+          try {
+            bulkMutation.flush();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // We fail since flush() operation was interrupted.
+            throw new IOException(e);
+          }
           bulkMutation = null;
           executor.flush();
           executor = null;

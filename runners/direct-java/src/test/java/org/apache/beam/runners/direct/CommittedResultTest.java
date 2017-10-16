@@ -27,6 +27,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import org.apache.beam.runners.direct.CommittedResult.OutputType;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -113,13 +114,24 @@ public class CommittedResultTest implements Serializable {
 
   @Test
   public void getOutputsEqualInput() {
-    List<? extends CommittedBundle<?>> outputs =
-        ImmutableList.of(bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
-            WindowingStrategy.globalDefault(),
-            PCollection.IsBounded.BOUNDED)).commit(Instant.now()),
-            bundleFactory.createBundle(PCollection.createPrimitiveOutputInternal(p,
-                WindowingStrategy.globalDefault(),
-                PCollection.IsBounded.UNBOUNDED)).commit(Instant.now()));
+    List<? extends CommittedBundle<Integer>> outputs =
+        ImmutableList.of(
+            bundleFactory
+                .createBundle(
+                    PCollection.createPrimitiveOutputInternal(
+                        p,
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.BOUNDED,
+                        VarIntCoder.of()))
+                .commit(Instant.now()),
+            bundleFactory
+                .createBundle(
+                    PCollection.createPrimitiveOutputInternal(
+                        p,
+                        WindowingStrategy.globalDefault(),
+                        PCollection.IsBounded.UNBOUNDED,
+                        VarIntCoder.of()))
+                .commit(Instant.now()));
     CommittedResult result =
         CommittedResult.create(
             StepTransformResult.withoutHold(transform).build(),

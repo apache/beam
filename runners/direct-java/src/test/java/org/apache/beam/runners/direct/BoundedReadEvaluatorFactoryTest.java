@@ -380,10 +380,6 @@ public class BoundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public void validate() {
-    }
-
-    @Override
     public long getMaxEndOffset(PipelineOptions options) throws Exception {
       return elems.length;
     }
@@ -395,7 +391,7 @@ public class BoundedReadEvaluatorFactoryTest {
     }
 
     @Override
-    public Coder<T> getDefaultOutputCoder() {
+    public Coder<T> getOutputCoder() {
       return coder;
     }
   }

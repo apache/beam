@@ -366,10 +366,15 @@ public class PCollection<T> extends PValueBase implements PValue {
   public static <T> PCollection<T> createPrimitiveOutputInternal(
       Pipeline pipeline,
       WindowingStrategy<?, ?> windowingStrategy,
-      IsBounded isBounded) {
-    return new PCollection<T>(pipeline)
+      IsBounded isBounded,
+      @Nullable Coder<T> coder) {
+    PCollection<T> res = new PCollection<T>(pipeline)
         .setWindowingStrategyInternal(windowingStrategy)
         .setIsBoundedInternal(isBounded);
+    if (coder != null) {
+      res.setCoder(coder);
+    }
+    return res;
   }
 
   private static class CoderOrFailure<T> {

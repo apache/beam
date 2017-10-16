@@ -34,7 +34,7 @@
   <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>2.2.0-SNAPSHOT</version>
+  <version>2.3.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -106,13 +106,14 @@
     <apache.commons.text.version>1.1</apache.commons.text.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
     <api-common.version>1.0.0-rc2</api-common.version>
+    <args4j.version>2.33</args4j.version>
     <avro.version>1.8.2</avro.version>
-    <bigquery.version>v2-rev295-1.22.0</bigquery.version>
-    <bigtable.version>0.9.7.1</bigtable.version>
+    <bigquery.version>v2-rev355-1.22.0</bigquery.version>
+    <bigtable.version>1.0.0-pre3</bigtable.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
-    <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
+    <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev198-1.20.0</dataflow.version>
+    <dataflow.version>v1b3-rev214-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.client.version>1.4.0</datastore.client.version>
     <datastore.proto.version>1.3.0</datastore.proto.version>
@@ -143,7 +144,7 @@
     <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
-    <slf4j.version>1.7.14</slf4j.version>
+    <slf4j.version>1.7.25</slf4j.version>
     <spanner.version>0.20.0-beta</spanner.version>
     <spark.version>1.6.3</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
@@ -151,7 +152,9 @@
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
-    <snappy-java.version>1.1.4-M3</snappy-java.version>
+    <snappy-java.version>1.1.4</snappy-java.version>
+    <kafka.clients.version>0.10.1.0</kafka.clients.version>
+    <commons.csv.version>1.4</commons.csv.version>
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
@@ -163,8 +166,10 @@
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
+    <maven-license-plugin.version>1.13</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
+    <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
@@ -175,6 +180,9 @@
     <kubectl>kubectl</kubectl>
     <!-- the standard location for kubernete's config file -->
     <kubeconfig>${user.home}/.kube/config</kubeconfig>
+
+    <!-- For container builds, override to push containers to a registry -->
+    <docker-repository-root>${user.name}</docker-repository-root>
   </properties>
 
   <packaging>pom</packaging>
@@ -183,6 +191,7 @@
     <!-- sdks/java/build-tools has project-wide configuration. To make these available
       in all modules, link it directly to the parent pom.xml. -->
     <module>sdks/java/build-tools</module>
+    <module>model</module>
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
@@ -271,6 +280,11 @@
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
           </plugin>
+
+          <plugin>
+            <groupId>io.github.zlika</groupId>
+            <artifactId>reproducible-build-maven-plugin</artifactId>
+          </plugin>
         </plugins>
       </build>
     </profile>
@@ -354,27 +368,62 @@
         </pluginManagement>
       </build>
     </profile>
+
+    <profile>
+      <id>build-containers</id>
+      <build>
+        <!-- TODO(BEAM-2878): enable container build for releases -->
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>com.spotify</groupId>
+              <artifactId>dockerfile-maven-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>default</id>
+                  <goals>
+                    <goal>build</goal>
+                    <goal>push</goal>
+                  </goals>
+                  <configuration>
+                    <tag>latest</tag>
+                    <noCache>true</noCache>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
   </profiles>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-common-fn-api</artifactId>
+        <artifactId>beam-model-pipeline</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-common-fn-api</artifactId>
+        <artifactId>beam-model-job-management</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-model-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-model-fn-execution</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-common-runner-api</artifactId>
-        <version>${project.version}</version>
       </dependency>
 
       <dependency>
@@ -453,6 +502,28 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <classifier>tests</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-2</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-5</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -524,7 +595,13 @@
         <version>${project.version}</version>
       </dependency>
 
-	  <dependency>
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-solr</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
 	    <version>${project.version}</version>
@@ -547,6 +624,12 @@
         <artifactId>beam-runners-core-java</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-reference-job-orchestrator</artifactId>
+        <version>${project.version}</version>
       </dependency>
 
       <dependency>
@@ -576,6 +659,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-apex</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-gearpump</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -845,7 +934,7 @@
 
       <dependency>
         <groupId>com.google.api.grpc</groupId>
-        <artifactId>grpc-google-pubsub-v1</artifactId>
+        <artifactId>grpc-google-cloud-pubsub-v1</artifactId>
         <version>${pubsubgrpc.version}</version>
         <exclusions>
           <!-- Exclude an old version of guava that is being pulled in by a transitive
@@ -861,6 +950,12 @@
             <artifactId>grpc-all</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-pubsub-v1</artifactId>
+        <version>${pubsubgrpc.version}</version>
       </dependency>
 
       <dependency>
@@ -1083,6 +1178,12 @@
       </dependency>
 
       <dependency>
+        <groupId>args4j</groupId>
+        <artifactId>args4j</artifactId>
+        <version>${args4j.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
@@ -1140,6 +1241,18 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-network-common_2.10</artifactId>
         <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>${kafka.clients.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>${commons.csv.version}</version>
       </dependency>
 
       <!-- Testing -->
@@ -1377,6 +1490,19 @@
         </plugin>
 
         <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>license-maven-plugin</artifactId>
+          <version>${maven-license-plugin.version}</version>
+          <configuration>
+            <licenseMerges>
+              <licenseMerge>The Apache Software License, version 2.0|Apache License, Version 2.0|Apache 2.0|Apache License 2.0|Apache|Apache-2.0|Apache License Version 2.0|Apache License Version 2|Apache Software License - Version 2.0|Apache 2.0 License|the Apache License, ASL Version 2.0|Apache v2|The Apache License, Version 2.0|http://www.apache.org/licenses/LICENSE-2.0.txt|ASL, version 2</licenseMerge>
+              <licenseMerge>MIT License|MIT|MIT License|The MIT License</licenseMerge>
+              <licenseMerge>CDDL 1.0|Common Development and Distribution License (CDDL) v1.0|COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0</licenseMerge>
+            </licenseMerges>
+          </configuration>
+        </plugin>
+
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
           <version>3.0.1</version>
@@ -1398,6 +1524,7 @@
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
             <use>false</use>
             <quiet>true</quiet>
+            <notimestamp>true</notimestamp>
           </configuration>
         </plugin>
 
@@ -1759,6 +1886,36 @@
               </configuration>
             </execution>
           </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>io.github.zlika</groupId>
+          <artifactId>reproducible-build-maven-plugin</artifactId>
+          <version>${reproducible-build-maven-plugin.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>strip-jar</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>com.igormaznitsa</groupId>
+          <artifactId>mvn-golang-wrapper</artifactId>
+          <version>2.1.6</version>
+          <extensions>true</extensions>
+          <configuration>
+            <goVersion>1.9</goVersion>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>com.spotify</groupId>
+          <artifactId>dockerfile-maven-plugin</artifactId>
+          <version>1.3.5</version>
+          <!-- no executions by default. Use build-containers profile -->
         </plugin>
       </plugins>
     </pluginManagement>

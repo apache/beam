@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -147,17 +146,11 @@ public class PubsubIO {
   private static void populateCommonDisplayData(DisplayData.Builder builder,
       String timestampAttribute, String idAttribute, ValueProvider<PubsubTopic> topic) {
     builder
-        .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute)
-            .withLabel("Timestamp Attribute"))
-        .addIfNotNull(DisplayData.item("idAttribute", idAttribute)
-            .withLabel("ID Attribute"));
-
-    if (topic != null) {
-      String topicString = topic.isAccessible() ? topic.get().asPath()
-          : topic.toString();
-      builder.add(DisplayData.item("topic", topicString)
-          .withLabel("Pubsub Topic"));
-    }
+        .addIfNotNull(
+            DisplayData.item("timestampAttribute", timestampAttribute)
+                .withLabel("Timestamp Attribute"))
+        .addIfNotNull(DisplayData.item("idAttribute", idAttribute).withLabel("ID Attribute"))
+        .addIfNotNull(DisplayData.item("topic", topic).withLabel("Pubsub Topic"));
   }
 
   /**
@@ -263,6 +256,11 @@ public class PubsubIO {
       } else {
         return subscription;
       }
+    }
+
+    @Override
+    public String toString() {
+      return asPath();
     }
   }
 
@@ -428,6 +426,11 @@ public class PubsubIO {
       } else {
         return topic;
       }
+    }
+
+    @Override
+    public String toString() {
+      return asPath();
     }
   }
 
@@ -727,7 +730,7 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input.apply(source).apply(MapElements.via(getParseFn()));
+      return input.apply(source).apply(MapElements.via(getParseFn())).setCoder(getCoder());
     }
 
     @Override
@@ -735,18 +738,8 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-
-      if (getSubscriptionProvider() != null) {
-        String subscriptionString = getSubscriptionProvider().isAccessible()
-            ? getSubscriptionProvider().get().asPath() : getSubscriptionProvider().toString();
-        builder.add(DisplayData.item("subscription", subscriptionString)
-            .withLabel("Pubsub Subscription"));
-      }
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return getCoder();
+      builder.addIfNotNull(DisplayData.item("subscription", getSubscriptionProvider())
+          .withLabel("Pubsub Subscription"));
     }
   }
 
@@ -868,11 +861,6 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-    }
-
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
 
     /**

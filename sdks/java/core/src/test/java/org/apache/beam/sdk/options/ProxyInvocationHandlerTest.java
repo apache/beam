@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -62,7 +61,6 @@ import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -797,7 +795,7 @@ public class ProxyInvocationHandlerTest {
 
     expectedException.expectMessage(
         ProxyInvocationHandler.PipelineOptionsDisplayData.class.getName());
-    expectedException.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
+    expectedException.expectMessage("oh noes!!");
     p.run();
   }
 

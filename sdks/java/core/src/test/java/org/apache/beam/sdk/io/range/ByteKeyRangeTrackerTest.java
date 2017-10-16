@@ -38,6 +38,7 @@ public class ByteKeyRangeTrackerTest {
   private static final ByteKey NEW_MIDDLE_KEY = ByteKey.of(0x24);
   private static final ByteKey BEFORE_END_KEY = ByteKey.of(0x33);
   private static final ByteKey END_KEY = ByteKey.of(0x34);
+  private static final ByteKey KEY_LARGER_THAN_END = ByteKey.of(0x35);
   private static final double INITIAL_RANGE_SIZE = 0x34 - 0x12;
   private static final ByteKeyRange INITIAL_RANGE = ByteKeyRange.of(INITIAL_START_KEY, END_KEY);
   private static final double NEW_RANGE_SIZE = 0x34 - 0x14;
@@ -96,6 +97,28 @@ public class ByteKeyRangeTrackerTest {
 
     tracker.tryReturnRecordAt(true, BEFORE_END_KEY);
     assertEquals(1 - 1 / INITIAL_RANGE_SIZE, tracker.getFractionConsumed(), delta);
+  }
+
+  @Test
+  public void testGetFractionConsumedAfterDone() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    double delta = 0.00001;
+
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
+    tracker.markDone();
+
+    assertEquals(1.0, tracker.getFractionConsumed(), delta);
+  }
+
+  @Test
+  public void testGetFractionConsumedAfterOutOfRangeClaim() {
+    ByteKeyRangeTracker tracker = ByteKeyRangeTracker.of(INITIAL_RANGE);
+    double delta = 0.00001;
+
+    assertTrue(tracker.tryReturnRecordAt(true, INITIAL_START_KEY));
+    assertTrue(tracker.tryReturnRecordAt(false, KEY_LARGER_THAN_END));
+
+    assertEquals(1.0, tracker.getFractionConsumed(), delta);
   }
 
   /** Tests for {@link ByteKeyRangeTracker#getFractionConsumed()} with updated start key. */

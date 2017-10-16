@@ -123,7 +123,7 @@ public class UnboundedSocketSource<CheckpointMarkT extends UnboundedSource.Check
   }
 
   @Override
-  public Coder getDefaultOutputCoder() {
+  public Coder<String> getOutputCoder() {
     return DEFAULT_SOCKET_CODER;
   }
 

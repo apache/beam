@@ -25,7 +25,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 /**
  * Options that configure the Apex pipeline.
  */
-public interface ApexPipelineOptions extends PipelineOptions, java.io.Serializable {
+public interface ApexPipelineOptions extends PipelineOptions {
 
   @Description("set unique application name for Apex runner")
   void setApplicationName(String name);

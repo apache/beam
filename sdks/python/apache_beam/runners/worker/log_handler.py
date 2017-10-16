@@ -21,8 +21,10 @@ import math
 import Queue as queue
 import threading
 
-from apache_beam.portability.api import beam_fn_api_pb2
 import grpc
+
+from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -37,17 +39,18 @@ class FnApiLogRecordHandler(logging.Handler):
 
   # Mapping from logging levels to LogEntry levels.
   LOG_LEVEL_MAP = {
-      logging.FATAL: beam_fn_api_pb2.LogEntry.CRITICAL,
-      logging.ERROR: beam_fn_api_pb2.LogEntry.ERROR,
-      logging.WARNING: beam_fn_api_pb2.LogEntry.WARN,
-      logging.INFO: beam_fn_api_pb2.LogEntry.INFO,
-      logging.DEBUG: beam_fn_api_pb2.LogEntry.DEBUG
+      logging.FATAL: beam_fn_api_pb2.LogEntry.Severity.CRITICAL,
+      logging.ERROR: beam_fn_api_pb2.LogEntry.Severity.ERROR,
+      logging.WARNING: beam_fn_api_pb2.LogEntry.Severity.WARN,
+      logging.INFO: beam_fn_api_pb2.LogEntry.Severity.INFO,
+      logging.DEBUG: beam_fn_api_pb2.LogEntry.Severity.DEBUG
   }
 
   def __init__(self, log_service_descriptor):
     super(FnApiLogRecordHandler, self).__init__()
     self._log_channel = grpc.insecure_channel(log_service_descriptor.url)
-    self._logging_stub = beam_fn_api_pb2.BeamFnLoggingStub(self._log_channel)
+    self._logging_stub = beam_fn_api_pb2_grpc.BeamFnLoggingStub(
+        self._log_channel)
     self._log_entry_queue = queue.Queue()
 
     log_control_messages = self._logging_stub.Logging(self._write_log_entries())

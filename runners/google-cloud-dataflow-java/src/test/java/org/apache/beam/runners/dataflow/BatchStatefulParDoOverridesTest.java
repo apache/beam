@@ -52,6 +52,7 @@ import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -77,17 +78,54 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
   }
 
   @Test
+  public void testFnApiSingleOutputOverrideNonCrashing() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
+    options.setRunner(DataflowRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+
+    DummyStatefulDoFn fn = new DummyStatefulDoFn();
+    pipeline.apply(Create.of(KV.of(1, 2))).apply(ParDo.of(fn));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
+  }
+
+  @Test
   public void testMultiOutputOverrideNonCrashing() throws Exception {
     DataflowPipelineOptions options = buildPipelineOptions();
     options.setRunner(DataflowRunner.class);
     Pipeline pipeline = Pipeline.create(options);
 
     TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
+    TupleTag<Integer> sideOutputTag = new TupleTag<Integer>() {};
 
     DummyStatefulDoFn fn = new DummyStatefulDoFn();
     pipeline
         .apply(Create.of(KV.of(1, 2)))
-        .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.empty()));
+        .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
+
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    runner.replaceTransforms(pipeline);
+    assertThat(findBatchStatefulDoFn(pipeline), equalTo((DoFn) fn));
+  }
+
+  @Test
+  @Ignore("TODO: BEAM-2902 Add support for user state in a ParDo.Multi once PTransformMatcher "
+      + "exposes a way to know when the replacement is not required by checking that the "
+      + "preceding ParDos to a GBK are key preserving.")
+  public void testFnApiMultiOutputOverrideNonCrashing() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions("--experiments=beam_fn_api");
+    options.setRunner(DataflowRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+
+    TupleTag<Integer> mainOutputTag = new TupleTag<Integer>() {};
+    TupleTag<Integer> sideOutputTag = new TupleTag<Integer>() {};
+
+    DummyStatefulDoFn fn = new DummyStatefulDoFn();
+    pipeline
+        .apply(Create.of(KV.of(1, 2)))
+        .apply(ParDo.of(fn).withOutputTags(mainOutputTag, TupleTagList.of(sideOutputTag)));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
     runner.replaceTransforms(pipeline);
@@ -146,7 +184,7 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     }
   }
 
-  private static DataflowPipelineOptions buildPipelineOptions() throws IOException {
+  private static DataflowPipelineOptions buildPipelineOptions(String ... args) throws IOException {
     GcsUtil mockGcsUtil = mock(GcsUtil.class);
     when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
       @Override
@@ -156,7 +194,8 @@ public class BatchStatefulParDoOverridesTest implements Serializable {
     });
     when(mockGcsUtil.bucketAccessible(any(GcsPath.class))).thenReturn(true);
 
-    DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
+    DataflowPipelineOptions options =
+        PipelineOptionsFactory.fromArgs(args).as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setGcpCredential(new TestCredential());
     options.setJobName("some-job-name");

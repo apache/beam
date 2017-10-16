@@ -188,7 +188,7 @@ public class CountingSource {
     }
 
     @Override
-    public Coder<Long> getDefaultOutputCoder() {
+    public Coder<Long> getOutputCoder() {
       return VarLongCoder.of();
     }
 
@@ -361,10 +361,7 @@ public class CountingSource {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
-    public Coder<Long> getDefaultOutputCoder() {
+    public Coder<Long> getOutputCoder() {
       return VarLongCoder.of();
     }
 

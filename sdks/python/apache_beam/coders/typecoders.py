@@ -70,7 +70,6 @@ import warnings
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
 
-
 __all__ = ['registry']
 
 
