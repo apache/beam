@@ -198,6 +198,12 @@ public class TriggerStateMachineTester<InputT, W extends BoundedWindow> {
     }
   }
 
+  /** Retrieves the next timer for this time domain, if any, for use in assertions. */
+  @Nullable
+  public Instant getNextTimer(TimeDomain domain) {
+    return timerInternals.getNextTimer(domain);
+  }
+
   /**
    * Returns {@code true} if the {@link TriggerStateMachine} under test is finished for the given
    * window.
