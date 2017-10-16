@@ -31,9 +31,9 @@ func TryExternal(p *Pipeline, spec string, payload []byte, in []PCollection, out
 		return []PCollection{}, fmt.Errorf("External operations with side inputs are not currently supported")
 	case len(out) > 1:
 		return []PCollection{}, fmt.Errorf("External operations with side outputs are not currently supported")
-	case len(in) == 1:
-		return tryExternalSource(p, spec, payload, out[0])
 	case len(out) == 1:
+		return tryExternalSource(p, spec, payload, out[0])
+	case len(in) == 1:
 		return tryExternalSink(p, in[0], spec, payload)
 	}
 
