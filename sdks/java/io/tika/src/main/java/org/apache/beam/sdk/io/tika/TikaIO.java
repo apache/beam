@@ -52,20 +52,22 @@ import org.xml.sax.ContentHandler;
  * {@link PTransform} for parsing arbitrary files using Apache Tika.
  * Files in many well known text, binary or scientific formats can be processed.
  *
- * <p>To read a {@link PCollection} from one or more files
- * use {@link TikaIO.Read#from(String)}
- * to specify the path of the file(s) to be read.
+ * <p>Combine {@link TikaIO.ParseAll} with {@link FileIO.Match}
+ * and {@link FileIO.ReadMatches} to read and parse the files.
  *
- * <p>{@link TikaIO.Read} returns a bounded {@link PCollection} of {@link String Strings},
- * each corresponding to a sequence of characters reported by Apache Tika SAX Parser.
+ * <p>{@link TikaIO.ParseAll} returns a bounded bounded {@link PCollection}
+ * containing one {@link ParseResult} per each file.
  *
  * <p>Example:
  *
  * <pre>{@code
  * Pipeline p = ...;
  *
- * // A simple Read of a local PDF file (only runs locally):
- * PCollection<String> content = p.apply(TikaInput.from("/local/path/to/file.pdf"));
+ * // A simple parse of a local PDF file (only runs locally):
+ * PCollection<ParseResult> results =
+ *   p.apply(FileIO.match().filepattern("/local/path/to/file.pdf"))
+ *    .apply(FileIO.readMatches())
+      .apply(TikaIO.parseAll());
  * }</pre>
  *
  * <b>Warning:</b> the API of this IO is likely to change in the next release.
@@ -74,19 +76,19 @@ import org.xml.sax.ContentHandler;
 public class TikaIO {
 
   /**
-   * A {@link PTransform} that parses one or more files and returns a bounded {@link PCollection}
-   * containing one element for each sequence of characters reported by Apache Tika SAX Parser.
+   * A {@link PTransform} that parses one or more files and returns a bounded
+   * {@link PCollection} containing one {@link ParseResult} per each file.
    */
    public static ParseAll parseAll() {
      return new AutoValue_TikaIO_ParseAll.Builder()
         .build();
    }
 
-   /** Implementation of {@link #read}. */
+   /** Implementation of {@link #parseAll}. */
+  @SuppressWarnings("serial")
   @AutoValue
   public abstract static class ParseAll extends
     PTransform<PCollection<ReadableFile>, PCollection<ParseResult>> {
-    private static final long serialVersionUID = 2198301984784351829L;
 
     @Nullable abstract ValueProvider<String> getTikaConfigPath();
     @Nullable abstract Metadata getInputMetadata();

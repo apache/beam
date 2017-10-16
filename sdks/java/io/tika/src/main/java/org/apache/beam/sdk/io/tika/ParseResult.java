@@ -26,8 +26,8 @@ import org.apache.tika.metadata.Metadata;
  * Tika parse result containing the file location, metadata
  * and content converted to String.
  */
+@SuppressWarnings("serial")
 public class ParseResult implements Serializable {
-  private static final long serialVersionUID = 6133510503781405912L;
   private final String fileLocation;
   private final String content;
   private final Metadata metadata;
@@ -55,7 +55,7 @@ public class ParseResult implements Serializable {
    * Gets a file metadata.
    */
   public Metadata getMetadata() {
-    return getMetadataCopy();
+    return metadata;
   }
 
   /**
@@ -94,14 +94,5 @@ public class ParseResult implements Serializable {
       hashCode += name.hashCode() ^ Arrays.hashCode(metadata.getValues(name));
     }
     return hashCode;
-  }
-  private Metadata getMetadataCopy() {
-    Metadata metadataCopy = new Metadata();
-    for (String name : metadataNames) {
-      for (String value : metadata.getValues(name)) {
-        metadataCopy.add(name, value);
-      }
-    }
-    return metadataCopy;
   }
 }
