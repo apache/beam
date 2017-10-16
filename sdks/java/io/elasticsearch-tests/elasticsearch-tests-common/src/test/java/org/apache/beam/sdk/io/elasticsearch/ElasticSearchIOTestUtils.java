@@ -73,12 +73,8 @@ class ElasticSearchIOTestUtils {
         new NStringEntity(bulkRequest.toString(), ContentType.APPLICATION_JSON);
     Response response = restClient.performRequest("POST", endPoint,
         Collections.singletonMap("refresh", "true"), requestBody);
-    JsonNode searchResult = ElasticsearchIO.parseResponse(response);
-    boolean errors = searchResult.path("errors").asBoolean();
-    if (errors){
-      throw new IOException(String.format("Failed to insert test documents in index %s",
-          connectionConfiguration.getIndex()));
-    }
+    ElasticsearchIO
+        .checkForErrors(response, ElasticsearchIO.getBackendVersion(connectionConfiguration));
   }
 
   /**
