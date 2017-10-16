@@ -25,6 +25,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 import java.util.NavigableSet;
+import java.util.NoSuchElementException;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -71,21 +72,20 @@ public class InMemoryTimerInternals implements TimerInternals {
    */
   @Nullable
   public Instant getNextTimer(TimeDomain domain) {
-    final TimerData data;
-    switch (domain) {
-      case EVENT_TIME:
-        data = watermarkTimers.first();
-        break;
-      case PROCESSING_TIME:
-        data = processingTimers.first();
-        break;
-      case SYNCHRONIZED_PROCESSING_TIME:
-        data = synchronizedProcessingTimers.first();
-        break;
-      default:
-        throw new IllegalArgumentException("Unexpected time domain: " + domain);
+    try {
+      switch (domain) {
+        case EVENT_TIME:
+          return watermarkTimers.first().getTimestamp();
+        case PROCESSING_TIME:
+          return processingTimers.first().getTimestamp();
+        case SYNCHRONIZED_PROCESSING_TIME:
+          return synchronizedProcessingTimers.first().getTimestamp();
+        default:
+          throw new IllegalArgumentException("Unexpected time domain: " + domain);
+      }
+    } catch (NoSuchElementException exc) {
+      return null;
     }
-    return (data == null) ? null : data.getTimestamp();
   }
 
   private NavigableSet<TimerData> timersForDomain(TimeDomain domain) {
