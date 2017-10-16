@@ -451,7 +451,7 @@ public class CombineTest implements Serializable {
         .apply(Window.<Integer>into(new GlobalWindows())
             .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
             .accumulatingFiredPanes()
-            .withAllowedLateness(new Duration(0)))
+            .withAllowedLateness(new Duration(0), ClosingBehavior.FIRE_ALWAYS))
         .apply(Sum.integersGlobally())
         .apply(ParDo.of(new FormatPaneInfo()));
 
