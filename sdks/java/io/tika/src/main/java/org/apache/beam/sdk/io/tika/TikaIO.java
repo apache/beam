@@ -55,7 +55,7 @@ import org.xml.sax.ContentHandler;
  * <p>Combine {@link TikaIO.ParseAll} with {@link FileIO.Match}
  * and {@link FileIO.ReadMatches} to read and parse the files.
  *
- * <p>{@link TikaIO.ParseAll} returns a bounded bounded {@link PCollection}
+ * <p>{@link TikaIO.ParseAll} returns a bounded {@link PCollection}
  * containing one {@link ParseResult} per each file.
  *
  * <p>Example:
