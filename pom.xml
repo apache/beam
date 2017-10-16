@@ -181,8 +181,8 @@
     <!-- the standard location for kubernete's config file -->
     <kubeconfig>${user.home}/.kube/config</kubeconfig>
 
-    <!-- For container builds, override to push containers to a registry -->
-    <docker-repository-root>${user.name}</docker-repository-root>
+    <!-- For container builds, override to push containers to any registry -->
+    <docker-repository-root>${user.name}-docker-apache.bintray.io/beam</docker-repository-root>
   </properties>
 
   <packaging>pom</packaging>
@@ -383,10 +383,8 @@
                   <id>default</id>
                   <goals>
                     <goal>build</goal>
-                    <goal>push</goal>
                   </goals>
                   <configuration>
-                    <tag>latest</tag>
                     <noCache>true</noCache>
                   </configuration>
                 </execution>
