@@ -145,12 +145,6 @@ public class BeamFnLoggingClient implements AutoCloseable {
   @Override
   public void close() throws Exception {
     try {
-      // Hang up with the server
-      logRecordHandler.close();
-
-      // Wait for the server to hang up
-      inboundObserverCompletion.get();
-    } finally {
       // Reset the logging configuration to what it is at startup
       for (Logger logger : configuredLoggers) {
         logger.setLevel(null);
@@ -158,6 +152,12 @@ public class BeamFnLoggingClient implements AutoCloseable {
       configuredLoggers.clear();
       LogManager.getLogManager().readConfiguration();
 
+      // Hang up with the server
+      logRecordHandler.close();
+
+      // Wait for the server to hang up
+      inboundObserverCompletion.get();
+    } finally {
       // Shut the channel down
       channel.shutdown();
       if (!channel.awaitTermination(10, TimeUnit.SECONDS)) {
@@ -255,6 +255,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
           outboundObserver.onNext(builder.build());
           additionalLogEntries.clear();
         }
+
+        // Perform one more final check to see if there are any log entries to guarantee that
+        // if a log entry was added on the thread performing termination that we will send it.
+        bufferedLogEntries.drainTo(additionalLogEntries);
+        if (!additionalLogEntries.isEmpty()) {
+          outboundObserver.onNext(
+              BeamFnApi.LogEntry.List.newBuilder().addAllLogEntries(additionalLogEntries).build());
+        }
       } catch (Throwable t) {
         thrown = t;
       }
@@ -281,7 +289,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
 
       // Terminate the phaser that we block on when attempting to honor flow control on the
       // outbound observer.
-      phaser.arriveAndDeregister();
+      phaser.forceTermination();
 
       try {
         bufferedLogWriter.get();
