@@ -251,26 +251,23 @@ public class AvroIOTransformTest {
     private <T> List<T> readAvroFile(final File avroFile, boolean generic) throws IOException {
       if (generic) {
         final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA);
-        final List<GenericRecord> genericRecords = new ArrayList<>();
-        try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(avroFile,
-            datumReader)) {
-          while (dataFileReader.hasNext()) {
-            genericRecords.add(dataFileReader.next());
-          }
-        }
-        return (List<T>) genericRecords;
+        return (List<T>) fileToList(avroFile, datumReader);
       } else {
         final DatumReader<AvroGeneratedUser> datumReader = new SpecificDatumReader<>(
             AvroGeneratedUser.class);
-        final List<AvroGeneratedUser> output = new ArrayList<>();
-        try (DataFileReader<AvroGeneratedUser> dataFileReader = new DataFileReader<>(avroFile,
-            datumReader)) {
-          while (dataFileReader.hasNext()) {
-            output.add(dataFileReader.next());
-          }
-        }
-        return (List<T>) output;
+        return (List<T>) fileToList(avroFile, datumReader);
       }
+    }
+
+    private <T> List<T> fileToList(File avroFile, DatumReader<T> datumReader)
+        throws IOException {
+      final List<T> output = new ArrayList<>();
+      try (DataFileReader<T> dataFileReader = new DataFileReader<>(avroFile, datumReader)) {
+        while (dataFileReader.hasNext()) {
+          output.add(dataFileReader.next());
+        }
+      }
+      return output;
     }
 
     @Parameterized.Parameters(name = "{0}_with_{1}")
