@@ -1031,6 +1031,8 @@ public class BigQueryIO {
 
     @Nullable abstract InsertRetryPolicy getFailedInsertRetryPolicy();
 
+    @Nullable abstract ValueProvider<String> getCustomGcsTempLocation();
+
     abstract Builder<T> toBuilder();
 
     @AutoValue.Builder
@@ -1058,6 +1060,8 @@ public class BigQueryIO {
       abstract Builder<T> setMethod(Method method);
 
       abstract Builder<T> setFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy);
+
+      abstract Builder<T> setCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation);
 
       abstract Write<T> build();
     }
@@ -1303,6 +1307,24 @@ public class BigQueryIO {
       return toBuilder().setNumFileShards(numFileShards).build();
     }
 
+    /**
+     * Provides a custom temp location on GCS for temp files generated in BigQuery writes in
+     * batch jobs.
+     *
+     * <p>A custom GCS temp location is mantatory if BigQueryIO is used in dataflow templates.
+     * Otherwise, the temp location is not configurable at the time launching templates.
+     */
+    public Write<T> withCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation) {
+      return toBuilder().setCustomGcsTempLocation(customGcsTempLocation).build();
+    }
+
+    /**
+     * The same as {@link #withCustomGcsTempLocation}, but takes a String.
+     */
+    public Write<T> withCustomGcsTempLocation(String customGcsTempLocation) {
+      return withCustomGcsTempLocation(StaticValueProvider.of(customGcsTempLocation));
+    }
+
     @VisibleForTesting
     Write<T> withTestServices(BigQueryServices testServices) {
       return toBuilder().setBigQueryServices(testServices).build();
@@ -1479,7 +1501,8 @@ public class BigQueryIO {
             getCreateDisposition(),
             getJsonTableRef() != null,
             dynamicDestinations,
-            destinationCoder);
+            destinationCoder,
+            getCustomGcsTempLocation());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
