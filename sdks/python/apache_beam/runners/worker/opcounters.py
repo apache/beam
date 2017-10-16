@@ -51,8 +51,7 @@ class OperationCounters(object):
         '%s-out%s-ElementCount' % (step_name, output_index), Counter.SUM)
     self.mean_byte_counter = counter_factory.get_counter(
         '%s-out%s-MeanByteCount' % (step_name, output_index), Counter.MEAN)
-    if coder:
-      self.coder_impl = coder.get_impl()
+    self.coder_impl = coder.get_impl() if coder else None
     self.active_accumulator = None
     self._sample_counter = 0
     self._next_sample = 0
