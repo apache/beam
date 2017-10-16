@@ -415,6 +415,7 @@ public class BigtableIO {
         return getBigtableService();
       }
       BigtableOptions.Builder clonedOptions = getBigtableOptions().toBuilder();
+      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
       if (getBigtableOptions().getCredentialOptions()
           .getCredentialType() == CredentialType.DefaultCredentials) {
         clonedOptions.setCredentialOptions(
