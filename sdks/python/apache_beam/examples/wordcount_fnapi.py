@@ -29,12 +29,12 @@ import logging
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
-from apache_beam.io import WriteToText
+# TODO(BEAM-2887): Enable after the issue is fixed.
+# from apache_beam.io import WriteToText
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.options.pipeline_options import SetupOptions
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -95,7 +95,7 @@ def run(argv=None):
   # Ensure that the experiment flag is set explicitly by the user.
   debug_options = pipeline_options.view_as(DebugOptions)
   use_fn_api = (
-    debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
+      debug_options.experiments and 'beam_fn_api' in debug_options.experiments)
   assert use_fn_api, 'Enable beam_fn_api experiment, in order run this example.'
 
   # Read the text file[pattern] into a PCollection.
@@ -118,6 +118,7 @@ def run(argv=None):
     (word, count) = word_count
     return '%s: %s' % (word, count)
 
+  # pylint: disable=unused-variable
   output = counts | 'format' >> beam.Map(format_result)
 
   # Write the output using a "Write" transform that has side effects.
