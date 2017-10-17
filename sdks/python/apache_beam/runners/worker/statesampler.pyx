@@ -263,3 +263,6 @@ cdef class ScopedState(object):
 
   def __repr__(self):
     return "ScopedState[%s, %s, %s]" % (self.name, self.state_index, self.nsecs)
+
+  def sampled_seconds(self):
+    return 1e-9 * self.nsecs

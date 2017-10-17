@@ -28,6 +28,7 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -130,6 +131,7 @@ class Operation(object):
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
     self.scoped_metrics_container = None
+    self.receivers = []
 
   def start(self):
     """Start operation."""
@@ -156,6 +158,24 @@ class Operation(object):
   def add_receiver(self, operation, output_index=0):
     """Adds a receiver operation for the specified output."""
     self.consumers[output_index].append(operation)
+
+  def progress_metrics(self):
+    return beam_fn_api_pb2.Metrics.PTransform(
+        processed_elements=beam_fn_api_pb2.Metrics.PTransform.ProcessedElements(
+            measured=beam_fn_api_pb2.Metrics.PTransform.Measured(
+                total_time_spent=(
+                    self.scoped_start_state.sampled_seconds()
+                    + self.scoped_process_state.sampled_seconds()
+                    + self.scoped_finish_state.sampled_seconds()),
+                # Multi-output operations should override this.
+                output_element_counts=(
+                    # If there is exactly one output, we can unambiguously
+                    # fix its name later, which we do.
+                    # TODO(robertwb): Plumb the actual name here.
+                    {'ONLY_OUTPUT': self.receivers[0].opcounter
+                                    .element_counter.value()}
+                    if len(self.receivers) == 1
+                    else None))))
 
   def __str__(self):
     """Generates a useful string for this object.
@@ -226,19 +246,14 @@ class InMemoryWriteOperation(Operation):
 
 class _TaggedReceivers(dict):
 
-  class NullReceiver(Receiver):
+  def __init__(self, counter_factory, step_name):
+    self._counter_factory = counter_factory
+    self._step_name = step_name
 
-    def receive(self, element):
-      pass
-
-    # For old SDKs.
-    def output(self, element):
-      pass
-
-  def __missing__(self, unused_key):
-    if not getattr(self, '_null_receiver', None):
-      self._null_receiver = _TaggedReceivers.NullReceiver()
-    return self._null_receiver
+  def __missing__(self, tag):
+    self[tag] = receiver = ConsumerSet(
+        self._counter_factory, self._step_name, tag, [], None)
+    return receiver
 
 
 class DoOperation(Operation):
@@ -308,7 +323,8 @@ class DoOperation(Operation):
       # Tag to output index map used to dispatch the side output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
       # tagged with None and is associated with its corresponding index.
-      tagged_receivers = _TaggedReceivers()
+      self.tagged_receivers = _TaggedReceivers(
+          self.counter_factory, self.step_name)
 
       output_tag_prefix = PropertyNames.OUT + '_'
       for index, tag in enumerate(self.spec.output_tags):
@@ -318,11 +334,11 @@ class DoOperation(Operation):
           original_tag = tag[len(output_tag_prefix):]
         else:
           raise ValueError('Unexpected output name for operation: %s' % tag)
-        tagged_receivers[original_tag] = self.receivers[index]
+        self.tagged_receivers[original_tag] = self.receivers[index]
 
       self.dofn_runner = common.DoFnRunner(
           fn, args, kwargs, self._read_side_inputs(tags_and_types),
-          window_fn, context, tagged_receivers,
+          window_fn, context, self.tagged_receivers,
           logger, self.step_name,
           scoped_metrics_container=self.scoped_metrics_container)
       self.dofn_receiver = (self.dofn_runner
@@ -338,6 +354,15 @@ class DoOperation(Operation):
   def process(self, o):
     with self.scoped_process_state:
       self.dofn_receiver.receive(o)
+
+  def progress_metrics(self):
+    metrics = super(DoOperation, self).progress_metrics()
+    if self.tagged_receivers:
+      metrics.processed_elements.measured.output_element_counts.clear()
+      for tag, receiver in self.tagged_receivers.items():
+        metrics.processed_elements.measured.output_element_counts[
+            str(tag)] = receiver.opcounter.element_counter.value()
+    return metrics
 
 
 class DoFnRunnerReceiver(Receiver):

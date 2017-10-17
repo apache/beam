@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.Watch.Growth.afterTimeSinceNewOutput;
 import static org.apache.beam.sdk.transforms.Watch.Growth.afterTotalOf;
 import static org.apache.beam.sdk.transforms.Watch.Growth.allOf;
@@ -57,6 +58,7 @@ import org.apache.beam.sdk.transforms.Watch.GrowthTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -81,9 +83,10 @@ public class WatchTest implements Serializable {
                 Watch.growthOf(
                         new PollFn<String, String>() {
                           @Override
-                          public PollResult<String> apply(String input, Instant time) {
+                          public PollResult<String> apply(String element, Context c)
+                              throws Exception {
                             return PollResult.complete(
-                                time, Arrays.asList(input + ".foo", input + ".bar"));
+                                Instant.now(), Arrays.asList(element + ".foo", element + ".bar"));
                           }
                         })
                     .withPollInterval(Duration.ZERO));
@@ -93,6 +96,36 @@ public class WatchTest implements Serializable {
             Arrays.asList(
                 KV.of("a", "a.foo"), KV.of("a", "a.bar"),
                 KV.of("b", "b.foo"), KV.of("b", "b.bar")));
+
+    p.run();
+  }
+
+  @Test
+  @Category({NeedsRunner.class, UsesSplittableParDo.class})
+  public void testSinglePollMultipleInputsWithSideInput() {
+    final PCollectionView<String> moo =
+        p.apply("moo", Create.of("moo")).apply("moo singleton", View.<String>asSingleton());
+    final PCollectionView<String> zoo =
+        p.apply("zoo", Create.of("zoo")).apply("zoo singleton", View.<String>asSingleton());
+    PCollection<KV<String, String>> res =
+        p.apply("input", Create.of("a", "b"))
+            .apply(
+                Watch.growthOf(
+                        new PollFn<String, String>() {
+                          @Override
+                          public PollResult<String> apply(String element, Context c)
+                              throws Exception {
+                            return PollResult.complete(
+                                Instant.now(),
+                                Arrays.asList(
+                                    element + " " + c.sideInput(moo) + " " + c.sideInput(zoo)));
+                          }
+                        },
+                        requiresSideInputs(moo, zoo))
+                    .withPollInterval(Duration.ZERO));
+
+    PAssert.that(res)
+        .containsInAnyOrder(Arrays.asList(KV.of("a", "a moo zoo"), KV.of("b", "b moo zoo")));
 
     p.run();
   }
@@ -178,13 +211,14 @@ public class WatchTest implements Serializable {
                 Watch.growthOf(
                         new PollFn<String, KV<String, Integer>>() {
                           @Override
-                          public PollResult<KV<String, Integer>> apply(String input, Instant time) {
+                          public PollResult<KV<String, Integer>> apply(String element, Context c)
+                              throws Exception {
                             String pollId = UUID.randomUUID().toString();
                             List<KV<String, Integer>> output = Lists.newArrayList();
                             for (int i = 0; i < numResults; ++i) {
                               output.add(KV.of(pollId, i));
                             }
-                            return PollResult.complete(time, output);
+                            return PollResult.complete(Instant.now(), output);
                           }
                         })
                     .withTerminationPerInput(Watch.Growth.<String>afterTotalOf(standardSeconds(1)))
@@ -291,7 +325,7 @@ public class WatchTest implements Serializable {
    * Gradually emits all items from the given list, pairing each one with a UUID that identifies the
    * round of polling, so a client can check how many rounds of polling there were.
    */
-  private static class TimedPollFn<InputT, OutputT> implements PollFn<InputT, OutputT> {
+  private static class TimedPollFn<InputT, OutputT> extends PollFn<InputT, OutputT> {
     private final Instant baseTime;
     private final List<OutputT> outputs;
     private final Duration timeToOutputEverything;
@@ -311,7 +345,7 @@ public class WatchTest implements Serializable {
     }
 
     @Override
-    public PollResult<OutputT> apply(InputT input, Instant time) {
+    public PollResult<OutputT> apply(InputT element, Context c) throws Exception {
       Instant now = Instant.now();
       Duration elapsed = new Duration(baseTime, Instant.now());
       if (elapsed.isLongerThan(timeToFail)) {

@@ -314,13 +314,7 @@
     <Class name="org.apache.beam.sdk.testing.WindowSupplier"/>
     <Field name="windows"/>
     <Bug pattern="IS2_INCONSISTENT_SYNC"/>
-    <!--[BEAM-409] Inconsistent synchronization -->
-  </Match>
-  <Match>
-    <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$ApproximateQuantilesCombineFn"/>
-    <Method name="create"/>
-    <Bug pattern="ICAST_INT_CAST_TO_DOUBLE_PASSED_TO_CEIL"/>
-    <!--[BEAM-409] Integral value cast to double and then passed to Math.ceil-->
+    <!--[BEAM-407] Inconsistent synchronization -->
   </Match>
   <Match>
     <Class name="org.apache.beam.sdk.transforms.ApproximateQuantiles$QuantileBuffer"/>
