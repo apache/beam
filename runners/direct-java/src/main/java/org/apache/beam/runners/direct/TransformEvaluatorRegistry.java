@@ -98,20 +98,22 @@ class TransformEvaluatorRegistry implements TransformEvaluatorFactory {
           .<Class<? extends PTransform>, PTransformTranslation.TransformPayloadTranslator>builder()
           .put(
               DirectGroupByKey.DirectGroupByKeyOnly.class,
-              new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_GBKO_URN))
           .put(
               DirectGroupByKey.DirectGroupAlsoByWindow.class,
-              new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_GABW_URN))
           .put(
               ParDoMultiOverrideFactory.StatefulParDo.class,
-              new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_STATEFUL_PAR_DO_URN))
           .put(
               ViewOverrideFactory.WriteView.class,
-              new PTransformTranslation.RawPTransformTranslator())
-          .put(DirectTestStream.class, new PTransformTranslation.RawPTransformTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_WRITE_VIEW_URN))
+          .put(
+              DirectTestStream.class,
+              TransformPayloadTranslator.NotSerializable.forUrn(DIRECT_TEST_STREAM_URN))
           .put(
               SplittableParDoViaKeyedWorkItems.ProcessElements.class,
-              new SplittableParDoProcessElementsTranslator())
+              TransformPayloadTranslator.NotSerializable.forUrn(SPLITTABLE_PROCESS_URN))
           .build();
     }
 

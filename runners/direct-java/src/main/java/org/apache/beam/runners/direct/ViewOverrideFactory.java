@@ -20,11 +20,8 @@ package org.apache.beam.runners.direct;
 
 import java.io.IOException;
 import java.util.Map;
-import javax.annotation.Nullable;
-import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
-import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -107,7 +104,7 @@ class ViewOverrideFactory<ElemT, ViewT>
    * to {@link ViewT}.
    */
   static final class WriteView<ElemT, ViewT>
-      extends RawPTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
+      extends PTransform<PCollection<Iterable<ElemT>>, PCollection<Iterable<ElemT>>> {
     private final PCollectionView<ViewT> view;
 
     WriteView(PCollectionView<ViewT> view) {
@@ -124,17 +121,6 @@ class ViewOverrideFactory<ElemT, ViewT>
     @SuppressWarnings("deprecation")
     public PCollectionView<ViewT> getView() {
       return view;
-    }
-
-    @Override
-    public String getUrn() {
-      return DIRECT_WRITE_VIEW_URN;
-    }
-
-    @Nullable
-    @Override
-    public RunnerApi.FunctionSpec getSpec() {
-      return null;
     }
   }
 
