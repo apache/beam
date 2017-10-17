@@ -49,6 +49,7 @@ Consult the [Programming Guide I/O section]({{site.baseurl }}/documentation/prog
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/datastore">Google Cloud Datastore</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/jdbc">JDBC</a></p>
     <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/mongodb">MongoDB</a></p>
+    <p><a href="https://github.com/apache/beam/tree/master/sdks/java/io/redis">Redis</a></p>
   </td>
 </tr>
 <tr>
@@ -123,10 +124,6 @@ This table contains I/O transforms that are currently planned or in-progress. St
   <tr>
     <td>RabbitMQ</td><td>Java</td>
     <td><a href="https://issues.apache.org/jira/browse/BEAM-1240">BEAM-1240</a></td>
-  </tr>
-  <tr>
-    <td>Redis</td><td>Java</td>
-    <td><a href="https://issues.apache.org/jira/browse/BEAM-1017">BEAM-1017</a></td>
   </tr>
   <tr>
     <td>RestIO</td><td>Java</td>
