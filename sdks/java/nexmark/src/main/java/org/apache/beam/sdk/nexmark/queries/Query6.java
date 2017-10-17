@@ -30,6 +30,7 @@ import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.SellerPrice;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
@@ -113,6 +114,7 @@ public class Query6 extends NexmarkQuery {
 
   private PCollection<SellerPrice> applyTyped(PCollection<Event> events) {
     return events
+        .apply(Filter.by(new AuctionOrBid()))
         // Find the winning bid for each closed auction.
         .apply(new WinningBids(name + ".WinningBids", configuration))
 
