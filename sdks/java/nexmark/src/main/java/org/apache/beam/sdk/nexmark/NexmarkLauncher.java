@@ -756,8 +756,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }));
   }
 
-  static final ParDo.SingleOutput<Event, byte[]> EVENT_TO_BYTEARRAY =
-          ParDo.of(new DoFn<Event, byte[]>() {
+  static final DoFn<Event, byte[]> EVENT_TO_BYTEARRAY =
+          new DoFn<Event, byte[]>() {
             @ProcessElement
             public void processElement(ProcessContext c) {
               try {
@@ -768,7 +768,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                         c.element().toString());
               }
             }
-          });
+          };
 
   /**
    * Send {@code events} to Kafka.
@@ -783,7 +783,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             .withTopic(options.getKafkaSinkTopic())
             .withKeySerializer(LongSerializer.class)
             .withValueSerializer(ByteArraySerializer.class).values();
-    events.apply("Event to bytes", EVENT_TO_BYTEARRAY).apply(io);
+    events.apply("Event to bytes", ParDo.of(EVENT_TO_BYTEARRAY)).apply(io);
   }
 
 
