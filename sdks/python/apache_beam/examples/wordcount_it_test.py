@@ -69,13 +69,12 @@ class WordCountIT(unittest.TestCase):
   def test_wordcount_fnapi_it(self):
     test_pipeline = TestPipeline(is_integration_test=True)
 
-    pipeline_verifiers = [PipelineStateMatcher()]
-    extra_opts = {'experiment': 'beam_fn_api',
-                  'on_success_matcher': all_of(*pipeline_verifiers)}
-
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
-    wordcount_fnapi.run(test_pipeline.get_full_options_as_args(**extra_opts))
+    wordcount_fnapi.run(
+        test_pipeline.get_full_options_as_args(
+            experiment='beam_fn_api',
+            on_success_matcher=PipelineStateMatcher()))
 
 
 if __name__ == '__main__':
