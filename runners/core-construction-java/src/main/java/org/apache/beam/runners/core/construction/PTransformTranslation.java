@@ -297,6 +297,16 @@ public class PTransformTranslation {
      */
     abstract class NotSerializable<T extends PTransform<?, ?>>
         implements TransformPayloadTranslator<T> {
+
+      public static NotSerializable<?> forUrn(final String urn) {
+        return new NotSerializable<PTransform<?, ?>>() {
+          @Override
+          public String getUrn(PTransform<?, ?> transform) {
+            return urn;
+          }
+        };
+      }
+
       @Override
       public final FunctionSpec translate(
           AppliedPTransform<?, ?, T> transform, SdkComponents components) throws IOException {
