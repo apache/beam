@@ -34,6 +34,7 @@ public class VoidCoder extends AtomicCoder<Void> {
 
   private static final VoidCoder INSTANCE = new VoidCoder();
   private static final TypeDescriptor<Void> TYPE_DESCRIPTOR = new TypeDescriptor<Void>() {};
+  private static final Object STRUCTURAL_VOID_VALUE = new Object();
 
   private VoidCoder() {}
 
@@ -51,14 +52,9 @@ public class VoidCoder extends AtomicCoder<Void> {
   @Override
   public void verifyDeterministic() {}
 
-  /**
-   * {@inheritDoc}
-   *
-   * @return  {@code true}. {@link VoidCoder} is (vacuously) injective.
-   */
   @Override
-  public boolean consistentWithEquals() {
-    return true;
+  public Object structuralValue(Void value) {
+    return STRUCTURAL_VOID_VALUE;
   }
 
   /**
