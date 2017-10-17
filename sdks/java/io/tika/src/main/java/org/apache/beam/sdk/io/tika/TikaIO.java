@@ -174,22 +174,27 @@ public class TikaIO {
 
       private static final long serialVersionUID = 6837207505313720989L;
       private final TikaIO.ParseAll spec;
+      private TikaConfig tikaConfig;
+
       ParseToStringFn(TikaIO.ParseAll spec) {
         this.spec = spec;
       }
+
+      @Setup
+      public void setup() throws Exception {
+        if (spec.getTikaConfigPath() != null) {
+          ResourceId configResource =
+              FileSystems.matchSingleFileSpec(spec.getTikaConfigPath().get()).resourceId();
+          tikaConfig = new TikaConfig(
+                           Channels.newInputStream(FileSystems.open(configResource)));
+        }
+      }
+
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         ReadableFile file = c.element();
         InputStream stream = Channels.newInputStream(file.open());
         try (InputStream tikaStream = TikaInputStream.get(stream)) {
-
-          TikaConfig tikaConfig = null;
-          if (spec.getTikaConfigPath() != null) {
-              ResourceId configResource =
-                  FileSystems.matchSingleFileSpec(spec.getTikaConfigPath().get()).resourceId();
-              tikaConfig = new TikaConfig(
-                               Channels.newInputStream(FileSystems.open(configResource)));
-          }
 
           final Parser parser = tikaConfig == null
               ? new AutoDetectParser() : new AutoDetectParser(tikaConfig);
