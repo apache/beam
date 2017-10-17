@@ -52,6 +52,8 @@ import org.slf4j.LoggerFactory;
  * @see TestPipeline
  */
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
+  @VisibleForTesting
+  static final String DATAFLOW_FORCE_STREAMING_PROPERTY = "beam.dataflow.forceStreaming";
   private static final String TENTATIVE_COUNTER = "tentative";
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
@@ -74,6 +76,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             .join(dataflowOptions.getTempRoot(), dataflowOptions.getJobName(), "output", "results");
     dataflowOptions.setTempLocation(tempLocation);
 
+    String forceStreaming = System.getProperty(DATAFLOW_FORCE_STREAMING_PROPERTY);
+    if (forceStreaming != null) {
+      dataflowOptions.setStreaming(Boolean.parseBoolean(forceStreaming));
+    }
+
     return new TestDataflowRunner(
         dataflowOptions, DataflowClient.create(options.as(DataflowPipelineOptions.class)));
   }
@@ -82,6 +89,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static TestDataflowRunner fromOptionsAndClient(
       TestDataflowPipelineOptions options, DataflowClient client) {
     return new TestDataflowRunner(options, client);
+  }
+
+  @VisibleForTesting
+  TestDataflowPipelineOptions getOptions() {
+    return options;
   }
 
   @Override
