@@ -412,9 +412,11 @@ public class PipelineTest {
     class ReplacementOverrideFactory
         implements PTransformOverrideFactory<
             PCollection<Integer>, PCollection<Integer>, OriginalTransform> {
-      @Override
-      public PTransformReplacement<PCollection<Integer>, PCollection<Integer>> getReplacementTransform(
-          AppliedPTransform<PCollection<Integer>, PCollection<Integer>, OriginalTransform> transform) {
+
+      @Override public PTransformReplacement<PCollection<Integer>, PCollection<Integer>>
+      getReplacementTransform(
+          AppliedPTransform<PCollection<Integer>,
+              PCollection<Integer>, OriginalTransform> transform) {
         return PTransformReplacement.of(originalInput, new ReplacementTransform());
       }
 
@@ -424,9 +426,8 @@ public class PipelineTest {
         return Collections.<PValue, ReplacementOutput>singletonMap(
             newOutput,
             ReplacementOutput.of(
-                TaggedPValue.ofExpandedValue(
-                    Iterables.getOnlyElement(outputs.values())),
-                    TaggedPValue.ofExpandedValue(newOutput)));
+                TaggedPValue.ofExpandedValue(Iterables.getOnlyElement(outputs.values())),
+                TaggedPValue.ofExpandedValue(newOutput)));
       }
     }
 
@@ -441,25 +442,25 @@ public class PipelineTest {
     pipeline.replaceAll(
         Collections.singletonList(
             PTransformOverride.of(new OriginalMatcher(), new ReplacementOverrideFactory())));
-    final Map<String, Class<?>> nameToTransformationClass = new HashMap<>();
+    final Map<String, Class<?>> nameToTransformClass = new HashMap<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
           @Override
           public void leaveCompositeTransform(Node node) {
             if (!node.isRootNode()) {
-              nameToTransformationClass.put(node.getFullName(), node.getTransform().getClass());
+              nameToTransformClass.put(node.getFullName(), node.getTransform().getClass());
             }
           }
 
           @Override
           public void visitPrimitiveTransform(Node node) {
-            nameToTransformationClass.put(node.getFullName(), node.getTransform().getClass());
+            nameToTransformClass.put(node.getFullName(), node.getTransform().getClass());
           }
         });
 
-    assertThat(nameToTransformationClass.keySet(), hasItem("original_application/custom_name"));
-    assertThat(nameToTransformationClass.keySet(), not(hasItem("original_application/custom_name2")));
-    Assert.assertEquals(nameToTransformationClass.get("original_application/custom_name"),
+    assertThat(nameToTransformClass.keySet(), hasItem("original_application/custom_name"));
+    assertThat(nameToTransformClass.keySet(), not(hasItem("original_application/custom_name2")));
+    Assert.assertEquals(nameToTransformClass.get("original_application/custom_name"),
         Max.integersGlobally().getClass());
   }
 
