@@ -23,7 +23,6 @@ import static org.apache.beam.runners.core.construction.PTransformTranslation.CO
 
 import com.google.auto.service.AutoService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -49,6 +48,7 @@ import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * Methods for translating between {@link Combine.PerKey} {@link PTransform PTransforms} and {@link
@@ -170,8 +170,12 @@ public class CombineTranslation {
 
           @Override
           public Map<String, SideInput> getSideInputs() {
-            // TODO: support side inputs
-            return ImmutableMap.of();
+            Map<String, SideInput> sideInputs = new HashMap<>();
+            for (PCollectionView<?> sideInput : combine.getTransform().getSideInputs()) {
+              sideInputs.put(
+                  sideInput.getTagInternal().getId(), ParDoTranslation.toProto(sideInput));
+            }
+            return sideInputs;
           }
         },
         components);
