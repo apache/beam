@@ -1,3 +1,6 @@
+// yatzy is an example that shows that pipeline construction is normal Go
+// code. It can even be non-deterministic and produce different pipelines
+// on each invocation.
 package main
 
 import (
@@ -23,8 +26,13 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*minFn)(nil)).Elem())
 }
 
-// roll is a construction-time dice roll. The value is encoded in the shape of
-// the pipeline, which will produce a single element of that value.
+// roll is a composite PTransform for a construction-time dice roll. The value
+// is encoded in the shape of the pipeline, which will produce a single
+// element of that value. The shape is as follows:
+//
+//     0 -> \x.x+1 -> \x.x+1 -> (N times) -> \x.min(x, 6)
+//
+// The single output will be a number between 1 and 6.
 func roll(ctx context.Context, p *beam.Pipeline) beam.PCollection {
 	num := rand.Intn(*real) + 1
 	log.Debugf(ctx, "Lucky number %v!", num)
@@ -38,6 +46,8 @@ func roll(ctx context.Context, p *beam.Pipeline) beam.PCollection {
 	return beam.ParDo(p, minFn{Num: *dice}, col)
 }
 
+// minFn is a DoFn that computes outputs the minimum of a fixed value
+// and each incoming value.
 type minFn struct {
 	Num int `json:"num"`
 }
@@ -49,6 +59,7 @@ func (m minFn) ProcessElement(num int) int {
 	return num
 }
 
+// incFn is a DoFn that increments each value by 1.
 func incFn(num int) int {
 	return num + 1
 }
@@ -62,7 +73,9 @@ func eq(n int, other ...int) bool {
 	return true
 }
 
-// evalFn takes 5 dice rolls as singleton side inputs.
+// evalFn is a DoFn that takes 5 dice rolls as singleton side inputs and
+// evaluates them. It is triggered by an impulse, whose value is ignored.
+// It does not output any value, but simply logs the result.
 func evalFn(ctx context.Context, _ []byte, a, b, c, d, e int) {
 	r := []int{a, b, c, d, e}
 	sort.Ints(r)
