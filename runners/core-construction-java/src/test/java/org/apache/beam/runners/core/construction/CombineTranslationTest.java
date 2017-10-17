@@ -52,15 +52,11 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link CombineTranslation}.
- */
+/** Tests for {@link CombineTranslation}. */
 @RunWith(Enclosed.class)
 public class CombineTranslationTest {
 
-  /**
-   * Tests that simple {@link CombineFn CombineFns} can be translated to and from proto.
-   */
+  /** Tests that simple {@link CombineFn CombineFns} can be translated to and from proto. */
   @RunWith(Parameterized.class)
   public static class TranslateSimpleCombinesTest {
     @Parameters(name = "{index}: {0}")
@@ -111,14 +107,10 @@ public class CombineTranslationTest {
     }
   }
 
-
-  /**
-   * Tests that a {@link CombineFnWithContext} can be translated.
-   */
+  /** Tests that a {@link CombineFnWithContext} can be translated. */
   @RunWith(JUnit4.class)
   public static class ValidateCombineWithContextTest {
-    @Rule
-    public TestPipeline pipeline = TestPipeline.create();
+    @Rule public TestPipeline pipeline = TestPipeline.create();
 
     @Test
     public void testToFromProtoWithSideInputs() throws Exception {
