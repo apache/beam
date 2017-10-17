@@ -71,20 +71,37 @@
                 <relocations>
                   <relocation>
                     <pattern>com.google.common</pattern>
-                    <excludes>
-                      <!-- com.google.common is too generic, need to exclude guava-testlib -->
-                      <exclude>com.google.common.**.testing.*</exclude>
-                    </excludes>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
-                      org.apache.beam.sdks.harness.repackaged.com.google.common
+                      org.apache.beam.fn.harness.private.com.google.common
                     </shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>com.google.thirdparty</pattern>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
-                      org.apache.beam.sdks.harness.repackaged.com.google.thirdparty
+                      org.apache.beam.fn.harness.private.com.google.thirdparty
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>io.netty.channel</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.fn.harness.private.io.netty.channel
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.beam.model</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.fn.harness.private.org.apache.beam.model
+                    </shadedPattern>
+                  </relocation>
+                  <relocation>
+                    <pattern>org.apache.beam.runners</pattern>
+                    <!--suppress MavenModelInspection -->
+                    <shadedPattern>
+                      org.apache.beam.fn.harness.private.org.apache.beam.runners
                     </shadedPattern>
                   </relocation>
                 </relocations>
