@@ -22,7 +22,7 @@ var (
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
 func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PCollection) {
-	ping := p.Composite("ping")
+	ping := p.Scope("ping")
 	pong := ping // p.Composite("pong")
 
 	// NOTE(herohde) 2/23/2017: Dataflow does not allow cyclic composite structures.

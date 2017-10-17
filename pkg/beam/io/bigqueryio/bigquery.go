@@ -59,7 +59,7 @@ func NewQualifiedTableName(s string) (QualifiedTableName, error) {
 func Read(p *beam.Pipeline, project, table string, t reflect.Type) beam.PCollection {
 	mustParseTable(table)
 
-	p = p.Composite("bigquery.Read")
+	p = p.Scope("bigquery.Read")
 
 	// TODO(herohde) 7/13/2017: using * is probably too inefficient. We could infer
 	// a focused query from the type.
@@ -69,7 +69,7 @@ func Read(p *beam.Pipeline, project, table string, t reflect.Type) beam.PCollect
 // Query executes a query. The output must have a schema compatible with the given
 // type, t. It returns a PCollection<t>.
 func Query(p *beam.Pipeline, project, q string, t reflect.Type) beam.PCollection {
-	p = p.Composite("bigquery.Query")
+	p = p.Scope("bigquery.Query")
 	return query(p, project, q, t)
 }
 
@@ -145,7 +145,7 @@ func Write(p *beam.Pipeline, project, table string, col beam.PCollection) {
 	mustInferSchema(t)
 	qn := mustParseTable(table)
 
-	p = p.Composite("bigquery.Write")
+	p = p.Scope("bigquery.Write")
 
 	imp := beam.Impulse(p)
 	beam.ParDo0(p, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}}, imp, beam.SideInput{Input: col})

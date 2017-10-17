@@ -20,7 +20,7 @@ import (
 //    min := stats.Min(p, col)   // PCollection<int> with 1 as the only element.
 //
 func Min(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Composite("stats.Min")
+	p = p.Scope("stats.Min")
 
 	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {

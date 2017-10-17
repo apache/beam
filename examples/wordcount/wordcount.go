@@ -23,7 +23,7 @@ var (
 
 // CountWords is a composite transform.
 func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
-	p = p.Composite("CountWords")
+	p = p.Scope("CountWords")
 
 	col := beam.ParDo(p, extractFn, lines)
 	return stats.Count(p, col)
