@@ -43,4 +43,9 @@ public interface Stager {
    * contents of the staged file.
    */
   List<DataflowPackage> stageFiles(List<String> filesToStage);
+
+  /**
+   * Stage bytes to a target file name wherever this stager stages things.
+   */
+  DataflowPackage stageToFile(byte[] bytes, String baseName);
 }

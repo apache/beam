@@ -72,19 +72,28 @@ public class GcsStager implements Stager {
    */
   @Override
   public List<DataflowPackage> stageFiles(List<String> filesToStage) {
+    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
+      return packageUtil.stageClasspathElements(
+          filesToStage, options.getStagingLocation(), buildCreateOptions());
+    }
+  }
+
+  @Override
+  public DataflowPackage stageToFile(byte[] bytes, String baseName) {
+    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
+      return packageUtil.stageToFile(
+          bytes, baseName, options.getStagingLocation(), buildCreateOptions());
+    }
+  }
+
+  private GcsCreateOptions buildCreateOptions() {
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
     uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
 
-    GcsCreateOptions createOptions =
-        GcsCreateOptions.builder()
-            .setGcsUploadBufferSizeBytes(uploadSizeBytes)
-            .setMimeType(MimeTypes.BINARY)
-            .build();
-
-    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
-      return packageUtil.stageClasspathElements(
-          filesToStage, options.getStagingLocation(), createOptions);
-    }
+    return GcsCreateOptions.builder()
+        .setGcsUploadBufferSizeBytes(uploadSizeBytes)
+        .setMimeType(MimeTypes.BINARY)
+        .build();
   }
 }

@@ -41,7 +41,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
@@ -191,10 +190,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
 
   @VisibleForTesting
-  static final String PIPELINE_FILE_NAME = "pipeline";
-
-  @VisibleForTesting
-  static final String SERIALIZED_PROTOBUF_EXTENSION = ".pb";
+  static final String PIPELINE_FILE_NAME = "pipeline.pb";
 
   private static final String STAGED_PIPELINE_METADATA_PROPERTY = "pipeline_url";
 
@@ -526,22 +522,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
-    RunnerApi.Pipeline protoPipeline = PipelineTranslation.toProto(pipeline);
-    File serializedProtoPipeline;
-    try {
-      serializedProtoPipeline =
-          File.createTempFile(PIPELINE_FILE_NAME, SERIALIZED_PROTOBUF_EXTENSION);
-      protoPipeline.writeDelimitedTo(new FileOutputStream(serializedProtoPipeline));
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-
+    byte[] serializedProtoPipeline = PipelineTranslation.toProto(pipeline).toByteArray();
     LOG.info("Staging pipeline description to {}", options.getStagingLocation());
     DataflowPackage stagedPipeline =
-        options
-            .getStager()
-            .stageFiles(ImmutableList.of(serializedProtoPipeline.getAbsolutePath()))
-            .get(0);
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
