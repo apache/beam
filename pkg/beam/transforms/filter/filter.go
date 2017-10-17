@@ -30,7 +30,7 @@ func init() {
 //
 // Here, "short" will contain "a" and "b" at runtime.
 func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	p = p.Composite("filter.Include")
+	p = p.Scope("filter.Include")
 
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
@@ -50,7 +50,7 @@ func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PColle
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
 func Exclude(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	p = p.Composite("filter.Exclude")
+	p = p.Scope("filter.Exclude")
 
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))

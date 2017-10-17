@@ -37,7 +37,7 @@ func roll(ctx context.Context, p *beam.Pipeline) beam.PCollection {
 	num := rand.Intn(*real) + 1
 	log.Debugf(ctx, "Lucky number %v!", num)
 
-	p = p.Composite(fmt.Sprintf("roll[%v]", num))
+	p = p.Scope(fmt.Sprintf("roll[%v]", num))
 
 	col := beam.Create(p, 0)
 	for i := 0; i < num; i++ {

@@ -20,7 +20,7 @@ import (
 //    mean := stats.Mean(p, col)   // PCollection<float64> with 6.8 as the only element.
 //
 func Mean(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Composite("stats.Mean")
+	p = p.Scope("stats.Mean")
 
 	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {

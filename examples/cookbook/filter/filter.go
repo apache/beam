@@ -31,7 +31,7 @@ type WeatherDataRow struct {
 // BelowGlobalMean computes the rows for the given month below the global mean. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<WeatherDataRow>.
 func BelowGlobalMean(p *beam.Pipeline, m int, rows beam.PCollection) beam.PCollection {
-	p = p.Composite("BelowGlobalMean")
+	p = p.Scope("BelowGlobalMean")
 
 	// Find the global mean of all the mean_temp readings in the weather data.
 	globalMeanTemp := stats.Mean(p, beam.ParDo(p, extractMeanTempFn, rows))

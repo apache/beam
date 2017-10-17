@@ -20,10 +20,10 @@ func NewPipeline() *Pipeline {
 	return &Pipeline{real.Root(), real}
 }
 
-// Composite returns a Pipeline scoped as a composite transform. The underlying
+// Scope returns a Pipeline scoped as a composite transform. The underlying
 // deferred execution Graph is the same. The scope is purely cosmetic and used
 // by monitoring tools.
-func (p *Pipeline) Composite(name string) *Pipeline {
+func (p *Pipeline) Scope(name string) *Pipeline {
 	scope := p.real.NewScope(p.parent, name)
 	return &Pipeline{scope, p.real}
 }

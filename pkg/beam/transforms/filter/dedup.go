@@ -8,7 +8,7 @@ import (
 // expects a PCollection<T> as input and returns a PCollection<T> with
 // duplicates removed.
 func Dedup(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Composite("filter.Dedup")
+	p = p.Scope("filter.Dedup")
 
 	pre := beam.ParDo(p, mapFn, col)
 	post := beam.GroupByKey(p, pre)

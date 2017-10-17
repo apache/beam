@@ -28,7 +28,7 @@ func init() {
 
 // FilterWords returns PCollection<KV<word,count>> with (up to) 10 matching words.
 func FilterWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
-	p = p.Composite("FilterWords")
+	p = p.Scope("FilterWords")
 	words := beam.ParDo(p, extractFn, lines)
 	filtered := beam.ParDo(p, &includeFn{Search: *search}, words)
 	counted := stats.Count(p, filtered)

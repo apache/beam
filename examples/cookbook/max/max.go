@@ -33,7 +33,7 @@ type MaxMeanTempRow struct {
 // MaxMeanTemp finds the max mean_temp for each month. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<MaxMeanTempRow>.
 func MaxMeanTemp(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
-	p = p.Composite("MaxMeanTemp")
+	p = p.Scope("MaxMeanTemp")
 
 	keyed := beam.ParDo(p, extractFn, rows)
 	maxTemps := stats.Max(p, keyed)

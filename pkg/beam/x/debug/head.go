@@ -17,7 +17,7 @@ func init() {
 // Head returns the first "n" elements it sees, it doesn't enforce any logic
 // as to what elements they will be.
 func Head(p *beam.Pipeline, col beam.PCollection, n int) beam.PCollection {
-	p = p.Composite("debug.Head")
+	p = p.Scope("debug.Head")
 
 	switch {
 	case typex.IsWKV(col.Type()):

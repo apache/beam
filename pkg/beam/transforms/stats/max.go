@@ -20,7 +20,7 @@ import (
 //    max := stats.Max(p, col)   // PCollection<int> with 11 as the only element.
 //
 func Max(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Composite("stats.Max")
+	p = p.Scope("stats.Max")
 
 	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {

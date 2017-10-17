@@ -37,7 +37,7 @@ func init() {
 //    top2 := stats.Largest(p, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
 //
 func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Composite(fmt.Sprintf("top.Largest(%v)", n))
+	p = p.Scope(fmt.Sprintf("top.Largest(%v)", n))
 
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
@@ -65,7 +65,7 @@ func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) be
 //    bottom2 := stats.Smallest(p, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
 //
 func Smallest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Composite(fmt.Sprintf("top.Smallest(%v)", n))
+	p = p.Scope(fmt.Sprintf("top.Smallest(%v)", n))
 
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))

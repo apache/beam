@@ -57,7 +57,7 @@ type TornadoRow struct {
 // CountTornadoes computes the number of tornadoes pr month. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<TornadoRow>.
 func CountTornadoes(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
-	p = p.Composite("CountTornadoes")
+	p = p.Scope("CountTornadoes")
 
 	// row... => month...
 	months := beam.ParDo(p, extractFn, rows)

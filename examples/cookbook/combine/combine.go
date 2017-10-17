@@ -36,7 +36,7 @@ type PlaysRow struct {
 // in which that word appears. It takes a PCollection<WordRow> and
 // returns a PCollection<PlaysRow>.
 func PlaysForWords(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
-	p = p.Composite("PlaysForWords")
+	p = p.Scope("PlaysForWords")
 
 	words := beam.ParDo(p, &extractFn{MinLength: *minLength}, rows)
 	keyed := beam.Combine(p, concatFn, words)

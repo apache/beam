@@ -20,7 +20,7 @@ var (
 // split the elements of the input PCollection into N partitions, and returns
 // a []PCollection<T> that bundles N PCollection<T>s containing the split elements.
 func Partition(p *Pipeline, n int, fn interface{}, col PCollection) []PCollection {
-	p = p.Composite(fmt.Sprintf("Partition(%v)", n))
+	p = p.Scope(fmt.Sprintf("Partition(%v)", n))
 
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))

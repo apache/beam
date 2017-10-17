@@ -25,7 +25,7 @@ func Print(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 // Printf prints out all data with custom formatting. The given format string
 // is used as log.Printf(format, elm) for each element. Use with care.
 func Printf(p *beam.Pipeline, format string, col beam.PCollection) beam.PCollection {
-	p = p.Composite("debug.Print")
+	p = p.Scope("debug.Print")
 
 	switch {
 	case typex.IsWKV(col.Type()):
@@ -71,7 +71,7 @@ func (f *printGBKFn) ProcessElement(ctx context.Context, x beam.X, iter func(*be
 
 // Discard is a sink that discards all data.
 func Discard(p *beam.Pipeline, col beam.PCollection) {
-	p = p.Composite("debug.Discard")
+	p = p.Scope("debug.Discard")
 	beam.ParDo0(p, discardFn, col)
 }
 

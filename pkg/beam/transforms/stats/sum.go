@@ -20,7 +20,7 @@ import (
 //    sum := stats.Sum(p, col)   // PCollection<int> with 34 as the only element.
 //
 func Sum(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Composite("stats.Sum")
+	p = p.Scope("stats.Sum")
 
 	t := beam.FindCombineType(col)
 	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
