@@ -221,8 +221,10 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
         return Collections.singletonList(
             AuctionOrBidWindow.forBid(expectedAuctionDurationMs, c.timestamp(), event.bid));
       } else {
-        // Don't assign people to any window. They will thus be dropped.
-        return Collections.emptyList();
+        throw new IllegalArgumentException(
+            String.format(
+                "%s can only assign windows to auctions and bids, but received %s",
+                getClass().getSimpleName(), c.element()));
       }
     }
 

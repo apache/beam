@@ -27,6 +27,7 @@ import org.apache.beam.sdk.nexmark.model.CategoryPrice;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
@@ -71,6 +72,7 @@ public class Query4 extends NexmarkQuery {
   private PCollection<CategoryPrice> applyTyped(PCollection<Event> events) {
     PCollection<AuctionBid> winningBids =
         events
+            .apply(Filter.by(new AuctionOrBid()))
             // Find the winning bid for each closed auction.
             .apply(new WinningBids(name + ".WinningBids", configuration));
 
