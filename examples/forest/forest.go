@@ -1,3 +1,15 @@
+// forest is an example that shows that pipeline construction is normal Go
+// code -- the pipeline "forest" is created recursively and uses a global
+// variable -- and that a pipeline may contain non-connected parts.
+//
+// The pipeline generated has the shape of a forest where the output of each
+// singleton leaf is flattened together over several rounds. This is most
+// clearly seen via a visual representation of the pipeline, such as the one
+// produced by the 'dot' runner.
+//
+// Running the pipeline logs "1", "2", "3", etc for each leaf in the forest.
+// Note that different runners may produces different or non-deterministic
+// orders.
 package main
 
 import (
