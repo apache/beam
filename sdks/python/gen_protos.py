@@ -83,7 +83,6 @@ def generate_proto_files(force=False):
             'Cannot generate protos for Windows since grpcio-tools package is '
             'not installed. Please install this package manually '
             'using \'pip install grpcio-tools\'.')
-        return
 
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
