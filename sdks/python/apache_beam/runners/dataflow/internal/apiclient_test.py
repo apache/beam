@@ -33,6 +33,8 @@ except ImportError:
   apiclient = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+FAKE_PIPELINE_URL = "gs://invalid-bucket/anywhere"
+
 
 @unittest.skipIf(apiclient is None, 'GCP dependencies are not installed')
 class UtilTest(unittest.TestCase):
@@ -48,7 +50,8 @@ class UtilTest(unittest.TestCase):
          '--temp_location', 'gs://any-location/temp'])
     env = apiclient.Environment([], #packages
                                 pipeline_options,
-                                '2.0.0') #any environment version
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].network,
                      'anetworkname')
 
@@ -59,7 +62,8 @@ class UtilTest(unittest.TestCase):
 
     env = apiclient.Environment([], #packages
                                 pipeline_options,
-                                '2.0.0') #any environment version
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].subnetwork,
                      '/regions/MY/subnetworks/SUBNETWORK')
 
@@ -123,14 +127,20 @@ class UtilTest(unittest.TestCase):
   def test_default_ip_configuration(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
-    env = apiclient.Environment([], pipeline_options, '2.0.0')
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
     self.assertEqual(env.proto.workerPools[0].ipConfiguration, None)
 
   def test_public_ip_configuration(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp',
          '--use_public_ips'])
-    env = apiclient.Environment([], pipeline_options, '2.0.0')
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PUBLIC)
@@ -139,7 +149,10 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp',
          '--no_use_public_ips'])
-    env = apiclient.Environment([], pipeline_options, '2.0.0')
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
     self.assertEqual(
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
@@ -158,7 +171,8 @@ class UtilTest(unittest.TestCase):
         mock.MagicMock(return_value=distribution)):
       env = apiclient.Environment([], #packages
                                   pipeline_options,
-                                  '2.0.0') #any environment version
+                                  '2.0.0',
+                                  FAKE_PIPELINE_URL) #any environment version
       self.assertIn(override, env.proto.experiments)
 
   @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
@@ -176,7 +190,8 @@ class UtilTest(unittest.TestCase):
         mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
       env = apiclient.Environment([], #packages
                                   pipeline_options,
-                                  '2.0.0') #any environment version
+                                  '2.0.0',
+                                  FAKE_PIPELINE_URL) #any environment version
       self.assertIn(override, env.proto.experiments)
 
   @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
@@ -190,7 +205,8 @@ class UtilTest(unittest.TestCase):
         mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
       env = apiclient.Environment([], #packages
                                   pipeline_options,
-                                  '2.0.0') #any environment version
+                                  '2.0.0',
+                                  FAKE_PIPELINE_URL) #any environment version
       if env.proto.experiments:
         for experiment in env.proto.experiments:
           self.assertNotIn('runner_harness_container_image=', experiment)
@@ -199,7 +215,7 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions(
         ['--project', 'test_project', '--job_name', 'test_job_name',
          '--temp_location', 'gs://test-location/temp'])
-    job = apiclient.Job(pipeline_options)
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
     self.assertIsNone(job.proto.labels)
 
     pipeline_options = PipelineOptions(
@@ -210,7 +226,7 @@ class UtilTest(unittest.TestCase):
          '--label', 'key3=value3',
          '--labels', 'key4=value4',
          '--labels', 'key5'])
-    job = apiclient.Job(pipeline_options)
+    job = apiclient.Job(pipeline_options, FAKE_PIPELINE_URL)
     self.assertEqual(5, len(job.proto.labels.additionalProperties))
     self.assertEqual('key1', job.proto.labels.additionalProperties[0].key)
     self.assertEqual('value1', job.proto.labels.additionalProperties[0].value)
