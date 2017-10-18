@@ -500,9 +500,16 @@ def get_runner_harness_container_image():
   """
   try:
     version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
+    # Pin runner harness for Dataflow releases.
     return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
             version)
   except pkg_resources.DistributionNotFound:
+    # Pin runner harness for BEAM releases.
+    if 'dev' not in beam_version.__version__:
+      return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+              beam_version.__version__)
+    # Don't pin runner harness for BEAM head so that we can notice
+    # potential incompatibility between runner and sdk harnesses.
     return None
 
 
