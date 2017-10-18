@@ -136,6 +136,15 @@ public class TikaIO {
     }
 
     @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+
+      builder
+        .addIfNotNull(
+          DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"));
+    }
+
+    @Override
     public PCollection<ParseResult> expand(PBegin input) {
       return input
           .apply(FileIO.match().filepattern(getFilepattern()))

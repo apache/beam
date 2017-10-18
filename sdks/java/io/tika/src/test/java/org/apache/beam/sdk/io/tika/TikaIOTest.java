@@ -140,6 +140,16 @@ public class TikaIOTest {
   }
 
   @Test
+  public void testParseAllDisplayData() {
+    TikaIO.ParseAll parseAll = TikaIO.parseAll().filepattern("file.pdf");
+
+    DisplayData displayData = DisplayData.from(parseAll);
+
+    assertThat(displayData, hasDisplayItem("filePattern", "file.pdf"));
+    assertEquals(1, displayData.items().size());
+  }
+
+  @Test
   public void testParseFilesDisplayData() {
     TikaIO.ParseFiles parseFiles = TikaIO.parseFiles()
         .withTikaConfigPath("tikaconfigpath")
