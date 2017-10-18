@@ -425,18 +425,13 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         if (writers.size() <= maxNumWritersPerBundle) {
           String uuid = UUID.randomUUID().toString();
           LOG.info(
-              "Opening writer {} for write operation {}, window {} pane {} destination {}",
+              "Opening writer {} for window {} pane {} destination {}",
               uuid,
-              writeOperation,
               window,
               paneInfo,
               destination);
           writer = writeOperation.createWriter();
-          if (windowedWrites) {
-            writer.openWindowed(uuid, window, paneInfo, UNKNOWN_SHARDNUM, destination);
-          } else {
-            writer.openUnwindowed(uuid, UNKNOWN_SHARDNUM, destination);
-          }
+          writer.open(uuid, destination);
           writers.put(key, writer);
           LOG.debug("Done opening writer");
         } else {
@@ -461,17 +456,23 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     public void finishBundle(FinishBundleContext c) throws Exception {
       for (Map.Entry<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> entry :
           writers.entrySet()) {
+        WriterKey<DestinationT> key = entry.getKey();
         Writer<DestinationT, OutputT> writer = entry.getValue();
-        FileResult<DestinationT> result;
         try {
-          result = writer.close();
+          writer.close();
         } catch (Exception e) {
           // If anything goes wrong, make sure to delete the temporary file.
           writer.cleanup();
           throw e;
         }
-        BoundedWindow window = entry.getKey().window;
-        c.output(result, window.maxTimestamp(), window);
+        BoundedWindow window = key.window;
+        FileResult<DestinationT> res =
+            windowedWrites
+                ? new FileResult<>(
+                    writer.getOutputFile(), UNKNOWN_SHARDNUM, window, key.paneInfo, key.destination)
+                : new FileResult<>(
+                    writer.getOutputFile(), UNKNOWN_SHARDNUM, null, null, key.destination);
+        c.output(res, window.maxTimestamp(), window);
       }
     }
 
@@ -505,20 +506,15 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         DestinationT destination = sink.getDynamicDestinations().getDestination(input);
         Writer<DestinationT, OutputT> writer = writers.get(destination);
         if (writer == null) {
-          LOG.debug("Opening writer for write operation {}", writeOperation);
+          String uuid = UUID.randomUUID().toString();
+          LOG.info(
+              "Opening writer {} for window {} pane {} destination {}",
+              uuid,
+              window,
+              c.pane(),
+              destination);
           writer = writeOperation.createWriter();
-          int shardNumber =
-              shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
-                  ? c.element().getKey().getShardNumber()
-                  : UNKNOWN_SHARDNUM;
-          if (windowedWrites) {
-            writer.openWindowed(
-                UUID.randomUUID().toString(), window, c.pane(), shardNumber, destination);
-          } else {
-            writer.openUnwindowed(
-                UUID.randomUUID().toString(), shardNumber, destination);
-          }
-          LOG.debug("Done opening writer");
+          writer.open(uuid, destination);
           writers.put(destination, writer);
         }
         writeOrClose(writer, getSink().getDynamicDestinations().formatRecord(input));
@@ -527,15 +523,25 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       // Close all writers.
       for (Map.Entry<DestinationT, Writer<DestinationT, OutputT>> entry : writers.entrySet()) {
         Writer<DestinationT, OutputT> writer = entry.getValue();
-        FileResult<DestinationT> result;
         try {
           // Close the writer; if this throws let the error propagate.
-          result = writer.close();
-          c.output(result);
+          writer.close();
         } catch (Exception e) {
           // If anything goes wrong, make sure to delete the temporary file.
           writer.cleanup();
           throw e;
+        }
+        int shardNumber =
+            shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
+                ? c.element().getKey().getShardNumber()
+                : UNKNOWN_SHARDNUM;
+        if (windowedWrites) {
+          c.output(
+              new FileResult<>(
+                  writer.getOutputFile(), shardNumber, window, c.pane(), entry.getKey()));
+        } else {
+          c.output(
+              new FileResult<>(writer.getOutputFile(), shardNumber, null, null, entry.getKey()));
         }
       }
     }
@@ -998,11 +1004,14 @@ public class WriteFiles<UserT, DestinationT, OutputT>
             existingResults.size(),
             destination);
         for (int shard : missingShardNums) {
+          String uuid = UUID.randomUUID().toString();
+          LOG.info("Opening empty writer {} for destination {}", uuid, writeOperation, destination);
           Writer<DestinationT, ?> writer = writeOperation.createWriter();
           // Currently this code path is only called in the unwindowed case.
-          writer.openUnwindowed(UUID.randomUUID().toString(), shard, destination);
-          FileResult<DestinationT> emptyWrite = writer.close();
-          completeResults.add(emptyWrite);
+          writer.open(uuid, destination);
+          writer.close();
+          completeResults.add(
+              new FileResult<>(writer.getOutputFile(), shard, null, null, destination));
         }
         LOG.debug("Done creating extra shards for {}.", destination);
       }
