@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.tika;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.auto.value.AutoValue;
 
 import java.io.InputStream;
@@ -26,6 +27,8 @@ import java.nio.channels.Channels;
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.io.Compression;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -35,6 +38,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.tika.config.TikaConfig;
 import org.apache.tika.io.TikaInputStream;
@@ -49,14 +53,14 @@ import org.xml.sax.ContentHandler;
 
 
 /**
- * {@link PTransform} for parsing arbitrary files using Apache Tika.
+ * A collection of {@link PTransform} transforms for parsing arbitrary files using Apache Tika.
  * Files in many well known text, binary or scientific formats can be processed.
  *
- * <p>Combine {@link TikaIO.ParseAll} with {@link FileIO.Match}
- * and {@link FileIO.ReadMatches} to read and parse the files.
+ * <p>{@link TikaIO.ParseAll} and {@link TikaIO.ParseFiles} parse the files and return
+ * a bounded {@link PCollection} containing one {@link ParseResult} per each file.
  *
- * <p>{@link TikaIO.ParseAll} returns a bounded {@link PCollection}
- * containing one {@link ParseResult} per each file.
+ * <p>Combine {@link TikaIO.ParseFiles} with {@link FileIO.Match}
+ * and {@link FileIO.ReadMatches} to match, read and parse the files.
  *
  * <p>Example:
  *
@@ -67,7 +71,19 @@ import org.xml.sax.ContentHandler;
  * PCollection<ParseResult> results =
  *   p.apply(FileIO.match().filepattern("/local/path/to/file.pdf"))
  *    .apply(FileIO.readMatches())
-      .apply(TikaIO.parseAll());
+ *    .apply(TikaIO.parseFiles());
+ * }</pre>
+ *
+ * <p>Use {@link TikaIO.ParseAll} to match, read and parse the files in simple cases.
+ *
+ * <p>Example:
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * // A simple parse of a local PDF file (only runs locally):
+ * PCollection<ParseResult> results =
+ *   p.apply(TikaIO.parseAll().filepattern("/local/path/to/file.pdf"));
  * }</pre>
  *
  * <b>Warning:</b> the API of this IO is likely to change in the next release.
@@ -76,18 +92,62 @@ import org.xml.sax.ContentHandler;
 public class TikaIO {
 
   /**
-   * A {@link PTransform} that parses one or more files and returns a bounded
-   * {@link PCollection} containing one {@link ParseResult} per each file.
+   * A {@link PTransform} that matches and parses the files
+   * and returns a bounded {@link PCollection} of {@link ParseResult}.
    */
-   public static ParseAll parseAll() {
-     return new AutoValue_TikaIO_ParseAll.Builder()
+  public static ParseAll parseAll() {
+    return new AutoValue_TikaIO_ParseAll.Builder()
         .build();
-   }
+  }
 
-   /** Implementation of {@link #parseAll}. */
+  /**
+   * A {@link PTransform} that accepts a bounded {@link PCollection} of {@link ReadableFile}
+   * and returns a bounded {@link PCollection} of {@link ParseResult}.
+   */
+  public static ParseFiles parseFiles() {
+    return new AutoValue_TikaIO_ParseFiles.Builder()
+        .build();
+  }
+
+  /** Implementation of {@link #parseAll}. */
   @SuppressWarnings("serial")
   @AutoValue
-  public abstract static class ParseAll extends
+  public abstract static class ParseAll extends PTransform<PBegin, PCollection<ParseResult>> {
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setFilepattern(ValueProvider<String> filepattern);
+
+      abstract ParseAll build();
+    }
+
+    /** Matches the given filepattern. */
+    public ParseAll filepattern(String filepattern) {
+      return this.filepattern(ValueProvider.StaticValueProvider.of(filepattern));
+    }
+
+    /** Like {@link #filepattern(String)} but using a {@link ValueProvider}. */
+    public ParseAll filepattern(ValueProvider<String> filepattern) {
+      return toBuilder().setFilepattern(filepattern).build();
+    }
+
+    @Override
+    public PCollection<ParseResult> expand(PBegin input) {
+      return input
+          .apply(FileIO.match().filepattern(getFilepattern()))
+          .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
+          .apply(parseFiles());
+    }
+  }
+
+  /** Implementation of {@link #parseFiles}. */
+  @SuppressWarnings("serial")
+  @AutoValue
+  public abstract static class ParseFiles extends
     PTransform<PCollection<ReadableFile>, PCollection<ParseResult>> {
 
     @Nullable abstract ValueProvider<String> getTikaConfigPath();
@@ -100,19 +160,19 @@ public class TikaIO {
       abstract Builder setTikaConfigPath(ValueProvider<String> tikaConfigPath);
       abstract Builder setInputMetadata(Metadata metadata);
 
-      abstract ParseAll build();
+      abstract ParseFiles build();
     }
 
     /**
      * Returns a new transform which will use the custom TikaConfig.
      */
-    public ParseAll withTikaConfigPath(String tikaConfigPath) {
+    public ParseFiles withTikaConfigPath(String tikaConfigPath) {
       checkNotNull(tikaConfigPath, "TikaConfigPath cannot be empty.");
       return withTikaConfigPath(StaticValueProvider.of(tikaConfigPath));
     }
 
     /** Same as {@code with(tikaConfigPath)}, but accepting a {@link ValueProvider}. */
-    public ParseAll withTikaConfigPath(ValueProvider<String> tikaConfigPath) {
+    public ParseFiles withTikaConfigPath(ValueProvider<String> tikaConfigPath) {
       checkNotNull(tikaConfigPath, "TikaConfigPath cannot be empty.");
       return toBuilder()
           .setTikaConfigPath(tikaConfigPath)
@@ -123,7 +183,7 @@ public class TikaIO {
      * Returns a new transform which will use the provided content type hint
      * to make the file parser detection more efficient.
      */
-    public ParseAll withContentTypeHint(String contentType) {
+    public ParseFiles withContentTypeHint(String contentType) {
       checkNotNull(contentType, "ContentType cannot be empty.");
       Metadata metadata = new Metadata();
       metadata.add(Metadata.CONTENT_TYPE, contentType);
@@ -134,7 +194,7 @@ public class TikaIO {
      * Returns a new transform which will use the provided input metadata
      * for parsing the files.
      */
-    public ParseAll withInputMetadata(Metadata metadata) {
+    public ParseFiles withInputMetadata(Metadata metadata) {
       Metadata inputMetadata = this.getInputMetadata();
       if (inputMetadata != null) {
         for (String name : metadata.names()) {
@@ -173,10 +233,10 @@ public class TikaIO {
     private static class ParseToStringFn extends DoFn<ReadableFile, ParseResult> {
 
       private static final long serialVersionUID = 6837207505313720989L;
-      private final TikaIO.ParseAll spec;
+      private final TikaIO.ParseFiles spec;
       private TikaConfig tikaConfig;
 
-      ParseToStringFn(TikaIO.ParseAll spec) {
+      ParseToStringFn(TikaIO.ParseFiles spec) {
         this.spec = spec;
       }
 

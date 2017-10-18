@@ -71,64 +71,81 @@ public class TikaIOTest {
 
     String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
 
-    doTestParseAllFiles(resourcePath, new ParseResult(resourcePath, PDF_FILE));
+    doTestParseAll(resourcePath, new ParseResult(resourcePath, PDF_FILE));
+  }
+
+  private void doTestParseAll(String resourcePath, ParseResult... expectedResults)
+      throws IOException {
+     PCollection<ParseResult> output =
+         p.apply("ParseAll", TikaIO.parseAll().filepattern(resourcePath))
+         .apply(ParDo.of(new FilterMetadataFn()));
+     PAssert.that(output).containsInAnyOrder(expectedResults);
+     p.run();
   }
 
   @Test
-  public void testParseAllZipPdfFile() throws IOException {
+  public void testParseFilesPdfFile() throws IOException {
+
+    String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
+
+    doTestParseFiles(resourcePath, new ParseResult(resourcePath, PDF_FILE));
+  }
+
+  @Test
+  public void testParseFilesZipPdfFile() throws IOException {
 
     String resourcePath = getClass().getResource("/apache-beam-tika-pdf.zip").getPath();
 
-    doTestParseAllFiles(resourcePath, new ParseResult(resourcePath, PDF_ZIP_FILE));
+    doTestParseFiles(resourcePath, new ParseResult(resourcePath, PDF_ZIP_FILE));
   }
 
   @Test
-  public void testParseAllOdtFile() throws IOException {
+  public void testParseFilesOdtFile() throws IOException {
 
     String resourcePath = getClass().getResource("/apache-beam-tika1.odt").getPath();
 
-    doTestParseAllFiles(resourcePath, new ParseResult(resourcePath, ODT_FILE, getOdtMetadata()));
+    doTestParseFiles(resourcePath, new ParseResult(resourcePath, ODT_FILE, getOdtMetadata()));
   }
 
   @Test
-  public void testParseAllOdtFiles() throws IOException {
+  public void testParseFilesOdtFiles() throws IOException {
     String resourcePath1 = getClass().getResource("/apache-beam-tika1.odt").getPath();
     String resourcePath2 = getClass().getResource("/apache-beam-tika2.odt").getPath();
     String resourcePath = resourcePath1.replace("apache-beam-tika1", "*");
 
-    doTestParseAllFiles(resourcePath, new ParseResult(resourcePath1, ODT_FILE, getOdtMetadata()),
+    doTestParseFiles(resourcePath, new ParseResult(resourcePath1, ODT_FILE, getOdtMetadata()),
         new ParseResult(resourcePath2, ODT_FILE2));
   }
 
-  private void doTestParseAllFiles(String resourcePath, ParseResult... expectedResults)
+  private void doTestParseFiles(String resourcePath, ParseResult... expectedResults)
      throws IOException {
     PCollection<ParseResult> output =
         p.apply("ParseFiles", FileIO.match().filepattern(resourcePath))
         .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
-        .apply(TikaIO.parseAll())
+        .apply(TikaIO.parseFiles())
         .apply(ParDo.of(new FilterMetadataFn()));
     PAssert.that(output).containsInAnyOrder(expectedResults);
     p.run();
   }
 
   @Test
-  public void testParseAllDamagedPdfFile() throws IOException {
+  public void testParseFilesDamagedPdfFile() throws IOException {
     thrown.expectCause(isA(TikaException.class));
     String resourcePath = getClass().getResource("/damaged.pdf").getPath();
 
     p.apply("ParseInvalidPdfFile", FileIO.match().filepattern(resourcePath))
       .apply(FileIO.readMatches())
-      .apply(TikaIO.parseAll());
+      .apply(TikaIO.parseFiles());
     p.run();
   }
 
   @Test
-  public void testParseAllDisplayData() {
-    TikaIO.ParseAll parseAll = TikaIO.parseAll()
+  public void testParseFilesDisplayData() {
+    TikaIO.ParseFiles parseFiles = TikaIO.parseFiles()
         .withTikaConfigPath("tikaconfigpath")
         .withContentTypeHint("application/pdf");
 
-    DisplayData displayData = DisplayData.from(parseAll);
+    DisplayData displayData = DisplayData.from(parseFiles);
 
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "tikaconfigpath"));
     assertThat(displayData, hasDisplayItem("inputMetadata",
@@ -137,12 +154,12 @@ public class TikaIOTest {
   }
 
   @Test
-  public void testParseAllDisplayDataWithCustomOptions() {
-    TikaIO.ParseAll parseAll = TikaIO.parseAll()
+  public void testParseFilesDisplayDataWithCustomOptions() {
+    TikaIO.ParseFiles parseFiles = TikaIO.parseFiles()
         .withTikaConfigPath("/tikaConfigPath")
         .withContentTypeHint("application/pdf");
 
-    DisplayData displayData = DisplayData.from(parseAll);
+    DisplayData displayData = DisplayData.from(parseFiles);
 
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "/tikaConfigPath"));
     assertThat(displayData, hasDisplayItem("inputMetadata",
