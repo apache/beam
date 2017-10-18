@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
@@ -45,6 +46,8 @@ import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.DataflowPackage;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.ListJobsResponse;
+import com.google.api.services.dataflow.model.WorkerPool;
+import com.google.api.services.storage.model.StorageObject;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
@@ -141,6 +144,7 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 public class DataflowRunnerTest implements Serializable {
 
+  private static final String VALID_BUCKET = "valid-bucket";
   private static final String VALID_STAGING_BUCKET = "gs://valid-bucket/staging";
   private static final String VALID_TEMP_BUCKET = "gs://valid-bucket/temp";
   private static final String VALID_PROFILE_BUCKET = "gs://valid-bucket/profiles";
@@ -161,20 +165,43 @@ public class DataflowRunnerTest implements Serializable {
     assertNull(job.getId());
     assertNull(job.getCurrentState());
     assertTrue(Pattern.matches("[a-z]([-a-z0-9]*[a-z0-9])?", job.getName()));
+
+    for (WorkerPool workerPool : job.getEnvironment().getWorkerPools()) {
+      assertThat(workerPool.getMetadata(),
+          hasKey(DataflowRunner.STAGED_PIPELINE_METADATA_PROPERTY));
+    }
   }
 
   @Before
   public void setUp() throws IOException {
     this.mockGcsUtil = mock(GcsUtil.class);
+
     when(mockGcsUtil.create(any(GcsPath.class), anyString()))
-        .then(new Answer<SeekableByteChannel>() {
-          @Override
-          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-            return FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
-          }
-        });
+        .then(
+            new Answer<SeekableByteChannel>() {
+              @Override
+              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+                return FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE);
+              }
+            });
+
+    when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
+        .then(
+            new Answer<SeekableByteChannel>() {
+              @Override
+              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+                return FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE);
+              }
+            });
+
     when(mockGcsUtil.expand(any(GcsPath.class))).then(new Answer<List<GcsPath>>() {
       @Override
       public List<GcsPath> answer(InvocationOnMock invocation) throws Throwable {
@@ -182,12 +209,35 @@ public class DataflowRunnerTest implements Serializable {
       }
     });
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
-    when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_STAGING_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_TEMP_BUCKET + "/staging/"))).
         thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(VALID_PROFILE_BUCKET))).thenReturn(true);
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri(NON_EXISTENT_BUCKET))).thenReturn(false);
+
+    // Let every valid path be matched
+    when(mockGcsUtil.getObjects(anyListOf(GcsPath.class)))
+        .thenAnswer(
+            new Answer<List<GcsUtil.StorageObjectOrIOException>>() {
+              @Override
+              public List<GcsUtil.StorageObjectOrIOException> answer(
+                  InvocationOnMock invocationOnMock) throws Throwable {
+
+                List<GcsPath> gcsPaths = (List<GcsPath>) invocationOnMock.getArguments()[0];
+                List<GcsUtil.StorageObjectOrIOException> results = new ArrayList<>();
+
+                for (GcsPath gcsPath : gcsPaths) {
+                  if (gcsPath.getBucket().equals(VALID_BUCKET)) {
+                    StorageObject resultObject = new StorageObject();
+                    resultObject.setBucket(gcsPath.getBucket());
+                    resultObject.setName(gcsPath.getObject());
+                    results.add(GcsUtil.StorageObjectOrIOException.create(resultObject));
+                  }
+                }
+
+                return results;
+              }
+            });
 
     // The dataflow pipeline attempts to output to this location.
     when(mockGcsUtil.bucketAccessible(GcsPath.fromUri("gs://bucket/object"))).thenReturn(true);
@@ -524,14 +574,17 @@ public class DataflowRunnerTest implements Serializable {
     options.setGcpCredential(new TestCredential());
 
     when(mockGcsUtil.create(any(GcsPath.class), anyString(), anyInt()))
-        .then(new Answer<SeekableByteChannel>() {
-          @Override
-          public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
-            return FileChannel.open(
-                Files.createTempFile("channel-", ".tmp"),
-                StandardOpenOption.CREATE, StandardOpenOption.DELETE_ON_CLOSE);
-          }
-        });
+        .then(
+            new Answer<SeekableByteChannel>() {
+              @Override
+              public SeekableByteChannel answer(InvocationOnMock invocation) throws Throwable {
+                return FileChannel.open(
+                    Files.createTempFile("channel-", ".tmp"),
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.DELETE_ON_CLOSE);
+              }
+            });
 
     Pipeline p = buildDataflowPipeline(options);
 

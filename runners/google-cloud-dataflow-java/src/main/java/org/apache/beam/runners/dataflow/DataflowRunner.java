@@ -64,6 +64,7 @@ import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -187,6 +188,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
+
+  @VisibleForTesting
+  static final String PIPELINE_FILE_NAME = "pipeline.pb";
+
+  @VisibleForTesting
+  static final String STAGED_PIPELINE_METADATA_PROPERTY = "pipeline_url";
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
@@ -514,8 +521,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
         + "related to Google Compute Engine usage and other Google Cloud Services.");
 
-    List<DataflowPackage> packages = options.getStager().stageFiles();
+    List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
+    byte[] serializedProtoPipeline = PipelineTranslation.toProto(pipeline).toByteArray();
+    LOG.info("Staging pipeline description to {}", options.getStagingLocation());
+    DataflowPackage stagedPipeline =
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
@@ -560,6 +571,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     String workerHarnessContainerImage = getContainerImageForJob(options);
     for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
+      workerPool.setMetadata(
+          ImmutableMap.of(STAGED_PIPELINE_METADATA_PROPERTY, stagedPipeline.getLocation()));
     }
 
     newJob.getEnvironment().setVersion(getEnvironmentVersion(options));

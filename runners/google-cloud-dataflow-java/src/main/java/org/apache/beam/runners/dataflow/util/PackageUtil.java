@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import com.fasterxml.jackson.core.Base64Variants;
 import com.google.api.client.util.BackOff;
@@ -29,6 +30,7 @@ import com.google.common.base.Function;
 import com.google.common.hash.Funnels;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.common.io.ByteSource;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.AsyncFunction;
@@ -51,6 +53,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.io.FileSystems;
@@ -182,11 +185,11 @@ class PackageUtil implements Closeable {
   private StagingResult stagePackageSynchronously(
       PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
       throws IOException, InterruptedException {
-    File source = attributes.getSource();
+    String sourceDescription = attributes.getSourceDescription();
     String target = attributes.getDestination().getLocation();
 
     if (alreadyStaged(attributes)) {
-      LOG.debug("Skipping file already staged: {} at {}", source, target);
+      LOG.debug("Skipping file already staged: {} at {}", sourceDescription, target);
       return StagingResult.cached(attributes);
     }
 
@@ -194,14 +197,14 @@ class PackageUtil implements Closeable {
       return tryStagePackageWithRetry(attributes, retrySleeper, createOptions);
     } catch (Exception miscException) {
       throw new RuntimeException(
-          String.format("Could not stage %s to %s", source, target), miscException);
+          String.format("Could not stage %s to %s", sourceDescription, target), miscException);
     }
   }
 
   private StagingResult tryStagePackageWithRetry(
       PackageAttributes attributes, Sleeper retrySleeper, CreateOptions createOptions)
       throws IOException, InterruptedException {
-    File source = attributes.getSource();
+    String sourceDescription = attributes.getSourceDescription();
     String target = attributes.getDestination().getLocation();
     BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
 
@@ -217,19 +220,22 @@ class PackageUtil implements Closeable {
                       + "of %s. Please verify credentials are valid and that you have "
                       + "write access to %s. Stale credentials can be resolved by executing "
                       + "'gcloud auth application-default login'.",
-                  source, target);
+                  sourceDescription, target);
           LOG.error(errorMessage);
           throw new IOException(errorMessage, ioException);
         }
 
         long sleep = backoff.nextBackOffMillis();
         if (sleep == BackOff.STOP) {
-          LOG.error("Upload failed, will NOT retry staging of package: {}", source, ioException);
+          LOG.error(
+              "Upload failed, will NOT retry staging of package: {}",
+              sourceDescription,
+              ioException);
           throw new RuntimeException("Could not stage %s to %s", ioException);
         } else {
           LOG.warn(
               "Upload attempt failed, sleeping before retrying staging of package: {}",
-              source,
+              sourceDescription,
               ioException);
           retrySleeper.sleep(sleep);
         }
@@ -237,16 +243,29 @@ class PackageUtil implements Closeable {
     }
   }
 
-  private StagingResult tryStagePackage(
-      PackageAttributes attributes, CreateOptions createOptions)
+  private StagingResult tryStagePackage(PackageAttributes attributes, CreateOptions createOptions)
       throws IOException, InterruptedException {
-    File source = attributes.getSource();
+    String sourceDescription = attributes.getSourceDescription();
     String target = attributes.getDestination().getLocation();
 
-    LOG.info("Uploading {} to {}", source, target);
+    LOG.info("Uploading {} to {}", sourceDescription, target);
     try (WritableByteChannel writer =
         FileSystems.create(FileSystems.matchNewResource(target, false), createOptions)) {
-      copyContent(attributes.getSource(), writer);
+      if (attributes.getBytes() != null) {
+        ByteSource.wrap(attributes.getBytes()).copyTo(Channels.newOutputStream(writer));
+      } else {
+        File sourceFile = attributes.getSource();
+        checkState(
+            sourceFile != null,
+            "Internal inconsistency: we tried to stage something to %s, but neither a source file "
+                + "nor the byte content was specified",
+            target);
+        if (sourceFile.isDirectory()) {
+          ZipFiles.zipDirectory(sourceFile, Channels.newOutputStream(writer));
+        } else {
+          Files.asByteSource(sourceFile).copyTo(Channels.newOutputStream(writer));
+        }
+      }
     }
     return StagingResult.uploaded(attributes);
   }
@@ -270,6 +289,24 @@ class PackageUtil implements Closeable {
       Collection<String> classpathElements, String stagingPath) {
     return stageClasspathElements(
         classpathElements, stagingPath, DEFAULT_SLEEPER, DEFAULT_CREATE_OPTIONS);
+  }
+
+  public DataflowPackage stageToFile(
+      byte[] bytes, String target, String stagingPath, CreateOptions createOptions) {
+    try {
+      return stagePackage(
+              PackageAttributes.forBytesToStage(bytes, target, stagingPath),
+              DEFAULT_SLEEPER,
+              createOptions)
+          .get()
+          .getPackageAttributes()
+          .getDestination();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException("Interrupted while staging pipeline", e);
+    } catch (ExecutionException e) {
+      throw new RuntimeException("Error while staging pipeline", e.getCause());
+    }
   }
 
   /**
@@ -386,23 +423,6 @@ class PackageUtil implements Closeable {
     return fileName + "-" + contentHash + "." + fileExtension;
   }
 
-  /**
-   * Copies the contents of the classpathElement to the output channel.
-   *
-   * <p>If the classpathElement is a directory, a Zip stream is constructed on the fly,
-   * otherwise the file contents are copied as-is.
-   *
-   * <p>The output channel is not closed.
-   */
-  private static void copyContent(File classpathElement, WritableByteChannel outputChannel)
-      throws IOException {
-    if (classpathElement.isDirectory()) {
-      ZipFiles.zipDirectory(classpathElement, Channels.newOutputStream(outputChannel));
-    } else {
-      Files.asByteSource(classpathElement).copyTo(Channels.newOutputStream(outputChannel));
-    }
-  }
-
   @AutoValue
   abstract static class StagingResult {
     abstract PackageAttributes getPackageAttributes();
@@ -456,7 +476,26 @@ class PackageUtil implements Closeable {
       target.setName(uniqueName);
       target.setLocation(resourcePath);
 
-      return new AutoValue_PackageUtil_PackageAttributes(source, target, size, hash);
+      return new AutoValue_PackageUtil_PackageAttributes(source, null, target, size, hash);
+    }
+
+    public static PackageAttributes forBytesToStage(
+        byte[] bytes, String targetName, String stagingPath) {
+      Hasher hasher = Hashing.md5().newHasher();
+      String hash = Base64Variants.MODIFIED_FOR_URL.encode(hasher.putBytes(bytes).hash().asBytes());
+      long size = bytes.length;
+
+      String uniqueName = getUniqueContentName(new File(targetName), hash);
+
+      String resourcePath =
+          FileSystems.matchNewResource(stagingPath, true)
+              .resolve(uniqueName, StandardResolveOptions.RESOLVE_FILE)
+              .toString();
+      DataflowPackage target = new DataflowPackage();
+      target.setName(uniqueName);
+      target.setLocation(resourcePath);
+
+      return new AutoValue_PackageUtil_PackageAttributes(null, bytes, target, size, hash);
     }
 
     public PackageAttributes withPackageName(String overridePackageName) {
@@ -465,11 +504,16 @@ class PackageUtil implements Closeable {
       newDestination.setLocation(getDestination().getLocation());
 
       return new AutoValue_PackageUtil_PackageAttributes(
-          getSource(), newDestination, getSize(), getHash());
+          getSource(), getBytes(), newDestination, getSize(), getHash());
     }
 
-    /** @return the file to be uploaded */
+    /** @return the file to be uploaded, if any */
+    @Nullable
     public abstract File getSource();
+
+    /** @return the bytes to be uploaded, if any */
+    @Nullable
+    public abstract byte[] getBytes();
 
     /** @return the dataflowPackage */
     public abstract DataflowPackage getDestination();
@@ -479,5 +523,13 @@ class PackageUtil implements Closeable {
 
     /** @return the hash */
     public abstract String getHash();
+
+    public String getSourceDescription() {
+      if (getSource() != null) {
+        return getSource().toString();
+      } else {
+        return String.format("<%s bytes, hash %s>", getSize(), getHash());
+      }
+    }
   }
 }
