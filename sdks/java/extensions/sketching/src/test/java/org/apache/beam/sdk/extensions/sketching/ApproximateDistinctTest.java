@@ -65,7 +65,7 @@ public class ApproximateDistinctTest implements Serializable {
   public void smallCardinality() {
     final int smallCard = 1000;
     final int p = 6;
-    final Double expectedErr = 1.104 / Math.sqrt(p);
+    final double expectedErr = 1.104 / Math.sqrt(p);
 
     List<Integer> small = new ArrayList<>();
     for (int i = 0; i < smallCard; i++) {
@@ -77,17 +77,8 @@ public class ApproximateDistinctTest implements Serializable {
             .apply("small cardinality", ApproximateDistinct.<Integer>globally().withPrecision(p))
             .apply("retrieve small cardinality", ParDo.of(new RetrieveDistinct()));
 
-    PAssert.thatSingleton("Not Accurate Enough", cardinality)
-            .satisfies(new SerializableFunction<Long, Void>() {
-              @Override
-              public Void apply(Long input) {
-                boolean isAccurate = Math.abs(input - smallCard) / smallCard < expectedErr;
-                Assert.assertTrue("not accurate enough : \nExpected Cardinality : "
-                                + smallCard + "\nComputed Cardinality : " + input,
-                        isAccurate);
-                return null;
-              }
-            });
+    PAssert.that("Not Accurate Enough", cardinality)
+            .satisfies(new VerifyAccuracy(smallCard, expectedErr));
     tp.run();
 
     }
@@ -97,7 +88,7 @@ public class ApproximateDistinctTest implements Serializable {
     final int cardinality = 15000;
     final int p = 15;
     final int sp = 20;
-    final Double expectedErr = 1.04 / Math.sqrt(p);
+    final double expectedErr = 1.04 / Math.sqrt(p);
 
     List<Integer> stream = new ArrayList<>();
     for (int i = 1; i <= cardinality; i++) {
@@ -122,7 +113,7 @@ public class ApproximateDistinctTest implements Serializable {
   public void perKey() {
     final int cardinality = 1000;
     final int p = 15;
-    final Double expectedErr = 1.04 / Math.sqrt(p);
+    final double expectedErr = 1.04 / Math.sqrt(p);
 
     List<Integer> stream = new ArrayList<>();
     for (int i = 1; i <= cardinality; i++) {
@@ -148,7 +139,7 @@ public class ApproximateDistinctTest implements Serializable {
   public void customObject() {
     final int cardinality = 500;
     final int p = 15;
-    final Double expectedErr = 1.04 / Math.sqrt(p);
+    final double expectedErr = 1.04 / Math.sqrt(p);
 
     Schema schema = SchemaBuilder.record("User").fields()
             .requiredString("Pseudo")
@@ -188,8 +179,6 @@ public class ApproximateDistinctTest implements Serializable {
     final ApproximateDistinctFn<Integer> fnWithPrecision =
             ApproximateDistinctFn.create(BigEndianIntegerCoder.of()).withPrecision(23);
 
-    assertThat(DisplayData.from(fnWithPrecision), hasDisplayItem("inputCoder",
-            BigEndianIntegerCoder.of().getEncodedTypeDescriptor().toString()));
     assertThat(DisplayData.from(fnWithPrecision), hasDisplayItem("p", 23));
     assertThat(DisplayData.from(fnWithPrecision), hasDisplayItem("sp", 0));
 

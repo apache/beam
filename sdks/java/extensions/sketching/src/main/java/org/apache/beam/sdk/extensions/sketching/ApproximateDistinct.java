@@ -17,12 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sketching;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.clearspring.analytics.stream.cardinality.CardinalityMergeException;
 import com.clearspring.analytics.stream.cardinality.HyperLogLogPlus;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,6 +38,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -46,8 +48,16 @@ import org.apache.beam.sdk.values.PCollection;
  * <p>This class relies on the HyperLogLog algorithm, and more precisely HyperLogLog+,
  * the improved version of Google.
  *
- * <p>The {@link CombineFn} is also exposed directly so it can be used as a state cell in a
- * stateful {@link org.apache.beam.sdk.transforms.ParDo}. See {@link ApproximateDistinctFn}.
+ *  <h2>References</h2>
+ *
+ * <p>The implementation comes from Addthis' Stream-lib library :
+ * <a>https://github.com/addthis/stream-lib</a>
+ * <br>The original paper of the HyperLogLog is available here :
+ * <a>http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf</a>
+ * <br>A paper from the same authors to have a clearer view of the algorithm is available here :
+ * <a>http://cscubs.cs.uni-bonn.de/2016/proceedings/paper-03.pdf</a>
+ * <br>Google's HyperLogLog+ version is detailed in this paper :
+ * <a>https://research.google.com/pubs/pub40671.html</a>
  *
  * <p>Three parameters can be tuned according to the processing context :
  * <ul>
@@ -103,21 +113,75 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <h2>Using the CombineFn</h2>
  *
- * <p>See examples at {@link ApproximateDistinctFn}
+ * <p>The {@link CombineFn} is also exposed directly so it can be composed or used as a state cell
+ * in a stateful {@link org.apache.beam.sdk.transforms.ParDo}. See {@link ApproximateDistinctFn}.
  *
- * <h2>References</h2>
+ * <p>By default, one must always specify a coder, using the
+ * {@link ApproximateDistinctFn#create(Coder)} method.
+ * <br>By default, the precision is set to {@code 12} for a relative error of around {@code 2%}.
+ * <br>By default, the sparse representation is not used. One should use it if the cardinality
+ * may be less than {@code 12000}.
  *
- * <p>The implementation comes from Addthis' Stream-lib library :
- * <a>https://github.com/addthis/stream-lib</a>
+ * <h4>Example 1 : default use</h4>
+ * <pre>{@code
+ * PCollection<Integer> input = ...;
+ * PCollection<HyperLogLogPlus> output = input.apply(Combine.globally(ApproximateDistinctFn
+ *                .<Integer>create(BigEndianIntegerCoder.of()));
+ * }</pre>
  *
- * <br>The original paper of the HyperLogLog is available here :
- * <a>http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf</a>
+ * <h4>Example 2 : tune the parameters</h4>
  *
- * <br>A paper from the same authors to have a clearer view of the algorithm is available here :
- * <a>http://cscubs.cs.uni-bonn.de/2016/proceedings/paper-03.pdf</a>
+ * <p>You can tune the precision and sparse precision by successively calling
+ * {@link ApproximateDistinctFn#withPrecision(int)} and
+ * {@link ApproximateDistinctFn#withSparseRepresentation(int)} methods.
  *
- * <br>Google's HyperLogLog+ version is detailed in this paper :
- * <a>https://research.google.com/pubs/pub40671.html</a>
+ * <pre>{@code
+ * PCollection<Object> input = ...;
+ * PCollection<HyperLogLogPlus> output = input.apply(Combine.globally(ApproximateDistinctFn
+ *                .<Object>create(new ObjectCoder())
+ *                .withPrecision(18)
+ *                .withSparseRepresentation(24)));
+ * }</pre>
+ *
+ * <h4>Example 3 : using the {@link CombineFn} in a stateful
+ * {@link org.apache.beam.sdk.transforms.ParDo}</h4>
+ *
+ * <p>One may want to use the {@link ApproximateDistinctFn} in a stateful ParDo in order to
+ * make some processing depending on the current cardinality of the stream.
+ * <br>For more information about stateful processing see :
+ * <a>https://beam.apache.org/blog/2017/02/13/stateful-processing.html</a>
+ *
+ * <p>Here is an example of {@link org.apache.beam.sdk.transforms.DoFn} using an
+ * {@link ApproximateDistinctFn} as a {@link org.apache.beam.sdk.state.CombiningState} :
+ *
+ * <pre>{@code
+ * class StatefulCardinality<V> extends DoFn<V>, OutputT>> {
+ *   {@literal @}StateId("hyperloglog")
+ *   private final StateSpec<CombiningState<V, HyperLogLogPlus, HyperLogLogPlus>> indexSpec;
+ *
+ *   public StatefulCardinality(ApproximateDistinctFn<V> fn) {
+ *     indexSpec = StateSpecs.combining(fn);
+ *   }
+ *
+ *   {@literal @}ProcessElement
+ *   public void processElement(
+ *      ProcessContext context,
+ *      {@literal @}StateId("hllSketch")
+ *      CombiningState<V, HyperLogLogPlus, HyperLogLogPlus> hllSketch) {
+ *     long current = MoreObjects.firstNonNull(hllSketch.getAccum().cardinality(), 0L);
+ *     hllSketch.add(context.element());
+ *     context.output(...);
+ *     }
+ * }
+ * }</pre>
+ *
+ * <p>Then the {@link org.apache.beam.sdk.transforms.DoFn} can be called like this :
+ * <pre>{@code
+ * PCollection<Object> input = ...;
+ * ApproximateDistinctFn myFn = ApproximateDistinctFn.create(new ObjectCoder());
+ * PCollection<OutputT> = input.apply(ParDo.of(new StatefulCardinality(myFn)));
+ * }</pre>
+ *
  */
 public final class ApproximateDistinct {
 
@@ -253,77 +317,7 @@ public final class ApproximateDistinct {
   }
 
   /**
-   * A {@link CombineFn} that computes the stream into a {@link HyperLogLogPlus}
-   * sketch. Can be used as a state cell using stateful transforms such as
-   * {@link org.apache.beam.sdk.transforms.ParDo}s.
-   *
-   * <p>For more information about the parameters, see {@link ApproximateDistinct}.
-   *
-   * <h2>Examples using the {@link CombineFn}</h2>
-   *
-   * <p>By default, one must always specify a coder, using the {@link #create(Coder)} method.
-   * <br>By default, the precision is set to {@code 12} for a relative error of around {@code 2%}.
-   * <br>By default, the sparse representation is not used. One should use it if the cardinality
-   * may be less than {@code 12000}.
-   *
-   * <h4>Example 1 : default use</h4>
-   * <pre>{@code
-   * PCollection<Integer> input = ...;
-   * PCollection<HyperLogLogPlus> output = input.apply(Combine.globally(ApproximateDistinctFn
-   *                .<Integer>create(BigEndianIntegerCoder.of()));
-   * }</pre>
-   *
-   * <h4>Example 2 : tune the parameters</h4>
-   *
-   * <p>You can tune the precision and sparse precision by successively calling
-   * {@link #withPrecision(int)} and {@link #withSparseRepresentation(int)} methods.
-   *
-   * <pre>{@code
-   * PCollection<Object> input = ...;
-   * PCollection<HyperLogLogPlus> output = input.apply(Combine.globally(ApproximateDistinctFn
-   *                .<Object>create(new ObjectCoder())
-   *                .withPrecision(18)
-   *                .withSparseRepresentation(24)));
-   * }</pre>
-   *
-   * <h4>Example 3 : using the {@link CombineFn} in a stateful
-   * {@link org.apache.beam.sdk.transforms.ParDo}</h4>
-   *
-   * <p>One may want to use the {@link ApproximateDistinctFn} in a stateful ParDo in order to
-   * make some processing depending on the current cardinality of the stream.
-   * <br>For more information about stateful processing see :
-   * <a>https://beam.apache.org/blog/2017/02/13/stateful-processing.html</a>
-   *
-   * <p>Here is an example of {@link org.apache.beam.sdk.transforms.DoFn} using an
-   * {@link ApproximateDistinctFn} as a {@link org.apache.beam.sdk.state.CombiningState} :
-   *
-   * <pre>{@code
-   * class StatefulCardinality<V> extends DoFn<V>, OutputT>> {
-   *   {@literal @}StateId("hyperloglog")
-   *   private final StateSpec<CombiningState<V, HyperLogLogPlus, HyperLogLogPlus>> indexSpec;
-   *
-   *   public StatefulCardinality(ApproximateDistinctFn<V> fn) {
-   *     indexSpec = StateSpecs.combining(fn);
-   *   }
-   *
-   *   {@literal @}ProcessElement
-   *   public void processElement(
-   *      ProcessContext context,
-   *      {@literal @}StateId("hllSketch")
-   *      CombiningState<V, HyperLogLogPlus, HyperLogLogPlus> hllSketch) {
-   *     long current = MoreObjects.firstNonNull(hllSketch.getAccum().cardinality(), 0L);
-   *     hllSketch.add(context.element());
-   *     context.output(...);
-   *     }
-   * }
-   * }</pre>
-   *
-   * <p>Then the {@link org.apache.beam.sdk.transforms.DoFn} can be called like this :
-   * <pre>{@code
-   * PCollection<Object> input = ...;
-   * ApproximateDistinctFn myFn = ApproximateDistinctFn.create(new ObjectCoder());
-   * PCollection<OutputT> = input.apply(ParDo.of(new StatefulCardinality(myFn)));
-   * }</pre>
+   * Implements the {@link CombineFn} of {@link ApproximateDistinct} transforms.
    *
    * @param <InputT>      the type of the elements in the input {@link PCollection}
    */
@@ -358,29 +352,44 @@ public final class ApproximateDistinct {
     }
 
     /**
-     * Returns a new {@link ApproximateDistinctFn} combiner with a new precision p but
-     * the other parameters remain unchanged.
+     * Returns a new {@link ApproximateDistinctFn} combiner with a new precision {@code p}.
+     *
+     * <p>The precision value will have an impact on the number of buckets used to store information
+     * about the distinct elements.
+     * <br>In general, you can expect a relative error of about :
+     * <pre>{@code 1.1 / sqrt(2^p)}</pre>
+     * For instance, the estimation {@code ApproximateDistinct.globally(12)}
+     * will have a relative error of about 2%.
+     * <br>Also keep in mind that {@code p} cannot be lower than 4, because the estimation
+     * would be too inaccurate.
+     *
+     * <p>See {@link ApproximateDistinct#precisionForRelativeError(double)} and
+     * {@link ApproximateDistinct#relativeErrorForPrecision(int)} to have more information about
+     * the relationship between precision and relative error.
      *
      * @param p           the precision value for the normal representation
      */
     public ApproximateDistinctFn<InputT> withPrecision(int p) {
-      if (p < 4) {
-        throw new IllegalArgumentException(String.format("Expected : p >= 4. Actual : p = %s", p));
-      }
+      checkArgument(p >= 4, "Expected : p >= 4. Actual : p = %s", p);
       return new ApproximateDistinctFn<>(p, this.sp, this.inputCoder);
     }
 
     /**
      * Returns a new {@link ApproximateDistinctFn} combiner with a sparse representation
-     * of precision sp but the other parameters remain unchanged.
+     * of precision {@code sp}.
+     *
+     * <p>The sparse representation is used to optimize memory and improve accuracy at small
+     * cardinalities. Thus the value of {@code sp} should be greater than {@code p}.
+     * <br>Moreover, values above 32 are not yet supported by the AddThis version of HyperLogLog+.
+     *
+     * <p>Fore more information about the sparse representation, read Google's paper at
+     * <a>https://research.google.com/pubs/pub40671.html</a>
      *
      * @param sp          the precision of HyperLogLog+' sparse representation
      */
     public ApproximateDistinctFn<InputT> withSparseRepresentation(int sp) {
-      if ((sp < this.p || sp > 32) && (sp != 0)) {
-          throw new IllegalArgumentException(String.format("Expected : p <= sp <= 32."
-                  + "Actual : p = %s, sp = %s", this.p, sp));
-      }
+      checkArgument((sp > this.p && sp < 32) || (sp == 0), "Expected : p <= sp <= 32."
+              + "Actual : p = %s, sp = %s", this.p, sp);
       return new ApproximateDistinctFn<>(this.p, sp, this.inputCoder);
     }
 
@@ -391,20 +400,14 @@ public final class ApproximateDistinct {
 
     @Override
     public HyperLogLogPlus addInput(HyperLogLogPlus acc, InputT record) {
-      acc.offer(getBytes(record));
-      return acc;
-    }
-
-    private byte[] getBytes(InputT input) {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
       try {
-        inputCoder.encode(input, baos);
-        } catch (IOException e) {
+        acc.offer(CoderUtils.encodeToByteArray(inputCoder, record));
+      } catch (CoderException e) {
         throw new IllegalStateException(
                 "The input value cannot be encoded : " + e.getMessage(), e);
-        }
-      return baos.toByteArray();
       }
+      return acc;
+    }
 
     /**
      * Output the whole structure so it can be queried, reused or stored easily.
@@ -422,7 +425,8 @@ public final class ApproximateDistinct {
           mergedAccum.addAll(accum);
         } catch (CardinalityMergeException e) {
           // Should never happen because only HyperLogLogPlus accumulators are instantiated.
-          throw new IllegalStateException("The accumulators cannot be merged : " + e.getMessage());
+          throw new IllegalStateException("The accumulators cannot be merged : "
+                  + e.getMessage(), e);
         }
       }
       return mergedAccum;
@@ -432,8 +436,6 @@ public final class ApproximateDistinct {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder
-              .add(DisplayData.item("inputCoder", inputCoder.getEncodedTypeDescriptor().toString())
-                      .withLabel("coder"))
               .add(DisplayData.item("p", p)
                       .withLabel("precision"))
               .add(DisplayData.item("sp", sp)
