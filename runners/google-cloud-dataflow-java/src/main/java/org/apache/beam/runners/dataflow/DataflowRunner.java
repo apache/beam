@@ -192,7 +192,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static final String PIPELINE_FILE_NAME = "pipeline.pb";
 
-  private static final String STAGED_PIPELINE_METADATA_PROPERTY = "pipeline_url";
+  @VisibleForTesting
+  static final String STAGED_PIPELINE_METADATA_PROPERTY = "pipeline_url";
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
