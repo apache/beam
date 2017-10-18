@@ -22,6 +22,7 @@ import logging
 import multiprocessing
 import os
 import pkg_resources
+import platform
 import shutil
 import subprocess
 import sys
@@ -76,6 +77,14 @@ def generate_proto_files(force=False):
     try:
       from grpc_tools import protoc
     except ImportError:
+      if platform.system() == 'Windows':
+        # For Windows, grpcio-tools has to be installed manually.
+        logging.warning(
+            'Cannot generate protos for Windows since grpcio-tools package is '
+            'not installed. Please install this package manually '
+            'using \'pip install grpcio-tools\'.')
+        return
+
       # Use a subprocess to avoid messing with this process' path and imports.
       # Note that this requires a separate module from setup.py for Windows:
       # https://docs.python.org/2/library/multiprocessing.html#windows
