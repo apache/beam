@@ -28,7 +28,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Consumer;
+import org.apache.beam.harness.test.Consumer;
 import org.apache.beam.harness.test.TestStreams;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
@@ -91,7 +91,7 @@ public class FnHarnessTest {
             responseObserver.onCompleted();
           }
         });
-        return TestStreams.withOnNext(new Consumer<BeamFnApi.InstructionResponse>() {
+        return TestStreams.withOnNext(new Consumer<InstructionResponse>() {
           @Override
           public void accept(InstructionResponse t) {
             instructionResponses.add(t);

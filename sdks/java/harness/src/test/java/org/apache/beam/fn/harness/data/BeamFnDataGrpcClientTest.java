@@ -41,12 +41,13 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
+import org.apache.beam.harness.test.Consumer;
 import org.apache.beam.harness.test.TestStreams;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
@@ -263,7 +264,7 @@ public class BeamFnDataGrpcClientTest {
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(
-            new Consumer<BeamFnApi.Elements>() {
+            new Consumer<Elements>() {
               @Override
               public void accept(BeamFnApi.Elements t) {
                 inboundServerValues.add(t);
