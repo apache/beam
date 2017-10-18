@@ -38,14 +38,19 @@ public class TestExecutorsTest {
   @Test
   public void testSuccessfulTermination() throws Throwable {
     ExecutorService service = Executors.newSingleThreadExecutor();
-    final TestExecutorService testService = TestExecutors.from(() -> service);
+    final TestExecutorService testService = TestExecutors.from(service);
     final AtomicBoolean taskRan = new AtomicBoolean();
     testService
         .apply(
             new Statement() {
               @Override
               public void evaluate() throws Throwable {
-                testService.submit(() -> taskRan.set(true));
+                testService.submit(new Runnable() {
+                  @Override
+                  public void run() {
+                    taskRan.set(true);
+                  }
+                });
               }
             },
             null)
@@ -57,7 +62,7 @@ public class TestExecutorsTest {
   @Test
   public void testTaskBlocksForeverCausesFailure() throws Throwable {
     ExecutorService service = Executors.newSingleThreadExecutor();
-    final TestExecutorService testService = TestExecutors.from(() -> service);
+    final TestExecutorService testService = TestExecutors.from(service);
     final AtomicBoolean taskStarted = new AtomicBoolean();
     final AtomicBoolean taskWasInterrupted = new AtomicBoolean();
     try {
@@ -66,7 +71,12 @@ public class TestExecutorsTest {
               new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                  testService.submit(this::taskToRun);
+                  testService.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                      taskToRun();
+                    }
+                  });
                 }
 
                 private void taskToRun() {
@@ -94,7 +104,7 @@ public class TestExecutorsTest {
   @Test
   public void testStatementFailurePropagatedCleanly() throws Throwable {
     ExecutorService service = Executors.newSingleThreadExecutor();
-    final TestExecutorService testService = TestExecutors.from(() -> service);
+    final TestExecutorService testService = TestExecutors.from(service);
     final RuntimeException exceptionToThrow = new RuntimeException();
     try {
       testService
@@ -118,7 +128,7 @@ public class TestExecutorsTest {
   public void testStatementFailurePropagatedWhenExecutorServiceFailingToTerminate()
       throws Throwable {
     ExecutorService service = Executors.newSingleThreadExecutor();
-    final TestExecutorService testService = TestExecutors.from(() -> service);
+    final TestExecutorService testService = TestExecutors.from(service);
     final AtomicBoolean taskStarted = new AtomicBoolean();
     final AtomicBoolean taskWasInterrupted = new AtomicBoolean();
     final RuntimeException exceptionToThrow = new RuntimeException();
@@ -128,7 +138,12 @@ public class TestExecutorsTest {
               new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                  testService.submit(this::taskToRun);
+                  testService.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                      taskToRun();
+                    }
+                  });
                   throw exceptionToThrow;
                 }
 

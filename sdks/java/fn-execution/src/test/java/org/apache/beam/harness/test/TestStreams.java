@@ -20,8 +20,6 @@ package org.apache.beam.harness.test;
 
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /** Utility methods which enable testing of {@link StreamObserver}s. */
 public class TestStreams {
@@ -32,9 +30,9 @@ public class TestStreams {
   public static <T> Builder<T> withOnNext(Consumer<T> onNext) {
     return new Builder<>(new ForwardingCallStreamObserver<>(
         onNext,
-        TestStreams::noop,
-        TestStreams::noop,
-        TestStreams::returnTrue));
+        TestStreams.<Throwable>noopConsumer(),
+        TestStreams.noopRunnable(),
+        TestStreams.alwaysTrueSupplier()));
   }
 
   /** A builder for a test {@link CallStreamObserver} that performs various callbacks. */
@@ -72,7 +70,7 @@ public class TestStreams {
      * Returns a new {@link Builder} like this one with the specified
      * {@link StreamObserver#onError} callback.
      */
-    public Builder<T> withOnError(Runnable onError) {
+    public Builder<T> withOnError(final Runnable onError) {
       return new Builder<>(new ForwardingCallStreamObserver<>(
           observer.onNext,
           new Consumer<Throwable>() {
@@ -102,11 +100,36 @@ public class TestStreams {
   private static void noop() {
   }
 
+  private static Runnable noopRunnable() {
+    return new Runnable() {
+      @Override
+      public void run() {
+      }
+    };
+  }
+
   private static void noop(Throwable t) {
+  }
+
+  private static <T> Consumer<T> noopConsumer() {
+    return new Consumer<T>() {
+      @Override
+      public void accept(T item) {
+      }
+    };
   }
 
   private static boolean returnTrue() {
     return true;
+  }
+
+  private static Supplier<Boolean> alwaysTrueSupplier() {
+    return new Supplier<Boolean>() {
+      @Override
+      public Boolean get() {
+        return true;
+      }
+    };
   }
 
   /** A {@link CallStreamObserver} which executes the supplied callbacks. */

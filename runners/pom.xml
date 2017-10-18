@@ -35,6 +35,7 @@
   <modules>
     <module>core-construction-java</module>
     <module>core-java</module>
+    <module>java-fn-execution</module>
     <module>local-artifact-service-java</module>
     <module>reference</module>
     <module>direct-java</module>
@@ -63,7 +64,6 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
-        <module>java-fn-execution</module>
         <module>gearpump</module>
       </modules>
     </profile>
