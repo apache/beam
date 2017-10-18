@@ -110,6 +110,7 @@
     <avro.version>1.8.2</avro.version>
     <bigquery.version>v2-rev355-1.22.0</bigquery.version>
     <bigtable.version>1.0.0-pre3</bigtable.version>
+    <byte-buddy.version>1.7.5</byte-buddy.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
     <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
@@ -158,17 +159,17 @@
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
-    <surefire-plugin.version>2.20</surefire-plugin.version>
-    <failsafe-plugin.version>2.20</failsafe-plugin.version>
-    <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
-    <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
+    <maven-surefire-plugin.version>2.20.1</maven-surefire-plugin.version>
+    <maven-failsafe-plugin.version>2.20.1</maven-failsafe-plugin.version>
+    <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
+    <maven-dependency-plugin.version>3.0.2</maven-dependency-plugin.version>
     <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
     <maven-license-plugin.version>1.13</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
-    <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
+    <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
     <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
@@ -337,6 +338,34 @@
                 </configuration>
               </execution>
             </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>java9</id>
+      <activation>
+        <jdk>[9,)</jdk>
+      </activation>
+      <properties>
+        <!-- Disable until findbugs supports Java 9 -->
+        <findbugs.skip>true</findbugs.skip>
+        <!-- Disable because google.auto produces a warning on compilation
+          with Java 9. https://github.com/google/auto/issues/503 -->
+        <compiler.error.flag></compiler.error.flag>
+        <!-- Disable failOnError for javadoc until the issue with the classpath
+          and @Nullable is resolved -->
+        <maven.javadoc.failOnError>false</maven.javadoc.failOnError>
+      </properties>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <additionalparam>--add-modules ALL-SYSTEM</additionalparam>
+            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -1190,7 +1219,7 @@
       <dependency>
         <groupId>net.bytebuddy</groupId>
         <artifactId>byte-buddy</artifactId>
-        <version>1.6.8</version>
+        <version>${byte-buddy.version}</version>
       </dependency>
 
       <dependency>
@@ -1627,7 +1656,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-surefire-plugin</artifactId>
-          <version>${surefire-plugin.version}</version>
+          <version>${maven-surefire-plugin.version}</version>
           <configuration>
             <useManifestOnlyJar>false</useManifestOnlyJar>
             <trimStackTrace>false</trimStackTrace>
@@ -1638,7 +1667,7 @@
             <dependency>
               <groupId>org.apache.maven.surefire</groupId>
               <artifactId>surefire-junit47</artifactId>
-              <version>${surefire-plugin.version}</version>
+              <version>${maven-surefire-plugin.version}</version>
             </dependency>
           </dependencies>
         </plugin>
@@ -1646,7 +1675,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
-          <version>${failsafe-plugin.version}</version>
+          <version>${maven-failsafe-plugin.version}</version>
           <configuration>
             <trimStackTrace>false</trimStackTrace>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
