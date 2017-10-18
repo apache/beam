@@ -33,7 +33,7 @@ We look forward to working with you!
 ## Engage
 
 ### Mailing list(s)
-We discuss design and implementation issues on the `dev@beam.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
+We discuss design and implementation issues on the `dev@beam.apache.org` mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
 
 If interested, you can also join the other [mailing lists]({{ site.baseurl }}/get-started/support/).
 
