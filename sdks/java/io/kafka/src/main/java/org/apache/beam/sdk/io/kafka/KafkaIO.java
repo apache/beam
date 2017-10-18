@@ -1568,9 +1568,9 @@ public class KafkaIO {
      *    Kafka. It is similar to <i>consumer group id</i> used with a {@link KafkaConsumer}. Each
      *    job should use a unique group id so that restarts/updates of job preserve the state to
      *    ensure exactly-once semantics. The state is committed atomically with sink transactions
-     *    on Kafka. See {@link KafkaProducer#sendOffsetsToTransaction(Map, String)} for more
-     *    information. The sink performs multiple sanity checks during initialization to catch
-     *    common mistakes so that it does not end up using state that does not <i>seem</i> to
+     *    on Kafka. See <a href="https://kafka.apache.org/0110/javadoc/org/apache/kafka/clients/producer/KafkaProducer.html#sendOffsetsToTransaction(java.util.Map,%20java.lang.String)">KafkaProducer.sendOffsetsToTransaction(java.util.Map,java.lang.String)</a>
+     *    for more information. The sink performs multiple sanity checks during initialization to
+     *    catch common mistakes so that it does not end up using state that does not <i>seem</i> to
      *    be written by the same job.
      */
     public Write<K, V> withEOS(int numShards, String sinkGroupId) {
