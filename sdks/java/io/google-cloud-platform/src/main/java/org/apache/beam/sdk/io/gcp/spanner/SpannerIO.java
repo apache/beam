@@ -45,13 +45,14 @@ import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.Keys;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
@@ -178,6 +179,9 @@ import org.joda.time.Duration;
 public class SpannerIO {
 
   private static final long DEFAULT_BATCH_SIZE_BYTES = 1024 * 1024; // 1 MB
+  // Max number of mutations to batch together.
+  private static final int MAX_NUM_MUTATIONS = 10000;
+  // The maximum number of keys to fit in memory when computing approximate quantiles.
   private static final long MAX_NUM_KEYS = (long) 1e6;
   // TODO calculate number of samples based on the size of the input.
   private static final int DEFAULT_NUM_SAMPLES = 1000;
@@ -744,25 +748,28 @@ public class SpannerIO {
 
       // Serialize mutations, we don't need to encode/decode them while reshuffling.
       // The primary key is encoded via OrderedCode so we can calculate quantiles.
-      PCollection<KV<KV<String, byte[]>, byte[]>> serialized = input
+      PCollection<SerializedMutation> serialized = input
           .apply("Serialize mutations",
-              ParDo.of(new SerializeMutationsFn(schemaView)).withSideInputs(schemaView));
+              ParDo.of(new SerializeMutationsFn(schemaView)).withSideInputs(schemaView))
+          .setCoder(SerializedMutationCoder.of());
 
       // Sample primary keys using ApproximateQuantiles.
       PCollection<KV<String, List<byte[]>>> values = serialized
-          .apply("Extract keys", Keys.<KV<String, byte[]>>create())
+          .apply("Extract keys", ParDo.of(new ExtractKeys()))
           .apply("Sample keys", sampler);
       PCollectionView<Map<String, List<byte[]>>> sample = values
           .apply("Keys sample as view", View.<String, List<byte[]>>asMap());
 
       // Assign partition based on the closest element in the sample and group mutations.
       serialized
-          .apply("Partition input",
-              ParDo.of(new AssignPartitionFn(sample)).withSideInputs(sample))
-          .apply("Group by partition", GroupByKey.<String, KV<KV<String, byte[]>, byte[]>>create())
+          .apply("Partition input", ParDo.of(new AssignPartitionFn(sample)).withSideInputs(sample))
+          .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
+          .apply("Group by partition", GroupByKey.<String, SerializedMutation>create())
           .apply("Batch mutations together",
               ParDo.of(new BatchFn(spec.getBatchSizeBytes(), spec.getSpannerConfig(), schemaView))
-                  .withSideInputs(schemaView));
+                  .withSideInputs(schemaView))
+          .apply("Write mutations to Spanner",
+          ParDo.of(new WriteToSpannerFn(spec.getSpannerConfig())));
       return PDone.in(input.getPipeline());
 
     }
@@ -787,7 +794,7 @@ public class SpannerIO {
    * Serializes mutations to ((table name, serialized key), serialized value) tuple.
    */
   private static class SerializeMutationsFn
-      extends DoFn<MutationGroup, KV<KV<String, byte[]>, byte[]>> {
+      extends DoFn<MutationGroup, SerializedMutation> {
 
     final PCollectionView<SpannerSchema> schemaView;
 
@@ -802,7 +809,9 @@ public class SpannerIO {
       SpannerSchema schema = c.sideInput(schemaView);
       String table = m.getTable();
       MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(schema);
-      byte[] key = new byte[] {};  // Empty by default, will not batched.
+
+      // The key is left empty for non-point deletes, since there is no general way to batch them.
+      byte[] key = new byte[] {};
       if (m.getOperation() != Mutation.Op.DELETE) {
         key = mutationGroupEncoder.encodeKey(m);
       } else if (isPointDelete(m)) {
@@ -810,9 +819,21 @@ public class SpannerIO {
         key = mutationGroupEncoder.encodeKey(m.getTable(), next);
       }
       byte[] value = mutationGroupEncoder.encode(g);
-      c.output(KV.of(KV.of(table, key), value));
+      c.output(SerializedMutation.create(table, key, value));
     }
   }
+
+  private static class ExtractKeys
+      extends DoFn<SerializedMutation, KV<String, byte[]>> {
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      SerializedMutation m = c.element();
+      c.output(KV.of(m.getTableName(), m.getEncodedKey()));
+    }
+  }
+
+
 
   private static boolean isPointDelete(Mutation m) {
     return Iterables.isEmpty(m.getKeySet().getRanges())
@@ -823,7 +844,7 @@ public class SpannerIO {
    * Assigns a partition to the mutation group token based on the sampled data.
    */
   private static class AssignPartitionFn
-      extends DoFn<KV<KV<String, byte[]>, byte[]>, KV<String, KV<KV<String, byte[]>, byte[]>>> {
+      extends DoFn<SerializedMutation, KV<String, SerializedMutation>> {
 
     final PCollectionView<Map<String, List<byte[]>>> sampleView;
 
@@ -833,9 +854,9 @@ public class SpannerIO {
 
     @ProcessElement public void processElement(ProcessContext c) {
       Map<String, List<byte[]>> sample = c.sideInput(sampleView);
-      KV<KV<String, byte[]>, byte[]> g = c.element();
-      String table = g.getKey().getKey();
-      byte[] key = g.getKey().getValue();
+      SerializedMutation g = c.element();
+      String table = g.getTableName();
+      byte[] key = g.getEncodedKey();
       String groupKey;
       if (key.length == 0) {
         // This is a range or multi-key delete mutation. We cannot group it with other mutations
@@ -857,7 +878,7 @@ public class SpannerIO {
    * Batches mutations together.
    */
   private static class BatchFn
-      extends DoFn<KV<String, Iterable<KV<KV<String, byte[]>, byte[]>>>, Void> {
+      extends DoFn<KV<String, Iterable<SerializedMutation>>, Iterable<Mutation>> {
 
     private static final int MAX_RETRIES = 5;
     private static final FluentBackoff BUNDLE_WRITE_BACKOFF = FluentBackoff.DEFAULT
@@ -869,7 +890,7 @@ public class SpannerIO {
 
     private transient SpannerAccessor spannerAccessor;
     // Current batch of mutations to be written.
-    private List<MutationGroup> mutations;
+    private List<Mutation> mutations;
     private long batchSizeBytes;
 
     private BatchFn(long maxBatchSizeBytes, SpannerConfig spannerConfig,
@@ -894,30 +915,61 @@ public class SpannerIO {
     @ProcessElement
     public void processElement(ProcessContext c) throws Exception {
       MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(c.sideInput(schemaView));
-      KV<String, Iterable<KV<KV<String, byte[]>, byte[]>>> element = c.element();
-      for (KV<KV<String, byte[]>, byte[]> kv : element.getValue()) {
-        byte[] value = kv.getValue();
+      KV<String, Iterable<SerializedMutation>> element = c.element();
+      for (SerializedMutation kv : element.getValue()) {
+        byte[] value = kv.getMutationGroupBytes();
         MutationGroup mg = mutationGroupEncoder.decode(value);
-        mutations.add(mg);
+        Iterables.addAll(mutations, mg);
         batchSizeBytes += MutationSizeEstimator.sizeOf(mg);
-        if (batchSizeBytes >= maxBatchSizeBytes || mutations.size() > 1000) {
-          submitBatch();
+        if (batchSizeBytes >= maxBatchSizeBytes || mutations.size() > MAX_NUM_MUTATIONS) {
+          c.output(mutations);
+          mutations = new ArrayList<>();
+          batchSizeBytes = 0;
         }
       }
       if (!mutations.isEmpty()) {
-        submitBatch();
+        c.output(mutations);
+        mutations = new ArrayList<>();
+        batchSizeBytes = 0;
       }
     }
+  }
 
-    private void submitBatch() throws Exception {
+  private static class WriteToSpannerFn
+      extends DoFn<Iterable<Mutation>, Void> {
+    private static final int MAX_RETRIES = 5;
+    private static final FluentBackoff BUNDLE_WRITE_BACKOFF = FluentBackoff.DEFAULT
+        .withMaxRetries(MAX_RETRIES).withInitialBackoff(Duration.standardSeconds(5));
+
+    private transient SpannerAccessor spannerAccessor;
+    private final SpannerConfig spannerConfig;
+
+    public WriteToSpannerFn(SpannerConfig spannerConfig) {
+      this.spannerConfig = spannerConfig;
+    }
+
+    @Setup
+    public void setup() throws Exception {
+      spannerAccessor = spannerConfig.connectToSpanner();
+    }
+
+    @Teardown
+    public void teardown() throws Exception {
+      spannerAccessor.close();
+    }
+
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws Exception {
       Sleeper sleeper = Sleeper.DEFAULT;
       BackOff backoff = BUNDLE_WRITE_BACKOFF.backoff();
+
+      Iterable<Mutation> mutations = c.element();
 
       while (true) {
         // Batch upsert rows.
         try {
-          spannerAccessor.getDatabaseClient().writeAtLeastOnce(Iterables.concat(mutations));
-
+          spannerAccessor.getDatabaseClient().writeAtLeastOnce(mutations);
           // Break if the commit threw no exception.
           break;
         } catch (AbortedException exception) {
@@ -928,10 +980,9 @@ public class SpannerIO {
           }
         }
       }
-      mutations = new ArrayList<>();
-      batchSizeBytes = 0;
     }
+
   }
 
-  private SpannerIO() {} // Prevent construction.
+    private SpannerIO() {} // Prevent construction.
 }
