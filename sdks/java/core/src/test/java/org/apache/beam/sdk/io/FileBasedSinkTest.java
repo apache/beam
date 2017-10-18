@@ -102,14 +102,12 @@ public class FileBasedSinkTest {
 
     SimpleSink.SimpleWriter<Void> writer =
         buildWriteOperationWithTempDir(getBaseTempDirectory()).createWriter();
-    writer.openUnwindowed(testUid, -1, null);
+    writer.open(testUid, null);
     for (String value : values) {
       writer.write(value);
     }
-    FileResult result = writer.close();
-
-    FileBasedSink sink = writer.getWriteOperation().getSink();
-    assertEquals(expectedTempFile, result.getTempFilename());
+    writer.close();
+    assertEquals(expectedTempFile, writer.getOutputFile());
     assertFileContains(expected, expectedTempFile);
   }
 
@@ -514,12 +512,11 @@ public class FileBasedSinkTest {
     expected.add("footer");
     expected.add("footer");
 
-    writer.openUnwindowed(testUid, -1, null);
+    writer.open(testUid, null);
     writer.write("a");
     writer.write("b");
-    final FileResult result = writer.close();
-
-    assertEquals(expectedFile, result.getTempFilename());
+    writer.close();
+    assertEquals(expectedFile, writer.getOutputFile());
     assertFileContains(expected, expectedFile);
   }
 
