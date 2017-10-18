@@ -79,7 +79,7 @@ def generate_proto_files(force=False):
     except ImportError:
       if platform.system() == 'Windows':
         # For Windows, grpcio-tools has to be installed manually.
-        logging.warning(
+        raise RuntimeError(
             'Cannot generate protos for Windows since grpcio-tools package is '
             'not installed. Please install this package manually '
             'using \'pip install grpcio-tools\'.')
