@@ -31,7 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
+import org.apache.beam.harness.test.Consumer;
 import org.apache.beam.harness.test.TestExecutors;
 import org.apache.beam.harness.test.TestExecutors.TestExecutorService;
 import org.apache.beam.harness.test.TestStreams;
