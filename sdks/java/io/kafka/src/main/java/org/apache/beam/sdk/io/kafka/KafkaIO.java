@@ -1590,7 +1590,6 @@ public class KafkaIO {
      * consumer. Similar to {@link Read#withConsumerFactoryFn(SerializableFunction)}, a factory
      * function can be supplied if required in a specific case.
      * The default is {@link KafkaConsumer}.
-     * @param consumerFactoryFn
      */
     public Write<K, V> withConsumerFactoryFn(
         SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> consumerFactoryFn) {
