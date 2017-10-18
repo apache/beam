@@ -103,7 +103,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
- * result passed to the finalize method. Each call to {@link Writer#openWindowed} or {@link
+ * result passed to the finalize method. Each call to {@link Writer#open} or {@link
  * Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called by the WriteFiles
  * transform, so even redundant or retried bundles will have a unique way of identifying their
  * output.
@@ -805,10 +805,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** Unique id for this output bundle. */
     private @Nullable String id;
 
-    private @Nullable BoundedWindow window;
-    private @Nullable PaneInfo paneInfo;
-    private int shard = -1;
-    private @Nullable DestinationT destination;
+    private DestinationT destination;
 
     /** The output file for this bundle. May be null if opening failed. */
     private @Nullable ResourceId outputFile;
@@ -868,53 +865,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * id populated for the case of static sharding. In cases where the runner is dynamically
      * picking sharding, shard might be set to -1.
      */
-    public final void openWindowed(
-        String uId, BoundedWindow window, PaneInfo paneInfo, int shard, DestinationT destination)
-        throws Exception {
-      if (!getWriteOperation().windowedWrites) {
-        throw new IllegalStateException("openWindowed called a non-windowed sink.");
-      }
-      open(uId, window, paneInfo, shard, destination);
-    }
-
-    /** Called for each value in the bundle. */
-    public abstract void write(OutputT value) throws Exception;
-
-    /**
-     * Similar to {@link #openWindowed} however for the case where unwindowed writes were requested.
-     */
-    public final void openUnwindowed(String uId, int shard, DestinationT destination)
-        throws Exception {
-      if (getWriteOperation().windowedWrites) {
-        throw new IllegalStateException("openUnwindowed called a windowed sink.");
-      }
-      open(uId, null, null, shard, destination);
-    }
-
-    // Helper function to close a channel, on exception cases.
-    // Always throws prior exception, with any new closing exception suppressed.
-    private static void closeChannelAndThrow(
-        WritableByteChannel channel, ResourceId filename, Exception prior) throws Exception {
-      try {
-        channel.close();
-      } catch (Exception e) {
-        LOG.error("Closing channel for {} failed.", filename, e);
-        prior.addSuppressed(e);
-        throw prior;
-      }
-    }
-
-    private void open(
-        String uId,
-        @Nullable BoundedWindow window,
-        @Nullable PaneInfo paneInfo,
-        int shard,
-        DestinationT destination)
+    public final void open(
+        String uId, DestinationT destination)
         throws Exception {
       this.id = uId;
-      this.window = window;
-      this.paneInfo = paneInfo;
-      this.shard = shard;
       this.destination = destination;
       ResourceId tempDirectory = getWriteOperation().tempDirectory.get();
       outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
@@ -925,15 +879,6 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           getWriteOperation().getSink().writableByteChannelFactory;
       // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
       String channelMimeType = firstNonNull(factory.getMimeType(), mimeType);
-      LOG.info(
-          "Opening temporary file {} with MIME type {} "
-              + "to write destination {} shard {} window {} pane {}",
-          outputFile,
-          channelMimeType,
-          destination,
-          shard,
-          window,
-          paneInfo);
       WritableByteChannel tempChannel = FileSystems.create(outputFile, channelMimeType);
       try {
         channel = factory.create(tempChannel);
@@ -960,6 +905,26 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       LOG.debug("Starting write of bundle {} to {}.", this.id, outputFile);
     }
 
+    /** Called for each value in the bundle. */
+    public abstract void write(OutputT value) throws Exception;
+
+    public ResourceId getOutputFile() {
+      return outputFile;
+    }
+
+    // Helper function to close a channel, on exception cases.
+    // Always throws prior exception, with any new closing exception suppressed.
+    private static void closeChannelAndThrow(
+        WritableByteChannel channel, ResourceId filename, Exception prior) throws Exception {
+      try {
+        channel.close();
+      } catch (Exception e) {
+        LOG.error("Closing channel for {} failed.", filename, e);
+        prior.addSuppressed(e);
+        throw prior;
+      }
+    }
+
     public final void cleanup() throws Exception {
       if (outputFile != null) {
         LOG.info("Deleting temporary file {}", outputFile);
@@ -970,22 +935,19 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     }
 
     /** Closes the channel and returns the bundle result. */
-    public final FileResult<DestinationT> close() throws Exception {
+    public final void close() throws Exception {
       checkState(outputFile != null, "FileResult.close cannot be called with a null outputFile");
+      LOG.debug("Closing {}", outputFile);
 
-      LOG.debug("Writing footer to {}.", outputFile);
       try {
         writeFooter();
       } catch (Exception e) {
-        LOG.error("Writing footer to {} failed, closing channel.", outputFile, e);
         closeChannelAndThrow(channel, outputFile, e);
       }
 
-      LOG.debug("Finishing write to {}.", outputFile);
       try {
         finishWrite();
       } catch (Exception e) {
-        LOG.error("Finishing write to {} failed, closing channel.", outputFile, e);
         closeChannelAndThrow(channel, outputFile, e);
       }
 
@@ -1001,11 +963,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       } catch (Exception e) {
         throw new IOException(String.format("Failed closing channel to %s", outputFile), e);
       }
-
-      FileResult<DestinationT> result =
-          new FileResult<>(outputFile, shard, window, paneInfo, destination);
       LOG.info("Successfully wrote temporary file {}", outputFile);
-      return result;
     }
 
     /** Return the WriteOperation that this Writer belongs to. */
