@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -38,6 +39,7 @@ import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.DoubleCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.FloatCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.ShortCoder;
 import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.TimeCoder;
+import org.apache.beam.sdk.extensions.sql.BeamSqlRecordHelper.TimestampCoder;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.BeamRecordType;
 
@@ -68,7 +70,7 @@ public class BeamRecordSqlType extends BeamRecordType {
     SQL_TYPE_TO_JAVA_CLASS.put(Types.TIME, GregorianCalendar.class);
 
     SQL_TYPE_TO_JAVA_CLASS.put(Types.DATE, Date.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TIMESTAMP, Date.class);
+    SQL_TYPE_TO_JAVA_CLASS.put(Types.TIMESTAMP, Timestamp.class);
   }
 
   public List<Integer> fieldTypes;
@@ -120,8 +122,10 @@ public class BeamRecordSqlType extends BeamRecordType {
         fieldCoders.add(TimeCoder.of());
         break;
       case Types.DATE:
-      case Types.TIMESTAMP:
         fieldCoders.add(DateCoder.of());
+        break;
+      case Types.TIMESTAMP:
+        fieldCoders.add(TimestampCoder.of());
         break;
       case Types.BOOLEAN:
         fieldCoders.add(BooleanCoder.of());
@@ -146,7 +150,6 @@ public class BeamRecordSqlType extends BeamRecordType {
     if (javaClazz == null) {
       throw new IllegalArgumentException("Data type: " + fieldType + " not supported yet!");
     }
-
     if (!fieldValue.getClass().equals(javaClazz)) {
       throw new IllegalArgumentException(
           String.format("[%s](%s) doesn't match type [%s]",
