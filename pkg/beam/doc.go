@@ -13,42 +13,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package beam provides a simple, powerful model for building both batch and
-// streaming parallel data processing pipelines.
+// Package beam is an implementation of the Apache Beam (https://beam.apache.org)
+// programming model in Go.  Beam provides a simple, powerful model for
+// building both batch and streaming parallel data processing pipelines.
 //
-// TODO(herohde) 6/2/2017: add short overview of each important concept (multiple
-// paragraphs), how they fit together, and an example of a working pipeline.
+// In order to start creating the pipeline for execution, a Pipeline object is needed.
 //
-// Here is a typical example of use:
+// 	 p := beam.NewPipeline()
 //
-//    // Create an empty pipeline
-//    p := beam.NewPipeline()
+// The pipeline object encapsulates all the data and steps in your processing task.
+// It is the basis for creating the pipeline's data sets as PCollections and its operations
+// as transforms.
 //
-//    // A root PTransform, like textio.Read, gets added to the Pipeline by
-//    // being applied:
-//    lines := textio.Read(p, "protocol://path/file*.txt")
+// The PCollection abstraction represents a potentially distributed,
+// multi-element data set. You can think of a PCollection as “pipeline” data;
+// Beam transforms use PCollection objects as inputs and outputs. As such, if
+// you want to work with data in your pipeline, it must be in the form of a
+// PCollection.
 //
-//    // A Pipeline can have multiple root transforms:
+//   // Start by reading text from an input files.
+//   lines := textio.Read(p, "protocol://path/file*.txt")
+//
+// Transforms are added to the pipeline so they are part of the work to be
+// executed.  Since this transform has no PCollection as an input, it is
+// considered a 'root transform'
+//
+//    // A pipeline can have multiple root transforms
 //    moreLines :=  textio.Read(p, "protocol://other/path/file*.txt")
 //
-//    // Further PTransforms can be applied, in an arbitrary (acyclic) graph.
-//    // Subsequent PTransforms (and intermediate PCollections etc.) are
-//    // implicitly part of the same Pipeline.
+// Further transforms can be applied, creating an arbitrary, acyclic graph.
+// Subsequent transforms (and the intermediate PCollections they produce) are
+// attached to the same pipeline.
 //    all := beam.Flatten(p, lines, moreLines)
+//    wordRegexp := regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 //    words := beam.ParDo(p, func (line string, emit func(string))) {
-//         for _, s := range strings.FieldsFunc(s, unicode.IsPunct) {
-//             emit(strings.TrimSpace(s)))
+//         for _, word := range wordRegexp.FindAllString(line, -1) {
+//             emit(word)
 //         }
 //    }, all)
 //    formatted := beam.ParDo(p, string.ToUpper, words)
 //    textio.Write(p, "protocol://output/path", formatted)
 //
-//    // Primitive PTransforms aren't executed when they're applied, rather
-//    // they're just added to the Pipeline.  Once the whole Pipeline of
-//    // PTransforms is constructed, the Pipeline's PTransforms can be run
-//    // using a PipelineRunner.  The local runner executes the Pipeline
-//    // directly, sequentially, in this one process, which is useful for
-//    // unit tests and simple experiments:
+// Applying a transform adds it to the pipeline, rather than executing it
+// immediately.  Once the whole pipeline of transforms is constructed, the
+// pipeline can be executed by a PipelineRunner.  The local runner executes the
+// transforms directly, sequentially, in this one process, which is useful for
+// unit tests and simple experiments:
 //    if err := local.Run(context.Background(), p); err != nil {
 //        log.Fatalf("Pipeline failed: %v", err)
 //    }
