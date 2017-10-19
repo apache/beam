@@ -179,7 +179,13 @@ public class PTransformTranslation {
     if (transform instanceof RawPTransform) {
       // The raw transform was parsed in the context of other components; this puts it in the
       // context of our current serialization
-      transformBuilder.setSpec(((RawPTransform<?, ?>) transform).migrate(components));
+      FunctionSpec spec = ((RawPTransform<?, ?>) transform).migrate(components);
+
+      // A composite transform is permitted to have a null spec. There are also some pseudo-
+      // primitives not yet supported by the portability framework that have null specs
+      if (spec != null) {
+        transformBuilder.setSpec(spec);
+      }
     } else if (KNOWN_PAYLOAD_TRANSLATORS.containsKey(transform.getClass())) {
       transformBuilder.setSpec(
           KNOWN_PAYLOAD_TRANSLATORS
