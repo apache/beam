@@ -1149,39 +1149,26 @@ def model_group_by_key(contents, output_path):
      | beam.io.WriteToText(output_path))
 
 
-def model_co_group_by_key_tuple(email_list, phone_list, output_path):
+def model_co_group_by_key_tuple(emails, phones, output_path):
   """Applying a CoGroupByKey Transform to a tuple."""
   import apache_beam as beam
-  with TestPipeline() as p:  # Use TestPipeline for testing.
-    # [START model_group_by_key_cogroupbykey_tuple]
-    # Each data set is represented by key-value pairs in separate PCollections.
-    # Both data sets share a common key type (in this example str).
-    # The email_list contains values such as: ('joe', 'joe@example.com') with
-    # multiple possible values for each key.
-    # The phone_list contains values such as: ('mary': '111-222-3333') with
-    # multiple possible values for each key.
-    emails_pcoll = p | 'create emails' >> beam.Create(email_list)
-    phones_pcoll = p | 'create phones' >> beam.Create(phone_list)
+  # [START model_group_by_key_cogroupbykey_tuple]
+  # The result PCollection contains one key-value element for each key in the
+  # input PCollections. The key of the pair will be the key from the input and
+  # the value will be a dictionary with two entries: 'emails' - an iterable of
+  # all values for the current key in the emails PCollection and 'phones': an
+  # iterable of all values for the current key in the phones PCollection.
+  results = ({'emails': emails, 'phones': phones}
+             | beam.CoGroupByKey())
 
-    # The result PCollection contains one key-value element for each key in the
-    # input PCollections. The key of the pair will be the key from the input and
-    # the value will be a dictionary with two entries: 'emails' - an iterable of
-    # all values for the current key in the emails PCollection and 'phones': an
-    # iterable of all values for the current key in the phones PCollection.
-    # For instance, if 'emails' contained ('joe', 'joe@example.com') and
-    # ('joe', 'joe@gmail.com'), then 'result' will contain the element:
-    # ('joe', {'emails': ['joe@example.com', 'joe@gmail.com'], 'phones': ...})
-    results = ({'emails': emails_pcoll, 'phones': phones_pcoll}
-               | beam.CoGroupByKey())
-
-    def join_info(name_info):
-      (name, info) = name_info
-      return '%s; %s; %s' %\
+  def join_info(name_info):
+    (name, info) = name_info
+    return '%s; %s; %s' %\
         (name, sorted(info['emails']), sorted(info['phones']))
 
-    contact_lines = results | beam.Map(join_info)
-    # [END model_group_by_key_cogroupbykey_tuple]
-    contact_lines | beam.io.WriteToText(output_path)
+  contact_lines = results | beam.Map(join_info)
+  # [END model_group_by_key_cogroupbykey_tuple]
+  contact_lines | beam.io.WriteToText(output_path)
 
 
 def model_join_using_side_inputs(
