@@ -515,12 +515,8 @@ def _create_pardo_operation(
         tag=tag,
         source=SideInputSource(
             factory.state_handler,
-            beam_fn_api_pb2.StateKey(
-                multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
-                    ptransform_id=transform_id,
-                    side_input_id=tag,
-                    window="TODO",
-                    key="TODO")),
+            beam_fn_api_pb2.StateKey.MultimapSideInput(
+                key=side_input_tag(transform_id, tag)),
             coder=coder))
 
   if side_inputs_proto:

@@ -730,7 +730,7 @@ class AppliedPTransform(object):
     main_inputs = {str(ix): input
                    for ix, input in enumerate(self.inputs)
                    if isinstance(input, pvalue.PCollection)}
-    side_inputs = {"side%s" % ix: si.pvalue
+    side_inputs = {'side%s' % ix: si.pvalue
                    for ix, si in enumerate(self.side_inputs)}
     return dict(main_inputs, **side_inputs)
 
@@ -761,6 +761,7 @@ class AppliedPTransform(object):
   @staticmethod
   def from_runner_api(proto, context):
     def is_side_input(tag):
+      # As per named_inputs() above.
       return tag.startswith('side')
     main_inputs = [context.pcollections.get_by_id(id)
                    for tag, id in proto.inputs.items()

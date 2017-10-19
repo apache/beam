@@ -66,7 +66,7 @@ def streaming_rpc_handler(cls, method_name):
       self._pull_queue = queue.Queue()
       setattr(self, method_name, self.run)
       self._read_thread = threading.Thread(
-          name='streaming_rpc_handler-read', target=self._read)
+          name='streaming_rpc_handler_read', target=self._read)
       self._started = False
 
     def run(self, iterator, context):
@@ -205,8 +205,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
   def run(self, pipeline):
     MetricsEnvironment.set_metrics_supported(self.has_metrics_support())
     if pipeline._verify_runner_api_compatible():
-      #print pipeline.to_runner_api()
-      print "Running pipeline..."
       return self.run_via_runner_api(pipeline.to_runner_api())
     else:
       return super(FnApiRunner, self).run(pipeline)
@@ -235,15 +233,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         self.transforms = transforms
         self.downstream_side_inputs = downstream_side_inputs
         self.must_follow = must_follow
-
-      @property
-      def must_follow(self):
-        return self._must_follow
-
-      @must_follow.setter
-      def must_follow(self, value):
-        assert isinstance(value, frozenset)
-        self._must_follow = value
 
       def __repr__(self):
         must_follow = ', '.join(prev.name for prev in self.must_follow)
@@ -1047,15 +1036,11 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self._all = collections.defaultdict(list)
 
     def Get(self, state_key):
-      print "GET   ", str(state_key).replace("\n", " "), repr(''.join(self._all[self._to_key(state_key)]))
-      import pprint
-      pprint.pprint(dict(self._all))
       return beam_fn_api_pb2.Elements.Data(
           data=''.join(self._all[self._to_key(state_key)]))
 
     def Append(self, state_key, data):
-      print "APPEND", str(state_key).replace("\n", " "), repr(data)
-      self._all[self._to_key(state_key)].append(data)
+      self._all[self._to_key(state_key)].extend(data)
 
     def Clear(self, state_key):
       try:
@@ -1065,7 +1050,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
     @staticmethod
     def _to_key(state_key):
-      return state_key.SerializeToString()
+      return state_key.window, state_key.key
 
   class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
 
@@ -1085,7 +1070,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       with self._lock:
         del self._state[self._to_key(state_key)]
 
-    def _to_key(self, state_key):
+    @staticmethod
+    def _to_key(state_key):
       return state_key.SerializeToString()
 
   class GrpcStateServicer(

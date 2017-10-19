@@ -338,6 +338,7 @@ class _UnpickledSideInput(AsSideInput):
 
 
 class SideInputData(object):
+  """All of the data about a side input except for the bound PCollection."""
   def __init__(self, access_pattern, window_mapping_fn, view_fn, coder):
     self.access_pattern = access_pattern
     self.window_mapping_fn = window_mapping_fn

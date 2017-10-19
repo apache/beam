@@ -131,7 +131,7 @@ class CoderRegistry(object):
         # TODO(robertwb): Clean this up when type inference is fully enabled.
         pass
       else:
-        pass #warnings.warn('Using fallback coder for typehint: %r.' % typehint)
+        warnings.warn('Using fallback coder for typehint: %r.' % typehint)
       coder = self._fallback_coder
     return coder.from_type_hint(typehint, self)
 
