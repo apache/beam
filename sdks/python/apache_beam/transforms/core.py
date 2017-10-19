@@ -842,7 +842,7 @@ class ParDo(PTransformWithSideInputs):
     return _MultiParDo(self, tags, main_tag)
 
   def _pardo_fn_data(self):
-    si_tags_and_types = []
+    si_tags_and_types = None
     windowing = None
     return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
 
@@ -855,7 +855,15 @@ class ParDo(PTransformWithSideInputs):
             do_fn=beam_runner_api_pb2.SdkFunctionSpec(
                 spec=beam_runner_api_pb2.FunctionSpec(
                     urn=urns.PICKLED_DO_FN_INFO,
-                    payload=picked_pardo_fn_data))))
+                    payload=picked_pardo_fn_data)),
+            # It'd be nice to name these according to their actual
+            # names/positions in the orignal argument list, but such a
+            # transformation is currently irreversible given how
+            # remove_objects_from_args and insert_values_in_args
+            # are currently implemented.
+            side_inputs={
+                "side%s" % ix: si.to_runner_api(context)
+                for ix, si in enumerate(self.side_inputs)}))
 
   @PTransform.register_urn(
       urns.PARDO_TRANSFORM, beam_runner_api_pb2.ParDoPayload)
@@ -864,10 +872,17 @@ class ParDo(PTransformWithSideInputs):
     fn, args, kwargs, si_tags_and_types, windowing = pickler.loads(
         pardo_payload.do_fn.spec.payload)
     if si_tags_and_types:
-      raise NotImplementedError('deferred side inputs')
+      raise NotImplementedError('explicit side input data')
     elif windowing:
       raise NotImplementedError('explicit windowing')
-    return ParDo(fn, *args, **kwargs)
+    result = ParDo(fn, *args, **kwargs)
+    # This is an ordered list stored as a dict (see the comments in
+    # to_runner_api_parameter above).
+    indexed_side_inputs = [
+        (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, context))
+        for ix, si in pardo_payload.side_inputs.items()]
+    result.side_inputs = [si for _, si in sorted(indexed_side_inputs)]
+    return result
 
 
 class _MultiParDo(PTransform):

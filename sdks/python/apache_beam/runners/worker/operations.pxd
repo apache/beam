@@ -72,6 +72,7 @@ cdef class DoOperation(Operation):
   cdef object dofn_runner
   cdef Receiver dofn_receiver
   cdef object tagged_receivers
+  cdef object side_input_maps
 
 cdef class CombineOperation(Operation):
   cdef object phased_combine_fn
