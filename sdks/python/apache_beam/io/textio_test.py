@@ -21,9 +21,6 @@ import bz2
 import glob
 import gzip
 import logging
-import os
-import shutil
-import tempfile
 import unittest
 
 import apache_beam as beam
@@ -35,6 +32,7 @@ from apache_beam.io.filebasedsource_test import EOL
 from apache_beam.io.filebasedsource_test import write_data
 from apache_beam.io.filebasedsource_test import write_pattern
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.source_test_utils import TestCaseWithTempDirCleanUp
 from apache_beam.io.textio import _TextSink as TextSink
 from apache_beam.io.textio import _TextSource as TextSource
 # Importing following private classes for testing.
@@ -46,39 +44,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
 
 
-# TODO: Refactor code so all io tests are using same library
-# TestCaseWithTempDirCleanup class.
-class _TestCaseWithTempDirCleanUp(unittest.TestCase):
-  """Base class for TestCases that deals with TempDir clean-up.
-
-  Inherited test cases will call self._new_tempdir() to start a temporary dir
-  which will be deleted at the end of the tests (when tearDown() is called).
-  """
-
-  def setUp(self):
-    self._tempdirs = []
-
-  def tearDown(self):
-    for path in self._tempdirs:
-      if os.path.exists(path):
-        shutil.rmtree(path)
-    self._tempdirs = []
-
-  def _new_tempdir(self):
-    result = tempfile.mkdtemp()
-    self._tempdirs.append(result)
-    return result
-
-  def _create_temp_file(self, name='', suffix=''):
-    if not name:
-      name = tempfile.template
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=name,
-        dir=self._new_tempdir(), suffix=suffix).name
-    return file_name
-
-
-class TextSourceTest(_TestCaseWithTempDirCleanUp):
+class TextSourceTest(TestCaseWithTempDirCleanUp):
 
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
@@ -767,7 +733,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     self.assertEqual(reference_lines, split_lines)
 
 
-class TextSinkTest(_TestCaseWithTempDirCleanUp):
+class TextSinkTest(TestCaseWithTempDirCleanUp):
 
   def setUp(self):
     super(TextSinkTest, self).setUp()

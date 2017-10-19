@@ -19,8 +19,6 @@
 
 import logging
 import os
-import shutil
-import tempfile
 import unittest
 
 import apache_beam.io.source_test_utils as source_test_utils
@@ -34,6 +32,7 @@ from apache_beam.io.vcfio import VariantInfo
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
+from source_test_utils import TestCaseWithTempDirCleanUp
 
 # Note: mixing \n and \r\n to verify both behaviors.
 _SAMPLE_HEADER_LINES = [
@@ -43,6 +42,17 @@ _SAMPLE_HEADER_LINES = [
     '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\r\n',
     '##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">\n',
     '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample1	Sample2\r\n',
+]
+
+_SAMPLE_TEXT_LINES = [
+    '20	14370	.	G	A	29	PASS	AF=0.5	GT:GQ	0|0:48 1|0:48\n',
+    '20	17330	.	T	A	3	q10	AF=0.017	GT:GQ	0|0:49	0|1:3\n',
+    '20	1110696	.	A	G,T	67	PASS	AF=0.3,0.7	GT:GQ	1|2:21	2|1:2\n',
+    '20	1230237	.	T	.	47	PASS	.	GT:GQ	0|0:54	0|0:48\n',
+    '19	1234567	.	GTCT	G,GTACT	50	PASS	.	GT:GQ	0/1:35	0/2:17\n'
+    '20	1234	rs123	C	A,T	50	PASS	AF=0.5	GT:GQ	0/0:48	1/0:20\n',
+    '19	123	rs1234	GTC	.	40	q10;s50	NS=2	GT:GQ	1|0:48	0/1:.\n',
+    '19	12	.	C	<SYMBOLIC>	49	q10	AF=0.5	GT:GQ	0|1:45 .:.\n'
 ]
 
 
@@ -76,47 +86,13 @@ def _count_equals_to(expected_count):
   return _count_equal
 
 
-# TODO: Refactor code so all io tests are using same library
-# TestCaseWithTempDirCleanup class.
-class _TestCaseWithTempDirCleanUp(unittest.TestCase):
-  """Base class for TestCases that deals with TempDir clean-up.
-
-  Inherited test cases will call self._new_tempdir() to start a temporary dir
-  which will be deleted at the end of the tests (when tearDown() is called).
-  """
-
-  def setUp(self):
-    self._tempdirs = []
-
-  def tearDown(self):
-    for path in self._tempdirs:
-      if os.path.exists(path):
-        shutil.rmtree(path)
-    self._tempdirs = []
-
-  def _new_tempdir(self):
-    result = tempfile.mkdtemp()
-    self._tempdirs.append(result)
-    return result
-
-  def _create_temp_file(self, name='', suffix='', tmpdir=None):
-    if not name:
-      name = tempfile.template
-    return tempfile.NamedTemporaryFile(
-        delete=False, prefix=name,
-        dir=tmpdir or self._new_tempdir(), suffix=suffix)
-
-  def _create_temp_vcf_file(self, lines, tmpdir=None):
-    with self._create_temp_file(suffix='.vcf', tmpdir=tmpdir) as f:
-      for line in lines:
-        f.write(line)
-    return f.name
-
-
-class VcfSourceTest(_TestCaseWithTempDirCleanUp):
+class VcfSourceTest(TestCaseWithTempDirCleanUp):
 
   # Distribution should skip tests that need VCF files due to large size
   VCF_FILE_DIR_MISSING = not os.path.exists(get_full_dir())
+
+  def _create_temp_vcf_file(self, lines, tmpdir=None):
+    return self._create_temp_file(suffix='.vcf', tmpdir=tmpdir, lines=lines)
 
   def _read_records(self, file_or_pattern):
     source = VcfSource(file_or_pattern)
@@ -240,7 +216,7 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
   def test_read_after_splitting(self):
     file_name = get_full_file_path('valid-4.1-large.vcf')
     source = VcfSource(file_name)
-    splits = [split for split in source.split(desired_bundle_size=500)]
+    splits = [p for p in source.split(desired_bundle_size=500)]
     self.assertGreater(len(splits), 1)
     sources_info = ([
         (split.source, split.start_position, split.stop_position) for
@@ -441,6 +417,33 @@ class VcfSourceTest(_TestCaseWithTempDirCleanUp):
         os.path.join(get_full_dir(), 'valid-*.vcf'))
     assert_that(pcoll, _count_equals_to(9900))
     pipeline.run()
+
+  def test_read_reentrant_without_splitting(self):
+    tmpdir = self._new_tempdir()
+    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
+    source = VcfSource(file_name)
+    source_test_utils.assert_reentrant_reads_succeed((source, None, None))
+
+  def test_read_reentrant_after_splitting(self):
+    tmpdir = self._new_tempdir()
+    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
+    source = VcfSource(file_name)
+    splits = [split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits) == 1
+    source_test_utils.assert_reentrant_reads_succeed(
+        (splits[0].source, splits[0].start_position, splits[0].stop_position))
+
+  def test_dynamic_work_rebalancing(self):
+    tmpdir = self._new_tempdir()
+    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
+    source = VcfSource(file_name)
+    splits = [split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits) == 1
+    source_test_utils.assert_split_at_fraction_exhaustive(
+        splits[0].source, splits[0].start_position, splits[0].stop_position)
 
 
 if __name__ == '__main__':

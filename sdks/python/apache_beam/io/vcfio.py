@@ -36,14 +36,14 @@ from apache_beam.transforms import PTransform
 __all__ = ['ReadFromVcf', 'Variant', 'VariantCall', 'VariantInfo']
 
 
-# Stores data about variant INFO fields. The type of `data` is specified in the
-# VCF headers. `field_count` is a string that specifies the number of fields
+# Stores data about variant INFO fields. The type of 'data' is specified in the
+# VCF headers. 'field_count' is a string that specifies the number of fields
 # that the data type contains. Its value can either be a number representing a
 # constant number of fields, `None` indicating that the value is not set
-# (equivalent to `.` in the VCF file) or one of:
-#   - `A`: one value per alternate allele.
-#   - `G`: one value for each possible genotype.
-#   - `R`: one value for each possible allele (including the reference).
+# (equivalent to '.' in the VCF file) or one of:
+#   - 'A': one value per alternate allele.
+#   - 'G': one value for each possible genotype.
+#   - 'R': one value for each possible allele (including the reference).
 VariantInfo = namedtuple('VariantInfo', ['data', 'field_count'])
 MISSING_FIELD_VALUE = '.'  # Indicates field is missing in VCF record.
 PASS_FILTER = 'PASS'  # Indicates that all filters have been passed.
@@ -108,16 +108,7 @@ class Variant(object):
     self.calls = calls or []
 
   def __eq__(self, other):
-    return (self.reference_name == other.reference_name and
-            self.start == other.start and
-            self.end == other.end and
-            self.reference_bases == other.reference_bases and
-            self.alternate_bases == other.alternate_bases and
-            self.names == other.names and
-            self.quality == other.quality and
-            self.filters == other.filters and
-            self.info == other.info and
-            self.calls == other.calls)
+    return self.__dict__ == other.__dict__
 
   def __repr__(self):
     return ', '.join(
@@ -131,6 +122,33 @@ class Variant(object):
                           self.filters,
                           self.info,
                           self.calls]])
+
+  def __lt__(self, other):
+    members = ['reference_name', 'start', 'end', 'reference_bases',
+               'alternate_bases', 'alternate_bases', 'names', 'quality',
+               'filters', 'info', 'calls']
+
+    self_dict = self.__dict__
+    other_dict = other.__dict__
+
+    for m in members:
+      if self_dict[m] < other_dict[m]:
+        return True
+      elif other_dict[m] < self_dict[m]:
+        return False
+    return False
+
+  def __le__(self, other):
+    return self < other or self == other
+
+  def __ne__(self, other):
+    return not self == other
+
+  def __gt__(self, other):
+    return other < self
+
+  def __ge__(self, other):
+    return other <= self
 
 
 class VariantCall(object):
@@ -176,7 +194,7 @@ class VariantCall(object):
 
 
 class _VcfSource(filebasedsource.FileBasedSource):
-  r"""A source for reading VCF files.
+  """A source for reading VCF files.
 
   Parses VCF files (version 4) using PyVCF library. If file_pattern specifies
   multiple files, then the header from each file is used separately to parse
@@ -202,142 +220,177 @@ class _VcfSource(filebasedsource.FileBasedSource):
     self._validate = validate
 
   def read_records(self, file_name, range_tracker):
-    def line_generator():
-      header_lines = []
+    record_iterator = _VcfSource._VcfRecordIterator(
+        file_name,
+        range_tracker,
+        self._file_pattern,
+        0,  # min_bundle_size
+        self._compression_type,
+        True,  # strip_trailing_newlines
+        coders.StrUtf8Coder(),  # coder
+        buffer_size=self._buffer_size,
+        validate=self._validate,
+        skip_header_lines=0)
 
-      def store_header_lines(header):
-        for line in header:
-          header_lines.append(line)
+    # Convert iterator to generator to abstract behavior
+    for line in record_iterator:
+      yield line
+
+  class _VcfRecordIterator(object):
+    """An Iterator for processing a single VCF file."""
+
+    def __init__(self,
+                 file_name,
+                 range_tracker,
+                 file_pattern,
+                 min_bundle_size,
+                 compression_type,
+                 strip_trailing_newlines,
+                 coder,
+                 **kwargs):
+      self._header_lines = []
+      self._last_record = None
+      self._file_name = file_name
 
       text_source = TextSource(
-          self._file_pattern,
-          0,  # min_bundle_size
-          self._compression_type,
-          strip_trailing_newlines=True,
-          coder=coders.StrUtf8Coder(),
-          buffer_size=self._buffer_size,
-          validate=self._validate,
-          skip_header_lines=0,
-          header_matcher_predicate=lambda x: x.startswith('#'),
-          header_processor=store_header_lines)
+          file_pattern,
+          min_bundle_size,
+          compression_type,
+          strip_trailing_newlines,
+          coder,
+          header_processor_fns=(lambda x: x.startswith('#'),
+                                self._store_header_lines),
+          **kwargs)
 
-      records = text_source.read_records(file_name, range_tracker)
+      self._text_lines = text_source.read_records(self._file_name,
+                                                  range_tracker)
+      try:
+        self._vcf_reader = vcf.Reader(fsock=self._create_generator())
+      except SyntaxError as e:
+        raise ValueError('Invalid VCF header %s' % str(e))
+
+    def _store_header_lines(self, header_lines):
+      self._header_lines = header_lines
+
+    def _create_generator(self):
       header_processed = False
-      for line in records:
-        if not header_processed and header_lines:
-          for header in header_lines:
-            yield header
+      for record in self._text_lines:
+        if not header_processed and self._header_lines:
+          for header in self._header_lines:
+            self._last_record = header
+            yield self._last_record
           header_processed = True
         # PyVCF has explicit str() calls when parsing INFO fields, which fails
         # with UTF-8 decoded strings. Encode the line back to UTF-8.
-        yield line.encode('utf-8')
+        self._last_record = record.encode('utf-8')
+        yield self._last_record
 
-    try:
-      vcf_reader = vcf.Reader(fsock=line_generator())
-      while True:
-        record = next(vcf_reader)
-        yield self._convert_to_variant_record(
-            record, vcf_reader.infos, vcf_reader.formats)
-    except SyntaxError as e:
-      raise ValueError('Invalid VCF header: %s' % str(e))
-    except (LookupError, ValueError) as e:
-      # TODO: Add 'strict' and 'loose' modes to not throw an
-      # exception in case of such failures.
-      raise ValueError('Invalid record in VCF file. Error: %s' % str(e))
+    def __iter__(self):
+      return self
 
-  def _convert_to_variant_record(self, record, infos, formats):
-    """Converts the PyVCF record to a :class:`Variant` object.
+    def next(self):
+      try:
+        record = next(self._vcf_reader)
+        return self._convert_to_variant_record(record, self._vcf_reader.infos,
+                                               self._vcf_reader.formats)
+      except (LookupError, ValueError) as e:
+        raise ValueError('Invalid record in VCF file. Error: %s' % str(e))
 
-    Args:
-      record (:class:`~vcf.model._Record`): An object containing info about a
-        variant.
-      infos (dict): The PyVCF dict storing INFO extracted from the VCF header.
-        The key is the info key and the value is :class:`~vcf.parser._Info`.
-      fromats (dict): The PyVCF dict storing FORMAT extracted from the VCF
-        header. The key is the FORMAT key and the value is
-        :class:`~vcf.parser._Format`.
-    Returns:
-      A :class:`Variant` object from the given record.
-    """
-    variant = Variant()
-    variant.reference_name = record.CHROM
-    variant.start = record.start
-    variant.end = record.end
-    variant.reference_bases = (
-        record.REF if record.REF != MISSING_FIELD_VALUE else None)
-    # ALT fields are classes in PyVCF (e.g. Substitution), so need convert them
-    # to their string representations.
-    variant.alternate_bases.extend(
-        [str(r) for r in record.ALT if r] if record.ALT else [])
-    variant.names.extend(record.ID.split(';') if record.ID else [])
-    variant.quality = record.QUAL
-    # PyVCF uses None for '.' and an empty list for 'PASS'.
-    if record.FILTER is not None:
-      variant.filters.extend(record.FILTER if record.FILTER else [PASS_FILTER])
-    for k, v in record.INFO.iteritems():
-      # Special case: END info value specifies end of the record, so adjust
-      # variant.end and do not include it as part of variant.info.
-      if k == END_INFO_KEY:
-        variant.end = v
-        continue
-      field_count = None
-      if k in infos:
-        field_count = self._get_field_count_as_string(infos[k].num)
-      variant.info[k] = VariantInfo(data=v, field_count=field_count)
-    for sample in record.samples:
-      call = VariantCall()
-      call.name = sample.sample
-      for allele in sample.gt_alleles or [MISSING_GENOTYPE_VALUE]:
-        if allele is None:
-          allele = MISSING_GENOTYPE_VALUE
-        call.genotype.append(int(allele))
-      phaseset_from_format = (getattr(sample.data, PHASESET_FORMAT_KEY)
-                              if PHASESET_FORMAT_KEY in sample.data._fields
-                              else None)
-      # Note: Call is considered phased if it contains the 'PS' key regardless
-      # of whether it uses '|'.
-      if phaseset_from_format or sample.phased:
-        call.phaseset = (str(phaseset_from_format) if phaseset_from_format
-                         else DEFAULT_PHASESET_VALUE)
-      for field in sample.data._fields:
-        # Genotype and phaseset (if present) are already included.
-        if field in (GENOTYPE_FORMAT_KEY, PHASESET_FORMAT_KEY):
+    def _convert_to_variant_record(self, record, infos, formats):
+      """Converts the PyVCF record to a :class:`Variant` object.
+
+      Args:
+        record (:class:`~vcf.model._Record`): An object containing info about a
+          variant.
+        infos (dict): The PyVCF dict storing INFO extracted from the VCF header.
+          The key is the info key and the value is :class:`~vcf.parser._Info`.
+        formats (dict): The PyVCF dict storing FORMAT extracted from the VCF
+          header. The key is the FORMAT key and the value is
+          :class:`~vcf.parser._Format`.
+      Returns:
+        A :class:`Variant` object from the given record.
+      """
+      variant = Variant()
+      variant.reference_name = record.CHROM
+      variant.start = record.start
+      variant.end = record.end
+      variant.reference_bases = (
+          record.REF if record.REF != MISSING_FIELD_VALUE else None)
+      # ALT fields are classes in PyVCF (e.g. Substitution), so need convert
+      # them to their string representations.
+      variant.alternate_bases.extend(
+          [str(r) for r in record.ALT if r] if record.ALT else [])
+      variant.names.extend(record.ID.split(';') if record.ID else [])
+      variant.quality = record.QUAL
+      # PyVCF uses None for '.' and an empty list for 'PASS'.
+      if record.FILTER is not None:
+        variant.filters.extend(
+            record.FILTER if record.FILTER else [PASS_FILTER])
+      for k, v in record.INFO.iteritems():
+        # Special case: END info value specifies end of the record, so adjust
+        # variant.end and do not include it as part of variant.info.
+        if k == END_INFO_KEY:
+          variant.end = v
           continue
-        data = getattr(sample.data, field)
-        # Convert single values to a list for cases where the number of fields
-        # is unknown. This is to ensure consistent types across all records.
-        # Note: this is already done for INFO fields in PyVCF.
-        if (field in formats and formats[field].num is None and
-            isinstance(data, (int, float, long, basestring, bool))):
-          data = [data]
-        call.info[field] = data
-      variant.calls.append(call)
-    return variant
+        field_count = None
+        if k in infos:
+          field_count = self._get_field_count_as_string(infos[k].num)
+        variant.info[k] = VariantInfo(data=v, field_count=field_count)
+      for sample in record.samples:
+        call = VariantCall()
+        call.name = sample.sample
+        for allele in sample.gt_alleles or [MISSING_GENOTYPE_VALUE]:
+          if allele is None:
+            allele = MISSING_GENOTYPE_VALUE
+          call.genotype.append(int(allele))
+        phaseset_from_format = (getattr(sample.data, PHASESET_FORMAT_KEY)
+                                if PHASESET_FORMAT_KEY in sample.data._fields
+                                else None)
+        # Note: Call is considered phased if it contains the 'PS' key regardless
+        # of whether it uses '|'.
+        if phaseset_from_format or sample.phased:
+          call.phaseset = (str(phaseset_from_format) if phaseset_from_format
+                           else DEFAULT_PHASESET_VALUE)
+        for field in sample.data._fields:
+          # Genotype and phaseset (if present) are already included.
+          if field in (GENOTYPE_FORMAT_KEY, PHASESET_FORMAT_KEY):
+            continue
+          data = getattr(sample.data, field)
+          # Convert single values to a list for cases where the number of fields
+          # is unknown. This is to ensure consistent types across all records.
+          # Note: this is already done for INFO fields in PyVCF.
+          if (field in formats and
+              formats[field].num is None and
+              isinstance(data, (int, float, long, basestring, bool))):
+            data = [data]
+          call.info[field] = data
+        variant.calls.append(call)
+      return variant
 
-  def _get_field_count_as_string(self, field_count):
-    """Returns the string representation of field_count from PyVCF.
+    def _get_field_count_as_string(self, field_count):
+      """Returns the string representation of field_count from PyVCF.
 
-    PyVCF converts field counts to an integer with some predefined constants
-    as specified in the vcf.parser.field_counts dict (e.g. 'A' is -1). This
-    method converts them back to their string representation to avoid having
-    direct dependency on the arbitrary PyVCF constants.
-    Args:
-      field_count (int): An integer representing the number of fields in INFO
-        as specified by PyVCF.
-    Returns:
-      A string representation of field_count (e.g. '-1' becomes 'A').
-    Raises:
-      ValueError: if the field_count is not valid.
-    """
-    if field_count is None:
-      return None
-    elif field_count >= 0:
-      return str(field_count)
-    field_count_to_string = {v: k for k, v in vcf.parser.field_counts.items()}
-    if field_count in field_count_to_string:
-      return field_count_to_string[field_count]
-    else:
-      raise ValueError('Invalid value for field_count: %d' % field_count)
+      PyVCF converts field counts to an integer with some predefined constants
+      as specified in the vcf.parser.field_counts dict (e.g. 'A' is -1). This
+      method converts them back to their string representation to avoid having
+      direct dependency on the arbitrary PyVCF constants.
+      Args:
+        field_count (int): An integer representing the number of fields in INFO
+          as specified by PyVCF.
+      Returns:
+        A string representation of field_count (e.g. '-1' becomes 'A').
+      Raises:
+        ValueError: if the field_count is not valid.
+      """
+      if field_count is None:
+        return None
+      elif field_count >= 0:
+        return str(field_count)
+      field_count_to_string = {v: k for k, v in vcf.parser.field_counts.items()}
+      if field_count in field_count_to_string:
+        return field_count_to_string[field_count]
+      else:
+        raise ValueError('Invalid value for field_count: %d' % field_count)
 
 
 class ReadFromVcf(PTransform):
@@ -360,11 +413,6 @@ class ReadFromVcf(PTransform):
 
     Args:
       file_pattern (str): The file path to read from as a local file path.
-        The path can contain glob characters (``*``, ``?``, and ``[...]`` sets).
-      min_bundle_size (int): Minimum size of bundles that should be generated
-        when splitting this source into bundles. See
-        :class:`~apache_beam.io.filebasedsource.FileBasedSource` for more
-        details.
       compression_type (str): Used to handle compressed input files.
         Typical value is :attr:`CompressionTypes.AUTO
         <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
