@@ -26,6 +26,7 @@ AsSingleton, AsIter, AsList and AsDict in apache_beam.pvalue.
 
 from __future__ import absolute_import
 
+from apache_beam import pvalue
 from apache_beam.transforms import window
 
 
@@ -48,19 +49,25 @@ def default_window_mapping_fn(target_window_fn):
 class SideInputMap(object):
   """Represents a mapping of windows to side input values."""
 
-  def __init__(self, view_class, view_options, iterable):
-    self._window_mapping_fn = view_options.get(
-        'window_mapping_fn', _global_window_mapping_fn)
-    self._view_class = view_class
-    self._view_options = view_options
+  def __init__(self, side_input_data, old_view_options, iterable):
+    if isinstance(side_input_data, pvalue.SideInputData): # Remove?
+      self._view_fn = side_input_data.view_fn
+      self._window_mapping_fn = side_input_data.window_mapping_fn
+    else:
+      # Support older sdks/runners.
+      view_class = side_input_data
+      self._window_mapping_fn = old_view_options.get(
+          'window_mapping_fn', _global_window_mapping_fn)
+      self._view_fn = lambda iterable: view_class._from_runtime_iterable(
+          iterable, old_view_options)
     self._iterable = iterable
     self._cache = {}
 
   def __getitem__(self, window):
     if window not in self._cache:
       target_window = self._window_mapping_fn(window)
-      self._cache[window] = self._view_class._from_runtime_iterable(
-          _FilteringIterable(self._iterable, target_window), self._view_options)
+      self._cache[window] = self._view_fn(
+          _FilteringIterable(self._iterable, target_window))
     return self._cache[window]
 
   def is_globally_windowed(self):

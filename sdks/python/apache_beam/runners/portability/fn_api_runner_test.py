@@ -24,11 +24,30 @@ from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability import maptask_executor_runner_test
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.transforms import window
 
 try:
   from apache_beam.runners.worker.statesampler import DEFAULT_SAMPLING_PERIOD_MS
 except ImportError:
   DEFAULT_SAMPLING_PERIOD_MS = 0
+
+if True:
+    import threading
+    import time
+    def dump_threads():
+      while True:
+        print
+        for thread in threading.enumerate():
+          if not thread.daemon:
+            print('...',
+                  thread.name,
+                  thread.__dict__['_Thread__target'],
+                  getattr(thread.__dict__['_Thread__target'], 'func_code', None))
+        time.sleep(5)
+    t = threading.Thread(name='dump_threads', target=dump_threads)
+    t.daemon = True
+    t.start()
+
 
 
 class FnApiRunnerTest(
@@ -46,9 +65,50 @@ class FnApiRunnerTest(
     # TODO(BEAM-1348): Enable once Partial GBK is supported in fn API.
     pass
 
+  def test_much_data_channel(self):
+    class Permute(beam.PTransform):
+      def expand(self, pcoll):
+        import pprint
+        return (
+            pcoll
+            | beam.Map(lambda (k, v), _: (v, k), beam.pvalue.AsList(pcoll))
+            | beam.GroupByKey()
+            | beam.FlatMap(lambda (k, vs): [(k, v) for v in vs])
+            #| beam.Map(lambda x: pprint.pprint(x) or x)
+            )
+    for _ in range(5):
+      with self.create_pipeline() as p:
+        pcoll = p | beam.Create(enumerate(range(3) + range(5)))
+        for ix in range(3):
+          pcoll = pcoll | "Permute%s" % ix >> Permute()
+
+
   def test_pardo_side_inputs(self):
-    # TODO(BEAM-1348): Enable once side inputs are supported in fn API.
-    pass
+
+
+    def cross_product(elem, sides):
+      print elem, sides
+      for side in sides:
+        yield elem, side
+    with self.create_pipeline() as p:
+#       main = p | 'main' >> beam.Create(['a', 'b', 'c'])
+#       side = p | 'side' >> beam.Create(['x', 'y'])
+#       main | beam.FlatMap(cross_product, beam.pvalue.AsList(side))
+
+#       assert_that(main | beam.FlatMap(cross_product, AsList(side)),
+#                   equal_to([('a', 'x'), ('b', 'x'), ('c', 'x'),
+#                             ('a', 'y'), ('b', 'y'), ('c', 'y')]))
+
+#    with self.create_pipeline() as p:
+#      pcoll = p | beam.Create([1, 2, 3, 11, 15, 20]) | beam.Map(
+      pcoll = p | beam.Create(range(30)) | beam.Map(
+          lambda t: window.TimestampedValue(t, t))
+      main = pcoll | 'WindowMain' >> beam.WindowInto(window.FixedWindows(7))
+      side = pcoll | 'WindowSide' >> beam.WindowInto(window.FixedWindows(10))
+      res = main | "USE SIDES" >> beam.Map(lambda x, s: (x, s), beam.pvalue.AsList(side))
+      import pprint
+      res | beam.Map(pprint.pprint)
+
 
   def test_pardo_unfusable_side_inputs(self):
     # TODO(BEAM-1348): Enable once side inputs are supported in fn API.
