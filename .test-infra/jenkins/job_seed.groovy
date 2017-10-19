@@ -16,30 +16,91 @@
  * limitations under the License.
  */
 
-import common_job_properties
-
 // Defines the seed job, which creates or updates all other Jenkins projects.
 job('beam_SeedJob') {
   description('Automatically configures all Apache Beam Jenkins projects based' +
               ' on Jenkins DSL groovy files checked into the code repository.')
 
-  previousNames('beam_SeedJob_Main')
+  properties {
+    githubProjectUrl('https://github.com/apache/beam/')
+  }
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  // Restrict to only run on Jenkins executors labeled 'beam'
+  label('beam')
 
-  // This is a post-commit job that runs once per day, not for every push.
-  common_job_properties.setPostCommit(
-      delegate,
-      '0 6 * * *',
-      false,
-      'dev@beam.apache.org')
+  logRotator {
+    daysToKeep(14)
+  }
 
-  // Allows triggering this build against pull requests.
-  common_job_properties.enablePhraseTriggeringFromPullRequest(
-    delegate,
-    'Seed Job',
-    'Run Seed Job')
+  scm {
+    git {
+      remote {
+        github('apache/beam')
+
+        // ${ghprBuildId} is not interpolated by groovy, but passed through to Jenkins where it
+        // refers to the environment variable
+        refspec(['+refs/head/*:refs/remotes/origin/*',
+                 '+refs/pull/${ghprPullId}/*:refs/remotes/origin/pr/${ghprPullId}/*']
+                .join(' '))
+
+        // The variable ${sha1} is not interpolated by groovy, but a parameter of the Jenkins job
+        branch('${sha1}')
+
+        extensions {
+          cleanAfterCheckout()
+        }
+      }
+    }
+  }
+
+  parameters {
+    // Setup for running this job from a pull request
+    stringParam(
+        'sha1',
+        'master',
+        'Commit id or refname (eg: origin/pr/4001/head) you want to build against.')
+  }
+
+  wrappers {
+    timeout {
+      absolute(5)
+      abortBuild()
+    }
+  }
+
+  triggers {
+    // Run once per day
+    cron('0 */6 * * *')
+
+    githubPullRequest {
+      admins(['asfbot'])
+      useGitHubHooks()
+      orgWhitelist(['apache'])
+      allowMembersOfWhitelistedOrgsAsAdmin()
+      permitAll()
+
+      // Also run when manually kicked on a pull request
+      triggerPhrase('Run Seed Job')
+      onlyTriggerPhrase()
+
+      extensions {
+        commitStatus {
+          context("Jenkins: Seed Job")
+        }
+
+        buildStatus {
+          completedStatus('SUCCESS', '--none--')
+          completedStatus('FAILURE', '--none--')
+          completedStatus('ERROR', '--none--')
+        }
+      }
+    }
+  }
+
+  // If anything goes wrong, mail the main dev list, because it is a big deal
+  publishers {
+    mailer('dev@beam.apache.org', false, true)
+  }
 
   steps {
     dsl {
