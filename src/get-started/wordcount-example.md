@@ -50,44 +50,8 @@ input and output sources and show other best practices.
 
 **To run this example in Java:**
 
-{:.runner-direct}
 ```
 $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount
-```
-
-{:.runner-apex}
-```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=ApexRunner" -Papex-runner
-```
-
-{:.runner-flink-local}
-```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
-     -Dexec.args="--runner=FlinkRunner --inputFile=pom.xml --output=counts" -Pflink-runner
-```
-
-{:.runner-flink-cluster}
-```
-$ mvn package exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
-     -Dexec.args="--runner=FlinkRunner --flinkMaster=<flink master> --filesToStage=target/word-count-beam-bundled-0.1.jar \
-                  --inputFile=/path/to/quickstart/pom.xml --output=/tmp/counts" -Pflink-runner
-
-You can monitor the running job by visiting the Flink dashboard at http://<flink master>:8081
-```
-
-{:.runner-spark}
-```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
-     -Dexec.args="--runner=SparkRunner --inputFile=pom.xml --output=counts" -Pspark-runner
-```
-
-{:.runner-dataflow}
-```
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.MinimalWordCount \
-   -Dexec.args="--runner=DataflowRunner --gcpTempLocation=gs://<your-gcs-bucket>/tmp \
-                --inputFile=gs://apache-beam-samples/shakespeare/* --output=gs://<your-gcs-bucket>/counts" \
-     -Pdataflow-runner
 ```
 
 To view the full code in Java, see
