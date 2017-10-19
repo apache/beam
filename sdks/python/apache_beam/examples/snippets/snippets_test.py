@@ -694,22 +694,28 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual([str(s) for s in expected], self.get_output(result_path))
 
   def test_model_co_group_by_key_tuple(self):
-    # [START model_group_by_key_cogroupbykey_tuple_inputs]
-    email_list = [
-        ('amy', 'amy@example.com'),
-        ('carl', 'carl@example.com'),
-        ('julia', 'julia@example.com'),
-        ('carl', 'carl@email.com'),
-    ]
-    phone_list = [
-        ('amy', '111-222-3333'),
-        ('james', '222-333-4444'),
-        ('amy', '333-444-5555'),
-        ('carl', '444-555-6666'),
-    ]
-    # [END model_group_by_key_cogroupbykey_tuple_inputs]
-    result_path = self.create_temp_file()
-    snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
+    with TestPipeline() as p:
+      # [START model_group_by_key_cogroupbykey_tuple_inputs]
+      emails_list = [
+          ('amy', 'amy@example.com'),
+          ('carl', 'carl@example.com'),
+          ('julia', 'julia@example.com'),
+          ('carl', 'carl@email.com'),
+      ]
+      phones_list = [
+          ('amy', '111-222-3333'),
+          ('james', '222-333-4444'),
+          ('amy', '333-444-5555'),
+          ('carl', '444-555-6666'),
+      ]
+
+      emails = p | 'CreateEmails' >> beam.Create(emails_list)
+      phones = p | 'CreatePhones' >> beam.Create(phones_list)
+      # [END model_group_by_key_cogroupbykey_tuple_inputs]
+
+      result_path = self.create_temp_file()
+      snippets.model_co_group_by_key_tuple(emails, phones, result_path)
+
     # [START model_group_by_key_cogroupbykey_tuple_outputs]
     results = [
         ('amy', {
