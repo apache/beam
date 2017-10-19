@@ -516,6 +516,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     if (containsUnboundedPCollection(pipeline)) {
       options.setStreaming(true);
     }
+
+    // Snapshot the proto pipeline before mutating it
+    byte[] serializedProtoPipeline = PipelineTranslation.toProto(pipeline).toByteArray();
+
     replaceTransforms(pipeline);
 
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
@@ -523,7 +527,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
     List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
-    byte[] serializedProtoPipeline = PipelineTranslation.toProto(pipeline).toByteArray();
     LOG.info("Staging pipeline description to {}", options.getStagingLocation());
     DataflowPackage stagedPipeline =
         options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
