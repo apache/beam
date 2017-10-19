@@ -23,8 +23,8 @@ import io.grpc.stub.StreamObserver;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -33,7 +33,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public abstract class StreamObserverFactory {
   public static StreamObserverFactory fromOptions(PipelineOptions options) {
-    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_buffered_stream")) {
       int bufferSize = Buffered.DEFAULT_BUFFER_SIZE;
       for (String experiment : experiments) {

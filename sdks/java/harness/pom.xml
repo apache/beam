@@ -173,12 +173,6 @@
     </dependency>
 
     <dependency>
-      <!-- TODO: BEAM-2566 remove this dependency -->
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
     </dependency>
