@@ -156,10 +156,14 @@ class UtilTest(unittest.TestCase):
         'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
         '.get_distribution',
         mock.MagicMock(return_value=distribution)):
-      env = apiclient.Environment([], pipeline_options, '2.2.0')
+      env = apiclient.Environment([], #packages
+                                  pipeline_options,
+                                  '2.0.0') #any environment version
       self.assertIn(override, env.proto.experiments)
 
-  def test_harness_override_absent_in_unreleased_sdk(self):
+  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+              'beam_version.__version__', '2.2.0')
+  def test_harness_override_present_in_beam_releases(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
     override = ''.join(
@@ -170,8 +174,26 @@ class UtilTest(unittest.TestCase):
         'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
         '.get_distribution',
         mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
-      env = apiclient.Environment([], pipeline_options, '2.2.0')
-      self.assertNotIn(override, env.proto.experiments)
+      env = apiclient.Environment([], #packages
+                                  pipeline_options,
+                                  '2.0.0') #any environment version
+      self.assertIn(override, env.proto.experiments)
+
+  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+              'beam_version.__version__', '2.2.0-dev')
+  def test_harness_override_absent_in_unreleased_sdk(self):
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    with mock.patch(
+        'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
+        '.get_distribution',
+        mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
+      env = apiclient.Environment([], #packages
+                                  pipeline_options,
+                                  '2.0.0') #any environment version
+      if env.proto.experiments:
+        for experiment in env.proto.experiments:
+          self.assertNotIn('runner_harness_container_image=', experiment)
 
 
 if __name__ == '__main__':
