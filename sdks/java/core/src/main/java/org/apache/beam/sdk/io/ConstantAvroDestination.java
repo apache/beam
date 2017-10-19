@@ -46,6 +46,7 @@ class ConstantAvroDestination<UserT, OutputT>
   // This should be a multiple of 4 to not get a partial encoded byte.
   private static final int METADATA_BYTES_MAX_LENGTH = 40;
   private final FilenamePolicy filenamePolicy;
+  @Nullable
   private final Supplier<Schema> schema;
   private final Map<String, Object> metadata;
   private final SerializableAvroCodecFactory codec;
@@ -77,7 +78,12 @@ class ConstantAvroDestination<UserT, OutputT>
       CodecFactory codec,
       SerializableFunction<UserT, OutputT> formatFunction) {
     this.filenamePolicy = filenamePolicy;
-    this.schema = Suppliers.compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
+    if (schema != null) {
+      this.schema = Suppliers
+          .compose(new SchemaFunction(), Suppliers.ofInstance(schema.toString()));
+    } else {
+      this.schema = null;
+    }
     this.metadata = metadata;
     this.codec = new SerializableAvroCodecFactory(codec);
     this.formatFunction = formatFunction;
@@ -105,7 +111,7 @@ class ConstantAvroDestination<UserT, OutputT>
 
   @Override
   public Schema getSchema(Void destination) {
-    return schema.get();
+    return schema != null ? schema.get() : null;
   }
 
   @Override
@@ -121,7 +127,9 @@ class ConstantAvroDestination<UserT, OutputT>
   @Override
   public void populateDisplayData(DisplayData.Builder builder) {
     filenamePolicy.populateDisplayData(builder);
-    builder.add(DisplayData.item("schema", schema.get().toString()).withLabel("Record Schema"));
+    if (schema != null) {
+      builder.add(DisplayData.item("schema", schema.get().toString()).withLabel("Record Schema"));
+    }
     builder.addIfNotDefault(
         DisplayData.item("codec", codec.getCodec().toString()).withLabel("Avro Compression Codec"),
         AvroIO.TypedWrite.DEFAULT_SERIALIZABLE_CODEC.toString());

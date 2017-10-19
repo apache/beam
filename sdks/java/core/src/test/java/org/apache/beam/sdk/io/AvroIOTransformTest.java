@@ -33,6 +33,7 @@ import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
+import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.io.DatumWriter;
@@ -102,27 +103,27 @@ public class AvroIOTransformTest {
     return new AvroGeneratedUser[] { user1, user2, user3 };
   }
 
+  private static GenericRecord[] generateAvroGenericRecords() {
+    final GenericRecord user1 = new GenericData.Record(SCHEMA);
+    user1.put("name", "Bob");
+    user1.put("favorite_number", 256);
+
+    final GenericRecord user2 = new GenericData.Record(SCHEMA);
+    user2.put("name", "Alice");
+    user2.put("favorite_number", 128);
+
+    final GenericRecord user3 = new GenericData.Record(SCHEMA);
+    user3.put("name", "Ted");
+    user3.put("favorite_color", "white");
+
+    return new GenericRecord[] { user1, user2, user3 };
+  }
+
   /**
    * Tests for AvroIO Read transforms, using classes generated from {@code user.avsc}.
    */
   @RunWith(Parameterized.class)
   public static class AvroIOReadTransformTest extends AvroIOTransformTest {
-
-    private static GenericRecord[] generateAvroGenericRecords() {
-      final GenericRecord user1 = new GenericData.Record(SCHEMA);
-      user1.put("name", "Bob");
-      user1.put("favorite_number", 256);
-
-      final GenericRecord user2 = new GenericData.Record(SCHEMA);
-      user2.put("name", "Alice");
-      user2.put("favorite_number", 128);
-
-      final GenericRecord user3 = new GenericData.Record(SCHEMA);
-      user3.put("name", "Ted");
-      user3.put("favorite_color", "white");
-
-      return new GenericRecord[] { user1, user2, user3 };
-    }
 
     private void generateAvroFile(final AvroGeneratedUser[] elements,
                                   final File avroFile) throws IOException {
@@ -247,41 +248,72 @@ public class AvroIOTransformTest {
 
     private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
 
-    private List<AvroGeneratedUser> readAvroFile(final File avroFile) throws IOException {
-      final DatumReader<AvroGeneratedUser> userDatumReader =
-          new SpecificDatumReader<>(AvroGeneratedUser.class);
-      final List<AvroGeneratedUser> users = new ArrayList<>();
-      try (DataFileReader<AvroGeneratedUser> dataFileReader =
-          new DataFileReader<>(avroFile, userDatumReader)) {
-        while (dataFileReader.hasNext()) {
-          users.add(dataFileReader.next());
+    private <T> List<T> readAvroFile(final File avroFile, boolean generic) throws IOException {
+      if (!generic) {
+        final DatumReader<AvroGeneratedUser> datumReader = new SpecificDatumReader<>(
+            AvroGeneratedUser.class);
+        final List<AvroGeneratedUser> output = new ArrayList<>();
+        try (DataFileReader<AvroGeneratedUser> dataFileReader = new DataFileReader<>(avroFile,
+            datumReader)) {
+          while (dataFileReader.hasNext()) {
+            output.add(dataFileReader.next());
+          }
         }
+        return (List<T>) output;
+      } else {
+        final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA);
+        final List<GenericRecord> genericRecords = new ArrayList<>();
+        try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(avroFile,
+            datumReader)) {
+          while (dataFileReader.hasNext()) {
+            genericRecords.add(dataFileReader.next());
+          }
+        }
+        return (List<T>) genericRecords;
       }
-      return users;
     }
 
     @Parameterized.Parameters(name = "{0}_with_{1}")
     public static Iterable<Object[]> data() throws IOException {
 
       final String generatedClass = "GeneratedClass";
-      final String fromSchema = "SchemaObject";
-      final String fromSchemaString = "SchemaString";
+      final String genericRecordsfromSchema = "GenericRecordsFromSchemaObject";
+      final String genericRecordsfromSchemaString = "GenericRecordsFromSchemaString";
+      final String generatedClassWithoutSchema = "GeneratedClassWithoutSchema";
+      final String genericRecordsWithoutSchema = "GenericRecordsWithoutSchema";
 
       return
           ImmutableList.<Object[]>builder()
               .add(
                   new Object[] {
                       AvroIO.write(AvroGeneratedUser.class),
-                      generatedClass
+                      generatedClass,
+                      AvroIOTransformTest.generateAvroObjects(),
+                      false
                   },
                   new Object[] {
                       AvroIO.writeGenericRecords(SCHEMA),
-                      fromSchema
+                      genericRecordsfromSchema,
+                      AvroIOTransformTest.generateAvroGenericRecords(),
+                      true
                   },
-
                   new Object[] {
                       AvroIO.writeGenericRecords(SCHEMA_STRING),
-                      fromSchemaString
+                      genericRecordsfromSchemaString,
+                      AvroIOTransformTest.generateAvroGenericRecords(),
+                      true
+                  },
+                  new Object[] {
+                      AvroIO.write(),
+                      generatedClassWithoutSchema,
+                      AvroIOTransformTest.generateAvroObjects(),
+                      false
+                  },
+                  new Object[] {
+                      AvroIO.writeGenericRecords(),
+                      genericRecordsWithoutSchema,
+                      AvroIOTransformTest.generateAvroGenericRecords(),
+                      true
                   })
               .build();
     }
@@ -293,29 +325,33 @@ public class AvroIOTransformTest {
     @Parameterized.Parameter(1)
     public String testAlias;
 
-    private <T> void runTestWrite(final AvroIO.Write<T> writeBuilder)
-        throws Exception {
+    @Parameterized.Parameter(2)
+    public Object[] inputData;
 
+    @Parameterized.Parameter(3)
+    public Boolean generic;
+
+    private <T> void runTestWrite(final AvroIO.Write<T> writeBuilder, T[] inputData,
+        boolean generic) throws Exception {
       final File avroFile = tmpFolder.newFile("file.avro");
-      final AvroGeneratedUser[] users = generateAvroObjects();
       final AvroIO.Write<T> write = writeBuilder.to(avroFile.getPath());
 
       @SuppressWarnings("unchecked") final
       PCollection<T> input =
-          pipeline.apply(Create.of(Arrays.asList((T[]) users))
+          pipeline.apply(Create.of(Arrays.asList(inputData))
                                .withCoder((Coder<T>) AvroCoder.of(AvroGeneratedUser.class)));
       input.apply(write.withoutSharding());
 
       pipeline.run();
 
       assertEquals(WRITE_TRANSFORM_NAME, write.getName());
-      assertThat(readAvroFile(avroFile), containsInAnyOrder(users));
+      assertThat(readAvroFile(avroFile, generic), containsInAnyOrder((Object[]) inputData));
     }
 
     @Test
     @Category(NeedsRunner.class)
     public void testWrite() throws Exception {
-      runTestWrite(writeTransform);
+      runTestWrite(writeTransform, inputData, generic);
     }
 
     // TODO: for Write only, test withSuffix, withNumShards,
