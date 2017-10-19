@@ -15,26 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.options;
 
-import com.google.auto.service.AutoService;
-import com.google.common.collect.ImmutableList;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * A {@link PipelineOptionsRegistrar} containing the {@link PipelineOptions} subclasses available by
- * default.
+ * Apache Beam provides a number of experimental features that can
+ * be enabled with this flag. If executing against a managed service, please contact the
+ * service owners before enabling any experiments.
  */
-@AutoService(PipelineOptionsRegistrar.class)
-public class DefaultPipelineOptionsRegistrar implements PipelineOptionsRegistrar {
-  @Override
-  public Iterable<Class<? extends PipelineOptions>> getPipelineOptions() {
-    return ImmutableList.<Class<? extends PipelineOptions>>builder()
-        .add(PipelineOptions.class)
-        .add(ApplicationNameOptions.class)
-        .add(StreamingOptions.class)
-        .add(ExperimentalOptions.class)
-        .add(SdkHarnessOptions.class)
-        .build();
-  }
+@Experimental
+@Hidden
+public interface ExperimentalOptions extends PipelineOptions {
+  @Description("[Experimental] Apache Beam provides a number of experimental features that can "
+      + "be enabled with this flag. If executing against a managed service, please contact the "
+      + "service owners before enabling any experiments.")
+  @Nullable
+  List<String> getExperiments();
+  void setExperiments(@Nullable List<String> value);
 }
