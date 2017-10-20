@@ -19,6 +19,7 @@ package org.apache.beam.sdk.coders;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -44,6 +45,7 @@ public class VoidCoder extends AtomicCoder<Void> {
   }
 
   @Override
+  @Nullable
   public Void decode(InputStream inStream) {
     // Nothing to read!
     return null;

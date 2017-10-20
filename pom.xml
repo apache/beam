@@ -137,6 +137,7 @@
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.8.9</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
+    <findbugs.annotations.version>1.3.9-1</findbugs.annotations.version>
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
@@ -1034,6 +1035,12 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.stephenc.findbugs</groupId>
+        <artifactId>findbugs-annotations</artifactId>
+        <version>${findbugs.annotations.version}</version>
       </dependency>
 
       <dependency>

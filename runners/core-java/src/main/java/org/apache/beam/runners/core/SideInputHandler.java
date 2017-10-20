@@ -174,7 +174,7 @@ public class SideInputHandler implements ReadyCheckingSideInputReader {
     ValueState<Iterable<WindowedValue<?>>> state =
         stateInternals.state(StateNamespaces.window(windowCoder, window), stateTag);
 
-    Iterable<WindowedValue<?>> elements = state.read();
+    @Nullable Iterable<WindowedValue<?>> elements = state.read();
 
     if (elements == null) {
       elements = Collections.emptyList();

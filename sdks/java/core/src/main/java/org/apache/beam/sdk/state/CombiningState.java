@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.state;
 
+import javax.annotation.Nonnull;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
@@ -34,6 +35,10 @@ import org.apache.beam.sdk.transforms.Combine.CombineFn;
  */
 @Experimental(Kind.STATE)
 public interface CombiningState<InputT, AccumT, OutputT> extends GroupingState<InputT, OutputT> {
+
+  @Override
+  @Nonnull
+  OutputT read();
 
   /**
    * Read the merged accumulator for this state cell. It is implied that reading the state involves
