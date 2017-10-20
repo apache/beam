@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -46,12 +45,7 @@ public abstract class StructuredCoder<T> extends Coder<T> {
    * <p>The default components will be equal to the value returned by {@link #getCoderArguments()}.
    */
   public List<? extends Coder<?>> getComponents() {
-    List<? extends Coder<?>> coderArguments = getCoderArguments();
-    if (coderArguments == null) {
-      return Collections.emptyList();
-    } else {
-      return coderArguments;
-    }
+    return getCoderArguments();
   }
 
   /**
