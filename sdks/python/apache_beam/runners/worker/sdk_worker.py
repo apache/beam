@@ -162,7 +162,6 @@ class GrpcStateHandler(object):
     self._lock = threading.Lock()
     self._state_stub = state_stub
     self._requests = queue.Queue()
-    self._responses = queue.Queue()
     self._responses_by_id = {}
     self._last_id = 0
     self._exc_info = None
@@ -181,7 +180,7 @@ class GrpcStateHandler(object):
     def pull_responses():
       try:
         for response in responses:
-          self._responses.put(response)
+          self._responses_by_id[response.id].set(response)
           if self._done:
             break
       except:  # pylint: disable=bare-except
@@ -221,18 +220,36 @@ class GrpcStateHandler(object):
 
   def _blocking_request(self, request):
     request.id = self._next_id()
+    self._responses_by_id[request.id] = future = _Future()
     self._requests.put(request)
-    while request.id not in self._responses_by_id:
-      with self._lock:
-        if request.id not in self._responses_by_id:
-          response = self._responses.get(timeout=2)
-          self._responses_by_id[response.id] = response
-          if self._exc_info:
-            raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
-    response = self._responses_by_id[response.id]
-    del self._responses_by_id[response.id]
-    return response
+    while not future.wait(timeout=1):
+      if self._exc_info:
+        raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
+      elif self._done:
+        raise RuntimeError()
+    del self._responses_by_id[request.id]
+    return future.get()
 
   def _next_id(self):
     self._last_id += 1
     return str(self._last_id)
+
+
+class _Future(object):
+  """A simple future object to implement blocking requests.
+  """
+  def __init__(self):
+    self._event = threading.Event()
+
+  def wait(self, timeout=None):
+    return self._event.wait(timeout)
+
+  def get(self, timeout=None):
+    if self.wait(timeout):
+      return self._value
+    else:
+      raise LookupError()
+
+  def set(self, value):
+    self._value = value
+    self._event.set()

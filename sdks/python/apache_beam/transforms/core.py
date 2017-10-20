@@ -876,6 +876,8 @@ class ParDo(PTransformWithSideInputs):
     elif windowing:
       raise NotImplementedError('explicit windowing')
     result = ParDo(fn, *args, **kwargs)
+    # This is an ordered list stored as a dict (see the comments in
+    # to_runner_api_parameter above).
     indexed_side_inputs = [
         (int(ix[4:]), pvalue.AsSideInput.from_runner_api(si, context))
         for ix, si in pardo_payload.side_inputs.items()]

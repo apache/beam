@@ -83,11 +83,6 @@ class FnApiRunnerTest(
               (9, range(7, 10))]),
           label='windowed')
 
-
-#   def test_pardo_unfusable_side_inputs(self):
-#     # TODO(BEAM-1348): Enable once side inputs are supported in fn API.
-#     pass
-
   def test_assert_that(self):
     # TODO: figure out a way for fn_api_runner to parse and raise the
     # underlying exception.
