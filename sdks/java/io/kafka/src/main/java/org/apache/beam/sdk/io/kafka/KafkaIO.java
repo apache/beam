@@ -1604,10 +1604,10 @@ public class KafkaIO {
     @SuppressWarnings({ "unchecked" })
     public PTransform<PCollection<V>, PDone> values() {
       return new KafkaValueWrite<>(
-              toBuilder()
-              .setKeySerializer((Class<? extends Serializer<K>>) StringSerializer.class)
-              .build()
-          );
+          toBuilder()
+          .setKeySerializer((Class<? extends Serializer<K>>) StringSerializer.class)
+          .build()
+      );
     }
 
     @Override
