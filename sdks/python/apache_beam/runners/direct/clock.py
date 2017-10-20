@@ -15,36 +15,35 @@
 # limitations under the License.
 #
 
-"""Clock implementations for real time processing and testing."""
+"""Clock implementations for real time processing and testing.
 
+For internal use only. No backwards compatibility guarantees.
+"""
 from __future__ import absolute_import
 
 import time
 
 
 class Clock(object):
-  """For internal use only; no backwards-compatibility guarantees."""
+  def current_time(self):
+    raise NotImplementedError()
 
-  def time(self):
-    """Returns the number of milliseconds since epoch."""
-    return int(time.time() * 1000)
+  def advance_time(self):
+    raise NotImplementedError()
 
 
-class MockClock(Clock):
-  """For internal use only; no backwards-compatibility guarantees.
+class RealClock(object):
+  def current_time(self):
+    return time.time()
 
-  Mock clock implementation for testing."""
 
-  def __init__(self, now_in_ms):
-    self._now_in_ms = now_in_ms
+class TestClock(object):
+  """Clock used for Testing"""
+  def __init__(self, current=0):
+    self._current = current
 
-  def time(self):
-    return self._now_in_ms
+  def current_time(self):
+    return self._current
 
-  def set_time(self, value_in_ms):
-    assert value_in_ms >= self._now_in_ms
-    self._now_in_ms = value_in_ms
-
-  def advance(self, duration_in_ms):
-    assert duration_in_ms >= 0
-    self._now_in_ms += duration_in_ms
+  def advance_time(self, advance_by):
+    self._current += advance_by
