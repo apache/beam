@@ -185,6 +185,7 @@ class StateBackedSideInputMap(object):
               window=self._target_window_coder.encode(target_window)))
       element_coder_impl = self._element_coder.get_impl()
       state_handler = self._state_handler
+
       class AllElements(object):
         def __iter__(self):
           # TODO(robertwb): Support pagination.

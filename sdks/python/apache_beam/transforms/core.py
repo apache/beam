@@ -861,7 +861,7 @@ class ParDo(PTransformWithSideInputs):
             # transformation is currently irreversible given how
             # remove_objects_from_args and insert_values_in_args
             # are currently implemented.
-            side_inputs = {
+            side_inputs={
                 "side%s" % ix: si.to_runner_api(context)
                 for ix, si in enumerate(self.side_inputs)}))
 

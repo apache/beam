@@ -169,6 +169,7 @@ class GrpcStateHandler(object):
 
   def start(self):
     self._done = False
+
     def request_iter():
       while True:
         request = self._requests.get()
@@ -176,14 +177,16 @@ class GrpcStateHandler(object):
           break
         yield request
     responses = self._state_stub.State(request_iter())
+
     def pull_responses():
       try:
         for response in responses:
           self._responses.put(response)
           if self._done:
             break
-      except:
+      except:  # pylint: disable=bare-except
         self._exc_info = sys.exc_info()
+        raise
     reader = threading.Thread(target=pull_responses, name='read_state')
     reader.daemon = True
     reader.start()

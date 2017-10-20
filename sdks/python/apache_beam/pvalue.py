@@ -132,8 +132,6 @@ class PCollection(PValue):
     return _InvalidUnpickledPCollection, ()
 
   def to_runner_api(self, context):
-    from apache_beam.portability.api import beam_runner_api_pb2
-    from apache_beam.internal import pickler
     return beam_runner_api_pb2.PCollection(
         unique_name='%d%s.%s' % (
             len(self.producer.full_label), self.producer.full_label, self.tag),
@@ -144,7 +142,6 @@ class PCollection(PValue):
 
   @staticmethod
   def from_runner_api(proto, context):
-    from apache_beam.internal import pickler
     # Producer and tag will be filled in later, the key point is that the
     # same object is returned for the same pcollection id.
     return PCollection(None, element_type=pickler.loads(proto.coder_id))
@@ -363,9 +360,9 @@ class SideInputData(object):
     assert proto.view_fn.spec.urn == urns.PICKLED_PYTHON_VIEWFN
     assert proto.window_mapping_fn.spec.urn == urns.PICKLED_WINDOW_MAPPING_FN
     return SideInputData(
-            proto.access_pattern.urn,
-            pickler.loads(proto.window_mapping_fn.spec.payload),
-            *pickler.loads(proto.view_fn.spec.payload))
+        proto.access_pattern.urn,
+        pickler.loads(proto.window_mapping_fn.spec.payload),
+        *pickler.loads(proto.view_fn.spec.payload))
 
 
 class AsSingleton(AsSideInput):

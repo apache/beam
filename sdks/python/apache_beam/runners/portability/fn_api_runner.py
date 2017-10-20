@@ -236,8 +236,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
       def __repr__(self):
         must_follow = ', '.join(prev.name for prev in self.must_follow)
-        downstream_side_inputs = ', '.join(str(si) for si in self.downstream_side_inputs)
-        return "%s\n    %s\n    must follow: %s\n    downstream_side_inputs: %s" % (
+        downstream_side_inputs = ', '.join(
+            str(si) for si in self.downstream_side_inputs)
+        return "%s\n  %s\n  must follow: %s\n  downstream_side_inputs: %s" % (
             self.name,
             '\n'.join(["%s:%s" % (transform.unique_name, transform.spec.urn)
                        for transform in self.transforms]),
@@ -713,9 +714,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           payload = proto_utils.parse_Bytes(
               transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
           for tag, si in payload.side_inputs.items():
-              data_side_input[transform.unique_name, tag] = (
-                  'materialize:' + transform.inputs[tag],
-                  beam.pvalue.SideInputData.from_runner_api(si, None))
+            data_side_input[transform.unique_name, tag] = (
+                'materialize:' + transform.inputs[tag],
+                beam.pvalue.SideInputData.from_runner_api(si, None))
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)
@@ -1078,6 +1079,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       StateServicer, beam_fn_api_pb2_grpc.BeamFnStateServicer):
     def State(self, request_stream, context=None):
       # Note that this eagerly mutates state, assuming any failures are fatal.
+      # Thus it is safe to ignore instruction_reference.
       for request in request_stream:
         if request.get:
           yield beam_fn_api_pb2.StateResponse(
@@ -1085,12 +1087,12 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               get=beam_fn_api_pb2.StateGetResponse(
                   data=self.blocking_get(request.state_key)))
         elif request.append:
-          data=self.blocking_append(request.state_key, request.append.data)
+          self.blocking_append(request.state_key, request.append.data)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               append=beam_fn_api_pb2.AppendResponse())
         elif request.clear:
-          data=self.blocking_clear(request.state_key)
+          self.blocking_clear(request.state_key)
           yield beam_fn_api_pb2.StateResponse(
               id=request.id,
               clear=beam_fn_api_pb2.ClearResponse())
