@@ -63,10 +63,6 @@ OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
 OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
 
 
-def side_input_tag(transform_id, tag):
-  return str("%d[%s][%s]" % (len(transform_id), transform_id, tag))
-
-
 class RunnerIOOperation(operations.Operation):
   """Common baseclass for runner harness IO operations."""
 
@@ -473,17 +469,9 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 
 
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
-def create(factory, transform_id, transform_proto, parameter, consumers):
-  dofn_data = pickler.loads(parameter)
-  if len(dofn_data) == 2:
-    # Has side input data.
-    serialized_fn, side_input_data = dofn_data
-  else:
-    # No side input data.
-    serialized_fn, side_input_data = parameter, []
+def create(factory, transform_id, transform_proto, serialized_fn, consumers):
   return _create_pardo_operation(
-      factory, transform_id, transform_proto, consumers,
-      serialized_fn, side_input_data)
+      factory, transform_id, transform_proto, consumers, serialized_fn)
 
 
 @BeamTransformFactory.register_urn(
@@ -491,34 +479,14 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
   serialized_fn = parameter.do_fn.spec.payload
-  dofn_data = pickler.loads(serialized_fn)
-  if len(dofn_data) == 2:
-    # Has side input data.
-    serialized_fn, side_input_data = dofn_data
-  else:
-    # No side input data.
-    side_input_data = []
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
-      serialized_fn, side_input_data, parameter.side_inputs)
+      serialized_fn, parameter.side_inputs)
 
 
 def _create_pardo_operation(
     factory, transform_id, transform_proto, consumers,
-    serialized_fn, side_input_data, side_inputs_proto=None):
-
-  fn, args, kwargs, tags_and_types, windowing = pickler.loads(serialized_fn)
-
-  def create_side_input(tag, coder):
-    # TODO(robertwb): Extract windows (and keys) out of element data.
-    # TODO(robertwb): Extract state key from ParDoPayload.
-    return operation_specs.WorkerSideInputSource(
-        tag=tag,
-        source=SideInputSource(
-            factory.state_handler,
-            beam_fn_api_pb2.StateKey.MultimapSideInput(
-                key=side_input_tag(transform_id, tag)),
-            coder=coder))
+    serialized_fn, side_inputs_proto=None):
 
   if side_inputs_proto:
     tagged_side_inputs = [
@@ -530,9 +498,7 @@ def _create_pardo_operation(
         StateBackedSideInputMap(factory.state_handler, transform_id, tag, si)
         for tag, si in tagged_side_inputs]
   else:
-    side_inputs = [
-        create_side_input(tag, coder) for tag, coder in side_input_data]
-    side_input_maps = None
+    side_input_maps = []
 
   output_tags = list(transform_proto.outputs.keys())
 
@@ -546,21 +512,22 @@ def _create_pardo_operation(
     else:
       return tag
 
-  if not windowing:
+  dofn_data = pickler.loads(serialized_fn)
+  if not dofn_data[-1]:
     # Windowing not set.
     side_input_tags = side_inputs_proto or ()
     pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
                  if tag not in side_input_tags]
     windowing = factory.context.windowing_strategies.get_by_id(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
+    serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
 
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
-      serialized_fn=pickler.dumps(
-          (fn, args, kwargs, tags_and_types, windowing)),
+      serialized_fn=serialized_fn,
       output_tags=[mutate_tag(tag) for tag in output_tags],
       input=None,
-      side_inputs=side_inputs,
+      side_inputs=[],  # Obsoleted by side_input_maps.
       output_coders=[output_coders[tag] for tag in output_tags])
   return factory.augment_oldstyle_op(
       operations.DoOperation(
@@ -577,10 +544,8 @@ def _create_pardo_operation(
 def _create_simple_pardo_operation(
     factory, transform_id, transform_proto, consumers, dofn):
   serialized_fn = pickler.dumps((dofn, (), {}, [], None))
-  side_input_data = []
   return _create_pardo_operation(
-      factory, transform_id, transform_proto, consumers,
-      serialized_fn, side_input_data)
+      factory, transform_id, transform_proto, consumers, serialized_fn)
 
 
 @BeamTransformFactory.register_urn(

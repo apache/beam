@@ -1031,28 +1031,6 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   # These classes are used to interact with the worker.
 
-  class SimpleState(object):  # TODO(robertwb): Inherit from GRPC servicer.
-
-    def __init__(self):
-      self._all = collections.defaultdict(list)
-
-    def Get(self, state_key):
-      return beam_fn_api_pb2.Elements.Data(
-          data=''.join(self._all[self._to_key(state_key)]))
-
-    def Append(self, state_key, data):
-      self._all[self._to_key(state_key)].extend(data)
-
-    def Clear(self, state_key):
-      try:
-        del self._all[self._to_key(state_key)]
-      except KeyError:
-        pass
-
-    @staticmethod
-    def _to_key(state_key):
-      return state_key.window, state_key.key
-
   class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
 
     def __init__(self):
