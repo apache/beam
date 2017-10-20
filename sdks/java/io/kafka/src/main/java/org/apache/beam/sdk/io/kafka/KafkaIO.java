@@ -1610,6 +1610,8 @@ public class KafkaIO {
         getProducerConfig().get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
         "withBootstrapServers() is required");
       checkArgument(getTopic() != null, "withTopic() is required");
+      checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
+      checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
 
       if (isEOS()) {
         EOSWrite.ensureEOSSupport();
