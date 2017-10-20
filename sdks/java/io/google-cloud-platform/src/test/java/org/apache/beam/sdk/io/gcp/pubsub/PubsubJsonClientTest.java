@@ -58,7 +58,8 @@ public class PubsubJsonClientTest {
   private static final long REQ_TIME = 1234L;
   private static final long PUB_TIME = 3456L;
   private static final long MESSAGE_TIME = 6789L;
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final PubsubTimestampExtractor TIMESTAMP_EXTRACTOR =
+      new PubsubTimestampExtractor("timestamp");
   private static final String ID_ATTRIBUTE = "id";
   private static final String MESSAGE_ID = "testMessageId";
   private static final String DATA = "testData";
@@ -68,7 +69,7 @@ public class PubsubJsonClientTest {
   @Before
   public void setup() throws IOException {
     mockPubsub = Mockito.mock(Pubsub.class, Mockito.RETURNS_DEEP_STUBS);
-    client = new PubsubJsonClient(TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, mockPubsub);
+    client = new PubsubJsonClient(TIMESTAMP_EXTRACTOR, ID_ATTRIBUTE, mockPubsub);
   }
 
   @After
@@ -88,7 +89,8 @@ public class PubsubJsonClientTest {
         .encodeData(DATA.getBytes())
         .setPublishTime(String.valueOf(PUB_TIME))
         .setAttributes(
-            ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
+            ImmutableMap.of(TIMESTAMP_EXTRACTOR.getTimestampAttribute(),
+                String.valueOf(MESSAGE_TIME),
                 ID_ATTRIBUTE, RECORD_ID));
     ReceivedMessage expectedReceivedMessage =
         new ReceivedMessage().setMessage(expectedPubsubMessage)
@@ -117,7 +119,7 @@ public class PubsubJsonClientTest {
         .encodeData(DATA.getBytes())
         .setAttributes(
             ImmutableMap.<String, String> builder()
-                    .put(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME))
+                    .put(TIMESTAMP_EXTRACTOR.getTimestampAttribute(), String.valueOf(MESSAGE_TIME))
                     .put(ID_ATTRIBUTE, RECORD_ID)
                     .put("k", "v").build());
     PublishRequest expectedRequest = new PublishRequest()

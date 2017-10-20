@@ -42,6 +42,7 @@ import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
+import org.apache.beam.sdk.io.gcp.pubsub.PubsubTimestampExtractor;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -728,7 +729,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         PubsubIO.readMessagesWithAttributes().fromSubscription(shortSubscription)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
+      io = io.withTimestampExtractor(new PubsubTimestampExtractor(NexmarkUtils.PUBSUB_TIMESTAMP));
     }
 
     return p
@@ -773,7 +774,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         PubsubIO.writeMessages().to(shortTopic)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
+      io = io.withTimestampExtractor(new PubsubTimestampExtractor(NexmarkUtils.PUBSUB_TIMESTAMP));
     }
 
     events.apply(queryName + ".EventToPubsubMessage",
@@ -803,7 +804,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         PubsubIO.writeStrings().to(shortTopic)
             .withIdAttribute(NexmarkUtils.PUBSUB_ID);
     if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
+      io = io.withTimestampExtractor(new PubsubTimestampExtractor(NexmarkUtils.PUBSUB_TIMESTAMP));
     }
     formattedResults.apply(queryName + ".WritePubsubResults", io);
   }

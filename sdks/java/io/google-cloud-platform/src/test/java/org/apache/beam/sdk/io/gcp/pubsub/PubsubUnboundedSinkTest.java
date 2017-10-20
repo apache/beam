@@ -54,7 +54,8 @@ public class PubsubUnboundedSinkTest implements Serializable {
   private static final Map<String, String> ATTRIBUTES =
           ImmutableMap.<String, String>builder().put("a", "b").put("c", "d").build();
   private static final long TIMESTAMP = 1234L;
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final PubsubTimestampExtractor TIMESTAMP_EXTRACTOR =
+      new PubsubTimestampExtractor("timestamp");
   private static final String ID_ATTRIBUTE = "id";
   private static final int NUM_SHARDS = 10;
 
@@ -107,7 +108,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(factory, StaticValueProvider.of(TOPIC),
-              TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
+              TIMESTAMP_EXTRACTOR, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
               Duration.standardSeconds(2),
               RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(ImmutableList.of(DATA)))
@@ -132,7 +133,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
           new PubsubUnboundedSink(
               factory,
               StaticValueProvider.of(TOPIC),
-              TIMESTAMP_ATTRIBUTE,
+              TIMESTAMP_EXTRACTOR,
               ID_ATTRIBUTE,
               NUM_SHARDS,
               1 /* batchSize */,
@@ -165,7 +166,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(factory, StaticValueProvider.of(TOPIC),
-              TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
+              TIMESTAMP_EXTRACTOR, ID_ATTRIBUTE, NUM_SHARDS, batchSize, batchBytes,
               Duration.standardSeconds(2), RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))
        .apply(ParDo.of(new Stamp()))
@@ -199,7 +200,7 @@ public class PubsubUnboundedSinkTest implements Serializable {
                                                       ImmutableList.<OutgoingMessage>of())) {
       PubsubUnboundedSink sink =
           new PubsubUnboundedSink(factory, StaticValueProvider.of(TOPIC),
-              TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE,
+              TIMESTAMP_EXTRACTOR, ID_ATTRIBUTE,
               NUM_SHARDS, batchSize, batchBytes, Duration.standardSeconds(2),
               RecordIdMethod.DETERMINISTIC);
       p.apply(Create.of(data))

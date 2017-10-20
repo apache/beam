@@ -48,6 +48,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -210,7 +211,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       extends DoFn<KV<Integer, Iterable<OutgoingMessage>>, Void> {
     private final PubsubClientFactory pubsubFactory;
     private final ValueProvider<TopicPath> topic;
-    private final String timestampAttribute;
+    private final PubsubTimestampExtractor timestampExtractor;
     private final String idAttribute;
     private final int publishBatchSize;
     private final int publishBatchBytes;
@@ -228,13 +229,13 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     WriterFn(
         PubsubClientFactory pubsubFactory,
         ValueProvider<TopicPath> topic,
-        String timestampAttribute,
+        PubsubTimestampExtractor timestampExtractor,
         String idAttribute,
         int publishBatchSize,
         int publishBatchBytes) {
       this.pubsubFactory = pubsubFactory;
       this.topic = topic;
-      this.timestampAttribute = timestampAttribute;
+      this.timestampExtractor = timestampExtractor;
       this.idAttribute = idAttribute;
       this.publishBatchSize = publishBatchSize;
       this.publishBatchBytes = publishBatchBytes;
@@ -257,7 +258,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     @StartBundle
     public void startBundle(StartBundleContext c) throws Exception {
       checkState(pubsubClient == null, "startBundle invoked without prior finishBundle");
-      pubsubClient = pubsubFactory.newClient(timestampAttribute, idAttribute,
+      pubsubClient = pubsubFactory.newClient(timestampExtractor, idAttribute,
                                              c.getPipelineOptions().as(PubsubOptions.class));
     }
 
@@ -297,7 +298,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("topic", topic));
       builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
-      builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
+      builder.addIfNotNull(DisplayData.item("timestampExtractor",
+          StaticValueProvider.of(timestampExtractor)));
       builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
@@ -321,7 +323,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    * Pubsub message publish timestamp instead.
    */
   @Nullable
-  private final String timestampAttribute;
+  private final PubsubTimestampExtractor timestampExtractor;
 
   /**
    * Pubsub metadata field holding id for each element, or {@literal null} if need to generate
@@ -363,7 +365,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
       ValueProvider<TopicPath> topic,
-      String timestampAttribute,
+      PubsubTimestampExtractor timestampExtractor,
       String idAttribute,
       int numShards,
       int publishBatchSize,
@@ -372,7 +374,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
       RecordIdMethod recordIdMethod) {
     this.pubsubFactory = pubsubFactory;
     this.topic = topic;
-    this.timestampAttribute = timestampAttribute;
+    this.timestampExtractor = timestampExtractor;
     this.idAttribute = idAttribute;
     this.numShards = numShards;
     this.publishBatchSize = publishBatchSize;
@@ -384,10 +386,10 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
   public PubsubUnboundedSink(
       PubsubClientFactory pubsubFactory,
       ValueProvider<TopicPath> topic,
-      String timestampAttribute,
+      PubsubTimestampExtractor timestampExtractor,
       String idAttribute,
       int numShards) {
-    this(pubsubFactory, topic, timestampAttribute, idAttribute, numShards,
+    this(pubsubFactory, topic, timestampExtractor, idAttribute, numShards,
          DEFAULT_PUBLISH_BATCH_SIZE, DEFAULT_PUBLISH_BATCH_BYTES, DEFAULT_MAX_LATENCY,
          RecordIdMethod.RANDOM);
   }
@@ -410,8 +412,8 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
    * Get the timestamp attribute.
    */
   @Nullable
-  public String getTimestampAttribute() {
-    return timestampAttribute;
+  public PubsubTimestampExtractor getTimestampExtractor() {
+    return timestampExtractor;
   }
 
   /**
@@ -443,7 +445,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
                 new WriterFn(
                     pubsubFactory,
                     topic,
-                    timestampAttribute,
+                    timestampExtractor,
                     idAttribute,
                     publishBatchSize,
                     publishBatchBytes)));

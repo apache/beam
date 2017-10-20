@@ -21,9 +21,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.client.util.DateTime;
 import com.google.common.base.Objects;
-import com.google.common.base.Strings;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
@@ -49,71 +47,14 @@ abstract class PubsubClient implements Closeable {
      * message metadata.
      */
     PubsubClient newClient(
-        @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
+        @Nullable PubsubTimestampExtractor timestampExtractor,
+        @Nullable String idAttribute, PubsubOptions options)
         throws IOException;
 
     /**
      * Return the display name for this factory. Eg "Json", "gRPC".
      */
     String getKind();
-  }
-
-  /**
-   * Return timestamp as ms-since-unix-epoch corresponding to {@code timestamp}.
-   * Return {@literal null} if no timestamp could be found. Throw {@link IllegalArgumentException}
-   * if timestamp cannot be recognized.
-   */
-  @Nullable
-  private static Long asMsSinceEpoch(@Nullable String timestamp) {
-    if (Strings.isNullOrEmpty(timestamp)) {
-      return null;
-    }
-    try {
-      // Try parsing as milliseconds since epoch. Note there is no way to parse a
-      // string in RFC 3339 format here.
-      // Expected IllegalArgumentException if parsing fails; we use that to fall back
-      // to RFC 3339.
-      return Long.parseLong(timestamp);
-    } catch (IllegalArgumentException e1) {
-      // Try parsing as RFC3339 string. DateTime.parseRfc3339 will throw an
-      // IllegalArgumentException if parsing fails, and the caller should handle.
-      return DateTime.parseRfc3339(timestamp).getValue();
-    }
-  }
-
-  /**
-   * Return the timestamp (in ms since unix epoch) to use for a Pubsub message with {@code
-   * attributes} and {@code pubsubTimestamp}.
-   *
-   * <p>If {@code timestampAttribute} is non-{@literal null} then the message attributes must
-   * contain that attribute, and the value of that attribute will be taken as the timestamp.
-   * Otherwise the timestamp will be taken from the Pubsub publish timestamp {@code
-   * pubsubTimestamp}.
-   *
-   * @throws IllegalArgumentException if the timestamp cannot be recognized as a ms-since-unix-epoch
-   *     or RFC3339 time.
-   */
-  protected static long extractTimestamp(
-      @Nullable String timestampAttribute,
-      @Nullable String pubsubTimestamp,
-      @Nullable Map<String, String> attributes) {
-    Long timestampMsSinceEpoch;
-    if (Strings.isNullOrEmpty(timestampAttribute)) {
-      timestampMsSinceEpoch = asMsSinceEpoch(pubsubTimestamp);
-      checkArgument(timestampMsSinceEpoch != null,
-                    "Cannot interpret PubSub publish timestamp: %s",
-                    pubsubTimestamp);
-    } else {
-      String value = attributes == null ? null : attributes.get(timestampAttribute);
-      checkArgument(value != null,
-                    "PubSub message is missing a value for timestamp attribute %s",
-                    timestampAttribute);
-      timestampMsSinceEpoch = asMsSinceEpoch(value);
-      checkArgument(timestampMsSinceEpoch != null,
-                    "Cannot interpret value of attribute %s as timestamp: %s",
-                    timestampAttribute, value);
-    }
-    return timestampMsSinceEpoch;
   }
 
   /**

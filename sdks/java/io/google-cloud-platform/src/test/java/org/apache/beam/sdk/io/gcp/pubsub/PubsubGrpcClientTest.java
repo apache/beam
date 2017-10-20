@@ -72,7 +72,8 @@ public class PubsubGrpcClientTest {
   private static final long REQ_TIME = 1234L;
   private static final long PUB_TIME = 3456L;
   private static final long MESSAGE_TIME = 6789L;
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp";
+  private static final PubsubTimestampExtractor TIMESTAMP_EXTRACTOR =
+      new PubsubTimestampExtractor("timestamp");
   private static final String ID_ATTRIBUTE = "id";
   private static final String MESSAGE_ID = "testMessageId";
   private static final String DATA = "testData";
@@ -89,7 +90,7 @@ public class PubsubGrpcClientTest {
     testCredentials = new TestCredential();
     client =
         new PubsubGrpcClient(
-            TIMESTAMP_ATTRIBUTE, ID_ATTRIBUTE, 10, inProcessChannel, testCredentials);
+            TIMESTAMP_EXTRACTOR, ID_ATTRIBUTE, 10, inProcessChannel, testCredentials);
   }
 
   @After
@@ -119,7 +120,7 @@ public class PubsubGrpcClientTest {
                      .setPublishTime(timestamp)
                      .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
-                         ImmutableMap.of(TIMESTAMP_ATTRIBUTE,
+                         ImmutableMap.of(TIMESTAMP_EXTRACTOR.getTimestampAttribute(),
                                          String.valueOf(MESSAGE_TIME),
                              ID_ATTRIBUTE, RECORD_ID))
                      .build();
@@ -169,7 +170,8 @@ public class PubsubGrpcClientTest {
                      .setData(ByteString.copyFrom(DATA.getBytes()))
                      .putAllAttributes(ATTRIBUTES)
                      .putAllAttributes(
-                         ImmutableMap.of(TIMESTAMP_ATTRIBUTE, String.valueOf(MESSAGE_TIME),
+                         ImmutableMap.of(TIMESTAMP_EXTRACTOR.getTimestampAttribute(),
+                             String.valueOf(MESSAGE_TIME),
                                          ID_ATTRIBUTE, RECORD_ID))
                      .build();
     final PublishRequest expectedRequest =

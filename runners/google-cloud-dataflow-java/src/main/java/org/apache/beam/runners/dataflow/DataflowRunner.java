@@ -915,9 +915,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
               ((NestedValueProvider) overriddenTransform.getSubscriptionProvider()).propertyName());
         }
       }
-      if (overriddenTransform.getTimestampAttribute() != null) {
+      if (overriddenTransform.getTimestampExtractor().getTimestampAttribute() != null) {
         stepContext.addInput(
-            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, overriddenTransform.getTimestampAttribute());
+            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+            overriddenTransform.getTimestampExtractor().getTimestampAttribute());
       }
       if (overriddenTransform.getIdAttribute() != null) {
         stepContext.addInput(
@@ -1005,9 +1006,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
             PropertyNames.PUBSUB_TOPIC_OVERRIDE,
             ((NestedValueProvider) overriddenTransform.getTopicProvider()).propertyName());
       }
-      if (overriddenTransform.getTimestampAttribute() != null) {
+      if (overriddenTransform.getTimestampExtractor().getTimestampAttribute() != null) {
         stepContext.addInput(
-            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, overriddenTransform.getTimestampAttribute());
+            PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE,
+            overriddenTransform.getTimestampExtractor().getTimestampAttribute());
       }
       if (overriddenTransform.getIdAttribute() != null) {
         stepContext.addInput(

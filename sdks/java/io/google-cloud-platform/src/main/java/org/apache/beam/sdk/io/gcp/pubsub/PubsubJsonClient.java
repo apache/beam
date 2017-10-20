@@ -69,8 +69,8 @@ class PubsubJsonClient extends PubsubClient {
 
     @Override
     public PubsubClient newClient(
-        @Nullable String timestampAttribute, @Nullable String idAttribute, PubsubOptions options)
-        throws IOException {
+        @Nullable PubsubTimestampExtractor timestampExtractor, @Nullable String idAttribute,
+        PubsubOptions options) throws IOException {
       Pubsub pubsub = new Builder(
           Transport.getTransport(),
           Transport.getJsonFactory(),
@@ -82,7 +82,7 @@ class PubsubJsonClient extends PubsubClient {
           .setApplicationName(options.getAppName())
           .setGoogleClientRequestInitializer(options.getGoogleApiTrace())
           .build();
-      return new PubsubJsonClient(timestampAttribute, idAttribute, pubsub);
+      return new PubsubJsonClient(timestampExtractor, idAttribute, pubsub);
     }
 
     @Override
@@ -101,7 +101,7 @@ class PubsubJsonClient extends PubsubClient {
    * instead.
    */
   @Nullable
-  private final String timestampAttribute;
+  private final PubsubTimestampExtractor timestampExtractor;
 
   /**
    * Attribute to use for custom ids, or {@literal null} if should use Pubsub provided ids.
@@ -116,10 +116,13 @@ class PubsubJsonClient extends PubsubClient {
 
   @VisibleForTesting
   PubsubJsonClient(
-      @Nullable String timestampAttribute,
+      @Nullable PubsubTimestampExtractor timestampExtractor,
       @Nullable String idAttribute,
       Pubsub pubsub) {
-    this.timestampAttribute = timestampAttribute;
+    if (timestampExtractor == null) {
+      timestampExtractor = new PubsubTimestampExtractor();
+    }
+    this.timestampExtractor = timestampExtractor;
     this.idAttribute = idAttribute;
     this.pubsub = pubsub;
   }
@@ -137,15 +140,16 @@ class PubsubJsonClient extends PubsubClient {
       PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
 
       Map<String, String> attributes = outgoingMessage.attributes;
-      if ((timestampAttribute != null || idAttribute != null) && attributes == null) {
+      if ((timestampExtractor != null || idAttribute != null) && attributes == null) {
         attributes = new TreeMap<>();
       }
       if (attributes != null) {
         pubsubMessage.setAttributes(attributes);
       }
 
-      if (timestampAttribute != null) {
-        attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+      if (timestampExtractor != null && timestampExtractor.hasTimestampAttribute()) {
+        attributes.put(timestampExtractor.getTimestampAttribute(),
+            String.valueOf(outgoingMessage.timestampMsSinceEpoch));
       }
 
       if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
@@ -187,8 +191,9 @@ class PubsubJsonClient extends PubsubClient {
       byte[] elementBytes = pubsubMessage.decodeData();
 
       // Timestamp.
-      long timestampMsSinceEpoch =
-          extractTimestamp(timestampAttribute, message.getMessage().getPublishTime(), attributes);
+      long timestampMsSinceEpoch = timestampExtractor
+          .extractTimestamp(new String(pubsubMessage.decodeData()),
+              pubsubMessage.getPublishTime(), attributes);
 
       // Ack id.
       String ackId = message.getAckId();
