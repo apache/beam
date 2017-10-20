@@ -81,7 +81,6 @@ import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.io.kafka.KafkaCheckpointMark.PartitionMark;
-import org.apache.beam.sdk.io.kafka.serialization.VoidSerializer;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -129,6 +128,7 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -1601,11 +1601,11 @@ public class KafkaIO {
      * Writes just the values to Kafka. This is useful for writing collections of values rather
      * thank {@link KV}s.
      */
-    @SuppressWarnings({ "unchecked", "resource" })
+    @SuppressWarnings({ "unchecked" })
     public PTransform<PCollection<V>, PDone> values() {
       return new KafkaValueWrite<>(
               toBuilder()
-              .setKeySerializer((Class<? extends Serializer<K>>) new VoidSerializer<K>().getClass())
+              .setKeySerializer((Class<? extends Serializer<K>>) StringSerializer.class)
               .build()
           );
     }
