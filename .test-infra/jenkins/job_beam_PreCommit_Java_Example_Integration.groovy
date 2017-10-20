@@ -18,12 +18,13 @@
 
 import common_job_properties
 
-// This is the Java precommit which runs a maven install, and the current set
-// of precommit tests. This precommit does not execute any integration tests.
-mavenJob('beam_PreCommit_Java_MavenInstall') {
-  description('Runs an install of the current GitHub Pull Request.')
+// This is the Java Precommit which executes integration tests on each runner.
+// This Precommit only compiles the SDK and tests, and executes the Integration
+// tests within the examples/java module.
+mavenJob('beam_PreCommit_Java_Integration_Tests') {
+  description('Runs Java Examples Integration Tests of the current GitHub Pull Request.')
 
-  previousNames('beam_PreCommit_MavenVerify')
+  previousNames('beam_PreCommit_Java_MavenInstall')
 
   // Execute concurrent builds if necessary.
   concurrentBuild()
@@ -32,27 +33,30 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   common_job_properties.setTopLevelMainJobProperties(
     delegate,
     'master',
-    150)
+    60)
 
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)
 
-  // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/java/core,runners/direct-java -am -amd', 'Run Java PreCommit')
+  // Sets that this is a PreCommit job which runs the integration-tests.
+  common_job_properties.setPreCommit(delegate, 'mvn failsafe:integration-test -pl examples/java -am', 'Run Java Integration PreCommit')
 
-  // Maven goals for this job: The Java SDK, its dependencies, and things that depend on it.
+  // Maven goals for this job: The Java Examples and their dependencies
   goals('''\
     --batch-mode \
     --errors \
-    --activate-profiles release,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/java/core,runners/direct-java \
+    --activate-profiles jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
+    --projects examples/java \
     --also-make \
-    --also-make-dependents \
-    -D repoToken=$COVERALLS_REPO_TOKEN \
+    -D checkstyle.skip \
+    -D findbugs.skip \
     -D pullRequest=$ghprbPullId \
     help:effective-settings \
     clean \
-    install \
-    coveralls:report \
+    compile \
+    test-compile \
+    failsafe:integration-test \
+    failsafe:verify \
   ''')
 }
+
