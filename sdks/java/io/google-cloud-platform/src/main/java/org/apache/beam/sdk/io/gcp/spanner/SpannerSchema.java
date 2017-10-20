@@ -47,26 +47,29 @@ class SpannerSchema implements Serializable {
     private final Map<String, List<Column>> columns = new HashMap<>();
     private final Map<String, List<KeyPart>> keyParts = new HashMap<>();
 
-    public void addColumn(String table, String name, String type) {
+    public Builder addColumn(String table, String name, String type) {
       addColumn(table, Column.create(name.toLowerCase(), type));
+      return this;
     }
 
-    private void addColumn(String table, Column column) {
+    private Builder addColumn(String table, Column column) {
       List<Column> list = columns.get(table);
       if (list == null) {
         list = new ArrayList<>();
         columns.put(table.toLowerCase(), list);
       }
       list.add(column);
+      return this;
     }
 
-    public void addKeyPart(String table, String column, boolean desc) {
+    public Builder addKeyPart(String table, String column, boolean desc) {
       List<KeyPart> list = keyParts.get(table);
       if (list == null) {
         list = new ArrayList<>();
         keyParts.put(table.toLowerCase(), list);
       }
       list.add(KeyPart.create(column.toLowerCase(), desc));
+      return this;
     }
 
     public SpannerSchema build() {
