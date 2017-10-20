@@ -185,15 +185,21 @@ class UtilTest(unittest.TestCase):
          '--temp_location', 'gs://test-location/temp',
          '--label', 'key1=value1',
          '--label', 'key2',
-         '--label', 'key3=value3'])
+         '--label', 'key3=value3',
+         '--labels', 'key4=value4',
+         '--labels', 'key5'])
     job = apiclient.Job(pipeline_options)
-    self.assertEqual(3, len(job.proto.labels.additionalProperties))
+    self.assertEqual(5, len(job.proto.labels.additionalProperties))
     self.assertEqual('key1', job.proto.labels.additionalProperties[0].key)
     self.assertEqual('value1', job.proto.labels.additionalProperties[0].value)
     self.assertEqual('key2', job.proto.labels.additionalProperties[1].key)
     self.assertEqual('', job.proto.labels.additionalProperties[1].value)
     self.assertEqual('key3', job.proto.labels.additionalProperties[2].key)
     self.assertEqual('value3', job.proto.labels.additionalProperties[2].value)
+    self.assertEqual('key4', job.proto.labels.additionalProperties[3].key)
+    self.assertEqual('value4', job.proto.labels.additionalProperties[3].value)
+    self.assertEqual('key5', job.proto.labels.additionalProperties[4].key)
+    self.assertEqual('', job.proto.labels.additionalProperties[4].value)
 
 
 if __name__ == '__main__':
