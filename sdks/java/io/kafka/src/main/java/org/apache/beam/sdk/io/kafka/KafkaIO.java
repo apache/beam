@@ -67,7 +67,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
-import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.AvroCoder;
@@ -899,10 +898,8 @@ public class KafkaIO {
     private final String name;
     private Consumer<byte[], byte[]> consumer;
     private final List<PartitionState> partitionStates;
-    @GuardedBy("this")
-    private KafkaRecord<K, V> curRecord = null;
-    @GuardedBy("this")
-    private Instant curTimestamp = null;
+    private KafkaRecord<K, V> curRecord;
+    private Instant curTimestamp;
     private Iterator<PartitionState> curBatch = Collections.emptyIterator();
 
     private Deserializer<K> keyDeserializerInstance = null;
@@ -1251,8 +1248,15 @@ public class KafkaIO {
             continue;
           }
 
-          // Apply user deserializers. User deserializers might throw, which will be propagated up.
-          // 'curRecord' remains unchanged. The runner should close this reader.
+          long offsetGap = offset - expected; // could be > 0 when Kafka log compaction is enabled.
+
+          if (curRecord == null) {
+            LOG.info("{}: first record offset {}", name, offset);
+            offsetGap = 0;
+          }
+
+          // Apply user deserializers. User deserializers might throw, which will be propagated up
+          // and 'curRecord' remains unchanged. The runner should close this reader.
           // TODO: write records that can't be deserialized to a "dead-letter" additional output.
           KafkaRecord<K, V> record = new KafkaRecord<>(
               rawRecord.topic(),
@@ -1262,25 +1266,9 @@ public class KafkaIO {
               keyDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.key()),
               valueDeserializerInstance.deserialize(rawRecord.topic(), rawRecord.value()));
 
-          Instant timestamp = (source.spec.getTimestampFn() == null)
-            ? Instant.now() : source.spec.getTimestampFn().apply(record);
-
-          // Update curRecord and curTimestamp under lock.
-          boolean isFirstRecord;
-          synchronized (this) {
-            isFirstRecord = curRecord == null;
-            curRecord = record;
-            curTimestamp = timestamp;
-          }
-
-          long offsetGap;
-          if (isFirstRecord) {
-            LOG.info("{}: first record offset {}", name, offset);
-            offsetGap = 0;
-          } else {
-            offsetGap = offset - expected;
-            // Gap could be due to log compaction or aborted transactions.
-          }
+          curTimestamp = (source.spec.getTimestampFn() == null)
+              ? Instant.now() : source.spec.getTimestampFn().apply(record);
+          curRecord = record;
 
           int recordSize = (rawRecord.key() == null ? 0 : rawRecord.key().length)
               + (rawRecord.value() == null ? 0 : rawRecord.value().length);
@@ -1342,20 +1330,13 @@ public class KafkaIO {
 
     @Override
     public Instant getWatermark() {
-      KafkaRecord<K, V> record;
-      Instant timestamp;
-      synchronized (this) {
-        record = curRecord;
-        timestamp = curTimestamp;
-      }
-
-      if (record == null) {
+      if (curRecord == null) {
         LOG.debug("{}: getWatermark() : no records have been read yet.", name);
         return initialWatermark;
       }
 
       return source.spec.getWatermarkFn() != null
-          ? source.spec.getWatermarkFn().apply(record) : timestamp;
+          ? source.spec.getWatermarkFn().apply(curRecord) : curTimestamp;
     }
 
     @Override
@@ -1380,13 +1361,13 @@ public class KafkaIO {
     }
 
     @Override
-    public synchronized KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
+    public KafkaRecord<K, V> getCurrent() throws NoSuchElementException {
       // should we delay updating consumed offset till this point? Mostly not required.
       return curRecord;
     }
 
     @Override
-    public synchronized Instant getCurrentTimestamp() throws NoSuchElementException {
+    public Instant getCurrentTimestamp() throws NoSuchElementException {
       return curTimestamp;
     }
 
