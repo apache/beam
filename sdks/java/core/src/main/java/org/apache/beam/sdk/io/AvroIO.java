@@ -1156,6 +1156,9 @@ public class AvroIO {
             getFormatFunction() == null,
             "A format function should not be specified "
                 + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
+      } else {
+        checkArgument(
+            getSchema() != null, "Unless using DynamicDestinations, .withSchema() is required.");
       }
 
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
