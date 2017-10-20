@@ -56,10 +56,10 @@ import org.xml.sax.ContentHandler;
  * A collection of {@link PTransform} transforms for parsing arbitrary files using Apache Tika.
  * Files in many well known text, binary or scientific formats can be processed.
  *
- * <p>{@link TikaIO.ParseAll} and {@link TikaIO.ParseFiles} parse the files and return
- * a bounded {@link PCollection} containing one {@link ParseResult} per each file.
+ * <p>{@link TikaIO.Parse} and {@link TikaIO.ParseAll} parse the files and return
+ * a {@link PCollection} containing one {@link ParseResult} per each file.
  *
- * <p>Combine {@link TikaIO.ParseFiles} with {@link FileIO.Match}
+ * <p>Combine {@link TikaIO.ParseAll} with {@link FileIO.Match}
  * and {@link FileIO.ReadMatches} to match, read and parse the files.
  *
  * <p>Example:
@@ -74,7 +74,7 @@ import org.xml.sax.ContentHandler;
  *    .apply(TikaIO.parseFiles());
  * }</pre>
  *
- * <p>Use {@link TikaIO.ParseAll} to match, read and parse the files in simple cases.
+ * <p>Use {@link TikaIO.Parse} to match, read and parse the files in simple cases.
  *
  * <p>Example:
  *
@@ -95,24 +95,24 @@ public class TikaIO {
    * A {@link PTransform} that matches and parses the files
    * and returns a bounded {@link PCollection} of {@link ParseResult}.
    */
+  public static Parse parse() {
+    return new AutoValue_TikaIO_Parse.Builder()
+        .build();
+  }
+
+  /**
+   * A {@link PTransform} that accepts a {@link PCollection} of {@link ReadableFile}
+   * and returns a {@link PCollection} of {@link ParseResult}.
+   */
   public static ParseAll parseAll() {
     return new AutoValue_TikaIO_ParseAll.Builder()
         .build();
   }
 
-  /**
-   * A {@link PTransform} that accepts a bounded {@link PCollection} of {@link ReadableFile}
-   * and returns a bounded {@link PCollection} of {@link ParseResult}.
-   */
-  public static ParseFiles parseFiles() {
-    return new AutoValue_TikaIO_ParseFiles.Builder()
-        .build();
-  }
-
-  /** Implementation of {@link #parseAll}. */
+  /** Implementation of {@link #parse}. */
   @SuppressWarnings("serial")
   @AutoValue
-  public abstract static class ParseAll extends PTransform<PBegin, PCollection<ParseResult>> {
+  public abstract static class Parse extends PTransform<PBegin, PCollection<ParseResult>> {
     @Nullable
     abstract ValueProvider<String> getFilepattern();
 
@@ -122,16 +122,16 @@ public class TikaIO {
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
 
-      abstract ParseAll build();
+      abstract Parse build();
     }
 
     /** Matches the given filepattern. */
-    public ParseAll filepattern(String filepattern) {
+    public Parse filepattern(String filepattern) {
       return this.filepattern(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
     /** Like {@link #filepattern(String)} but using a {@link ValueProvider}. */
-    public ParseAll filepattern(ValueProvider<String> filepattern) {
+    public Parse filepattern(ValueProvider<String> filepattern) {
       return toBuilder().setFilepattern(filepattern).build();
     }
 
@@ -149,14 +149,14 @@ public class TikaIO {
       return input
           .apply(FileIO.match().filepattern(getFilepattern()))
           .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
-          .apply(parseFiles());
+          .apply(parseAll());
     }
   }
 
-  /** Implementation of {@link #parseFiles}. */
+  /** Implementation of {@link #parseAll}. */
   @SuppressWarnings("serial")
   @AutoValue
-  public abstract static class ParseFiles extends
+  public abstract static class ParseAll extends
     PTransform<PCollection<ReadableFile>, PCollection<ParseResult>> {
 
     @Nullable abstract ValueProvider<String> getTikaConfigPath();
@@ -169,19 +169,19 @@ public class TikaIO {
       abstract Builder setTikaConfigPath(ValueProvider<String> tikaConfigPath);
       abstract Builder setInputMetadata(Metadata metadata);
 
-      abstract ParseFiles build();
+      abstract ParseAll build();
     }
 
     /**
      * Returns a new transform which will use the custom TikaConfig.
      */
-    public ParseFiles withTikaConfigPath(String tikaConfigPath) {
+    public ParseAll withTikaConfigPath(String tikaConfigPath) {
       checkNotNull(tikaConfigPath, "TikaConfigPath cannot be empty.");
       return withTikaConfigPath(StaticValueProvider.of(tikaConfigPath));
     }
 
     /** Same as {@code with(tikaConfigPath)}, but accepting a {@link ValueProvider}. */
-    public ParseFiles withTikaConfigPath(ValueProvider<String> tikaConfigPath) {
+    public ParseAll withTikaConfigPath(ValueProvider<String> tikaConfigPath) {
       checkNotNull(tikaConfigPath, "TikaConfigPath cannot be empty.");
       return toBuilder()
           .setTikaConfigPath(tikaConfigPath)
@@ -192,7 +192,7 @@ public class TikaIO {
      * Returns a new transform which will use the provided content type hint
      * to make the file parser detection more efficient.
      */
-    public ParseFiles withContentTypeHint(String contentType) {
+    public ParseAll withContentTypeHint(String contentType) {
       checkNotNull(contentType, "ContentType cannot be empty.");
       Metadata metadata = new Metadata();
       metadata.add(Metadata.CONTENT_TYPE, contentType);
@@ -203,7 +203,7 @@ public class TikaIO {
      * Returns a new transform which will use the provided input metadata
      * for parsing the files.
      */
-    public ParseFiles withInputMetadata(Metadata metadata) {
+    public ParseAll withInputMetadata(Metadata metadata) {
       Metadata inputMetadata = this.getInputMetadata();
       if (inputMetadata != null) {
         for (String name : metadata.names()) {
@@ -242,10 +242,10 @@ public class TikaIO {
     private static class ParseToStringFn extends DoFn<ReadableFile, ParseResult> {
 
       private static final long serialVersionUID = 6837207505313720989L;
-      private final TikaIO.ParseFiles spec;
+      private final TikaIO.ParseAll spec;
       private TikaConfig tikaConfig;
 
-      ParseToStringFn(TikaIO.ParseFiles spec) {
+      ParseToStringFn(TikaIO.ParseAll spec) {
         this.spec = spec;
       }
 

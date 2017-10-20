@@ -67,6 +67,23 @@ public class TikaIOTest {
   public ExpectedException thrown = ExpectedException.none();
 
   @Test
+  public void testParsePdfFile() throws IOException {
+
+    String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
+
+    doTestParse(resourcePath, new ParseResult(resourcePath, PDF_FILE));
+  }
+
+  private void doTestParse(String resourcePath, ParseResult... expectedResults)
+      throws IOException {
+     PCollection<ParseResult> output =
+         p.apply("ParseAll", TikaIO.parse().filepattern(resourcePath))
+         .apply(ParDo.of(new FilterMetadataFn()));
+     PAssert.that(output).containsInAnyOrder(expectedResults);
+     p.run();
+  }
+
+  @Test
   public void testParseAllPdfFile() throws IOException {
 
     String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
@@ -74,88 +91,71 @@ public class TikaIOTest {
     doTestParseAll(resourcePath, new ParseResult(resourcePath, PDF_FILE));
   }
 
-  private void doTestParseAll(String resourcePath, ParseResult... expectedResults)
-      throws IOException {
-     PCollection<ParseResult> output =
-         p.apply("ParseAll", TikaIO.parseAll().filepattern(resourcePath))
-         .apply(ParDo.of(new FilterMetadataFn()));
-     PAssert.that(output).containsInAnyOrder(expectedResults);
-     p.run();
-  }
-
   @Test
-  public void testParseFilesPdfFile() throws IOException {
-
-    String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
-
-    doTestParseFiles(resourcePath, new ParseResult(resourcePath, PDF_FILE));
-  }
-
-  @Test
-  public void testParseFilesZipPdfFile() throws IOException {
+  public void testParseAllZipPdfFile() throws IOException {
 
     String resourcePath = getClass().getResource("/apache-beam-tika-pdf.zip").getPath();
 
-    doTestParseFiles(resourcePath, new ParseResult(resourcePath, PDF_ZIP_FILE));
+    doTestParseAll(resourcePath, new ParseResult(resourcePath, PDF_ZIP_FILE));
   }
 
   @Test
-  public void testParseFilesOdtFile() throws IOException {
+  public void testParseAllOdtFile() throws IOException {
 
     String resourcePath = getClass().getResource("/apache-beam-tika1.odt").getPath();
 
-    doTestParseFiles(resourcePath, new ParseResult(resourcePath, ODT_FILE, getOdtMetadata()));
+    doTestParseAll(resourcePath, new ParseResult(resourcePath, ODT_FILE, getOdtMetadata()));
   }
 
   @Test
-  public void testParseFilesOdtFiles() throws IOException {
+  public void testParseAllOdtFiles() throws IOException {
     String resourcePath1 = getClass().getResource("/apache-beam-tika1.odt").getPath();
     String resourcePath2 = getClass().getResource("/apache-beam-tika2.odt").getPath();
     String resourcePath = resourcePath1.replace("apache-beam-tika1", "*");
 
-    doTestParseFiles(resourcePath, new ParseResult(resourcePath1, ODT_FILE, getOdtMetadata()),
+    doTestParseAll(resourcePath, new ParseResult(resourcePath1, ODT_FILE, getOdtMetadata()),
         new ParseResult(resourcePath2, ODT_FILE2));
   }
 
-  private void doTestParseFiles(String resourcePath, ParseResult... expectedResults)
+  private void doTestParseAll(String resourcePath, ParseResult... expectedResults)
      throws IOException {
     PCollection<ParseResult> output =
         p.apply("ParseFiles", FileIO.match().filepattern(resourcePath))
         .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
-        .apply(TikaIO.parseFiles())
+        .apply(TikaIO.parseAll())
         .apply(ParDo.of(new FilterMetadataFn()));
     PAssert.that(output).containsInAnyOrder(expectedResults);
     p.run();
   }
 
   @Test
-  public void testParseFilesDamagedPdfFile() throws IOException {
+  public void testParseAllDamagedPdfFile() throws IOException {
     thrown.expectCause(isA(TikaException.class));
     String resourcePath = getClass().getResource("/damaged.pdf").getPath();
 
     p.apply("ParseInvalidPdfFile", FileIO.match().filepattern(resourcePath))
       .apply(FileIO.readMatches())
-      .apply(TikaIO.parseFiles());
+      .apply(TikaIO.parseAll());
     p.run();
   }
 
   @Test
-  public void testParseAllDisplayData() {
-    TikaIO.ParseAll parseAll = TikaIO.parseAll().filepattern("file.pdf");
+  public void testParseDisplayData() {
+    TikaIO.Parse parse = TikaIO.parse().filepattern("file.pdf");
 
-    DisplayData displayData = DisplayData.from(parseAll);
+    DisplayData displayData = DisplayData.from(parse);
 
     assertThat(displayData, hasDisplayItem("filePattern", "file.pdf"));
     assertEquals(1, displayData.items().size());
   }
 
   @Test
-  public void testParseFilesDisplayData() {
-    TikaIO.ParseFiles parseFiles = TikaIO.parseFiles()
+  public void testParseAllDisplayData() {
+    TikaIO.ParseAll parseAll = TikaIO.parseAll()
         .withTikaConfigPath("tikaconfigpath")
         .withContentTypeHint("application/pdf");
 
-    DisplayData displayData = DisplayData.from(parseFiles);
+    DisplayData displayData = DisplayData.from(parseAll);
 
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "tikaconfigpath"));
     assertThat(displayData, hasDisplayItem("inputMetadata",
@@ -164,12 +164,12 @@ public class TikaIOTest {
   }
 
   @Test
-  public void testParseFilesDisplayDataWithCustomOptions() {
-    TikaIO.ParseFiles parseFiles = TikaIO.parseFiles()
+  public void testParseAllDisplayDataWithCustomOptions() {
+    TikaIO.ParseAll parseAll = TikaIO.parseAll()
         .withTikaConfigPath("/tikaConfigPath")
         .withContentTypeHint("application/pdf");
 
-    DisplayData displayData = DisplayData.from(parseFiles);
+    DisplayData displayData = DisplayData.from(parseAll);
 
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "/tikaConfigPath"));
     assertThat(displayData, hasDisplayItem("inputMetadata",
@@ -184,7 +184,7 @@ public class TikaIOTest {
     public void processElement(ProcessContext c) {
       ParseResult result = c.element();
       Metadata m = new Metadata();
-      // Files contain many metadata properties. This function drops all but the"Author"
+      // Files contain many metadata properties. This function drops all but the "Author"
       // property manually added to "apache-beam-tika1.odt" resource only to make
       // the tests simpler
       if (result.getFileLocation().endsWith("apache-beam-tika1.odt")) {
