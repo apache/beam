@@ -1138,20 +1138,36 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP):
+  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP, current_time=None):
+    """Gets expired timers and reports if there
+    are any realtime timers set per state.
+
+    Expiration is measured against the watermark for event-time timers,
+    and against a wall clock for processing-time timers.
+    """
     expired = []
+    has_realtime_timer = False
     for window, timers in list(self.timers.items()):
       for (name, time_domain), timestamp in list(timers.items()):
-        if timestamp <= watermark:
+        if time_domain == 'REAL_TIME':
+          time_marker = current_time
+          has_realtime_timer = True
+        elif time_domain == 'WATERMARK':
+          time_marker = watermark
+        else:
+          logging.error(
+              'TimeDomain error: No timers defined for time domain %s.',
+              time_domain)
+        if timestamp <= time_marker:
           expired.append((window, (name, time_domain, timestamp)))
           if clear:
             del timers[(name, time_domain)]
       if not timers and clear:
         del self.timers[window]
-    return expired
+    return expired, has_realtime_timer
 
   def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
-    return self.get_timers(clear=True, watermark=watermark)
+    return self.get_timers(clear=True, watermark=watermark)[0]
 
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP

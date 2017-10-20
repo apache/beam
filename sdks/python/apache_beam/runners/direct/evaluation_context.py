@@ -22,7 +22,6 @@ from __future__ import absolute_import
 import collections
 import threading
 
-from apache_beam.runners.direct.clock import Clock
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
 from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.watermark_manager import WatermarkManager
@@ -138,7 +137,7 @@ class EvaluationContext(object):
   """
 
   def __init__(self, pipeline_options, bundle_factory, root_transforms,
-               value_to_consumers, step_names, views):
+               value_to_consumers, step_names, views, clock):
     self.pipeline_options = pipeline_options
     self._bundle_factory = bundle_factory
     self._root_transforms = root_transforms
@@ -151,7 +150,7 @@ class EvaluationContext(object):
     self._transform_keyed_states = self._initialize_keyed_states(
         root_transforms, value_to_consumers)
     self._watermark_manager = WatermarkManager(
-        Clock(), root_transforms, value_to_consumers,
+        clock, root_transforms, value_to_consumers,
         self._transform_keyed_states)
     self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
@@ -286,8 +285,8 @@ class EvaluationContext(object):
     return self._bundle_factory.create_empty_committed_bundle(
         output_pcollection)
 
-  def extract_fired_timers(self):
-    return self._watermark_manager.extract_fired_timers()
+  def extract_all_timers(self):
+    return self._watermark_manager.extract_all_timers()
 
   def is_done(self, transform=None):
     """Checks completion of a step or the pipeline.
