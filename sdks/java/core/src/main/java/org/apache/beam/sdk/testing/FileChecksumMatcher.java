@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.NumberedShardedFile;
@@ -71,8 +72,10 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
       Pattern.compile("(?x) \\S* (?<shardnum> \\d+) -of- (?<numshards> \\d+)");
 
   private final String expectedChecksum;
-  private String actualChecksum;
   private final ShardedFile shardedFile;
+
+  /** Access via {@link #getActualChecksum()}. */
+  @Nullable private String actualChecksum;
 
   /**
    * Constructor that uses default shard template.
@@ -123,20 +126,30 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
 
   @Override
   public boolean matchesSafely(PipelineResult pipelineResult) {
-    // Load output data
-    List<String> outputs;
-    try {
-      outputs = shardedFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
-    } catch (Exception e) {
-      throw new RuntimeException(
-          String.format("Failed to read from: %s", shardedFile), e);
+    return getActualChecksum().equals(expectedChecksum);
+  }
+
+  /**
+   * Computes a checksum of the sharded file specified in the constructor. Not safe to call until
+   * the writing is complete.
+   */
+  private String getActualChecksum() {
+    if (actualChecksum == null) {
+      // Load output data
+      List<String> outputs;
+      try {
+        outputs = shardedFile.readFilesWithRetries(Sleeper.DEFAULT, BACK_OFF_FACTORY.backoff());
+      } catch (Exception e) {
+        throw new RuntimeException(
+            String.format("Failed to read from: %s", shardedFile), e);
+      }
+
+      // Verify outputs. Checksum is computed using SHA-1 algorithm
+      actualChecksum = computeHash(outputs);
+      LOG.debug("Generated checksum: {}", actualChecksum);
     }
 
-    // Verify outputs. Checksum is computed using SHA-1 algorithm
-    actualChecksum = computeHash(outputs);
-    LOG.debug("Generated checksum: {}", actualChecksum);
-
-    return actualChecksum.equals(expectedChecksum);
+    return actualChecksum;
   }
 
   private String computeHash(@Nonnull List<String> strs) {
@@ -163,7 +176,7 @@ public class FileChecksumMatcher extends TypeSafeMatcher<PipelineResult>
   public void describeMismatchSafely(PipelineResult pResult, Description description) {
     description
         .appendText("was (")
-        .appendText(actualChecksum)
+        .appendText(getActualChecksum())
         .appendText(")");
   }
 }

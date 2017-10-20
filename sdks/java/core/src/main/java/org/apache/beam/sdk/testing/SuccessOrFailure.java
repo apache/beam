@@ -31,10 +31,10 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 @DefaultCoder(SerializableCoder.class)
 public final class SuccessOrFailure implements Serializable {
   private static final class SerializableThrowable implements Serializable {
-    private final Throwable throwable;
-    private final StackTraceElement[] stackTrace;
+    @Nullable private final Throwable throwable;
+    @Nullable private final StackTraceElement[] stackTrace;
 
-    private SerializableThrowable(Throwable t) {
+    private SerializableThrowable(@Nullable Throwable t) {
       this.throwable = t;
       this.stackTrace = (t == null) ? null : t.getStackTrace();
     }
