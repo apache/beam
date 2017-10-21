@@ -1540,7 +1540,7 @@
               <exclude>**/target/**/*</exclude>
               <exclude>**/dependency-reduced-pom.xml</exclude>
               <exclude>**/hs_err_pid*.log</exclude>
-              <exclude>.github/**/*</exclude>
+              <exclude>src/.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/.idea/**/*</exclude>
               <exclude>**/*.egg-info/**/*</exclude>
