@@ -27,9 +27,9 @@ import Queue as queue
 import sys
 import threading
 import traceback
-from concurrent import futures
 
 import grpc
+from concurrent import futures
 
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc

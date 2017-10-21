@@ -26,9 +26,9 @@ import threading
 import time
 import traceback
 import uuid
-from concurrent import futures
 
 import grpc
+from concurrent import futures
 from google.protobuf import text_format
 
 from apache_beam.portability.api import beam_job_api_pb2
