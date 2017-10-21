@@ -584,10 +584,9 @@ class _GroupByKeyOnlyEvaluator(_TransformEvaluator):
     assert len(self._outputs) == 1
     self.output_pcollection = list(self._outputs)[0]
 
-    # The input type of a GroupByKey will be KV[Any, Any] or more specific.
-    kv_type_hint = (
-        self._applied_ptransform.transform.get_type_hints().input_types[0])
-    self.key_coder = coders.registry.get_coder(kv_type_hint[0].tuple_types[0])
+    # The output type of a GroupByKey will be KV[Any, Any] or more specific.
+    kv_type_hint = self._applied_ptransform.outputs[None].element_type
+    self.key_coder = coders.registry.get_coder(kv_type_hint.tuple_types[0])
 
   def process_timer(self, timer_firing):
     # We do not need to emit a KeyedWorkItem to process_element().
