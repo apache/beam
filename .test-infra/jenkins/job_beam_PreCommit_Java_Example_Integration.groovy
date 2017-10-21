@@ -42,21 +42,20 @@ mavenJob('beam_PreCommit_Java_Integration_Tests') {
   common_job_properties.setPreCommit(delegate, 'mvn failsafe:integration-test -pl examples/java -am', 'Run Java Integration PreCommit')
 
   // Maven goals for this job: The Java Examples and their dependencies
-  goals('''\
-    --batch-mode \
-    --errors \
-    --activate-profiles jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects examples/java \
-    --also-make \
-    -D checkstyle.skip \
-    -D findbugs.skip \
-    -D pullRequest=$ghprbPullId \
-    help:effective-settings \
-    clean \
-    compile \
-    test-compile \
-    failsafe:integration-test \
-    failsafe:verify \
-  ''')
+  goals([
+      '--batch-mode',
+      '--errors',
+      '--activate-profiles jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner',
+      '--projects examples/java',
+      '--also-make',
+      '-D checkstyle.skip',
+      '-D findbugs.skip',
+      '-D pullRequest=$ghprbPullId',
+      'help:effective-settings',
+      'clean',
+      'compile',
+      'test-compile',
+      'failsafe:integration-test',
+      'failsafe:verify'].join(' '))
 }
 
