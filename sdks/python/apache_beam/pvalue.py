@@ -326,13 +326,10 @@ class _UnpickledSideInput(AsSideInput):
 
   def _view_options(self):
     return {
-      'data': self._data,
-      # For non-fn-api runners.
-      'window_mapping_fn': self._data.window_mapping_fn,
+        'data': self._data,
+        # For non-fn-api runners.
+        'window_mapping_fn': self._data.window_mapping_fn,
     }
-    base = super(_UnpickledSideInput, self)._view_options()
-    base['data'] = self._data
-    return base
 
   def _side_input_data(self):
     return self._data
