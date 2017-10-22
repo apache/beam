@@ -1547,7 +1547,7 @@
               <exclude>**/target/**/*</exclude>
               <exclude>**/dependency-reduced-pom.xml</exclude>
               <exclude>**/hs_err_pid*.log</exclude>
-              <exclude>.github/**/*</exclude>
+              <exclude>**/.github/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/.idea/**/*</exclude>
               <exclude>**/*.egg-info/**/*</exclude>
@@ -1568,7 +1568,7 @@
               <exclude>**/.settings/**/*</exclude>
 
               <!-- Proto/grpc generated wrappers -->
-              <exclude>**/apache_beam/runners/api/*_pb2*.py</exclude>
+              <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
             </excludes>
           </configuration>
         </plugin>

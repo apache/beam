@@ -24,6 +24,8 @@ from __future__ import print_function
 import functools
 import logging
 import Queue as queue
+import sys
+import threading
 import traceback
 from concurrent import futures
 
@@ -46,9 +48,10 @@ class SdkHarness(object):
 
   def run(self):
     control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
-    # TODO(robertwb): Wire up to new state api.
-    state_stub = None
-    self.worker = SdkWorker(state_stub, self._data_channel_factory)
+    state_stub = beam_fn_api_pb2_grpc.BeamFnStateStub(self._control_channel)
+    state_handler = GrpcStateHandler(state_stub)
+    state_handler.start()
+    self.worker = SdkWorker(state_handler, self._data_channel_factory)
 
     responses = queue.Queue()
     no_more_work = object()
@@ -102,6 +105,7 @@ class SdkHarness(object):
     # control to its caller.
     responses.put(no_more_work)
     self._data_channel_factory.close()
+    state_handler.done()
     logging.info('Done consuming work.')
 
 
@@ -148,3 +152,104 @@ class SdkWorker(object):
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
     return self.bundle_processors.get(instruction_id).metrics()
+
+
+class GrpcStateHandler(object):
+
+  _DONE = object()
+
+  def __init__(self, state_stub):
+    self._lock = threading.Lock()
+    self._state_stub = state_stub
+    self._requests = queue.Queue()
+    self._responses_by_id = {}
+    self._last_id = 0
+    self._exc_info = None
+
+  def start(self):
+    self._done = False
+
+    def request_iter():
+      while True:
+        request = self._requests.get()
+        if request is self._DONE or self._done:
+          break
+        yield request
+    responses = self._state_stub.State(request_iter())
+
+    def pull_responses():
+      try:
+        for response in responses:
+          self._responses_by_id[response.id].set(response)
+          if self._done:
+            break
+      except:  # pylint: disable=bare-except
+        self._exc_info = sys.exc_info()
+        raise
+    reader = threading.Thread(target=pull_responses, name='read_state')
+    reader.daemon = True
+    reader.start()
+
+  def done(self):
+    self._done = True
+    self._requests.put(self._DONE)
+
+  def blocking_get(self, state_key, instruction_reference):
+    response = self._blocking_request(
+        beam_fn_api_pb2.StateRequest(
+            instruction_reference=instruction_reference,
+            state_key=state_key,
+            get=beam_fn_api_pb2.StateGetRequest()))
+    if response.get.continuation_token:
+      raise NotImplementedErrror
+    return response.get.data
+
+  def blocking_append(self, state_key, data, instruction_reference):
+    self._blocking_request(
+        beam_fn_api_pb2.StateRequest(
+            instruction_reference=instruction_reference,
+            state_key=state_key,
+            append=beam_fn_api_pb2.StateAppendRequest(data=data)))
+
+  def blocking_clear(self, state_key, instruction_reference):
+    self._blocking_request(
+        beam_fn_api_pb2.StateRequest(
+            instruction_reference=instruction_reference,
+            state_key=state_key,
+            clear=beam_fn_api_pb2.StateClearRequest()))
+
+  def _blocking_request(self, request):
+    request.id = self._next_id()
+    self._responses_by_id[request.id] = future = _Future()
+    self._requests.put(request)
+    while not future.wait(timeout=1):
+      if self._exc_info:
+        raise self._exc_info[0], self._exc_info[1], self._exc_info[2]
+      elif self._done:
+        raise RuntimeError()
+    del self._responses_by_id[request.id]
+    return future.get()
+
+  def _next_id(self):
+    self._last_id += 1
+    return str(self._last_id)
+
+
+class _Future(object):
+  """A simple future object to implement blocking requests.
+  """
+  def __init__(self):
+    self._event = threading.Event()
+
+  def wait(self, timeout=None):
+    return self._event.wait(timeout)
+
+  def get(self, timeout=None):
+    if self.wait(timeout):
+      return self._value
+    else:
+      raise LookupError()
+
+  def set(self, value):
+    self._value = value
+    self._event.set()
