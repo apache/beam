@@ -19,9 +19,9 @@
 """
 import time
 import uuid
+from concurrent import futures
 
 import grpc
-from concurrent import futures
 
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline

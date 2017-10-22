@@ -24,9 +24,9 @@ import logging
 import Queue as queue
 import threading
 import time
+from concurrent import futures
 
 import grpc
-from concurrent import futures
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
 from apache_beam.coders import WindowedValueCoder
@@ -50,7 +50,6 @@ from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-
 
 # This module is experimental. No backwards-compatibility guarantees.
 
