@@ -259,6 +259,11 @@ class _TaggedReceivers(dict):
 class DoOperation(Operation):
   """A Do operation that will execute a custom DoFn for each input element."""
 
+  def __init__(
+      self, name, spec, counter_factory, sampler, side_input_maps=None):
+    super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
+    self.side_input_maps = side_input_maps
+
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.
 
@@ -273,6 +278,10 @@ class DoOperation(Operation):
       either in singleton or collection mode according to the tags_and_types
       argument.
     """
+    # Only call this on the old path where side_input_maps was not
+    # provided directly.
+    assert self.side_input_maps is None
+
     # We will read the side inputs in the order prescribed by the
     # tags_and_types argument because this is exactly the order needed to
     # replace the ArgumentPlaceholder objects in the args/kwargs of the DoFn
@@ -336,8 +345,14 @@ class DoOperation(Operation):
           raise ValueError('Unexpected output name for operation: %s' % tag)
         self.tagged_receivers[original_tag] = self.receivers[index]
 
+      if self.side_input_maps is None:
+        if tags_and_types:
+          self.side_input_maps = list(self._read_side_inputs(tags_and_types))
+        else:
+          self.side_input_maps = []
+
       self.dofn_runner = common.DoFnRunner(
-          fn, args, kwargs, self._read_side_inputs(tags_and_types),
+          fn, args, kwargs, self.side_input_maps,
           window_fn, context, self.tagged_receivers,
           logger, self.step_name,
           scoped_metrics_container=self.scoped_metrics_container)

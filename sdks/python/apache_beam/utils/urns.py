@@ -58,6 +58,11 @@ LENGTH_PREFIX_CODER = "urn:beam:coders:length_prefix:0.1"
 GLOBAL_WINDOW_CODER = "urn:beam:coders:urn:beam:coders:global_window:0.1"
 WINDOWED_VALUE_CODER = "urn:beam:coders:windowed_value:0.1"
 
+ITERABLE_ACCESS = "urn:beam:sideinput:iterable"
+MULTIMAP_ACCESS = "urn:beam:sideinput:multimap"
+PICKLED_PYTHON_VIEWFN = "beam:view_fn:pickled_python_data:v0.1"
+PICKLED_WINDOW_MAPPING_FN = "beam:window_mapping_fn:pickled_python:v0.1"
+
 
 class RunnerApiFn(object):
   """Abstract base class that provides urn registration utilities.
