@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineRunner;
@@ -605,6 +606,7 @@ public class PAssert {
       }
 
       @Override
+      @Nullable
       public Void apply(T actual) {
         assertThat(actual, matcher);
         return null;
@@ -1269,6 +1271,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(T actual) {
       assertThat(actual, equalTo(expected));
       return null;
@@ -1287,6 +1290,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(T actual) {
       assertThat(actual, not(equalTo(expected)));
       return null;
@@ -1316,6 +1320,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(Iterable<T> actual) {
       assertThat(actual, containsInAnyOrder(expected));
       return null;

@@ -247,7 +247,7 @@ public class Watch {
        * Called by the {@link Watch} transform to create a new independent termination state for a
        * newly arrived {@code InputT}.
        */
-      StateT forNewInput(Instant now, InputT input);
+      StateT forNewInput(Instant now, @Nullable InputT input);
 
       /**
        * Called by the {@link Watch} transform to compute a new termination state, in case after
@@ -799,7 +799,7 @@ public class Watch {
     // Outputs that have been claimed in the current ProcessElement call. A prefix of "pending".
     private List<TimestampedValue<OutputT>> claimed = Lists.newArrayList();
     private boolean isOutputComplete;
-    private TerminationStateT terminationState;
+    @Nullable private TerminationStateT terminationState;
     @Nullable private Instant pollWatermark;
     private boolean shouldStop = false;
 
