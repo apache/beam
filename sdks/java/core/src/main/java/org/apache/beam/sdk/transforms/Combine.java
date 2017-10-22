@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -440,6 +441,7 @@ public class Combine {
     /**
      * Returns the value that should be used for the combine of the empty set.
      */
+    @Nullable
     public V identity() {
       return null;
     }
@@ -506,7 +508,7 @@ public class Combine {
    * <p>Used only as a private accumulator class.
    */
   public static class Holder<V> {
-    private V value;
+    @Nullable private V value;
     private boolean present;
     private Holder() { }
     private Holder(V value) {
@@ -1945,10 +1947,10 @@ public class Combine {
      * the hot and cold key paths.
      */
     private static class InputOrAccum<InputT, AccumT> {
-      public final InputT input;
-      public final AccumT accum;
+      @Nullable public final InputT input;
+      @Nullable public final AccumT accum;
 
-      private InputOrAccum(InputT input, AccumT aggr) {
+      private InputOrAccum(@Nullable InputT input, @Nullable AccumT aggr) {
         this.input = input;
         this.accum = aggr;
       }
