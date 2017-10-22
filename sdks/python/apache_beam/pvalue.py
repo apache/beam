@@ -34,7 +34,6 @@ from apache_beam.internal import pickler
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import urns
 
-
 __all__ = [
     'PCollection',
     'TaggedOutput',
