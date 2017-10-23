@@ -131,7 +131,7 @@ public class StateSpecs {
    * @see #bag(Coder)
    */
   public static <T> StateSpec<BagState<T>> bag() {
-    return bag(null);
+    return new BagStateSpec<>(null);
   }
 
   /**
@@ -151,7 +151,7 @@ public class StateSpecs {
    * @see #set(Coder)
    */
   public static <T> StateSpec<SetState<T>> set() {
-    return set(null);
+    return new SetStateSpec<>(null);
   }
 
   /**

@@ -71,8 +71,9 @@ public class RehydratedComponents {
               new CacheLoader<String, Coder<?>>() {
                 @Override
                 public Coder<?> load(String id) throws Exception {
-                  return CoderTranslation.fromProto(
-                      components.getCodersOrThrow(id), RehydratedComponents.this);
+                  @Nullable RunnerApi.Coder coder = components.getCodersOrDefault(id, null);
+                  checkState(coder != null, "No coder with id '%s' in serialized components", id);
+                  return CoderTranslation.fromProto(coder, RehydratedComponents.this);
                 }
               });
 

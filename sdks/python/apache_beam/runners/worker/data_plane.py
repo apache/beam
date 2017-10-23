@@ -25,6 +25,7 @@ import abc
 import collections
 import logging
 import Queue as queue
+import sys
 import threading
 
 import grpc
@@ -147,6 +148,7 @@ class _GrpcDataChannel(DataChannel):
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
     self._closed = False
+    self._exc_info = None
 
   def close(self):
     self._to_send.put(self._WRITES_FINISHED)
@@ -163,12 +165,17 @@ class _GrpcDataChannel(DataChannel):
     received = self._receiving_queue(instruction_id)
     done_targets = []
     while len(done_targets) < len(expected_targets):
-      data = received.get()
-      if not data.data and data.target in expected_targets:
-        done_targets.append(data.target)
+      try:
+        data = received.get(timeout=1)
+      except queue.Empty:
+        if self._exc_info:
+          raise exc_info[0], exc_info[1], exc_info[2]
       else:
-        assert data.target not in done_targets
-        yield data
+        if not data.data and data.target in expected_targets:
+          done_targets.append(data.target)
+        else:
+          assert data.target not in done_targets
+          yield data
 
   def output_stream(self, instruction_id, target):
     # TODO: Return an output stream that sends data
@@ -215,6 +222,7 @@ class _GrpcDataChannel(DataChannel):
     except:  # pylint: disable=bare-except
       if not self._closed:
         logging.exception('Failed to read inputs in the data plane')
+        self._exc_info = sys.exc_info()
         raise
     finally:
       self._reads_finished.set()

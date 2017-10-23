@@ -76,7 +76,8 @@ public class WriteFilesTranslationTest {
 
     @Test
     public void testEncodedProto() throws Exception {
-      RunnerApi.WriteFilesPayload payload = WriteFilesTranslation.toProto(writeFiles);
+      RunnerApi.WriteFilesPayload payload =
+          WriteFilesTranslation.payloadForWriteFiles(writeFiles, SdkComponents.create());
 
       assertThat(
           payload.getRunnerDeterminedSharding(),

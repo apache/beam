@@ -29,9 +29,7 @@ import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.MimeTypes;
 
-/**
- * Utility class for staging files to GCS.
- */
+/** Utility class for staging files to GCS. */
 public class GcsStager implements Stager {
   private DataflowPipelineOptions options;
 
@@ -39,32 +37,63 @@ public class GcsStager implements Stager {
     this.options = options;
   }
 
-  @SuppressWarnings("unused")  // used via reflection
+  @SuppressWarnings("unused") // used via reflection
   public static GcsStager fromOptions(PipelineOptions options) {
     return new GcsStager(options.as(DataflowPipelineOptions.class));
   }
 
+  /**
+   * Stages {@link DataflowPipelineOptions#getFilesToStage()}, which defaults to every file on the
+   * classpath unless overridden, as well as {@link
+   * DataflowPipelineDebugOptions#getOverrideWindmillBinary()} if specified.
+   *
+   * @see #stageFiles(List)
+   */
   @Override
-  public List<DataflowPackage> stageFiles() {
+  public List<DataflowPackage> stageDefaultFiles() {
     checkNotNull(options.getStagingLocation());
     String windmillBinary =
         options.as(DataflowPipelineDebugOptions.class).getOverrideWindmillBinary();
+
+    List<String> filesToStage = options.getFilesToStage();
+
     if (windmillBinary != null) {
-      options.getFilesToStage().add("windmill_main=" + windmillBinary);
+      filesToStage.add("windmill_main=" + windmillBinary);
     }
 
+    return stageFiles(filesToStage);
+  }
+
+  /**
+   * Stages files to {@link DataflowPipelineOptions#getStagingLocation()}, suffixed with their md5
+   * hash to avoid collisions.
+   *
+   * <p>Uses {@link DataflowPipelineOptions#getGcsUploadBufferSizeBytes()}.
+   */
+  @Override
+  public List<DataflowPackage> stageFiles(List<String> filesToStage) {
+    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
+      return packageUtil.stageClasspathElements(
+          filesToStage, options.getStagingLocation(), buildCreateOptions());
+    }
+  }
+
+  @Override
+  public DataflowPackage stageToFile(byte[] bytes, String baseName) {
+    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
+      return packageUtil.stageToFile(
+          bytes, baseName, options.getStagingLocation(), buildCreateOptions());
+    }
+  }
+
+  private GcsCreateOptions buildCreateOptions() {
     int uploadSizeBytes = firstNonNull(options.getGcsUploadBufferSizeBytes(), 1024 * 1024);
     checkArgument(uploadSizeBytes > 0, "gcsUploadBufferSizeBytes must be > 0");
     uploadSizeBytes = Math.min(uploadSizeBytes, 1024 * 1024);
 
-    GcsCreateOptions createOptions = GcsCreateOptions.builder()
+    return GcsCreateOptions.builder()
         .setGcsUploadBufferSizeBytes(uploadSizeBytes)
         .setMimeType(MimeTypes.BINARY)
         .build();
-
-    try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
-      return packageUtil.stageClasspathElements(
-          options.getFilesToStage(), options.getStagingLocation(), createOptions);
-    }
   }
 }

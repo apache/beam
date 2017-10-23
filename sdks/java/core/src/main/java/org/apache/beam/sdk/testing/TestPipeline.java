@@ -142,7 +142,8 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   private static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
 
-    private List<TransformHierarchy.Node> runVisitedNodes;
+    // Null until the pipeline has been run
+    @Nullable private List<TransformHierarchy.Node> runVisitedNodes;
 
     private final Predicate<TransformHierarchy.Node> isPAssertNode =
         new Predicate<TransformHierarchy.Node>() {
@@ -172,6 +173,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     private PipelineAbandonedNodeEnforcement(final TestPipeline pipeline) {
       super(pipeline);
+      runVisitedNodes = null;
     }
 
     private List<TransformHierarchy.Node> recordPipelineNodes(final Pipeline pipeline) {

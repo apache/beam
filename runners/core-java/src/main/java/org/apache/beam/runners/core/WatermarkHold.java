@@ -483,9 +483,9 @@ class WatermarkHold<W extends BoundedWindow> implements Serializable {
       @Override
       public OldAndNewHolds read() {
         // Read both the element and extra holds.
-        Instant elementHold = elementHoldState.read();
-        Instant extraHold = extraHoldState.read();
-        Instant oldHold;
+        @Nullable Instant elementHold = elementHoldState.read();
+        @Nullable Instant extraHold = extraHoldState.read();
+        @Nullable Instant oldHold;
         // Find the minimum, accounting for null.
         if (elementHold == null) {
           oldHold = extraHold;

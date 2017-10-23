@@ -26,13 +26,18 @@
   <!-- The uncallable method error fails on @ProcessElement style methods -->
   <Bug pattern="UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS"/>
 
+  <!-- Suppress checking of AutoValue internals -->
+  <Match>
+    <Class name="~.*AutoValue_.*"/>
+  </Match>
+
   <!--
           Suppressed findbugs issues. All new issues should include a comment why they're
           suppressed.
 
           Suppressions should go in this file rather than inline using @SuppressFBWarnings to avoid
           unapproved artifact license.
-        -->
+	-->
   <Match>
     <Class name="org.apache.beam.fn.harness.control.BeamFnControlClient$InboundObserver"/>
     <Method name="onCompleted"/>

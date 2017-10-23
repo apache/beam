@@ -137,6 +137,7 @@
     <hamcrest.version>1.3</hamcrest.version>
     <jackson.version>2.8.9</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
+    <findbugs.annotations.version>1.3.9-1</findbugs.annotations.version>
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
@@ -153,7 +154,7 @@
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <snappy-java.version>1.1.4</snappy-java.version>
-    <kafka.clients.version>0.10.1.0</kafka.clients.version>
+    <kafka.clients.version>0.11.0.1</kafka.clients.version>
     <commons.csv.version>1.4</commons.csv.version>
 
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
@@ -1034,6 +1035,12 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.github.stephenc.findbugs</groupId>
+        <artifactId>findbugs-annotations</artifactId>
+        <version>${findbugs.annotations.version}</version>
       </dependency>
 
       <dependency>
