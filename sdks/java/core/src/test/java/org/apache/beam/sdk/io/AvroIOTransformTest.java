@@ -52,6 +52,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -68,12 +69,6 @@ import org.junit.runners.Suite;
 public class AvroIOTransformTest {
 
   // TODO: Stop requiring local files
-
-  @Rule
-  public final transient TestPipeline pipeline = TestPipeline.create();
-
-  @Rule public final transient TestPipeline pipelineWithNoValidation = TestPipeline.create()
-      .enableAbandonedNodeEnforcement(false);
 
   @Rule
   public final TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -160,6 +155,9 @@ public class AvroIOTransformTest {
    */
   @RunWith(Parameterized.class)
   public static class AvroIOReadTransformTest extends AvroIOTransformTest {
+
+    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
 
     private void generateAvroFile(final AvroGeneratedUser[] elements,
                                   final File avroFile) throws IOException {
@@ -282,8 +280,12 @@ public class AvroIOTransformTest {
   @RunWith(Parameterized.class)
   public static class AvroIOWriteTransformTest extends AvroIOTransformTest {
 
-    @Rule
+    public final transient TestPipeline pipeline = TestPipeline.create();
     public ExpectedException expectedException = ExpectedException.none();
+
+    // the expectedException must stop the pipeline
+    @Rule
+    public final transient RuleChain chain = RuleChain.outerRule(expectedException).around(pipeline);
 
     private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
 
@@ -405,12 +407,6 @@ public class AvroIOTransformTest {
 
       if (expectAvroException) {
         expectedException.expect(isA(UnresolvedUnionException.class));
-        // UnresolvedUnionException is thrown (because of incompatible schema) when the Create.of()
-        // is applied. When the exception is expected, then it does not interrupt the flow
-        // and proceeds to pipeline evaluation with the configured enforcements.
-        // In our case, we want to stop the pipeline evaluation to avoid
-        // Create.Values == null exception. So we deactivate enforcements.
-        p = pipelineWithNoValidation;
       }
       @SuppressWarnings("unchecked") final
       PCollection<T> input =
