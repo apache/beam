@@ -281,11 +281,11 @@ public class AvroIOTransformTest {
   public static class AvroIOWriteTransformTest extends AvroIOTransformTest {
 
     public final transient TestPipeline pipeline = TestPipeline.create();
-    public ExpectedException expectedException = ExpectedException.none();
+    public ExpectedException thrown = ExpectedException.none();
 
-    // the expectedException must stop the pipeline
+    // the ExpectedException must stop the pipeline
     @Rule
-    public final transient RuleChain chain = RuleChain.outerRule(expectedException).around(pipeline);
+    public final transient RuleChain chain = RuleChain.outerRule(thrown).around(pipeline);
 
     private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
 
@@ -406,7 +406,7 @@ public class AvroIOTransformTest {
       final AvroIO.Write<T> write = writeBuilder.to(avroFile.getPath());
 
       if (expectAvroException) {
-        expectedException.expect(isA(UnresolvedUnionException.class));
+        thrown.expect(isA(UnresolvedUnionException.class));
       }
       @SuppressWarnings("unchecked") final
       PCollection<T> input =
