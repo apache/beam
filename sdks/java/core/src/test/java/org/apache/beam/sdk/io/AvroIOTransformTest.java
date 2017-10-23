@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io;
 
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.hamcrest.core.Is.isA;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
@@ -30,6 +31,7 @@ import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.avro.Schema;
+import org.apache.avro.UnresolvedUnionException;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.generic.GenericData;
@@ -49,6 +51,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -69,12 +72,16 @@ public class AvroIOTransformTest {
   @Rule
   public final transient TestPipeline pipeline = TestPipeline.create();
 
+  @Rule public final transient TestPipeline pipelineWithNoValidation = TestPipeline.create()
+      .enableAbandonedNodeEnforcement(false);
+
   @Rule
   public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
   private static final Schema.Parser parser = new Schema.Parser();
+  private static final Schema.Parser parser2 = new Schema.Parser();
 
-  private static final String SCHEMA_STRING =
+  private static final String SCHEMA_STRING_1 =
       "{\"namespace\": \"example.avro\",\n"
           + " \"type\": \"record\",\n"
           + " \"name\": \"AvroGeneratedUser\",\n"
@@ -85,7 +92,19 @@ public class AvroIOTransformTest {
           + " ]\n"
           + "}";
 
-  private static final Schema SCHEMA = parser.parse(SCHEMA_STRING);
+  private static final String SCHEMA_STRING_2 =
+      "{\"namespace\": \"example.avro\",\n"
+          + " \"type\": \"record\",\n"
+          + " \"name\": \"AvroGeneratedUser\",\n"
+          + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"favorite_pet\", \"type\": [\"string\", \"null\"]},\n"
+          + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema SCHEMA_1 = parser.parse(SCHEMA_STRING_1);
+  private static final Schema SCHEMA_2 = parser2.parse(SCHEMA_STRING_2);
 
   private static AvroGeneratedUser[] generateAvroObjects() {
     final AvroGeneratedUser user1 = new AvroGeneratedUser();
@@ -104,15 +123,32 @@ public class AvroIOTransformTest {
   }
 
   private static GenericRecord[] generateAvroGenericRecords() {
-    final GenericRecord user1 = new GenericData.Record(SCHEMA);
+    final GenericRecord user1 = new GenericData.Record(SCHEMA_1);
     user1.put("name", "Bob");
     user1.put("favorite_number", 256);
 
-    final GenericRecord user2 = new GenericData.Record(SCHEMA);
+    final GenericRecord user2 = new GenericData.Record(SCHEMA_1);
     user2.put("name", "Alice");
     user2.put("favorite_number", 128);
 
-    final GenericRecord user3 = new GenericData.Record(SCHEMA);
+    final GenericRecord user3 = new GenericData.Record(SCHEMA_1);
+    user3.put("name", "Ted");
+    user3.put("favorite_color", "white");
+
+    return new GenericRecord[] { user1, user2, user3 };
+  }
+
+  private static GenericRecord[] generateAvroGenericRecordsWithHeterogeneousSchemas() {
+    final GenericRecord user1 = new GenericData.Record(SCHEMA_1);
+    user1.put("name", "Bob");
+    user1.put("favorite_number", 256);
+
+    // one record with different (from the other records) but correct schema
+    final GenericRecord user2 = new GenericData.Record(SCHEMA_2);
+    user2.put("name", "Alice");
+    user2.put("favorite_pet", "cat");
+
+    final GenericRecord user3 = new GenericData.Record(SCHEMA_1);
     user3.put("name", "Ted");
     user3.put("favorite_color", "white");
 
@@ -186,14 +222,14 @@ public class AvroIOTransformTest {
                   // test read using schema object
                   new Object[] {
                       null,
-                      AvroIO.readGenericRecords(SCHEMA),
+                      AvroIO.readGenericRecords(SCHEMA_1),
                       "AvroIO.Read/Read.out",
                       generateAvroGenericRecords(),
                       fromSchema
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.readGenericRecords(SCHEMA),
+                      AvroIO.readGenericRecords(SCHEMA_1),
                       "MyRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchema
@@ -202,14 +238,14 @@ public class AvroIOTransformTest {
                   // test read using schema string
                   new Object[] {
                       null,
-                      AvroIO.readGenericRecords(SCHEMA_STRING),
+                      AvroIO.readGenericRecords(SCHEMA_STRING_1),
                       "AvroIO.Read/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString
                   },
                   new Object[] {
                       "MyRead",
-                      AvroIO.readGenericRecords(SCHEMA_STRING),
+                      AvroIO.readGenericRecords(SCHEMA_STRING_1),
                       "MyRead/Read.out",
                       generateAvroGenericRecords(),
                       fromSchemaString
@@ -246,6 +282,9 @@ public class AvroIOTransformTest {
   @RunWith(Parameterized.class)
   public static class AvroIOWriteTransformTest extends AvroIOTransformTest {
 
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
+
     private static final String WRITE_TRANSFORM_NAME = "AvroIO.Write";
 
     private <T> List<T> readAvroFile(final File avroFile, boolean generic) throws IOException {
@@ -261,7 +300,7 @@ public class AvroIOTransformTest {
         }
         return (List<T>) output;
       } else {
-        final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA);
+        final DatumReader<GenericRecord> datumReader = new GenericDatumReader<>(SCHEMA_1);
         final List<GenericRecord> genericRecords = new ArrayList<>();
         try (DataFileReader<GenericRecord> dataFileReader = new DataFileReader<>(avroFile,
             datumReader)) {
@@ -281,6 +320,9 @@ public class AvroIOTransformTest {
       final String genericRecordsfromSchemaString = "GenericRecordsFromSchemaString";
       final String generatedClassWithoutSchema = "GeneratedClassWithoutSchema";
       final String genericRecordsWithoutSchema = "GenericRecordsWithoutSchema";
+      final String genericRecordsWithHeterogeneousSchema = "GenericRecordsWithHeterogeneousSchema";
+      final String genericRecordsWithHeterogeneousSchemaWithLazySchemaGuess =
+          "GenericRecordsWithHeterogeneousSchemaWithLazySchemaGuess";
 
       return
           ImmutableList.<Object[]>builder()
@@ -289,30 +331,49 @@ public class AvroIOTransformTest {
                       AvroIO.write(AvroGeneratedUser.class),
                       generatedClass,
                       AvroIOTransformTest.generateAvroObjects(),
+                      false,
                       false
                   },
                   new Object[] {
-                      AvroIO.writeGenericRecords(SCHEMA),
+                      AvroIO.writeGenericRecords(SCHEMA_1),
                       genericRecordsfromSchema,
                       AvroIOTransformTest.generateAvroGenericRecords(),
-                      true
+                      true,
+                      false
                   },
                   new Object[] {
-                      AvroIO.writeGenericRecords(SCHEMA_STRING),
+                      AvroIO.writeGenericRecords(SCHEMA_STRING_1),
                       genericRecordsfromSchemaString,
                       AvroIOTransformTest.generateAvroGenericRecords(),
-                      true
+                      true,
+                      false
                   },
                   new Object[] {
                       AvroIO.write(),
                       generatedClassWithoutSchema,
                       AvroIOTransformTest.generateAvroObjects(),
+                      false,
                       false
                   },
                   new Object[] {
                       AvroIO.writeGenericRecords(),
                       genericRecordsWithoutSchema,
                       AvroIOTransformTest.generateAvroGenericRecords(),
+                      true,
+                      false
+                  },
+                  new Object[] {
+                      AvroIO.writeGenericRecords(SCHEMA_1),
+                      genericRecordsWithHeterogeneousSchema,
+                      AvroIOTransformTest.generateAvroGenericRecordsWithHeterogeneousSchemas(),
+                      true,
+                      true
+                  },
+                  new Object[] {
+                      AvroIO.writeGenericRecords(),
+                      genericRecordsWithHeterogeneousSchemaWithLazySchemaGuess,
+                      AvroIOTransformTest.generateAvroGenericRecordsWithHeterogeneousSchemas(),
+                      true,
                       true
                   })
               .build();
@@ -331,18 +392,33 @@ public class AvroIOTransformTest {
     @Parameterized.Parameter(3)
     public Boolean generic;
 
+    @Parameterized.Parameter(4)
+    public boolean expectAvroException;
+
     private <T> void runTestWrite(final AvroIO.Write<T> writeBuilder, T[] inputData,
-        boolean generic) throws Exception {
+        boolean generic, boolean expectAvroException) throws Exception {
+
+
+      TestPipeline p = pipeline;
       final File avroFile = tmpFolder.newFile("file.avro");
       final AvroIO.Write<T> write = writeBuilder.to(avroFile.getPath());
 
+      if (expectAvroException) {
+        expectedException.expect(isA(UnresolvedUnionException.class));
+        // UnresolvedUnionException is thrown (because of incompatible schema) when the Create.of()
+        // is applied. When the exception is expected, then it does not interrupt the flow
+        // and proceeds to pipeline evaluation with the configured enforcements.
+        // In our case, we want to stop the pipeline evaluation to avoid
+        // Create.Values == null exception. So we deactivate enforcements.
+        p = pipelineWithNoValidation;
+      }
       @SuppressWarnings("unchecked") final
       PCollection<T> input =
-          pipeline.apply(Create.of(Arrays.asList(inputData))
+          p.apply(Create.of(Arrays.asList(inputData))
                                .withCoder((Coder<T>) AvroCoder.of(AvroGeneratedUser.class)));
       input.apply(write.withoutSharding());
+      p.run();
 
-      pipeline.run();
 
       assertEquals(WRITE_TRANSFORM_NAME, write.getName());
       assertThat(readAvroFile(avroFile, generic), containsInAnyOrder((Object[]) inputData));
@@ -351,7 +427,7 @@ public class AvroIOTransformTest {
     @Test
     @Category(NeedsRunner.class)
     public void testWrite() throws Exception {
-      runTestWrite(writeTransform, inputData, generic);
+      runTestWrite(writeTransform, inputData, generic, expectAvroException);
     }
 
     // TODO: for Write only, test withSuffix, withNumShards,
