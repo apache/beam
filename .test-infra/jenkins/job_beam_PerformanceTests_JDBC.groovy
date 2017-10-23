@@ -71,8 +71,8 @@ job('beam_PerformanceTests_JDBC'){
     parameters {
         nodeParam('TEST_HOST') {
             description('select test host beam1 till kubectl is installed in other hosts')
-            defaultNodes(['beam1'])
-            allowedNodes(['beam1'])
+            defaultNodes(['beam2'])
+            allowedNodes(['beam2'])
             trigger('multiSelectionDisallowed')
             eligibility('IgnoreOfflineNodeEligibility')
         }
