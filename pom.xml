@@ -157,6 +157,7 @@
     <kafka.clients.version>0.11.0.1</kafka.clients.version>
     <commons.csv.version>1.4</commons.csv.version>
 
+    <apache-rat-plugin.version>0.12</apache-rat-plugin.version>
     <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
@@ -184,6 +185,9 @@
 
     <!-- For container builds, override to push containers to any registry -->
     <docker-repository-root>${user.name}-docker-apache.bintray.io/beam</docker-repository-root>
+
+    <!-- Default skipping -->
+    <rat.skip>true</rat.skip>
   </properties>
 
   <packaging>pom</packaging>
@@ -247,15 +251,11 @@
             <plugin>
               <groupId>org.apache.rat</groupId>
               <artifactId>apache-rat-plugin</artifactId>
-              <executions>
-                <execution>
-                  <phase>verify</phase>
-                  <goals>
-                    <goal>check</goal>
-                  </goals>
-                </execution>
-              </executions>
+              <configuration>
+                <skip>false</skip>
+              </configuration>
             </plugin>
+
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-resources-plugin</artifactId>
@@ -268,8 +268,6 @@
           <plugin>
             <groupId>org.apache.rat</groupId>
             <artifactId>apache-rat-plugin</artifactId>
-            <!-- Apache RAT checks all files in the project, only run once. -->
-            <inherited>false</inherited>
           </plugin>
 
           <plugin>
@@ -1536,7 +1534,17 @@
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
-          <version>0.12</version>
+          <version>${apache-rat-plugin.version}</version>
+          <!-- Apache RAT checks all files in the project, only run once. -->
+          <inherited>false</inherited>
+          <executions>
+            <execution>
+              <phase>verify</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
           <configuration>
             <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
             <excludeSubProjects>false</excludeSubProjects>
