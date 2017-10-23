@@ -32,7 +32,7 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   common_job_properties.setTopLevelMainJobProperties(
     delegate,
     'master',
-    150)
+    240)
 
   // Set Maven parameters.
   common_job_properties.setMavenConfig(delegate)
