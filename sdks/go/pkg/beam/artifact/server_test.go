@@ -21,12 +21,12 @@ import (
 	"net"
 	"sync"
 	"testing"
+	"time"
 
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"time"
 )
 
 // startServer starts an in-memory staging and retrieval artifact server

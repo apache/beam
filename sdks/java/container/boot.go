@@ -24,12 +24,15 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/syscallx"
 )
 
 var (
@@ -76,7 +79,8 @@ func main() {
 		log.Fatalf("Failed to convert pipeline options: %v", err)
 	}
 
-	// (2) Retrieve the staged user jars.
+	// (2) Retrieve the staged user jars. We ignore any disk limit,
+	// because the staged jars are mandatory.
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 
@@ -102,10 +106,27 @@ func main() {
 	}
 
 	args := []string{
+		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
 		"-cp", strings.Join(cp, ":"),
 		"org.apache.beam.fn.harness.FnHarness",
 	}
+
 	log.Printf("Executing: java %v", strings.Join(args, " "))
 
 	log.Fatalf("Java exited: %v", execx.Execute("java", args...))
+}
+
+// heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
+// it returns 70% of the physical memory on the machine. If it cannot determine
+// that value, it returns 1GB. This is an imperfect heuristic. I aims to
+// ensure there is memory for non-heap use and other overhead, while also not
+// underutilizing the machine.
+func heapSizeLimit(info *pb.ProvisionInfo) uint64 {
+	if provided := info.GetResourceLimits().GetMemory().GetSize(); provided > 0 {
+		return (provided * 80) / 100
+	}
+	if size, err := syscallx.PhysicalMemorySize(); err == nil {
+		return (size * 70) / 100
+	}
+	return 1 << 30
 }
