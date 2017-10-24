@@ -125,14 +125,13 @@ public class WriteFiles<UserT, DestinationT, OutputT>
 
   static final int UNKNOWN_SHARDNUM = -1;
   private FileBasedSink<UserT, DestinationT, OutputT> sink;
-  private WriteOperation<DestinationT, OutputT> writeOperation;
+  private @Nullable WriteOperation<DestinationT, OutputT> writeOperation;
   // This allows the number of shards to be dynamically computed based on the input
   // PCollection.
-  @Nullable private final PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards;
+  private final @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards;
   // We don't use a side input for static sharding, as we want this value to be updatable
   // when a pipeline is updated.
-  @Nullable
-  private final ValueProvider<Integer> numShardsProvider;
+  private final @Nullable ValueProvider<Integer> numShardsProvider;
   private final boolean windowedWrites;
   private int maxNumWritersPerBundle;
   // This is the set of side inputs used by this transform. This is usually populated by the users's
@@ -231,12 +230,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
    * {@link #withSharding(PTransform)}), or runner-determined (by {@link
    * #withRunnerDeterminedSharding()}.
    */
-  @Nullable
-  public PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding() {
+  public @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> getSharding() {
     return computeNumShards;
   }
 
-  public ValueProvider<Integer> getNumShards() {
+  public @Nullable ValueProvider<Integer> getNumShards() {
     return numShardsProvider;
   }
 
@@ -386,7 +384,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     private final Coder<DestinationT> destinationCoder;
     private final boolean windowedWrites;
 
-    private Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
+    // Initialized in startBundle()
+    private @Nullable Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
+
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
     WriteBundles(
@@ -562,7 +562,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private class ApplyShardingKey extends DoFn<UserT, KV<ShardedKey<Integer>, UserT>> {
-    private final PCollectionView<Integer> numShardsView;
+    private final @Nullable PCollectionView<Integer> numShardsView;
     private final ValueProvider<Integer> numShardsProvider;
     private final Coder<DestinationT> destinationCoder;
 

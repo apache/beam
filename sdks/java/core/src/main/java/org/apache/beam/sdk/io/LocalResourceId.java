@@ -38,7 +38,9 @@ import org.apache.commons.lang3.SystemUtils;
 class LocalResourceId implements ResourceId {
 
   private final String pathString;
-  private transient volatile Path cachedPath;
+
+  @Nullable private transient volatile Path cachedPath;
+
   private final boolean isDirectory;
 
   static LocalResourceId fromPath(Path path, boolean isDirectory) {
