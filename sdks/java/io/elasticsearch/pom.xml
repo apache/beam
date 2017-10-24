@@ -31,7 +31,7 @@
     <description>IO to read and write on Elasticsearch</description>
 
     <properties>
-        <elasticsearch.client.rest.version>5.4.0</elasticsearch.client.rest.version>
+        <elasticsearch.client.rest.version>5.6.3</elasticsearch.client.rest.version>
         <httpcomponents.core.version>4.4.5</httpcomponents.core.version>
         <httpcomponents.httpasyncclient.version>4.1.2</httpcomponents.httpasyncclient.version>
         <httpcomponents.httpclient.version>4.5.2</httpcomponents.httpclient.version>
@@ -51,7 +51,7 @@
 
         <dependency>
             <groupId>org.elasticsearch.client</groupId>
-            <artifactId>rest</artifactId>
+            <artifactId>elasticsearch-rest-client</artifactId>
             <version>${elasticsearch.client.rest.version}</version>
         </dependency>
 
