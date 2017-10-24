@@ -1601,11 +1601,11 @@ public class KafkaIO {
      * Writes just the values to Kafka. This is useful for writing collections of values rather
      * thank {@link KV}s.
      */
-    @SuppressWarnings({ "unchecked" })
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public PTransform<PCollection<V>, PDone> values() {
       return new KafkaValueWrite<>(
           toBuilder()
-          .setKeySerializer((Class<? extends Serializer<K>>) StringSerializer.class)
+          .setKeySerializer((Class) StringSerializer.class)
           .build()
       );
     }
