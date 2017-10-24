@@ -63,7 +63,7 @@ job('beam_SeedJob') {
 
   wrappers {
     timeout {
-      absolute(30)
+      absolute(60)
       abortBuild()
     }
   }
