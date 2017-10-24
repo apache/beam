@@ -231,7 +231,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view);
     }
 
-    private SideInputAccessor sideInputAccessor;
+    @Nullable private SideInputAccessor sideInputAccessor;
 
     static class SideInputAccessorViaProcessContext implements SideInputAccessor {
       private DoFn<?, ?>.ProcessContext processContext;
@@ -259,6 +259,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * #getSideInputs()}.
      */
     protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
+      checkState(
+          sideInputAccessor != null,
+          "sideInput called on %s but side inputs have not been initialized",
+          getClass().getName());
       return sideInputAccessor.sideInput(view);
     }
 
@@ -804,18 +808,18 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     private final WriteOperation<DestinationT, OutputT> writeOperation;
 
     /** Unique id for this output bundle. */
-    private String id;
+    private @Nullable String id;
 
-    private BoundedWindow window;
-    private PaneInfo paneInfo;
+    private @Nullable BoundedWindow window;
+    private @Nullable PaneInfo paneInfo;
     private int shard = -1;
-    private DestinationT destination;
+    private @Nullable DestinationT destination;
 
     /** The output file for this bundle. May be null if opening failed. */
     private @Nullable ResourceId outputFile;
 
     /** The channel to write to. */
-    private WritableByteChannel channel;
+    private @Nullable WritableByteChannel channel;
 
     /**
      * The MIME type used in the creation of the output channel (if the file system supports it).
@@ -825,7 +829,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * default but if {@link Compression#BZIP2} is set then the MIME type will be overridden to
      * {@link MimeTypes#BINARY}.
      */
-    private final String mimeType;
+    @Nullable private final String mimeType;
 
     /** Construct a new {@link Writer} that will produce files of the given MIME type. */
     public Writer(WriteOperation<DestinationT, OutputT> writeOperation, String mimeType) {
@@ -1027,7 +1031,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   public static final class FileResult<DestinationT> {
     private final ResourceId tempFilename;
     private final int shard;
-    private final BoundedWindow window;
+    private final @Nullable BoundedWindow window;
     private final PaneInfo paneInfo;
     private final DestinationT destination;
 
@@ -1035,7 +1039,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     public FileResult(
         ResourceId tempFilename,
         int shard,
-        BoundedWindow window,
+        @Nullable BoundedWindow window,
         PaneInfo paneInfo,
         DestinationT destination) {
       this.tempFilename = tempFilename;
@@ -1058,7 +1062,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return new FileResult<>(tempFilename, shard, window, paneInfo, destination);
     }
 
-    public BoundedWindow getWindow() {
+    public @Nullable BoundedWindow getWindow() {
       return window;
     }
 

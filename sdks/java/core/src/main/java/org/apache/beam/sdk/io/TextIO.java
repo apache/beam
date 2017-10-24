@@ -638,7 +638,7 @@ public class TextIO {
           ValueProvider<ResourceId> filenamePrefix);
 
       abstract Builder<UserT, DestinationT> setTempDirectory(
-          ValueProvider<ResourceId> tempDirectory);
+          @Nullable ValueProvider<ResourceId> tempDirectory);
 
       abstract Builder<UserT, DestinationT> setShardTemplate(@Nullable String shardTemplate);
 
@@ -660,7 +660,7 @@ public class TextIO {
       abstract Builder<UserT, DestinationT> setEmptyDestination(Params emptyDestination);
 
       abstract Builder<UserT, DestinationT> setFormatFunction(
-          SerializableFunction<UserT, String> formatFunction);
+          @Nullable SerializableFunction<UserT, String> formatFunction);
 
       abstract Builder<UserT, DestinationT> setNumShards(int numShards);
 
@@ -755,7 +755,7 @@ public class TextIO {
      * used instead.
      */
     public TypedWrite<UserT, DestinationT> withFormatFunction(
-        SerializableFunction<UserT, String> formatFunction) {
+        @Nullable SerializableFunction<UserT, String> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
