@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.BeamRecordCoder;
 
@@ -177,9 +178,8 @@ public class BeamRecord implements Serializable {
     return (Boolean) getFieldValue(fieldName);
   }
 
-  /**
-   * Get value by field index.
-   */
+  /** Get value by field index. */
+  @Nullable
   public Object getFieldValue(int fieldIdx) {
     return dataValues.get(fieldIdx);
   }
