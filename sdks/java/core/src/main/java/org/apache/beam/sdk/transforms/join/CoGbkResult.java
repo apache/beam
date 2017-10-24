@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -197,7 +198,8 @@ public class CoGbkResult {
    * <p>If tag was not part of the original {@link CoGroupByKey},
    * throws an IllegalArgumentException.
    */
-  public <V> V getOnly(TupleTag<V> tag, V defaultValue) {
+  @Nullable
+  public <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
   }
 
@@ -356,9 +358,10 @@ public class CoGbkResult {
     this.valueMap = valueMap;
   }
 
+  @Nullable
   private <V> V innerGetOnly(
       TupleTag<V> tag,
-      V defaultValue,
+      @Nullable V defaultValue,
       boolean useDefault) {
     int index = schema.getIndex(tag);
     if (index < 0) {
