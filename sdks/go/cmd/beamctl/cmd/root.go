@@ -27,6 +27,7 @@ import (
 )
 
 var (
+	// RootCmd is the root for beamctl commands.
 	RootCmd = &cobra.Command{
 		Use:   "beamctl",
 		Short: "Apache Beam command line client",
