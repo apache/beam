@@ -255,5 +255,11 @@
       <artifactId>beam-runners-direct-java</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 </project>
