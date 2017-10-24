@@ -68,6 +68,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.SetState;
@@ -2529,6 +2530,39 @@ public class ParDoTest implements Serializable {
         .apply(Create.of(KV.of("hello", 3), KV.of("hello", 6), KV.of("hello", 7)))
         .apply(ParDo.of(fn));
 
+    pipeline.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testCombiningStateParameterSuperclass() {
+    final String stateId = "foo";
+
+    DoFn<KV<Integer, Integer>, String> fn =
+        new DoFn<KV<Integer, Integer>, String>() {
+          private static final int EXPECTED_SUM = 8;
+
+          @StateId(stateId)
+          private final StateSpec<CombiningState<Integer, int[], Integer>> state =
+              StateSpecs.combining(Sum.ofIntegers());
+          @ProcessElement
+          public void processElement(ProcessContext c,
+              @StateId(stateId) GroupingState<Integer, Integer> state) {
+            state.add(c.element().getValue());
+            Integer currentValue = state.read();
+            if (currentValue == EXPECTED_SUM) {
+              c.output("right on");
+            }
+          }
+        };
+
+    PCollection<String> output =
+        pipeline
+            .apply(Create.of(KV.of(123, 4), KV.of(123, 7), KV.of(123, -3)))
+            .apply(ParDo.of(fn));
+
+    // There should only be one moment at which the average is exactly 8
+    PAssert.that(output).containsInAnyOrder("right on");
     pipeline.run();
   }
 
