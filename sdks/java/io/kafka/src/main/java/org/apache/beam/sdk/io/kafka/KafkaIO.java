@@ -927,10 +927,8 @@ public class KafkaIO {
     // Backlog support :
     // Kafka consumer does not have an API to fetch latest offset for topic. We need to seekToEnd()
     // then look at position(). Use another consumer to do this so that the primary consumer does
-    // not need to be interrupted. The latest offsets are fetched periodically on another thread.
-    // This is still a hack. There could be unintended side effects, e.g. if user enabled offset
-    // auto commit in consumer config, this could interfere with the primary consumer (we will
-    // handle this particular problem). We might have to make this optional.
+    // not need to be interrupted. The latest offsets are fetched periodically on a thread. This is
+    // still a bit of a hack, but so far there haven't been any issues reported by the users.
     private Consumer<byte[], byte[]> offsetConsumer;
     private final ScheduledExecutorService offsetFetcherThread =
         Executors.newSingleThreadScheduledExecutor();
