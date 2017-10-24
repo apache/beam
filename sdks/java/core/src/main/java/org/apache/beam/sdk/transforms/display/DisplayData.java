@@ -710,14 +710,14 @@ public class DisplayData implements Serializable {
      */
     private static final FormattedItemValue NULL_VALUES = new FormattedItemValue(null);
 
-    private final Object shortValue;
-    private final Object longValue;
+    @Nullable private final Object shortValue;
+    @Nullable private final Object longValue;
 
-    private FormattedItemValue(Object longValue) {
+    private FormattedItemValue(@Nullable Object longValue) {
       this(longValue, null);
     }
 
-    private FormattedItemValue(Object longValue, Object shortValue) {
+    private FormattedItemValue(@Nullable Object longValue, @Nullable Object shortValue) {
       this.longValue = longValue;
       this.shortValue = shortValue;
     }
@@ -735,8 +735,8 @@ public class DisplayData implements Serializable {
     private final Set<HasDisplayData> visitedComponents;
     private final Map<Path, HasDisplayData> visitedPathMap;
 
-    private Path latestPath;
-    private Class<?> latestNs;
+    @Nullable private Path latestPath;
+    @Nullable private Class<?> latestNs;
 
     private InternalBuilder() {
       this.entries = Maps.newHashMap();
