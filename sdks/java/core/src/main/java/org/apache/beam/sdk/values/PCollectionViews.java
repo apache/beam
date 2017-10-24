@@ -390,7 +390,7 @@ public class PCollectionViews {
     private WindowingStrategy<?, W> windowingStrategy;
 
     /** The coder for the elements underlying the view. */
-    private Coder<Iterable<WindowedValue<ElemT>>> coder;
+    private @Nullable Coder<Iterable<WindowedValue<ElemT>>> coder;
 
     /**
      * The typed {@link ViewFn} for this view.
@@ -439,14 +439,6 @@ public class PCollectionViews {
           windowMappingFn,
           windowingStrategy,
           valueCoder);
-    }
-
-    /**
-     * For serialization only. Do not use directly.
-     */
-    @SuppressWarnings("unused")  // used for serialization
-    protected SimplePCollectionView() {
-      super();
     }
 
     @Override
