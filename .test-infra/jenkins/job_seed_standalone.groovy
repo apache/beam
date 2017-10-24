@@ -37,10 +37,10 @@ job('beam_SeedJob_Standalone') {
       remote {
         github('apache/beam')
 
-        // ${ghprBuildId} is not interpolated by groovy, but passed through to Jenkins where it
+        // ${ghprbPullId} is not interpolated by groovy, but passed through to Jenkins where it
         // refers to the environment variable
         refspec(['+refs/head/*:refs/remotes/origin/*',
-                 '+refs/pull/${ghprPullId}/*:refs/remotes/origin/pr/${ghprPullId}/*']
+                 '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*']
                 .join(' '))
 
         // The variable ${sha1} is not interpolated by groovy, but a parameter of the Jenkins job
