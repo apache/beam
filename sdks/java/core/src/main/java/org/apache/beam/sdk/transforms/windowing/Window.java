@@ -486,6 +486,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       original.populateDisplayData(builder);
     }
 
+    @Nullable
     public WindowFn<T, ?> getWindowFn() {
       return updatedStrategy.getWindowFn();
     }
