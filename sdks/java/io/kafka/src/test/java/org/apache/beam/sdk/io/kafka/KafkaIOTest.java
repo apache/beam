@@ -1196,7 +1196,6 @@ public class KafkaIOTest {
     public Producer<Integer, Long> apply(Map<String, Object> config) {
 
       // Make sure the config is correctly set up for serializers.
-      //There should always be a key serializer. Write.values() should be setting a VoidSerializer
       Utils.newInstance(
               ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
                       .asSubclass(Serializer.class)
