@@ -39,7 +39,7 @@ job('beam_SeedJob') {
 
         // ${ghprbPullId} is not interpolated by groovy, but passed through to Jenkins where it
         // refers to the environment variable
-        refspec(['+refs/head/*:refs/remotes/origin/*',
+        refspec(['+refs/heads/*:refs/remotes/origin/*',
                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*']
                 .join(' '))
 
