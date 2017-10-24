@@ -22,5 +22,8 @@
  * and creating {@link org.apache.beam.sdk.transforms.reflect.DoFnSignature}'s and
  * {@link org.apache.beam.sdk.transforms.reflect.DoFnInvoker}'s from them.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms.reflect;
 
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;
