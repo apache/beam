@@ -77,7 +77,9 @@ class TextSink<UserT, DestinationT> extends FileBasedSink<UserT, DestinationT, S
     private static final String NEWLINE = "\n";
     @Nullable private final String header;
     @Nullable private final String footer;
-    private OutputStreamWriter out;
+
+    // Initialized in prepareWrite
+    @Nullable private OutputStreamWriter out;
 
     public TextWriter(
         WriteOperation<DestinationT, String> writeOperation,

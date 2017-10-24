@@ -83,7 +83,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * objects to be dynamically generated.
    */
   public static class Params implements Serializable {
-    private final ValueProvider<ResourceId> baseFilename;
+    @Nullable private final ValueProvider<ResourceId> baseFilename;
     private final String shardTemplate;
     private final boolean explicitTemplate;
     private final String suffix;
@@ -271,8 +271,8 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
       String suffix,
       int shardNum,
       int numShards,
-      String paneStr,
-      String windowStr) {
+      @Nullable String paneStr,
+      @Nullable String windowStr) {
     String prefix = extractFilename(baseFilename);
     // Matcher API works with StringBuffer, rather than StringBuilder.
     StringBuffer sb = new StringBuffer();
