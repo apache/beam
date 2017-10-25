@@ -1622,7 +1622,8 @@
               <!-- Default eclipse excludes neglect subprojects -->
 
               <!-- Proto/grpc generated wrappers -->
-              <exclude>**/apache_beam/runners/api/*_pb2*.py</exclude>
+              <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
+              <exclude>**/go/pkg/beam/model/**/*.pb.go</exclude>
             </excludes>
           </configuration>
         </plugin>
