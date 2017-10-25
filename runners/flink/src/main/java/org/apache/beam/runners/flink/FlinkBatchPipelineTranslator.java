@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -127,7 +128,7 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
    * Returns a translator for the given node, if it is possible, otherwise null.
    */
   private static BatchTransformTranslator<?> getTranslator(TransformHierarchy.Node node) {
-    PTransform<?, ?> transform = node.getTransform();
+    @Nullable PTransform<?, ?> transform = node.getTransform();
 
     // Root of the graph is null
     if (transform == null) {

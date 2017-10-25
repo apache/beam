@@ -394,7 +394,11 @@ public class TransformHierarchy {
 
     /**
      * Returns the transform associated with this transform node.
+     *
+     * @return {@code null} if and only if this is the root node of the graph, which has no
+     * associated transform
      */
+    @Nullable
     public PTransform<?, ?> getTransform() {
       return transform;
     }
