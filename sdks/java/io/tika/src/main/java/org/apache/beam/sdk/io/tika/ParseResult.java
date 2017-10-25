@@ -17,61 +17,95 @@
  */
 package org.apache.beam.sdk.io.tika;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Throwables;
 import java.io.Serializable;
 import java.util.Arrays;
-
+import java.util.Objects;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.SerializableThrowable;
 import org.apache.tika.metadata.Metadata;
 
 /**
- * Tika parse result containing the file location, metadata
- * and content converted to String.
+ * The result of parsing a single file with Tika: contains the file's location, metadata, extracted
+ * text, and optionally an error. If there is an error, the metadata and extracted text may be
+ * partial (i.e. not represent the entire file).
  */
-@SuppressWarnings("serial")
 public class ParseResult implements Serializable {
   private final String fileLocation;
   private final String content;
   private final Metadata metadata;
   private final String[] metadataNames;
+  @Nullable private final SerializableThrowable error;
 
-  public ParseResult(String fileLocation, String content) {
-    this(fileLocation, content, new Metadata());
+  public static ParseResult success(String fileLocation, String content, Metadata metadata) {
+    return new ParseResult(fileLocation, content, metadata, null);
   }
 
-  public ParseResult(String fileLocation, String content, Metadata metadata) {
+  public static ParseResult success(String fileLocation, String content) {
+    return new ParseResult(fileLocation, content, new Metadata(), null);
+  }
+
+  public static ParseResult failure(
+      String fileLocation, String partialContent, Metadata partialMetadata, Throwable error) {
+    return new ParseResult(fileLocation, partialContent, partialMetadata, error);
+  }
+
+  private ParseResult(String fileLocation, String content, Metadata metadata, Throwable error) {
+    checkArgument(fileLocation != null, "fileLocation can not be null");
+    checkArgument(content != null, "content can not be null");
+    checkArgument(metadata != null, "metadata can not be null");
     this.fileLocation = fileLocation;
     this.content = content;
     this.metadata = metadata;
     this.metadataNames = metadata.names();
+    this.error = (error == null) ? null : new SerializableThrowable(error);
   }
 
-  /**
-   * Gets a file content.
-   */
-  public String getContent() {
-    return content;
-  }
-
-  /**
-   * Gets a file metadata.
-   */
-  public Metadata getMetadata() {
-    return metadata;
-  }
-
-  /**
-   * Gets a file location.
-   */
+  /** Returns the absolute path to the input file. */
   public String getFileLocation() {
     return fileLocation;
   }
 
+  /** Returns whether this file was parsed successfully. */
+  public boolean isSuccess() {
+    return error == null;
+  }
+
+  /** Returns the parse error, if the file was parsed unsuccessfully. */
+  public Throwable getError() {
+    checkState(error != null, "This is a successful ParseResult");
+    return error.getThrowable();
+  }
+
+  /**
+   * Same as {@link #getError}, but returns the complete stack trace of the error as a {@link
+   * String}.
+   */
+  public String getErrorAsString() {
+    return Throwables.getStackTraceAsString(getError());
+  }
+
+  /** Returns the extracted text. May be partial, if this parse result contains a failure. */
+  public String getContent() {
+    return content;
+  }
+
+  /** Returns the extracted metadata. May be partial, if this parse result contains a failure. */
+  public Metadata getMetadata() {
+    return metadata;
+  }
+
   @Override
   public int hashCode() {
-    int hashCode = 1;
-    hashCode = 31 * hashCode + fileLocation.hashCode();
-    hashCode = 31 * hashCode + content.hashCode();
-    hashCode = 31 * hashCode + getMetadataHashCode();
-    return hashCode;
+    return Objects.hash(
+        getFileLocation(),
+        getContent(),
+        getMetadataHashCode(),
+        isSuccess() ? "" : Throwables.getStackTraceAsString(getError()));
   }
 
   @Override
@@ -80,19 +114,31 @@ public class ParseResult implements Serializable {
       return false;
     }
 
-    ParseResult pr = (ParseResult) obj;
-    return this.fileLocation.equals(pr.fileLocation)
-      && this.content.equals(pr.content)
-      && this.metadata.equals(pr.metadata);
+    ParseResult other = (ParseResult) obj;
+    return Objects.equals(getFileLocation(), other.getFileLocation())
+        && Objects.equals(getContent(), other.getContent())
+        && Objects.equals(getMetadata(), other.getMetadata())
+        && (isSuccess()
+            ? other.isSuccess()
+            : (!other.isSuccess() && Objects.equals(getErrorAsString(), other.getErrorAsString())));
   }
 
-  //TODO:
-  // Remove this function and use metadata.hashCode() once Apache Tika 1.17 gets released.
+  // TODO: Remove this function and use metadata.hashCode() once Apache Tika 1.17 gets released.
   private int getMetadataHashCode() {
     int hashCode = 0;
     for (String name : metadataNames) {
       hashCode += name.hashCode() ^ Arrays.hashCode(metadata.getValues(name));
     }
     return hashCode;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("fileLocation", fileLocation)
+        .add("content", "<" + content.length() + " chars>")
+        .add("metadata", metadata)
+        .add("error", getError() == null ? null : Throwables.getStackTraceAsString(getError()))
+        .toString();
   }
 }

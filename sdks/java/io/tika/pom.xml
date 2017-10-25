@@ -67,6 +67,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
           <groupId>org.apache.beam</groupId>
           <artifactId>beam-sdks-java-core</artifactId>
           <classifier>tests</classifier>

@@ -17,20 +17,60 @@
  */
 package org.apache.beam.sdk.io.tika;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
 import org.apache.tika.metadata.Metadata;
 import org.junit.Test;
 
-/**
- * Tests ParseResult.
- */
+/** Tests {@link ParseResult}. */
 public class ParseResultTest {
   @Test
   public void testEqualsAndHashCode() {
-    ParseResult p1 = new ParseResult("a.txt", "hello", getMetadata());
-    ParseResult p2 = new ParseResult("a.txt", "hello", getMetadata());
-    assertEquals(p1, p2);
-    assertEquals(p1.hashCode(), p2.hashCode());
+    ParseResult successBase = ParseResult.success("a.txt", "hello", getMetadata());
+    ParseResult successSame = ParseResult.success("a.txt", "hello", getMetadata());
+    ParseResult successDifferentName = ParseResult.success("b.txt", "hello", getMetadata());
+    ParseResult successDifferentContent = ParseResult.success("a.txt", "goodbye", getMetadata());
+    ParseResult successDifferentMetadata = ParseResult.success("a.txt", "hello", new Metadata());
+
+    RuntimeException oops = new RuntimeException("oops");
+    ParseResult failureBase = ParseResult.failure("a.txt", "", new Metadata(), oops);
+    ParseResult failureSame = ParseResult.failure("a.txt", "", new Metadata(), oops);
+    ParseResult failureDifferentName = ParseResult.failure("b.txt", "", new Metadata(), oops);
+    ParseResult failureDifferentContent =
+        ParseResult.failure("b.txt", "partial", new Metadata(), oops);
+    ParseResult failureDifferentMetadata = ParseResult.failure("b.txt", "", getMetadata(), oops);
+    ParseResult failureDifferentError =
+        ParseResult.failure("a.txt", "", new Metadata(), new RuntimeException("eek"));
+
+    assertEquals(successBase, successSame);
+    assertEquals(successBase.hashCode(), successSame.hashCode());
+
+    assertThat(successDifferentName, not(equalTo(successBase)));
+    assertThat(successDifferentContent, not(equalTo(successBase)));
+    assertThat(successDifferentMetadata, not(equalTo(successBase)));
+
+    assertThat(successDifferentName.hashCode(), not(equalTo(successBase.hashCode())));
+    assertThat(successDifferentContent.hashCode(), not(equalTo(successBase.hashCode())));
+    assertThat(successDifferentMetadata.hashCode(), not(equalTo(successBase.hashCode())));
+
+    assertThat(failureBase, not(equalTo(successBase)));
+    assertThat(successBase, not(equalTo(failureBase)));
+
+    assertEquals(failureBase, failureSame);
+    assertEquals(failureBase.hashCode(), failureSame.hashCode());
+
+    assertThat(failureDifferentName, not(equalTo(failureBase)));
+    assertThat(failureDifferentError, not(equalTo(failureBase)));
+    assertThat(failureDifferentContent, not(equalTo(failureBase)));
+    assertThat(failureDifferentMetadata, not(equalTo(failureBase)));
+
+    assertThat(failureDifferentName.hashCode(), not(equalTo(failureBase.hashCode())));
+    assertThat(failureDifferentError.hashCode(), not(equalTo(failureBase.hashCode())));
+    assertThat(failureDifferentContent.hashCode(), not(equalTo(failureBase.hashCode())));
+    assertThat(failureDifferentMetadata.hashCode(), not(equalTo(failureBase.hashCode())));
   }
 
   static Metadata getMetadata() {

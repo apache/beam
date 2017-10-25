@@ -18,124 +18,109 @@
 package org.apache.beam.sdk.io.tika;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
-import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-
+import java.io.Serializable;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
-/**
- * Tests TikaInput.
- */
-public class TikaIOTest {
-  private static final String PDF_FILE =
-      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-      + "Combining\n\nApache Beam\n\nand\n\nApache Tika\n\ncan help to ingest\n\n"
-      + "the content from the files\n\nin most known formats.\n\n\n";
-
+/** Tests for {@link TikaIO}. */
+public class TikaIOTest implements Serializable {
   private static final String PDF_ZIP_FILE =
       "\n\n\n\n\n\n\n\napache-beam-tika.pdf\n\n\nCombining\n\n\nApache Beam\n\n\n"
-      + "and\n\n\nApache Tika\n\n\ncan help to ingest\n\n\nthe content from the files\n\n\n"
-      + "in most known formats.\n\n\n\n\n\n\n";
+          + "and\n\n\nApache Tika\n\n\ncan help to ingest\n\n\nthe content from the files\n\n\n"
+          + "in most known formats.\n\n\n\n\n\n\n";
 
   private static final String ODT_FILE =
       "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-      + "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\nthe content from the"
-      + " files\nin most known formats.\n";
-
-  private static final String ODT_FILE2 =
-      "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-      + "Open Office\nPDF\nExcel\nText\nScientific\nand other formats\nare supported.\n";
+          + "Combining\nApache Beam\nand\nApache Tika\ncan help to ingest\nthe content from the"
+          + " files\nin most known formats.\n";
 
   @Rule
-  public TestPipeline p = TestPipeline.create();
-  @Rule
-  public ExpectedException thrown = ExpectedException.none();
+  public transient TestPipeline p = TestPipeline.create();
 
   @Test
-  public void testParsePdfFile() throws IOException {
+  public void testParseAndParseFiles() throws IOException {
+    Path root =
+        Paths.get(getClass().getResource("/valid/apache-beam-tika.odt").getPath()).getParent();
 
-    String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
+    List<ParseResult> expected =
+        Arrays.asList(
+            ParseResult.success(
+                root.resolve("apache-beam-tika.odt").toString(), ODT_FILE, getOdtMetadata()),
+            ParseResult.success(root.resolve("apache-beam-tika-pdf.zip").toString(), PDF_ZIP_FILE));
 
-    doTestParse(resourcePath, new ParseResult(resourcePath, PDF_FILE));
-  }
+    PCollection<ParseResult> parse =
+        p.apply("Parse", TikaIO.parse().filepattern(root.resolve("*").toString()))
+            .apply("FilterParse", ParDo.of(new FilterMetadataFn()));
+    PAssert.that(parse).containsInAnyOrder(expected);
 
-  private void doTestParse(String resourcePath, ParseResult... expectedResults)
-      throws IOException {
-     PCollection<ParseResult> output =
-         p.apply("ParseAll", TikaIO.parse().filepattern(resourcePath))
-         .apply(ParDo.of(new FilterMetadataFn()));
-     PAssert.that(output).containsInAnyOrder(expectedResults);
-     p.run();
-  }
-
-  @Test
-  public void testParseAllPdfFile() throws IOException {
-
-    String resourcePath = getClass().getResource("/apache-beam-tika.pdf").getPath();
-
-    doTestParseAll(resourcePath, new ParseResult(resourcePath, PDF_FILE));
-  }
-
-  @Test
-  public void testParseAllZipPdfFile() throws IOException {
-
-    String resourcePath = getClass().getResource("/apache-beam-tika-pdf.zip").getPath();
-
-    doTestParseAll(resourcePath, new ParseResult(resourcePath, PDF_ZIP_FILE));
-  }
-
-  @Test
-  public void testParseAllOdtFile() throws IOException {
-
-    String resourcePath = getClass().getResource("/apache-beam-tika1.odt").getPath();
-
-    doTestParseAll(resourcePath, new ParseResult(resourcePath, ODT_FILE, getOdtMetadata()));
-  }
-
-  @Test
-  public void testParseAllOdtFiles() throws IOException {
-    String resourcePath1 = getClass().getResource("/apache-beam-tika1.odt").getPath();
-    String resourcePath2 = getClass().getResource("/apache-beam-tika2.odt").getPath();
-    String resourcePath = resourcePath1.replace("apache-beam-tika1", "*");
-
-    doTestParseAll(resourcePath, new ParseResult(resourcePath1, ODT_FILE, getOdtMetadata()),
-        new ParseResult(resourcePath2, ODT_FILE2));
-  }
-
-  private void doTestParseAll(String resourcePath, ParseResult... expectedResults)
-     throws IOException {
-    PCollection<ParseResult> output =
-        p.apply("ParseFiles", FileIO.match().filepattern(resourcePath))
-        .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
-        .apply(TikaIO.parseAll())
-        .apply(ParDo.of(new FilterMetadataFn()));
-    PAssert.that(output).containsInAnyOrder(expectedResults);
+    PCollection<ParseResult> parseFiles =
+        p.apply("ParseFiles", FileIO.match().filepattern(root.resolve("*").toString()))
+            .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
+            .apply(TikaIO.parseFiles())
+            .apply("FilterParseFiles", ParDo.of(new FilterMetadataFn()));
+    PAssert.that(parseFiles).containsInAnyOrder(expected);
     p.run();
   }
 
-  @Test
-  public void testParseAllDamagedPdfFile() throws IOException {
-    thrown.expectCause(isA(TikaException.class));
-    String resourcePath = getClass().getResource("/damaged.pdf").getPath();
+  private static Metadata getOdtMetadata() {
+    Metadata m = new Metadata();
+    m.set("Author", "BeamTikaUser");
+    return m;
+  }
 
-    p.apply("ParseInvalidPdfFile", FileIO.match().filepattern(resourcePath))
-      .apply(FileIO.readMatches())
-      .apply(TikaIO.parseAll());
+  private static class FilterMetadataFn extends DoFn<ParseResult, ParseResult> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      ParseResult result = c.element();
+      Metadata m = new Metadata();
+      // Files contain many metadata properties. This function drops all but the "Author"
+      // property manually added to "apache-beam-tika.odt" resource only to make
+      // the tests simpler
+      if (result.getFileLocation().endsWith("valid/apache-beam-tika.odt")) {
+        m.set("Author", result.getMetadata().get("Author"));
+      }
+      ParseResult newResult = ParseResult.success(result.getFileLocation(), result.getContent(), m);
+      c.output(newResult);
+    }
+  }
+
+  @Test
+  public void testParseDamagedPdfFile() throws IOException {
+    String path = getClass().getResource("/damaged.pdf").getPath();
+    PCollection<ParseResult> res = p.apply("ParseInvalidPdfFile", TikaIO.parse().filepattern(path));
+
+    PAssert.thatSingleton(res)
+        .satisfies(
+            new SerializableFunction<ParseResult, Void>() {
+              @Override
+              public Void apply(ParseResult input) {
+                assertEquals(path, input.getFileLocation());
+                assertFalse(input.isSuccess());
+                assertTrue(input.getError() instanceof TikaException);
+                return null;
+              }
+            });
     p.run();
   }
 
@@ -150,54 +135,15 @@ public class TikaIOTest {
   }
 
   @Test
-  public void testParseAllDisplayData() {
-    TikaIO.ParseAll parseAll = TikaIO.parseAll()
-        .withTikaConfigPath("tikaconfigpath")
-        .withContentTypeHint("application/pdf");
+  public void testParseFilesDisplayData() {
+    TikaIO.ParseFiles parseFiles =
+        TikaIO.parseFiles()
+            .withTikaConfigPath("/tikaConfigPath")
+            .withContentTypeHint("application/pdf");
 
-    DisplayData displayData = DisplayData.from(parseAll);
-
-    assertThat(displayData, hasDisplayItem("tikaConfigPath", "tikaconfigpath"));
-    assertThat(displayData, hasDisplayItem("inputMetadata",
-        "Content-Type=application/pdf"));
-    assertEquals(2, displayData.items().size());
-  }
-
-  @Test
-  public void testParseAllDisplayDataWithCustomOptions() {
-    TikaIO.ParseAll parseAll = TikaIO.parseAll()
-        .withTikaConfigPath("/tikaConfigPath")
-        .withContentTypeHint("application/pdf");
-
-    DisplayData displayData = DisplayData.from(parseAll);
+    DisplayData displayData = DisplayData.from(parseFiles);
 
     assertThat(displayData, hasDisplayItem("tikaConfigPath", "/tikaConfigPath"));
-    assertThat(displayData, hasDisplayItem("inputMetadata",
-        "Content-Type=application/pdf"));
-    assertEquals(2, displayData.items().size());
-  }
-
-  static class FilterMetadataFn extends DoFn<ParseResult, ParseResult> {
-    private static final long serialVersionUID = 6338014219600516621L;
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      ParseResult result = c.element();
-      Metadata m = new Metadata();
-      // Files contain many metadata properties. This function drops all but the "Author"
-      // property manually added to "apache-beam-tika1.odt" resource only to make
-      // the tests simpler
-      if (result.getFileLocation().endsWith("apache-beam-tika1.odt")) {
-          m.set("Author", result.getMetadata().get("Author"));
-      }
-      ParseResult newResult = new ParseResult(result.getFileLocation(), result.getContent(), m);
-      c.output(newResult);
-    }
-  }
-
-  static Metadata getOdtMetadata() {
-    Metadata m = new Metadata();
-    m.set("Author", "BeamTikaUser");
-    return m;
+    assertThat(displayData, hasDisplayItem("contentTypeHint", "application/pdf"));
   }
 }

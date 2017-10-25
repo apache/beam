@@ -17,15 +17,13 @@
  */
 package org.apache.beam.sdk.io.tika;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
-
 import java.io.InputStream;
 import java.nio.channels.Channels;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.FileIO;
@@ -49,68 +47,60 @@ import org.apache.tika.parser.Parser;
 import org.apache.tika.sax.ToTextContentHandler;
 import org.xml.sax.ContentHandler;
 
-
-
-
 /**
- * A collection of {@link PTransform} transforms for parsing arbitrary files using Apache Tika.
- * Files in many well known text, binary or scientific formats can be processed.
+ * Transforms for parsing arbitrary files using <a href="https://tika.apache.org/">Apache Tika</a>.
  *
- * <p>{@link TikaIO.Parse} and {@link TikaIO.ParseAll} parse the files and return
- * a {@link PCollection} containing one {@link ParseResult} per each file.
+ * <p>Tika is able to extract text and metadata from files in many well known text, binary and
+ * scientific formats.
  *
- * <p>Combine {@link TikaIO.ParseAll} with {@link FileIO.Match}
- * and {@link FileIO.ReadMatches} to match, read and parse the files.
+ * <p>The entry points are {@link #parse} and {@link #parseFiles}. They parse a set of files and
+ * return a {@link PCollection} containing one {@link ParseResult} per each file. {@link #parse}
+ * implements the common case of parsing all files matching a single filepattern, while {@link
+ * #parseFiles} should be used for all use cases requiring more control, in combination with {@link
+ * FileIO#match} and {@link FileIO#readMatches} (see their respective documentation).
  *
- * <p>Example:
+ * <p>{@link #parse} does not automatically uncompress compressed files: they are passed to Tika
+ * as-is.
+ *
+ * <p>It's possible that some files will partially or completely fail to parse. In that case, the
+ * respective {@link ParseResult} will be marked unsuccessful (see {@link ParseResult#isSuccess})
+ * and will contain the error, available via {@link ParseResult#getError}.
+ *
+ * <p>Example: using {@link #parse} to parse all PDF files in a directory on GCS.
  *
  * <pre>{@code
  * Pipeline p = ...;
  *
- * // A simple parse of a local PDF file (only runs locally):
  * PCollection<ParseResult> results =
- *   p.apply(FileIO.match().filepattern("/local/path/to/file.pdf"))
+ *   p.apply(TikaIO.parse().filepattern("gs://my-bucket/files/*.pdf"));
+ * }</pre>
+ *
+ * <p>Example: using {@link #parseFiles} in combination with {@link FileIO} to continuously parse
+ * new PDF files arriving into the directory.
+ *
+ * <pre>{@code
+ * Pipeline p = ...;
+ *
+ * PCollection<ParseResult> results =
+ *   p.apply(FileIO.match().filepattern("gs://my-bucket/files/*.pdf")
+ *       .continuously(...))
  *    .apply(FileIO.readMatches())
  *    .apply(TikaIO.parseFiles());
  * }</pre>
- *
- * <p>Use {@link TikaIO.Parse} to match, read and parse the files in simple cases.
- *
- * <p>Example:
- *
- * <pre>{@code
- * Pipeline p = ...;
- *
- * // A simple parse of a local PDF file (only runs locally):
- * PCollection<ParseResult> results =
- *   p.apply(TikaIO.parseAll().filepattern("/local/path/to/file.pdf"));
- * }</pre>
- *
- * <b>Warning:</b> the API of this IO is likely to change in the next release.
  */
 @Experimental(Experimental.Kind.SOURCE_SINK)
 public class TikaIO {
-
-  /**
-   * A {@link PTransform} that matches and parses the files
-   * and returns a bounded {@link PCollection} of {@link ParseResult}.
-   */
+  /** Parses files matching a given filepattern. */
   public static Parse parse() {
-    return new AutoValue_TikaIO_Parse.Builder()
-        .build();
+    return new AutoValue_TikaIO_Parse.Builder().build();
   }
 
-  /**
-   * A {@link PTransform} that accepts a {@link PCollection} of {@link ReadableFile}
-   * and returns a {@link PCollection} of {@link ParseResult}.
-   */
-  public static ParseAll parseAll() {
-    return new AutoValue_TikaIO_ParseAll.Builder()
-        .build();
+  /** Parses files in a {@link PCollection} of {@link ReadableFile}. */
+  public static ParseFiles parseFiles() {
+    return new AutoValue_TikaIO_ParseFiles.Builder().build();
   }
 
   /** Implementation of {@link #parse}. */
-  @SuppressWarnings("serial")
   @AutoValue
   public abstract static class Parse extends PTransform<PBegin, PCollection<ParseResult>> {
     @Nullable
@@ -139,8 +129,7 @@ public class TikaIO {
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder
-        .addIfNotNull(
+      builder.addIfNotNull(
           DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"));
     }
 
@@ -149,65 +138,68 @@ public class TikaIO {
       return input
           .apply(FileIO.match().filepattern(getFilepattern()))
           .apply(FileIO.readMatches().withCompression(Compression.UNCOMPRESSED))
-          .apply(parseAll());
+          .apply(parseFiles());
     }
   }
 
-  /** Implementation of {@link #parseAll}. */
-  @SuppressWarnings("serial")
+  /** Implementation of {@link #parseFiles}. */
   @AutoValue
-  public abstract static class ParseAll extends
-    PTransform<PCollection<ReadableFile>, PCollection<ParseResult>> {
+  public abstract static class ParseFiles
+      extends PTransform<PCollection<ReadableFile>, PCollection<ParseResult>> {
 
-    @Nullable abstract ValueProvider<String> getTikaConfigPath();
-    @Nullable abstract Metadata getInputMetadata();
+    @Nullable
+    abstract ValueProvider<String> getTikaConfigPath();
+
+    @Nullable
+    abstract String getContentTypeHint();
+
+    @Nullable
+    abstract Metadata getInputMetadata();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTikaConfigPath(ValueProvider<String> tikaConfigPath);
+
+      abstract Builder setContentTypeHint(String contentTypeHint);
+
       abstract Builder setInputMetadata(Metadata metadata);
 
-      abstract ParseAll build();
+      abstract ParseFiles build();
     }
 
     /**
-     * Returns a new transform which will use the custom TikaConfig.
+     * Uses the given <a
+     * href="https://tika.apache.org/1.16/configuring.html#Using_a_Tika_Configuration_XML_file">Tika
+     * Configuration XML file</a>.
      */
-    public ParseAll withTikaConfigPath(String tikaConfigPath) {
-      checkNotNull(tikaConfigPath, "TikaConfigPath cannot be empty.");
+    public ParseFiles withTikaConfigPath(String tikaConfigPath) {
+      checkArgument(tikaConfigPath != null, "tikaConfigPath can not be null.");
       return withTikaConfigPath(StaticValueProvider.of(tikaConfigPath));
     }
 
-    /** Same as {@code with(tikaConfigPath)}, but accepting a {@link ValueProvider}. */
-    public ParseAll withTikaConfigPath(ValueProvider<String> tikaConfigPath) {
-      checkNotNull(tikaConfigPath, "TikaConfigPath cannot be empty.");
-      return toBuilder()
-          .setTikaConfigPath(tikaConfigPath)
-          .build();
+    /** Like {@code with(tikaConfigPath)}. */
+    public ParseFiles withTikaConfigPath(ValueProvider<String> tikaConfigPath) {
+      checkArgument(tikaConfigPath != null, "tikaConfigPath can not be null.");
+      return toBuilder().setTikaConfigPath(tikaConfigPath).build();
     }
 
     /**
-     * Returns a new transform which will use the provided content type hint
-     * to make the file parser detection more efficient.
+     * Sets a content type hint to make the file parser detection more efficient. Overrides the
+     * content type hint in {@link #withInputMetadata}, if any.
      */
-    public ParseAll withContentTypeHint(String contentType) {
-      checkNotNull(contentType, "ContentType cannot be empty.");
-      Metadata metadata = new Metadata();
-      metadata.add(Metadata.CONTENT_TYPE, contentType);
-      return withInputMetadata(metadata);
+    public ParseFiles withContentTypeHint(String contentTypeHint) {
+      checkNotNull(contentTypeHint, "contentTypeHint can not be null.");
+      return toBuilder().setContentTypeHint(contentTypeHint).build();
     }
 
-    /**
-     * Returns a new transform which will use the provided input metadata
-     * for parsing the files.
-     */
-    public ParseAll withInputMetadata(Metadata metadata) {
+    /** Sets the input metadata for {@link Parser#parse}. */
+    public ParseFiles withInputMetadata(Metadata metadata) {
       Metadata inputMetadata = this.getInputMetadata();
       if (inputMetadata != null) {
         for (String name : metadata.names()) {
-            inputMetadata.set(name, metadata.get(name));
+          inputMetadata.set(name, metadata.get(name));
         }
       } else {
         inputMetadata = metadata;
@@ -225,27 +217,25 @@ public class TikaIO {
       super.populateDisplayData(builder);
 
       if (getTikaConfigPath() != null) {
-        String tikaConfigPathDisplay = getTikaConfigPath().isAccessible()
-          ? getTikaConfigPath().get() : getTikaConfigPath().toString();
-        builder.add(DisplayData.item("tikaConfigPath", tikaConfigPathDisplay)
-            .withLabel("TikaConfig Path"));
+        builder.add(
+            DisplayData.item("tikaConfigPath", getTikaConfigPath()).withLabel("TikaConfig Path"));
       }
       Metadata metadata = getInputMetadata();
       if (metadata != null) {
         //TODO: use metadata.toString() only without a trim() once Apache Tika 1.17 gets released
-        builder
-            .add(DisplayData.item("inputMetadata", metadata.toString().trim())
-            .withLabel("Input Metadata"));
+        builder.add(
+            DisplayData.item("inputMetadata", metadata.toString().trim())
+                .withLabel("Input Metadata"));
       }
+      builder.addIfNotNull(
+          DisplayData.item("contentTypeHint", getContentTypeHint()).withLabel("Content type hint"));
     }
 
     private static class ParseToStringFn extends DoFn<ReadableFile, ParseResult> {
+      private final ParseFiles spec;
+      private transient TikaConfig tikaConfig;
 
-      private static final long serialVersionUID = 6837207505313720989L;
-      private final TikaIO.ParseAll spec;
-      private TikaConfig tikaConfig;
-
-      ParseToStringFn(TikaIO.ParseAll spec) {
+      ParseToStringFn(ParseFiles spec) {
         this.spec = spec;
       }
 
@@ -254,8 +244,7 @@ public class TikaIO {
         if (spec.getTikaConfigPath() != null) {
           ResourceId configResource =
               FileSystems.matchSingleFileSpec(spec.getTikaConfigPath().get()).resourceId();
-          tikaConfig = new TikaConfig(
-                           Channels.newInputStream(FileSystems.open(configResource)));
+          tikaConfig = new TikaConfig(Channels.newInputStream(FileSystems.open(configResource)));
         }
       }
 
@@ -264,21 +253,30 @@ public class TikaIO {
         ReadableFile file = c.element();
         InputStream stream = Channels.newInputStream(file.open());
         try (InputStream tikaStream = TikaInputStream.get(stream)) {
+          Parser parser =
+              tikaConfig == null ? new AutoDetectParser() : new AutoDetectParser(tikaConfig);
 
-          final Parser parser = tikaConfig == null
-              ? new AutoDetectParser() : new AutoDetectParser(tikaConfig);
-
-          final ParseContext context = new ParseContext();
+          ParseContext context = new ParseContext();
           context.set(Parser.class, parser);
-          Metadata tikaMetadata = spec.getInputMetadata() != null
-            ? spec.getInputMetadata() : new org.apache.tika.metadata.Metadata();
+          Metadata tikaMetadata =
+              spec.getInputMetadata() != null
+                  ? spec.getInputMetadata()
+                  : new org.apache.tika.metadata.Metadata();
+          if (spec.getContentTypeHint() != null) {
+            tikaMetadata.set(Metadata.CONTENT_TYPE, spec.getContentTypeHint());
+          }
 
+          String location = file.getMetadata().resourceId().toString();
+          ParseResult res;
           ContentHandler tikaHandler = new ToTextContentHandler();
-          parser.parse(tikaStream, tikaHandler, tikaMetadata, context);
+          try {
+            parser.parse(tikaStream, tikaHandler, tikaMetadata, context);
+            res = ParseResult.success(location, tikaHandler.toString(), tikaMetadata);
+          } catch (Exception e) {
+            res = ParseResult.failure(location, tikaHandler.toString(), tikaMetadata, e);
+          }
 
-          c.output(new ParseResult(file.getMetadata().resourceId().toString(),
-              tikaHandler.toString(),
-              tikaMetadata));
+          c.output(res);
         }
       }
     }
