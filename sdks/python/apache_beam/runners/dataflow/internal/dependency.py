@@ -179,10 +179,11 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   for package in extra_packages:
     if not (os.path.basename(package).endswith('.tar') or
             os.path.basename(package).endswith('.tar.gz') or
-            os.path.basename(package).endswith('.whl')):
+            os.path.basename(package).endswith('.whl') or
+            os.path.basename(package).endswith('.zip')):
       raise RuntimeError(
           'The --extra_package option expects a full path ending with '
-          '".tar" or ".tar.gz" instead of %s' % package)
+          '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
     if os.path.basename(package).endswith('.whl'):
       logging.warning(
           'The .whl package "%s" is provided in --extra_package. '
