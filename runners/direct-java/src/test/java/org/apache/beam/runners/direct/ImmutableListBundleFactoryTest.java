@@ -120,7 +120,7 @@ public class ImmutableListBundleFactoryTest {
 
     // Sanity check that the test is meaningful.
     assertThat(minElementTs, not(equalTo(commitTime)));
-    assertThat(committed.getMinTimestamp(), equalTo(minElementTs));
+    assertThat(committed.getMinimumTimestamp(), equalTo(minElementTs));
     assertThat(committed.getSynchronizedProcessingOutputWatermark(), equalTo(commitTime));
 
     return committed;
@@ -190,7 +190,7 @@ public class ImmutableListBundleFactoryTest {
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
         equalTo(committed.getSynchronizedProcessingOutputWatermark()));
-    assertThat(withed.getMinTimestamp(), equalTo(new Instant(2048L)));
+    assertThat(withed.getMinimumTimestamp(), equalTo(new Instant(2048L)));
   }
 
   @Test
