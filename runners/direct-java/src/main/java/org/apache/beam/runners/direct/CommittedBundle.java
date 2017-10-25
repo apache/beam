@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
+import org.apache.beam.runners.core.local.Bundle;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -33,7 +34,7 @@ import org.joda.time.Instant;
  * a part of at a later point.
  * @param <T> the type of elements contained within this bundle
  */
-interface CommittedBundle<T> {
+interface CommittedBundle<T> extends Bundle<T> {
   /**
    * Returns the PCollection that the elements of this bundle belong to.
    */
@@ -52,10 +53,8 @@ interface CommittedBundle<T> {
    */
   Iterable<WindowedValue<T>> getElements();
 
-  /**
-   * Returns the minimum timestamp among all of the elements of this {@link CommittedBundle}.
-   */
-  Instant getMinTimestamp();
+  @Override
+  Instant getMinimumTimestamp();
 
   /**
    * Returns the processing time output watermark at the time the producing {@link PTransform}

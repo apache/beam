@@ -274,7 +274,7 @@ class WatermarkManager {
       if (!pendingElements.isEmpty()) {
         minInputWatermark =
             INSTANT_ORDERING.min(
-                minInputWatermark, pendingElements.firstEntry().getElement().getMinTimestamp());
+                minInputWatermark, pendingElements.firstEntry().getElement().getMinimumTimestamp());
       }
       Instant newWatermark = INSTANT_ORDERING.max(oldWatermark, minInputWatermark);
       currentWatermark.set(newWatermark);
@@ -1511,7 +1511,7 @@ class WatermarkManager {
     @Override
     public int compare(CommittedBundle<?> o1, CommittedBundle<?> o2) {
       return ComparisonChain.start()
-          .compare(o1.getMinTimestamp(), o2.getMinTimestamp())
+          .compare(o1.getMinimumTimestamp(), o2.getMinimumTimestamp())
           .result();
     }
   }
