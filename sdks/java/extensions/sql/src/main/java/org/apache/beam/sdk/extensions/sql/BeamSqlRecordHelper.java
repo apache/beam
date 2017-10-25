@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -186,7 +187,34 @@ public class BeamSqlRecordHelper {
     public void verifyDeterministic() throws NonDeterministicException {
     }
   }
+  /**
+   * {@link Coder} for Java type {@link java.sql.Timestamp}, it's stored as {@link Long}.
+   */
+  public static class TimestampCoder extends CustomCoder<Timestamp> {
+    private static final BigEndianLongCoder longCoder = BigEndianLongCoder.of();
+    private static final TimestampCoder INSTANCE = new TimestampCoder();
 
+    public static TimestampCoder of() {
+      return INSTANCE;
+    }
+
+    private TimestampCoder() {
+    }
+
+    @Override
+    public void encode(Timestamp value, OutputStream outStream) throws CoderException, IOException {
+      longCoder.encode(value.getTime(), outStream);
+    }
+
+    @Override
+    public Timestamp decode(InputStream inStream) throws CoderException, IOException {
+      return new Timestamp(longCoder.decode(inStream));
+    }
+
+    @Override
+    public void verifyDeterministic() throws NonDeterministicException {
+    }
+  }
   /**
    * {@link Coder} for Java type {@link Boolean}.
    */
