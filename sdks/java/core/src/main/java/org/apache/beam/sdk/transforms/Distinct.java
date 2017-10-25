@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.values.KV;
@@ -115,6 +116,7 @@ public class Distinct<T> extends PTransform<PCollection<T>,
                 Combine.<T, Void>perKey(
                     new SerializableFunction<Iterable<Void>, Void>() {
                       @Override
+                      @Nullable
                       public Void apply(Iterable<Void> iter) {
                         return null; // ignore input
                       }

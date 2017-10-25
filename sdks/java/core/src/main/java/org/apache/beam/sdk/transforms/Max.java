@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
@@ -214,11 +215,11 @@ public class Max {
 
   private static class MaxFn<T> extends BinaryCombineFn<T> {
 
-    private final T identity;
+    @Nullable private final T identity;
     private final Comparator<? super T> comparator;
 
     private <ComparatorT extends Comparator<? super T> & Serializable> MaxFn(
-        T identity, ComparatorT comparator) {
+        @Nullable T identity, ComparatorT comparator) {
       this.identity = identity;
       this.comparator = comparator;
     }

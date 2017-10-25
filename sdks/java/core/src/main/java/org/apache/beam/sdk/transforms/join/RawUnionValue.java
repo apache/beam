@@ -20,18 +20,20 @@ package org.apache.beam.sdk.transforms.join;
 // TODO: Think about making this a complete dynamic union by adding
 // a schema.  Type would then be defined by the corresponding schema entry.
 
+import javax.annotation.Nullable;
+
 /**
  * This corresponds to an integer union tag and value.  The mapping of
  * union tag to type must come from elsewhere.
  */
 public class RawUnionValue {
   private final int unionTag;
-  private final Object value;
+  @Nullable private final Object value;
 
   /**
    * Constructs a partial union from the given union tag and value.
    */
-  public RawUnionValue(int unionTag, Object value) {
+  public RawUnionValue(int unionTag, @Nullable Object value) {
     this.unionTag = unionTag;
     this.value = value;
   }
@@ -40,7 +42,7 @@ public class RawUnionValue {
     return unionTag;
   }
 
-  public Object getValue() {
+  @Nullable public Object getValue() {
     return value;
   }
 
