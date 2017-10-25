@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
+import java.util.Iterator;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -125,6 +127,12 @@ class ImmutableListBundleFactory implements BundleFactory {
         Instant synchronizedCompletionTime) {
       return new AutoValue_ImmutableListBundleFactory_CommittedImmutableListBundle<>(
           pcollection, key, committedElements, minElementTimestamp, synchronizedCompletionTime);
+    }
+
+    @Override
+    @Nonnull
+    public Iterator<WindowedValue<T>> iterator() {
+      return getElements().iterator();
     }
 
     @Override
