@@ -40,7 +40,6 @@ mavenJob('beam_Java_UnitTest') {
     '-e',
     "-P${profiles.join(',')}",
     'surefire:test@default-test',
-    'coveralls:report', // TODO: Will this work? Can't verify on my own Jenkins due to no coveralls.
     "-pl '!sdks/python'",
     '-DrepoToken=$COVERALLS_REPO_TOKEN',
     '-DpullRequest=$ghprbPullId',
