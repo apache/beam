@@ -52,9 +52,9 @@ import java.util.logging.SimpleFormatter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.runners.dataflow.options.DataflowWorkerLoggingOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 
 /**
  * Configures {@link java.util.logging} to send all {@link LogRecord}s via the Beam Fn Logging API.
@@ -70,14 +70,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
       .put(Level.FINEST, BeamFnApi.LogEntry.Severity.Enum.TRACE)
       .build();
 
-  private static final ImmutableMap<DataflowWorkerLoggingOptions.Level, Level> LEVEL_CONFIGURATION =
-      ImmutableMap.<DataflowWorkerLoggingOptions.Level, Level>builder()
-          .put(DataflowWorkerLoggingOptions.Level.OFF, Level.OFF)
-          .put(DataflowWorkerLoggingOptions.Level.ERROR, Level.SEVERE)
-          .put(DataflowWorkerLoggingOptions.Level.WARN, Level.WARNING)
-          .put(DataflowWorkerLoggingOptions.Level.INFO, Level.INFO)
-          .put(DataflowWorkerLoggingOptions.Level.DEBUG, Level.FINE)
-          .put(DataflowWorkerLoggingOptions.Level.TRACE, Level.FINEST)
+  private static final ImmutableMap<SdkHarnessOptions.LogLevel, Level> LEVEL_CONFIGURATION =
+      ImmutableMap.<SdkHarnessOptions.LogLevel, Level>builder()
+          .put(SdkHarnessOptions.LogLevel.OFF, Level.OFF)
+          .put(SdkHarnessOptions.LogLevel.ERROR, Level.SEVERE)
+          .put(SdkHarnessOptions.LogLevel.WARN, Level.WARNING)
+          .put(SdkHarnessOptions.LogLevel.INFO, Level.INFO)
+          .put(SdkHarnessOptions.LogLevel.DEBUG, Level.FINE)
+          .put(SdkHarnessOptions.LogLevel.TRACE, Level.FINEST)
           .build();
 
   private static final Formatter FORMATTER = new SimpleFormatter();
@@ -119,14 +119,14 @@ public class BeamFnLoggingClient implements AutoCloseable {
     }
 
     // Use the passed in logging options to configure the various logger levels.
-    DataflowWorkerLoggingOptions loggingOptions = options.as(DataflowWorkerLoggingOptions.class);
-    if (loggingOptions.getDefaultWorkerLogLevel() != null) {
-      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultWorkerLogLevel()));
+    SdkHarnessOptions loggingOptions = options.as(SdkHarnessOptions.class);
+    if (loggingOptions.getDefaultSdkHarnessLogLevel() != null) {
+      rootLogger.setLevel(LEVEL_CONFIGURATION.get(loggingOptions.getDefaultSdkHarnessLogLevel()));
     }
 
-    if (loggingOptions.getWorkerLogLevelOverrides() != null) {
-      for (Map.Entry<String, DataflowWorkerLoggingOptions.Level> loggerOverride :
-        loggingOptions.getWorkerLogLevelOverrides().entrySet()) {
+    if (loggingOptions.getSdkHarnessLogLevelOverrides() != null) {
+      for (Map.Entry<String, SdkHarnessOptions.LogLevel> loggerOverride :
+        loggingOptions.getSdkHarnessLogLevelOverrides().entrySet()) {
         Logger logger = Logger.getLogger(loggerOverride.getKey());
         logger.setLevel(LEVEL_CONFIGURATION.get(loggerOverride.getValue()));
         configuredLoggers.add(logger);

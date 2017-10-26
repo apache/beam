@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.dataflow.options;
+package org.apache.beam.sdk.options;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -23,41 +23,34 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
-import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * Options that are used to control logging configuration on the Dataflow worker.
- *
- * @deprecated This interface will no longer be the source of truth for worker logging configuration
- * once jobs are executed using a dedicated SDK harness instead of user code being co-located
- * alongside Dataflow worker code. Please set the option below and also the corresponding option
- * within {@link org.apache.beam.sdk.options.SdkHarnessOptions} to ensure forward compatibility.
+ * Options that are used to control configuration of the SDK harness.
  */
-@Description("Options that are used to control logging configuration on the Dataflow worker.")
-@Deprecated
-public interface DataflowWorkerLoggingOptions extends PipelineOptions {
+@Experimental
+@Description("Options that are used to control configuration of the SDK harness.")
+public interface SdkHarnessOptions extends PipelineOptions {
   /**
-   * The set of log levels that can be used on the Dataflow worker.
+   * The set of log levels that can be used in the SDK harness.
    */
-  enum Level {
+  enum LogLevel {
     /** Special level used to turn off logging. */
     OFF,
 
-    /** Level for logging error messages. */
+    /** LogLevel for logging error messages. */
     ERROR,
 
-    /** Level for logging warning messages. */
+    /** LogLevel for logging warning messages. */
     WARN,
 
-    /** Level for logging informational messages. */
+    /** LogLevel for logging informational messages. */
     INFO,
 
-    /** Level for logging diagnostic messages. */
+    /** LogLevel for logging diagnostic messages. */
     DEBUG,
 
-    /** Level for logging tracing messages. */
+    /** LogLevel for logging tracing messages. */
     TRACE
   }
 
@@ -66,49 +59,21 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    */
   @Description("Controls the default log level of all loggers without a log level override.")
   @Default.Enum("INFO")
-  Level getDefaultWorkerLogLevel();
-  void setDefaultWorkerLogLevel(Level level);
-
-  /**
-   * Controls the log level given to messages printed to {@code System.out}.
-   *
-   * <p>Note that the message may be filtered depending on the
-   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a {@code System.out} override is
-   * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
-   */
-  @Description("Controls the log level given to messages printed to System.out. Note that the "
-      + "message may be filtered depending on the defaultWorkerLogLevel or if a 'System.out' "
-      + "override is specified via workerLogLevelOverrides.")
-  @Default.Enum("INFO")
-  Level getWorkerSystemOutMessageLevel();
-  void setWorkerSystemOutMessageLevel(Level level);
-
-  /**
-   * Controls the log level given to messages printed to {@code System.err}.
-   *
-   * <p>Note that the message may be filtered depending on the
-   * {@link #getDefaultWorkerLogLevel defaultWorkerLogLevel} or if a {@code System.err} override is
-   * specified via {@link #getWorkerLogLevelOverrides workerLogLevelOverrides}.
-   */
-  @Description("Controls the log level given to messages printed to System.err. Note that the "
-      + "message may be filtered depending on the defaultWorkerLogLevel or if a 'System.err' "
-      + "override is specified via workerLogLevelOverrides.")
-  @Default.Enum("ERROR")
-  Level getWorkerSystemErrMessageLevel();
-  void setWorkerSystemErrMessageLevel(Level level);
+  LogLevel getDefaultSdkHarnessLogLevel();
+  void setDefaultSdkHarnessLogLevel(LogLevel logLevel);
 
   /**
    * This option controls the log levels for specifically named loggers.
    *
    * <p>Later options with equivalent names override earlier options.
    *
-   * <p>See {@link WorkerLogLevelOverrides} for more information on how to configure logging
+   * <p>See {@link SdkHarnessLogLevelOverrides} for more information on how to configure logging
    * on a per {@link Class}, {@link Package}, or name basis. If used from the command line,
-   * the expected format is {"Name":"Level",...}, further details on
-   * {@link WorkerLogLevelOverrides#from}.
+   * the expected format is {"Name":"LogLevel",...}, further details on
+   * {@link SdkHarnessLogLevelOverrides#from}.
    */
   @Description("This option controls the log levels for specifically named loggers. "
-      + "The expected format is {\"Name\":\"Level\",...}. The Dataflow worker supports a logging "
+      + "The expected format is {\"Name\":\"LogLevel\",...}. The SDK harness supports a logging "
       + "hierarchy based off of names that are '.' separated. For example, by specifying the value "
       + "{\"a.b.c.Foo\":\"DEBUG\"}, the logger for the class 'a.b.c.Foo' will be configured to "
       + "output logs at the DEBUG level. Similarly, by specifying the value {\"a.b.c\":\"WARN\"}, "
@@ -116,13 +81,13 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
       + "level. System.out and System.err levels are configured via loggers of the corresponding "
       + "name. Also, note that when multiple overrides are specified, the exact name followed by "
       + "the closest parent takes precedence.")
-  WorkerLogLevelOverrides getWorkerLogLevelOverrides();
-  void setWorkerLogLevelOverrides(WorkerLogLevelOverrides value);
+  SdkHarnessLogLevelOverrides getSdkHarnessLogLevelOverrides();
+  void setSdkHarnessLogLevelOverrides(SdkHarnessLogLevelOverrides value);
 
   /**
    * Defines a log level override for a specific class, package, or name.
    *
-   * <p>The Dataflow worker harness supports a logging hierarchy based off of names that are "."
+   * <p>The SDK harness supports a logging hierarchy based off of names that are "."
    * separated. It is a common pattern to have the logger for a given class share the same name as
    * the class itself. Given the classes {@code a.b.c.Foo}, {@code a.b.c.Xyz}, and {@code a.b.Bar},
    * with loggers named {@code "a.b.c.Foo"}, {@code "a.b.c.Xyz"}, and {@code "a.b.Bar"}
@@ -139,17 +104,17 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
    * corresponding name. Note that by specifying multiple overrides, the exact name followed by the
    * closest parent takes precedence.
    */
-  class WorkerLogLevelOverrides extends HashMap<String, Level> {
+  class SdkHarnessLogLevelOverrides extends HashMap<String, LogLevel> {
     /**
      * Overrides the default log level for the passed in class.
      *
      * <p>This is equivalent to calling
-     * {@link #addOverrideForName(String, DataflowWorkerLoggingOptions.Level)}
+     * {@link #addOverrideForName(String, LogLevel)}
      * and passing in the {@link Class#getName() class name}.
      */
-    public WorkerLogLevelOverrides addOverrideForClass(Class<?> klass, Level level) {
+    public SdkHarnessLogLevelOverrides addOverrideForClass(Class<?> klass, LogLevel logLevel) {
       checkNotNull(klass, "Expected class to be not null.");
-      addOverrideForName(klass.getName(), level);
+      addOverrideForName(klass.getName(), logLevel);
       return this;
     }
 
@@ -157,48 +122,48 @@ public interface DataflowWorkerLoggingOptions extends PipelineOptions {
      * Overrides the default log level for the passed in package.
      *
      * <p>This is equivalent to calling
-     * {@link #addOverrideForName(String, DataflowWorkerLoggingOptions.Level)}
+     * {@link #addOverrideForName(String, LogLevel)}
      * and passing in the {@link Package#getName() package name}.
      */
-    public WorkerLogLevelOverrides addOverrideForPackage(Package pkg, Level level) {
+    public SdkHarnessLogLevelOverrides addOverrideForPackage(Package pkg, LogLevel logLevel) {
       checkNotNull(pkg, "Expected package to be not null.");
-      addOverrideForName(pkg.getName(), level);
+      addOverrideForName(pkg.getName(), logLevel);
       return this;
     }
 
     /**
-     * Overrides the default log level for the passed in name.
+     * Overrides the default log logLevel for the passed in name.
      *
      * <p>Note that because of the hierarchical nature of logger names, this will
-     * override the log level of all loggers that have the passed in name or
+     * override the log logLevel of all loggers that have the passed in name or
      * a parent logger that has the passed in name.
      */
-    public WorkerLogLevelOverrides addOverrideForName(String name, Level level) {
+    public SdkHarnessLogLevelOverrides addOverrideForName(String name, LogLevel logLevel) {
       checkNotNull(name, "Expected name to be not null.");
-      checkNotNull(level,
-          "Expected level to be one of %s.", Arrays.toString(Level.values()));
-      put(name, level);
+      checkNotNull(logLevel,
+          "Expected logLevel to be one of %s.", Arrays.toString(LogLevel.values()));
+      put(name, logLevel);
       return this;
     }
 
     /**
-     * Expects a map keyed by logger {@code Name}s with values representing {@code Level}s.
+     * Expects a map keyed by logger {@code Name}s with values representing {@code LogLevel}s.
      * The {@code Name} generally represents the fully qualified Java
      * {@link Class#getName() class name}, or fully qualified Java
-     * {@link Package#getName() package name}, or custom logger name. The {@code Level}
-     * represents the log level and must be one of {@link Level}.
+     * {@link Package#getName() package name}, or custom logger name. The {@code LogLevel}
+     * represents the log level and must be one of {@link LogLevel}.
      */
     @JsonCreator
-    public static WorkerLogLevelOverrides from(Map<String, String> values) {
+    public static SdkHarnessLogLevelOverrides from(Map<String, String> values) {
       checkNotNull(values, "Expected values to be not null.");
-      WorkerLogLevelOverrides overrides = new WorkerLogLevelOverrides();
+      SdkHarnessLogLevelOverrides overrides = new SdkHarnessLogLevelOverrides();
       for (Map.Entry<String, String> entry : values.entrySet()) {
         try {
-          overrides.addOverrideForName(entry.getKey(), Level.valueOf(entry.getValue()));
+          overrides.addOverrideForName(entry.getKey(), LogLevel.valueOf(entry.getValue()));
         } catch (IllegalArgumentException e) {
           throw new IllegalArgumentException(String.format(
               "Unsupported log level '%s' requested for %s. Must be one of %s.",
-              entry.getValue(), entry.getKey(), Arrays.toString(Level.values())));
+              entry.getValue(), entry.getKey(), Arrays.toString(LogLevel.values())));
         }
 
       }
