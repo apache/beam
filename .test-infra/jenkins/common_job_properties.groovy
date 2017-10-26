@@ -144,9 +144,7 @@ class common_job_properties {
         if (prTriggerPhrase) {
           triggerPhrase(prTriggerPhrase)
         }
-        if (onlyTriggerPhraseToggle) {
-          onlyTriggerPhrase()
-        }
+        onlyTriggerPhrase(onlyTriggerPhraseToggle)
         // This is the name that will show up in the GitHub pull request UI
         // for this Jenkins project.
         commitStatusContext("Jenkins: " + commitStatusContext)
