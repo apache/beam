@@ -148,6 +148,23 @@ class common_job_properties {
         // This is the name that will show up in the GitHub pull request UI
         // for this Jenkins project.
         // commitStatusContext("Jenkins: " + commitStatusContext)
+        commitStatusContext("Jenkins: ")
+
+        cron("H/5 * * * *")
+        autoCloseFailedPullRequests(false)
+        displayBuildErrorsOnDownstreamBuilds(false)
+        commentFilePath(null)
+        skipBuildPhrase(null)
+        blackListCommitAuthor(null)
+        msgSuccess(null)
+        msgFailure(null)
+        gitHubAuthId(null)
+        buildDescTemplate(null)
+        blackListLabels(null)
+        whiteListLabels(null)
+        includedRegions(null)
+        excludedRegions(null)
+
         extensions {
           // Comment messages after build completes.
 //          ghbrpBuildStatus {
