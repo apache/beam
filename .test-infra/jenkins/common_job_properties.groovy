@@ -132,7 +132,7 @@ class common_job_properties {
       ghprbTrigger {
         adminlist('asfbot')
         whitelist('asfbot')
-        useGithubHooks(true)
+        useGitHubHooks(true)
         orgslist('asfbot')
         allowMembersOfWhitelistedOrgsAsAdmin(true)
         permitAll(true)
