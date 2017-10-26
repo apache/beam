@@ -124,7 +124,7 @@ class common_job_properties {
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   private static void setPullRequestBuildTrigger(context,
-                                                 String commitStatusContext,
+                                                 String commitStatusCtxt,
                                                  String prTriggerPhrase = '',
                                                  boolean onlyTriggerPhraseToggle = true,
                                                  String successComment = '--none--') {
@@ -147,8 +147,7 @@ class common_job_properties {
         onlyTriggerPhrase(onlyTriggerPhraseToggle)
         // This is the name that will show up in the GitHub pull request UI
         // for this Jenkins project.
-        // commitStatusContext("Jenkins: " + commitStatusContext)
-        commitStatusContext("Jenkins: ")
+        commitStatusContext("Jenkins: " + commitStatusCtxt)
 
         cron("H/5 * * * *")
         autoCloseFailedPullRequests(false)
