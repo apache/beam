@@ -55,6 +55,11 @@ Additionally, any API may change before the first stable release, i.e., between 
 
 ## Releases
 
+### 2.2.0 (2017-10-26)
+Official [source code download](https://www.apache.org/dyn/closer.cgi?filename=beam/2.2.0/apache-beam-2.2.0-source-release.zip&action=download).
+
+[Release notes](https://issues.apache.org/jira/secure/ReleaseNote.jspa?projectId=12319527&version=12341044).
+
 ### 2.1.0 (2017-08-23)
 Official [source code download](https://www.apache.org/dyn/closer.cgi?filename=beam/2.1.0/apache-beam-2.1.0-source-release.zip&action=download).
 
