@@ -129,12 +129,13 @@ class common_job_properties {
                                                  boolean onlyTriggerPhraseToggle = true,
                                                  String successComment = '--none--') {
     context.triggers {
-      githubPullRequest {
-        admins(['asfbot'])
-        useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
-        permitAll()
+      ghprbTrigger {
+        adminlist('asfbot')
+        whilelist('asfbot')
+        useGithubHooks(true)
+        orgslist('asfbot')
+        allowMembersOfWhitelistedOrgsAsAdmin(true)
+        permitAll(true)
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
@@ -146,19 +147,29 @@ class common_job_properties {
         if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
-
+        // This is the name that will show up in the GitHub pull request UI
+        // for this Jenkins project.
+        commitStatusContext("Jenkins: " + commitStatusContext)
         extensions {
-          commitStatus {
-            // This is the name that will show up in the GitHub pull request UI
-            // for this Jenkins project.
-            delegate.context("Jenkins: " + commitStatusContext)
-          }
-
           // Comment messages after build completes.
-          buildStatus {
-            completedStatus('SUCCESS', successComment)
-            completedStatus('FAILURE', '--none--')
-            completedStatus('ERROR', '--none--')
+          ghbrpBuildStatus {
+            messages {
+              ghprbBuildResultMessage {
+                result('SUCCESS')
+                message(successComment)
+              }
+              ghprbBuildResultMessage {
+                result('FAILURE')
+                message('--none--')
+              }
+              ghprbBuildResultMessage {
+                result('ERROR')
+                message('--none--')
+              }
+            }
+          }
+          ghprbCancelBuildsOnUpdate {
+            overrideGlobal(true)
           }
         }
       }
