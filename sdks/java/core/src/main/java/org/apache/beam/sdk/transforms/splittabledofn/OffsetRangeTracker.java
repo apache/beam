@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.MoreObjects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.transforms.DoFn;
 
@@ -31,8 +32,8 @@ import org.apache.beam.sdk.transforms.DoFn;
  */
 public class OffsetRangeTracker implements RestrictionTracker<OffsetRange> {
   private OffsetRange range;
-  private Long lastClaimedOffset = null;
-  private Long lastAttemptedOffset = null;
+  @Nullable private Long lastClaimedOffset = null;
+  @Nullable private Long lastAttemptedOffset = null;
 
   public OffsetRangeTracker(OffsetRange range) {
     this.range = checkNotNull(range);
