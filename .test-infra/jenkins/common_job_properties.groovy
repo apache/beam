@@ -165,18 +165,19 @@ class common_job_properties {
         extensions {
           // Comment messages after build completes.
           ghbrpBuildStatus([
-            ghprbBuildResultMessage {
-              result('SUCCESS')
-              message(successComment)
-            },
-            ghprbBuildResultMessage {
-              result('FAILURE')
-              message('--none--')
-            },
-            ghprbBuildResultMessage {
-              result('ERROR')
-              message('--none--')
-            }
+            new org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage('SUCCESS', successComment)
+//            ghprbBuildResultMessage {
+//              result('SUCCESS')
+//              message(successComment)
+//            },
+//            ghprbBuildResultMessage {
+//              result('FAILURE')
+//              message('--none--')
+//            },
+//            ghprbBuildResultMessage {
+//              result('ERROR')
+//              message('--none--')
+//            }
           ])
           ghprbCancelBuildsOnUpdate {
             overrideGlobal(true)
