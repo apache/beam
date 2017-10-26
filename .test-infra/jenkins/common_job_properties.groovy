@@ -140,10 +140,8 @@ class common_job_properties {
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
         // will disable automatic invocation of this build; the phrase will be
-        // required to start it.
-        if (prTriggerPhrase) {
-          triggerPhrase(prTriggerPhrase)
-        }
+        // required to start it.       
+        triggerPhrase(prTriggerPhrase)
         onlyTriggerPhrase(onlyTriggerPhraseToggle)
         // This is the name that will show up in the GitHub pull request UI
         // for this Jenkins project.
