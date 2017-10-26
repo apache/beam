@@ -38,8 +38,6 @@ import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
@@ -74,13 +72,12 @@ public class ApproximateDistinctTest implements Serializable {
 
     PCollection<Long> cardinality = tp
             .apply("small stream", Create.<Integer> of(small))
-            .apply("small cardinality", ApproximateDistinct.<Integer>globally().withPrecision(p))
-            .apply("retrieve small cardinality", ParDo.of(new RetrieveDistinct()));
+            .apply("small cardinality", ApproximateDistinct.<Integer>globally().withPrecision(p));
 
     PAssert.that("Not Accurate Enough", cardinality)
             .satisfies(new VerifyAccuracy(smallCard, expectedErr));
-    tp.run();
 
+    tp.run();
     }
 
   @Test
@@ -100,8 +97,7 @@ public class ApproximateDistinctTest implements Serializable {
             .apply("big stream", Create.<Integer>of(stream))
             .apply("big cardinality", ApproximateDistinct.<Integer>globally()
                     .withPrecision(p)
-                    .withSparsePrecision(sp))
-            .apply("retrieve big cardinality", ParDo.of(new RetrieveDistinct()));
+                    .withSparsePrecision(sp));
 
     PAssert.that("Verify Accuracy for big cardinality", res)
             .satisfies(new VerifyAccuracy(cardinality, expectedErr));
@@ -127,11 +123,11 @@ public class ApproximateDistinctTest implements Serializable {
             .apply("per key cardinality", ApproximateDistinct
                     .<Integer, Integer>perKey()
                     .withPrecision(p))
-            .apply("extract values", Values.<HyperLogLogPlus>create())
-            .apply("retrieve per key cardinality", ParDo.of(new RetrieveDistinct()));
+            .apply("extract values", Values.<Long>create());
 
     PAssert.that("Verify Accuracy for cardinality per key", results)
             .satisfies(new VerifyAccuracy(cardinality, expectedErr));
+
     tp.run();
   }
 
@@ -156,11 +152,11 @@ public class ApproximateDistinctTest implements Serializable {
               .apply("Create stream", Create.of(users).withCoder(AvroCoder.of(schema)))
               .apply("Test custom object", ApproximateDistinct.<GenericRecord>globally()
                       .withInputCoder(AvroCoder.of(schema))
-                      .withPrecision(p))
-              .apply("Retrieve cardinality of custom object", ParDo.of(new RetrieveDistinct()));
+                      .withPrecision(p));
 
       PAssert.that("Verify Accuracy for custom object", results)
               .satisfies(new VerifyAccuracy(cardinality, expectedErr));
+
       tp.run();
   }
 
@@ -182,15 +178,6 @@ public class ApproximateDistinctTest implements Serializable {
     assertThat(DisplayData.from(fnWithPrecision), hasDisplayItem("p", 23));
     assertThat(DisplayData.from(fnWithPrecision), hasDisplayItem("sp", 0));
 
-  }
-
-  static class RetrieveDistinct extends DoFn<HyperLogLogPlus, Long> {
-    @ProcessElement
-    public void apply(ProcessContext c) {
-      Long card = c.element().cardinality();
-      LOG.debug("Number of distinct Elements : " + card);
-      c.output(card);
-    }
   }
 
   class VerifyAccuracy implements SerializableFunction<Iterable<Long>, Void> {

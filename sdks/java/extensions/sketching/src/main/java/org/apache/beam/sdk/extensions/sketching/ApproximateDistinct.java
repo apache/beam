@@ -36,7 +36,9 @@ import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
@@ -44,11 +46,13 @@ import org.apache.beam.sdk.values.PCollection;
 
 /**
  * {@link PTransform}s for computing the approximate number of distinct elements in a stream.
+ * <br>The {@link CombineFn} is also exposed directly so it can be composed or used as a state cell
+ * in a stateful {@link ParDo}. See {@link ApproximateDistinctFn}.
  *
  * <p>This class relies on the HyperLogLog algorithm, and more precisely HyperLogLog+,
  * the improved version of Google.
  *
- *  <h2>References</h2>
+ * <h2>References</h2>
  *
  * <p>The implementation comes from Addthis' Stream-lib library :
  * <a>https://github.com/addthis/stream-lib</a>
@@ -70,6 +74,10 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <h2>Using the Transforms</h2>
  *
+ * <p>The {@link PTransform}s return a {@code PCollection<Long>} corresponding to the estimate
+ * number of distinct elements in the input {@link PCollection} of objects or for each key in a
+ * {@link PCollection} of {@link KV}s.
+ *
  * <p>By default the Input Coder is inferred at runtime. One should specify a coder only if
  * custom type is used.
  * <br>By default the precision is set to {@code 12} for a relative error of around {@code 2%}.
@@ -79,13 +87,13 @@ import org.apache.beam.sdk.values.PCollection;
  * <h4>Example 1 : globally default use</h4>
  * <pre>{@code
  * PCollection<Integer> input = ...;
- * PCollection<HyperLogLogPlus> hllSketch = input.apply(ApproximateDistinct.<Integer>globally());
+ * PCollection<Long> hllSketch = input.apply(ApproximateDistinct.<Integer>globally());
  * }</pre>
  *
  * <h4>Example 2 : per key default use</h4>
  * <pre>{@code
  * PCollection<Integer, String> input = ...;
- * PCollection<Integer, HyperLogLogPlus> hllSketches = input.apply(ApproximateDistinct
+ * PCollection<Integer, Long> hllSketches = input.apply(ApproximateDistinct
  *                .<Integer, String>perKey());
  * }</pre>
  *
@@ -94,7 +102,7 @@ import org.apache.beam.sdk.values.PCollection;
  * int precision = 15;
  * int sparsePrecision = 25;
  * PCollection<Double> input = ...;
- * PCollection<HyperLogLogPlus> hllSketch = input.apply(ApproximateDistinct
+ * PCollection<Long> hllSketch = input.apply(ApproximateDistinct
  *                .<Double>globally()
  *                .withPrecision(precision)
  *                .withSparsePrecision(sparsePrecision));
@@ -104,7 +112,7 @@ import org.apache.beam.sdk.values.PCollection;
  * <pre>{@code
  * int precision = 18;
  * PCollection<MyClass> input = ...;
- * PCollection<HyperLogLogPlus> hllSketch = input.apply(ApproximateDistinct.<MyClass>globally()
+ * PCollection<Long> hllSketch = input.apply(ApproximateDistinct.<MyClass>globally()
  *                  .withInputCoder(MyClassCoder.of())
  *                  .withPrecision(precision));
  * }</pre>
@@ -113,8 +121,10 @@ import org.apache.beam.sdk.values.PCollection;
  *
  * <h2>Using the CombineFn</h2>
  *
- * <p>The {@link CombineFn} is also exposed directly so it can be composed or used as a state cell
- * in a stateful {@link org.apache.beam.sdk.transforms.ParDo}. See {@link ApproximateDistinctFn}.
+ * <p>The CombineFn outputs the {@link HyperLogLogPlus} structure used to combine the elements.
+ * <br>Nonetheless, it is still possible to retrieve easily the cardinality as a Long in a
+ * {@link PCollection} of {@code HyperLogLogPlus} or {@code KV<K, HyperLogLogPlus>} by using
+ * the {@link RetrieveCardinality} utility class (see example 3).
  *
  * <p>By default, one must always specify a coder, using the
  * {@link ApproximateDistinctFn#create(Coder)} method.
@@ -136,23 +146,40 @@ import org.apache.beam.sdk.values.PCollection;
  * {@link ApproximateDistinctFn#withSparseRepresentation(int)} methods.
  *
  * <pre>{@code
- * PCollection<Object> input = ...;
+ * PCollection<MyObject> input = ...;
  * PCollection<HyperLogLogPlus> output = input.apply(Combine.globally(ApproximateDistinctFn
- *                .<Object>create(new ObjectCoder())
+ *                .<MyObject>create(new MyObjectCoder())
  *                .withPrecision(18)
  *                .withSparseRepresentation(24)));
  * }</pre>
  *
- * <h4>Example 3 : using the {@link CombineFn} in a stateful
- * {@link org.apache.beam.sdk.transforms.ParDo}</h4>
+ * <h4>Example 3 : use the {@link RetrieveCardinality} utility class</h4>
+ *
+ * <p>One may want to retrieve the cardinality as a long after making some advanced processing
+ * using the {@link HyperLogLogPlus} structure.
+ * <br>The {@link RetrieveCardinality} utility class provides an easy way to do so :
+ *
+ * <pre>{@code
+ * PCollection<MyObject> input = ...;
+ * PCollection<HyperLogLogPlus> hll = input.apply(Combine.globally(ApproximateDistinctFn
+ *                  .<MyObject>Create(new MyObjectCoder())
+ *                  .withSparseRepresentation(20)));
+ *
+ *  // Some advanced processing
+ *  PCollection<SomeObject> advancedResult = hll.apply(...);
+ *
+ *  PCollection<Long> cardinality = hll.apply(ApproximateDistinct.RetrieveCardinality.globally());
+ *  }</pre>
+ *
+ * <h4>Example 4 : use the {@link CombineFn} in a stateful {@link ParDo}</h4>
  *
  * <p>One may want to use the {@link ApproximateDistinctFn} in a stateful ParDo in order to
  * make some processing depending on the current cardinality of the stream.
  * <br>For more information about stateful processing see :
  * <a>https://beam.apache.org/blog/2017/02/13/stateful-processing.html</a>
  *
- * <p>Here is an example of {@link org.apache.beam.sdk.transforms.DoFn} using an
- * {@link ApproximateDistinctFn} as a {@link org.apache.beam.sdk.state.CombiningState} :
+ * <p>Here is an example of {@link DoFn} using an {@link ApproximateDistinctFn} as a
+ * {@link org.apache.beam.sdk.state.CombiningState} :
  *
  * <pre>{@code
  * class StatefulCardinality<V> extends DoFn<V>, OutputT>> {
@@ -175,7 +202,7 @@ import org.apache.beam.sdk.values.PCollection;
  * }
  * }</pre>
  *
- * <p>Then the {@link org.apache.beam.sdk.transforms.DoFn} can be called like this :
+ * <p>Then the {@link DoFn} can be called like this :
  * <pre>{@code
  * PCollection<Object> input = ...;
  * ApproximateDistinctFn myFn = ApproximateDistinctFn.create(new ObjectCoder());
@@ -220,11 +247,15 @@ public final class ApproximateDistinct {
    */
   @AutoValue
   public abstract static class GloballyDistinct<InputT>
-          extends PTransform<PCollection<InputT>, PCollection<HyperLogLogPlus>> {
+          extends PTransform<PCollection<InputT>, PCollection<Long>> {
 
-    @Nullable abstract Coder<InputT> inputCoder();
+    @Nullable
+    abstract Coder<InputT> inputCoder();
+
     abstract int precision();
+
     abstract int sparsePrecision();
+
     abstract Builder<InputT> toBuilder();
 
     static <InputT> Builder<InputT> builder() {
@@ -237,8 +268,11 @@ public final class ApproximateDistinct {
     @AutoValue.Builder
     abstract static class Builder<InputT> {
       abstract Builder<InputT> setInputCoder(Coder<InputT> coder);
+
       abstract Builder<InputT> setPrecision(int p);
+
       abstract Builder<InputT> setSparsePrecision(int sp);
+
       abstract GloballyDistinct<InputT> build();
     }
 
@@ -256,11 +290,13 @@ public final class ApproximateDistinct {
     }
 
     @Override
-    public PCollection<HyperLogLogPlus> expand(PCollection<InputT> input) {
-      return input.apply(Combine.globally(ApproximateDistinctFn
-              .<InputT>create(MoreObjects.firstNonNull(this.inputCoder(), input.getCoder()))
-              .withPrecision(this.precision())
-              .withSparseRepresentation(this.sparsePrecision())));
+    public PCollection<Long> expand(PCollection<InputT> input) {
+      return input
+              .apply("Compute HyperLogLog Structure", Combine.globally(ApproximateDistinctFn
+                      .<InputT>create(MoreObjects.firstNonNull(this.inputCoder(), input.getCoder()))
+                      .withPrecision(this.precision())
+                      .withSparseRepresentation(this.sparsePrecision())))
+              .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.globally()));
     }
   }
 
@@ -272,7 +308,7 @@ public final class ApproximateDistinct {
    */
   @AutoValue
   public abstract static class PerKeyDistinct<K, V>
-          extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, HyperLogLogPlus>>> {
+          extends PTransform<PCollection<KV<K, V>>, PCollection<KV<K, Long>>> {
 
     @Nullable abstract Coder<V> inputCoder();
     abstract int precision();
@@ -307,12 +343,15 @@ public final class ApproximateDistinct {
     }
 
     @Override
-    public PCollection<KV<K, HyperLogLogPlus>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<KV<K, Long>> expand(PCollection<KV<K, V>> input) {
       KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
-      return input.apply(Combine.<K, V, HyperLogLogPlus>perKey(ApproximateDistinctFn
-              .<V>create(MoreObjects.firstNonNull(this.inputCoder(), inputCoder.getValueCoder()))
-              .withPrecision(this.precision())
-              .withSparseRepresentation(this.sparsePrecision())));
+      return input
+              .apply(Combine.<K, V, HyperLogLogPlus>perKey(ApproximateDistinctFn
+                      .<V>create(MoreObjects
+                              .firstNonNull(this.inputCoder(), inputCoder.getValueCoder()))
+                      .withPrecision(this.precision())
+                      .withSparseRepresentation(this.sparsePrecision())))
+              .apply("Retrieve Cardinality", ParDo.of(RetrieveCardinality.<K>perKey()));
     }
   }
 
@@ -481,6 +520,32 @@ public final class ApproximateDistinct {
   }
 
   /**
+   * Utility class that provides {@link DoFn}s to retrieve the cardinality from a
+   * {@link HyperLogLogPlus} structure in a global or perKey context.
+   */
+  public static class RetrieveCardinality {
+
+    public static <K> DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>> perKey() {
+      return new DoFn<KV<K, HyperLogLogPlus>, KV<K, Long>>() {
+        @ProcessElement
+        public void processElement(ProcessContext c) {
+          KV<K, HyperLogLogPlus> kv = c.element();
+          c.output(KV.of(kv.getKey(), kv.getValue().cardinality()));
+        }
+      };
+    }
+
+    public static DoFn<HyperLogLogPlus, Long> globally() {
+      return new DoFn<HyperLogLogPlus, Long>() {
+        @ProcessElement
+        public void apply(ProcessContext c) {
+          c.output(c.element().cardinality());
+        }
+      };
+    }
+}
+
+  /**
    * Computes the precision based on the desired relative error.
    *
    * <p>According to the paper, the mean squared error is bounded by the following formula :
@@ -501,7 +566,7 @@ public final class ApproximateDistinct {
    * @param relativeError   the mean squared error should be in the interval ]0,1]
    * @return  the minimum precision p in order to have the desired relative error on average.
    */
-  static long precisionForRelativeError(double relativeError) {
+  public static long precisionForRelativeError(double relativeError) {
     return Math.round(Math.ceil(Math.log(
             Math.pow(1.106, 2.0)
                     / Math.pow(relativeError, 2.0))
@@ -513,7 +578,7 @@ public final class ApproximateDistinct {
    * @return  the Mean squared error of the Estimation of cardinality to expect
    * for the given value of p.
    */
-  static double relativeErrorForPrecision(int p) {
+  public static double relativeErrorForPrecision(int p) {
     if (p < 4) {
       return 1.0;
     }
