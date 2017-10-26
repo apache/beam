@@ -150,22 +150,22 @@ class common_job_properties {
         // commitStatusContext("Jenkins: " + commitStatusContext)
         extensions {
           // Comment messages after build completes.
-          ghbrpBuildStatus {
-            messages {
-              ghprbBuildResultMessage {
-                result('SUCCESS')
-                message(successComment)
-              }
-              ghprbBuildResultMessage {
-                result('FAILURE')
-                message('--none--')
-              }
-              ghprbBuildResultMessage {
-                result('ERROR')
-                message('--none--')
-              }
-            }
-          }
+//          ghbrpBuildStatus {
+//            messages {
+//              ghprbBuildResultMessage {
+//                result('SUCCESS')
+//                message(successComment)
+//              }
+//              ghprbBuildResultMessage {
+//                result('FAILURE')
+//                message('--none--')
+//              }
+//              ghprbBuildResultMessage {
+//                result('ERROR')
+//                message('--none--')
+//              }
+//            }
+//          }
           ghprbCancelBuildsOnUpdate {
             overrideGlobal(true)
           }
