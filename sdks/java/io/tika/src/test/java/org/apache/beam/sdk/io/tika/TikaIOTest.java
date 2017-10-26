@@ -129,13 +129,14 @@ public class TikaIOTest {
   }
 
   @Test
-  public void testParseAllDamagedPdfFile() throws IOException {
+  public void testParseAllDamagedPdfFile() throws Exception {
     thrown.expectCause(isA(TikaException.class));
     String resourcePath = getClass().getResource("/damaged.pdf").getPath();
 
     p.apply("ParseInvalidPdfFile", FileIO.match().filepattern(resourcePath))
       .apply(FileIO.readMatches())
-      .apply(TikaIO.parseAll());
+      .apply(TikaIO.parseAll())
+      .apply(ParDo.of(new FilterMetadataFn()));
     p.run();
   }
 
@@ -181,8 +182,11 @@ public class TikaIOTest {
     private static final long serialVersionUID = 6338014219600516621L;
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(ProcessContext c) throws Throwable {
       ParseResult result = c.element();
+      if (result.getThrowable() != null) {
+        throw result.getThrowable();
+      }
       Metadata m = new Metadata();
       // Files contain many metadata properties. This function drops all but the "Author"
       // property manually added to "apache-beam-tika1.odt" resource only to make

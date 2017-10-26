@@ -17,8 +17,12 @@
  */
 package org.apache.beam.sdk.io.tika;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+
+import javax.annotation.Nullable;
 
 import org.apache.tika.metadata.Metadata;
 
@@ -28,10 +32,47 @@ import org.apache.tika.metadata.Metadata;
  */
 @SuppressWarnings("serial")
 public class ParseResult implements Serializable {
+
+  private static final class SerializableThrowable implements Serializable {
+    private final Throwable throwable;
+    private final StackTraceElement[] stackTrace;
+
+    private SerializableThrowable(Throwable t) {
+      this.throwable = t;
+      this.stackTrace = t.getStackTrace();
+    }
+
+    private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
+      is.defaultReadObject();
+      throwable.setStackTrace(stackTrace);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (!(obj instanceof SerializableThrowable)) {
+        return false;
+      }
+      SerializableThrowable sr = (SerializableThrowable) obj;
+      return this.throwable.getClass().equals(sr.throwable.getClass())
+          && (this.throwable.getCause() == null && sr.throwable.getCause() == null
+            || this.throwable.getCause().getClass().equals(sr.throwable.getCause().getClass()));
+    }
+
+    @Override
+    public int hashCode() {
+      int hashCode = 1;
+      hashCode = 31 * hashCode + throwable.getClass().hashCode();
+      return hashCode;
+    }
+  }
+
   private final String fileLocation;
-  private final String content;
+  @Nullable
+  private String content;
   private final Metadata metadata;
   private final String[] metadataNames;
+  @Nullable
+  private SerializableThrowable throwable;
 
   public ParseResult(String fileLocation, String content) {
     this(fileLocation, content, new Metadata());
@@ -44,15 +85,24 @@ public class ParseResult implements Serializable {
     this.metadataNames = metadata.names();
   }
 
+  public ParseResult(String fileLocation, Metadata metadata, Throwable t) {
+    this.fileLocation = fileLocation;
+    this.metadata = metadata;
+    this.metadataNames = metadata.names();
+    this.throwable = new SerializableThrowable(t);
+  }
+
   /**
-   * Gets a file content.
+   * Gets a file content which can be set to null
+   * if a parsing exception has occurred.
    */
   public String getContent() {
     return content;
   }
 
   /**
-   * Gets a file metadata.
+   * Gets a file metadata which can be only be partially populated
+   * if a parsing exception has occurred.
    */
   public Metadata getMetadata() {
     return metadata;
@@ -65,12 +115,24 @@ public class ParseResult implements Serializable {
     return fileLocation;
   }
 
+  /**
+   * Gets a parse exception.
+   */
+  public Throwable getThrowable() {
+    return throwable == null ? null : throwable.throwable;
+  }
+
   @Override
   public int hashCode() {
     int hashCode = 1;
     hashCode = 31 * hashCode + fileLocation.hashCode();
-    hashCode = 31 * hashCode + content.hashCode();
+    if (content != null) {
+      hashCode = 31 * hashCode + content.hashCode();
+    }
     hashCode = 31 * hashCode + getMetadataHashCode();
+    if (throwable != null) {
+      hashCode = 31 * hashCode + throwable.hashCode();
+    }
     return hashCode;
   }
 
@@ -81,9 +143,17 @@ public class ParseResult implements Serializable {
     }
 
     ParseResult pr = (ParseResult) obj;
+    if (this.content == null && pr.content != null
+        || this.content != null && pr.content == null
+        || this.throwable == null && pr.throwable != null
+        || this.throwable != null && pr.throwable == null) {
+      return false;
+    }
+
     return this.fileLocation.equals(pr.fileLocation)
-      && this.content.equals(pr.content)
-      && this.metadata.equals(pr.metadata);
+      && (this.content == null && pr.content == null || this.content.equals(pr.content))
+      && this.metadata.equals(pr.metadata)
+      && (this.throwable == null && pr.throwable == null || this.throwable.equals(pr.throwable));
   }
 
   //TODO:

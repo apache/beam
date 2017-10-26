@@ -33,6 +33,14 @@ public class ParseResultTest {
     assertEquals(p1.hashCode(), p2.hashCode());
   }
 
+  @Test
+  public void testEqualsAndHashCodeWithException() {
+    ParseResult p1 = new ParseResult("a.txt", getMetadata(), new RuntimeException());
+    ParseResult p2 = new ParseResult("a.txt", getMetadata(), new RuntimeException());
+    assertEquals(p1, p2);
+    assertEquals(p1.hashCode(), p2.hashCode());
+  }
+
   static Metadata getMetadata() {
     Metadata m = new Metadata();
     m.add("Author", "BeamTikaUser");

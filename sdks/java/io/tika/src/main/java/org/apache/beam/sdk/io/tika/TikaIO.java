@@ -262,6 +262,7 @@ public class TikaIO {
       @ProcessElement
       public void processElement(ProcessContext c) throws Exception {
         ReadableFile file = c.element();
+
         InputStream stream = Channels.newInputStream(file.open());
         try (InputStream tikaStream = TikaInputStream.get(stream)) {
 
@@ -274,11 +275,17 @@ public class TikaIO {
             ? spec.getInputMetadata() : new org.apache.tika.metadata.Metadata();
 
           ContentHandler tikaHandler = new ToTextContentHandler();
-          parser.parse(tikaStream, tikaHandler, tikaMetadata, context);
+          String fileLocation = file.getMetadata().resourceId().toString();
 
-          c.output(new ParseResult(file.getMetadata().resourceId().toString(),
-              tikaHandler.toString(),
-              tikaMetadata));
+          ParseResult parseResult = null;
+          try {
+            parser.parse(tikaStream, tikaHandler, tikaMetadata, context);
+            parseResult = new ParseResult(fileLocation, tikaHandler.toString(), tikaMetadata);
+          } catch (Throwable t) {
+            parseResult = new ParseResult(fileLocation, tikaMetadata, t);
+          }
+
+          c.output(parseResult);
         }
       }
     }
