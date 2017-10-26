@@ -165,12 +165,12 @@ class common_job_properties {
         extensions {
           // Comment messages after build completes.
           ghbrpBuildStatus([
-            messages {
+//            messages {
               ghprbBuildResultMessage {
                 result('SUCCESS')
                 message(successComment)
               }
-            }
+//            }
           ])
 //          ghbrpBuildStatus {
 //            messages {
