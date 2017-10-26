@@ -124,41 +124,63 @@ class common_job_properties {
   // Sets the pull request build trigger. Accessed through precommit methods
   // below to insulate callers from internal parameter defaults.
   private static void setPullRequestBuildTrigger(context,
-                                                 String commitStatusContext,
+                                                 String commitStatusCtxt,
                                                  String prTriggerPhrase = '',
                                                  boolean onlyTriggerPhraseToggle = true,
                                                  String successComment = '--none--') {
     context.triggers {
-      githubPullRequest {
-        admins(['asfbot'])
-        useGitHubHooks()
-        orgWhitelist(['apache'])
-        allowMembersOfWhitelistedOrgsAsAdmin()
-        permitAll()
+      ghprbTrigger {
+        adminlist('asfbot')
+        whitelist('asfbot')
+        useGitHubHooks(true)
+        orgslist('asfbot')
+        allowMembersOfWhitelistedOrgsAsAdmin(true)
+        permitAll(true)
         // prTriggerPhrase is the argument which gets set when we want to allow
         // post-commit builds to run against pending pull requests. This block
         // overrides the default trigger phrase with the new one. Setting this
         // will disable automatic invocation of this build; the phrase will be
-        // required to start it.
-        if (prTriggerPhrase) {
-          triggerPhrase(prTriggerPhrase)
-        }
-        if (onlyTriggerPhraseToggle) {
-          onlyTriggerPhrase()
-        }
+        // required to start it.       
+        triggerPhrase(prTriggerPhrase)
+        onlyTriggerPhrase(onlyTriggerPhraseToggle)
+        // This is the name that will show up in the GitHub pull request UI
+        // for this Jenkins project.
+        commitStatusContext("Jenkins: " + commitStatusCtxt)
+
+        cron("H/5 * * * *")
+        autoCloseFailedPullRequests(false)
+        displayBuildErrorsOnDownstreamBuilds(false)
+        commentFilePath(null)
+        skipBuildPhrase(null)
+        blackListCommitAuthor(null)
+        msgSuccess(null)
+        msgFailure(null)
+        gitHubAuthId(null)
+        buildDescTemplate(null)
+        blackListLabels(null)
+        whiteListLabels(null)
+        includedRegions(null)
+        excludedRegions(null)
 
         extensions {
-          commitStatus {
-            // This is the name that will show up in the GitHub pull request UI
-            // for this Jenkins project.
-            delegate.context("Jenkins: " + commitStatusContext)
-          }
-
           // Comment messages after build completes.
-          buildStatus {
-            completedStatus('SUCCESS', successComment)
-            completedStatus('FAILURE', '--none--')
-            completedStatus('ERROR', '--none--')
+          ghbrpBuildStatus([
+            new org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage('SUCCESS', successComment)
+//            ghprbBuildResultMessage {
+//              result('SUCCESS')
+//              message(successComment)
+//            },
+//            ghprbBuildResultMessage {
+//              result('FAILURE')
+//              message('--none--')
+//            },
+//            ghprbBuildResultMessage {
+//              result('ERROR')
+//              message('--none--')
+//            }
+          ])
+          ghprbCancelBuildsOnUpdate {
+            overrideGlobal(true)
           }
         }
       }
