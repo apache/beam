@@ -22,7 +22,6 @@ import java.io.IOException;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -34,22 +33,19 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
  * user-supplied format function.
  */
 public class PrepareWrite<T, DestinationT>
-    extends PTransform<PCollection<T>, PCollection<KV<DestinationT, TableRow>>> {
+    extends PTransform<PCollection<T>, PCollection<KV<DestinationT, T>>> {
   private DynamicDestinations<T, DestinationT> dynamicDestinations;
-  private SerializableFunction<T, TableRow> formatFunction;
 
   public PrepareWrite(
-      DynamicDestinations<T, DestinationT> dynamicDestinations,
-      SerializableFunction<T, TableRow> formatFunction) {
+      DynamicDestinations<T, DestinationT> dynamicDestinations) {
     this.dynamicDestinations = dynamicDestinations;
-    this.formatFunction = formatFunction;
   }
 
   @Override
-  public PCollection<KV<DestinationT, TableRow>> expand(PCollection<T> input) {
+  public PCollection<KV<DestinationT, T>> expand(PCollection<T> input) {
     return input.apply(
         ParDo.of(
-            new DoFn<T, KV<DestinationT, TableRow>>() {
+            new DoFn<T, KV<DestinationT, T>>() {
               @ProcessElement
               public void processElement(ProcessContext context, BoundedWindow window)
                   throws IOException {
@@ -58,8 +54,7 @@ public class PrepareWrite<T, DestinationT>
                     dynamicDestinations.getDestination(
                         ValueInSingleWindow.of(
                             context.element(), context.timestamp(), window, context.pane()));
-                TableRow tableRow = formatFunction.apply(context.element());
-                context.output(KV.of(tableDestination, tableRow));
+                context.output(KV.of(tableDestination, context.element()));
               }
             }).withSideInputs(dynamicDestinations.getSideInputs()));
   }

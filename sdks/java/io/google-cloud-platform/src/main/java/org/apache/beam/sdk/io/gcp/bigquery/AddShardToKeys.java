@@ -15,33 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ShardedKey;
 
-/** Tags each value with a unique id. */
-@VisibleForTesting
-class TagWithUniqueIds<K, V> extends DoFn<KV<K, V>, KV<K, KV<String, V>>> {
-  private transient String randomUUID;
-  private transient long sequenceNo = 0L;
+/**
+ * Converts keys to a {@link ShardedKey} with a shard index in [0, numShards).
+ */
+class AddShardToKeys<K, V> extends DoFn<KV<K, V>, KV<ShardedKey<K>, V>> {
+  private final int numShards;
+  private transient int shard;
 
-  @Setup
-  public void setup() {
-    randomUUID = UUID.randomUUID().toString();
+  AddShardToKeys(int numShards) {
+    this.numShards = numShards;
   }
 
-  /** Tag the input with a unique id. */
+  @Setup
+  public void setUp() {
+    shard = ThreadLocalRandom.current().nextInt(0, numShards);
+  }
+
   @ProcessElement
   public void processElement(ProcessContext context, BoundedWindow window) throws IOException {
     context.output(
-        KV.of(
-            context.element().getKey(),
-            KV.of(randomUUID + sequenceNo++, context.element().getValue())));
+        KV.of(ShardedKey.of(context.element().getKey(), shard), context.element().getValue()));
+    shard = (shard + 1) % numShards;
   }
 }
