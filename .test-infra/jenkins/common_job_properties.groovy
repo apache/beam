@@ -165,7 +165,8 @@ class common_job_properties {
         extensions {
           // Comment messages after build completes.
           ghbrpBuildStatus {
-            
+            messages {
+              [
               ghprbBuildResultMessage {
                 result('SUCCESS')
                 message(successComment)
@@ -178,7 +179,8 @@ class common_job_properties {
                 result('ERROR')
                 message('--none--')
               }
-            
+              ]
+            }
           }
           ghprbCancelBuildsOnUpdate {
             overrideGlobal(true)
