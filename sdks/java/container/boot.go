@@ -118,7 +118,7 @@ func main() {
 
 // heapSizeLimit returns 80% of the runner limit, if provided. If not provided,
 // it returns 70% of the physical memory on the machine. If it cannot determine
-// that value, it returns 1GB. This is an imperfect heuristic. I aims to
+// that value, it returns 1GB. This is an imperfect heuristic. It aims to
 // ensure there is memory for non-heap use and other overhead, while also not
 // underutilizing the machine.
 func heapSizeLimit(info *pb.ProvisionInfo) uint64 {
