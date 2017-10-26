@@ -1,0 +1,318 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.runners.dataflow.native_io.streaming_create module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.runners.dataflow.native_io package" href="apache_beam.runners.dataflow.native_io.html"/>
+        <link rel="next" title="apache_beam.runners.dataflow.dataflow_metrics module" href="apache_beam.runners.dataflow.dataflow_metrics.html"/>
+        <link rel="prev" title="apache_beam.runners.dataflow.native_io.iobase module" href="apache_beam.runners.dataflow.native_io.iobase.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.runners.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a><ul class="current">
+<li class="toctree-l4 current"><a class="reference internal" href="apache_beam.runners.dataflow.html#subpackages">Subpackages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="apache_beam.runners.dataflow.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.direct.html">apache_beam.runners.direct package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.experimental.html">apache_beam.runners.experimental package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.runners.job.html">apache_beam.runners.job package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.runners.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.html">apache_beam.runners package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.dataflow.html">apache_beam.runners.dataflow package</a> &raquo;</li>
+        
+          <li><a href="apache_beam.runners.dataflow.native_io.html">apache_beam.runners.dataflow.native_io package</a> &raquo;</li>
+        
+      <li>apache_beam.runners.dataflow.native_io.streaming_create module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.runners.dataflow.native_io.streaming_create.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.runners.dataflow.native_io.streaming_create">
+<span id="apache-beam-runners-dataflow-native-io-streaming-create-module"></span><h1>apache_beam.runners.dataflow.native_io.streaming_create module<a class="headerlink" href="#module-apache_beam.runners.dataflow.native_io.streaming_create" title="Permalink to this headline">¶</a></h1>
+<p>Create transform for streaming.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate">
+<em class="property">class </em><code class="descclassname">apache_beam.runners.dataflow.native_io.streaming_create.</code><code class="descname">StreamingCreate</code><span class="sig-paren">(</span><em>values</em>, <em>coder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>A specialized implementation for <code class="docutils literal"><span class="pre">Create</span></code> transform in streaming mode.</p>
+<p>Note: There is no unbounded source API in python to wrap the Create source,
+so we map this to composite of Impulse primitive and an SDF.</p>
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.DecodeAndEmitDoFn">
+<em class="property">class </em><code class="descname">DecodeAndEmitDoFn</code><span class="sig-paren">(</span><em>encoded_values</em>, <em>coder</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.DecodeAndEmitDoFn"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.DecodeAndEmitDoFn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.core.html#apache_beam.transforms.core.DoFn" title="apache_beam.transforms.core.DoFn"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.core.DoFn</span></code></a></p>
+<p>A DoFn which stores encoded versions of elements.</p>
+<p>It also stores a Coder to decode and emit those elements.
+TODO: BEAM-2422 - Make this a SplittableDoFn.</p>
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.DecodeAndEmitDoFn.process">
+<code class="descname">process</code><span class="sig-paren">(</span><em>unused_element</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.DecodeAndEmitDoFn.process"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.DecodeAndEmitDoFn.process" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse">
+<em class="property">class </em><code class="descname">Impulse</code><span class="sig-paren">(</span><em>label=None</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.Impulse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="apache_beam.transforms.ptransform.html#apache_beam.transforms.ptransform.PTransform" title="apache_beam.transforms.ptransform.PTransform"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.transforms.ptransform.PTransform</span></code></a></p>
+<p>The Dataflow specific override for the impulse primitive.</p>
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pbegin</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.Impulse.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse.get_windowing">
+<code class="descname">get_windowing</code><span class="sig-paren">(</span><em>inputs</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.Impulse.get_windowing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse.get_windowing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse.infer_output_type">
+<code class="descname">infer_output_type</code><span class="sig-paren">(</span><em>unused_input_type</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.Impulse.infer_output_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.Impulse.infer_output_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.expand">
+<code class="descname">expand</code><span class="sig-paren">(</span><em>pbegin</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/runners/dataflow/native_io/streaming_create.html#StreamingCreate.expand"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.runners.dataflow.native_io.streaming_create.StreamingCreate.expand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.runners.dataflow.dataflow_metrics.html" class="btn btn-neutral float-right" title="apache_beam.runners.dataflow.dataflow_metrics module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.runners.dataflow.native_io.iobase.html" class="btn btn-neutral" title="apache_beam.runners.dataflow.native_io.iobase module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

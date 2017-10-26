@@ -1,0 +1,7 @@
+apache\_beam\.utils\.profiler module
+====================================
+
+.. automodule:: apache_beam.utils.profiler
+    :members:
+    :undoc-members:
+    :show-inheritance:

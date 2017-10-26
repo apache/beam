@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.direct\_metrics module
+=====================================================
+
+.. automodule:: apache_beam.runners.direct.direct_metrics
+    :members:
+    :undoc-members:
+    :show-inheritance:

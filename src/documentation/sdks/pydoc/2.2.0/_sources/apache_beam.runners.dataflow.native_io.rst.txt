@@ -1,0 +1,16 @@
+apache\_beam\.runners\.dataflow\.native\_io package
+===================================================
+
+.. automodule:: apache_beam.runners.dataflow.native_io
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.runners.dataflow.native_io.iobase
+   apache_beam.runners.dataflow.native_io.streaming_create
+

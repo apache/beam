@@ -1,0 +1,7 @@
+apache\_beam\.internal\.gcp\.auth module
+========================================
+
+.. automodule:: apache_beam.internal.gcp.auth
+    :members:
+    :undoc-members:
+    :show-inheritance:
