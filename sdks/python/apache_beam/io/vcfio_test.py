@@ -20,6 +20,7 @@
 import logging
 import os
 import unittest
+from itertools import permutations
 
 import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam.io.vcfio import _VcfSource as VcfSource
@@ -49,7 +50,7 @@ _SAMPLE_TEXT_LINES = [
     '20	17330	.	T	A	3	q10	AF=0.017	GT:GQ	0|0:49	0|1:3\n',
     '20	1110696	.	A	G,T	67	PASS	AF=0.3,0.7	GT:GQ	1|2:21	2|1:2\n',
     '20	1230237	.	T	.	47	PASS	.	GT:GQ	0|0:54	0|0:48\n',
-    '19	1234567	.	GTCT	G,GTACT	50	PASS	.	GT:GQ	0/1:35	0/2:17\n'
+    '19	1234567	.	GTCT	G,GTACT	50	PASS	.	GT:GQ	0/1:35	0/2:17\n',
     '20	1234	rs123	C	A,T	50	PASS	AF=0.5	GT:GQ	0/0:48	1/0:20\n',
     '19	123	rs1234	GTC	.	40	q10;s50	NS=2	GT:GQ	1|0:48	0/1:.\n',
     '19	12	.	C	<SYMBOLIC>	49	q10	AF=0.5	GT:GQ	0|1:45 .:.\n'
@@ -95,10 +96,7 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     return self._create_temp_file(suffix='.vcf', tmpdir=tmpdir, lines=lines)
 
   def _read_records(self, file_or_pattern):
-    source = VcfSource(file_or_pattern)
-    range_tracker = source.get_range_tracker(None, None)
-    read_data = [record for record in source.read(range_tracker)]
-    return read_data
+    return source_test_utils.read_from_source(VcfSource(file_or_pattern))
 
   def _create_temp_file_and_read_records(self, lines):
     return self._read_records(self._create_temp_vcf_file(lines))
@@ -109,6 +107,12 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
         sorted(actual, cmp=_variant_comparator))
 
   def _get_sample_variant_1(self):
+    """Get first sample variant.
+
+    Features:
+      multiple alternates
+      not phased
+      multiple names"""
     vcf_line = ('20	1234	rs123;rs2	C	A,T	50	PASS	AF=0.5,0.1;NS=1	'
                 'GT:GQ	0/0:48	1/0:20\n')
     variant = Variant(
@@ -124,6 +128,14 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     return variant, vcf_line
 
   def _get_sample_variant_2(self):
+    """Get second sample variant
+
+    Features
+      multiple references
+      no alternate
+      phased
+      multiple filters
+      missing format field"""
     vcf_line = (
         '19	123	rs1234	GTC	.	40	q10;s50	NS=2	GT:GQ	1|0:48	0/1:.\n')
     variant = Variant(
@@ -140,6 +152,11 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     return variant, vcf_line
 
   def _get_sample_variant_3(self):
+    """Get third sample variant
+
+    Features
+      symbolic alternate
+      no calls for sample 2"""
     vcf_line = (
         '19	12	.	C	<SYMBOLIC>	49	q10	AF=0.5	GT:GQ	0|1:45 .:.\n')
     variant = Variant(
@@ -155,8 +172,19 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
                     info={'GQ': None}))
     return variant, vcf_line
 
+  def test_sort_variants(self):
+    sorted_variants = [
+        Variant(reference_name='a', start=20, end=22),
+        Variant(reference_name='a', start=20, end=22, quality=20),
+        Variant(reference_name='b', start=20, end=22),
+        Variant(reference_name='b', start=21, end=22),
+        Variant(reference_name='b', start=21, end=23)]
+
+    for permutation in permutations(sorted_variants):
+      self.assertEqual(sorted(permutation), sorted_variants)
+
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
-  def test_read_single_file(self):
+  def test_read_single_file_large(self):
     test_data_conifgs = [
         {'file': 'valid-4.0.vcf', 'num_records': 5},
         {'file': 'valid-4.0.vcf.gz', 'num_records': 5},
@@ -170,7 +198,7 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
       self.assertEqual(config['num_records'], len(read_data))
 
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
-  def test_read_file_pattern(self):
+  def test_read_file_pattern_large(self):
     read_data = self._read_records(
         os.path.join(get_full_dir(), 'valid-*.vcf'))
     self.assertEqual(9900, len(read_data))
@@ -402,8 +430,17 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     self.assertEqual(1, len(read_data))
     self.assertEqual(expected_variant, read_data[0])
 
-  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_pipeline_read_single_file(self):
+    tmpdir = self._new_tempdir()
+    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
+    pipeline = TestPipeline()
+    pcoll = pipeline | 'Read' >> ReadFromVcf(file_name)
+    assert_that(pcoll, _count_equals_to(len(_SAMPLE_TEXT_LINES)))
+    pipeline.run()
+
+  @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
+  def test_pipeline_read_single_file_large(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromVcf(
         get_full_file_path('valid-4.0.vcf'))
@@ -411,7 +448,7 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     pipeline.run()
 
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
-  def test_pipeline_read_file_pattern(self):
+  def test_pipeline_read_file_pattern_large(self):
     pipeline = TestPipeline()
     pcoll = pipeline | 'Read' >> ReadFromVcf(
         os.path.join(get_full_dir(), 'valid-*.vcf'))

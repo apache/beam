@@ -221,6 +221,32 @@ class TextSourceTest(TestCaseWithTempDirCleanUp):
     source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
 
+  def test_header_processing(self):
+    file_name, expected_data = write_data(10)
+    assert len(expected_data) == 10
+
+    def header_matcher(line):
+      return line in expected_data[:5]
+
+    header_lines = []
+
+    def store_header(lines):
+      for line in lines:
+        header_lines.append(line)
+
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder(),
+                        header_processor_fns=(header_matcher, store_header))
+    splits = [split for split in source.split(desired_bundle_size=100000)]
+    assert len(splits) == 1
+    range_tracker = splits[0].source.get_range_tracker(
+        splits[0].start_position, splits[0].stop_position)
+    read_data = [record for record in source.read_records(file_name,
+                                                          range_tracker)]
+
+    self.assertItemsEqual(expected_data[:5], header_lines)
+    self.assertItemsEqual(expected_data[5:], read_data)
+
   def test_progress(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10

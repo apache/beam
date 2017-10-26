@@ -102,7 +102,10 @@ class _TextSource(filebasedsource.FileBasedSource):
         reading records and instead passed into header_processor to be handled.
         If skip_header_lines and a header_matcher are both provided, the value
         of skip_header_lines lines will be skipped and the header will be
-        processed from there."""
+        processed from there.
+
+    Please refer to documentation in class `ReadFromText` for the rest of the
+    arguments."""
     super(_TextSource, self).__init__(file_pattern, min_bundle_size,
                                       compression_type=compression_type,
                                       validate=validate)

@@ -108,7 +108,8 @@ class Variant(object):
     self.calls = calls or []
 
   def __eq__(self, other):
-    return self.__dict__ == other.__dict__
+    return (isinstance(other, Variant) and
+            vars(self) == vars(other))
 
   def __repr__(self):
     return ', '.join(
@@ -124,30 +125,46 @@ class Variant(object):
                           self.calls]])
 
   def __lt__(self, other):
-    members = ['reference_name', 'start', 'end', 'reference_bases',
-               'alternate_bases', 'alternate_bases', 'names', 'quality',
-               'filters', 'info', 'calls']
+    if not isinstance(other, Variant):
+      return NotImplemented
 
-    self_dict = self.__dict__
-    other_dict = other.__dict__
+    if self.reference_name != other.reference_name:
+      return self.reference_name < other.reference_name
+    elif self.start != other.start:
+      return self.start < other.start
+    elif self.end != other.end:
+      return self.end < other.end
 
-    for m in members:
-      if self_dict[m] < other_dict[m]:
-        return True
-      elif other_dict[m] < self_dict[m]:
-        return False
+    self_vars = vars(self)
+    other_vars = vars(other)
+    for key in sorted(self_vars):
+      if self_vars[key] != other_vars[key]:
+        return self_vars[key] < other_vars[key]
+
     return False
 
   def __le__(self, other):
+    if not isinstance(other, Variant):
+      return NotImplemented
+
     return self < other or self == other
 
   def __ne__(self, other):
+    if not isinstance(other, Variant):
+      return NotImplemented
+
     return not self == other
 
   def __gt__(self, other):
+    if not isinstance(other, Variant):
+      return NotImplemented
+
     return other < self
 
   def __ge__(self, other):
+    if not isinstance(other, Variant):
+      return NotImplemented
+
     return other <= self
 
 
@@ -224,10 +241,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
         file_name,
         range_tracker,
         self._file_pattern,
-        0,  # min_bundle_size
         self._compression_type,
-        True,  # strip_trailing_newlines
-        coders.StrUtf8Coder(),  # coder
         buffer_size=self._buffer_size,
         validate=self._validate,
         skip_header_lines=0)
@@ -243,10 +257,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
                  file_name,
                  range_tracker,
                  file_pattern,
-                 min_bundle_size,
                  compression_type,
-                 strip_trailing_newlines,
-                 coder,
                  **kwargs):
       self._header_lines = []
       self._last_record = None
@@ -254,10 +265,10 @@ class _VcfSource(filebasedsource.FileBasedSource):
 
       text_source = TextSource(
           file_pattern,
-          min_bundle_size,
+          0,  # min_bundle_size
           compression_type,
-          strip_trailing_newlines,
-          coder,
+          True,  # strip_trailing_newlines
+          coders.StrUtf8Coder(),  # coder
           header_processor_fns=(lambda x: x.startswith('#'),
                                 self._store_header_lines),
           **kwargs)
@@ -274,7 +285,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
 
     def _create_generator(self):
       header_processed = False
-      for record in self._text_lines:
+      for text_line in self._text_lines:
         if not header_processed and self._header_lines:
           for header in self._header_lines:
             self._last_record = header
@@ -282,7 +293,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           header_processed = True
         # PyVCF has explicit str() calls when parsing INFO fields, which fails
         # with UTF-8 decoded strings. Encode the line back to UTF-8.
-        self._last_record = record.encode('utf-8')
+        self._last_record = text_line.encode('utf-8')
         yield self._last_record
 
     def __iter__(self):
@@ -412,7 +423,8 @@ class ReadFromVcf(PTransform):
     """Initialize the :class:`ReadFromVcf` transform.
 
     Args:
-      file_pattern (str): The file path to read from as a local file path.
+      file_pattern (str): The file path to read from either as a single file or
+        a glob pattern.
       compression_type (str): Used to handle compressed input files.
         Typical value is :attr:`CompressionTypes.AUTO
         <apache_beam.io.filesystem.CompressionTypes.AUTO>`, in which case the
