@@ -183,6 +183,31 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     for permutation in permutations(sorted_variants):
       self.assertEqual(sorted(permutation), sorted_variants)
 
+  def test_variant_equality(self):
+    base_variant = Variant(reference_name='a', start=20, end=22,
+                           reference_bases='a', alternate_bases=['g', 't'],
+                           names=['variant'], quality=9, filters=['q10'],
+                           info={'key': 'value'},
+                           calls=[VariantCall(genotype=[0, 0])])
+    equal_variant = Variant(reference_name='a', start=20, end=22,
+                            reference_bases='a', alternate_bases=['g', 't'],
+                            names=['variant'], quality=9, filters=['q10'],
+                            info={'key': 'value'},
+                            calls=[VariantCall(genotype=[0, 0])])
+    different_calls = Variant(reference_name='a', start=20, end=22,
+                              reference_bases='a', alternate_bases=['g', 't'],
+                              names=['variant'], quality=9, filters=['q10'],
+                              info={'key': 'value'},
+                              calls=[VariantCall(genotype=[1, 0])])
+    missing_field = Variant(reference_name='a', start=20, end=22,
+                            reference_bases='a', alternate_bases=['g', 't'],
+                            names=['variant'], quality=9, filters=['q10'],
+                            info={'key': 'value'})
+
+    self.assertEqual(base_variant, equal_variant)
+    self.assertNotEqual(base_variant, different_calls)
+    self.assertNotEqual(base_variant, missing_field)
+
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_read_single_file_large(self):
     test_data_conifgs = [
