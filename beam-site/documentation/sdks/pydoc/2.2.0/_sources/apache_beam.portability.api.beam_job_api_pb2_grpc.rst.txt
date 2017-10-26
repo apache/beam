@@ -1,0 +1,7 @@
+apache\_beam\.portability\.api\.beam\_job\_api\_pb2\_grpc module
+================================================================
+
+.. automodule:: apache_beam.portability.api.beam_job_api_pb2_grpc
+    :members:
+    :undoc-members:
+    :show-inheritance:
