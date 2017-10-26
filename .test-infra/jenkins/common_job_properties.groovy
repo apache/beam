@@ -131,7 +131,7 @@ class common_job_properties {
     context.triggers {
       ghprbTrigger {
         adminlist('asfbot')
-        whilelist('asfbot')
+        whitelist('asfbot')
         useGithubHooks(true)
         orgslist('asfbot')
         allowMembersOfWhitelistedOrgsAsAdmin(true)
