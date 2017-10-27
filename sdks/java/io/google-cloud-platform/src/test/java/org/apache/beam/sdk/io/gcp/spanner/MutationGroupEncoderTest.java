@@ -121,7 +121,7 @@ public class MutationGroupEncoderTest {
     Mutation mutation = Mutation.newInsertBuilder("unknown").set("bool_field")
         .to(true).build();
     thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Columns [unknown] were not defined in table test");
+    thrown.expectMessage("Unknown table 'unknown'");
     encodeAndVerify(g(mutation), schema);
   }
 

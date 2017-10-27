@@ -27,6 +27,7 @@ import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.Type;
 import com.google.cloud.spanner.Value;
+import com.google.common.base.Preconditions;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -53,9 +54,16 @@ class MutationGroupEncoder {
   private static final DateTime MIN_DATE = new DateTime(1, 1, 1, 0, 0);
 
   private final SpannerSchema schema;
+  private final List<String> tables;
+  private final Map<String, Integer> tablesIndexes = new HashMap<>();
 
   public MutationGroupEncoder(SpannerSchema schema) {
     this.schema = schema;
+    tables = schema.getTables();
+
+    for (int i = 0; i < tables.size(); i++) {
+      tablesIndexes.put(tables.get(i), i);
+    }
   }
 
   public byte[] encode(MutationGroup g) {
@@ -96,16 +104,22 @@ class MutationGroupEncoder {
 
   private void encodeDelete(ByteArrayOutputStream bos, Mutation m) throws IOException {
     String table = m.getTable().toLowerCase();
-    int tableIndex = schema.getTableIndex(table);
+    int tableIndex = getTableIndex(table);
     VarInt.encode(tableIndex, bos);
     ObjectOutput out = new ObjectOutputStream(bos);
     out.writeObject(m.getKeySet());
   }
 
+  private Integer getTableIndex(String table) {
+    Integer result = tablesIndexes.get(table);
+    Preconditions.checkArgument(result != null, "Unknown table '%s'", table);
+    return result;
+  }
+
   private Mutation decodeDelete(ByteArrayInputStream bis)
       throws IOException {
     int tableIndex = VarInt.decodeInt(bis);
-    String tableName = schema.getTableName(tableIndex);
+    String tableName = tables.get(tableIndex);
 
     ObjectInputStream in = new ObjectInputStream(bis);
     KeySet keySet;
@@ -121,7 +135,7 @@ class MutationGroupEncoder {
   // [bitset of modified columns][value of column1][value of column2][value of column3]...
   private void encodeModification(ByteArrayOutputStream bos, Mutation m) throws IOException {
     String tableName = m.getTable().toLowerCase();
-    int tableIndex = schema.getTableIndex(tableName);
+    int tableIndex = getTableIndex(tableName);
     VarInt.encode(tableIndex, bos);
     List<SpannerSchema.Column> columns = schema.getColumns(tableName);
     checkArgument(columns != null, "Schema for table " + tableName + " not " + "found");
@@ -269,7 +283,7 @@ class MutationGroupEncoder {
 
   private Mutation decodeModification(ByteArrayInputStream bis, Mutation.Op op) throws IOException {
     int tableIndex = VarInt.decodeInt(bis);
-    String tableName = schema.getTableName(tableIndex);
+    String tableName = tables.get(tableIndex);
 
     Mutation.WriteBuilder m;
     switch (op) {
