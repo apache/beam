@@ -72,8 +72,9 @@ var (
 //
 //      formatFn: string x int -> string
 //
-// indicate that it operates on a PCollection of type KV<string,int> and outputs
-// a PCollection of type string. Beam typechecks the pipeline before running it.
+// indicate that it operates on a PCollection of type KV<string,int>, representing
+// key value pairs of strings and ints, and outputs a PCollection of type string.
+// Beam typechecks the pipeline before running it.
 //
 // DoFns that potentially output zero or multiple elements can also be Go functions,
 // but have a different signature. For example,
@@ -82,8 +83,8 @@ var (
 //
 // uses an "emit" function argument instead of string return type to allow it to
 // output any number of elements. It operates on a PCollection of type string and
-// return a PCollection of type string. Using named transforms allows for easy
-// reuse, modular testing, and an improved monitoring experience.
+// returns a PCollection of type string. Also, using named function transforms allows
+// for easy reuse, modular testing, and an improved monitoring experience.
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
@@ -109,7 +110,7 @@ func formatFn(w string, c int) string {
 // For example, the CountWords function is a custom composite transform that
 // bundles two transforms (ParDo and Count) as a reusable function.
 
-// CountWords is a composite transform that counts the words of an PCollection
+// CountWords is a composite transform that counts the words of a PCollection
 // of lines. It expects a PCollection of type string and returns a PCollection
 // of type KV<string,int>. The Beam type checker enforces these constraints
 // during pipeline construction.

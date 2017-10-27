@@ -86,8 +86,9 @@ func (f *filterFn) ProcessElement(ctx context.Context, word string, count int, e
 	}
 }
 
-// The below transforms are identical to the wordcount versions. Non-example
-// transforms would be placed in a separate package and shared directly.
+// The below transforms are identical to the wordcount versions. If this was
+// production code, common transforms would be placed in a separate package
+// and shared directly rather than being copied.
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 

@@ -5,9 +5,9 @@
 // error-checking or argument processing, and focus on construction of the
 // pipeline, which chains together the application of core transforms.
 //
-// Next, see the wordcount pipeline, then the debugging_wordcount, and finally
-// the windowed_wordcount pipeline, for more detailed examples that introduce
-// additional concepts.
+// Next, see the wordcount pipeline, then the debugging_wordcount pipeline, and
+// finally the windowed_wordcount pipeline, for more detailed examples that
+// introduce additional concepts.
 //
 // Concepts:
 //
