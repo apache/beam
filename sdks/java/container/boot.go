@@ -107,6 +107,7 @@ func main() {
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
+		"-XX:-OmitStackTraceInFastThrow",
 		"-cp", strings.Join(cp, ":"),
 		"org.apache.beam.fn.harness.FnHarness",
 	}
