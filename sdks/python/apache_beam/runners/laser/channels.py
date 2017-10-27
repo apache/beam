@@ -1,5 +1,6 @@
 
 
+import copy
 import cPickle as pickle
 import json
 import logging
@@ -12,22 +13,123 @@ import sys
 import threading
 import time
 
-## START RPC layer stuff
 
-class HostDescriptor(object):
-  def __init__(self, host_id):
-    self.host_id = host_id
+class InterfaceNotReadyException(Exception):
+  pass
 
-  def serialize(self):
-    return host_id
+class ChannelManager(threading.Thread):
+  def __init__(self):
+    self.node_addresses = set() # node_address -> node_name?
+    self.anycast_aliases = {}
+    self.address_generation = 0
+    self.registered_interfaces = {}
+    self.links = []
+    self.addresses_to_link_indices = {}
+    self.links_to_indices = {}
+    self.links_to_generations = {}
 
-  @classmethod
-  def generate(cls):
-    # guaranteed to be random
-    return cls(random.randint(1, 100000))
+    self.lock = threading.Lock()
+    super(ChannelManager, self).__init__()
+    self.daemon = True
 
-  def __repr__(self):
-    return 'HostDescriptor[%d]' % self.host_id
+  def register_node_address(self, node_address):
+    with self.lock:
+      self.node_addresses.add(node_address)
+      self.address_generation += 1
+
+  def register_anycast_alias(self, node_address, anycast_address):
+    # TODO: allow multiple alias targets.
+    with self.lock:
+      self.node_addresses.add(anycast_address)
+      self.anycast_aliases[anycast_address] = node_address
+      self.address_generation += 1
+
+  def register_interface(self, interface_address, interface):
+    assert isinstance(interface, Interface)
+    print 'REGISTER_INTERFACE', interface_address, interface
+    node_address, interface_name = interface_address.rsplit('/', 1)
+    with self.lock:
+      assert node_address in self.node_addresses
+      self.registered_interfaces[interface_address] = interface
+  
+  def _get_remote_interface(self, interface_address, interface_cls):
+    class RemoteInterface(interface_cls):
+      pass
+    interface_obj = RemoteInterface()
+    for name in dir(interface_obj):
+      prop = getattr(interface_obj, name)
+      if isinstance(prop, _RemoteMethodStub):
+        def remote_call(stub):
+          def _inner(*args):
+            return self._send_call(interface_address, stub.name, args)
+          return _inner
+        setattr(interface_obj, name, remote_call(prop))
+    return interface_obj
+
+  def _send_call(self, interface_address, method_name, args):
+    payload = pickle.dumps((interface_address, method_name, args))
+    node_address, interface_name = interface_address.rsplit('/', 1)
+    with self.lock:
+      if node_address not in self.addresses_to_link_indices:
+        raise InterfaceNotReadyException()
+      link_index = self.addresses_to_link_indices[node_address]
+      link = self.links[link_index]
+    result = link.send_message(payload)
+    return result
+
+  def get_interface(self, interface_address, interface_cls):
+    node_address, interface_name = interface_address.rsplit('/', 1)
+    with self.lock:
+      if node_address in self.anycast_aliases:
+        node_address = self.anycast_aliases[node_address]
+        assert node_address in self.node_addresses
+        interface_address = '%s/%s' % (node_address, interface_name)
+      if node_address in self.node_addresses:
+        if not interface_address in self.registered_interfaces:
+          raise InterfaceNotReadyException()
+        # This directly returns the bound interface class if the interface is
+        # local.
+        return self.registered_interfaces[interface_address]
+    return self._get_remote_interface(interface_address, interface_cls)
+
+  def _call_local(self, interface_name, method_stub_name, args):
+    # print self.host_descriptor, 'CALL_LOCAL', method_stub_name, args
+    with self.lock:
+      interface = self.registered_interfaces[interface_name]
+    return getattr(interface, method_stub_name)(*args)
+
+  def register_link(self, link):
+    with self.lock:
+      self.links.append(link)
+      self.links_to_indices[link] = len(self.links) - 1
+
+  def receive_address_info(self, link, node_addresses, anycast_aliases):
+    with self.lock:
+      index = self.links_to_indices[link]
+      for node_address in node_addresses:
+        self.addresses_to_link_indices[str(node_address)] = index # TODO: don't use json
+      for from_address, unused_to_address in anycast_aliases.iteritems():
+        self.addresses_to_link_indices[str(from_address)] = index # TODO: don't use json
+
+  def run(self):
+    # The manager thread does periodic tasks.  Each link is responsible for handling incomming
+    # traffic and calling the manager as necessary.
+    # Right now, 
+    while True:
+      links_to_update = []
+      with self.lock:
+        for link in self.links:
+          if self.links_to_generations.get(link, -1) < self.address_generation:
+            links_to_update.append(link)
+            self.links_to_generations[link] = self.address_generation
+        if links_to_update:
+          node_addresses = copy.copy(self.node_addresses)
+          anycast_aliases = copy.copy(self.anycast_aliases)
+
+      for link in links_to_update:
+        print 'SEND UPDATE', link, node_addresses, anycast_aliases
+        link.send_address_info(node_addresses, anycast_aliases)
+      time.sleep(1)
 
 
 def get_remote_interface(host_descriptor, channel_manager, interface_name, interface_cls):
@@ -51,6 +153,7 @@ def get_remote_interface(host_descriptor, channel_manager, interface_name, inter
 TAG_MESSAGE = 1
 TAG_MESSAGE_ACK = 2
 TAG_MESSAGE_RESULT = 3
+TAG_ADDRESS_INFO = 4
 
 class Channel(object):  # TODO: basechannel?
   def __init__(self, channel_manager, pipe):
@@ -61,16 +164,28 @@ class Channel(object):  # TODO: basechannel?
     self.ack_conds = {}
     self.result_conds = {}
     self.results = {}
+
+  def start(self):
     rt = threading.Thread(target=self.recv_thread)
     rt.daemon = True
     rt.start()
 
+  def send_address_info(self, node_addresses, anycast_aliases):
+    serialized = json.dumps({
+        'node_addresses': list(node_addresses),
+        'anycast_aliases': anycast_aliases
+      })
+    with self.lock:
+      self.pipe.send(struct.pack('<ii', TAG_ADDRESS_INFO, len(serialized)))
+      self.pipe.send(serialized)
+    # TODO: should we wait for ack?  nah might be unnecessary
+
   def send_message(self, message_bytes, wait_for_ack=True, wait_for_result=True):
     assert isinstance(message_bytes, str)
     message_id = self.seq
-    self.seq += 1
     # TODO: long longs?
     with self.lock:
+      self.seq += 1
       self.pipe.send(struct.pack('<iii', TAG_MESSAGE, message_id, len(message_bytes)))
       self.pipe.send(message_bytes)
       if wait_for_ack:
@@ -78,16 +193,19 @@ class Channel(object):  # TODO: basechannel?
         self.ack_conds[message_id].wait()
       if wait_for_result:
         # print 'WAIT FOR RESULT...'
-        self.result_conds[message_id] = threading.Condition(self.lock)
-        self.result_conds[message_id].wait()
-        # print 'GOT RESULT...', self.results[message_id]
+        if message_id not in self.results:
+          self.result_conds[message_id] = threading.Condition(self.lock)
+          self.result_conds[message_id].wait()
+          # print 'GOT RESULT...', self.results[message_id]
         return self.results[message_id]
     # return message_id
 
   def recv_thread(self):
     while True:
       # print 'RECV TAG'
-      tag, = struct.unpack('<i', self.pipe.recv(4))
+      a = self.pipe.recv(4)
+      print 'RECV', repr(a), 'ME', get_channel_manager().node_addresses
+      tag, = struct.unpack('<i', a)
       if tag == TAG_MESSAGE:
         # print 'RECEIVED MESSAGE'
         message_id, = struct.unpack('<i', self.pipe.recv(4))
@@ -120,6 +238,15 @@ class Channel(object):  # TODO: basechannel?
           cond = self.result_conds.get(message_id)
           if cond:
             cond.notify()
+          else:
+            print 'WARNING: NO RESUTL COND', message_id
+      elif tag == TAG_ADDRESS_INFO:
+        # message_id, = struct.unpack('<i', self.pipe.recv(4))
+        serialized_len, = struct.unpack('<i', self.pipe.recv(4))
+        serialized = self.pipe.recv(serialized_len)
+        print 'SERIALIZED', serialized
+        data = json.loads(serialized)
+        self.channel_manager.receive_address_info(self, data['node_addresses'], data['anycast_aliases'])
       else:
         # print repr((TAG_MESSAGE, TAG_MESSAGE_ACK)), tag, tag == TAG_MESSAGE
         raise Exception('UNKNOWN TAG %r' % tag)
@@ -130,7 +257,7 @@ class Channel(object):  # TODO: basechannel?
     # print 'RECCEIVED', message_id, repr(message_bytes)
     interface_name, method_stub_name, args = pickle.loads(message_bytes)
     # print 'YO', method_stub_name, args
-    return self.channel_manager.call_local(interface_name, method_stub_name, args)
+    return self.channel_manager._call_local(interface_name, method_stub_name, args)
 
 
 class LoopbackPipe(object):
@@ -164,84 +291,43 @@ def loopback(s2):
       s2.send(a)
 
 
-class ChannelManager(object):
-  def __init__(self, host_descriptor=None):
-    # TODO: options
-    self.host_descriptor = host_descriptor or HostDescriptor.generate()
-    self.interfaces = {}
-    self.channels = {}
-    s1, s2 = socket.socketpair()
-    lt = threading.Thread(target=loopback, args=(s2,))
-    lt.daemon = True
-    lt.start()
-    # self.channels[self.host_descriptor.host_id] = Channel(self, s1)
-    self._listen()
-
-  def _listen(self):
-    pass
-
-  def _add_channel(self, host_descriptor, channel):
-    self.channels[host_descriptor.host_id] = channel
-
-
-
-  def register_interface(self, name, interface):
-    self.interfaces[name] = interface
-
-  def get_interface(self, host_descriptor, name, interface_cls):
-    return get_remote_interface(host_descriptor, self, name, interface_cls)
-
-  def _send_call(self, host_descriptor, interface_name, method_stub, args):
-    # print self.host_descriptor, 'SEND CALL', host_descriptor, method_stub, args
-    payload = pickle.dumps((interface_name, method_stub.name, args))
-    start_time = time.time()
-    result = self.channels[host_descriptor.host_id].send_message(payload, wait_for_ack=False)
-    end_time = time.time()
-    # print self.host_descriptor, 'SEND CALL SEND MESSAGE DURATION:', end_time - start_time
-    return result
-
-  def call_local(self, interface_name, method_stub_name, args):
-    # print self.host_descriptor, 'CALL_LOCAL', method_stub_name, args
-    interface = self.interfaces[interface_name]
-    return getattr(interface, method_stub_name)(*args)
-
-
-class ChannelMode:
+class LinkMode:
   TCP = 'tcp'
   UNIX = 'unix'
 
+class LinkStrategyType(object):
+  LISTEN = 'listen'
+  CONNECT = 'connect'
+
+class LinkStrategy(object):
+
+  def __init__(self, strategy_type, mode=LinkMode.TCP, address='localhost', port=-1):
+    self.strategy_type = strategy_type
+    self.mode = mode
+    self.address = address
+    self.port = port
+
 class ChannelConfig(object):
-  def __init__(self, host_id=None,
-               listen=False, listen_mode=ChannelMode.TCP, listen_address='localhost', listen_port=-1,
-               connect=False, connect_mode=ChannelMode.TCP, connect_address='localhost', connect_port=-1):
-    self.host_id = host_id
-    self.listen = listen
-    self.listen_mode = listen_mode
-    self.listen_address = listen_address
-    self.listen_port = listen_port
-    self.connect = connect
-    self.connect_mode = connect_mode
-    self.connect_address = connect_address
-    self.connect_port = connect_port
+  def __init__(self, node_addresses=None, anycast_aliases=None, link_strategies=None):
+    self.node_addresses = node_addresses or []
+    self.anycast_aliases = anycast_aliases or {}
+    self.link_strategies = link_strategies or []
 
   @staticmethod
   def from_dict(data):
-    return ChannelConfig(**data)
+    link_strategies = pickle.loads(str(data['link_strategies']))
+    return ChannelConfig(
+      node_addresses=data['node_addresses'],
+      anycast_aliases=data['anycast_aliases'],
+      link_strategies=link_strategies,
+      )
 
   def to_dict(self):
     return {
-      'host_id': self.host_id,
-      'listen': self.listen,
-      'listen_mode': self.listen_mode,
-      'listen_address': self.listen_address,
-      'listen_port': self.listen_port,
-      'connect': self.connect,
-      'connect_mode': self.connect_mode,
-      'connect_address': self.connect_address,
-      'connect_port': self.connect_port,
+      'node_addresses': self.node_addresses,
+      'anycast_aliases': self.anycast_aliases,
+      'link_strategies': pickle.dumps(self.link_strategies),  # HACK
     }
-
-
 
 def set_channel_config(config):
   assert isinstance(config, ChannelConfig)
@@ -266,27 +352,23 @@ def get_channel_manager():
     return globals()['_channel_manager']
   # construct channel_manager
   config = get_channel_config()
-  if config.host_id:
-    host_descriptor = HostDescriptor(config.host_id)
-  else:
-    host_descriptor = HostDescriptor.generate()
-  manager = ChannelManager(host_descriptor=host_descriptor)
-  if config.listen:
-    listener = ChannelListener(manager, config.listen_mode, config.listen_address, config.listen_port)
-    listener.start()
-  if config.connect:
-    if config.connect_mode == ChannelMode.TCP:
-      pipe = socket.create_connection((config.connect_address, config.connect_port))
-    elif config.connect_mode == ChannelMode.UNIX:
-      pipe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-      pipe.connect(config.connect_address)
+  manager = ChannelManager()
+  for node_address in config.node_addresses:
+    manager.register_node_address(node_address)
+  for alias_from, alias_to in config.anycast_aliases.iteritems():
+    manager.register_anycast_alias(alias_to, alias_from)
+  for link_strategy in config.link_strategies:
+    print 'GOT LINK STRATEGY', link_strategy
+    if link_strategy.strategy_type == LinkStrategyType.LISTEN:
+      listener = LinkListener(manager, link_strategy)
+      listener.start()
+    elif link_strategy.strategy_type == LinkStrategyType.CONNECT:
+      connecter = LinkConnecter(manager, link_strategy)
+      connecter.start()
     else:
-      raise ValueError('Invalid connect mode: %r.' % config.connect_mode)
-    # perform initialization sequence:
-    other_host_id = _initialize_pipe(pipe, host_descriptor.host_id)
-    channel = Channel(manager, pipe)
-    manager.channels[other_host_id] = channel
+      raise ValueError('Invalid link strategy type: %s.' % link_strategy.strategy_type)
   globals()['_channel_manager'] = manager
+  manager.start()
   return manager
 
 
@@ -306,31 +388,57 @@ def remote_method(*arg_types, **kvargs):
     return _RemoteMethodStub(method.__name__, arg_types, return_type)
   return _inner
 
-class ChannelListener(threading.Thread):
-  def __init__(self, channel_manager, listen_mode, listen_address, listen_port):
+class LinkListener(threading.Thread):
+  def __init__(self, channel_manager, link_strategy):
     self.channel_manager = channel_manager
-    self.listen_mode = listen_mode
-    self.listen_address = listen_address
-    self.listen_port = listen_port
-    super(ChannelListener, self).__init__()
+    self.link_strategy = link_strategy
+    super(LinkListener, self).__init__()
     self.daemon = True
 
   def run(self):
-    if self.listen_mode == ChannelMode.TCP:
+    print 'LinkListener STARTED'
+    if self.link_strategy.mode == LinkMode.TCP:
       s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      s.bind((self.listen_address, self.listen_port))
-    elif self.listen_mode == ChannelMode.UNIX:
+      s.bind((self.link_strategy.address, self.link_strategy.port))
+    elif self.link_strategy.mode == LinkMode.UNIX:
       s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-      s.bind(self.listen_address)
-    s.listen(1)  # Number of queued connections.
+      s.bind(self.link_strategy.address)
+    else:
+      raise ValueError('Invalid mode: %r.' % self.link_strategy.mode)
+    s.listen(1)  # Number of queued connections. TODO: what does this actually do?
     while True:
       conn, addr = s.accept()
       # print 'accepted', conn, addr
-      other_host_id = _initialize_pipe(conn, self.channel_manager.host_descriptor.host_id)
+      # other_host_id = _initialize_pipe(conn, self.channel_manager.host_descriptor.host_id)
       # print 'other_host_id', other_host_id
-      # print 'ChannelListener got new', conn, addr
+      # print 'LinkListener got new', conn, addr
       channel = Channel(self.channel_manager, conn)
       # print 'registered new channel for host id', other_host_id
-      self.channel_manager.channels[other_host_id] = channel
+      self.channel_manager.register_link(channel)
+      channel.start()
+
+
+class LinkConnecter(threading.Thread):
+  def __init__(self, channel_manager, link_strategy):
+    self.channel_manager = channel_manager
+    self.link_strategy = link_strategy
+    super(LinkConnecter, self).__init__()
+    self.daemon = True
+
+
+  def run(self):
+    print 'LinkConnecter STARTED'
+    if self.link_strategy.mode == LinkMode.TCP:
+      pipe = socket.create_connection((self.link_strategy.address, self.link_strategy.port))
+    elif self.link_strategy.mode == LinkMode.UNIX:
+      pipe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+      pipe.connect(self.link_strategy.address)
+    else:
+      raise ValueError('Invalid mode: %r.' % self.link_strategy.mode)
+    # perform initialization sequence:
+    # other_host_id = _initialize_pipe(pipe, host_descriptor.host_id)
+    channel = Channel(self.channel_manager, pipe)
+    self.channel_manager.register_link(channel)
+    channel.start()
 
 ## END RPC layer stuff

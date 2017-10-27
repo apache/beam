@@ -59,9 +59,14 @@ from apache_beam.runners.runner import PipelineRunner
 # __all__ = ['LaserRunner']
 
 
+from apache_beam.runners.laser.channels import ChannelConfig
+from apache_beam.runners.laser.channels import LinkMode
+from apache_beam.runners.laser.channels import LinkStrategy
+from apache_beam.runners.laser.channels import LinkStrategyType
 from apache_beam.runners.laser.channels import Interface
 from apache_beam.runners.laser.channels import set_channel_config
 from apache_beam.runners.laser.channels import get_channel_manager
+from apache_beam.runners.laser.channels import remote_method
 
 
 class LaserRunner(PipelineRunner):
@@ -102,8 +107,8 @@ class LaserCoordinator(threading.Thread, CoordinatorInterface):
 
 
   def register_worker(self, host_id, worker_id):
-    # print 'REGISTERED', host_id, worker_id
-    self.worker_channels[worker_id] = self.channel_manager.get_interface(HostDescriptor(host_id), 'worker', WorkerInterface)
+    print 'REGISTERED', host_id, worker_id
+    # self.worker_channels[worker_id] = self.channel_manager.get_interface(HostDescriptor(host_id), 'worker', WorkerInterface)
 
 
   def ping(self, body):
@@ -125,16 +130,24 @@ class LaserWorker(WorkerInterface):
     return 'OK'
 
   def run(self):
-    worker_id = 'w%d' % self.options['id']
+    worker_id = self.options['id']
     set_channel_config(ChannelConfig.from_dict(self.options['channel_config']))
     manager = get_channel_manager()
-    manager.register_interface('worker', self)
+    manager.register_interface('%s/worker' % worker_id, self)
 
-    coordinator = manager.get_interface(HostDescriptor(self.options['coordinator_host_id']), 'coordinator', CoordinatorInterface)
-    coordinator.register_worker(self.options['id'], worker_id)
+    coordinator = manager.get_interface('master/coordinator', CoordinatorInterface)
+    while True:
+      try:
+        print 'START REGISTER'
+        coordinator.register_worker(self.options['id'], worker_id)
+        print 'REGISTER OK'
+        break
+      except Exception as e:
+        print 'e', e
+        time.sleep(2)
 
     while True:
-      # print 'RESUTLED!!!', coordinator.ping('wtf')
+      print 'RESUTLED!!!', coordinator.ping('wtf')
       time.sleep(2)
     sys.exit(1)
 
@@ -157,10 +170,11 @@ class ComputeNodeHandle(object):
     self.core_count = core_count
 
   def get_node_interface(self):
-
+    pass
 
 
 class ComputeNodeInterface(Interface):
+  pass
 
 class ComputeNode(ComputeNodeInterface):
   def __init__(self, node_config):
@@ -185,7 +199,7 @@ class InProcessComputeNodeManager(ComputeNodeManager):
 
   def start(self):
     for i in range(self.num_nodes):
-
+      pass
     self.started = True
 
 
@@ -193,7 +207,6 @@ class InProcessComputeNodeManager(ComputeNodeManager):
     self._check_started()
     return []
 
-  def 
 
 
 
@@ -208,37 +221,44 @@ def run(argv):
     worker = LaserWorker(json.loads(argv[-1]))
     worker.run()
     sys.exit(0)
-  manager = ChannelManager()
 
   COORDINATOR_PORT = random.randint(20000,30000)
-  set_channel_config(ChannelConfig(listen=True, listen_mode=ChannelMode.UNIX, listen_address='./uds_socket3-%s' % COORDINATOR_PORT))
+  set_channel_config(ChannelConfig(
+    node_addresses=['master'],
+    link_strategies=[
+      LinkStrategy(
+        LinkStrategyType.LISTEN,
+        mode=LinkMode.UNIX,
+        address='./uds_socket3-%s' % COORDINATOR_PORT)]))
   manager = get_channel_manager()
 
   coordinator = LaserCoordinator()
-  manager.register_interface('coordinator', coordinator)
+  manager.register_interface('master/coordinator', coordinator)
   coordinator.start()
 
   print 'spawning worker'
   spawn_worker({
-    'id': 10,
-    'coordinator_host_id': manager.host_descriptor.host_id,
-    'channel_config': {
-      'host_id': 10,  # TODO: redundant
-      'connect': True,
-      'connect_mode': ChannelMode.UNIX,
-      'connect_address': './uds_socket3-%s' % COORDINATOR_PORT,
-    }})
+    'id': 'worker1',
+    'channel_config': ChannelConfig(
+    node_addresses=['worker1'],
+    anycast_aliases = {'worker[any]': 'worker1'},
+    link_strategies=[
+      LinkStrategy(
+        LinkStrategyType.CONNECT,
+        mode=LinkMode.UNIX,
+        address='./uds_socket3-%s' % COORDINATOR_PORT)]).to_dict(),
+    })
   print 'DONE'
-  spawn_worker({
-    'id': 102,
-    'coordinator_host_id': manager.host_descriptor.host_id,
-    'channel_config': {
-      'host_id': 102,  # TODO: redundant
-      'connect': True,
-      'connect_mode': ChannelMode.UNIX,
-      'connect_address': './uds_socket3-%s' % COORDINATOR_PORT,
-    }})
-  print 'DONE'
+  # spawn_worker({
+  #   'id': 102,
+  #   'coordinator_host_id': manager.host_descriptor.host_id,
+  #   'channel_config': {
+  #     'host_id': 102,  # TODO: redundant
+  #     'connect': True,
+  #     'connect_mode': LinkMode.UNIX,
+  #     'connect_address': './uds_socket3-%s' % COORDINATOR_PORT,
+  #   }})
+  # print 'DONE'
   time.sleep(10)
 
 if __name__ == '__main__':
