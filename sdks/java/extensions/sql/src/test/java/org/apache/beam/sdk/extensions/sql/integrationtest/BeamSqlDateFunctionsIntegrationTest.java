@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Date;
 import java.util.Iterator;
+
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -50,7 +51,9 @@ public class BeamSqlDateFunctionsIntegrationTest
         .addExpr("SECOND(ts)", 26L)
         .addExpr("FLOOR(ts TO YEAR)", parseDate("1986-01-01 00:00:00"))
         .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"))
-        ;
+        .addExpr("TIMESTAMPADD(DAY, 3, TIMESTAMP '1984-04-19 01:02:03')",
+            parseDate("1984-04-22 01:02:03"))
+    ;
     checker.buildRunAndCheck();
   }
 

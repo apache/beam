@@ -22,13 +22,14 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
+
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
 
 /**
  * Base class for all date related expression test.
  */
 public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
-  protected long str2LongTime(String dateStr) {
+  static long str2LongTime(String dateStr) {
     SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     try {
       Date date = format.parse(dateStr);
@@ -38,7 +39,7 @@ public class BeamSqlDateExpressionTestBase extends BeamSqlFnExecutorTestBase {
     }
   }
 
-  protected Date str2DateTime(String dateStr) {
+  static Date str2DateTime(String dateStr) {
     SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     try {
       format.setTimeZone(TimeZone.getTimeZone("GMT"));
