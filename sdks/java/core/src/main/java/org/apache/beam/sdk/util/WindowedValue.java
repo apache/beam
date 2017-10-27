@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.MoreObjects;
@@ -54,10 +55,9 @@ public abstract class WindowedValue<T> {
   public static <T> WindowedValue<T> of(
       T value, Instant timestamp, Collection<? extends BoundedWindow> windows, PaneInfo pane) {
     checkNotNull(pane);
+    checkArgument(windows.size() > 0);
 
-    if (windows.size() == 0 && BoundedWindow.TIMESTAMP_MIN_VALUE.equals(timestamp)) {
-      return valueInEmptyWindows(value, pane);
-    } else if (windows.size() == 1) {
+    if (windows.size() == 1) {
       return of(value, timestamp, windows.iterator().next(), pane);
     } else {
       return new TimestampedValueInMultipleWindows<>(value, timestamp, windows, pane);
@@ -105,30 +105,6 @@ public abstract class WindowedValue<T> {
     } else {
       return new TimestampedValueInGlobalWindow<>(value, timestamp, PaneInfo.NO_FIRING);
     }
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and pane.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value) {
-    return new ValueInEmptyWindows<>(value, PaneInfo.NO_FIRING);
-  }
-
-  /**
-   * Returns a {@code WindowedValue} with the given value in no windows, and the default timestamp
-   * and the specified pane.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  public static <T> WindowedValue<T> valueInEmptyWindows(T value, PaneInfo pane) {
-    return new ValueInEmptyWindows<>(value, pane);
   }
 
   /**
@@ -246,53 +222,6 @@ public abstract class WindowedValue<T> {
     public boolean equals(Object o) {
       if (o instanceof ValueInGlobalWindow) {
         ValueInGlobalWindow<?> that = (ValueInGlobalWindow<?>) o;
-        return Objects.equals(that.getPane(), this.getPane())
-            && Objects.equals(that.getValue(), this.getValue());
-      } else {
-        return super.equals(o);
-      }
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(getValue(), getPane());
-    }
-
-    @Override
-    public String toString() {
-      return MoreObjects.toStringHelper(getClass())
-          .add("value", getValue())
-          .add("pane", getPane())
-          .toString();
-    }
-  }
-
-  /**
-   * The representation of a WindowedValue where timestamp == MIN and windows == {}.
-   *
-   * @deprecated a value in no windows technically is not "in" a PCollection. It is allowed to drop
-   *     it at any point, and benign runner implementation details could cause silent data loss.
-   */
-  @Deprecated
-  private static class ValueInEmptyWindows<T> extends MinTimestampWindowedValue<T> {
-    public ValueInEmptyWindows(T value, PaneInfo pane) {
-      super(value, pane);
-    }
-
-    @Override
-    public <NewT> WindowedValue<NewT> withValue(NewT newValue) {
-      return new ValueInEmptyWindows<>(newValue, getPane());
-    }
-
-    @Override
-    public Collection<? extends BoundedWindow> getWindows() {
-      return Collections.emptyList();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (o instanceof ValueInEmptyWindows) {
-        ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
         return Objects.equals(that.getPane(), this.getPane())
             && Objects.equals(that.getValue(), this.getValue());
       } else {
