@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Syscallx provide system call utilities that attempt to hide platform differences.
-// Operations returns UnsupportedErr if not implemented on the given platform, so
-// consumers of this package should generally treat that error specially.
+// Package syscallx provides system call utilities that attempt to hide platform
+// differences. Operations return UnsupportedErr if not implemented on the
+// given platform. Consumers of this package should generally treat that
+// error specially.
 package syscallx
 
 import (
