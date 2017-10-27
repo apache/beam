@@ -847,7 +847,8 @@ class ParDo(PTransformWithSideInputs):
     return self.fn, self.args, self.kwargs, si_tags_and_types, windowing
 
   def to_runner_api_parameter(self, context):
-    assert self.__class__ is ParDo
+    assert isinstance(self, ParDo), \
+        "expected instance of ParDo, but got %s" % self.__class__
     picked_pardo_fn_data = pickler.dumps(self._pardo_fn_data())
     return (
         urns.PARDO_TRANSFORM,

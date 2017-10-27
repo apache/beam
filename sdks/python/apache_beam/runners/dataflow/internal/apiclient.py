@@ -41,6 +41,7 @@ from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.pipeline_options import WorkerOptions
 from apache_beam.runners.dataflow.internal import dependency
+from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.dataflow.internal.clients import dataflow
 from apache_beam.runners.dataflow.internal.dependency import get_sdk_name_and_version
 from apache_beam.runners.dataflow.internal.names import PropertyNames
@@ -118,11 +119,12 @@ class Step(object):
 class Environment(object):
   """Wrapper for a dataflow Environment protobuf."""
 
-  def __init__(self, packages, options, environment_version):
+  def __init__(self, packages, options, environment_version, pipeline_url):
     self.standard_options = options.view_as(StandardOptions)
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     self.worker_options = options.view_as(WorkerOptions)
     self.debug_options = options.view_as(DebugOptions)
+    self.pipeline_url = pipeline_url
     self.proto = dataflow.Environment()
     self.proto.clusterManagerApiService = GoogleCloudOptions.COMPUTE_API_SERVICE
     self.proto.dataset = '{}/cloud_dataflow'.format(
@@ -188,10 +190,16 @@ class Environment(object):
     pool = dataflow.WorkerPool(
         kind='local' if self.local else 'harness',
         packages=package_descriptors,
+        metadata=dataflow.WorkerPool.MetadataValue(),
         taskrunnerSettings=dataflow.TaskRunnerSettings(
             parallelWorkerSettings=dataflow.WorkerSettings(
                 baseUrl=GoogleCloudOptions.DATAFLOW_ENDPOINT,
                 servicePath=self.google_cloud_options.dataflow_endpoint)))
+
+    pool.metadata.additionalProperties.append(
+        dataflow.WorkerPool.MetadataValue.AdditionalProperty(
+            key=names.STAGED_PIPELINE_URL_METADATA_FIELD, value=pipeline_url))
+
     pool.autoscalingSettings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
     if self.worker_options.num_workers:
@@ -323,8 +331,9 @@ class Job(object):
       job_name = Job._build_default_job_name(getpass.getuser())
     return job_name
 
-  def __init__(self, options):
+  def __init__(self, options, proto_pipeline):
     self.options = options
+    self.proto_pipeline = proto_pipeline
     self.google_cloud_options = options.view_as(GoogleCloudOptions)
     if not self.google_cloud_options.job_name:
       self.google_cloud_options.job_name = self.default_job_name(
@@ -475,9 +484,19 @@ class DataflowApplicationClient(object):
 
   def create_job_description(self, job):
     """Creates a job described by the workflow proto."""
+
+    # Stage the pipeline for the runner harness
+    self.stage_file(job.google_cloud_options.staging_location,
+                    names.STAGED_PIPELINE_FILENAME,
+                    StringIO(job.proto_pipeline.SerializeToString()))
+
+    # Stage other resources for the SDK harness
     resources = dependency.stage_job_resources(
         job.options, file_copy=self._gcs_file_copy)
+
     job.proto.environment = Environment(
+        pipeline_url=FileSystems.join(job.google_cloud_options.staging_location,
+                                      names.STAGED_PIPELINE_FILENAME),
         packages=resources, options=job.options,
         environment_version=self.environment_version).proto
     logging.debug('JOB: %s', job)
