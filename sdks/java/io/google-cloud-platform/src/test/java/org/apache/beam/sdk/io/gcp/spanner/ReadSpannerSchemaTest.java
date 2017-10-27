@@ -105,7 +105,7 @@ public class ReadSpannerSchemaTest {
 
     SpannerSchema schema = schemas.get(0);
 
-    assertEquals(0, schema.getTableIndex("test"));
+    assertEquals(1, schema.getTables().size());
 
     SpannerSchema.Column column = SpannerSchema.Column.create("key", Type.int64());
     SpannerSchema.KeyPart keyPart = SpannerSchema.KeyPart.create("key", false);

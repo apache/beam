@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.spanner.Type;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ArrayListMultimap;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,9 +33,8 @@ import java.util.Map;
  */
 class SpannerSchema implements Serializable {
   private final List<String> tables;
-  private final Map<String, Integer> tableIndex;
-  private final Map<String, List<Column>> columns;
-  private final Map<String, List<KeyPart>> keyParts;
+  private final ArrayListMultimap<String, Column> columns;
+  private final ArrayListMultimap<String, KeyPart> keyParts;
 
   public static Builder builder() {
     return new Builder();
@@ -44,8 +44,8 @@ class SpannerSchema implements Serializable {
    * Builder for {@link SpannerSchema}.
    */
   static class Builder {
-    private final Map<String, List<Column>> columns = new HashMap<>();
-    private final Map<String, List<KeyPart>> keyParts = new HashMap<>();
+    private final ArrayListMultimap<String, Column> columns = ArrayListMultimap.create();
+    private final ArrayListMultimap<String, KeyPart> keyParts = ArrayListMultimap.create();
 
     public Builder addColumn(String table, String name, String type) {
       addColumn(table, Column.create(name.toLowerCase(), type));
@@ -53,22 +53,12 @@ class SpannerSchema implements Serializable {
     }
 
     private Builder addColumn(String table, Column column) {
-      List<Column> list = columns.get(table);
-      if (list == null) {
-        list = new ArrayList<>();
-        columns.put(table.toLowerCase(), list);
-      }
-      list.add(column);
+      columns.put(table.toLowerCase(), column);
       return this;
     }
 
     public Builder addKeyPart(String table, String column, boolean desc) {
-      List<KeyPart> list = keyParts.get(table);
-      if (list == null) {
-        list = new ArrayList<>();
-        keyParts.put(table.toLowerCase(), list);
-      }
-      list.add(KeyPart.create(column.toLowerCase(), desc));
+      keyParts.put(table, KeyPart.create(column.toLowerCase(), desc));
       return this;
     }
 
@@ -77,26 +67,15 @@ class SpannerSchema implements Serializable {
     }
   }
 
-  private SpannerSchema(Map<String, List<Column>> columns, Map<String, List<KeyPart>> keyParts) {
+  private SpannerSchema(ArrayListMultimap<String, Column> columns,
+      ArrayListMultimap<String, KeyPart> keyParts) {
     this.columns = columns;
     this.keyParts = keyParts;
     tables = new ArrayList<>(columns.keySet());
-    tableIndex = new HashMap<>(tables.size());
-    Collections.sort(tables);
-    for (int i = 0; i < tables.size(); i++) {
-      tableIndex.put(tables.get(i), i);
-    }
   }
 
-  public int getTableIndex(String tableName) {
-    Integer result = tableIndex.get(tableName);
-    Preconditions.checkArgument(result != null, "Table %s not found", tableName);
-    return result;
-  }
-
-  public String getTableName(int index) {
-    Preconditions.checkArgument(index < tables.size(), "Invalid table index %d", index);
-    return tables.get(index);
+  public List<String> getTables() {
+    return tables;
   }
 
   public List<Column> getColumns(String table) {

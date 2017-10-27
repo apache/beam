@@ -2,6 +2,7 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.Arrays;
 import org.junit.Test;
 
 /**
@@ -16,7 +17,7 @@ public class SpannerSchemaTest {
         .addKeyPart("test", "pk", false)
         .addColumn("test", "maxKey", "STRING(MAX)").build();
 
-    assertEquals(0, schema.getTableIndex("test"));
+    assertEquals(1, schema.getTables().size());
     assertEquals(2, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
   }
@@ -34,7 +35,7 @@ public class SpannerSchemaTest {
 
         .build();
 
-    assertEquals(1, schema.getTableIndex("test"));
+    assertEquals(2, schema.getTables().size());
     assertEquals(2, schema.getColumns("test").size());
     assertEquals(1, schema.getKeyParts("test").size());
 

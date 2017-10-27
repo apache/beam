@@ -24,7 +24,7 @@ import com.google.cloud.spanner.Statement;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * This transform reads Cloud Spanner 'information_schema.*' tables to build the
+ * This {@link DoFn} reads Cloud Spanner 'information_schema.*' tables to build the
  * {@link SpannerSchema}.
  */
 class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
