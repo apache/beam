@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.util.WindowedValue.valueInEmptyWindows;
 
 import com.google.common.base.Function;
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.collect.ForwardingMap;
 import com.google.common.collect.HashMultimap;
@@ -34,11 +34,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.apache.beam.runners.dataflow.internal.IsmFormat;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecord;
 import org.apache.beam.runners.dataflow.internal.IsmFormat.IsmRecordCoder;
@@ -66,6 +68,7 @@ import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SystemDoFnInternal;
@@ -80,6 +83,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.joda.time.Instant;
 
 /**
  * Dataflow batch overrides for {@link CreatePCollectionView}, specialized for different view types.
@@ -1322,6 +1326,66 @@ class BatchViewOverrides {
         throws org.apache.beam.sdk.coders.Coder.NonDeterministicException {
       verifyDeterministic(this, "Expected transform coder to be deterministic.", transformCoder);
       verifyDeterministic(this, "Expected map coder to be deterministic.", originalMapCoder);
+    }
+  }
+
+  /**
+   * A hack to put a simple value (aka globally windowed) in a place where a WindowedValue is
+   * expected.
+   *
+   * <p>This is not actually valid for Beam elements, because values in no windows do not really
+   * exist and may be dropped at any time without further justification.
+   */
+  private static <T> WindowedValue<T> valueInEmptyWindows(T value) {
+    return new ValueInEmptyWindows<>(value);
+  }
+
+  private static class ValueInEmptyWindows<T> extends WindowedValue<T> {
+
+    private final T value;
+
+    private ValueInEmptyWindows(T value) {
+      this.value = value;
+    }
+
+    @Override
+    public <NewT> WindowedValue<NewT> withValue(NewT value) {
+      return new ValueInEmptyWindows<>(value);
+    }
+
+    @Override
+    public T getValue() {
+      return value;
+    }
+
+    @Override
+    public Instant getTimestamp() {
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+
+    @Override
+    public Collection<? extends BoundedWindow> getWindows() {
+      return Collections.emptyList();
+    }
+
+    @Override
+    public PaneInfo getPane() {
+      return PaneInfo.NO_FIRING;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(getClass()).add("value", getValue()).toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (o instanceof ValueInEmptyWindows) {
+        ValueInEmptyWindows<?> that = (ValueInEmptyWindows<?>) o;
+        return Objects.equals(that.getValue(), this.getValue());
+      } else {
+        return super.equals(o);
+      }
     }
   }
 }
