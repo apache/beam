@@ -20,11 +20,19 @@ package org.apache.beam.sdk.util;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -39,7 +47,44 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MutationDetectorsTest {
+    class MutationDetectorStructuralValue{
+      @Override
+      public boolean equals(Object other){
+        return other.getClass() == this.getClass();
+      }
+    }
+    class ForMutationDetectionTest{
+      @Override
+      public boolean equals(Object other){
+        return this == other;
+      }
+    }
+    class CustomCoder extends Coder<ForMutationDetectionTest>{
 
+      @Override
+      public void encode(ForMutationDetectionTest value, OutputStream outStream) throws CoderException, IOException {
+
+      }
+
+      @Override
+      public ForMutationDetectionTest decode(InputStream inStream) throws CoderException, IOException {
+        return new ForMutationDetectionTest();
+      }
+
+      @Override
+      public List<? extends Coder<?>> getCoderArguments() {
+        return Collections.emptyList();
+      }
+
+      @Override
+      public void verifyDeterministic() throws NonDeterministicException {
+
+      }
+      @Override
+      public Object structuralValue(ForMutationDetectionTest value){
+        return new MutationDetectorStructuralValue();
+      }
+    }
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   /**
@@ -89,6 +134,17 @@ public class MutationDetectorsTest {
     Set<Integer> value = Sets.newHashSet(Arrays.asList(1, 2, 3, 4));
     MutationDetector detector =
         MutationDetectors.forValueWithCoder(value, IterableCoder.of(VarIntCoder.of()));
+    detector.verifyUnmodified();
+  }
+  /**
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
+   * {@link Set} coded as an {@link Iterable}.
+   */
+  @Test
+  public void testStructuralValue() throws Exception {
+    Set<Integer> value = Sets.newHashSet(Arrays.asList(1, 2, 3, 4));
+    MutationDetector detector =
+            MutationDetectors.forValueWithCoder(value, IterableCoder.of(VarIntCoder.of()));
     detector.verifyUnmodified();
   }
 
