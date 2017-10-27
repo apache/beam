@@ -41,18 +41,16 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/java/core,runners/direct-java -am -amd', 'Run Java PreCommit')
 
   // Maven goals for this job: The Java SDK, its dependencies, and things that depend on it.
-  goals('''\
-    --batch-mode \
-    --errors \
-    --activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/java/core,runners/direct-java \
-    --also-make \
-    --also-make-dependents \
-    -D repoToken=$COVERALLS_REPO_TOKEN \
-    -D pullRequest=$ghprbPullId \
-    help:effective-settings \
-    clean \
-    install \
-    coveralls:report \
-  ''')
+  goals([
+    '--batch-mode',
+    '--errors',
+    '--activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner',
+    '--projects sdks/java/core,runners/direct-java',
+    '--also-make',
+    '--also-make-dependents',
+    '-D pullRequest=$ghprbPullId',
+    'help:effective-settings',
+    'clean',
+    'install'
+  ].join(' '))
 }

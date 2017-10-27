@@ -44,21 +44,22 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
           'Run Java PostCommit')
 
   // Maven goals for this job.
-  goals('''\
-      clean install coveralls:report \
-      --projects sdks/java/core \
-      --also-make \
-      --also-make-dependents \
-      --batch-mode \
-      --errors \
-      --fail-at-end \
-      -P release,dataflow-runner \
-      -DrepoToken=$COVERALLS_REPO_TOKEN \
-      -DskipITs=false \
-      -DintegrationTestPipelineOptions=\'[ \
+  goals([
+      'clean',
+      'install',
+      '--projects sdks/java/core,runners/direct-java',
+      ' --also-make',
+      '--also-make-dependents',
+      '--batch-mode',
+      '--errors',
+      '--fail-at-end',
+      '-P release,dataflow-runner',
+      '-DrepoToken=$COVERALLS_REPO_TOKEN',
+      '-D skipITs=false',
+      '''-D integrationTestPipelineOptions=\'[ \
           "--project=apache-beam-testing", \
           "--tempRoot=gs://temp-storage-for-end-to-end-tests", \
           "--runner=TestDataflowRunner" \
-      ]\' \
-  ''')
+        ]\' '''
+  ].join(' '))
 }
