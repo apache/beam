@@ -99,7 +99,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.hamcrest.Matchers;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -618,7 +617,6 @@ public class BigtableIOTest {
 
   /** Tests that a record gets written to the service and messages are logged. */
   @Test
-  @Ignore
   public void testWriting() throws Exception {
     final String table = "table";
     final String key = "key";
@@ -658,7 +656,6 @@ public class BigtableIOTest {
 
   /** Tests that when writing an element fails, the write fails. */
   @Test
-  @Ignore
   public void testWritingFailsBadElement() throws Exception {
     final String table = "TEST-TABLE";
     final String key = "KEY";
