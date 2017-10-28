@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -47,28 +46,29 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MutationDetectorsTest {
-    class MutationDetectorStructuralValue{
+  class SDKMutationDetectorStructuralValue{
       @Override
       public boolean equals(Object other){
         return other.getClass() == this.getClass();
       }
     }
-    class ForMutationDetectionTest{
+  class ForSDKMutationDetectionTest {
       @Override
       public boolean equals(Object other){
         return this == other;
       }
     }
-    class CustomCoder extends Coder<ForMutationDetectionTest>{
+  class ForSDKMutationDetectionTestCoder extends Coder<ForSDKMutationDetectionTest>{
 
       @Override
-      public void encode(ForMutationDetectionTest value, OutputStream outStream) throws CoderException, IOException {
+      public void encode(ForSDKMutationDetectionTest value,
+                         OutputStream outStream) throws  IOException {
 
       }
 
       @Override
-      public ForMutationDetectionTest decode(InputStream inStream) throws CoderException, IOException {
-        return new ForMutationDetectionTest();
+      public ForSDKMutationDetectionTest decode(InputStream inStream) throws  IOException {
+        return new ForSDKMutationDetectionTest();
       }
 
       @Override
@@ -81,12 +81,25 @@ public class MutationDetectorsTest {
 
       }
       @Override
-      public Object structuralValue(ForMutationDetectionTest value){
-        return new MutationDetectorStructuralValue();
+      public Object structuralValue(ForSDKMutationDetectionTest value){
+        return new SDKMutationDetectorStructuralValue();
       }
     }
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  /**
+   * Tests that  mutation detection is enforced from the SDK point of view
+   * (Based on the {@link Coder#structuralValue}) and not from the Java's equals method.
+   */
+  @Test
+  public void testMutationBasedOnStructuralValue() throws Exception{
+    ForSDKMutationDetectionTest mutation = new ForSDKMutationDetectionTest();
+    MutationDetector detector = MutationDetectors.forValueWithCoder(mutation,
+            new ForSDKMutationDetectionTestCoder());
+    //noinspection UnusedAssignment
+    mutation = new ForSDKMutationDetectionTest();
+    detector.verifyUnmodified();
+  }
   /**
    * Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a list.
    */
