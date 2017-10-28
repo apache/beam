@@ -57,11 +57,19 @@ public class MutationDetectorsTest {
       public boolean equals(Object other){
         return other.getClass() == this.getClass();
       }
+      @Override
+      public int hashCode(){
+        return super.hashCode();
+      }
     }
   private class ForSDKMutationDetectionTest {
       @Override
       public boolean equals(Object other){
         return this == other;
+      }
+      @Override
+      public int hashCode(){
+        return super.hashCode();
       }
     }
   private class ForSDKMutationDetectionTestCoder extends Coder<ForSDKMutationDetectionTest>{
