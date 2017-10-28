@@ -151,7 +151,6 @@ public class ApproximateDistinctTest implements Serializable {
       PCollection<Long> results = tp
               .apply("Create stream", Create.of(users).withCoder(AvroCoder.of(schema)))
               .apply("Test custom object", ApproximateDistinct.<GenericRecord>globally()
-                      .withInputCoder(AvroCoder.of(schema))
                       .withPrecision(p));
 
       PAssert.that("Verify Accuracy for custom object", results)
