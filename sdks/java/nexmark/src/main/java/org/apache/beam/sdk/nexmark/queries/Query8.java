@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -78,7 +79,7 @@ public class Query8 extends NexmarkQuery {
             ParDo.of(new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    Person person = c.element().getValue().getOnly(PERSON_TAG, null);
+                    @Nullable Person person = c.element().getValue().getOnly(PERSON_TAG, null);
                     if (person == null) {
                       // Person was not created in last window period.
                       return;

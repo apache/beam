@@ -1296,6 +1296,7 @@ public class DoFnSignatures {
     return  ImmutableMap.copyOf(declarations);
   }
 
+  @Nullable
   private static Method findAnnotatedMethod(
       ErrorReporter errors, Class<? extends Annotation> anno, Class<?> fnClazz, boolean required) {
     Collection<Method> matches = declaredMethodsWithAnnotation(anno, fnClazz, DoFn.class);
