@@ -46,19 +46,25 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MutationDetectorsTest {
-  class SDKMutationDetectorStructuralValue{
+  /**
+   * Private helper classes.
+   * Are solely used to test that immutability is enforced from the SDK's
+   * perspective and not from Java's equal method.
+   * Note that we do not expect users to do such implementation.
+   */
+  private class SDKMutationDetectorTestStructuralValue{
       @Override
       public boolean equals(Object other){
         return other.getClass() == this.getClass();
       }
     }
-  class ForSDKMutationDetectionTest {
+  private class ForSDKMutationDetectionTest {
       @Override
       public boolean equals(Object other){
         return this == other;
       }
     }
-  class ForSDKMutationDetectionTestCoder extends Coder<ForSDKMutationDetectionTest>{
+  private class ForSDKMutationDetectionTestCoder extends Coder<ForSDKMutationDetectionTest>{
 
       @Override
       public void encode(ForSDKMutationDetectionTest value,
@@ -82,7 +88,7 @@ public class MutationDetectorsTest {
       }
       @Override
       public Object structuralValue(ForSDKMutationDetectionTest value){
-        return new SDKMutationDetectorStructuralValue();
+        return new SDKMutationDetectorTestStructuralValue();
       }
     }
   @Rule public ExpectedException thrown = ExpectedException.none();
