@@ -856,9 +856,9 @@ The following conceptual examples use two input collections to show the mechanic
 `CoGroupByKey`.
 
 <span class="language-java">
-The first set of data has a `TupleTag<String>` called `emailTag` and contains names
+The first set of data has a `TupleTag<String>` called `emailsTag` and contains names
 and email addresses. The second set of data has a `TupleTag<String>` called
-`phoneTag` and contains names and phone numbers.
+`phonesTag` and contains names and phone numbers.
 </span>
 <span class="language-py">
 The first set of data contains names and email addresses. The second set of
@@ -866,18 +866,8 @@ data contains names and phone numbers.
 </span>
 
 ```java
-// This set of data has a `TupleTag<String>` called `emailTag`.
-   "amy" -> "amy@example.com"
-   "carl" -> "carl@example.com"
-   "julia" -> "julia@example.com"
-   "carl" -> "carl@email.com"
-
-// This set of data has a `TupleTag<String>` called `phoneTag`.
-   "amy" -> "111-222-3333"
-   "james" -> "222-333-4444"
-   "amy" -> "333-444-5555"
-   "carl" -> "444-555-6666"
-```
+{% github_sample /apache/beam/blob/master/examples/java8/src/test/java/org/apache/beam/examples/website_snippets/SnippetsTest.java tag:CoGroupByKeyTupleInputs
+%}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_group_by_key_cogroupbykey_tuple_inputs
 %}```
@@ -886,23 +876,8 @@ After `CoGroupByKey`, the resulting data contains all data associated with each
 unique key from any of the input collections.
 
 ```java
-   "amy" -> {
-      emailTag -> ["amy@example.com"]
-      phoneTag -> ["111-222-3333", "333-444-5555"]
-   }
-   "carl" -> {
-      emailTag -> ["carl@example.com", "carl@email.com"]
-      phoneTag -> ["444-555-6666"]
-   }
-   "james" -> {
-      emailTag -> [],
-      phoneTag -> ["222-333-4444"]
-   }
-   "julia" -> {
-      emailTag -> ["julia@example.com"],
-      phoneTag -> []
-   }
-```
+{% github_sample /apache/beam/blob/master/examples/java8/src/test/java/org/apache/beam/examples/website_snippets/SnippetsTest.java tag:CoGroupByKeyTupleOutputs
+%}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_group_by_key_cogroupbykey_tuple_outputs
 %}```
@@ -912,37 +887,8 @@ followed by a `ParDo` to consume the result. Then, the code uses tags to look up
 and format data from each collection.
 
 ```java
-  // Each set of key-value pairs is read into separate PCollections.
-  // Each shares a common key ("K").
-  PCollection<KV<K, V1>> pt1 = ...;
-  PCollection<KV<K, V2>> pt2 = ...;
-
-  // Create tuple tags for the value types in each collection.
-  final TupleTag<V1> t1 = new TupleTag<V1>();
-  final TupleTag<V2> t2 = new TupleTag<V2>();
-
-  // Merge collection values into a CoGbkResult collection
-  PCollection<KV<K, CoGbkResult>> coGbkResultCollection =
-    KeyedPCollectionTuple.of(t1, pt1)
-                         .and(t2, pt2)
-                         .apply(CoGroupByKey.<K>create());
-
-  // Access results and do something with them.
-  PCollection<T> finalResultCollection =
-    coGbkResultCollection.apply(ParDo.of(
-      new DoFn<KV<K, CoGbkResult>, T>() {
-        @Override
-        public void processElement(ProcessContext c) {
-          KV<K, CoGbkResult> e = c.element();
-          // Get all collection 1 values
-          Iterable<V1> pt1Vals = e.getValue().getAll(t1);
-          // Get all collection 2 values
-          Iterable<V2> pt2Vals = e.getValue().getAll(t2);
-          // ... Do something ...
-          c.output(...some T...);
-        }
-      }));
-```
+{% github_sample /apache/beam/blob/master/examples/java8/src/main/java/org/apache/beam/examples/website_snippets/Snippets.java tag:CoGroupByKeyTuple
+%}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets.py tag:model_group_by_key_cogroupbykey_tuple
 %}```
@@ -950,8 +896,8 @@ and format data from each collection.
 The formatted data looks like this:
 
 ```java
-  Sample coming soon.
-```
+{% github_sample /apache/beam/blob/master/examples/java8/src/test/java/org/apache/beam/examples/website_snippets/SnippetsTest.java tag:CoGroupByKeyTupleFormattedOutputs
+%}```
 ```py
 {% github_sample /apache/beam/blob/master/sdks/python/apache_beam/examples/snippets/snippets_test.py tag:model_group_by_key_cogroupbykey_tuple_formatted_outputs
 %}```
