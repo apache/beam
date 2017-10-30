@@ -19,4 +19,8 @@
 /**
  * Provides utilities for Beam runner authors, prior to execution.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core.construction;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

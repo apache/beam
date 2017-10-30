@@ -254,7 +254,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
      */
     @VisibleForTesting
     class Reader extends UnboundedReader<T> {
-      private ResidualElements residualElements;
+      // Initialized in init()
+      private @Nullable ResidualElements residualElements;
       private @Nullable ResidualSource residualSource;
       private final PipelineOptions options;
       private boolean done;

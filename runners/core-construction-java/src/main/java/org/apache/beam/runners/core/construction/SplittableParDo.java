@@ -323,7 +323,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private static class PairWithRestrictionFn<InputT, OutputT, RestrictionT>
       extends DoFn<InputT, KV<InputT, RestrictionT>> {
     private DoFn<InputT, OutputT> fn;
-    private transient DoFnInvoker<InputT, OutputT> invoker;
+
+    // Initialized in setup()
+    private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
 
     PairWithRestrictionFn(DoFn<InputT, OutputT> fn) {
       this.fn = fn;
@@ -347,7 +349,9 @@ public class SplittableParDo<InputT, OutputT, RestrictionT>
   private static class SplitRestrictionFn<InputT, RestrictionT>
       extends DoFn<KV<InputT, RestrictionT>, KV<InputT, RestrictionT>> {
     private final DoFn<InputT, ?> splittableFn;
-    private transient DoFnInvoker<InputT, ?> invoker;
+
+    // Initialized in setup()
+    private transient @Nullable DoFnInvoker<InputT, ?> invoker;
 
     SplitRestrictionFn(DoFn<InputT, ?> splittableFn) {
       this.splittableFn = splittableFn;
