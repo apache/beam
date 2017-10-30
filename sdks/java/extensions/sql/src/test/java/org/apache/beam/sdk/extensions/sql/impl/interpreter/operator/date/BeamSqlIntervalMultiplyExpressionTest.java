@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -93,7 +94,10 @@ public class BeamSqlIntervalMultiplyExpressionTest {
     BeamSqlPrimitive multiplicationResult =
         multiplyExpression.evaluate(NULL_INPUT_ROW, NULL_WINDOW);
 
-    assertEquals(DECIMAL_FOUR, multiplicationResult.getDecimal());
+    BigDecimal expectedResult =
+        DECIMAL_FOUR.multiply(timeUnitInternalMultiplier(SqlTypeName.INTERVAL_DAY));
+
+    assertEquals(expectedResult, multiplicationResult.getDecimal());
     assertEquals(SqlTypeName.INTERVAL_DAY, multiplicationResult.getOutputType());
   }
 

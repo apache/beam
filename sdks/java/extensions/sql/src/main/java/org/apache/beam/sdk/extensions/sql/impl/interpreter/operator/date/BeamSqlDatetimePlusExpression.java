@@ -18,6 +18,9 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date;
 
+import static org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.TimeUnitUtils.timeUnitInternalMultiplier;
+import static org.apache.beam.sdk.extensions.sql.impl.utils.SqlTypeUtils.findExpressionOfType;
+
 import com.google.common.collect.ImmutableSet;
 
 import java.math.BigDecimal;
@@ -33,8 +36,10 @@ import org.joda.time.DateTime;
 
 /**
  * DATETIME_PLUS operation.
- * Implements TIMESTAMPADD().
- * Input and output are expected to be of type TIMESTAMP
+ * Calcite converts 'TIMESTAMPADD(..)' or 'DATE + INTERVAL' from the user input
+ * into DATETIME_PLUS.
+ *
+ * <p>Input and output are expected to be of type TIMESTAMP.
  */
 public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
 
@@ -62,16 +67,42 @@ public class BeamSqlDatetimePlusExpression extends BeamSqlExpression {
 
   /**
    * Adds interval to the timestamp.
+   *
+   * <p>Interval has a value of 'multiplier * TimeUnit.multiplier'.
+   *
+   * <p>For example, '3 years' is going to have a type of INTERVAL_YEAR, and a value of 36.
+   * And '2 minutes' is going to be an INTERVAL_MINUTE with a value of 120000. This is the way
+   * Calcite handles interval expressions, and {@link BeamSqlIntervalMultiplyExpression} also works
+   * the same way.
    */
   @Override
   public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    DateTime date = new DateTime(operands.get(0).evaluate(inputRow, window).getDate());
-    BeamSqlPrimitive intervalPrimitive = operands.get(1).evaluate(inputRow, window);
-    SqlTypeName interval = intervalPrimitive.getOutputType();
-    BigDecimal intervalMultiplier = intervalPrimitive.getDecimal();
+    DateTime timestamp = getTimestampOperand(inputRow, window);
+    BeamSqlPrimitive intervalOperandPrimitive = getIntervalOperand(inputRow, window);
+    SqlTypeName intervalOperandType = intervalOperandPrimitive.getOutputType();
+    int intervalMultiplier = getIntervalMultiplier(intervalOperandPrimitive);
 
-    DateTime newDate = addInterval(date, interval, intervalMultiplier.intValueExact());
+    DateTime newDate = addInterval(timestamp, intervalOperandType, intervalMultiplier);
     return BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, newDate.toDate());
+  }
+
+  private int getIntervalMultiplier(BeamSqlPrimitive intervalOperandPrimitive) {
+    BigDecimal intervalOperandValue = intervalOperandPrimitive.getDecimal();
+    BigDecimal multiplier = intervalOperandValue.divide(
+        timeUnitInternalMultiplier(intervalOperandPrimitive.getOutputType()),
+        BigDecimal.ROUND_CEILING);
+    return multiplier.intValueExact();
+  }
+
+  private BeamSqlPrimitive getIntervalOperand(BeamRecord inputRow, BoundedWindow window) {
+    return findExpressionOfType(operands, SUPPORTED_INTERVAL_TYPES).get()
+        .evaluate(inputRow, window);
+  }
+
+  private DateTime getTimestampOperand(BeamRecord inputRow, BoundedWindow window) {
+    BeamSqlPrimitive timestampOperandPrimitive =
+        findExpressionOfType(operands, SqlTypeName.TIMESTAMP).get().evaluate(inputRow, window);
+    return new DateTime(timestampOperandPrimitive.getDate());
   }
 
   private DateTime addInterval(

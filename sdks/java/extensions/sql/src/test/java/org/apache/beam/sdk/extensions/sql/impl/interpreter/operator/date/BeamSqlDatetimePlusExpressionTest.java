@@ -30,6 +30,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpre
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
+import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.joda.time.DateTime;
 import org.junit.Rule;
@@ -113,7 +114,9 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
 
   @Test public void testEvaluateThrowsForUnsupportedIntervalType() {
     thrown.expect(UnsupportedOperationException.class);
-    evalDatetimePlus(SQL_TIMESTAMP, interval(SqlTypeName.INTERVAL_YEAR_MONTH, 10));
+
+    BeamSqlPrimitive unsupportedInterval = BeamSqlPrimitive.of(SqlTypeName.INTERVAL_YEAR_MONTH, 3);
+    evalDatetimePlus(SQL_TIMESTAMP, unsupportedInterval);
   }
 
   private static Date evalDatetimePlus(BeamSqlExpression date, BeamSqlExpression interval) {
@@ -125,6 +128,28 @@ public class BeamSqlDatetimePlusExpressionTest extends BeamSqlDateExpressionTest
   }
 
   private static BeamSqlExpression interval(SqlTypeName type, int multiplier) {
-    return BeamSqlPrimitive.of(type, new BigDecimal(multiplier));
+    return BeamSqlPrimitive.of(type,
+        timeUnitInternalMultiplier(type)
+            .multiply(new BigDecimal(multiplier)));
+  }
+
+  private static BigDecimal timeUnitInternalMultiplier(final SqlTypeName sqlIntervalType) {
+    switch (sqlIntervalType) {
+      case INTERVAL_SECOND:
+        return TimeUnit.SECOND.multiplier;
+      case INTERVAL_MINUTE:
+        return TimeUnit.MINUTE.multiplier;
+      case INTERVAL_HOUR:
+        return TimeUnit.HOUR.multiplier;
+      case INTERVAL_DAY:
+        return TimeUnit.DAY.multiplier;
+      case INTERVAL_MONTH:
+        return TimeUnit.MONTH.multiplier;
+      case INTERVAL_YEAR:
+        return TimeUnit.YEAR.multiplier;
+      default:
+        throw new IllegalArgumentException("Interval " + sqlIntervalType
+            + " cannot be converted to TimeUnit");
+    }
   }
 }

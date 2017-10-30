@@ -48,27 +48,28 @@ public class SqlTypeUtilsTest {
       BeamSqlPrimitive.of(SqlTypeName.INTEGER, 5));
 
   @Test public void testFindExpressionOfType_success() {
-    Optional<SqlTypeName> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INTEGER);
+    Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INTEGER);
 
     assertTrue(typeName.isPresent());
-    assertEquals(SqlTypeName.INTEGER, typeName.get());
+    assertEquals(SqlTypeName.INTEGER, typeName.get().getOutputType());
   }
 
   @Test public void testFindExpressionOfType_failure() {
-    Optional<SqlTypeName> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.VARCHAR);
+    Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.VARCHAR);
 
     assertFalse(typeName.isPresent());
   }
 
   @Test public void testFindExpressionOfTypes_success() {
-    Optional<SqlTypeName> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INT_TYPES);
+    Optional<BeamSqlExpression> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.INT_TYPES);
 
     assertTrue(typeName.isPresent());
-    assertEquals(SqlTypeName.INTEGER, typeName.get());
+    assertEquals(SqlTypeName.INTEGER, typeName.get().getOutputType());
   }
 
   @Test public void testFindExpressionOfTypes_failure() {
-    Optional<SqlTypeName> typeName = findExpressionOfType(EXPRESSIONS, SqlTypeName.CHAR_TYPES);
+    Optional<BeamSqlExpression> typeName =
+        findExpressionOfType(EXPRESSIONS, SqlTypeName.CHAR_TYPES);
 
     assertFalse(typeName.isPresent());
   }

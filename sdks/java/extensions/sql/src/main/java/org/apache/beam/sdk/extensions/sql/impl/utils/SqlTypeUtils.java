@@ -16,12 +16,12 @@ public class SqlTypeUtils {
    * Finds an operand with provided type.
    * Returns Optional.absent() if no operand found with matching type
    */
-  public static Optional<SqlTypeName> findExpressionOfType(
+  public static Optional<BeamSqlExpression> findExpressionOfType(
       List<BeamSqlExpression> operands, SqlTypeName type) {
 
     for (BeamSqlExpression operand : operands) {
       if (type.equals(operand.getOutputType())) {
-        return Optional.of(operand.getOutputType());
+        return Optional.of(operand);
       }
     }
 
@@ -32,12 +32,12 @@ public class SqlTypeUtils {
    * Finds an operand with the type in typesToFind.
    * Returns Optional.absent() if no operand found with matching type
    */
-  public static Optional<SqlTypeName> findExpressionOfType(
+  public static Optional<BeamSqlExpression> findExpressionOfType(
       List<BeamSqlExpression> operands, Collection<SqlTypeName> typesToFind) {
 
     for (BeamSqlExpression operand : operands) {
       if (typesToFind.contains(operand.getOutputType())) {
-        return Optional.of(operand.getOutputType());
+        return Optional.of(operand);
       }
     }
 

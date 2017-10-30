@@ -36,7 +36,7 @@ import org.junit.Test;
  */
 public class BeamSqlDateFunctionsIntegrationTest
     extends BeamSqlBuiltinFunctionsIntegrationTestBase {
-  @Test public void testDateTimeFunctions() throws Exception {
+  @Test public void testBasicDateTimeFunctions() throws Exception {
     ExpressionChecker checker = new ExpressionChecker()
         .addExpr("EXTRACT(YEAR FROM ts)", 1986L)
         .addExpr("YEAR(ts)", 1986L)
@@ -51,9 +51,43 @@ public class BeamSqlDateFunctionsIntegrationTest
         .addExpr("SECOND(ts)", 26L)
         .addExpr("FLOOR(ts TO YEAR)", parseDate("1986-01-01 00:00:00"))
         .addExpr("CEIL(ts TO YEAR)", parseDate("1987-01-01 00:00:00"))
+        ;
+    checker.buildRunAndCheck();
+  }
+
+  @Test public void testDatetimePlusFunction() throws Exception {
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("TIMESTAMPADD(SECOND, 3, TIMESTAMP '1984-04-19 01:02:03')",
+            parseDate("1984-04-19 01:02:06"))
+        .addExpr("TIMESTAMPADD(MINUTE, 3, TIMESTAMP '1984-04-19 01:02:03')",
+            parseDate("1984-04-19 01:05:03"))
+        .addExpr("TIMESTAMPADD(HOUR, 3, TIMESTAMP '1984-04-19 01:02:03')",
+            parseDate("1984-04-19 04:02:03"))
         .addExpr("TIMESTAMPADD(DAY, 3, TIMESTAMP '1984-04-19 01:02:03')",
             parseDate("1984-04-22 01:02:03"))
-    ;
+        .addExpr("TIMESTAMPADD(MONTH, 2, TIMESTAMP '1984-01-19 01:02:03')",
+            parseDate("1984-03-19 01:02:03"))
+        .addExpr("TIMESTAMPADD(YEAR, 2, TIMESTAMP '1985-01-19 01:02:03')",
+            parseDate("1987-01-19 01:02:03"))
+        ;
+    checker.buildRunAndCheck();
+  }
+
+  @Test public void testDatetimeInfixPlus() throws Exception {
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '3' SECOND",
+            parseDate("1984-01-19 01:02:06"))
+        .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MINUTE",
+            parseDate("1984-01-19 01:04:03"))
+        .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' HOUR",
+            parseDate("1984-01-19 03:02:03"))
+        .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' DAY",
+            parseDate("1984-01-21 01:02:03"))
+        .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' MONTH",
+            parseDate("1984-03-19 01:02:03"))
+        .addExpr("TIMESTAMP '1984-01-19 01:02:03' + INTERVAL '2' YEAR",
+            parseDate("1986-01-19 01:02:03"))
+        ;
     checker.buildRunAndCheck();
   }
 
