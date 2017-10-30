@@ -149,6 +149,41 @@ public class ElasticsearchIO {
     return mapper.readValue(response.getEntity().getContent(), JsonNode.class);
   }
 
+  static void checkForErrors(Response response, int backendVersion) throws IOException {
+    JsonNode searchResult = parseResponse(response);
+    boolean errors = searchResult.path("errors").asBoolean();
+    if (errors) {
+      StringBuilder errorMessages =
+          new StringBuilder(
+              "Error writing to Elasticsearch, some elements could not be inserted:");
+      JsonNode items = searchResult.path("items");
+      //some items present in bulk might have errors, concatenate error messages
+      for (JsonNode item : items) {
+        String errorRootName = "";
+        if (backendVersion == 2) {
+          errorRootName = "create";
+        } else if (backendVersion == 5) {
+          errorRootName = "index";
+        }
+        JsonNode errorRoot = item.path(errorRootName);
+        JsonNode error = errorRoot.get("error");
+        if (error != null) {
+          String type = error.path("type").asText();
+          String reason = error.path("reason").asText();
+          String docId = errorRoot.path("_id").asText();
+          errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
+          JsonNode causedBy = error.get("caused_by");
+          if (causedBy != null) {
+            String cbReason = causedBy.path("reason").asText();
+            String cbType = causedBy.path("type").asText();
+            errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
+          }
+        }
+      }
+      throw new IOException(errorMessages.toString());
+    }
+  }
+
   /** A POJO describing a connection configuration to Elasticsearch. */
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
@@ -837,38 +872,7 @@ public class ElasticsearchIO {
                 endPoint,
                 Collections.<String, String>emptyMap(),
                 requestBody);
-        JsonNode searchResult = parseResponse(response);
-        boolean errors = searchResult.path("errors").asBoolean();
-        if (errors) {
-          StringBuilder errorMessages =
-              new StringBuilder(
-                  "Error writing to Elasticsearch, some elements could not be inserted:");
-          JsonNode items = searchResult.path("items");
-          //some items present in bulk might have errors, concatenate error messages
-          for (JsonNode item : items) {
-            String errorRootName = "";
-            if (backendVersion == 2){
-              errorRootName = "create";
-            } else if (backendVersion == 5){
-              errorRootName = "index";
-            }
-            JsonNode errorRoot = item.path(errorRootName);
-            JsonNode error = errorRoot.get("error");
-            if (error != null) {
-              String type = error.path("type").asText();
-              String reason = error.path("reason").asText();
-              String docId = errorRoot.path("_id").asText();
-              errorMessages.append(String.format("%nDocument id %s: %s (%s)", docId, reason, type));
-              JsonNode causedBy = error.get("caused_by");
-              if (causedBy != null) {
-                String cbReason = causedBy.path("reason").asText();
-                String cbType = causedBy.path("type").asText();
-                errorMessages.append(String.format("%nCaused by: %s (%s)", cbReason, cbType));
-              }
-            }
-          }
-          throw new IOException(errorMessages.toString());
-        }
+        checkForErrors(response, backendVersion);
       }
 
       @Teardown
@@ -879,7 +883,7 @@ public class ElasticsearchIO {
       }
     }
   }
-  private static int getBackendVersion(ConnectionConfiguration connectionConfiguration){
+  static int getBackendVersion(ConnectionConfiguration connectionConfiguration) {
     try (RestClient restClient = connectionConfiguration.createClient()) {
       Response response = restClient.performRequest("GET", "");
       JsonNode jsonNode = parseResponse(response);
