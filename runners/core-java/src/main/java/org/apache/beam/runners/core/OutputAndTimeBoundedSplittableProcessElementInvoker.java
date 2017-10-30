@@ -161,7 +161,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // Currently we can't verify this because there are no hooks into tryClaim().
     // See https://issues.apache.org/jira/browse/BEAM-2607
     processContext.cancelScheduledCheckpoint();
-    KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();
+    @Nullable KV<RestrictionT, Instant> residual = processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
       if (residual == null) {
         // No checkpoint had been taken by the runner while the ProcessElement call ran, however
@@ -207,13 +207,13 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
     // even if these events happen almost at the same time.
     // This is either the result of the sole tracker.checkpoint() call, or null if
     // the call completed before reaching the given number of outputs or duration.
-    private RestrictionT checkpoint;
+    private @Nullable RestrictionT checkpoint;
     // Watermark captured at the moment before checkpoint was taken, describing a lower bound
     // on the output from "checkpoint".
-    private Instant residualWatermark;
+    private @Nullable Instant residualWatermark;
     // A handle on the scheduled action to take a checkpoint.
     private Future<?> scheduledCheckpoint;
-    private Instant lastReportedWatermark;
+    private @Nullable Instant lastReportedWatermark;
 
     public ProcessContext(WindowedValue<InputT> element, TrackerT tracker) {
       fn.super();
