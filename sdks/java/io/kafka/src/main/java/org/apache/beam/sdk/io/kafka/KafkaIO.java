@@ -1255,11 +1255,10 @@ public class KafkaIO {
             offsetGap = 0;
           }
 
-          curRecord = null; // user coders below might throw.
-
-          // apply user deserializers.
+          // Apply user deserializers. User deserializers might throw, which will be propagated up
+          // and 'curRecord' remains unchanged. The runner should close this reader.
           // TODO: write records that can't be deserialized to a "dead-letter" additional output.
-          KafkaRecord<K, V> record = new KafkaRecord<K, V>(
+          KafkaRecord<K, V> record = new KafkaRecord<>(
               rawRecord.topic(),
               rawRecord.partition(),
               rawRecord.offset(),
@@ -1371,7 +1370,6 @@ public class KafkaIO {
     public Instant getCurrentTimestamp() throws NoSuchElementException {
       return curTimestamp;
     }
-
 
     @Override
     public long getSplitBacklogBytes() {
