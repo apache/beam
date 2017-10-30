@@ -38,8 +38,8 @@ class RunnerPCollectionView<T> extends PValueBase implements PCollectionView<T> 
   private final TupleTag<Iterable<WindowedValue<?>>> tag;
   private final ViewFn<Iterable<WindowedValue<?>>, T> viewFn;
   private final WindowMappingFn<?> windowMappingFn;
-  private final WindowingStrategy<?, ?> windowingStrategy;
-  private final Coder<Iterable<WindowedValue<?>>> coder;
+  private final @Nullable WindowingStrategy<?, ?> windowingStrategy;
+  private final @Nullable Coder<Iterable<WindowedValue<?>>> coder;
   private final transient PCollection<?> pCollection;
 
   /**
