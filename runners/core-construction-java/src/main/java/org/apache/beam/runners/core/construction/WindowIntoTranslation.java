@@ -25,6 +25,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.model.pipeline.v1.RunnerApi.WindowIntoPayload;
@@ -101,7 +102,7 @@ public class WindowIntoTranslation {
     }
   }
 
-  public static WindowFn<?, ?> getWindowFn(AppliedPTransform<?, ?, ?> application) {
+  public static @Nullable WindowFn<?, ?> getWindowFn(AppliedPTransform<?, ?, ?> application) {
     return WindowingStrategyTranslation.windowFnFromProto(
         getWindowIntoPayload(application).getWindowFn());
   }
