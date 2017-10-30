@@ -59,18 +59,18 @@ import org.joda.time.Instant;
 @Experimental(Kind.STATE)
 public class InMemoryStateInternals<K> implements StateInternals {
 
-  public static <K> InMemoryStateInternals<K> forKey(K key) {
+  public static <K> InMemoryStateInternals<K> forKey(@Nullable K key) {
     return new InMemoryStateInternals<>(key);
   }
 
-  private final K key;
+  private final @Nullable K key;
 
-  protected InMemoryStateInternals(K key) {
+  protected InMemoryStateInternals(@Nullable K key) {
     this.key = key;
   }
 
   @Override
-  public K getKey() {
+  public @Nullable K getKey() {
     return key;
   }
 
@@ -179,7 +179,7 @@ public class InMemoryStateInternals<K> implements StateInternals {
   public static final class InMemoryValue<T>
       implements ValueState<T>, InMemoryState<InMemoryValue<T>> {
     private boolean isCleared = true;
-    private T value = null;
+    private @Nullable T value = null;
 
     @Override
     public void clear() {

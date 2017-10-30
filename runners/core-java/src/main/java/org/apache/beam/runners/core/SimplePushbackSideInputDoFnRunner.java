@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -39,7 +40,8 @@ public class SimplePushbackSideInputDoFnRunner<InputT, OutputT>
   private final Collection<PCollectionView<?>> views;
   private final ReadyCheckingSideInputReader sideInputReader;
 
-  private Set<BoundedWindow> notReadyWindows;
+  // Initialized in startBundle()
+  private @Nullable Set<BoundedWindow> notReadyWindows;
 
   public static <InputT, OutputT> SimplePushbackSideInputDoFnRunner<InputT, OutputT> create(
       DoFnRunner<InputT, OutputT> underlying,
