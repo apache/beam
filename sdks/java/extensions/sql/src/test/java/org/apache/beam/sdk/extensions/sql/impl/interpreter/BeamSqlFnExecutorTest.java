@@ -41,6 +41,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
@@ -442,5 +443,18 @@ public class BeamSqlFnExecutorTest extends BeamSqlFnExecutorTestBase {
     );
     exp = BeamSqlFnExecutor.buildExpression(rexNode);
     assertTrue(exp instanceof BeamSqlIntervalMultiplyExpression);
+
+    // minus for dates
+    rexNode = rexBuilder.makeCall(
+        TYPE_FACTORY.createSqlType(SqlTypeName.INTERVAL_DAY),
+        SqlStdOperatorTable.MINUS,
+        Arrays.<RexNode>asList(
+            rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000),
+            rexBuilder.makeTimestampLiteral(Calendar.getInstance(), 1000)
+        )
+    );
+
+    exp = BeamSqlFnExecutor.buildExpression(rexNode);
+    assertTrue(exp instanceof BeamSqlDatetimeMinusExpression);
   }
 }
