@@ -623,7 +623,6 @@ public class BigtableIOTest {
     final String value = "value";
 
     service.createTable(table);
-
     p.apply("single row", Create.of(makeWrite(key, value)).withCoder(bigtableCoder))
         .apply("write", defaultWrite.withTableId(table));
     p.run();
