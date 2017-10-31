@@ -37,6 +37,7 @@
     <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
     <calcite.version>1.13.0</calcite.version>
     <avatica.version>1.10.0</avatica.version>
+    <mockito.version>1.9.5</mockito.version>
   </properties>
 
   <profiles>
@@ -269,6 +270,13 @@
     <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
+      <version>${mockito.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
