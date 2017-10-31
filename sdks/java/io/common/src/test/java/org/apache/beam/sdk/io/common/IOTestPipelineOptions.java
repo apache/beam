@@ -88,4 +88,10 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   Integer getCassandraPort();
   void setCassandraPort(Integer port);
 
+  /* Text */
+  @Description("Lines of text count")
+  @Default.Long(100000)
+  Long getLinesOfTextCount();
+
+  void setLinesOfTextCount(Long count);
 }
