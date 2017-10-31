@@ -47,7 +47,8 @@ from apache_beam.transforms.display import HasDisplayData
 from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
-__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'Sink', 'Write', 'Writer']
+__all__ = ['BoundedSource', 'RangeTracker', 'Read', 'RestrictionTracker',
+           'Sink', 'Write', 'Writer']
 
 
 # Encapsulates information about a bundle of a source generated when method
@@ -961,6 +962,7 @@ class _WriteBundleDoFn(core.DoFn):
 
   def process(self, element, init_result):
     if self.writer is None:
+      # We ignore UUID collisions here since they are extremely rare.
       self.writer = self.sink.open_writer(init_result, str(uuid.uuid4()))
     self.writer.write(element)
 
@@ -1073,15 +1075,18 @@ class RestrictionTracker(object):
     Called by the runner after iterator returned by ``DoFn.process()`` has been
     fully read.
 
-    Returns: ``True`` if current restriction has been fully processed.
-    Raises ValueError: if there is still any unclaimed work remaining in the
-      restriction invoking this method. Exception raised must have an
-      informative error message.
+    This method must raise a `ValueError` if there is still any unclaimed work
+    remaining in the restriction when this method is invoked. Exception raised
+    must have an informative error message.
 
     ** Thread safety **
 
     Methods of the class ``RestrictionTracker`` including this method may get
     invoked by different threads, hence must be made thread-safe, e.g. by using
     a single lock object.
+
+    Returns: ``True`` if current restriction has been fully processed.
+    Raises:
+      ~exceptions.ValueError: if there is still any unclaimed work remaining.
     """
     raise NotImplementedError

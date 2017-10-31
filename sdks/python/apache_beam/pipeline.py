@@ -69,7 +69,7 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import urns
 from apache_beam.utils.annotations import deprecated
 
-__all__ = ['Pipeline']
+__all__ = ['Pipeline', 'PTransformOverride']
 
 
 class Pipeline(object):
