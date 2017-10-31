@@ -1,0 +1,28 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.jackson_core
+  compile library.java.jackson_databind
+  compile library.java.guava
+  compile library.java.slf4j_api
+  compile library.java.findbugs_jsr305
+  compileOnly library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_mapreduce_client_core
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile library.java.guava
+  testCompile library.java.hamcrest_all
+  testCompile library.java.mockito_all
+  testCompile library.java.junit
+  testCompile library.java.hadoop_minicluster
+  testCompile library.java.hadoop_hdfs_tests
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

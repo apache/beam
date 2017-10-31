@@ -1,0 +1,33 @@
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Google Cloud Platform Core"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.google_http_client_jackson2
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.google_api_client
+  compile library.java.bigdataoss_gcsio
+  compile library.java.bigdataoss_util
+  compile library.java.google_api_services_cloudresourcemanager
+  compile library.java.google_api_services_storage
+  compile library.java.google_auth_library_credentials
+  compile library.java.findbugs_jsr305
+  compile library.java.google_http_client
+  compile library.java.guava
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compileOnly library.java.hamcrest_all
+  compileOnly library.java.junit
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile library.java.guava_testlib
+  testCompile library.java.mockito_all
+  testCompile library.java.slf4j_jdk14
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

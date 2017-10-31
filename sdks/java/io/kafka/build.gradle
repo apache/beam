@@ -1,0 +1,25 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.kafka_clients
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.guava
+  compile library.java.findbugs_jsr305
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile "org.springframework:spring-expression:4.3.5.RELEASE"
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile library.java.hamcrest_all
+  testCompile library.java.junit
+  testCompile library.java.slf4j_jdk14
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

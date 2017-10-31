@@ -1,0 +1,26 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: Cassandra"
+
+def cassandra_version = "3.2.0"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.slf4j_api
+  compile library.java.guava
+  compile library.java.findbugs_jsr305
+  compile "com.datastax.cassandra:cassandra-driver-core:$cassandra_version"
+  compile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_version"
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_all
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.mockito_all
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

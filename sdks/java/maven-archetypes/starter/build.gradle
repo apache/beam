@@ -1,0 +1,13 @@
+description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter"
+
+dependencies {
+  runtime project(":beam-runners-parent:beam-runners-direct-java")
+  runtime project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

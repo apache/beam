@@ -1,0 +1,38 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: HCatalog"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common")
+  compile library.java.slf4j_api
+  compile library.java.guava
+  compile library.java.findbugs_jsr305
+  compileOnly library.java.hadoop_common
+  compileOnly "org.apache.hive:hive-exec:2.1.0"
+  compileOnly(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version:"2.1.0") {
+    exclude(module: "hive-exec")
+    exclude(module: "protobuf-java")
+    exclude(module: "jdk.tools")
+  }
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.commons_io_2x
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_all
+  testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:2.1.0:tests"
+  testCompile "org.apache.hive:hive-exec:2.1.0"
+  testCompile "org.apache.hive:hive-common:2.1.0"
+  testCompile "org.apache.hive:hive-cli:2.1.0"
+  testCompileOnly library.java.hadoop_common
+  testCompileOnly "org.apache.hive:hive-exec:2.1.0"
+  testCompileOnly(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version:"2.1.0") {
+    exclude(module: "hive-exec")
+    exclude(module: "protobuf-java")
+    exclude(module: "jdk.tools")
+  }
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

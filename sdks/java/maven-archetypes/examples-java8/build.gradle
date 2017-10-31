@@ -1,0 +1,12 @@
+description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples - Java 8"
+
+dependencies {
+  runtime project(":beam-examples-parent:beam-examples-java8")
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

@@ -1,0 +1,18 @@
+description = "Apache Beam :: Runners :: Reference :: Job Orchestrator"
+
+dependencies {
+  compile project(":beam-model-parent:beam-model-job-management")
+  compile library.java.grpc_core
+  compile library.java.grpc_stub
+  compile library.java.slf4j_api
+  compile library.java.args4j
+  runtime library.java.grpc_netty
+  testCompile library.java.junit
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

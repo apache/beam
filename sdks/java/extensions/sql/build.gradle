@@ -1,0 +1,30 @@
+description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
+
+def calcite_version = "1.13.0"
+def avatica_version = "1.10.0"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library")
+  compile "org.apache.calcite:calcite-core:$calcite_version"
+  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
+  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
+  compile library.java.guava
+  compile library.java.slf4j_api
+  compile library.java.commons_csv
+  compile library.java.joda_time
+//  providedCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka")
+  compileOnly project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka")
+  compileOnly library.java.kafka_clients
+  runtime project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_all
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

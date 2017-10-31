@@ -1,0 +1,22 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.findbugs_jsr305
+  compileOnly library.java.hadoop_client
+  compileOnly library.java.hadoop_common
+  compileOnly library.java.hadoop_mapreduce_client_core
+  testCompile library.java.commons_lang3
+  testCompile library.java.hamcrest_all
+  testCompile library.java.junit
+  testCompileOnly library.java.hadoop_client
+  testCompileOnly library.java.hadoop_common
+  testCompileOnly library.java.hadoop_mapreduce_client_core
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

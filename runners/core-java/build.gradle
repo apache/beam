@@ -1,0 +1,27 @@
+description = "Apache Beam :: Runners :: Core Java"
+
+dependencies {
+  compile project(":beam-model-parent:beam-model-pipeline")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-model-parent:beam-model-fn-execution")
+  compile project(":beam-runners-parent:beam-runners-core-construction-java")
+  compile library.java.findbugs_jsr305
+  compile library.java.guava
+  compile library.java.grpc_core
+  compile library.java.grpc_stub
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile library.java.hamcrest_all
+  testCompile library.java.mockito_all
+  testCompile library.java.junit
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.jackson_dataformat_yaml
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

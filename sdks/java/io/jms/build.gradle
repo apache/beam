@@ -1,0 +1,25 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: JMS"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.slf4j_api
+  compile library.java.joda_time
+  compile library.java.guava
+  compile library.java.findbugs_jsr305
+  compile "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.activemq_broker
+  testCompile library.java.activemq_jaas
+  testCompile library.java.activemq_kahadb_store
+  testCompile library.java.activemq_client
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_all
+  testCompile library.java.slf4j_jdk14
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

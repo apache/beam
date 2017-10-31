@@ -1,0 +1,34 @@
+description = "Apache Beam :: Examples :: Java"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
+  compile library.java.google_api_client
+  compile library.java.google_api_services_bigquery
+  compile library.java.findbugs_jsr305
+  compile library.java.google_http_client
+  compile library.java.bigdataoss_util
+  compile library.java.google_auth_library_oauth2_http
+  compile library.java.google_auth_library_credentials
+  compile library.java.avro
+  compile library.java.google_api_services_pubsub
+  compile library.java.guava
+  compile library.java.datastore_v1_proto_client
+  compile library.java.datastore_v1_protos
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  runtime project(":beam-runners-parent:beam-runners-direct-java")
+  runtime library.java.slf4j_jdk14
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
+  testCompile library.java.hamcrest_all
+  testCompile library.java.junit
+  testCompile library.java.mockito_all
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests
