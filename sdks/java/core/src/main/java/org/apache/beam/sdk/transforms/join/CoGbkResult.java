@@ -117,15 +117,13 @@ public class CoGbkResult {
       // against a given tag would not match anything.
       final Boolean[] containsTag = new Boolean[schema.size()];
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        final int unionTag0 = unionTag;
-        updateUnionTag(tail, containsTag, unionTag, unionTag0);
+        updateUnionTag(tail, containsTag, unionTag);
       }
     }
   }
 
   private <T> void updateUnionTag(
-      final Reiterator<RawUnionValue> tail, final Boolean[] containsTag,
-      int unionTag, final int unionTag0) {
+      final Reiterator<RawUnionValue> tail, final Boolean[] containsTag, final int unionTag) {
     @SuppressWarnings("unchecked")
     final Iterable<T> head = (Iterable<T>) valueMap.get(unionTag);
     valueMap.set(
@@ -135,7 +133,7 @@ public class CoGbkResult {
           public Iterator<T> iterator() {
             return Iterators.concat(
                 head.iterator(),
-                new UnionValueIterator<T>(unionTag0, tail.copy(), containsTag));
+                new UnionValueIterator<T>(unionTag, tail.copy(), containsTag));
           }
         });
   }
