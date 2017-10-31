@@ -37,6 +37,8 @@ import org.apache.beam.sdk.util.ReleaseInfo;
 public abstract class SpannerConfig implements Serializable {
   // A common user agent token that indicates that this request was originated from Apache Beam.
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
+  // A default host name for batch traffic.
+  private static final String DEFAULT_HOST = "https://batch-spanner.googleapis.com/";
 
   @Nullable
   abstract ValueProvider<String> getProjectId();
@@ -48,13 +50,16 @@ public abstract class SpannerConfig implements Serializable {
   abstract ValueProvider<String> getDatabaseId();
 
   @Nullable
+  abstract String getHost();
+
+  @Nullable
   @VisibleForTesting
   abstract ServiceFactory<Spanner, SpannerOptions> getServiceFactory();
 
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
-    return builder().build();
+    return builder().setHost(DEFAULT_HOST).build();
   }
 
   static Builder builder() {
@@ -93,6 +98,8 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setDatabaseId(ValueProvider<String> databaseId);
 
+    abstract Builder setHost(String host);
+
     abstract Builder setServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory);
 
     public abstract SpannerConfig build();
@@ -122,6 +129,10 @@ public abstract class SpannerConfig implements Serializable {
     return withDatabaseId(ValueProvider.StaticValueProvider.of(databaseId));
   }
 
+  public SpannerConfig withHost(String host) {
+    return toBuilder().setHost(host).build();
+  }
+
   @VisibleForTesting
   SpannerConfig withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
     return toBuilder().setServiceFactory(serviceFactory).build();
@@ -134,6 +145,9 @@ public abstract class SpannerConfig implements Serializable {
     }
     if (getServiceFactory() != null) {
       builder.setServiceFactory(this.getServiceFactory());
+    }
+    if (getHost() != null) {
+      builder.setHost(getHost());
     }
     ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
     builder.setUserAgentPrefix(USER_AGENT_PREFIX + "/" + releaseInfo.getVersion());
