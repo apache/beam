@@ -1196,13 +1196,10 @@ public class KafkaIOTest {
     public Producer<Integer, Long> apply(Map<String, Object> config) {
 
       // Make sure the config is correctly set up for serializers.
-      // There may not be a key serializer if we're interested only in values.
-      if (config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG) != null) {
-        Utils.newInstance(
-                ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
-                        .asSubclass(Serializer.class)
-        ).configure(config, true);
-      }
+      Utils.newInstance(
+              ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
+                      .asSubclass(Serializer.class)
+      ).configure(config, true);
 
       Utils.newInstance(
           ((Class<?>) config.get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG))

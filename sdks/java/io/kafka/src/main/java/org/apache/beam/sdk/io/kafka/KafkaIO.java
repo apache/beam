@@ -128,6 +128,7 @@ import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.apache.kafka.common.utils.AppInfoParser;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
@@ -252,7 +253,7 @@ import org.slf4j.LoggerFactory;
  *  strings.apply(KafkaIO.<Void, String>write()
  *      .withBootstrapServers("broker_1:9092,broker_2:9092")
  *      .withTopic("results")
- *      .withValueSerializer(new StringSerializer()) // just need serializer for value
+ *      .withValueSerializer(StringSerializer.class) // just need serializer for value
  *      .values()
  *    );
  * }</pre>
@@ -1598,8 +1599,13 @@ public class KafkaIO {
      * Writes just the values to Kafka. This is useful for writing collections of values rather
      * thank {@link KV}s.
      */
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public PTransform<PCollection<V>, PDone> values() {
-      return new KafkaValueWrite<>(toBuilder().build());
+      return new KafkaValueWrite<>(
+          toBuilder()
+          .setKeySerializer((Class) StringSerializer.class)
+          .build()
+      );
     }
 
     @Override
