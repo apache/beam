@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.Iterables.transform;
 
 import com.google.common.base.Function;
@@ -150,7 +151,7 @@ class ShardReadersPool {
           @Nullable
           @Override
           public ShardCheckpoint apply(@Nullable ShardRecordsIterator shardRecordsIterator) {
-            assert shardRecordsIterator != null;
+            checkArgument(shardRecordsIterator != null, "shardRecordsIterator can not be null");
             return shardRecordsIterator.getCheckpoint();
           }
         }));
