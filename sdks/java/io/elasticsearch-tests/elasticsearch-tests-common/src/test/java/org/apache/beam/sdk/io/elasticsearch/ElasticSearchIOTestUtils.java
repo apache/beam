@@ -64,7 +64,7 @@ class ElasticSearchIOTestUtils {
     int i = 0;
     for (String document : data) {
       bulkRequest.append(String.format(
-          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%d\" } }%n%s%n",
+          "{ \"index\" : { \"_index\" : \"%s\", \"_type\" : \"%s\", \"_id\" : \"%s\" } }%n%s%n",
           connectionConfiguration.getIndex(), connectionConfiguration.getType(), i++, document));
     }
     String endPoint = String.format("/%s/%s/_bulk", connectionConfiguration.getIndex(),
@@ -131,9 +131,9 @@ class ElasticSearchIOTestUtils {
       int index = i % scientists.length;
       // insert 2 malformed documents
       if (InjectionMode.INJECT_SOME_INVALID_DOCS.equals(injectionMode) && (i == 6 || i == 7)) {
-        data.add(String.format("{\"scientist\";\"%s\", \"id\":%d}", scientists[index], i));
+        data.add(String.format("{\"scientist\";\"%s\", \"id\":%s}", scientists[index], i));
       } else {
-        data.add(String.format("{\"scientist\":\"%s\", \"id\":%d}", scientists[index], i));
+        data.add(String.format("{\"scientist\":\"%s\", \"id\":%s}", scientists[index], i));
       }
     }
     return data;
