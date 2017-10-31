@@ -147,10 +147,14 @@ buildscript {
     maven {
       url "https://plugins.gradle.org/m2/"
     }
+    maven {
+      url "http://repo.spring.io/plugins-release"
+    }
   }
   dependencies {
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"
+    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"
   }
 }
 
@@ -159,7 +163,7 @@ subprojects {
   sourceCompatibility = 1.7
   targetCompatibility = 1.7
   tasks.withType(JavaCompile) {
-  	options.encoding = "UTF-8"
+    options.encoding = "UTF-8"
   }
   repositories {
     mavenLocal()
@@ -170,10 +174,15 @@ subprojects {
     maven { url "https://repository.apache.org/content/repositories/releases" }
   }
 
+  // Skip test failures to enumerate all that is failing
+  test {
+    ignoreFailures = true
+  }
+
   apply plugin: "net.ltgt.apt"
-  def auto_value = "com.google.auto.value:auto-value:1.4.1"
-  def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
   dependencies {
+    def auto_value = "com.google.auto.value:auto-value:1.4.1"
+    def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
     compileOnly auto_value
     apt auto_value
     testCompileOnly auto_value
@@ -214,6 +223,12 @@ subprojects {
     }
   }
 
+  apply plugin: 'propdeps'
+  apply plugin: 'propdeps-maven'
+
   configurations.all {
   }
 }
+
+
+

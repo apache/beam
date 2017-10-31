@@ -24,9 +24,9 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.guava
   compile library.java.findbugs_jsr305
-  compileOnly library.java.hadoop_common
-  compileOnly "org.apache.hive:hive-exec:2.1.0"
-  compileOnly(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version:"2.1.0") {
+  provided library.java.hadoop_common
+  provided "org.apache.hive:hive-exec:2.1.0"
+  provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version:"2.1.0") {
     exclude(module: "hive-exec")
     exclude(module: "protobuf-java")
     exclude(module: "jdk.tools")
@@ -39,13 +39,6 @@ dependencies {
   testCompile "org.apache.hive:hive-exec:2.1.0"
   testCompile "org.apache.hive:hive-common:2.1.0"
   testCompile "org.apache.hive:hive-cli:2.1.0"
-  testCompileOnly library.java.hadoop_common
-  testCompileOnly "org.apache.hive:hive-exec:2.1.0"
-  testCompileOnly(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version:"2.1.0") {
-    exclude(module: "hive-exec")
-    exclude(module: "protobuf-java")
-    exclude(module: "jdk.tools")
-  }
 }
 
 task packageTests(type: Jar) {
