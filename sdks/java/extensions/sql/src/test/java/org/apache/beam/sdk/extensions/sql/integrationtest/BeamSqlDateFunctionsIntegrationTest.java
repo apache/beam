@@ -91,6 +91,58 @@ public class BeamSqlDateFunctionsIntegrationTest
     checker.buildRunAndCheck();
   }
 
+  @Test public void testTimestampDiff() throws Exception {
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("TIMESTAMPDIFF(SECOND, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 01:01:58')", 0)
+        .addExpr("TIMESTAMPDIFF(SECOND, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 01:01:59')", 1)
+        .addExpr("TIMESTAMPDIFF(SECOND, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 01:02:00')", 2)
+
+        .addExpr("TIMESTAMPDIFF(MINUTE, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 01:02:57')", 0)
+        .addExpr("TIMESTAMPDIFF(MINUTE, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 01:02:58')", 1)
+        .addExpr("TIMESTAMPDIFF(MINUTE, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 01:03:58')", 2)
+
+        .addExpr("TIMESTAMPDIFF(HOUR, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 02:01:57')", 0)
+        .addExpr("TIMESTAMPDIFF(HOUR, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 02:01:58')", 1)
+        .addExpr("TIMESTAMPDIFF(HOUR, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-19 03:01:58')", 2)
+
+        .addExpr("TIMESTAMPDIFF(DAY, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-20 01:01:57')", 0)
+        .addExpr("TIMESTAMPDIFF(DAY, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-20 01:01:58')", 1)
+        .addExpr("TIMESTAMPDIFF(DAY, TIMESTAMP '1984-04-19 01:01:58', "
+            + "TIMESTAMP '1984-04-21 01:01:58')", 2)
+
+        .addExpr("TIMESTAMPDIFF(MONTH, TIMESTAMP '1984-01-19 01:01:58', "
+            + "TIMESTAMP '1984-02-19 01:01:57')", 0)
+        .addExpr("TIMESTAMPDIFF(MONTH, TIMESTAMP '1984-01-19 01:01:58', "
+            + "TIMESTAMP '1984-02-19 01:01:58')", 1)
+        .addExpr("TIMESTAMPDIFF(MONTH, TIMESTAMP '1984-01-19 01:01:58', "
+            + "TIMESTAMP '1984-03-19 01:01:58')", 2)
+
+        .addExpr("TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+            + "TIMESTAMP '1982-01-19 01:01:57')", 0)
+        .addExpr("TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+            + "TIMESTAMP '1982-01-19 01:01:58')", 1)
+        .addExpr("TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+            + "TIMESTAMP '1983-01-19 01:01:58')", 2)
+
+        .addExpr("TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+            + "TIMESTAMP '1980-01-19 01:01:58')", -1)
+        .addExpr("TIMESTAMPDIFF(YEAR, TIMESTAMP '1981-01-19 01:01:58', "
+            + "TIMESTAMP '1979-01-19 01:01:58')", -2)
+    ;
+    checker.buildRunAndCheck();
+  }
+
   @Test public void testDateTimeFunctions_currentTime() throws Exception {
     String sql = "SELECT "
         + "LOCALTIME as l,"

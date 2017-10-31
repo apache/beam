@@ -49,6 +49,7 @@ import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSql
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlCurrentTimestampExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateCeilExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDateFloorExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimeMinusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlDatetimePlusExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlExtractExpression;
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.date.BeamSqlIntervalMultiplyExpression;
@@ -235,7 +236,11 @@ public class BeamSqlFnExecutor implements BeamSqlExpressionExecutor {
           ret = new BeamSqlPlusExpression(subExps);
           break;
         case "-":
-          ret = new BeamSqlMinusExpression(subExps);
+          if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
+            ret = new BeamSqlMinusExpression(subExps);
+          } else {
+            ret = new BeamSqlDatetimeMinusExpression(subExps, node.type.getSqlTypeName());
+          }
           break;
         case "*":
           if (SqlTypeName.NUMERIC_TYPES.contains(node.type.getSqlTypeName())) {
