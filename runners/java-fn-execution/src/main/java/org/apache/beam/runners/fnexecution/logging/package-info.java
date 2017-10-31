@@ -16,20 +16,8 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.fnexecution;
-
-import io.grpc.BindableService;
-
-/** An interface sharing common behavior with services used during execution of user Fns. */
-public interface FnService extends AutoCloseable, BindableService {
-  /**
-   * {@inheritDoc}.
-   *
-   * <p>There should be no more calls to any service method by the time a call to {@link #close()}
-   * begins. Specifically, this means that a {@link io.grpc.Server} that this service is bound to
-   * should have completed a call to the {@link io.grpc.Server#shutdown()} method, and all future
-   * incoming calls will be rejected.
-   */
-  @Override
-  void close() throws Exception;
-}
+/**
+ * Classes used to log informational messages over the {@link
+ * org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc Beam Fn Logging Service}.
+ */
+package org.apache.beam.runners.fnexecution.logging;
