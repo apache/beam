@@ -1,0 +1,36 @@
+description = "Apache Beam :: SDKs :: Java :: Harness"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+  compile project(":beam-model-parent:beam-model-pipeline")
+  compile project(":beam-model-parent:beam-model-fn-execution")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
+  compile project(":beam-runners-parent:beam-runners-core-java")
+  compile project(":beam-runners-parent:beam-runners-core-construction-java")
+  compile library.java.jackson_databind
+  compile library.java.findbugs_jsr305
+  compile library.java.guava
+  compile library.java.protobuf_java
+  compile library.java.grpc_core
+  compile library.java.grpc_netty
+  compile library.java.grpc_stub
+  compile library.java.netty_transport_native_epoll
+  compile library.java.joda_time
+  compile library.java.slf4j_api
+  compileOnly library.java.error_prone_annotations
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  testCompile library.java.hamcrest_all
+  testCompile library.java.junit
+  testCompile library.java.mockito_all
+  testCompile library.java.slf4j_jdk14
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

@@ -1,0 +1,24 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.guava
+  compile library.java.findbugs_jsr305
+  compile "org.apache.tika:tika-core:1.16"
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_all
+  testCompile "org.apache.tika:tika-parsers:1.16"
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

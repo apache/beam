@@ -1,0 +1,17 @@
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Jackson"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.jackson_databind
+  compile library.java.guava
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.hamcrest_all
+  testCompile library.java.junit
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

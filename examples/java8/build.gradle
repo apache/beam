@@ -1,0 +1,32 @@
+description = "Apache Beam :: Examples :: Java 8"
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
+  compile project(":beam-examples-parent:beam-examples-java")
+  compile library.java.guava
+  compile library.java.slf4j_api
+  compile library.java.avro
+  compile library.java.joda_time
+  compile library.java.google_api_services_bigquery
+  compile library.java.google_http_client
+  compile library.java.google_oauth_client
+  compile library.java.google_api_services_pubsub
+  compile library.java.google_api_client
+  runtime project(":beam-runners-parent:beam-runners-direct-java")
+  runtime library.java.slf4j_jdk14
+  testCompile library.java.hamcrest_all
+  testCompile library.java.mockito_all
+  testCompile library.java.junit
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

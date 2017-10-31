@@ -1,0 +1,47 @@
+description = "Apache Beam :: SDKs :: Java :: Core"
+
+buildscript {
+  repositories {
+    jcenter()
+  }
+  dependencies {
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"
+  }
+}
+apply plugin: "com.commercehub.gradle.plugin.avro"
+repositories {
+  jcenter()
+}
+
+dependencies {
+  compile library.java.guava
+  compile library.java.protobuf_java
+  compile library.java.findbugs_jsr305
+  compile "com.github.stephenc.findbugs:findbugs-annotations:1.3.9-1"
+  compile library.java.jackson_core
+  compile library.java.jackson_annotations
+  compile library.java.jackson_databind
+  compile library.java.slf4j_api
+  compile library.java.byte_buddy
+  compile library.java.avro
+  compile library.java.snappy_java
+  compile library.java.commons_compress
+  compile library.java.commons_lang3
+  compile library.java.joda_time
+  compile library.java.hamcrest_all
+  compile library.java.junit
+  runtime "org.tukaani:xz:1.5"
+  testCompile project(":beam-model-parent:beam-model-fn-execution")
+  testCompile library.java.guava_testlib
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.mockito_all
+  testCompile "com.esotericsoftware.kryo:kryo:2.21"
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

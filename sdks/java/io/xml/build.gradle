@@ -1,0 +1,22 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: XML"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.stax2_api
+  compile library.java.guava
+  compile library.java.findbugs_jsr305
+  runtime library.java.woodstox_core_asl
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.junit
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.hamcrest_core
+  testCompile library.java.hamcrest_all
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

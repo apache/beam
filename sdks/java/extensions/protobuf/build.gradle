@@ -1,0 +1,19 @@
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
+
+dependencies {
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile library.java.protobuf_java
+  compile library.java.guava
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  testCompile library.java.hamcrest_all
+  testCompile library.java.mockito_all
+  testCompile library.java.junit
+  testCompile library.java.slf4j_jdk14
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

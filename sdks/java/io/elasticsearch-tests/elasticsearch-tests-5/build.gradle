@@ -1,0 +1,33 @@
+description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 5.x"
+
+def jna_version = "4.1.0"
+def log4j_version = "2.6.2"
+
+dependencies {
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common").sourceSets.test.output
+  testCompile group: "org.elasticsearch.test", name: "framework", version:"5.4.0"
+  testCompile group: "org.elasticsearch.plugin", name: "transport-netty4-client", version:"5.4.0"
+  testCompile group: "com.carrotsearch.randomizedtesting", name: "randomizedtesting-runner", version:"2.5.0"
+  testCompile group: "org.elasticsearch", name: "elasticsearch", version:"5.4.0"
+
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch")
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
+  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile library.java.slf4j_api
+  testCompile "net.java.dev.jna:jna:$jna_version"
+  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
+  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testCompile library.java.hamcrest_all
+  testCompile library.java.slf4j_jdk14
+  testCompile library.java.commons_io_1x
+  testCompile library.java.junit
+  testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests
