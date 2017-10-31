@@ -620,7 +620,7 @@ public class ElasticsearchIO {
         if (source.numSlices != null && source.numSlices > 1){
           // add slice to the user query
           String sliceQuery = String
-              .format("\"slice\": {\"id\": %d,\"max\": %d}", source.sliceId,
+              .format("\"slice\": {\"id\": %s,\"max\": %s}", source.sliceId,
                   source.numSlices);
           query = query.replaceFirst("\\{", "{" + sliceQuery + ",");
         }
