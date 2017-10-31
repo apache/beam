@@ -29,7 +29,6 @@ dependencies {
   provided(group: "org.apache.hive.hcatalog", name: "hive-hcatalog-core", version:"2.1.0") {
     exclude(module: "hive-exec")
     exclude(module: "protobuf-java")
-    exclude(module: "jdk.tools")
   }
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.commons_io_2x
