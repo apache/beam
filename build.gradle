@@ -232,6 +232,15 @@ subprojects {
   apply plugin: 'propdeps'
   apply plugin: 'propdeps-maven'
 
+  apply plugin: 'checkstyle'
+
+  tasks.withType(Checkstyle) {
+    configFile = project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
+    configProperties = [ "checkstyle.suppressions.file": project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml") ]
+    showViolations = true
+    maxErrors = 0
+  }
+
   // Ban these dependencies from all configurations
   configurations.all {
     exclude group: "com.google.guava", module: "guava-jdk5"
