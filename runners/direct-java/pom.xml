@@ -82,23 +82,9 @@
                     </shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>org.apache.beam.sdk.common</pattern>
+                    <pattern>org.apache.beam.model</pattern>
                     <shadedPattern>
-                      org.apache.beam.runners.direct.repackaged.sdk.common
-                    </shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <!-- portability protos currently contain a typo, to be fixed later -->
-                    <pattern>org.apache.beam.sdks.common</pattern>
-                    <shadedPattern>
-                      org.apache.beam.runners.direct.repackaged.sdks.common
-                    </shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <!-- portability protos also invent this namespace -->
-                    <pattern>org.apache.beam.portability</pattern>
-                    <shadedPattern>
-                      org.apache.beam.runners.direct.repackaged.portability
+                      org.apache.beam.runners.direct.repackaged.model
                     </shadedPattern>
                   </relocation>
                   <relocation>
