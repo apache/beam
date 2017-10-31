@@ -60,7 +60,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   private String[] fillAddresses(){
     ArrayList<String> result = new ArrayList<>();
     for (InetSocketAddress address : cluster().httpAddresses()){
-      result.add(String.format("http://%s:%d", address.getHostString(), address.getPort()));
+      result.add(String.format("http://%s:%s", address.getHostString(), address.getPort()));
     }
     return result.toArray(new String[result.size()]);
   }
