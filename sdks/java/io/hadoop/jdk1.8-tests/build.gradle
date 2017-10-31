@@ -27,8 +27,8 @@ dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format")
   compile library.java.slf4j_api
   compile group: "org.elasticsearch", name: "elasticsearch-hadoop", version:"5.0.0"
-  compileOnly library.java.hadoop_common
-  compileOnly library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
   runtime library.java.commons_io_2x
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
@@ -46,8 +46,6 @@ dependencies {
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
   testCompile library.java.mockito_all
-  testCompileOnly library.java.hadoop_common
-  testCompileOnly library.java.hadoop_mapreduce_client_core
 }
 
 task packageTests(type: Jar) {

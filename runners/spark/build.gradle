@@ -30,18 +30,18 @@ dependencies {
   compile library.java.joda_time
   compile library.java.commons_text
   compile "io.dropwizard.metrics:metrics-core:3.1.2"
-  compileOnly library.java.spark_core
-  compileOnly library.java.spark_streaming
-  compileOnly library.java.spark_network_common
-  compileOnly library.java.hadoop_common
-  compileOnly library.java.hadoop_mapreduce_client_core
-  compileOnly library.java.commons_compress
-  compileOnly library.java.commons_lang3
-  compileOnly library.java.commons_io_2x
-  compileOnly library.java.hamcrest_all
-  compileOnly "org.apache.zookeeper:zookeeper:3.4.6"
-  compileOnly "org.scala-lang:scala-library:2.10.5"
-  compileOnly "com.esotericsoftware.kryo:kryo:2.21"
+  provided library.java.spark_core
+  provided library.java.spark_streaming
+  provided library.java.spark_network_common
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.commons_compress
+  provided library.java.commons_lang3
+  provided library.java.commons_io_2x
+  provided library.java.hamcrest_all
+  provided "org.apache.zookeeper:zookeeper:3.4.6"
+  provided "org.scala-lang:scala-library:2.10.5"
+  provided "com.esotericsoftware.kryo:kryo:2.21"
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
   testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
@@ -52,18 +52,6 @@ dependencies {
   testCompile library.java.mockito_all
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.kafka:kafka_2.10:0.9.0.1"
-  testCompileOnly library.java.spark_core
-  testCompileOnly library.java.spark_streaming
-  testCompileOnly library.java.spark_network_common
-  testCompileOnly library.java.hadoop_common
-  testCompileOnly library.java.hadoop_mapreduce_client_core
-  testCompileOnly library.java.commons_compress
-  testCompileOnly library.java.commons_lang3
-  testCompileOnly library.java.commons_io_2x
-  testCompileOnly library.java.hamcrest_all
-  testCompileOnly "org.apache.zookeeper:zookeeper:3.4.6"
-  testCompileOnly "org.scala-lang:scala-library:2.10.5"
-  testCompileOnly "com.esotericsoftware.kryo:kryo:2.21"
 }
 
 task packageTests(type: Jar) {
