@@ -159,6 +159,11 @@ buildscript {
 }
 
 subprojects {
+  // Add a task 'allDeps' which lists all dependencies of the project
+  // and all subprojects.
+  task allDeps(type: DependencyReportTask) {
+  }
+
   apply plugin: "java"
   sourceCompatibility = 1.7
   targetCompatibility = 1.7
@@ -227,6 +232,8 @@ subprojects {
   apply plugin: 'propdeps-maven'
 
   configurations.all {
+    exclude group: "com.google.guava", module: "guava-jdk5"
+    exclude group: "jdk.tools", module: "jdk.tools"
   }
 }
 
