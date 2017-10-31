@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.fnexecution;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import io.grpc.Server;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +56,12 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
 
   private GrpcFnServer(Server server, ServiceT service, ApiServiceDescriptor apiServiceDescriptor)
       throws IOException {
+    checkArgument(
+        server.getImmutableServices().contains(service),
+        "Server %s is not hosting Service %s. Hosted Services: %s",
+        server,
+        service,
+        server.getImmutableServices());
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
