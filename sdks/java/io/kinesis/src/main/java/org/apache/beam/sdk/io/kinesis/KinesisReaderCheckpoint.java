@@ -17,18 +17,15 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Iterables.transform;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.common.collect.Lists.partition;
 
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
-import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.io.UnboundedSource;
 
@@ -45,21 +42,6 @@ class KinesisReaderCheckpoint implements Iterable<ShardCheckpoint>, UnboundedSou
 
   public KinesisReaderCheckpoint(Iterable<ShardCheckpoint> shardCheckpoints) {
     this.shardCheckpoints = ImmutableList.copyOf(shardCheckpoints);
-  }
-
-  public static KinesisReaderCheckpoint asCurrentStateOf(Iterable<ShardRecordsIterator>
-      iterators) {
-    return new KinesisReaderCheckpoint(transform(iterators,
-        new Function<ShardRecordsIterator, ShardCheckpoint>() {
-
-          @Nullable
-          @Override
-          public ShardCheckpoint apply(@Nullable
-              ShardRecordsIterator shardRecordsIterator) {
-            assert shardRecordsIterator != null;
-            return shardRecordsIterator.getCheckpoint();
-          }
-        }));
   }
 
   /**
