@@ -228,9 +228,11 @@ subprojects {
     }
   }
 
+  // Add the optional and provided scopes for dependencies
   apply plugin: 'propdeps'
   apply plugin: 'propdeps-maven'
 
+  // Ban these dependencies from all configurations
   configurations.all {
     exclude group: "com.google.guava", module: "guava-jdk5"
     exclude group: "jdk.tools", module: "jdk.tools"
