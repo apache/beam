@@ -114,7 +114,6 @@ public class MutationDetectors {
       this.possiblyModifiedObject = value;
       this.encodedOriginalObject = CoderUtils.encodeToByteArray(coder, value);
       this.clonedOriginalObject = CoderUtils.decodeFromByteArray(coder, encodedOriginalObject);
-
     }
 
     @Override
@@ -141,13 +140,13 @@ public class MutationDetectors {
 
     private void illegalMutation(T previousValue, T newValue) throws CoderException {
       throw new IllegalMutationException(
-                String.format("Value %s mutated illegally, new value was %s."
-                                + " Encoding was %s, now %s.",
-                        previousValue, newValue,
-                        CoderUtils.encodeToBase64(coder, previousValue),
-                        CoderUtils.encodeToBase64(coder, newValue)),
-                previousValue, newValue);
-      }
+          String.format("Value %s mutated illegally, new value was %s."
+              + " Encoding was %s, now %s.",
+              previousValue, newValue,
+              CoderUtils.encodeToBase64(coder, previousValue),
+              CoderUtils.encodeToBase64(coder, newValue)),
+          previousValue, newValue);
+    }
 
     @Override
     public void close() {
