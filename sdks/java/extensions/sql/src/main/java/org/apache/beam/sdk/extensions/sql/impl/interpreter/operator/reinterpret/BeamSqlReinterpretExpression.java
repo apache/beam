@@ -16,40 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator;
+package org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret;
 
-import java.util.Date;
-import java.util.GregorianCalendar;
 import java.util.List;
+
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlExpression;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 /**
- * {@code BeamSqlExpression} for REINTERPRET.
+ * {@code BeamSqlExpression} for Reinterpret call.
  *
- * <p>Currently only converting from {@link SqlTypeName#DATETIME_TYPES}
- * to {@code BIGINT} is supported.
+ * <p>Currently supported conversions:
+ *  - {@link SqlTypeName#DATETIME_TYPES} to {@code BIGINT};
+ *  - {@link SqlTypeName#INTEGER} to {@code BIGINT};
  */
 public class BeamSqlReinterpretExpression extends BeamSqlExpression {
+
+  private static final Reinterpreter REINTERPRETER = Reinterpreter.builder()
+      .withConversion(DatetimeReinterpretConversions.TIME_TO_BIGINT)
+      .withConversion(DatetimeReinterpretConversions.DATE_TYPES_TO_BIGINT)
+      .withConversion(IntegerReinterpretConversions.INTEGER_TYPES_TO_BIGINT)
+      .build();
+
   public BeamSqlReinterpretExpression(List<BeamSqlExpression> operands, SqlTypeName outputType) {
     super(operands, outputType);
   }
 
   @Override public boolean accept() {
     return getOperands().size() == 1
-        && outputType == SqlTypeName.BIGINT
-        && SqlTypeName.DATETIME_TYPES.contains(opType(0));
+        && REINTERPRETER.canConvert(opType(0), SqlTypeName.BIGINT);
   }
 
   @Override public BeamSqlPrimitive evaluate(BeamRecord inputRow, BoundedWindow window) {
-    if (opType(0) == SqlTypeName.TIME) {
-      GregorianCalendar date = opValueEvaluated(0, inputRow, window);
-      return BeamSqlPrimitive.of(outputType, date.getTimeInMillis());
-
-    } else {
-      Date date = opValueEvaluated(0, inputRow, window);
-      return BeamSqlPrimitive.of(outputType, date.getTime());
-    }
+    return REINTERPRETER.convert(
+            SqlTypeName.BIGINT,
+            operands.get(0).evaluate(inputRow, window));
   }
 }
