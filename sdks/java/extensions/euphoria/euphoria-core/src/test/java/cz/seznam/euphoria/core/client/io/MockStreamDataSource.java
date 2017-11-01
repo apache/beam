@@ -30,7 +30,7 @@ public class MockStreamDataSource<T> implements DataSource<T> {
   private final List<Partition<T>> partitions;
 
   public MockStreamDataSource() {
-    final int p = Runtime.getRuntime().availableProcessors();
+    final int p = 4;
     final List<Partition<T>> partitions = new ArrayList<>(p);
     for (int i = 0; i < p; i++) {
       partitions.add(new Partition<T>() {
