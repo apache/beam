@@ -23,7 +23,6 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -31,7 +30,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test for the {@link Distinct} operator.
@@ -47,17 +45,8 @@ public class DistinctTest extends AbstractOperatorTest {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(1, partitions.size());
-        List<Integer> first = partitions.get(0);
-        Assert.assertEquals(
-            Util.sorted(Arrays.asList(1, 2, 3)),
-            Util.sorted(first));
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(1, 2, 3);
       }
 
       @Override
@@ -66,8 +55,8 @@ public class DistinctTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Integer> getInput() {
-        return Partitions.add(1, 2, 3, 3, 2, 1).build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(1, 2, 3, 3, 2, 1);
       }
     });
   }
@@ -81,15 +70,8 @@ public class DistinctTest extends AbstractOperatorTest {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(1, partitions.size());
-        List<Integer> first = partitions.get(0);
-        assertUnorderedEquals(Arrays.asList(1, 2, 3, 2, 1), first);
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(1, 2, 3, 2, 1);
       }
 
       @Override
@@ -102,10 +84,10 @@ public class DistinctTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Pair<Integer, Long>> getInput() {
-        return Partitions.add(Pair.of(1, 100L), Pair.of(2, 300L), // first window
+      protected List<Pair<Integer, Long>> getInput() {
+        return Arrays.asList(Pair.of(1, 100L), Pair.of(2, 300L), // first window
                 Pair.of(3, 1200L), Pair.of(3, 1500L), // second window
-                Pair.of(2, 2200L), Pair.of(1, 2700L)).build();
+                Pair.of(2, 2200L), Pair.of(1, 2700L));
       }
     });
   }
@@ -119,19 +101,8 @@ public class DistinctTest extends AbstractOperatorTest {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
-
-      @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(2, partitions.size());
-        List<Integer> first = partitions.get(0);
-        assertUnorderedEquals("Array should be equals to [2], got " + first,
-            Arrays.asList(2), first);
-        List<Integer> second = partitions.get(1);
-        assertUnorderedEquals("Array should be equals to [1, 3], got " + second,
-            Arrays.asList(1, 3), second);
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(2, 1, 3);
       }
 
       @Override
@@ -139,18 +110,15 @@ public class DistinctTest extends AbstractOperatorTest {
         input = AssignEventTime.of(input).using(Pair::getSecond).output();
         return Distinct.of(input)
             .mapped(Pair::getFirst)
-            .setNumPartitions(2)
-            .setPartitioner(e -> e)
             .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
       @Override
-      protected Partitions<Pair<Integer, Long>> getInput() {
-        return Partitions
-            .add(asTimedList(100, 1, 2, 3, 3, 2, 1))
-            .add(asTimedList(100, 1, 2, 3, 3, 2, 1))
-            .build();
+      protected List<Pair<Integer, Long>> getInput() {
+        List<Pair<Integer, Long>> first = asTimedList(100, 1, 2, 3, 3, 2, 1);
+        first.addAll(asTimedList(100, 1, 2, 3, 3, 2, 1));
+        return first;
       }
     });
   }

@@ -22,10 +22,10 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -48,29 +48,17 @@ public class MapElementsTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Integer> getInput() {
-        return Partitions
-            .add(1, 2, 3)
-            .add(4, 5, 6, 7)
-            .build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(
+            1, 2, 3,
+            4, 5, 6, 7);
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
-
-      @SuppressWarnings("unchecked")
-      @Override
-      public void validate(Partitions<String> partitions) {
-        assertEquals(2, partitions.size());
-        // the ordering of partitions is undefined here, because
-        // the mapping from input to output partition numbers might
-        // be random
-        assertEquals(Sets.newHashSet(
-            Arrays.asList("1", "2", "3"),
-            Arrays.asList("4", "5", "6", "7")),
-            Sets.newHashSet(partitions.getAll()));
+      public List<String> getUnorderedOutput() {
+        return Arrays.asList(
+            "1", "2", "3",
+            "4", "5", "6", "7");
       }
     });
   }
@@ -90,21 +78,13 @@ public class MapElementsTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Integer> getInput() {
-        return Partitions.add(1, 2, 3, 1, 2, 2, 10, 20, 10).build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(1, 2, 3, 1, 2, 2, 10, 20, 10);
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @SuppressWarnings("unchecked")
-      @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(
-            Arrays.asList(1, 2, 3, 1, 2, 2, 10, 20, 10),
-            partitions.get(0));
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(1, 2, 3, 1, 2, 2, 10, 20, 10);
       }
 
       @Override

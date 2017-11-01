@@ -41,13 +41,13 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -94,45 +94,34 @@ public class WindowingTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Triple<Instant, Type, String>> getInput() {
-        return Partitions.add(
-                // first window
-                Triple.of(Instant.parse("2016-12-19T10:10:00.000Z"), Type.FRUIT, "banana"),
-                Triple.of(Instant.parse("2016-12-19T10:20:00.000Z"), Type.FRUIT, "banana"),
-                Triple.of(Instant.parse("2016-12-19T10:25:00.000Z"), Type.FRUIT, "orange"),
-                Triple.of(Instant.parse("2016-12-19T10:35:00.000Z"), Type.FRUIT, "apple"),
+      protected List<Triple<Instant, Type, String>> getInput() {
+        return Arrays.asList(
+            // first window
+            Triple.of(Instant.parse("2016-12-19T10:10:00.000Z"), Type.FRUIT, "banana"),
+            Triple.of(Instant.parse("2016-12-19T10:20:00.000Z"), Type.FRUIT, "banana"),
+            Triple.of(Instant.parse("2016-12-19T10:25:00.000Z"), Type.FRUIT, "orange"),
+            Triple.of(Instant.parse("2016-12-19T10:35:00.000Z"), Type.FRUIT, "apple"),
 
-                Triple.of(Instant.parse("2016-12-19T10:40:00.000Z"), Type.VEGETABLE, "carrot"),
-                Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
-                Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
-                Triple.of(Instant.parse("2016-12-19T10:50:00.000Z"), Type.VEGETABLE, "apple"),
+            Triple.of(Instant.parse("2016-12-19T10:40:00.000Z"), Type.VEGETABLE, "carrot"),
+            Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
+            Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
+            Triple.of(Instant.parse("2016-12-19T10:50:00.000Z"), Type.VEGETABLE, "apple"),
 
-                // second window
-                Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "banana"),
-                Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "orange"),
+            // second window
+            Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "banana"),
+            Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "orange"),
 
-                Triple.of(Instant.parse("2016-12-19T11:20:00.000Z"), Type.VEGETABLE, "carrot"),
-                Triple.of(Instant.parse("2016-12-19T11:25:00.000Z"), Type.VEGETABLE, "carrot"))
-                .build();
+            Triple.of(Instant.parse("2016-12-19T11:20:00.000Z"), Type.VEGETABLE, "carrot"),
+            Triple.of(Instant.parse("2016-12-19T11:25:00.000Z"), Type.VEGETABLE, "carrot"));
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @SuppressWarnings("unchecked")
-      @Override
-      public void validate(Partitions partitions) {
-        assertEquals(1, partitions.size());
-
-        assertEquals(Sets.newHashSet(
+      public List<Triple<Instant, Type, Long>> getUnorderedOutput() {
+        return Arrays.asList(
             Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
             Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
             Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
-            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L)),
-            Sets.newHashSet(partitions.get(0)));
-      }
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L));      }
     });
   }
 
@@ -174,44 +163,35 @@ public class WindowingTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Triple<Instant, Type, String>> getInput() {
-        return Partitions.add(
-                // first window
-                Triple.of(Instant.parse("2016-12-19T10:10:00.000Z"), Type.FRUIT, "banana"),
-                Triple.of(Instant.parse("2016-12-19T10:20:00.000Z"), Type.FRUIT, "banana"),
-                Triple.of(Instant.parse("2016-12-19T10:25:00.000Z"), Type.FRUIT, "orange"),
-                Triple.of(Instant.parse("2016-12-19T10:35:00.000Z"), Type.FRUIT, "apple"),
+      protected List<Triple<Instant, Type, String>> getInput() {
+        return Arrays.asList(
+            // first window
+            Triple.of(Instant.parse("2016-12-19T10:10:00.000Z"), Type.FRUIT, "banana"),
+            Triple.of(Instant.parse("2016-12-19T10:20:00.000Z"), Type.FRUIT, "banana"),
+            Triple.of(Instant.parse("2016-12-19T10:25:00.000Z"), Type.FRUIT, "orange"),
+            Triple.of(Instant.parse("2016-12-19T10:35:00.000Z"), Type.FRUIT, "apple"),
 
-                Triple.of(Instant.parse("2016-12-19T10:40:00.000Z"), Type.VEGETABLE, "carrot"),
-                Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
-                Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
-                Triple.of(Instant.parse("2016-12-19T10:50:00.000Z"), Type.VEGETABLE, "apple"),
+            Triple.of(Instant.parse("2016-12-19T10:40:00.000Z"), Type.VEGETABLE, "carrot"),
+            Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
+            Triple.of(Instant.parse("2016-12-19T10:45:00.000Z"), Type.VEGETABLE, "cucumber"),
+            Triple.of(Instant.parse("2016-12-19T10:50:00.000Z"), Type.VEGETABLE, "apple"),
 
-                // second window
-                Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "banana"),
-                Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "orange"),
+            // second window
+            Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "banana"),
+            Triple.of(Instant.parse("2016-12-19T11:15:00.000Z"), Type.FRUIT, "orange"),
 
-                Triple.of(Instant.parse("2016-12-19T11:20:00.000Z"), Type.VEGETABLE, "carrot"),
-                Triple.of(Instant.parse("2016-12-19T11:25:00.000Z"), Type.VEGETABLE, "carrot"))
-                .build();
-      }
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
+            Triple.of(Instant.parse("2016-12-19T11:20:00.000Z"), Type.VEGETABLE, "carrot"),
+            Triple.of(Instant.parse("2016-12-19T11:25:00.000Z"), Type.VEGETABLE, "carrot"));
       }
 
       @SuppressWarnings("unchecked")
       @Override
-      public void validate(Partitions partitions) {
-        assertEquals(1, partitions.size());
-
-        assertEquals(Sets.newHashSet(
+      public List<Triple<Instant, Type, Long>> getUnorderedOutput() {
+        return Arrays.asList(
             Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
             Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
             Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
-            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L)),
-            Sets.newHashSet(partitions.get(0)));
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L));
       }
     });
   }
@@ -414,29 +394,19 @@ public class WindowingTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Pair<Instant, String>> getInput() {
-        return Partitions.add(
-                Pair.of(Instant.parse("2016-12-19T10:10:00.000Z"), "foo"),
-                Pair.of(Instant.parse("2016-12-19T10:11:00.000Z"), "foo"),
-                Pair.of(Instant.parse("2016-12-19T10:12:00.000Z"), "foo"))
-                .build();
+      protected List<Pair<Instant, String>> getInput() {
+        return Arrays.asList(
+            Pair.of(Instant.parse("2016-12-19T10:10:00.000Z"), "foo"),
+            Pair.of(Instant.parse("2016-12-19T10:11:00.000Z"), "foo"),
+            Pair.of(Instant.parse("2016-12-19T10:12:00.000Z"), "foo"));
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @SuppressWarnings("unchecked")
-      @Override
-      public void validate(Partitions partitions) {
-        assertEquals(1, partitions.size());
-        assertEquals(
-                Lists.newArrayList(Triple.of(
-                        Instant.parse("2016-12-19T10:10:00.000Z"),
-                        Instant.parse("2016-12-19T10:17:00.000Z"),
-                        3)),
-                partitions.get(0));
+      public List<Triple<Instant, Instant, Integer>> getUnorderedOutput() {
+        return Arrays.asList(Triple.of(
+                Instant.parse("2016-12-19T10:10:00.000Z"),
+                Instant.parse("2016-12-19T10:17:00.000Z"),
+                3));
       }
     });
     assertEquals(true, ON_CLEAR_VALIDATED.get());
