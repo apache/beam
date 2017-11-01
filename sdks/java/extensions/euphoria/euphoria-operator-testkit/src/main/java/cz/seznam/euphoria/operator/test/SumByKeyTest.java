@@ -24,8 +24,9 @@ import cz.seznam.euphoria.operator.test.junit.Processing;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code SumByKey}.
@@ -41,31 +42,21 @@ public class SumByKeyTest extends AbstractOperatorTest {
         return SumByKey.of(input)
             .keyBy(e -> e % 2)
             .valueBy(e -> (long) e)
-            .setPartitioner(e -> e % 2)
             .windowBy(Time.of(Duration.ofSeconds(1)))
             .output();
       }
 
       @Override
-      protected Partitions<Integer> getInput() {
-        return Partitions
-            .add(1, 2, 3, 4, 5)
-            .add(6, 7, 8, 9)
-            .build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(
+            1, 2, 3, 4, 5,
+            6, 7, 8, 9);
       }
 
-      @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
 
       @Override
-      public void validate(Partitions<Pair<Integer, Long>> partitions) {
-        assertEquals(2, partitions.size());
-        assertEquals(1, partitions.get(0).size());
-        assertEquals(Pair.of(0, 20L), partitions.get(0).get(0));
-        assertEquals(1, partitions.get(1).size());
-        assertEquals(Pair.of(1, 25L), partitions.get(1).get(0));
+      public List<Pair<Integer, Long>> getUnorderedOutput() {
+        return Arrays.asList(Pair.of(0, 20L), Pair.of(1, 25L));
       }
     });
   }

@@ -28,14 +28,12 @@ import cz.seznam.euphoria.operator.test.junit.Processing.Type;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 
 import java.io.Serializable;
-import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -46,18 +44,13 @@ public abstract class AbstractOperatorTest implements Serializable {
    * is annotated with {@code @RunWith(ExecutorProviderRunner.class)}.
    */
   protected transient Executor executor;
-  
+
   protected transient Processing.Type processing;
-  
+
   /**
    * A single test case.
    */
   protected interface TestCase<T> extends Serializable {
-
-    /**
-     * @return the number of output partitions to expect in the test output
-     */
-    int getNumOutputPartitions();
 
     /**
      * Retrieve flow to be run. Write outputs to given sink.
@@ -70,12 +63,11 @@ public abstract class AbstractOperatorTest implements Serializable {
     Dataset<T> getOutput(Flow flow, boolean bounded);
 
     /**
-     * Validate outputs.
+     * Retrieve expected outputs.
      *
-     * @param partitions the partitions to be validated representing the output
-     *         of the test logic
+     * These outputs will be compared irrespective of order.
      */
-    void validate(Partitions<T> partitions);
+    List<T> getUnorderedOutput();
 
     /**
      * Validate accumulators given a provider capturing the accumulated values.
@@ -126,79 +118,22 @@ public abstract class AbstractOperatorTest implements Serializable {
 
     @Override
     public final Dataset<O> getOutput(Flow flow, boolean bounded) {
-      Partitions<I> inputData = getInput();
-      DataSource<I> dataSource = inputData.asListDataSource(bounded);
+      List<I> inputData = getInput();
+      DataSource<I> dataSource = asListDataSource(inputData, bounded);
       Dataset<I> inputDataset = flow.createInput(dataSource);
       Dataset<O> output = getOutput(inputDataset);
       return output;
     }
-    
+
     protected abstract Dataset<O> getOutput(Dataset<I> input);
 
-    protected abstract Partitions<I> getInput();
-  }
-  
-  public static class Partitions<T> {
-    
-    private final ArrayList<List<T>> data;
-    private final Duration readDelay;
-    private final Duration finalDelay;
-    
-    private Partitions(ArrayList<List<T>> data) {
-      this(data, Duration.ofMillis(0), Duration.ofMillis(0));
-    }
-    
-    private Partitions(ArrayList<List<T>> data, Duration readDelay, Duration finalDelay) {
-      this.data = Objects.requireNonNull(data);
-      this.readDelay = Objects.requireNonNull(readDelay);
-      this.finalDelay = Objects.requireNonNull(finalDelay);
-    }
+    protected abstract List<I> getInput();
 
-    public ListDataSource<T> asListDataSource(boolean bounded) {
-      return ListDataSource.of(bounded, data)
-          .withReadDelay(readDelay)
-          .withFinalDelay(finalDelay);
-    }
-
-    @SafeVarargs
-    public static <T> Builder<T> add(T ... data) {
-      return add(Arrays.asList(data));
-    }
-    
-    public static <T> Builder<T> add(List<T> data) {
-      Builder<T> builder = new Builder<>();
-      return builder.add(data);
-    }
-    
-    public int size() {
-      return data.size();
-    }
-    
-    public List<T> get(int partitionId) {
-      return data.get(partitionId);
-    }
-    
-    public List<List<T>> getAll() {
-      return data;
-    }
-
-    public static class Builder<T> {
-      private final ArrayList<List<T>> data = new ArrayList<>();
-      private Builder() {}
-      public Partitions.Builder<T> add(List<T> data) {
-        this.data.add(data);
-        return this;
-      }
-      @SafeVarargs
-      public final Partitions.Builder<T> add(T ... data) {
-        return add(Arrays.asList(data));
-      }
-      public Partitions<T> build() {
-        return new Partitions<>(data);
-      }
-      public Partitions<T> build(Duration readDelay, Duration finalDelay) {
-        return new Partitions<>(data, readDelay, finalDelay);
-      }
+    private DataSource<I> asListDataSource(List<I> inputData, boolean bounded) {
+      // take all input elements as a separate partition
+      List<List<I>> splits = inputData.stream()
+          .map(Arrays::asList).collect(Collectors.toList());
+      return ListDataSource.of(bounded, splits);
     }
   }
 
@@ -221,7 +156,7 @@ public abstract class AbstractOperatorTest implements Serializable {
       for (int i = 0; i < tc.getNumRuns(); i++) {
         accs.clear();
 
-        ListDataSink<?> sink = ListDataSink.get(tc.getNumOutputPartitions());
+        ListDataSink<?> sink = ListDataSink.get();
         Flow flow = Flow.create(tc.toString(), tc.getSettings());
         Dataset output = tc.getOutput(flow, proc == Type.BOUNDED);
         // skip if output is not supported for the processing type
@@ -231,8 +166,9 @@ public abstract class AbstractOperatorTest implements Serializable {
         } catch (InterruptedException | ExecutionException e) {
           throw new RuntimeException("Test failure at run #" + i, e);
         }
-        Partitions<?> partitions = new Partitions<>(sink.getOutputs());
-        tc.validate(partitions);
+        List outputs = (List) sink.getOutputs();
+        List expected = (List) tc.getUnorderedOutput();
+        assertUnorderedEquals(expected, outputs);
         tc.validateAccumulators(accs);
       }
     }
@@ -251,6 +187,7 @@ public abstract class AbstractOperatorTest implements Serializable {
 
   protected static <T> void assertUnorderedEquals(
       List<T> first, List<T> second) {
+
     assertUnorderedEquals(null, first, second);
   }
 
