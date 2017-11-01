@@ -56,13 +56,13 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   static final class ConsumerReader
       extends AbstractIterator<Pair<byte[], byte[]>>
       implements Reader<Pair<byte[], byte[]>> {
-    
+
     private final Consumer<byte[], byte[]> c;
     private final long stopReadingAtStamp;
-    
+
     private Iterator<ConsumerRecord<byte[], byte[]>> next;
     private int uncommittedCount = 0;
-        
+
     ConsumerReader(Consumer<byte[], byte[]> c, long stopReadingAtStamp) {
       this.c = c;
       this.stopReadingAtStamp = stopReadingAtStamp;
@@ -92,7 +92,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           endOfData();
           return null;
         }
-      }      
+      }
       ++uncommittedCount;
       return Pair.of(r.key(), r.value());
     }
@@ -263,7 +263,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     try (Consumer<?, ?> c = KafkaUtils.newConsumer(
         brokerList, "euphoria.partition-probe-" + UUID.randomUUID().toString(),
         config)) {
-      
+
       final Map<Integer, Long> offs;
       try {
         offs = offsetTimestamp > 0
