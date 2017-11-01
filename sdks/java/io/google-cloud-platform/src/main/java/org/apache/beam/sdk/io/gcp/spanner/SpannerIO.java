@@ -754,15 +754,15 @@ public class SpannerIO {
           .setCoder(SerializedMutationCoder.of());
 
       // Sample primary keys using ApproximateQuantiles.
-      PCollection<KV<String, List<byte[]>>> values = serialized
+      PCollectionView<Map<String, List<byte[]>>> keySample = serialized
           .apply("Extract keys", ParDo.of(new ExtractKeys()))
-          .apply("Sample keys", sampler);
-      PCollectionView<Map<String, List<byte[]>>> sample = values
+          .apply("Sample keys", sampler)
           .apply("Keys sample as view", View.<String, List<byte[]>>asMap());
 
       // Assign partition based on the closest element in the sample and group mutations.
+      AssignPartitionFn assignPartitionFn = new AssignPartitionFn(keySample);
       serialized
-          .apply("Partition input", ParDo.of(new AssignPartitionFn(sample)).withSideInputs(sample))
+          .apply("Partition input", ParDo.of(assignPartitionFn).withSideInputs(keySample))
           .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializedMutationCoder.of()))
           .apply("Group by partition", GroupByKey.<String, SerializedMutation>create())
           .apply("Batch mutations together",
@@ -810,13 +810,15 @@ public class SpannerIO {
       String table = m.getTable();
       MutationGroupEncoder mutationGroupEncoder = new MutationGroupEncoder(schema);
 
-      // The key is left empty for non-point deletes, since there is no general way to batch them.
-      byte[] key = new byte[] {};
+      byte[] key;
       if (m.getOperation() != Mutation.Op.DELETE) {
         key = mutationGroupEncoder.encodeKey(m);
       } else if (isPointDelete(m)) {
         Key next = m.getKeySet().getKeys().iterator().next();
         key = mutationGroupEncoder.encodeKey(m.getTable(), next);
+      } else {
+        // The key is left empty for non-point deletes, since there is no general way to batch them.
+        key = new byte[] {};
       }
       byte[] value = mutationGroupEncoder.encode(g);
       c.output(SerializedMutation.create(table, key, value));
@@ -836,7 +838,7 @@ public class SpannerIO {
 
 
   private static boolean isPointDelete(Mutation m) {
-    return Iterables.isEmpty(m.getKeySet().getRanges())
+    return m.getOperation() == Mutation.Op.DELETE && Iterables.isEmpty(m.getKeySet().getRanges())
         && Iterables.size(m.getKeySet().getKeys()) == 1;
   }
 
@@ -890,8 +892,9 @@ public class SpannerIO {
 
     private transient SpannerAccessor spannerAccessor;
     // Current batch of mutations to be written.
-    private List<Mutation> mutations;
-    private long batchSizeBytes;
+    private transient List<Mutation> mutations;
+    // total size of the current batch.
+    private transient long batchSizeBytes;
 
     private BatchFn(long maxBatchSizeBytes, SpannerConfig spannerConfig,
         PCollectionView<SpannerSchema> schemaView) {
