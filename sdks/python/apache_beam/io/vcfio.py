@@ -128,6 +128,9 @@ class Variant(object):
     if not isinstance(other, Variant):
       return NotImplemented
 
+    # Elements should first be sorted by reference_name, start, end.
+    # Ordering of other members is not important, but must be
+    # deterministic.
     if self.reference_name != other.reference_name:
       return self.reference_name < other.reference_name
     elif self.start != other.start:
@@ -150,9 +153,6 @@ class Variant(object):
     return self < other or self == other
 
   def __ne__(self, other):
-    if not isinstance(other, Variant):
-      return NotImplemented
-
     return not self == other
 
   def __gt__(self, other):
@@ -200,10 +200,8 @@ class VariantCall(object):
     self.info = info or {}
 
   def __eq__(self, other):
-    return (self.name == other.name and
-            self.genotype == other.genotype and
-            self.phaseset == other.phaseset and
-            self.info == other.info)
+    return ((self.name, self.genotype, self.phaseset, self.info) ==
+            (other.name, other.genotype, other.phaseset, other.info))
 
   def __repr__(self):
     return ', '.join(
@@ -231,19 +229,16 @@ class _VcfSource(filebasedsource.FileBasedSource):
                                      validate=validate)
 
     self._header_lines_per_file = {}
-    self._file_pattern = file_pattern
     self._compression_type = compression_type
     self._buffer_size = buffer_size
-    self._validate = validate
 
   def read_records(self, file_name, range_tracker):
     record_iterator = _VcfSource._VcfRecordIterator(
         file_name,
         range_tracker,
-        self._file_pattern,
+        self._pattern,
         self._compression_type,
         buffer_size=self._buffer_size,
-        validate=self._validate,
         skip_header_lines=0)
 
     # Convert iterator to generator to abstract behavior
@@ -269,6 +264,7 @@ class _VcfSource(filebasedsource.FileBasedSource):
           compression_type,
           True,  # strip_trailing_newlines
           coders.StrUtf8Coder(),  # coder
+          validate=False,
           header_processor_fns=(lambda x: x.startswith('#'),
                                 self._store_header_lines),
           **kwargs)

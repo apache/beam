@@ -31,9 +31,9 @@ from apache_beam.io.vcfio import Variant
 from apache_beam.io.vcfio import VariantCall
 from apache_beam.io.vcfio import VariantInfo
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import BeamAssertException
 from apache_beam.testing.util import assert_that
-from source_test_utils import TestCaseWithTempDirCleanUp
 
 # Note: mixing \n and \r\n to verify both behaviors.
 _SAMPLE_HEADER_LINES = [
@@ -87,24 +87,26 @@ def _count_equals_to(expected_count):
   return _count_equal
 
 
-class VcfSourceTest(TestCaseWithTempDirCleanUp):
+class VcfSourceTest(unittest.TestCase):
 
   # Distribution should skip tests that need VCF files due to large size
   VCF_FILE_DIR_MISSING = not os.path.exists(get_full_dir())
 
-  def _create_temp_vcf_file(self, lines, tmpdir=None):
-    return self._create_temp_file(suffix='.vcf', tmpdir=tmpdir, lines=lines)
+  def _create_temp_vcf_file(self, lines, tempdir):
+    return tempdir.create_temp_file(suffix='.vcf', lines=lines)
 
   def _read_records(self, file_or_pattern):
     return source_test_utils.read_from_source(VcfSource(file_or_pattern))
 
   def _create_temp_file_and_read_records(self, lines):
-    return self._read_records(self._create_temp_vcf_file(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file(suffix='.vcf', lines=lines)
+      return self._read_records(file_name)
 
   def _assert_variants_equal(self, actual, expected):
     self.assertEqual(
-        sorted(expected, cmp=_variant_comparator),
-        sorted(actual, cmp=_variant_comparator))
+        sorted(expected),
+        sorted(actual))
 
   def _get_sample_variant_1(self):
     """Get first sample variant.
@@ -112,7 +114,8 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     Features:
       multiple alternates
       not phased
-      multiple names"""
+      multiple names
+    """
     vcf_line = ('20	1234	rs123;rs2	C	A,T	50	PASS	AF=0.5,0.1;NS=1	'
                 'GT:GQ	0/0:48	1/0:20\n')
     variant = Variant(
@@ -128,14 +131,15 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     return variant, vcf_line
 
   def _get_sample_variant_2(self):
-    """Get second sample variant
+    """Get second sample variant.
 
-    Features
+    Features:
       multiple references
       no alternate
       phased
       multiple filters
-      missing format field"""
+      missing format field
+    """
     vcf_line = (
         '19	123	rs1234	GTC	.	40	q10;s50	NS=2	GT:GQ	1|0:48	0/1:.\n')
     variant = Variant(
@@ -152,11 +156,12 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     return variant, vcf_line
 
   def _get_sample_variant_3(self):
-    """Get third sample variant
+    """Get third sample variant.
 
-    Features
+    Features:
       symbolic alternate
-      no calls for sample 2"""
+      no calls for sample 2
+    """
     vcf_line = (
         '19	12	.	C	<SYMBOLIC>	49	q10	AF=0.5	GT:GQ	0|1:45 .:.\n')
     variant = Variant(
@@ -256,14 +261,14 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     variant_1, vcf_line_1 = self._get_sample_variant_1()
     variant_2, vcf_line_2 = self._get_sample_variant_2()
     variant_3, vcf_line_3 = self._get_sample_variant_3()
-    tmpdir = self._new_tempdir()
-    self._create_temp_vcf_file(_SAMPLE_HEADER_LINES + [vcf_line_1],
-                               tmpdir=tmpdir)
-    self._create_temp_vcf_file(_SAMPLE_HEADER_LINES + [vcf_line_2, vcf_line_3],
-                               tmpdir=tmpdir)
-    read_data = self._read_records(os.path.join(tmpdir, '*.vcf'))
-    self.assertEqual(3, len(read_data))
-    self._assert_variants_equal([variant_1, variant_2, variant_3], read_data)
+    with TempDir() as tempdir:
+      self._create_temp_vcf_file(_SAMPLE_HEADER_LINES + [vcf_line_1], tempdir)
+      self._create_temp_vcf_file((_SAMPLE_HEADER_LINES +
+                                  [vcf_line_2, vcf_line_3]),
+                                 tempdir)
+      read_data = self._read_records(os.path.join(tempdir.get_path(), '*.vcf'))
+      self.assertEqual(3, len(read_data))
+      self._assert_variants_equal([variant_1, variant_2, variant_3], read_data)
 
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_read_after_splitting(self):
@@ -320,19 +325,20 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     ]
     for content in invalid_file_contents:
       try:
-        self._read_records(self._create_temp_vcf_file(content))
-        self.fail('Invalid VCF file must throw an exception')
+        with TempDir() as tempdir:
+          self._read_records(self._create_temp_vcf_file(content, tempdir))
+          self.fail('Invalid VCF file must throw an exception')
       except ValueError:
         pass
     # Try with multiple files (any one of them will throw an exception).
-    tmpdir = self._new_tempdir()
-    for content in invalid_file_contents:
-      self._create_temp_vcf_file(content, tmpdir=tmpdir)
-    try:
-      self._read_records(os.path.join(tmpdir, '*.vcf'))
-      self.fail('Invalid VCF file must throw an exception.')
-    except ValueError:
-      pass
+    with TempDir() as tempdir:
+      for content in invalid_file_contents:
+        self._create_temp_vcf_file(content, tempdir)
+      try:
+        self._read_records(os.path.join(tempdir.get_path(), '*.vcf'))
+        self.fail('Invalid VCF file must throw an exception.')
+      except ValueError:
+        pass
 
   def test_no_samples(self):
     header_line = '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n'
@@ -456,13 +462,13 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     self.assertEqual(expected_variant, read_data[0])
 
   def test_pipeline_read_single_file(self):
-    tmpdir = self._new_tempdir()
-    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
-                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromVcf(file_name)
-    assert_that(pcoll, _count_equals_to(len(_SAMPLE_TEXT_LINES)))
-    pipeline.run()
+    with TempDir() as tempdir:
+      file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                             _SAMPLE_TEXT_LINES, tempdir)
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromVcf(file_name)
+      assert_that(pcoll, _count_equals_to(len(_SAMPLE_TEXT_LINES)))
+      pipeline.run()
 
   @unittest.skipIf(VCF_FILE_DIR_MISSING, 'VCF test file directory is missing')
   def test_pipeline_read_single_file_large(self):
@@ -481,31 +487,31 @@ class VcfSourceTest(TestCaseWithTempDirCleanUp):
     pipeline.run()
 
   def test_read_reentrant_without_splitting(self):
-    tmpdir = self._new_tempdir()
-    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
-                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
-    source = VcfSource(file_name)
-    source_test_utils.assert_reentrant_reads_succeed((source, None, None))
+    with TempDir() as tempdir:
+      file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                             _SAMPLE_TEXT_LINES, tempdir)
+      source = VcfSource(file_name)
+      source_test_utils.assert_reentrant_reads_succeed((source, None, None))
 
   def test_read_reentrant_after_splitting(self):
-    tmpdir = self._new_tempdir()
-    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
-                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
-    source = VcfSource(file_name)
-    splits = [split for split in source.split(desired_bundle_size=100000)]
-    assert len(splits) == 1
-    source_test_utils.assert_reentrant_reads_succeed(
-        (splits[0].source, splits[0].start_position, splits[0].stop_position))
+    with TempDir() as tempdir:
+      file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                             _SAMPLE_TEXT_LINES, tempdir)
+      source = VcfSource(file_name)
+      splits = [split for split in source.split(desired_bundle_size=100000)]
+      assert len(splits) == 1
+      source_test_utils.assert_reentrant_reads_succeed(
+          (splits[0].source, splits[0].start_position, splits[0].stop_position))
 
   def test_dynamic_work_rebalancing(self):
-    tmpdir = self._new_tempdir()
-    file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
-                                           _SAMPLE_TEXT_LINES, tmpdir=tmpdir)
-    source = VcfSource(file_name)
-    splits = [split for split in source.split(desired_bundle_size=100000)]
-    assert len(splits) == 1
-    source_test_utils.assert_split_at_fraction_exhaustive(
-        splits[0].source, splits[0].start_position, splits[0].stop_position)
+    with TempDir() as tempdir:
+      file_name = self._create_temp_vcf_file(_SAMPLE_HEADER_LINES +
+                                             _SAMPLE_TEXT_LINES, tempdir)
+      source = VcfSource(file_name)
+      splits = [split for split in source.split(desired_bundle_size=100000)]
+      assert len(splits) == 1
+      source_test_utils.assert_split_at_fraction_exhaustive(
+          splits[0].source, splits[0].start_position, splits[0].stop_position)
 
 
 if __name__ == '__main__':

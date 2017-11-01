@@ -45,18 +45,14 @@ For example usages, see the unit tests of modules such as
 """
 
 import logging
-import os
-import shutil
-import tempfile
 import threading
-import unittest
 import weakref
 from collections import namedtuple
 from multiprocessing.pool import ThreadPool
 
 from apache_beam.io import iobase
 
-__all__ = ['TestCaseWithTempDirCleanUp', 'read_from_source',
+__all__ = ['read_from_source',
            'assert_sources_equal_reference_source',
            'assert_reentrant_reads_succeed',
            'assert_split_at_fraction_behavior',
@@ -70,40 +66,6 @@ class ExpectedSplitOutcome(object):
   MUST_SUCCEED_AND_BE_CONSISTENT = 1
   MUST_FAIL = 2
   MUST_BE_CONSISTENT_IF_SUCCEEDS = 3
-
-
-class TestCaseWithTempDirCleanUp(unittest.TestCase):
-  """Base class for TestCases that deals with TempDir clean-up.
-
-  Inherited test cases will call self._new_tempdir() to start a temporary dir
-  which will be deleted at the end of the tests (when tearDown() is called).
-  """
-
-  def setUp(self):
-    self._tempdirs = []
-
-  def tearDown(self):
-    for path in self._tempdirs:
-      if os.path.exists(path):
-        shutil.rmtree(path)
-    self._tempdirs = []
-
-  def _new_tempdir(self):
-    result = tempfile.mkdtemp()
-    self._tempdirs.append(result)
-    return result
-
-  def _create_temp_file(self, name='', suffix='', tmpdir=None, lines=None):
-    if not name:
-      name = tempfile.template
-    f = tempfile.NamedTemporaryFile(
-        delete=False, prefix=name,
-        dir=tmpdir or self._new_tempdir(), suffix=suffix)
-    if lines:
-      for line in lines:
-        f.write(line)
-
-    return f.name
 
 
 SplitAtFractionResult = namedtuple(
