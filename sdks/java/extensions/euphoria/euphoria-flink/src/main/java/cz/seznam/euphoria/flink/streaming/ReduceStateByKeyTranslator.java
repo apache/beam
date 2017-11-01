@@ -24,7 +24,6 @@ import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
-import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.flink.streaming.windowing.AttachedWindowing;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElementWindowOperator;
@@ -120,17 +119,6 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
                               context.getAccumulatorFactory(),
                               context.getSettings()))
               .setParallelism(operator.getParallelism());
-    }
-
-    // FIXME partitioner should be applied during "keyBy" to avoid
-    // unnecessary shuffle, but there is no (known) way how to set custom
-    // partitioner to "keyBy" transformation
-
-    // apply custom partitioner if different from default
-    if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
-      reduced = reduced.partitionCustom(
-              new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              p -> p.getElement().getFirst());
     }
 
     return reduced;
