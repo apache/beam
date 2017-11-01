@@ -108,8 +108,8 @@ public class MutationDetectors {
     public CodedValueMutationDetector(T value, Coder<T> coder) throws CoderException {
       this.coder = coder;
       // We need to clone the original value before getting it's structural value.
-      // If the object is consistent with equals, the Structural value will be the exact
-      // same object reference making it impossible to detect changes.
+      // If the object is consistent with equals, the Structural value will be the
+      // exact same object reference making it impossible to detect changes.
       clonedOriginalValue = CoderUtils.clone(coder, value);
       this.originalStructuralValue = coder.structuralValue(clonedOriginalValue);
       this.possiblyModifiedObject = value;
