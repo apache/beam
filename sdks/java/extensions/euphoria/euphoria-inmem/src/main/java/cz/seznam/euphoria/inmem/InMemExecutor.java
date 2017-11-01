@@ -17,7 +17,6 @@ package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -36,7 +35,6 @@ import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -315,7 +313,7 @@ public class InMemExecutor implements Executor {
     this.triggerSchedulerSupplier = Objects.requireNonNull(supplier);
     return this;
   }
-  
+
   /**
    * Enable shuffling of windowed data based on the windowID.
    *
@@ -339,12 +337,12 @@ public class InMemExecutor implements Executor {
     this.storageProvider = Objects.requireNonNull(provider);
     return this;
   }
-  
+
   @Override
   public CompletableFuture<Executor.Result> submit(Flow flow) {
     return CompletableFuture.supplyAsync(() -> execute(flow), executor);
   }
-  
+
   @Override
   public void shutdown() {
     LOG.info("Shutting down inmem executor.");
@@ -373,7 +371,7 @@ public class InMemExecutor implements Executor {
       ExecutionContext context = new ExecutionContext(flow.getSettings());
 
       execUnit(unit, context);
-    
+
       runningTasks.addAll(consumeOutputs(unit.getLeafs(), context));
     }
 
@@ -419,7 +417,7 @@ public class InMemExecutor implements Executor {
   private List<Future<?>> consumeOutputs(
       Collection<Node<Operator<?, ?>>> leafs,
       ExecutionContext context) {
-    
+
     List<Future<?>> tasks = new ArrayList<>();
     // consume outputs
     for (Node<Operator<?, ?>> output : leafs) {
@@ -504,8 +502,6 @@ public class InMemExecutor implements Executor {
       output = createStream(op.output().getSource());
     } else if (op instanceof FlatMap) {
       output = execMap((Node) node, context);
-    } else if (op instanceof Repartition) {
-      output = execRepartition((Node) node, context);
     } else if (op instanceof ReduceStateByKey) {
       output = execReduceStateByKey((Node) node, context);
     } else if (op instanceof Union) {
@@ -609,31 +605,6 @@ public class InMemExecutor implements Executor {
     return ret;
   }
 
-  @SuppressWarnings("unchecked")
-  private InputProvider execRepartition(
-      Node<Repartition> repartition,
-      ExecutionContext context) {
-
-    Partitioning partitioning = repartition.get().getPartitioning();
-    int numPartitions = partitioning.getNumPartitions();
-    InputProvider input = context.get(
-        repartition.getSingleParentOrNull().get(), repartition.get());
-    if (numPartitions <= 0) {
-      throw new IllegalArgumentException("Cannot repartition input to "
-          + numPartitions + " partitions");
-    }
-
-    List<BlockingQueue<Datum>> outputQueues = repartitionSuppliers(
-        input, e -> e, partitioning, Optional.empty());
-
-    InputProvider ret = new InputProvider();
-    outputQueues.stream()
-        .map(QueueSupplier::new)
-        .forEach(s -> ret.add((Supplier) s));
-    return ret;
-  }
-
-  @SuppressWarnings("unchecked")
   private InputProvider execReduceStateByKey(
       Node<ReduceStateByKey> reduceStateByKeyNode,
       ExecutionContext context) {
@@ -646,11 +617,10 @@ public class InMemExecutor implements Executor {
         reduceStateByKeyNode.getSingleParentOrNull().get(),
         reduceStateByKeyNode.get());
 
-    final Partitioning partitioning = reduceStateByKey.getPartitioning();
     final Windowing windowing = reduceStateByKey.getWindowing();
 
     List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
-        suppliers, keyExtractor, partitioning, Optional.ofNullable(windowing));
+        suppliers, keyExtractor, Optional.ofNullable(windowing));
 
     InputProvider outputSuppliers = new InputProvider();
     TriggerScheduler triggerScheduler = triggerSchedulerSupplier.get();
@@ -687,34 +657,31 @@ public class InMemExecutor implements Executor {
   private List<BlockingQueue<Datum>> repartitionSuppliers(
       InputProvider suppliers,
       final UnaryFunction keyExtractor,
-      final Partitioning partitioning,
       final Optional<Windowing> windowing) {
 
-    int numInputPartitions = suppliers.size();
+    int numPartitions = suppliers.size();
     final boolean isMergingWindowing = windowing.isPresent()
         && windowing.get() instanceof MergingWindowing;
 
-    final int outputPartitions = partitioning.getNumPartitions() > 0
-        ? partitioning.getNumPartitions() : numInputPartitions;
-    final List<BlockingQueue<Datum>> ret = new ArrayList<>(outputPartitions);
-    for (int i = 0; i < outputPartitions; i++) {
+    final List<BlockingQueue<Datum>> ret = new ArrayList<>(numPartitions);
+    for (int i = 0; i < numPartitions; i++) {
       ret.add(new ArrayBlockingQueue(5000));
     }
 
     // count running partition readers
-    CountDownLatch workers = new CountDownLatch(numInputPartitions);
+    CountDownLatch workers = new CountDownLatch(numPartitions);
     // vector clocks associated with each output partition
-    List<VectorClock> clocks = new ArrayList<>(outputPartitions);
-    for (int i = 0; i < outputPartitions; i++) {
+    List<VectorClock> clocks = new ArrayList<>(numPartitions);
+    for (int i = 0; i < numPartitions; i++) {
       // each vector clock has as many
-      clocks.add(new VectorClock(numInputPartitions));
+      clocks.add(new VectorClock(numPartitions));
     }
 
     // if we have timestamp assigner we need watermark emit strategy
     // associated with each input partition - this strategy then emits
     // watermarks to downstream partitions based on elements flowing
     // through the partition
-    WatermarkEmitStrategy[] emitStrategies = new WatermarkEmitStrategy[numInputPartitions];
+    WatermarkEmitStrategy[] emitStrategies = new WatermarkEmitStrategy[numPartitions];
     for (int i = 0; i < emitStrategies.length; i++) {
       emitStrategies[i] = watermarkEmitStrategySupplier.get();
     }
@@ -736,7 +703,7 @@ public class InMemExecutor implements Executor {
           for (;;) {
             // read input
             Datum datum = s.get();
-            
+
             if (datum.isEndOfStream()) {
               break;
             }
@@ -766,8 +733,8 @@ public class InMemExecutor implements Executor {
                 }
               }
               int partition
-                  = ((partitioning.getPartitioner().getPartition(key) + windowShift)
-                      & Integer.MAX_VALUE) % outputPartitions;
+                  = ((key.hashCode() + windowShift)
+                      & Integer.MAX_VALUE) % numPartitions;
               // write to the correct partition
               ret.get(partition).put(datum);
             }
@@ -857,7 +824,7 @@ public class InMemExecutor implements Executor {
 
     // do not hadle elements
     if (item.isElement()) return false;
-    
+
     // propagate window triggers to downstream consumers
     if (item.isWindowTrigger()) {
       try {
