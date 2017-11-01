@@ -58,16 +58,6 @@ Before sending the PR for review, please run:
 
     $ git checkout -- content
 
-### Running using Docker
-
-**Note:** This is an optional method if you don't want to install gems locally and just use a container for development. The helper script is written for UNIX systems but should be fairly easy to modify to get it working on Windows.
-
-Prerequisites: Make sure you have Docker installed on your machine.
-
-For building the site, use the command `./run_with_docker.sh server`. This will start the webserver inside a Docker container and port forward to your local machine at `localhost:4000`. We'll use the official Jekyll image to build the site.
-
-For running the website tests, use `./run_with_docker.sh test`.
-
 ## Additional Information
 
 ### Writing blog posts
