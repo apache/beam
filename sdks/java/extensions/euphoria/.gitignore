@@ -5,3 +5,4 @@ assembly/
 .project
 .classpath
 .settings
+**/pom.xml.versionsBackup
