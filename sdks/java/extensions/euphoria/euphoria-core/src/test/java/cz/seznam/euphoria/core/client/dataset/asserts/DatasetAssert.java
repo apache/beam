@@ -27,8 +27,8 @@ import static org.junit.Assert.assertEquals;
 public class DatasetAssert {
 
   @SafeVarargs
-  public static <T> void unorderedEquals(List<T> expected, T... values) {
-    unorderedEquals(Arrays.asList(values), expected);
+  public static <T> void unorderedEquals(List<T> tested, T... values) {
+    unorderedEquals(Arrays.asList(values), tested);
   }
 
   public static <T> void unorderedEquals(List<T> left, List<T> right) {
@@ -37,7 +37,6 @@ public class DatasetAssert {
     Map<T, Integer> rightCounted = right.stream()
         .collect(Collectors.toMap(e -> e, e -> 1, (a, b) -> a + b));
     assertEquals(leftCounted, rightCounted);
-
   }
 
 }

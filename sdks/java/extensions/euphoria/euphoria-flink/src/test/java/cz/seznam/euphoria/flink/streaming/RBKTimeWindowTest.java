@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -29,26 +30,20 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.shaded.guava.com.google.common.base.Joiner;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
 
 public class RBKTimeWindowTest {
   @Test
   public void testEventWindowing() throws Exception {
-    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(1);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -73,7 +68,6 @@ public class RBKTimeWindowTest {
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofMillis(5)))
-        .setNumPartitions(1)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -83,19 +77,17 @@ public class RBKTimeWindowTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        asList("0:one-2", "0:two-1", "5:three-1", "5:two-3"),
-        output.getOutput(0)
-            .stream()
-            .map(p -> p.getFirst().getStartMillis() + ":" + p.getSecond() + "-" + p.getThird())
-            .sorted()
-            .collect(Collectors.toList()));
-
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(0, 5), "one", 2L),
+        Triple.of(new TimeInterval(0, 5), "two", 1L),
+        Triple.of(new TimeInterval(5, 10), "three", 1L),
+        Triple.of(new TimeInterval(5, 10), "two", 3L));
   }
 
   @Test
   public void testEventWindowingEarlyTriggered() throws Exception {
-    ListDataSink<Triple<TimeInterval, String, HashSet<String>>> output = ListDataSink.get(1);
+    ListDataSink<Triple<TimeInterval, String, HashSet<String>>> output = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -129,7 +121,6 @@ public class RBKTimeWindowTest {
         })
         .windowBy(Time.of(Duration.ofMillis(6))
             .earlyTriggering(Duration.ofMillis(2)))
-        .setNumPartitions(1)
         .output();
 
     Dataset<Triple<TimeInterval, String, HashSet<String>>> extracted;
@@ -141,33 +132,19 @@ public class RBKTimeWindowTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        asList(
-            "00: 02 => one, two",
-            "00: 04 => four, one, three, two",
-            "00: 05 => five, four, one, three, two",
-            "06: 03 => eight, seven, six",
-            "06: 05 => eight, nine, seven, six, ten",
-            "06: 06 => eight, eleven, nine, seven, six, ten"),
-        output.getOutput(0)
-            .stream()
-            .map(p -> {
-              StringBuilder sb = new StringBuilder();
-              sb.append(String.format("%02d: %02d => ",
-                  p.getFirst().getStartMillis(),
-                  p.getThird().size()));
-              ArrayList<String> xs = Lists.newArrayList(p.getThird());
-              xs.sort(String::compareTo);
-              Joiner.on(", ").appendTo(sb, xs);
-              return sb.toString();
-            })
-            .sorted()
-            .collect(Collectors.toList()));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(0, 6), "", Sets.newHashSet("one", "two")),
+        Triple.of(new TimeInterval(0, 6), "", Sets.newHashSet("four", "one", "three", "two")),
+        Triple.of(new TimeInterval(0, 6), "", Sets.newHashSet("five", "four", "one", "three", "two")),
+        Triple.of(new TimeInterval(6, 12), "", Sets.newHashSet("eight", "seven", "six")),
+        Triple.of(new TimeInterval(6, 12), "", Sets.newHashSet("eight", "nine", "seven", "six", "ten")),
+        Triple.of(new TimeInterval(6, 12), "", Sets.newHashSet("eight", "eleven", "nine", "seven", "six", "ten")));
   }
 
   @Test
   public void testEventWindowingNonCombining() throws Exception {
-    ListDataSink<Triple<TimeInterval, String, String>> output = ListDataSink.get(2);
+    ListDataSink<Triple<TimeInterval, String, String>> output = ListDataSink.get();
 
     ListDataSource<Triple<String, String, Integer>> source =
         ListDataSource.unbounded(
@@ -198,8 +175,6 @@ public class RBKTimeWindowTest {
           return buf.toString();
         })
         .windowBy(Time.of(Duration.ofMillis(5)))
-        .setNumPartitions(2)
-        .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -210,24 +185,19 @@ public class RBKTimeWindowTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        asList("0: one=ab", "0: two=X", "5: one=c", "5: three=FG", "5: two=QWE"),
-        fmt(output.getOutput(0)));
-    assertEquals(
-        asList("0: aaa=ABC"),
-        fmt(output.getOutput(1)));
-  }
-
-  private List<String> fmt(List<Triple<TimeInterval, String, String>> xs) {
-    return xs.stream()
-        .map(p -> p.getFirst().getStartMillis() + ": " + p.getSecond() + "=" + p.getThird())
-        .sorted()
-        .collect(Collectors.toList());
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(0, 5), "one", "ab"),
+        Triple.of(new TimeInterval(0, 5), "two", "X"),
+        Triple.of(new TimeInterval(5, 10), "one", "c"),
+        Triple.of(new TimeInterval(5, 10), "three", "FG"),
+        Triple.of(new TimeInterval(5, 10), "two", "QWE"),
+        Triple.of(new TimeInterval(0, 5), "aaa", "ABC"));
   }
 
   @Test
   public void testEventWindowingWithAllowedLateness() throws Exception {
-    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(1);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
             ListDataSource.unbounded(
@@ -248,7 +218,6 @@ public class RBKTimeWindowTest {
                     .valueBy(e -> 1L)
                     .combineBy(Sums.ofLongs())
                     .windowBy(Time.of(Duration.ofMillis(5)))
-                    .setNumPartitions(1)
                     .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -259,13 +228,12 @@ public class RBKTimeWindowTest {
             .submit(f)
             .get();
 
-    assertEquals(
-            asList("0:one-2", "0:two-1", "5:three-1", "5:two-2"),
-            output.getOutput(0)
-                    .stream()
-                    .map(p -> p.getFirst().getStartMillis() + ":" + p.getSecond() + "-" + p.getThird())
-                    .sorted()
-                    .collect(Collectors.toList()));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(0, 5), "one", 2L),
+        Triple.of(new TimeInterval(0, 5), "two", 1L),
+        Triple.of(new TimeInterval(5, 10), "three", 1L),
+        Triple.of(new TimeInterval(5, 10), "two", 2L));
 
   }
 

@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -36,10 +37,6 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.stream.Collectors;
-
-import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
 
 public class RSBKWindowingTest {
 
@@ -84,7 +81,7 @@ public class RSBKWindowingTest {
   @Test
   public void testEventWindowing() throws Exception {
     ListDataSink<Triple<TimeInterval, String, Pair<String, Integer>>> output
-        = ListDataSink.get(1);
+        = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -107,7 +104,6 @@ public class RSBKWindowingTest {
         .stateFactory((StorageProvider storages, Collector<Pair<String, Integer>> ctx) -> new AccState<>(storages))
         .mergeStatesBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)))
-        .setNumPartitions(1)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -118,21 +114,21 @@ public class RSBKWindowingTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        asList(
-            "0: one/one/1", "0: one/one/2", "0: two/two/3",
-            "5: two/two/6", "5: two/two/7", "5: two/two/8",
-            "5: three/three/7"),
-        output.getOutput(0)
-            .stream()
-            .map(p -> p.getFirst().getStartMillis() + ": " + p.getSecond() + "/" + p.getThird().getFirst() + "/" + p.getThird().getSecond())
-            .collect(Collectors.toList()));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(0, 5), "one", Pair.of("one", 1)),
+        Triple.of(new TimeInterval(0, 5), "one", Pair.of("one", 2)),
+        Triple.of(new TimeInterval(0, 5), "two", Pair.of("two", 3)),
+        Triple.of(new TimeInterval(5, 10), "two", Pair.of("two", 6)),
+        Triple.of(new TimeInterval(5, 10), "two", Pair.of("two", 7)),
+        Triple.of(new TimeInterval(5, 10), "two", Pair.of("two", 8)),
+        Triple.of(new TimeInterval(5, 10), "three", Pair.of("three", 7)));
   }
 
   @Test
   public void testEventWindowing_attachedWindowing() throws Exception {
     ListDataSink<Triple<TimeInterval, String, Pair<String, Integer>>> output
-        = ListDataSink.get(1);
+        = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -156,7 +152,6 @@ public class RSBKWindowingTest {
             .stateFactory((StorageProvider storages, Collector<Pair<String, Integer>> ctx) -> new AccState<>(storages))
             .mergeStatesBy(AccState::combine)
             .windowBy(Time.of(Duration.ofMillis(5)))
-            .setNumPartitions(1)
             .output();
 
     Dataset<Pair<String, Integer>> secondStep =
@@ -173,7 +168,6 @@ public class RSBKWindowingTest {
         .stateFactory((StorageProvider storages, Collector<Pair<String, Integer>> ctx) -> new AccState<>(storages))
         .mergeStatesBy(AccState::combine)
         .windowBy(Time.of(Duration.ofMillis(5)))
-        .setNumPartitions(1)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -184,15 +178,15 @@ public class RSBKWindowingTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        asList(
-            "0: one/one/1", "0: one/one/2", "0: two/two/3",
-            "5: two/two/6", "5: two/two/7", "5: two/two/8",
-            "5: three/three/7"),
-        output.getOutput(0)
-            .stream()
-            .map(p -> p.getFirst().getStartMillis() + ": " + p.getSecond() + "/" + p.getThird().getFirst() + "/" + p.getThird().getSecond())
-            .collect(Collectors.toList()));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(0, 5), "one", Pair.of("one", 1)),
+        Triple.of(new TimeInterval(0, 5), "one", Pair.of("one", 2)),
+        Triple.of(new TimeInterval(0, 5), "two", Pair.of("two", 3)),
+        Triple.of(new TimeInterval(5, 10), "two", Pair.of("two", 6)),
+        Triple.of(new TimeInterval(5, 10), "two", Pair.of("two", 7)),
+        Triple.of(new TimeInterval(5, 10), "two", Pair.of("two", 8)),
+        Triple.of(new TimeInterval(5, 10), "three", Pair.of("three", 7)));
   }
 
 }

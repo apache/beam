@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -26,7 +27,6 @@ import org.junit.Test;
 
 import java.util.Arrays;
 
-import static org.junit.Assert.assertEquals;
 
 public class TestConsecutiveBasicOpsTranslation {
 
@@ -34,7 +34,7 @@ public class TestConsecutiveBasicOpsTranslation {
   public void test() throws Exception {
     Flow f = Flow.create("Test");
 
-    ListDataSink<Triple<String, String, String>> output = ListDataSink.get(1);
+    ListDataSink<Triple<String, String, String>> output = ListDataSink.get();
 
     Dataset<Pair<String, String>> input =
         f.createInput(ListDataSource.unbounded(
@@ -52,10 +52,9 @@ public class TestConsecutiveBasicOpsTranslation {
 
     new TestFlinkExecutor().submit(f).get();
 
-    assertEquals(
-        output.getOutput(0),
-        Arrays.asList(
-            Triple.of("uf", "foo", "bar"),
-            Triple.of("uf", "quux", "ibis")));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of("uf", "foo", "bar"),
+        Triple.of("uf", "quux", "ibis"));
   }
 }

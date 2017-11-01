@@ -478,6 +478,14 @@
 
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>
+        <artifactId>euphoria-core</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>cz.seznam.euphoria</groupId>
         <artifactId>euphoria-inmem</artifactId>
         <version>${project.version}</version>
       </dependency>
