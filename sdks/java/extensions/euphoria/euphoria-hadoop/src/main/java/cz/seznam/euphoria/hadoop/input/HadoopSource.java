@@ -67,13 +67,16 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
   @Override
   @SneakyThrows
   public List<Partition<Pair<K, V>>> getPartitions() {
-    Configuration c = conf.getWritable();
-    return getHadoopFormatInstance()
-            .getSplits(HadoopUtils.createJobContext(c))
-            .stream()
-            .map(split -> new HadoopPartition<>(keyClass, valueClass, hadoopFormatCls, conf, split))
-            .collect(Collectors.toList());
-
+    try {
+      Configuration c = conf.getWritable();
+      return getHadoopFormatInstance()
+          .getSplits(HadoopUtils.createJobContext(c))
+          .stream()
+          .map(split -> new HadoopPartition<>(keyClass, valueClass, hadoopFormatCls, conf, split))
+          .collect(Collectors.toList());
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   @Override
@@ -124,15 +127,19 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
     @Override
     @SneakyThrows
     protected Pair<K, V> computeNext() {
-      if (hadoopReader.nextKeyValue()) {
-        K key = hadoopReader.getCurrentKey();
-        V value = hadoopReader.getCurrentValue();
+      try {
+        if (hadoopReader.nextKeyValue()) {
+          K key = hadoopReader.getCurrentKey();
+          V value = hadoopReader.getCurrentValue();
 
-        // ~ clone key values since they are reused
-        // between calls to RecordReader#nextKeyValue
-        return Pair.of(keyCloner.clone(key), valueCloner.clone(value));
-      } else {
-        return endOfData();
+          // ~ clone key values since they are reused
+          // between calls to RecordReader#nextKeyValue
+          return Pair.of(keyCloner.clone(key), valueCloner.clone(value));
+        } else {
+          return endOfData();
+        }
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
       }
     }
 
@@ -163,13 +170,17 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
                            SerializableWritable<Configuration> conf,
                            InputSplit hadoopSplit) {
 
-      this.keyClass = keyClass;
-      this.valueClass = valueClass;
-      this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
-      this.conf = Objects.requireNonNull(conf);
-      this.locations = Arrays.stream(hadoopSplit.getLocations())
-              .collect(Collectors.toSet());
-      this.hadoopSplit = HadoopUtils.serializeToBytes(hadoopSplit);
+      try {
+        this.keyClass = keyClass;
+        this.valueClass = valueClass;
+        this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
+        this.conf = Objects.requireNonNull(conf);
+        this.locations = Arrays.stream(hadoopSplit.getLocations())
+            .collect(Collectors.toSet());
+        this.hadoopSplit = HadoopUtils.serializeToBytes(hadoopSplit);
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
     }
 
     @Override
@@ -180,21 +191,24 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
     @Override
     @SneakyThrows
     public Reader<Pair<K, V>> openReader() throws IOException {
-      InputSplit hadoopSplit = getHadoopInputSplit();
-      Configuration conf = this.conf.getWritable();
-      TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
-      @SuppressWarnings("unchecked")
-      RecordReader<K, V> reader =
-              HadoopUtils.instantiateHadoopFormat(
-                      hadoopFormatCls,
-                      InputFormat.class,
-                      conf)
-                      .createRecordReader(hadoopSplit, ctx);
+      try {
+        InputSplit hadoopSplit = getHadoopInputSplit();
+        Configuration conf = this.conf.getWritable();
+        TaskAttemptContext ctx = HadoopUtils.createTaskContext(conf, 0);
+        @SuppressWarnings("unchecked")
+            RecordReader<K, V> reader =
+            HadoopUtils.instantiateHadoopFormat(
+                hadoopFormatCls,
+                InputFormat.class,
+                conf)
+                .createRecordReader(hadoopSplit, ctx);
 
-      reader.initialize(hadoopSplit, ctx);
+        reader.initialize(hadoopSplit, ctx);
 
-      return new HadoopReader<>(reader, keyClass, valueClass, conf);
-
+        return new HadoopReader<>(reader, keyClass, valueClass, conf);
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
     }
 
     private InputSplit getHadoopInputSplit() {
