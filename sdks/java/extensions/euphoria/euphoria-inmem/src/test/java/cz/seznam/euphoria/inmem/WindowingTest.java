@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -31,7 +31,6 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
-import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
@@ -46,10 +45,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import static cz.seznam.euphoria.inmem.Util.sorted;
 import static java.util.Arrays.asList;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 public class WindowingTest {
@@ -128,20 +125,17 @@ public class WindowingTest {
         })
         .output();
 
-    ListDataSink<String> output = ListDataSink.get(1);
+    ListDataSink<String> output = ListDataSink.get();
     mapped.persist(output);
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
     executor.submit(flow).get();
 
-    assertEquals(1, output.getOutputs().size());
-
-    assertEquals(
-        sorted(asList(
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
         /* 1st second window */ "1: one-1", "1: two-3", "1: three-1", "1: four-2",
         /* 2nd second window */ "2: one-3", "2: two-2", "2: three-2",
-        /* 3rd second window */ "3: one-2")),
-        sorted(output.getOutput(0)));
+        /* 3rd second window */ "3: one-2");
   }
 
   @Test
@@ -193,20 +187,13 @@ public class WindowingTest {
         .using(what -> Pair.of(System.currentTimeMillis(), what))
         .output();
 
-    ListDataSink<Pair<Long, HashSet<String>>> output = ListDataSink.get(1);
+    ListDataSink<Pair<Long, HashSet<String>>> output = ListDataSink.get();
     third.persist(output);
 
     executor.submit(flow).get();
 
-    assertNotNull(output.getOutput(0));
-    assertEquals(3, output.getOutput(0).size());
-    output.getOutput(0).forEach(x -> {
-      assertNotNull(x);
-      assertNotNull(x.getFirst());
-      assertNotNull(x.getSecond());
-    });
     List<Pair<Long, HashSet<String>>> ordered =
-        output.getOutput(0)
+        output.getOutputs()
             .stream()
             .sorted(Comparator.comparing(Pair::getFirst))
             .collect(Collectors.toList());
@@ -266,13 +253,13 @@ public class WindowingTest {
         .combineBy(Sums.ofLongs())
         .output();
 
-    ListDataSink<Pair<TimeInterval, Long>> output = ListDataSink.get(1);
+    ListDataSink<Pair<TimeInterval, Long>> output = ListDataSink.get();
     counts.persist(output);
 
     executor.submit(flow).get();
 
-    assertEquals(2, output.getOutput(0).size());
-    List<Pair<Long, Long>> ordered = output.getOutput(0)
+    assertEquals(2, output.getOutputs().size());
+    List<Pair<Long, Long>> ordered = output.getOutputs()
         .stream()
         .sorted(Comparator.comparing(e -> e.getFirst().getStartMillis()))
         .map(e -> Pair.of(e.getFirst().getStartMillis(), e.getSecond()))
@@ -283,18 +270,7 @@ public class WindowingTest {
   }
 
   @Test
-  public void testWindowing_EndOfWindow_RBK_OnePartition() throws InterruptedException, ExecutionException {
-    testWindowing_EndOfWindowImpl(1);
-  }
-
-  @Test
-  public void testWindowing_EndOfWindow_RBK_ManyPartitions() throws InterruptedException, ExecutionException {
-    // ~ this causes the initial reduce-by-key to output three
-    // partitions of which only one receives data.
-    testWindowing_EndOfWindowImpl(2);
-  }
-
-  private void testWindowing_EndOfWindowImpl(int dataPartitions) throws InterruptedException, ExecutionException {
+  public void testWindowing_EndOfWindow_RBK() throws InterruptedException, ExecutionException {
     final Duration READ_DELAY = Duration.ofMillis(50L);
     Flow flow = Flow.create("Test");
 
@@ -313,7 +289,6 @@ public class WindowingTest {
             .keyBy(e -> "")
             .valueBy(e -> e)
             .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
-            .setNumPartitions(dataPartitions)
             .windowBy(Count.of(3))
             .output();
 
@@ -325,42 +300,24 @@ public class WindowingTest {
         })
         .output();
 
-    // ~ now spread the elements (belonging to the same window) over
-    // multiple partitions
-    Dataset<String> third = Repartition.of(second)
-        .setNumPartitions(2)
-        .setPartitioner((Partitioner<String>) element -> '0' - element.charAt(0))
-        .output();
-
-    // ~ now reduce all of the partitions to one
-    Dataset<String> fourth = Repartition.of(third)
-        .setNumPartitions(1)
-        .output();
-
     // ~ now process the single partition
     // ~ we now expect to reconstruct the same windowing
     // as the very initial step
-    Dataset<Set<String>> fifth =
-        ReduceWindow.of(fourth)
+    Dataset<Set<String>> third =
+        ReduceWindow.of(second)
             .valueBy(e -> e)
             .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
             .output();
 
-    ListDataSink<Set<String>> out = ListDataSink.get(1);
-    fifth.persist(out);
+    ListDataSink<Set<String>> out = ListDataSink.get();
+    third.persist(out);
 
     executor.submit(flow).get();
 
-    assertEquals(3, out.getOutput(0).size());
-    assertEquals(
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
         Sets.newHashSet("0-one", "1-two", "0-three"),
-        out.getOutput(0).get(0));
-    assertEquals(
-        Sets.newHashSet("1-four", "0-five", "1-six"),
-        out.getOutput(0).get(1));
-    assertEquals(
-        Sets.newHashSet("0-seven"),
-        out.getOutput(0).get(2));
-  }
+        Sets.newHashSet("0-seven"));
+    }
 
 }

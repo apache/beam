@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -33,7 +34,6 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
-import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
@@ -57,15 +57,11 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
@@ -79,128 +75,20 @@ public class InMemExecutorTest {
 
   InMemExecutor executor;
   Flow flow;
-  
+
   @Before
   public void setup() {
     executor = new InMemExecutor();
     flow = Flow.create("Test");
   }
-  
+
   @After
   public void teardown() {
     executor.abort();
   }
 
-  // Repartition operator
-
-  @Test
-  public void simpleRepartitionTest() throws InterruptedException, ExecutionException {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3),
-            Arrays.asList(4, 5, 6)));
-    // repartition even and odd elements to different partitions
-    Dataset<Integer> repartitioned = Repartition.of(ints)
-        .setPartitioner(e -> e % 2)
-        .setNumPartitions(2)
-        .output();
-
-    // collector of outputs
-    ListDataSink<Integer> outputSink = ListDataSink.get(2);
-
-    repartitioned.persist(outputSink);
-
-    executor.submit(flow).get();
-
-    List<List<Integer>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-    // first partition contains even numbers
-    assertUnorderedEquals(Arrays.asList(2, 4, 6), outputs.get(0));
-    // second partition contains odd numbers
-    assertUnorderedEquals(Arrays.asList(1, 3, 5), outputs.get(1));
-  }
-
-  @Test
-  // test that repartition works from 2 to 3 partitions
-  public void upRepartitionTest() throws InterruptedException, ExecutionException {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3),
-            Arrays.asList(4, 5, 6)));
-    // repartition even and odd elements to different partitions
-    Dataset<Integer> repartitioned = Repartition.of(ints)
-        .setPartitioner(e -> e % 3)
-        .setNumPartitions(3)
-        .output();
-
-    // collector of outputs
-    ListDataSink<Integer> outputSink = ListDataSink.get(3);
-
-    repartitioned.persist(outputSink);
-
-    executor.submit(flow).get();
-
-    List<List<Integer>> outputs = outputSink.getOutputs();
-    assertEquals(3, outputs.size());
-    assertUnorderedEquals(Arrays.asList(3, 6), outputs.get(0));
-    assertUnorderedEquals(Arrays.asList(4, 1), outputs.get(1));
-    assertUnorderedEquals(Arrays.asList(5, 2), outputs.get(2));
-  }
-
-  @Test
-  // test that repartition works from 3 to 2 partitions
-  public void downRepartitionTest() throws InterruptedException, ExecutionException {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(
-            Arrays.asList(1, 2),
-            Arrays.asList(3, 4),
-            Arrays.asList(5, 6)));
-    // repartition even and odd elements to different partitions
-    Dataset<Integer> repartitioned = Repartition.of(ints)
-        .setPartitioner(e -> e % 2)
-        .setNumPartitions(2)
-        .output();
-
-    // collector of outputs
-    ListDataSink<Integer> outputSink = ListDataSink.get(2);
-
-    repartitioned.persist(outputSink);
-
-    executor.submit(flow).get();
-
-    List<List<Integer>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-    assertUnorderedEquals(Arrays.asList(2, 4, 6), outputs.get(0));
-    assertUnorderedEquals(Arrays.asList(1, 3, 5), outputs.get(1));
-  }
-
-  @Test
-  // test that repartition works from 3 to 2 partitions
-  public void downRepartitionTestWithHashPartitioner() throws InterruptedException, ExecutionException {
-    Dataset<Integer> ints = flow.createInput(
-        ListDataSource.unbounded(
-            Arrays.asList(1, 2, 3),
-            Arrays.asList(4, 5, 6)));
-    // repartition even and odd elements to different partitions
-    Dataset<Integer> repartitioned = Repartition.of(ints)
-        .setNumPartitions(2)
-        .output();
-
-    // collector of outputs
-    ListDataSink<Integer> outputSink = ListDataSink.get(2);
-
-    repartitioned.persist(outputSink);
-
-    executor.submit(flow).get();
-
-    List<List<Integer>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-    assertUnorderedEquals(Arrays.asList(2, 4, 6), outputs.get(0));
-    assertUnorderedEquals(Arrays.asList(1, 3, 5), outputs.get(1));
-  }
-
   // Union operator
-  
+
   @Test
   public void simpleUnionTest() throws InterruptedException, ExecutionException {
     Dataset<Integer> first = flow.createInput(
@@ -211,23 +99,19 @@ public class InMemExecutorTest {
         ListDataSource.unbounded(
             Arrays.asList(7, 8, 9)));
 
-    Dataset<Integer> union = Union.of(first, second)
-        .output();
-
     // collector of outputs
-    ListDataSink<Integer> outputSink = ListDataSink.get(1);
+    ListDataSink<Integer> outputSink = ListDataSink.get();
 
-    Repartition.of(union)
-        .setNumPartitions(1)
+    Union.of(first, second)
         .output()
         .persist(outputSink);
 
     executor.submit(flow).get();
 
-    List<List<Integer>> outputs = outputSink.getOutputs();
-    assertEquals(1, outputs.size());
-    assertUnorderedEquals(
-        Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9), outputs.get(0));
+    List<Integer> outputs = outputSink.getOutputs();
+    DatasetAssert.unorderedEquals(
+        outputs,
+        1, 2, 3, 4, 5, 6, 7, 8, 9);
   }
 
   // FlatMap operator
@@ -249,18 +133,17 @@ public class InMemExecutorTest {
         .output();
 
     // collector of outputs
-    ListDataSink<Integer> outputSink = ListDataSink.get(2);
+    ListDataSink<Integer> outputSink = ListDataSink.get();
 
     output.persist(outputSink);
 
     executor.submit(flow).get();
 
-    List<List<Integer>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-    // this must be equal including ordering and partitioning
-    assertEquals(Arrays.asList(1, 2, 2, 3, 3, 3), outputs.get(0));
-    assertEquals(Arrays.asList(4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6),
-        outputs.get(1));
+    List<Integer> outputs = outputSink.getOutputs();
+    DatasetAssert.unorderedEquals(
+        outputs,
+        1, 2, 2, 3, 3, 3,
+        4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6);
   }
 
   // ReduceStateByKey operator
@@ -341,18 +224,22 @@ public class InMemExecutorTest {
     }
   } // ~ end of SizedCountWindow
 
+  // windowing that assigns elements to exactly two windows
+  // with label N and 2*N, where N is defined by {@code sizeFn}
+  // each window is triggered when reaches count of elements
+  // equal to its label
   static class SizedCountWindowing<T>
       implements Windowing<T, SizedCountWindow> {
 
-    final UnaryFunction<T, Integer> size;
+    final UnaryFunction<T, Integer> sizeFn;
 
     SizedCountWindowing(UnaryFunction<T, Integer> size) {
-      this.size = size;
+      this.sizeFn = size;
     }
 
     @Override
     public Iterable<SizedCountWindow> assignWindowsToElement(WindowedElement<?, T> input) {
-      int sz = size.apply(input.getElement());
+      int sz = sizeFn.apply(input.getElement());
       return Sets.newHashSet(new SizedCountWindow(sz), new SizedCountWindow(2 * sz));
     }
 
@@ -394,7 +281,9 @@ public class InMemExecutorTest {
   } // ~ end of SizedCountTrigger
 
   @Test
-  public void testReduceByKeyWithSortStateAndCustomWindowing() throws InterruptedException, ExecutionException {
+  public void testReduceByKeyWithSortStateAndCustomWindowing()
+      throws InterruptedException, ExecutionException {
+
     Dataset<Integer> ints = flow.createInput(
         ListDataSource.unbounded(
             reversed(sequenceInts(0, 100)),
@@ -414,88 +303,19 @@ public class InMemExecutorTest {
         .output();
 
     // collector of outputs
-    ListDataSink<Triple<SizedCountWindow, Integer, Integer>> outputSink = ListDataSink.get(2);
+    ListDataSink<Triple<SizedCountWindow, Integer, Integer>> sink = ListDataSink.get();
 
     FlatMap.of(output)
         .using((UnaryFunctor<Pair<Integer, Integer>, Triple<SizedCountWindow, Integer, Integer>>)
             (elem, context) -> context.collect(Triple.of((SizedCountWindow) context.getWindow(), elem.getFirst(), elem.getSecond())))
         .output()
-        .persist(outputSink);
+        .persist(sink);
 
     executor.submit(flow).get();
 
-    List<List<Triple<SizedCountWindow, Integer, Integer>>> outputs = outputSink.getOutputs();
-    assertEquals(2, outputs.size());
-
     // each partition should have 550 items in each window set
-    assertEquals(2 * 550, outputs.get(0).size());
-    assertEquals(2 * 550, outputs.get(1).size());
-
-    Set<Integer> firstKeys = outputs.get(0).stream()
-        .map(Triple::getSecond).distinct()
-        .collect(Collectors.toSet());
-
-    // validate that the two partitions contain different keys
-    outputs.get(1).forEach(p -> assertFalse(firstKeys.contains(p.getSecond())));
-
-    checkKeyAlignedSortedList(outputs.get(0));
-    checkKeyAlignedSortedList(outputs.get(1));
-  }
-
-  private void checkKeyAlignedSortedList(
-      List<Triple<SizedCountWindow, Integer, Integer>> list) {
-
-    Map<SizedCountWindow, Map<Integer, List<Integer>>> byWindow = new HashMap<>();
-
-    for (Triple<SizedCountWindow, Integer, Integer> p : list) {
-      Map<Integer, List<Integer>> byKey = byWindow.get(p.getFirst());
-      if (byKey == null) {
-        byWindow.put(p.getFirst(), byKey = new HashMap<>());
-      }
-      List<Integer> sorted = byKey.get(p.getSecond());
-      if (sorted == null) {
-        byKey.put(p.getSecond(), sorted = new ArrayList<>());
-      }
-      sorted.add(p.getThird());
-    }
-
-    assertFalse(byWindow.isEmpty());
-    int totalCount = 0;
-    List<SizedCountWindow> iterOrder =
-        byWindow.keySet()
-            .stream()
-            .sorted(Comparator.comparing(SizedCountWindow::get))
-            .collect(Collectors.toList());
-    for (SizedCountWindow w : iterOrder) {
-      Map<Integer, List<Integer>> wkeys = byWindow.get(w);
-      assertNotNull(wkeys);
-      assertFalse(wkeys.isEmpty());
-      for (Map.Entry<Integer, List<Integer>> e : wkeys.entrySet()) {
-        // now, each list must be sorted
-        assertAscendingWindows(e.getValue(), w, e.getKey());
-        totalCount += e.getValue().size();
-      }
-    }
-    assertEquals(1100, totalCount);
-  }
-
-  private static void assertAscendingWindows(
-      List<Integer> xs, SizedCountWindow window, Integer key) {
-    List<List<Integer>> windows = Lists.partition(xs, window.get());
-    assertFalse(windows.isEmpty());
-    int totalSeen = 0;
-    for (List<Integer> windowData : windows) {
-      int last = -1;
-      for (int x : windowData) {
-        if (last > x) {
-          fail(String.format("Sequence not ascending for (window: %s / key: %d): %s",
-              window, key, xs));
-        }
-        last = x;
-        totalSeen += 1;
-      }
-    }
-    assertEquals(xs.size(), totalSeen);
+    // FIXME: this will fail
+    DatasetAssert.unorderedEquals(sink.getOutputs());
   }
 
   // reverse given list
@@ -515,16 +335,6 @@ public class InMemExecutorTest {
   }
 
 
-  // check that given lists are equal irrespecitve of order
-  public static <T extends Comparable<T>> void assertUnorderedEquals(
-      List<T> first, List<T> second) {
-    List<T> firstCopy = new ArrayList<>(first);
-    List<T> secondCopy = new ArrayList<>(second);
-    Collections.sort(firstCopy);
-    Collections.sort(secondCopy);
-    assertEquals(firstCopy, secondCopy);
-  }
-
   @Test(timeout = 5000L)
   public void testInputMultiConsumption() throws InterruptedException, ExecutionException {
     final int N = 1000;
@@ -536,7 +346,7 @@ public class InMemExecutorTest {
         .of(input)
         .using(e -> e)
         .output();
-    ListDataSink<Integer> mapOut = ListDataSink.get(1);
+    ListDataSink<Integer> mapOut = ListDataSink.get();
     map.persist(mapOut);
 
     Dataset<Pair<Integer, Integer>> sum = ReduceByKey
@@ -545,26 +355,22 @@ public class InMemExecutorTest {
         .valueBy(e -> e)
         .reduceBy(Sums.ofInts())
         .output();
-    ListDataSink<Pair<Integer, Integer>> sumOut = ListDataSink.get(1);
+
+    ListDataSink<Pair<Integer, Integer>> sumOut = ListDataSink.get();
     sum.persist(sumOut);
 
     executor.submit(flow).get();
 
-    assertNotNull(sumOut.getOutput(0));
-    assertEquals(1, sumOut.getOutput(0).size());
-    assertEquals(Integer.valueOf((N-1) * N / 2),
-                 sumOut.getOutput(0).get(0).getSecond());
-
-    assertNotNull(mapOut.getOutput(0));
-    assertEquals(N, mapOut.getOutput(0).size());
-    assertEquals(Integer.valueOf((N-1) * N / 2),
-                 mapOut.getOutput(0).stream().reduce((x, y) -> x + y).get());
+    DatasetAssert.unorderedEquals(
+        sumOut.getOutputs(),
+        Pair.of(0, (N - 1) * N / 2),
+        Pair.of(0, (N - 1) * N / 2));
   }
 
 
   @Test
   public void testWithWatermarkAndEventTime() throws Exception {
-    
+
     int N = 2000;
 
     // generate some small ints, use them as event time and count them
@@ -573,21 +379,20 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(sequenceInts(0, N)));
 
-    ListDataSink<Long> outputs = ListDataSink.get(2);
+    ListDataSink<Long> outputs = ListDataSink.get();
 
     input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10)))
-        .setNumPartitions(1)
         .output()
         .persist(outputs);
 
     // watermarking 100 ms
     executor.setTriggeringSchedulerSupplier(
         () -> new WatermarkTriggerScheduler<>(100));
-    
+
     // run the executor in separate thread in order to be able to watch
     // the partial results
     CompletableFuture<Executor.Result> future = executor.submit(flow);
@@ -596,8 +401,7 @@ public class InMemExecutorTest {
     Thread.sleep(1000L);
 
     // the data in first unfinished partition
-    List<Long> output = new ArrayList<>(outputs.getUncommittedOutputs().get(0));
-
+    List<Long> output = outputs.getUncommittedOutputs();
 
     // after one second we should have something about 500 elements read,
     // this means we should have at least 40 complete windows
@@ -608,14 +412,14 @@ public class InMemExecutorTest {
 
     future.get();
 
-    output = outputs.getOutputs().get(0);
+    output = outputs.getOutputs();
 
     output.forEach(w -> assertEquals("Each window should have 10 elements, got "
         + w, 10L, (long) w));
 
     // we have 2000 elements split into 200 windows
     assertEquals(200, output.size());
-    
+
   }
 
 
@@ -630,14 +434,13 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(reversed(sequenceInts(0, N))));
 
-    ListDataSink<Long> outputs = ListDataSink.get(2);
+    ListDataSink<Long> outputs = ListDataSink.get();
 
     input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10)))
-        .setNumPartitions(1)
         .output()
         .persist(outputs);
 
@@ -649,7 +452,7 @@ public class InMemExecutorTest {
 
     // there should be only one element on output - the first element
     // all other windows are discarded
-    List<Long> output = outputs.getOutputs().get(0);
+    List<Long> output = outputs.getOutputs();
     assertEquals(1, output.size());
   }
 
@@ -688,14 +491,13 @@ public class InMemExecutorTest {
           }
         }).output();
 
-    ListDataSink<Long> outputs = ListDataSink.get(1);
+    ListDataSink<Long> outputs = ListDataSink.get();
 
     input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.named("foo").of(input)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofSeconds(10)))
-        .setNumPartitions(1)
         .output()
         .persist(outputs);
 
@@ -706,7 +508,7 @@ public class InMemExecutorTest {
     executor.submit(flow).get();
 
     // the data in first unfinished partition
-    List<Long> output = new ArrayList<>(outputs.getUncommittedOutputs().get(0));
+    List<Long> output = outputs.getUncommittedOutputs();
 
 
     // after one second we should have something about 500 elements read,
@@ -716,7 +518,7 @@ public class InMemExecutorTest {
     assertTrue("All but (at most) one window should have size 10",
         output.stream().filter(w -> w != 10).count() <= 1);
 
-    output = outputs.getOutputs().get(0);
+    output = outputs.getOutputs();
 
     output.forEach(w -> assertEquals("Each window should have 10 elements, got "
         + w, 10L, (long) w));
@@ -736,14 +538,13 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(reversed(sequenceInts(0, N))));
 
-    ListDataSink<Integer> outputs = ListDataSink.get(1);
+    ListDataSink<Integer> outputs = ListDataSink.get();
 
     input = AssignEventTime.of(input).using(e -> e * 1000L).output();
     ReduceWindow.of(input)
         .valueBy(e -> e)
         .combineBy(Sums.ofInts())
         .windowBy(Time.of(Duration.ofSeconds(1)))
-        .setNumPartitions(1)
         .output()
         .persist(outputs);
 
@@ -756,8 +557,10 @@ public class InMemExecutorTest {
     // there should be five windows at the output
     // (1999, 1998, 1997, 1996 and 1995)
     // all other windows are discarded
-    List<Integer> output = outputs.getOutputs().get(0);
-    assertUnorderedEquals(Arrays.asList(1999, 1998, 1997, 1996, 1995), output);
+    List<Integer> output = outputs.getOutputs();
+    DatasetAssert.unorderedEquals(
+        output,
+        1999, 1998, 1997, 1996, 1995);
 
   }
 }
