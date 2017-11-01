@@ -16,13 +16,12 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.Context;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
@@ -31,14 +30,12 @@ import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.List;
 
-import static cz.seznam.euphoria.inmem.Util.sorted;
 import static java.util.Arrays.asList;
 
 public class JoinOperatorTest {
@@ -114,17 +111,18 @@ public class JoinOperatorTest {
         .by(Pair::getFirst, Pair::getFirst)
         .using((l, r, c) ->
             c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())))
-        .applyIf(outer, b -> b.outer())
+        // FIXME: where did we loose the `applyIf` method?
+        //.applyIf(outer, b -> b.outer())
         .windowBy(windowing)
         .output();
 
-    ListDataSink<String> out = ListDataSink.get(1);
+    ListDataSink<String> out = ListDataSink.get();
     MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
         .output().persist(out);
 
     executor.submit(flow).get();
 
-    Assert.assertEquals(sorted(expectedOutput), sorted(out.getOutput(0)));
+    DatasetAssert.unorderedEquals(out.getOutputs(), expectedOutput);
   }
 
   @Test

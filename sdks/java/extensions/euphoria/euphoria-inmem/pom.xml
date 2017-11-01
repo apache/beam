@@ -41,6 +41,12 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
+      <type>test-jar</type>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>shaded-guava</artifactId>
     </dependency>
 
