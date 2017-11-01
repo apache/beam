@@ -1,0 +1,65 @@
+task setupTest {
+  doLast {
+    exec {
+      executable 'sh'
+      args '-c', 'which tox || pip install --user --upgrade tox'
+    }
+  }
+}
+
+task sdist {
+         exec {
+           commandLine 'python', 'setup.py', 'sdist', '--formats', 'zip,gztar', '--dist-dir', project.buildDir
+         }
+}
+
+task clean {
+  doLast {
+         exec {
+           commandLine 'python', 'setup.py', 'clean'
+         }
+  }
+
+}
+
+task build {
+  doLast {
+         println 'Building Python Dependencies'
+         exec {
+           commandLine 'python', 'setup.py', 'build', '--build-base', project.buildDir
+         }
+  }
+}
+
+task lint (dependsOn: 'setupTest') {
+  doLast {
+    exec {
+      commandLine 'tox', '-e', 'lint', '-c', 'tox.ini'
+    }
+  }
+}
+
+task testCython (dependsOn: 'setupTest') {
+  doLast {
+    exec {
+      commandLine 'tox', '-e', 'py27cython', '-c', 'tox.ini'
+    }
+  }
+}
+
+
+task testGcp (dependsOn: 'setupTest') {
+  doLast {
+    exec {
+      commandLine 'tox', '-e', 'py27gcp', '-c', 'tox.ini'
+    }
+  }
+}
+
+task test (dependsOn: 'setupTest') {
+  doLast {
+         exec {
+           commandLine 'tox', '-e', 'ALL', '-c', 'tox.ini'
+         }
+  }
+}
