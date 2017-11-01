@@ -39,15 +39,17 @@ task lint (dependsOn: 'setupTest') {
     }
   }
 }
+check.dependsOn lint
 
-task testCython (dependsOn: 'setupTest') {
+// Ensure that testCython runs exclusively to other tests.
+task testCython (dependsOn: ['setupTest', 'testPython', 'testGcp']) {
   doLast {
     exec {
       commandLine 'tox', '-e', 'py27cython', '-c', 'tox.ini'
     }
   }
 }
-
+test.dependsOn testCython
 
 task testGcp (dependsOn: 'setupTest') {
   doLast {
@@ -56,6 +58,7 @@ task testGcp (dependsOn: 'setupTest') {
     }
   }
 }
+test.dependsOn testGcp
 
 task testPython (dependsOn: 'setupTest') {
   doLast {
