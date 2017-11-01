@@ -119,8 +119,8 @@ public class FlinkExecutor implements Executor {
 
       LOG.info("Running flow in {} mode", mode);
 
-      ExecutionEnvironment environment =
-          new ExecutionEnvironment(mode, localEnv, registeredClasses);
+      ExecutionEnvironment environment = new ExecutionEnvironment(
+          mode, localEnv, getParallelism(), registeredClasses);
       environment.getExecutionConfig().setLatencyTrackingInterval(latencyTracking.toMillis());
 
       Settings settings = flow.getSettings();
@@ -199,17 +199,17 @@ public class FlinkExecutor implements Executor {
       throw new RuntimeException(t);
     }
   }
-  
+
   protected FlowTranslator createBatchTranslator(Settings settings,
                                                  ExecutionEnvironment environment,
                                                  FlinkAccumulatorFactory accumulatorFactory) {
     return new BatchFlowTranslator(settings, environment.getBatchEnv(), accumulatorFactory);
   }
-  
-  protected FlowTranslator createStreamTranslator(Settings settings, 
+
+  protected FlowTranslator createStreamTranslator(Settings settings,
                                                   ExecutionEnvironment environment,
                                                   FlinkAccumulatorFactory accumulatorFactory,
-                                                  Duration allowedLateness, 
+                                                  Duration allowedLateness,
                                                   Duration autoWatermarkInterval) {
     return new StreamingFlowTranslator(
             settings, environment.getStreamEnv(), accumulatorFactory,
@@ -291,5 +291,13 @@ public class FlinkExecutor implements Executor {
   public FlinkExecutor setCheckpointInterval(@Nonnull Duration interval) {
     this.checkpointInterval = Objects.requireNonNull(interval);
     return this;
+  }
+
+  /**
+   * Retrieve parallelism (in case of local runner).
+   * Distributed runner returns always -1.
+   */
+  protected int getParallelism() {
+    return -1;
   }
 }

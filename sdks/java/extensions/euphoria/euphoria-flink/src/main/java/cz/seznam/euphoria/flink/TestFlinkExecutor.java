@@ -27,13 +27,15 @@ import cz.seznam.euphoria.flink.batch.BatchFlowTranslator.SplitAssignerFactory;
  * environment is the number of hardware contexts (CPU cores / threads).
  */
 public class TestFlinkExecutor extends FlinkExecutor {
-  
+
   private final SplitAssignerFactory splitAssignerFactory;
-  
+
+  private int defaultParallelism = 4;
+
   public TestFlinkExecutor() {
     this(BatchFlowTranslator.DEFAULT_SPLIT_ASSIGNER_FACTORY);
   }
-  
+
   public TestFlinkExecutor(SplitAssignerFactory splitAssignerFactory) {
     super(true);
     this.splitAssignerFactory = splitAssignerFactory;
@@ -46,4 +48,22 @@ public class TestFlinkExecutor extends FlinkExecutor {
     return new BatchFlowTranslator(settings, environment.getBatchEnv(),
             accumulatorFactory, splitAssignerFactory);
   }
+
+
+  /**
+   * Override default parallelism for local runner.
+   * @param parallelism the default parallelism to use
+   * @return this
+   */
+  public TestFlinkExecutor setDefaultParallelism(int parallelism) {
+    this.defaultParallelism = parallelism;
+    return this;
+  }
+
+  @Override
+  protected int getParallelism() {
+    return defaultParallelism;
+  }
+
+
 }
