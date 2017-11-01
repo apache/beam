@@ -36,7 +36,7 @@ public class FluentTest {
   @Test
   public void testBasics() throws Exception {
     final Duration READ_DELAY = Duration.ofMillis(100L);
-    ListDataSink<Set<String>> out = ListDataSink.get(1);
+    ListDataSink<Set<String>> out = ListDataSink.get();
     Fluent.flow("Test")
         .read(ListDataSource.unbounded(
             asList("0-one 1-two 0-three 1-four 0-five 1-six 0-seven".split(" ")))
@@ -46,18 +46,11 @@ public class FluentTest {
             .keyBy(e -> "")
             .valueBy(e -> e)
             .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
-            .setNumPartitions(1)
             .windowBy(Count.of(3)))
         // ~ strip the needless key and flatten out the elements thereby
         // creating multiple elements in the output belonging to the same window
         .flatMap((Pair<String, Set<String>> e, Collector<String> c) ->
             e.getSecond().stream().forEachOrdered(c::collect))
-        // ~ now spread the elements (belonging to the same window) over
-        // multiple partitions
-        .repartition(2, e -> '0' - e.charAt(0))
-        // ~ now reduce all of the partitions to one
-        .repartition(1)
-        // ~ now process the single partition
         // ~ we now expect to reconstruct the same windowing
         // as the very initial step
         .apply(input -> ReduceByKey.of(input)

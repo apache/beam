@@ -15,14 +15,12 @@
  */
 package cz.seznam.euphoria.fluent;
 
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioner;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
-import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.Builders.Output;
 import cz.seznam.euphoria.core.executor.Executor;
@@ -46,25 +44,6 @@ public class Dataset<T> {
       Output<S>> output)
   {
     return new Dataset<>(requireNonNull(output.apply(this.wrap)).output());
-  }
-
-  public Dataset<T> repartition(Partitioner<T> partitioner) {
-    return new Dataset<>(Repartition.of(wrap)
-        .setPartitioner(requireNonNull(partitioner))
-        .output());
-  }
-
-  public Dataset<T> repartition(int num) {
-    return new Dataset<>(Repartition.of(this.wrap)
-        .setNumPartitions(num)
-        .output());
-  }
-
-  public Dataset<T> repartition(int num, Partitioner<T> partitioner) {
-    return new Dataset<>(Repartition.of(this.wrap)
-        .setNumPartitions(num)
-        .setPartitioner(requireNonNull(partitioner))
-        .output());
   }
 
   public <S> Dataset<S> mapElements(UnaryFunction<T, S> f) {
