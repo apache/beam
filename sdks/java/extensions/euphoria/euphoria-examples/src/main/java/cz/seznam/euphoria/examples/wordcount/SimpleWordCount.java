@@ -181,7 +181,6 @@ public class SimpleWordCount {
         .keyBy(e -> e)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
-        .applyIf(partitions > 0, op -> op.setNumPartitions(partitions))
         .output();
 
     // Lastly we merely format the output of the preceding operator and
