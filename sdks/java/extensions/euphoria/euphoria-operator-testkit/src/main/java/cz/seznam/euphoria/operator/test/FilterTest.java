@@ -24,7 +24,6 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
 
 /**
  * Test operator {@code Filter}.
@@ -44,27 +43,17 @@ public class FilterTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Integer> getInput() {
-        // two input partitions
-        return Partitions
-            .add(1, 2, 3, 4, 5 ,6)
-            .add(7, 8, 9, 10, 11, 12, 13, 14)
-            .build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(
+            1, 2, 3, 4, 5, 6,
+            7, 8, 9, 10, 11, 12, 13, 14);
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(2, 4, 6, 8, 10, 12, 14);
       }
-
-      @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(2, partitions.size());
-        List<Integer> first = partitions.get(0);
-        assertEquals(Arrays.asList(2, 4, 6), first);
-        List<Integer> second = partitions.get(1);
-        assertEquals(Arrays.asList(8, 10, 12, 14), second);
-      }
+      
     });
   }
 }

@@ -23,6 +23,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
@@ -54,17 +55,17 @@ public class JoinTest extends AbstractOperatorTest {
     @Override
     public Dataset<OUT> getOutput(Flow flow, boolean bounded) {
       Dataset<LEFT> left =
-          flow.createInput(getLeftInput().asListDataSource(bounded));
+          flow.createInput(ListDataSource.of(bounded, getLeftInput()));
       Dataset<RIGHT> right =
-          flow.createInput(getRightInput().asListDataSource(bounded));
+          flow.createInput(ListDataSource.of(bounded, getRightInput()));
       return getOutput(left, right);
     }
 
     protected abstract Dataset<OUT> getOutput(
         Dataset<LEFT> left, Dataset<RIGHT> right);
 
-    protected abstract Partitions<LEFT> getLeftInput();
-    protected abstract Partitions<RIGHT> getRightInput();
+    protected abstract List<LEFT> getLeftInput();
+    protected abstract List<RIGHT> getRightInput();
   }
 
   @Processing(Processing.Type.BOUNDED)
@@ -78,43 +79,31 @@ public class JoinTest extends AbstractOperatorTest {
         return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
             .using((Integer l, Long r, Collector<String> c) -> c.collect(l + "+" + r))
-            .setPartitioner(e -> e % 2)
             .outer()
             .output();
       }
 
       @Override
-      protected Partitions<Integer> getLeftInput() {
-        return Partitions
-            .add(1, 2, 3, 0)
-            .add(4, 3, 2, 1)
-            .build();
+      protected List<Integer> getLeftInput() {
+        return Arrays.asList(
+            1, 2, 3, 0,
+            4, 3, 2, 1);
       }
 
       @Override
-      protected Partitions<Long> getRightInput() {
-        return Partitions
-            .add(11L, 12L)
-            .add(13L, 14L, 15L)
-            .build();
+      protected List<Long> getRightInput() {
+        return Arrays.asList(
+            11L, 12L,
+            13L, 14L, 15L);
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
-
-      @Override
-      public void validate(Partitions<Pair<Integer, String>> partitions) {
-        assertEquals(2, partitions.size());
-        List<Pair<Integer, String>> first = partitions.get(0);
-        assertUnorderedEquals(Arrays.asList(Pair.of(0, "0+null"),
-            Pair.of(2, "2+12"), Pair.of(2, "2+12"), Pair.of(4, "4+14")), first);
-        List<Pair<Integer, String>> second = partitions.get(1);
-        assertUnorderedEquals(Arrays.asList(
+      public List<Pair<Integer, String>> getUnorderedOutput() {
+        return Arrays.asList(
+            Pair.of(0, "0+null"),
+            Pair.of(2, "2+12"), Pair.of(2, "2+12"), Pair.of(4, "4+14"),
             Pair.of(1, "1+11"), Pair.of(1, "1+11"),
-            Pair.of(3, "3+13"), Pair.of(3, "3+13"), Pair.of(5, "null+15")),
-            second);
+            Pair.of(3, "3+13"), Pair.of(3, "3+13"), Pair.of(5, "null+15"));
       }
     });
   }
@@ -132,42 +121,29 @@ public class JoinTest extends AbstractOperatorTest {
             .using((Integer l, Long r, Collector<String> c) -> {
                 c.collect(l + "+" + r);
             })
-            .setPartitioner(e -> e % 2)
             .output();
       }
 
       @Override
-      protected Partitions<Integer> getLeftInput() {
-        return Partitions
-            .add(1, 2, 3, 0)
-            .add(4, 3, 2, 1)
-            .build();
+      protected List<Integer> getLeftInput() {
+        return Arrays.asList(
+            1, 2, 3, 0,
+            4, 3, 2, 1);
       }
 
       @Override
-      protected Partitions<Long> getRightInput() {
-        return Partitions
-            .add(11L, 12L)
-            .add(13L, 14L, 15L)
-            .build();
+      protected List<Long> getRightInput() {
+        return Arrays.asList(
+            11L, 12L,
+            13L, 14L, 15L);
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
-
-      @Override
-      public void validate(Partitions<Pair<Integer, String>> partitions) {
-        assertEquals(2, partitions.size());
-        List<Pair<Integer, String>> first = partitions.get(0);
-        assertUnorderedEquals(Arrays.asList(
-            Pair.of(2, "2+12"), Pair.of(2, "2+12"), Pair.of(4, "4+14")), first);
-        List<Pair<Integer, String>> second = partitions.get(1);
-        assertUnorderedEquals(Arrays.asList(
+      public List<Pair<Integer, String>> getUnorderedOutput() {
+        return Arrays.asList(
+            Pair.of(2, "2+12"), Pair.of(2, "2+12"), Pair.of(4, "4+14"),
             Pair.of(1, "1+11"), Pair.of(1, "1+11"),
-            Pair.of(3, "3+13"), Pair.of(3, "3+13")),
-            second);
+            Pair.of(3, "3+13"), Pair.of(3, "3+13"));
       }
     });
   }
@@ -210,43 +186,29 @@ public class JoinTest extends AbstractOperatorTest {
             .using((Integer l, Long r, Collector<String> c) -> {
               c.collect(l + "+" + r);
             })
-            .setNumPartitions(2)
-            .setPartitioner(e -> e % 2)
             .outer()
             .windowBy(new EvenOddWindowing())
             .output();
       }
 
       @Override
-      protected Partitions<Integer> getLeftInput() {
-        return Partitions.add(1, 2, 3, 0, 4, 3, 2, 1, 5, 6).build();
+      protected List<Integer> getLeftInput() {
+        return Arrays.asList(1, 2, 3, 0, 4, 3, 2, 1, 5, 6);
       }
 
       @Override
-      protected Partitions<Long> getRightInput() {
-        return Partitions.add(11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L).build();
+      protected List<Long> getRightInput() {
+        return Arrays.asList(11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L);
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
-
-      @Override
-      public void validate(Partitions<Pair<Integer, String>> partitions) {
-        assertEquals(2, partitions.size());
-        // all even elements for one window
-        // all odd elements are each element in separate window
-        List<Pair<Integer, String>> first = partitions.get(0);
-        assertUnorderedEquals(Arrays.asList(Pair.of(0, "0+null"),
+      public List<Pair<Integer, String>> getUnorderedOutput() {
+        return Arrays.asList(Pair.of(0, "0+null"),
             Pair.of(2, "2+12"), Pair.of(2, "2+12"), Pair.of(4, "4+14"),
-            Pair.of(6, "6+16"), Pair.of(8, "null+18")), first);
-        List<Pair<Integer, String>> second = partitions.get(1);
-        assertUnorderedEquals(Arrays.asList(
+            Pair.of(6, "6+16"), Pair.of(8, "null+18"),
             Pair.of(1, "1+null"), Pair.of(1, "1+null"), Pair.of(1, "null+11"),
             Pair.of(3, "3+null"), Pair.of(3, "3+null"), Pair.of(3, "null+13"),
-            Pair.of(5, "5+null"), Pair.of(5, "null+15"), Pair.of(7, "null+17")),
-            second);
+            Pair.of(5, "5+null"), Pair.of(5, "null+15"), Pair.of(7, "null+17"));
       }
     });
   }
@@ -262,18 +224,13 @@ public class JoinTest extends AbstractOperatorTest {
         Triple<TimeInterval, String, String>>() {
 
       @Override
-      protected Partitions<Pair<String, Long>> getLeftInput() {
-        return Partitions.add(Pair.of("fi", 1L), Pair.of("fa", 2L)).build();
+      protected List<Pair<String, Long>> getLeftInput() {
+        return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 2L));
       }
 
       @Override
-      protected Partitions<Pair<String, Long>> getRightInput() {
-        return Partitions.add(Pair.of("ha", 1L), Pair.of("ho", 4L)).build();
-      }
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
+      protected List<Pair<String, Long>> getRightInput() {
+        return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
       }
 
       @Override
@@ -287,21 +244,18 @@ public class JoinTest extends AbstractOperatorTest {
                 .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
                 .windowBy(Session.of(Duration.ofMillis(10)))
-                .setNumPartitions(1)
                 .output();
         return MapElements.of(joined).using(Pair::getSecond).output();
       }
 
       @Override
-      public void validate(Partitions<Triple<TimeInterval, String, String>> partitions) {
+      public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
         TimeInterval expectedWindow = new TimeInterval(1, 14);
-        assertUnorderedEquals(
-            Arrays.asList(
-                Triple.of(expectedWindow, "fi", "ha"),
-                Triple.of(expectedWindow, "fi", "ho"),
-                Triple.of(expectedWindow, "fa", "ha"),
-                Triple.of(expectedWindow, "fa", "ho")),
-            partitions.get(0));
+        return Arrays.asList(
+            Triple.of(expectedWindow, "fi", "ha"),
+            Triple.of(expectedWindow, "fi", "ho"),
+            Triple.of(expectedWindow, "fa", "ha"),
+            Triple.of(expectedWindow, "fa", "ho"));
       }
     });
   }
@@ -314,18 +268,13 @@ public class JoinTest extends AbstractOperatorTest {
         Triple<TimeInterval, String, String>>() {
 
       @Override
-      protected Partitions<Pair<String, Long>> getLeftInput() {
-        return Partitions.add(Pair.of("fi", 1L), Pair.of("fa", 3L)).build();
+      protected List<Pair<String, Long>> getLeftInput() {
+        return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 3L));
       }
 
       @Override
-      protected Partitions<Pair<String, Long>> getRightInput() {
-        return Partitions.add(Pair.of("ha", 1L), Pair.of("ho", 4L)).build();
-      }
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
+      protected List<Pair<String, Long>> getRightInput() {
+        return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
       }
 
       @Override
@@ -343,18 +292,15 @@ public class JoinTest extends AbstractOperatorTest {
                   c.collect(Triple.of(window, l.getFirst(), r.getFirst()));
                 })
                 .windowBy(Time.of(Duration.ofMillis(3)))
-                .setNumPartitions(1)
                 .output();
         return MapElements.of(joined).using(Pair::getSecond).output();
       }
 
       @Override
-      public void validate(Partitions<Triple<TimeInterval, String, String>> partitions) {
-        assertUnorderedEquals(
-            Arrays.asList(
-                Triple.of(new TimeInterval(0, 3), "fi", "ha"),
-                Triple.of(new TimeInterval(3, 6), "fa", "ho")),
-            partitions.get(0));
+      public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
+        return Arrays.asList(
+            Triple.of(new TimeInterval(0, 3), "fi", "ha"),
+            Triple.of(new TimeInterval(3, 6), "fa", "ho"));
       }
 
       @Override

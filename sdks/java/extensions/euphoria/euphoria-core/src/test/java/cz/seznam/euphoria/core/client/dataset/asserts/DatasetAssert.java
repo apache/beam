@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 Seznam.cz, a.s.
+ * Copyright 2016-2017 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.core.client.dataset.asserts;
 
 import java.util.Arrays;
@@ -27,6 +26,7 @@ import static org.junit.Assert.assertEquals;
  */
 public class DatasetAssert {
 
+  @SafeVarargs
   public static <T> void unorderedEquals(List<T> expected, T... values) {
     unorderedEquals(Arrays.asList(values), expected);
   }
@@ -37,6 +37,7 @@ public class DatasetAssert {
     Map<T, Integer> rightCounted = right.stream()
         .collect(Collectors.toMap(e -> e, e -> 1, (a, b) -> a + b));
     assertEquals(leftCounted, rightCounted);
+
   }
 
 }

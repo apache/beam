@@ -82,13 +82,9 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
         test = new JoinTest.JoinTestCase<Object, Object, Pair<Object,Object>>() {
 
       @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
-
-      @Override
-      public void validate(Partitions<Pair<Object, Object>> partitions) {
+      public List<Pair<Object, Object>> getUnorderedOutput() {
         // ~ nothing to validate here
+        return Arrays.asList();
       }
 
       @SuppressWarnings("unchecked")
@@ -134,8 +130,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
         Join.WindowingBuilder<Object, Object, Object, Object> joinBuilder =
             Join.of(left, right)
                 .by(e -> e, e -> e)
-                .using((l, r, c) -> c.collect(new Object()))
-                .setPartitioner(e -> 0);
+                .using((l, r, c) -> c.collect(new Object()));
         if (joinWindowing == null) {
           return joinBuilder.output();
         } else {
@@ -144,13 +139,13 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Object> getLeftInput() {
-        return Partitions.add(new ArrayList<>()).build();
+      protected List<Object> getLeftInput() {
+        return Arrays.asList(new ArrayList<>());
       }
 
       @Override
-      protected Partitions<Object> getRightInput() {
-        return Partitions.add(new ArrayList<>()).build();
+      protected List<Object> getRightInput() {
+        return Arrays.asList(new ArrayList<>());
       }
     };
     Exception thrown = null;

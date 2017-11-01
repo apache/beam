@@ -20,13 +20,13 @@ import cz.seznam.euphoria.core.client.operator.TopPerKey;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.Serializable;
 import java.util.Objects;
 
 import static java.util.Arrays.asList;
+import java.util.List;
 
 @Processing(Processing.Type.ALL)
 public class TopPerKeyTest extends AbstractOperatorTest {
@@ -66,42 +66,31 @@ public class TopPerKeyTest extends AbstractOperatorTest {
             .keyBy(Item::getKey)
             .valueBy(Item::getValue)
             .scoreBy(Item::getScore)
-            .setNumPartitions(1)
             .output();
       }
 
       @Override
-      public void validate(Partitions<Triple<String, String, Integer>> partitions) {
-        Assert.assertEquals(1, partitions.size());
-        assertUnorderedEquals(
-            asList(
-                Triple.of("one", "one-999", 999),
-                Triple.of("two", "two", 10),
-                Triple.of("three", "3-three", 2)),
-            partitions.get(0));
+      public List<Triple<String, String, Integer>> getUnorderedOutput() {
+        return asList(
+            Triple.of("one", "one-999", 999),
+            Triple.of("two", "two", 10),
+            Triple.of("three", "3-three", 2));
       }
 
       @Override
-      protected Partitions<Item> getInput() {
-        return Partitions
-            .add(
-                new Item("one", "one-ZZZ-1", 1),
-                new Item("one", "one-ZZZ-2", 2),
-                new Item("one", "one-3", 3),
-                new Item("one", "one-999", 999),
-                new Item("two", "two", 10),
-                new Item("three", "1-three", 1),
-                new Item("three", "2-three", 0))
-            .add(
-                new Item("one", "one-XXX-100", 100),
-                new Item("three", "3-three", 2))
-            .build();
+      protected List<Item> getInput() {
+        return asList(
+            new Item("one", "one-ZZZ-1", 1),
+            new Item("one", "one-ZZZ-2", 2),
+            new Item("one", "one-3", 3),
+            new Item("one", "one-999", 999),
+            new Item("two", "two", 10),
+            new Item("three", "1-three", 1),
+            new Item("three", "2-three", 0),
+            new Item("one", "one-XXX-100", 100),
+            new Item("three", "3-three", 2));
       }
 
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
-      }
     });
   }
 }

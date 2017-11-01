@@ -52,25 +52,17 @@ public class FlatMapTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Partitions<Integer> getInput() {
-        return Partitions
-            .add(1, 2, 3)
-            .add(4, 3, 2, 1)
-            .build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(
+            1, 2, 3,
+            4, 3, 2, 1);
       }
 
       @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(2, partitions.size());
-        List<Integer> first = partitions.get(0);
-        assertEquals(Arrays.asList(1, 1, 2, 1, 2, 3), first);
-        List<Integer> second = partitions.get(1);
-        assertEquals(Arrays.asList(1, 2, 3, 4, 1, 2, 3, 1, 2, 1), second);
-      }
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 2;
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(
+            1, 1, 2, 1, 2, 3,
+            1, 2, 3, 4, 1, 2, 3, 1, 2, 1);
       }
 
     });
@@ -79,11 +71,12 @@ public class FlatMapTest extends AbstractOperatorTest {
   @Test
   public void testCounterTest() {
     execute(new AbstractTestCase<Integer, Integer>() {
+
       @Override
-      protected Partitions<Integer> getInput() {
-        return Partitions.add(1, 2, 3, 4, 5, 6)
-            .add(0, 10, 20)
-            .build();
+      protected List<Integer> getInput() {
+        return Arrays.asList(
+            1, 2, 3, 4, 5, 6,
+            0, 10, 20);
       }
 
       @Override
@@ -98,14 +91,10 @@ public class FlatMapTest extends AbstractOperatorTest {
       }
 
       @Override
-      public int getNumOutputPartitions() {
-        return 2;
-      }
-
-      @Override
-      public void validate(Partitions<Integer> partitions) {
-        assertEquals(Arrays.asList(1, 4, 9, 16, 25, 36), partitions.get(0));
-        assertEquals(Arrays.asList(0, 100, 400), partitions.get(1));
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(
+            1, 4, 9, 16, 25, 36,
+            0, 100, 400);
       }
 
       @Override
