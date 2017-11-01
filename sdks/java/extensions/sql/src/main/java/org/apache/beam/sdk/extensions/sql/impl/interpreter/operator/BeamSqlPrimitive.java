@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
+
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -133,9 +134,12 @@ public class BeamSqlPrimitive<T> extends BeamSqlExpression {
     case TIMESTAMP:
     case DATE:
       return value instanceof Date;
-    case INTERVAL_HOUR:
-      return value instanceof BigDecimal;
+    case INTERVAL_SECOND:
     case INTERVAL_MINUTE:
+    case INTERVAL_HOUR:
+    case INTERVAL_DAY:
+    case INTERVAL_MONTH:
+    case INTERVAL_YEAR:
       return value instanceof BigDecimal;
     case SYMBOL:
       // for SYMBOL, it supports anything...
