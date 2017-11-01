@@ -398,6 +398,7 @@
                 <exclude>**/LICENSE</exclude>
                 <exclude>src/test/resources/**</exclude>
                 <exclude>src/main/resources/**</exclude>
+                <exclude>**/license-header.txt</exclude>
               </excludes>
             </configuration>
             <executions>
