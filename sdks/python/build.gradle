@@ -13,16 +13,16 @@ task sdist {
          }
 }
 
-task clean {
+task cleanPython {
   doLast {
-         exec {
-           commandLine 'python', 'setup.py', 'clean'
-         }
+    exec {
+      commandLine 'python', 'setup.py', 'clean'
+    }
   }
-
 }
+clean.dependsOn cleanPython
 
-task build {
+task buildPython {
   doLast {
          println 'Building Python Dependencies'
          exec {
@@ -30,6 +30,7 @@ task build {
          }
   }
 }
+build.dependsOn buildPython
 
 task lint (dependsOn: 'setupTest') {
   doLast {
@@ -56,10 +57,11 @@ task testGcp (dependsOn: 'setupTest') {
   }
 }
 
-task test (dependsOn: 'setupTest') {
+task testPython (dependsOn: 'setupTest') {
   doLast {
          exec {
            commandLine 'tox', '-e', 'ALL', '-c', 'tox.ini'
          }
   }
 }
+test.dependsOn testPython
