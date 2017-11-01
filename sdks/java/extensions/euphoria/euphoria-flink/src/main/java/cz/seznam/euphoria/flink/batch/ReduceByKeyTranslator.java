@@ -22,13 +22,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import cz.seznam.euphoria.flink.FlinkOperator;
-import cz.seznam.euphoria.flink.Utils;
-import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.GroupCombineFunction;
@@ -114,22 +111,6 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
                     .reduceGroup(new RBKReducer(reducer))
                     .setParallelism(operator.getParallelism())
                     .name(operator.getName() + "::reduce");
-
-    // FIXME partitioner should be applied during "reduce" to avoid
-    // unnecessary shuffle, but there is no (known) way how to set custom
-    // partitioner to "groupBy" transformation
-
-    // apply custom partitioner if different from default
-    if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
-      reduced = reduced
-          .partitionCustom(
-              new PartitionerWrapper<>(origOperator.getPartitioning().getPartitioner()),
-              Utils.wrapQueryable(
-                  (KeySelector<BatchElement<Window, Pair>, Comparable>)
-                      (BatchElement<Window, Pair> we) -> (Comparable) we.getElement().getFirst(),
-                  Comparable.class))
-          .setParallelism(operator.getParallelism());
-    }
 
     return reduced;
   }

@@ -30,7 +30,6 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
-import cz.seznam.euphoria.flink.functions.PartitionerWrapper;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
@@ -107,18 +106,6 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
                     context.getAccumulatorFactory(), context.getSettings()))
             .setParallelism(operator.getParallelism())
             .name(operator.getName() + "::reduce");
-
-    // apply custom partitioner if different from default
-    if (!origOperator.getPartitioning().hasDefaultPartitioner()) {
-      reduced = reduced
-          .partitionCustom(new PartitionerWrapper<>(
-              origOperator.getPartitioning().getPartitioner()),
-              Utils.wrapQueryable(
-                  (KeySelector<BatchElement<?, Pair>, Comparable>)
-                      (BatchElement<?, Pair> we) -> (Comparable) we.getElement().getFirst(),
-                  Comparable.class))
-          .setParallelism(operator.getParallelism());
-    }
 
     return reduced;
   }

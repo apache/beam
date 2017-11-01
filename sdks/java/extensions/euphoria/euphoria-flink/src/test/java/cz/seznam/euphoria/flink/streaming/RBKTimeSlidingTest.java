@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -28,15 +29,11 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.shaded.guava.com.google.common.base.Joiner;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
 
 public class RBKTimeSlidingTest {
 
@@ -53,7 +50,7 @@ public class RBKTimeSlidingTest {
   }
 
   private void runTestEventWindowing(Settings s) throws Exception {
-    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(2);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -83,8 +80,6 @@ public class RBKTimeSlidingTest {
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
-        .setNumPartitions(2)
-        .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -95,20 +90,24 @@ public class RBKTimeSlidingTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        "[-5,5): one=2, [-5,5): two=1," +
-        " [0,10): one=3, [0,10): three=1, [0,10): two=4," +
-        " [5,15): one=1, [5,15): three=1, [5,15): two=3",
-        flatten(output.getOutput(0)));
-    assertEquals(
-        "[-5,5): aaa=1," +
-        " [0,10): aaa=1",
-        flatten(output.getOutput(1)));
+
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(-5, 5), "one", 2L),
+        Triple.of(new TimeInterval(-5, 5), "two", 1L),
+        Triple.of(new TimeInterval(0, 10), "one", 3L),
+        Triple.of(new TimeInterval(0, 10), "three", 1L),
+        Triple.of(new TimeInterval(0, 10), "two", 4L),
+        Triple.of(new TimeInterval(5, 15), "one", 1L),
+        Triple.of(new TimeInterval(5, 15), "three", 1L),
+        Triple.of(new TimeInterval(5, 15), "two", 3L),
+        Triple.of(new TimeInterval(-5, 5), "aaa", 1L),
+        Triple.of(new TimeInterval(0, 10), "aaa", 1L));
   }
 
   @Test
   public void testEventWindowing_NonCombining() throws Exception {
-    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get(2);
+    ListDataSink<Triple<TimeInterval, String, Long>> output = ListDataSink.get();
 
     ListDataSource<Pair<String, Integer>> source =
         ListDataSource.unbounded(
@@ -138,8 +137,6 @@ public class RBKTimeSlidingTest {
           return sum;
         })
         .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
-        .setNumPartitions(2)
-        .setPartitioner(element -> element.equals("aaa") ? 1 : 0)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -150,32 +147,18 @@ public class RBKTimeSlidingTest {
         .submit(f)
         .get();
 
-    assertEquals(
-        "[-5,5): one=2, [-5,5): two=1," +
-            " [0,10): one=3, [0,10): three=1, [0,10): two=4," +
-            " [5,15): one=1, [5,15): three=1, [5,15): two=3",
-        flatten(output.getOutput(0)));
-    assertEquals(
-        "[-5,5): aaa=1," +
-            " [0,10): aaa=1",
-        flatten(output.getOutput(1)));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Triple.of(new TimeInterval(-5, 5), "one", 2L),
+        Triple.of(new TimeInterval(-5, 5), "two", 1L),
+        Triple.of(new TimeInterval(0, 10), "one", 3L),
+        Triple.of(new TimeInterval(0, 10), "three", 1L),
+        Triple.of(new TimeInterval(0, 10), "two", 4L),
+        Triple.of(new TimeInterval(5, 15), "one", 1L),
+        Triple.of(new TimeInterval(5, 15), "three", 1L),
+        Triple.of(new TimeInterval(5, 15), "two", 3L),
+        Triple.of(new TimeInterval(-5, 5), "aaa", 1L),
+        Triple.of(new TimeInterval(0, 10), "aaa", 1L));
   }
 
-  private <K extends Comparable<K>, V>
-  String flatten(List<Triple<TimeInterval, K, V>> xs) {
-    return Joiner.on(", ").join(
-        xs.stream().sorted((a, b) -> {
-          int cmp = Long.compare(
-              a.getFirst().getStartMillis(),
-              b.getFirst().getStartMillis());
-          if (cmp == 0) {
-            cmp = a.getSecond().compareTo(b.getSecond());
-          }
-          return cmp;
-        })
-        .map(p -> "[" + p.getFirst().getStartMillis()
-                      + "," + p.getFirst().getEndMillis()
-                      + "): " + p.getSecond() + "=" + p.getThird())
-        .collect(Collectors.toList()));
-  }
 }

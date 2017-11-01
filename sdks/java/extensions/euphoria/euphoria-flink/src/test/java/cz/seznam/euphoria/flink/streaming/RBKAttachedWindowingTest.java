@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -23,7 +24,6 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
-import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -41,7 +41,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
 
 public class RBKAttachedWindowingTest {
 
@@ -74,21 +73,18 @@ public class RBKAttachedWindowingTest {
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .windowBy(Time.of(Duration.ofMillis(10)))
-        .setNumPartitions(2)
         .output();
 
     ListDataSink<Triple<TimeInterval, String, HashMap<String, Long>>> output
-        = ListDataSink.get(1);
+        = ListDataSink.get();
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    Dataset<Pair<String, HashMap<String, Long>>>
-        reduced = ReduceByKey
+    Dataset<Pair<String, HashMap<String, Long>>> reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
-        .valueBy(new ToHashMap<String, Long, Pair<String, Long>>(Pair::getFirst, Pair::getSecond))
+        .valueBy(new ToHashMap<>(Pair::getFirst, Pair::getSecond))
         .combineBy(new MergeHashMaps<>())
-        .setNumPartitions(1)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -100,18 +96,17 @@ public class RBKAttachedWindowingTest {
         .get();
 
     // ~ we had two windows
-    assertEquals(3, output.getOutput(0).size());
-    assertEquals(
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
         Arrays.asList(
             Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
             Pair.of(new TimeInterval(10, 20),
                 toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
             Pair.of(new TimeInterval(20, 30),
-                toMap(Pair.of("foo", 1L)))),
-        output.getOutput(0)
+                toMap(Pair.of("foo", 1L))))
             .stream()
-            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
+            .map(p -> Triple.of(p.getFirst(), "", p.getSecond()))
             .collect(Collectors.toList()));
   }
 
@@ -144,11 +139,10 @@ public class RBKAttachedWindowingTest {
             .valueBy(e -> 1L)
             .combineBy(Sums.ofLongs())
             .windowBy(Time.of(Duration.ofMillis(10)))
-            .setNumPartitions(2)
             .output();
 
     ListDataSink<Triple<TimeInterval, String, HashMap<String, Long>>> output
-        = ListDataSink.get(1);
+        = ListDataSink.get();
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
@@ -164,7 +158,6 @@ public class RBKAttachedWindowingTest {
           }
           return m;
         })
-        .setNumPartitions(1)
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -176,18 +169,17 @@ public class RBKAttachedWindowingTest {
         .get();
 
     // ~ we had two windows
-    assertEquals(3, output.getOutput(0).size());
-    assertEquals(
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
         Arrays.asList(
             Pair.of(new TimeInterval(0, 10),
                 toMap(Pair.of("one", 2L), Pair.of("two", 2L), Pair.of("three", 1L))),
             Pair.of(new TimeInterval(10, 20),
                 toMap(Pair.of("one", 3L), Pair.of("two", 1L), Pair.of("quux", 2L))),
             Pair.of(new TimeInterval(20, 30),
-                toMap(Pair.of("foo", 1L)))),
-        output.getOutput(0)
+                toMap(Pair.of("foo", 1L))))
             .stream()
-            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
+            .map(p -> Triple.of(p.getFirst(), "", p.getSecond()))
             .collect(Collectors.toList()));
   }
 
@@ -301,7 +293,6 @@ public class RBKAttachedWindowingTest {
     Dataset<Query> distinctByUser =
         Distinct.of(f.createInput(source, e -> e.time))
             .mapped(e -> e)
-            .setNumPartitions(1)
             .windowBy(Time.of(Duration.ofMillis(5)))
             .output();
 
@@ -312,7 +303,6 @@ public class RBKAttachedWindowingTest {
                 .keyBy(e -> e.query)
                 .valueBy(e -> 1L)
                 .combineBy(Sums.ofLongs())
-                .setNumPartitions(10)
                 .output(),
             TimeInterval.class);
 
@@ -320,15 +310,12 @@ public class RBKAttachedWindowingTest {
     Dataset<Pair<Long, HashMap<String, Long>>> reduced =
         ReduceByKey.of(counted)
         .keyBy(e -> e.getFirst().getStartMillis())
-        .valueBy(new ToHashMap<String, Long, Triple<TimeInterval, String, Long>>(Triple::getSecond, Triple::getThird))
+        .valueBy(new ToHashMap<>(Triple::getSecond, Triple::getThird))
         .combineBy(new MergeHashMaps<>())
-        // ~ partition by the input window start time
-        .setNumPartitions(2)
-        .setPartitioner(e -> (int) (e % 2))
         .output();
 
     ListDataSink<Triple<TimeInterval, Long, HashMap<String, Long>>> output =
-        ListDataSink.get(2);
+        ListDataSink.get();
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
     new TestFlinkExecutor()
@@ -337,22 +324,16 @@ public class RBKAttachedWindowingTest {
         .submit(f)
         .get();
 
-    assertEquals(
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
         Arrays.asList(
             Pair.of(new TimeInterval(0, 5),
                 toMap(Pair.of("one", 2L), Pair.of("two", 4L), Pair.of("three", 1L))),
             Pair.of(new TimeInterval(10, 15),
-                toMap(Pair.of("one", 1L), Pair.of("two", 1L)))),
-        output.getOutput(0)
+                toMap(Pair.of("one", 1L), Pair.of("two", 1L))),
+            Pair.of(new TimeInterval(5, 10), toMap(Pair.of("one", 3L), Pair.of("two", 2L))))
             .stream()
-            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
-            .collect(Collectors.toList()));
-    assertEquals(
-        Arrays.asList(
-            Pair.of(new TimeInterval(5, 10), toMap(Pair.of("one", 3L), Pair.of("two", 2L)))),
-        output.getOutput(1)
-            .stream()
-            .map(wp -> Pair.of(wp.getFirst(), wp.getThird()))
+            .map(p -> Triple.of(p.getFirst(), p.getFirst().getStartMillis(), p.getSecond()))
             .collect(Collectors.toList()));
   }
 }
