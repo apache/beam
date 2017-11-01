@@ -49,26 +49,34 @@ public class HadoopSink<K, V>
   @Override
   @SneakyThrows
   public void initialize() {
-    OutputCommitter committer = getHadoopFormatInstance()
-            .getOutputCommitter(
-                    HadoopUtils.createTaskContext(conf.getWritable(), 0));
+    try {
+      OutputCommitter committer = getHadoopFormatInstance()
+          .getOutputCommitter(
+              HadoopUtils.createTaskContext(conf.getWritable(), 0));
 
-    committer.setupJob(HadoopUtils.createJobContext(conf.getWritable()));
+      committer.setupJob(HadoopUtils.createJobContext(conf.getWritable()));
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   @Override
   @SneakyThrows
   public Writer<Pair<K, V>> openWriter(int partitionId) {
-    TaskAttemptContext ctx =
-            HadoopUtils.createTaskContext(conf.getWritable(), partitionId);
+    try {
+      TaskAttemptContext ctx =
+          HadoopUtils.createTaskContext(conf.getWritable(), partitionId);
 
-    RecordWriter<K, V> writer =
-            getHadoopFormatInstance().getRecordWriter(ctx);
+      RecordWriter<K, V> writer =
+          getHadoopFormatInstance().getRecordWriter(ctx);
 
-    OutputCommitter committer =
-            getHadoopFormatInstance().getOutputCommitter(ctx);
+      OutputCommitter committer =
+          getHadoopFormatInstance().getOutputCommitter(ctx);
 
-    return new HadoopWriter<>(writer, committer, ctx);
+      return new HadoopWriter<>(writer, committer, ctx);
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
@@ -91,22 +99,30 @@ public class HadoopSink<K, V>
   @Override
   @SneakyThrows
   public void commit() throws IOException {
-    OutputCommitter committer = getHadoopFormatInstance()
-            .getOutputCommitter(
-                    HadoopUtils.createTaskContext(conf.getWritable(), 0));
+    try {
+      OutputCommitter committer = getHadoopFormatInstance()
+          .getOutputCommitter(
+              HadoopUtils.createTaskContext(conf.getWritable(), 0));
 
-    committer.commitJob(HadoopUtils.createJobContext(conf.getWritable()));
+      committer.commitJob(HadoopUtils.createJobContext(conf.getWritable()));
+    } catch (Exception ex) {
+      throw new IOException(ex);
+    }
   }
 
   @Override
   @SneakyThrows
-  public void rollback() {
-    OutputCommitter committer = getHadoopFormatInstance()
-            .getOutputCommitter(
-                    HadoopUtils.createTaskContext(conf.getWritable(), 0));
+  public void rollback() throws IOException {
+    try {
+      OutputCommitter committer = getHadoopFormatInstance()
+          .getOutputCommitter(
+              HadoopUtils.createTaskContext(conf.getWritable(), 0));
 
-    committer.abortJob(HadoopUtils.createJobContext(
-            conf.getWritable()), JobStatus.State.FAILED);
+      committer.abortJob(HadoopUtils.createJobContext(
+          conf.getWritable()), JobStatus.State.FAILED);
+    } catch (Exception ex) {
+      throw new IOException(ex);
+    }
   }
 
   /**
