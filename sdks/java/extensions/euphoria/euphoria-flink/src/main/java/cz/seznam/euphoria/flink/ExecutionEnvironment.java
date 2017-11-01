@@ -57,17 +57,23 @@ public class ExecutionEnvironment {
     STREAMING
   }
 
-  public ExecutionEnvironment(
-      Mode mode, boolean local, Set<Class<?>> registeredClasses) {
+  ExecutionEnvironment(
+      Mode mode,
+      boolean local,
+      int parallelism,
+      Set<Class<?>> registeredClasses) {
 
     Set<Class<?>> toRegister = getClassesToRegister(registeredClasses);
-    
+
+    LOG.info(
+        "Creating ExecutionEnvironment mode {} with parallelism {}",
+        mode, parallelism);
     if (mode == Mode.BATCH) {
-      batchEnv = local ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment() :
+      batchEnv = local ? org.apache.flink.api.java.ExecutionEnvironment.createLocalEnvironment(parallelism) :
               org.apache.flink.api.java.ExecutionEnvironment.getExecutionEnvironment();
       toRegister.forEach(batchEnv::registerType);
     } else {
-      streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment() :
+      streamEnv = local ? StreamExecutionEnvironment.createLocalEnvironment(parallelism) :
               StreamExecutionEnvironment.getExecutionEnvironment();
       toRegister.forEach(streamEnv::registerType);
     }
