@@ -111,8 +111,7 @@ public class JoinOperatorTest {
         .by(Pair::getFirst, Pair::getFirst)
         .using((l, r, c) ->
             c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())))
-        // FIXME: where did we loose the `applyIf` method?
-        //.applyIf(outer, b -> b.outer())
+        .applyIf(outer, b -> b.outer())
         .windowBy(windowing)
         .output();
 
