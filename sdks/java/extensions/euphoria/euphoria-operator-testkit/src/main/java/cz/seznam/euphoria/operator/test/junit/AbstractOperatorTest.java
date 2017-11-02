@@ -28,13 +28,11 @@ import cz.seznam.euphoria.operator.test.junit.Processing.Type;
 import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
 
 import java.io.Serializable;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -104,7 +102,7 @@ public abstract class AbstractOperatorTest implements Serializable {
 
     final protected Flow flow;
     final protected Settings settings;
-    final private boolean parallel;
+    final private int parallel;
 
     private static String getCallerName() {
       StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
@@ -118,7 +116,7 @@ public abstract class AbstractOperatorTest implements Serializable {
       this(getCallerName());
     }
 
-    protected AbstractTestCase(boolean parallel) {
+    protected AbstractTestCase(int parallel) {
       this(getCallerName(), new Settings(), parallel);
     }
 
@@ -131,19 +129,22 @@ public abstract class AbstractOperatorTest implements Serializable {
     }
 
     protected AbstractTestCase(String name, Settings settings) {
-      this(name, settings, true);
+      this(name, settings, 2);
     }
 
-    protected AbstractTestCase(String name, Settings settings, boolean parallel) {
+    protected AbstractTestCase(String name, Settings settings, int parallel) {
       this.flow = Flow.create(name, settings);
       this.settings = settings;
       this.parallel = parallel;
+      if (parallel <= 0) {
+        throw new IllegalArgumentException("Parallelism has to be at least 1");
+      }
     }
 
     @Override
     public final Dataset<O> getOutput(Flow flow, boolean bounded) {
       List<I> inputData = getInput();
-      DataSource<I> dataSource = asListDataSource(inputData, bounded, canParallelize());
+      DataSource<I> dataSource = asListDataSource(inputData, bounded, parallel);
       Dataset<I> inputDataset = flow.createInput(dataSource);
       Dataset<O> output = getOutput(inputDataset);
       return output;
@@ -153,26 +154,20 @@ public abstract class AbstractOperatorTest implements Serializable {
 
     protected abstract List<I> getInput();
 
-    /**
-     * @return {@code true} if the executor can arbitrarily parallelize input
-     * of this test, {@code false} if the input should be taken as single
-     * partition
-     */
-    boolean canParallelize() {
-      return parallel;
-    }
-
     private DataSource<I> asListDataSource(
         List<I> inputData, boolean bounded,
-        boolean canParallelize) {
+        int parallel) {
 
-      final List<List<I>> splits;
-      if (canParallelize) {
-        // take all input elements as a separate partition
-        splits = inputData.stream()
-            .map(Arrays::asList).collect(Collectors.toList());
-      } else {
-        splits = Collections.singletonList(inputData);
+      final List<List<I>> splits = new ArrayList<>();
+      int part = inputData.size() / parallel;
+      int pos = 0;
+      for (int i = 0; i < parallel; i++) {
+        List<I> partData = new ArrayList<>();
+        int end = i < parallel - 1 ? pos + part : inputData.size();
+        while (pos < end) {
+          partData.add(inputData.get(pos++));
+        }
+        splits.add(partData);
       }
       return ListDataSource.of(bounded, splits);
     }

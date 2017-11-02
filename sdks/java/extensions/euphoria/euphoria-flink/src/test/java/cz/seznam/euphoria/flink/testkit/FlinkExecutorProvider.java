@@ -24,13 +24,17 @@ import org.apache.commons.io.FileUtils;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 
 import java.io.File;
+import java.time.Duration;
 
 public interface FlinkExecutorProvider extends ExecutorProvider {
 
+  @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     String path = "/tmp/.flink-test-" + System.currentTimeMillis();
     RocksDBStateBackend backend = new RocksDBStateBackend("file://" + path);
     FlinkExecutor executor = new TestFlinkExecutor(ModuloInputSplitAssigner::new)
+        // need to make sure that all data pass through
+        .setAllowedLateness(Duration.ofHours(1))
         .setStateBackend(backend);
     return new ExecutorEnvironment() {
       @Override
