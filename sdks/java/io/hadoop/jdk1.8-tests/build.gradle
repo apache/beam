@@ -18,9 +18,6 @@
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests"
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 def log4j_version = "2.6.2"
 
 dependencies {

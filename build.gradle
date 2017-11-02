@@ -130,21 +130,36 @@ ext.library = [
   ],
 ]
 
-gradle.taskGraph.whenReady { taskGraph ->
-  version = "2.3.0-snapshot"
+/** Used as configuration within the applyJavaNature closure. */
+class JavaNatureConfiguration {
+  double javaVersion = 1.7
 }
 
-allprojects  {
-  apply plugin: "maven"
-
+allprojects {
   group = "org.apache.beam"
   version = "2.3.0-SNAPSHOT"
+
+  // Define the default set of properties
+  repositories {
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+    maven { url "https://repository.apache.org/snapshots" }
+    maven { url "https://repository.apache.org/content/repositories/releases" }
+  }
+
+  // Add a task "allDeps" which lists all dependencies of the project
+  // and all subprojects.
+  task allDeps(type: DependencyReportTask) {
+  }
 }
 
 buildscript {
   repositories {
     mavenLocal()
     mavenCentral()
+    jcenter()
     maven {
       url "https://plugins.gradle.org/m2/"
     }
@@ -157,96 +172,7 @@ buildscript {
     classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"
     classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"
-  }
-}
-
-subprojects {
-  // Add a task 'allDeps' which lists all dependencies of the project
-  // and all subprojects.
-  task allDeps(type: DependencyReportTask) {
-  }
-
-  apply plugin: "java"
-  sourceCompatibility = 1.7
-  targetCompatibility = 1.7
-  tasks.withType(JavaCompile) {
-    options.encoding = "UTF-8"
-  }
-  repositories {
-    mavenLocal()
-    mavenCentral()
-    
-    maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-    maven { url "https://repository.apache.org/snapshots" }
-    maven { url "https://repository.apache.org/content/repositories/releases" }
-  }
-
-  // Skip test failures to enumerate all that is failing
-  test {
-    ignoreFailures = true
-  }
-
-  apply plugin: "net.ltgt.apt"
-  dependencies {
-    def auto_value = "com.google.auto.value:auto-value:1.4.1"
-    def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
-    compileOnly auto_value
-    apt auto_value
-    testCompileOnly auto_value
-    testApt auto_value
-
-    compileOnly auto_service
-    apt auto_service
-    testCompileOnly auto_service
-    testApt auto_service
-  }
-
-
-  apply plugin: "com.google.protobuf"
-  protobuf {
-    protoc {
-      // The artifact spec for the Protobuf Compiler
-      artifact = "com.google.protobuf:protoc:3.2.0"
-    }
-
-    // Configure the codegen plugins
-    plugins {
-      // An artifact spec for a protoc plugin, with "grpc" as
-      // the identifier, which can be referred to in the "plugins"
-      // container of the "generateProtoTasks" closure.
-      grpc {
-        artifact = "io.grpc:protoc-gen-grpc-java:1.2.0"
-      }
-    }
-
-    generateProtoTasks {
-      ofSourceSet("main")*.plugins {
-        // Apply the "grpc" plugin whose spec is defined above, without
-        // options.  Note the braces cannot be omitted, otherwise the
-        // plugin will not be added. This is because of the implicit way
-        // NamedDomainObjectContainer binds the methods.
-        grpc { }
-      }
-    }
-  }
-
-  // Add the optional and provided scopes for dependencies
-  apply plugin: 'propdeps'
-  apply plugin: 'propdeps-maven'
-
-  apply plugin: 'checkstyle'
-
-  tasks.withType(Checkstyle) {
-    configFile = project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
-    configProperties = [ "checkstyle.suppressions.file": project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml") ]
-    showViolations = true
-    maxErrors = 0
-  }
-
-  // Ban these dependencies from all configurations
-  configurations.all {
-    exclude group: "com.google.guava", module: "guava-jdk5"
-    exclude group: "jdk.tools", module: "jdk.tools"
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"
   }
 }
 
@@ -307,7 +233,7 @@ rat {
     // .gitignore: Hotspot VM leaves this log in a non-target directory when java crashes
     "**/hs_err_pid*.log",
 
-    // .gitignore: Ignore files that end with '~', since they
+    // .gitignore: Ignore files that end with "~", since they
     //             are most likely auto-save files produced by a text editor.
     "**/*~",
 
@@ -329,4 +255,96 @@ rat {
     "**/go/pkg/beam/model/**/*.pb.go",
   ]
 }
-check.dependsOn rat
+//check.dependsOn rat
+
+configure(allprojects) {
+  apply from: project(":").file("build_rules.gradle")
+}
+
+// Configure Java 7 projects
+configure([
+    project(":beam-model-parent:beam-model-pipeline"),
+    project(":beam-model-parent:beam-model-job-management"),
+    project(":beam-model-parent:beam-model-fn-execution"),
+    project(":beam-sdks-java-build-tools"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-amqp"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-cassandra"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-2"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-5"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-jdk1.8-tests"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hbase"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hcatalog"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jdbc"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jms"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kinesis"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mongodb"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mqtt"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-redis"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-solr"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-tika"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-xml"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-starter"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-json-jackson"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-protobuf"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sorter"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sql"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-nexmark"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-harness"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container"),
+    project(":beam-runners-parent:beam-runners-core-construction-java"),
+    project(":beam-runners-parent:beam-runners-core-java"),
+    project(":beam-runners-parent:beam-local-artifact-service-java"),
+    project(":beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator"),
+    project(":beam-runners-parent:beam-runners-direct-java"),
+    project(":beam-runners-parent:beam-runners-flink_2.10"),
+    project(":beam-runners-parent:beam-runners-google-cloud-dataflow-java"),
+    project(":beam-runners-parent:beam-runners-spark"),
+    project(":beam-runners-parent:beam-runners-apex"),
+    project(":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd"),
+    project(":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy"),
+    project(":beam-runners-parent:beam-runners-gearpump"),
+    project(":beam-examples-parent:beam-examples-java"),
+    project(":beam-sdks-java-javadoc"),
+  ]) {
+  applyJavaNature()
+}
+
+// Configure Java 8 projects
+configure([
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples-java8"),
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-java8tests"),
+    project(":beam-examples-parent:beam-examples-java8"),
+  ]) {
+  applyJavaNature(javaVersion: 1.8)
+}
+
+// Configure Avro code generation projects
+configure([
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core"),
+  ]) {
+  applyAvroNature()
+}
+
+
+// Configure protobuf/gRPC code generation projects
+configure([
+    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-protobuf"),
+    project(":beam-model-parent:beam-model-pipeline"),
+    project(":beam-model-parent:beam-model-job-management"),
+    project(":beam-model-parent:beam-model-fn-execution"),
+  ]) {
+  applyGrpcNature()
+}
+    

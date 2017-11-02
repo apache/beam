@@ -18,6 +18,8 @@
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
 
+applyGrpcNature()
+
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile library.java.protobuf_java

@@ -71,3 +71,6 @@ task packageTests(type: Jar) {
 }
 
 artifacts.archives packageTests
+
+println project
+println project.sourceSets

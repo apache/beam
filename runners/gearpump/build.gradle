@@ -18,9 +18,6 @@
 
 description = "Apache Beam :: Runners :: Gearpump"
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 def gearpump_version = "0.8.4"
 
 dependencies {
