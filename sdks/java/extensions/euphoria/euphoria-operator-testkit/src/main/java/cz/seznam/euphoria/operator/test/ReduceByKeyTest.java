@@ -60,9 +60,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Test operator {@code ReduceByKey}.
@@ -73,7 +73,10 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test
   public void testReductionType0() {
-    execute(new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>() {
+    execute(new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>(
+        /* don't parallelize this test, because it doesn't work
+         * well with count windows */
+        false) {
       @Override
       protected List<Integer> getInput() {
         return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9);
@@ -103,7 +106,11 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test
   public void testReductionType0MultiValues() {
-    execute(new AbstractTestCase<Integer, Pair<Integer, Integer>>() {
+    execute(new AbstractTestCase<Integer, Pair<Integer, Integer>>(
+        /* don't parallelize this test, because it doesn't work
+         * well with count windows */
+        false) {
+
       @Override
       protected List<Integer> getInput() {
         return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9);
@@ -124,6 +131,28 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             })
             .windowBy(Count.of(3))
             .output();
+      }
+
+      @Override
+      public void validate(List<Pair<Integer, Integer>> output) {
+        HashMap<Integer, List<Integer>> byKey = new HashMap<>();
+        for (Pair<Integer, Integer> p : output) {
+          List<Integer> xs = byKey.computeIfAbsent(p.getFirst(), k -> new ArrayList<>());
+          xs.add(p.getSecond());
+        }
+
+        assertEquals(2, byKey.size());
+
+        assertNotNull(byKey.get(0));
+        assertEquals(3, byKey.get(0).size());
+        assertEquals(Arrays.asList(2, 6, 12), byKey.get(0));
+
+        // ~ cannot make any assumption about the order of the elements in the windows
+        // (on batch) since we have no event-time order for the test data
+        assertNotNull(byKey.get(1));
+        assertEquals(
+            Sets.newHashSet(1, 4, 9, 7, 16),
+            byKey.get(1).stream().collect(Collectors.toSet()));
       }
 
       @Override
@@ -376,7 +405,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   @Test
   public void testMergingAndTriggering() {
-    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>() {
+    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>(false) {
 
       @Override
       protected List<Pair<String, Long>> getInput() {

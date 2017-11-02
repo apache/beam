@@ -300,7 +300,6 @@ public class WindowingTest {
         })
         .output();
 
-    // ~ now process the single partition
     // ~ we now expect to reconstruct the same windowing
     // as the very initial step
     Dataset<Set<String>> third =
@@ -317,6 +316,7 @@ public class WindowingTest {
     DatasetAssert.unorderedEquals(
         out.getOutputs(),
         Sets.newHashSet("0-one", "1-two", "0-three"),
+        Sets.newHashSet("1-four", "0-five", "1-six"),
         Sets.newHashSet("0-seven"));
     }
 
