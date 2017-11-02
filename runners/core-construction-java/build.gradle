@@ -41,6 +41,10 @@ dependencies {
   testCompile library.java.mockito_all
 }
 
+test {
+  systemProperties = [ "beamUseDummyRunner" : "true" ]
+}
+
 task packageTests(type: Jar) {
   from sourceSets.test.output
   classifier = "tests"
