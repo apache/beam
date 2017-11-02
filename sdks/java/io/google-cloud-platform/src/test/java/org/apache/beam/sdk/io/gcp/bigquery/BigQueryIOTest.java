@@ -41,6 +41,7 @@ import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.JobStatistics2;
 import com.google.api.services.bigquery.model.JobStatistics4;
 import com.google.api.services.bigquery.model.JobStatus;
+import com.google.api.services.bigquery.model.Streamingbuffer;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -64,6 +65,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -343,7 +345,7 @@ public class BigQueryIOTest implements Serializable {
             }));
     PAssert.that(output).containsInAnyOrder(ImmutableList.of(KV.of("a", 1L), KV.of("b", 2L),
         KV.of("c", 3L), KV.of("d", 4L), KV.of("e", 5L), KV.of("f", 6L)));
-     p.run();
+    p.run();
   }
 
   @Test
@@ -1694,6 +1696,83 @@ public class BigQueryIOTest implements Serializable {
 
     // A repeated call to split() should not have caused a duplicate extract job.
     assertEquals(1, fakeJobService.getNumExtractJobCalls());
+  }
+
+  @Test
+  public void testEstimatedSizeWithoutStreamingBuffer() throws Exception {
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    FakeJobService fakeJobService = new FakeJobService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+            .withJobService(fakeJobService)
+            .withDatasetService(fakeDatasetService);
+
+    List<TableRow> data = ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
+
+    TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
+    fakeDatasetService.createDataset("project", "data_set", "", "", null);
+    fakeDatasetService.createTable(new Table().setTableReference(table)
+            .setSchema(new TableSchema()
+                    .setFields(
+                            ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER")))));
+    fakeDatasetService.insertAll(table, data, null);
+
+    String stepUuid = "testStepUuid";
+    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
+            stepUuid,
+            StaticValueProvider.of(table),
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    assertEquals(108, bqSource.getEstimatedSizeBytes(options));
+  }
+
+  @Test
+  public void testEstimatedSizeWithStreamingBuffer() throws Exception {
+    FakeDatasetService fakeDatasetService = new FakeDatasetService();
+    FakeJobService fakeJobService = new FakeJobService();
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+            .withJobService(fakeJobService)
+            .withDatasetService(fakeDatasetService);
+
+    List<TableRow> data = ImmutableList.of(
+            new TableRow().set("name", "a").set("number", 1L),
+            new TableRow().set("name", "b").set("number", 2L),
+            new TableRow().set("name", "c").set("number", 3L),
+            new TableRow().set("name", "d").set("number", 4L),
+            new TableRow().set("name", "e").set("number", 5L),
+            new TableRow().set("name", "f").set("number", 6L));
+
+    TableReference table = BigQueryHelpers.parseTableSpec("project:data_set.table_name");
+    fakeDatasetService.createDataset("project", "data_set", "", "", null);
+    fakeDatasetService.createTable(new Table().setTableReference(table)
+            .setSchema(new TableSchema()
+                    .setFields(
+                            ImmutableList.of(
+                                    new TableFieldSchema().setName("name").setType("STRING"),
+                                    new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .setStreamingBuffer(new Streamingbuffer().setEstimatedBytes(BigInteger.valueOf(10))));
+    fakeDatasetService.insertAll(table, data, null);
+
+    String stepUuid = "testStepUuid";
+    BoundedSource<TableRow> bqSource = BigQueryTableSource.create(
+            stepUuid,
+            StaticValueProvider.of(table),
+            fakeBqServices,
+            TableRowJsonCoder.of(),
+            BigQueryIO.TableRowParser.INSTANCE);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    assertEquals(118, bqSource.getEstimatedSizeBytes(options));
   }
 
   @Test
