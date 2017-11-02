@@ -521,7 +521,7 @@ class Pipeline(object):
     self.visit(Visitor())
     return Visitor.ok
 
-  def to_runner_api(self):
+  def to_runner_api(self, return_context=False):
     """For internal use only; no backwards-compatibility guarantees."""
     from apache_beam.runners import pipeline_context
     from apache_beam.portability.api import beam_runner_api_pb2
@@ -532,10 +532,13 @@ class Pipeline(object):
     proto = beam_runner_api_pb2.Pipeline(
         root_transform_ids=[root_transform_id],
         components=context.to_runner_api())
-    return proto
+    if return_context:
+      return proto, context
+    else:
+      return proto
 
   @staticmethod
-  def from_runner_api(proto, runner, options):
+  def from_runner_api(proto, runner, options, return_context=False):
     """For internal use only; no backwards-compatibility guarantees."""
     p = Pipeline(runner=runner, options=options)
     from apache_beam.runners import pipeline_context
@@ -549,6 +552,8 @@ class Pipeline(object):
     for id in proto.components.pcollections:
       pcollection = context.pcollections.get_by_id(id)
       pcollection.pipeline = p
+      if not pcollection.producer:
+        raise ValueError('No producer for %s' % id)
 
     # Inject PBegin input where necessary.
     from apache_beam.io.iobase import Read
@@ -559,7 +564,10 @@ class Pipeline(object):
       if not transform.inputs and transform.transform.__class__ in has_pbegin:
         transform.inputs = (pvalue.PBegin(p),)
 
-    return p
+    if return_context:
+      return p, context
+    else:
+      return p
 
 
 class PipelineVisitor(object):
@@ -790,10 +798,11 @@ class AppliedPTransform(object):
       result.transform.output_tags = set(proto.outputs.keys()).difference(
           {'None'})
     if not result.parts:
-      for tag, pc in result.outputs.items():
-        if pc not in result.inputs:
+      for tag, pcoll_id in proto.outputs.items():
+        if pcoll_id not in proto.inputs.values():
+          pc = context.pcollections.get_by_id(pcoll_id)
           pc.producer = result
-          pc.tag = tag
+          pc.tag = None if tag == 'None' else tag
     result.update_input_refcounts()
     return result
 
