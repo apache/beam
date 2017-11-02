@@ -109,7 +109,7 @@ ext.applyJavaNature = {
     maxErrors = 0
   }
 
-  apply plugin: 'com.diffplug.gradle.spotless'
+  delegate.apply plugin: 'com.diffplug.gradle.spotless'
   spotless {
     java {
       target rootProject.fileTree(rootProject.rootDir) {
