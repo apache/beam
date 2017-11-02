@@ -151,6 +151,9 @@ buildscript {
   }
 }
 
+/*************************************************************************************************/
+// Configure the root project
+
 apply plugin: "base"
 
 // Apply one top level rat plugin to perform any required analysis
