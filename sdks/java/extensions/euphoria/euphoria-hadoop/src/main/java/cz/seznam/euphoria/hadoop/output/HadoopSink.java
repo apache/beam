@@ -20,7 +20,6 @@ import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
-import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -47,7 +46,6 @@ public class HadoopSink<K, V>
   }
 
   @Override
-  @SneakyThrows
   public void initialize() {
     try {
       OutputCommitter committer = getHadoopFormatInstance()
@@ -61,7 +59,6 @@ public class HadoopSink<K, V>
   }
 
   @Override
-  @SneakyThrows
   public Writer<Pair<K, V>> openWriter(int partitionId) {
     try {
       TaskAttemptContext ctx =
@@ -97,7 +94,6 @@ public class HadoopSink<K, V>
   }
 
   @Override
-  @SneakyThrows
   public void commit() throws IOException {
     try {
       OutputCommitter committer = getHadoopFormatInstance()
@@ -111,7 +107,6 @@ public class HadoopSink<K, V>
   }
 
   @Override
-  @SneakyThrows
   public void rollback() throws IOException {
     try {
       OutputCommitter committer = getHadoopFormatInstance()
