@@ -94,6 +94,14 @@ ext.applyJavaNature = {
   }
 }
 
+ext.applyGoNature = {
+  println "applyGoNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
+  apply plugin: "com.github.blindpirate.gogradle"
+  golang {
+    goVersion = '1.9'
+  }
+}
+
 ext.applyGrpcNature = {
   println "applyGrpcNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.google.protobuf"
