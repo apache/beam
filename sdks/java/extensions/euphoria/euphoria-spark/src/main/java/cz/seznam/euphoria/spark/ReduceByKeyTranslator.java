@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -53,7 +52,6 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     @SuppressWarnings("unchecked")
     final ReduceFunctor<Iterable<Object>, Object> reducer = operator.getReducer();
 
-    final Partitioning partitioning = operator.getPartitioning();
     final Windowing windowing =
             operator.getWindowing() == null
                     ? AttachedWindowing.INSTANCE
@@ -74,11 +72,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
             new CompositeKeyExtractor(keyExtractor, valueExtractor, windowing));
 
     JavaPairRDD<KeyedWindow, TimestampedElement> reduced;
-    if (partitioning.hasDefaultPartitioner()) {
-      reduced = tuples.reduceByKey(new Reducer(reducer), partitioning.getNumPartitions());
-    } else {
-      reduced = tuples.reduceByKey(new PartitioningWrapper(partitioning), new Reducer(reducer));
-    }
+    reduced = tuples.reduceByKey(new Reducer(reducer));
 
     return reduced.map(t -> {
       KeyedWindow kw = t._1();
