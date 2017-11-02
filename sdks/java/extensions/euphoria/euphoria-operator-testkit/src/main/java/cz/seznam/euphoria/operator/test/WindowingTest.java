@@ -121,7 +121,8 @@ public class WindowingTest extends AbstractOperatorTest {
             Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.FRUIT, 3L),
             Triple.of(Instant.parse("2016-12-19T11:00:00.000Z"), Type.VEGETABLE, 3L),
             Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.FRUIT, 2L),
-            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L));      }
+            Triple.of(Instant.parse("2016-12-19T12:00:00.000Z"), Type.VEGETABLE, 1L));
+      }
     });
   }
 
@@ -327,7 +328,7 @@ public class WindowingTest extends AbstractOperatorTest {
   @Test
   public void testSessionWindowingTriggerStateConsistency() {
     ON_CLEAR_VALIDATED.set(false);
-    execute(new AbstractTestCase<Pair<Instant, String>, Triple<Instant, Instant, Integer>>() {
+    execute(new AbstractTestCase<Pair<Instant, String>, Triple<Instant, Instant, Integer>>(3) {
       @SuppressWarnings("unchecked")
       @Override
       protected Dataset<Triple<Instant, Instant, Integer>>

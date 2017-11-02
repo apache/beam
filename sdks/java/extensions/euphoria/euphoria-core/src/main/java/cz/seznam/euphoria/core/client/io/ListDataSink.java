@@ -72,14 +72,15 @@ public class ListDataSink<T> implements DataSink<T> {
   @SuppressWarnings("unchecked")
   protected ListDataSink() {
     // save outputs to static storage
-    storage.put((ListDataSink) this, new HashMap<>());
+    storage.put((ListDataSink) this, Collections.synchronizedMap(new HashMap<>()));
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public Writer<T> openWriter(int partitionId) {
     ArrayList tmp = new ArrayList<>();
-    List partitionData = (List) storage.get(this).putIfAbsent(partitionId, tmp);
+    Map<Integer, List<?>> sinkData = storage.get(this);
+    List partitionData = (List) sinkData.putIfAbsent(partitionId, tmp);
     ListWriter w = new ListWriter(partitionId, partitionData == null ? tmp : partitionData);
     writers.add(w);
     return w;
