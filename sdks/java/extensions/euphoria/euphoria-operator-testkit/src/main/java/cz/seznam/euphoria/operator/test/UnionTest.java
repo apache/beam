@@ -34,7 +34,7 @@ import java.util.List;
 public class UnionTest extends AbstractOperatorTest {
 
   @Test
-  public void testUnionAndMap() {
+  public void testUnion() {
     execute(new TestCase<Integer>() {
 
       @Override
