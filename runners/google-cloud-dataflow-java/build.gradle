@@ -56,8 +56,8 @@ dependencies {
   compile library.java.jackson_annotations
   compile library.java.jackson_databind
   compile library.java.slf4j_api
-  compileOnly library.java.hamcrest_all
-  compileOnly library.java.junit
+  testCompile library.java.hamcrest_all
+  testCompile library.java.junit
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
