@@ -75,8 +75,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   public void testReductionType0() {
     execute(new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>(
         /* don't parallelize this test, because it doesn't work
-         * well with count windows */
-        false) {
+         *well with count windows */
+        1) {
       @Override
       protected List<Integer> getInput() {
         return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9);
@@ -109,7 +109,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     execute(new AbstractTestCase<Integer, Pair<Integer, Integer>>(
         /* don't parallelize this test, because it doesn't work
          * well with count windows */
-        false) {
+        1) {
 
       @Override
       protected List<Integer> getInput() {
@@ -405,7 +405,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
   @Test
   public void testMergingAndTriggering() {
-    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>(false) {
+    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>(1) {
 
       @Override
       protected List<Pair<String, Long>> getInput() {

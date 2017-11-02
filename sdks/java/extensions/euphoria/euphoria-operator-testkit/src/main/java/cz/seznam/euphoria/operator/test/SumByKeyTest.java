@@ -35,7 +35,7 @@ import java.util.List;
 public class SumByKeyTest extends AbstractOperatorTest {
 
   @Test
-  public void testTwoPartitions() {
+  public void testSumByKey() {
     execute(new AbstractTestCase<Integer, Pair<Integer, Long>>() {
       @Override
       protected Dataset<Pair<Integer, Long>> getOutput(Dataset<Integer> input) {
