@@ -150,10 +150,10 @@ public class RBKTimeWindowTest {
         ListDataSource.unbounded(
             asList(
                 Triple.of("one",   "a",   1),
-                Triple.of("aaa",   "A",   1), // ~ this one goes to a different partition than the rest
+                Triple.of("aaa",   "A",   1),
                 Triple.of("one",   "b",   2),
-                Triple.of("aaa",   "B",   2), // ~ this one goes to a different partition than the rest
-                Triple.of("aaa",   "C",   2), // ~ this one goes to a different partition than the rest
+                Triple.of("aaa",   "B",   2),
+                Triple.of("aaa",   "C",   2),
                 Triple.of("two",   "X",   3),
                 Triple.of("two",   "Q",   6),
                 Triple.of("three", "F",   6),
