@@ -76,6 +76,17 @@ ext.applyJavaNature = {
     maxErrors = 0
   }
 
+  apply plugin: 'com.diffplug.gradle.spotless'
+  spotless {
+    java {
+      target rootProject.fileTree(rootProject.rootDir) {
+        include 'sdks/java/**/*.java'
+      }
+      // Code formatting disabled because style rules are out of date.
+      // eclipse().configFile(rootProject.file('sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml'))
+    }
+  }
+
   // Ban these dependencies from all configurations
   delegate.configurations.all {
     exclude group: "com.google.guava", module: "guava-jdk5"
