@@ -40,6 +40,12 @@ ext.applyJavaNature = {
   // Skip test failures to enumerate all that is failing
   delegate.test {
     ignoreFailures = true
+    exclude '**/*IT.class'
+    useJUnit {
+      setExcludeCategories([
+              "org.apache.beam.sdk.testing.NeedsRunner",
+              "org.apache.beam.sdk.testing.ValidatesRunner"] as Set)
+    }
   }
 
   delegate.apply plugin: "net.ltgt.apt"
