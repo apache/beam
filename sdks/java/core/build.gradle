@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+applyAvroNature()
+
 description = "Apache Beam :: SDKs :: Java :: Core"
 
 dependencies {

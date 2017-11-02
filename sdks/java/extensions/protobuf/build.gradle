@@ -16,9 +16,11 @@
  * limitations under the License.
  */
 
-description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
-
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
 applyGrpcNature()
+
+description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
 
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")

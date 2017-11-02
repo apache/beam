@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
 description = "Apache Beam :: Runners :: Core Construction Java"
 
 dependencies {

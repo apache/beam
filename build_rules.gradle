@@ -18,6 +18,39 @@
 
 println "Applying build_rules.gradle to $project.name"
 
+/*************************************************************************************************/
+// Apply common properties/repositories and tasks to all builds.
+
+group = "org.apache.beam"
+version = "2.3.0-SNAPSHOT"
+
+// Add a task "allDeps" which lists all dependencies of the project
+// and all subprojects.
+task allD
+
+// Define the default set of properties
+repositories {
+  mavenLocal()
+  mavenCentral()
+  jcenter()
+
+  // Release staging repository
+  maven { url "https://oss.sonatype.org/content/repositories/staging/" }
+
+  // Apache nightly snapshots
+  maven { url "https://repository.apache.org/snapshots" }
+
+  // Apache release snapshots
+  maven { url "https://repository.apache.org/content/repositories/releases" }
+}
+
+// Add a task "allDeps" which lists all dependencies of the project
+// and all subprojects.
+task allDeps(type: DependencyReportTask) {
+}
+
+/*************************************************************************************************/
+
 /** Used as configuration within the applyJavaNature closure. */
 class JavaNatureConfiguration {
   double javaVersion = 1.7
