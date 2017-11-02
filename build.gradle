@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+apply from: project(":").file("build_rules.gradle")
+
 def google_cloud_bigdataoss_version = "1.4.5"
 def bigtable_version = "1.0.0-pre3"
 def google_clients_version = "1.22.0"
@@ -130,42 +132,13 @@ ext.library = [
   ],
 ]
 
-/** Used as configuration within the applyJavaNature closure. */
-class JavaNatureConfiguration {
-  double javaVersion = 1.7
-}
-
-allprojects {
-  group = "org.apache.beam"
-  version = "2.3.0-SNAPSHOT"
-
-  // Define the default set of properties
-  repositories {
-    mavenLocal()
-    mavenCentral()
-    jcenter()
-    maven { url "https://oss.sonatype.org/content/repositories/staging/" }
-    maven { url "https://repository.apache.org/snapshots" }
-    maven { url "https://repository.apache.org/content/repositories/releases" }
-  }
-
-  // Add a task "allDeps" which lists all dependencies of the project
-  // and all subprojects.
-  task allDeps(type: DependencyReportTask) {
-  }
-}
-
 buildscript {
   repositories {
     mavenLocal()
     mavenCentral()
     jcenter()
-    maven {
-      url "https://plugins.gradle.org/m2/"
-    }
-    maven {
-      url "http://repo.spring.io/plugins-release"
-    }
+    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
     classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"
@@ -177,6 +150,8 @@ buildscript {
     classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"
   }
 }
+
+apply plugin: "base"
 
 // Apply one top level rat plugin to perform any required analysis
 apply plugin: "org.nosphere.apache.rat"
@@ -257,102 +232,4 @@ rat {
     "**/go/pkg/beam/model/**/*.pb.go",
   ]
 }
-//check.dependsOn rat
-
-configure(allprojects) {
-  apply from: project(":").file("build_rules.gradle")
-}
-
-// Configure Java 7 projects
-configure([
-    project(":beam-model-parent:beam-model-pipeline"),
-    project(":beam-model-parent:beam-model-job-management"),
-    project(":beam-model-parent:beam-model-fn-execution"),
-    project(":beam-sdks-java-build-tools"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-amqp"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-cassandra"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-2"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-5"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-jdk1.8-tests"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hbase"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hcatalog"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jdbc"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-jms"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kinesis"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mongodb"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-mqtt"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-redis"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-solr"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-tika"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-xml"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-starter"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-json-jackson"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-protobuf"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sorter"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-sql"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-nexmark"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-harness"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container"),
-    project(":beam-runners-parent:beam-runners-core-construction-java"),
-    project(":beam-runners-parent:beam-runners-core-java"),
-    project(":beam-runners-parent:beam-local-artifact-service-java"),
-    project(":beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator"),
-    project(":beam-runners-parent:beam-runners-direct-java"),
-    project(":beam-runners-parent:beam-runners-flink_2.10"),
-    project(":beam-runners-parent:beam-runners-google-cloud-dataflow-java"),
-    project(":beam-runners-parent:beam-runners-spark"),
-    project(":beam-runners-parent:beam-runners-apex"),
-    project(":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd"),
-    project(":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy"),
-    project(":beam-runners-parent:beam-runners-gearpump"),
-    project(":beam-examples-parent:beam-examples-java"),
-    project(":beam-sdks-java-javadoc"),
-  ]) {
-  applyJavaNature()
-}
-
-// Configure Java 8 projects
-configure([
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-examples-java8"),
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-java8tests"),
-    project(":beam-examples-parent:beam-examples-java8"),
-  ]) {
-  applyJavaNature(javaVersion: 1.8)
-}
-
-// Configure Go projects
-configure([
-        project(":beam-sdks-parent:beam-sdks-go"),
-]) {
-  applyGoNature()
-}
-
-// Configure Avro code generation projects
-configure([
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core"),
-  ]) {
-  applyAvroNature()
-}
-
-
-// Configure protobuf/gRPC code generation projects
-configure([
-    project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-protobuf"),
-    project(":beam-model-parent:beam-model-pipeline"),
-    project(":beam-model-parent:beam-model-job-management"),
-    project(":beam-model-parent:beam-model-fn-execution"),
-  ]) {
-  applyGrpcNature()
-}
+check.dependsOn rat

@@ -1,8 +1,7 @@
 // Define common lifecycle tasks
-task check {}
-task build {}
+apply plugin: "base"
+
 task test {}
-task clean {}
 
 task setupTest {
   doLast {

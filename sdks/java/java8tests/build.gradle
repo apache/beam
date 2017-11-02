@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature(javaVersion: 1.8)
+
 description = "Apache Beam :: SDKs :: Java :: Java 8 Tests"
 
 dependencies {

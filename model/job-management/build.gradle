@@ -16,6 +16,10 @@
  * limitations under the License.
  */
 
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+applyGrpcNature()
+
 description = "Apache Beam :: Model :: Job Management"
 
 dependencies {

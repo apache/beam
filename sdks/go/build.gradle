@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+apply from: project(":").file("build_rules.gradle")
+applyGoNature()
+
 description = "Apache Beam :: SDKs :: Go"
 
 golang {
