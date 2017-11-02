@@ -23,7 +23,6 @@ import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
 import cz.seznam.euphoria.hadoop.utils.Cloner;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
-import lombok.SneakyThrows;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -65,7 +64,6 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
   }
 
   @Override
-  @SneakyThrows
   public List<Partition<Pair<K, V>>> getPartitions() {
     try {
       Configuration c = conf.getWritable();
@@ -125,7 +123,6 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
     }
 
     @Override
-    @SneakyThrows
     protected Pair<K, V> computeNext() {
       try {
         if (hadoopReader.nextKeyValue()) {
@@ -163,7 +160,6 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
 
     private transient InputSplit hadoopSplitDeserialized;
 
-    @SneakyThrows
     @SuppressWarnings("unchecked")
     public HadoopPartition(Class<K> keyClass, Class<V> valueClass,
                            Class<? extends InputFormat<K, V>> hadoopFormatCls,
@@ -189,7 +185,6 @@ public class HadoopSource<K, V> implements DataSource<Pair<K, V>> {
     }
 
     @Override
-    @SneakyThrows
     public Reader<Pair<K, V>> openReader() throws IOException {
       try {
         InputSplit hadoopSplit = getHadoopInputSplit();
