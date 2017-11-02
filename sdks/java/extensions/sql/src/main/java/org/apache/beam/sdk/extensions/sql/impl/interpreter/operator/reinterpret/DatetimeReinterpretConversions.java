@@ -23,6 +23,8 @@ import com.google.common.base.Function;
 import java.util.Date;
 import java.util.GregorianCalendar;
 
+import javax.annotation.Nonnull;
+
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.BeamSqlPrimitive;
 import org.apache.calcite.sql.type.SqlTypeName;
 
@@ -37,7 +39,7 @@ public abstract class DatetimeReinterpretConversions {
           .to(SqlTypeName.BIGINT)
           .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
             @Override
-            public BeamSqlPrimitive apply(BeamSqlPrimitive beamSqlPrimitive) {
+            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
               GregorianCalendar date = (GregorianCalendar) beamSqlPrimitive.getValue();
               return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTimeInMillis());
             }
@@ -49,7 +51,7 @@ public abstract class DatetimeReinterpretConversions {
           .to(SqlTypeName.BIGINT)
           .convert(new Function<BeamSqlPrimitive, BeamSqlPrimitive>() {
             @Override
-            public BeamSqlPrimitive apply(BeamSqlPrimitive beamSqlPrimitive) {
+            public BeamSqlPrimitive apply(@Nonnull BeamSqlPrimitive beamSqlPrimitive) {
               Date date = (Date) beamSqlPrimitive.getValue();
               return BeamSqlPrimitive.of(SqlTypeName.BIGINT, date.getTime());
             }
