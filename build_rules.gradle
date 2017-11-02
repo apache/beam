@@ -110,7 +110,7 @@ ext.applyJavaNature = {
   }
 
   delegate.apply plugin: 'com.diffplug.gradle.spotless'
-  spotless {
+  delegate.spotless {
     java {
       target rootProject.fileTree(rootProject.rootDir) {
         include 'sdks/java/**/*.java'
