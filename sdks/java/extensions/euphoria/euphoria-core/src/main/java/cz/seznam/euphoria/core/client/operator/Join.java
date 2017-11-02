@@ -124,7 +124,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
-      implements Builders.Output<Pair<KEY, OUT>> {
+      implements Builders.Output<Pair<KEY, OUT>>,
+          OptionalMethodBuilder<WindowingBuilder<LEFT, RIGHT, KEY, OUT>> {
 
     private final String name;
     private final Dataset<LEFT> left;
