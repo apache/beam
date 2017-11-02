@@ -57,11 +57,16 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.*;
 
@@ -169,11 +174,9 @@ public class InMemExecutorTest {
     @Override
     @SuppressWarnings("unchecked")
     public void flush(Collector<Integer> context) {
-      List<Integer> toSort = Lists.newArrayList(data.get());
-      Collections.sort(toSort);
-      for (Integer i : toSort) {
-        context.collect(i);
-      }
+      StreamSupport.stream(data.get().spliterator(), false)
+          .sorted()
+          .forEach(context::collect);
     }
 
     static void combine(SortState target, Iterable<SortState> others) {
@@ -313,9 +316,67 @@ public class InMemExecutorTest {
 
     executor.submit(flow).get();
 
-    // each partition should have 550 items in each window set
-    // FIXME: this will fail
-    DatasetAssert.unorderedEquals(sink.getOutputs());
+    List<Triple<SizedCountWindow, Integer, Integer>> outputs = sink.getOutputs();
+
+    assertEquals(4 * 550, outputs.size());
+
+    checkKeyAlignedSortedList(outputs);
+  }
+
+  private void checkKeyAlignedSortedList(
+      List<Triple<SizedCountWindow, Integer, Integer>> list) {
+
+    Map<SizedCountWindow, Map<Integer, List<Integer>>> byWindow = new HashMap<>();
+
+    for (Triple<SizedCountWindow, Integer, Integer> p : list) {
+      Map<Integer, List<Integer>> byKey = byWindow.get(p.getFirst());
+      if (byKey == null) {
+        byWindow.put(p.getFirst(), byKey = new HashMap<>());
+      }
+      List<Integer> sorted = byKey.get(p.getSecond());
+      if (sorted == null) {
+        byKey.put(p.getSecond(), sorted = new ArrayList<>());
+      }
+      sorted.add(p.getThird());
+    }
+
+    assertFalse(byWindow.isEmpty());
+    int totalCount = 0;
+    List<SizedCountWindow> iterOrder =
+        byWindow.keySet()
+            .stream()
+            .sorted(Comparator.comparing(SizedCountWindow::get))
+            .collect(Collectors.toList());
+    for (SizedCountWindow w : iterOrder) {
+      Map<Integer, List<Integer>> wkeys = byWindow.get(w);
+      assertNotNull(wkeys);
+      assertFalse(wkeys.isEmpty());
+      for (Map.Entry<Integer, List<Integer>> e : wkeys.entrySet()) {
+        // now, each list must be sorted
+        assertAscendingWindows(e.getValue(), w, e.getKey());
+        totalCount += e.getValue().size();
+      }
+    }
+  }
+
+  private static void assertAscendingWindows(
+      List<Integer> xs, SizedCountWindow window, Integer key) {
+    List<List<Integer>> windows = Lists.partition(xs, window.get());
+    assertFalse(windows.isEmpty());
+    int totalSeen = 0;
+    for (List<Integer> windowData : windows) {
+      int last = -1;
+      for (int x : windowData) {
+        if (last > x) {
+          fail(String.format("Sequence not ascending for (window: %s / key: %d): %s",
+              window, key, xs));
+        }
+        last = x;
+        totalSeen += 1;
+      }
+    }
+    assertEquals(xs.size(), totalSeen);
+
   }
 
   // reverse given list
@@ -341,16 +402,23 @@ public class InMemExecutorTest {
     Dataset<Integer> input = flow.createInput(
         ListDataSource.unbounded(sequenceInts(0, N)));
 
-    // ~ consume the input another time
-    Dataset<Integer> map = MapElements
-        .of(input)
+    // there seems to be bug in InMemExecutor
+    // that makes it impossible to consume the
+    // same dataset twice by single union operator
+    Dataset<Integer> first = MapElements.of(input)
         .using(e -> e)
         .output();
-    ListDataSink<Integer> mapOut = ListDataSink.get();
-    map.persist(mapOut);
+
+    Dataset<Integer> second = MapElements.of(input)
+        .using(e -> e)
+        .output();
+
+    // ~ consume the input another time
+    Dataset<Integer> union = Union.of(first, second)
+        .output();
 
     Dataset<Pair<Integer, Integer>> sum = ReduceByKey
-        .of(input)
+        .of(union)
         .keyBy(e -> 0)
         .valueBy(e -> e)
         .reduceBy(Sums.ofInts())
@@ -363,8 +431,7 @@ public class InMemExecutorTest {
 
     DatasetAssert.unorderedEquals(
         sumOut.getOutputs(),
-        Pair.of(0, (N - 1) * N / 2),
-        Pair.of(0, (N - 1) * N / 2));
+        Pair.of(0, 2 * (N - 1) * N / 2));
   }
 
 
