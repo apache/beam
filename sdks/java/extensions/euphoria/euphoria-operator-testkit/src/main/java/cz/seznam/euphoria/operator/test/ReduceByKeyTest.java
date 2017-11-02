@@ -441,13 +441,13 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, Integer, HashSet<String>>> getOutput
           (Dataset<Pair<String, Integer>> input) {
-        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
+        input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
         Dataset<Pair<Integer, HashSet<String>>> reduced =
             ReduceByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .reduceBy((ReduceFunction<String, HashSet<String>>) Sets::newHashSet)
-                .windowBy(Session.of(Duration.ofSeconds(5)))
+                .windowBy(Session.of(Duration.ofMillis(5)))
                 .output();
 
         return FlatMap.of(reduced)
