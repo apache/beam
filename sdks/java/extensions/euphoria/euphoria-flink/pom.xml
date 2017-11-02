@@ -20,7 +20,7 @@
   <parent>
     <artifactId>euphoria-parent</artifactId>
     <groupId>cz.seznam.euphoria</groupId>
-    <version>0.7.2-SNAPSHOT</version>
+    <version>0.8-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -36,6 +36,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
+      <type>test-jar</type>
     </dependency>
 
     <dependency>

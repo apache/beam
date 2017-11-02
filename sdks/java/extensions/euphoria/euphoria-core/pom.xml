@@ -22,7 +22,7 @@
   <parent>
     <groupId>cz.seznam.euphoria</groupId>
     <artifactId>euphoria-parent</artifactId>
-    <version>0.7.2-SNAPSHOT</version>
+    <version>0.8-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -34,6 +34,23 @@
     Euphoria's Core provides the API to isolate client side programs from
     specific execution engine implementations.
   </description>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.0.2</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>test-jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 
   <dependencies>
     <dependency>

@@ -43,14 +43,12 @@ public class ReduceWindowTest {
     Dataset<Long> output = ReduceWindow.of(dataset)
         .valueBy(e -> "")
         .reduceBy(e -> 1L)
-        .applyIf(false, b -> b.setNumPartitions(1))
         .output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(
         producer.getReducer(), Arrays.asList("blah")));
-    assertEquals(2, producer.partitioning.getNumPartitions());
     assertEquals("", producer.valueExtractor.apply("blah"));
   }
 
@@ -64,14 +62,12 @@ public class ReduceWindowTest {
     Dataset<Long> output = ReduceWindow.of(dataset)
         .reduceBy(e -> 1L)
         .windowBy(windowing)
-        .applyIf(true, b -> b.setNumPartitions(1))
         .output();
 
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(
         producer.getReducer(), Arrays.asList("blah")));
-    assertEquals(1, producer.partitioning.getNumPartitions());
     assertEquals("blah", producer.valueExtractor.apply("blah"));
     assertEquals(windowing, producer.windowing);
   }

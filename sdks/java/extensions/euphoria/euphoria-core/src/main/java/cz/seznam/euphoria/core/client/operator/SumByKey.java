@@ -18,7 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.partitioning.Partitioning;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -80,7 +79,6 @@ public class SumByKey<IN, KEY, W extends Window>
     }
   }
   public static class ByBuilder2<IN, KEY>
-      extends PartitioningBuilder<KEY, ByBuilder2<IN, KEY>>
       implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, Long>>
   {
     private final String name;
@@ -89,9 +87,6 @@ public class SumByKey<IN, KEY, W extends Window>
     private UnaryFunction<IN, Long> valueExtractor = e -> 1L;
     
     ByBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
-      // initialize default partitioning according to input
-      super(new DefaultPartitioning<>(input.getNumPartitions()));
-
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -106,19 +101,18 @@ public class SumByKey<IN, KEY, W extends Window>
     public <W extends Window> OutputBuilder<IN, KEY, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input,
-          keyExtractor, valueExtractor, windowing, this);
+          keyExtractor, valueExtractor, windowing);
     }
 
     @Override
     public Dataset<Pair<KEY, Long>> output() {
       return new OutputBuilder<>(
-          name, input, keyExtractor, valueExtractor, null, this)
+          name, input, keyExtractor, valueExtractor, null)
           .output();
     }
   }
 
   public static class OutputBuilder<IN, KEY, W extends Window>
-      extends PartitioningBuilder<KEY, OutputBuilder<IN, KEY, W>>
       implements Builders.Output<Pair<KEY, Long>>
   {
     private final String name;
@@ -132,10 +126,7 @@ public class SumByKey<IN, KEY, W extends Window>
                   Dataset<IN> input,
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
-                  @Nullable Windowing<IN, W> windowing,
-                  PartitioningBuilder<KEY, ?> partitioning) {
-      super(partitioning);
-
+                  @Nullable Windowing<IN, W> windowing) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
@@ -146,8 +137,9 @@ public class SumByKey<IN, KEY, W extends Window>
     public Dataset<Pair<KEY, Long>> output() {
       Flow flow = input.getFlow();
       SumByKey<IN, KEY, W> sumByKey =
-          new SumByKey<>(name, flow, input, keyExtractor, valueExtractor,
-                  windowing, getPartitioning());
+          new SumByKey<>(
+              name, flow, input, keyExtractor, valueExtractor,
+              windowing);
       flow.add(sumByKey);
       return sumByKey.output();
     }
@@ -188,10 +180,9 @@ public class SumByKey<IN, KEY, W extends Window>
            Dataset<IN> input,
            UnaryFunction<IN, KEY> keyExtractor,
            UnaryFunction<IN, Long> valueExtractor,
-           @Nullable Windowing<IN, W> windowing,
-           Partitioning<KEY> partitioning)
+           @Nullable Windowing<IN, W> windowing)
   {
-    super(name, flow, input, keyExtractor, windowing, partitioning);
+    super(name, flow, input, keyExtractor, windowing);
     this.valueExtractor = valueExtractor;
   }
 
@@ -199,8 +190,7 @@ public class SumByKey<IN, KEY, W extends Window>
   public DAG<Operator<?, ?>> getBasicOps() {
     ReduceByKey<IN, KEY, Long, Long, W> reduceByKey =
         new ReduceByKey<>(getName(), input.getFlow(), input,
-        keyExtractor, valueExtractor, windowing,
-                Sums.ofLongs(), getPartitioning());
+        keyExtractor, valueExtractor, windowing, Sums.ofLongs());
     return DAG.of(reduceByKey);
   }
 }

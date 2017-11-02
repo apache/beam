@@ -20,7 +20,7 @@
   <parent>
     <artifactId>euphoria-parent</artifactId>
     <groupId>cz.seznam.euphoria</groupId>
-    <version>0.7.2-SNAPSHOT</version>
+    <version>0.8-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -37,6 +37,12 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
+      <type>test-jar</type>
     </dependency>
 
     <dependency>
@@ -61,6 +67,13 @@
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <scope>test</scope>
+      <version>1.7.25</version>
     </dependency>
   </dependencies>
 

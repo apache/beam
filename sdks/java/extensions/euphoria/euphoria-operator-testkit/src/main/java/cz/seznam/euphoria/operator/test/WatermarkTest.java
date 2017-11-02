@@ -30,6 +30,7 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 
 public class WatermarkTest extends AbstractOperatorTest {
 
@@ -44,20 +45,15 @@ public class WatermarkTest extends AbstractOperatorTest {
 
       // ~ a very fast source
       @Override
-      protected Partitions<Pair<String, Long>> getLeftInput() {
-        return Partitions.add(Pair.of("fi", 1L), Pair.of("fa", 2L)).build();
+      protected List<Pair<String, Long>> getLeftInput() {
+        return Arrays.asList(Pair.of("fi", 1L), Pair.of("fa", 2L));
       }
 
       // ~ a very slow source
       @Override
-      protected Partitions<Pair<String, Long>> getRightInput() {
-        return Partitions.add(Pair.of("ha", 1L), Pair.of("ho", 4L))
-            .build(Duration.ofMillis(2000), Duration.ofMillis(100));
-      }
-
-      @Override
-      public int getNumOutputPartitions() {
-        return 1;
+      protected List<Pair<String, Long>> getRightInput() {
+        // FIXME: speed is undefined here!
+        return Arrays.asList(Pair.of("ha", 1L), Pair.of("ho", 4L));
       }
 
       @Override
@@ -71,21 +67,18 @@ public class WatermarkTest extends AbstractOperatorTest {
                 .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
                 .windowBy(Time.of(Duration.ofMillis(10)))
-                .setNumPartitions(1)
                 .output();
         return MapElements.of(joined).using(Pair::getSecond).output();
       }
 
       @Override
-      public void validate(Partitions<Triple<TimeInterval, String, String>> partitions) {
+      public List<Triple<TimeInterval, String, String>> getUnorderedOutput() {
         TimeInterval expectedWindow = new TimeInterval(0, 10);
-        assertUnorderedEquals(
-            Arrays.asList(
-                Triple.of(expectedWindow, "fi", "ha"),
-                Triple.of(expectedWindow, "fi", "ho"),
-                Triple.of(expectedWindow, "fa", "ha"),
-                Triple.of(expectedWindow, "fa", "ho")),
-            partitions.get(0));
+        return Arrays.asList(
+            Triple.of(expectedWindow, "fi", "ha"),
+            Triple.of(expectedWindow, "fi", "ho"),
+            Triple.of(expectedWindow, "fa", "ha"),
+            Triple.of(expectedWindow, "fa", "ho"));
       }
     });
   }

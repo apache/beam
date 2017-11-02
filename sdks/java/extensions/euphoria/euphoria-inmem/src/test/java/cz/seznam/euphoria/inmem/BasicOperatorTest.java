@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -28,29 +29,24 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.Distinct;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.ImmutableMap;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Maps;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
+import java.util.Set;
 import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Test basic operator functionality and ability to compile.
@@ -97,22 +93,20 @@ public class BasicOperatorTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    ListDataSink<Pair<String, Long>> out = ListDataSink.get(1);
+    ListDataSink<Pair<String, Long>> out = ListDataSink.get();
     streamOutput.persist(out);
 
     executor.submit(flow).get();
 
-    @SuppressWarnings("unchecked")
-    List<Pair<String, Long>> f = new ArrayList<>(out.getOutput(0));
-
-    // ~ assert the total amount of data produced
-    assertEquals(7, f.size());
-
-    // ~ first window
-    assertEquals(asList("four-2", "one-1", "three-1", "two-3"), sublist(f, 0, 4));
-
-    //  ~ second window
-    assertEquals(asList("one-3", "three-1", "two-2"), sublist(f, 4, -1));
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
+        Pair.of("four", 2L),
+        Pair.of("one", 1L),
+        Pair.of("three", 1L),
+        Pair.of("two", 3L),
+        Pair.of("one", 3L),
+        Pair.of("three", 1L),
+        Pair.of("two", 2L));
   }
 
   @Test
@@ -139,31 +133,34 @@ public class BasicOperatorTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    ListDataSink<Triple<TimeInterval, String, Long>> out =
-        ListDataSink.get(1);
+    ListDataSink<Pair<String, Long>> out = ListDataSink.get();
 
-    FlatMap.of(streamOutput)
+    Dataset<Triple<TimeInterval, String, Long>> withWindow = FlatMap.of(streamOutput)
         .using((Pair<String, Long> p, Collector<Triple<TimeInterval, String, Long>> c) -> {
           // ~ just access the windows testifying their accessibility
           c.collect(Triple.of((TimeInterval) c.getWindow(), p.getFirst(), p.getSecond()));
         })
+        .output();
+
+    // strip the window again after
+    MapElements.of(withWindow)
+        .using(e -> Pair.of(e.getSecond(), e.getThird()))
         .output()
         .persist(out);
 
     executor.submit(flow).get();
 
-    @SuppressWarnings("unchecked")
-    List<Triple<TimeInterval, String, Long>> fs =
-        new ArrayList<>(out.getOutput(0));
+    List<Pair<String, Long>> fs = out.getOutputs();
 
-    // ~ assert the total amount of data produced
-    assertEquals(7, fs.size());
-
-    long firstWindowStart = assertOutput0(fs.subList(0, 4), 1000L,
-        "four-2", "one-1", "three-1", "two-3");
-    long secondWindowStart = assertOutput0(fs.subList(4, fs.size()), 1000L,
-        "one-3", "three-1", "two-2");
-    assertTrue(firstWindowStart < secondWindowStart);
+    DatasetAssert.unorderedEquals(
+        fs,
+        Pair.of("four", 2L),
+        Pair.of("one", 1L),
+        Pair.of("three", 1L),
+        Pair.of("two", 3L),
+        Pair.of("one", 3L),
+        Pair.of("three", 1L),
+        Pair.of("two", 2L));
   }
 
   private <F, S> long assertOutput0(
@@ -218,45 +215,52 @@ public class BasicOperatorTest {
         .output();
 
 
-    ListDataSink<Pair<String, Long>> s = ListDataSink.get(1);
+    ListDataSink<Pair<String, Long>> s = ListDataSink.get();
     streamOutput.persist(s);
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
     executor.submit(flow).get();
 
-    @SuppressWarnings("unchecked")
-    List<Pair<String, Long>> f = s.getOutput(0);
+    List<Pair<String, Long>> outputs = s.getOutputs();
 
-    // ~ assert the total amount of data produced
-    assertTrue(f.size() >= 8); // at least one early triggered result + end of window
+    DatasetAssert.unorderedEquals(
+        outputs,
+        // first emission, early at watermark 1003
+        Pair.of("one", 1L),
+        Pair.of("two", 3L),
+        Pair.of("three", 1L),
+        Pair.of("four", 2L),
 
-    // ~ take only unique results (window can be triggered arbitrary times)
-    Set<String> results = new HashSet<>(sublist(f, 0, -1, false));
+        // second emission, early at watermark 4012
+        Pair.of("two", 5L),
+        Pair.of("one", 4L),
+        Pair.of("three", 2L),
+        Pair.of("four", 2L),
 
-    // ~ first window - early triggered
-    results.containsAll(asList("four-2", "one-1", "three-1", "two-3"));
-
-    //  ~ second (final) window
-    results.containsAll(asList("one-4", "three-2", "two-5"));
+        // final emission
+        Pair.of("two", 5L),
+        Pair.of("one", 4L),
+        Pair.of("three", 2L),
+        Pair.of("four", 2L));
   }
 
   @Test
   public void testWordCountStreamEarlyTriggeredInSession() throws Exception {
     ListDataSource<Pair<String, Integer>> input =
         ListDataSource.unbounded(asList(
-            Pair.of("one", 150),
-            Pair.of("two", 450),
-            Pair.of("three", 999),
-            Pair.of("four", 1111),
-            Pair.of("four", 1500),
+            Pair.of("one", 150),    // early trigger at 1153
+            Pair.of("two", 450),    // early trigger at 1453
+            Pair.of("three", 999),  // early trigger at 2002
+            Pair.of("four", 1111),  // early trigger at 2114
+            Pair.of("four", 1500),  // 1st triggers `one` (next 2156) and `two` (2456)
             Pair.of("two", 1777),
             Pair.of("two", 1999),
-            Pair.of("one", 4003),
-            Pair.of("one", 4158),
-            Pair.of("one", 4899),
+            Pair.of("one", 4003),   // 2nd triggers `one` (4162), `two` (4462), `three` (4008)  and `four` (4120)
+            Pair.of("one", 4158),   // 3rd triggers `three` (5011) and `four` (5123)
+            Pair.of("one", 4899),   // 4th triggers `one` (5165) and `two` (5465)
             Pair.of("two", 5001),
-            Pair.of("two", 5123),
-            Pair.of("three", 5921)));
+            Pair.of("two", 5123),   // 5th triggers `three` (6014) and `four` (5126)
+            Pair.of("three", 5921))); // 6th triggers `one` and `two`
 
     Flow flow = Flow.create("Test");
     Dataset<Pair<String, Integer>> lines = flow.createInput(input);
@@ -283,20 +287,19 @@ public class BasicOperatorTest {
         .output();
 
 
-    ListDataSink<Pair<String, Long>> s = ListDataSink.get(1);
+    ListDataSink<Pair<String, Long>> s = ListDataSink.get();
     streamOutput.persist(s);
 
     executor.setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0));
     executor.submit(flow).get();
 
-    @SuppressWarnings("unchecked")
-    List<Pair<String, Long>> f = s.getOutput(0);
+    List<Pair<String, Long>> outputs = s.getOutputs();
 
     // ~ assert the total amount of data produced
-    assertTrue(f.size() >= 8); // at least one early triggered result + end of window
+    assertTrue(outputs.size() >= 8); // at least one early triggered result + end of window
 
     // ~ take only unique results (window can be triggered arbitrary times)
-    Set<String> results = new HashSet<>(sublist(f, 0, -1, false));
+    Set<String> results = new HashSet<>(sublist(outputs, 0, -1, false));
 
     // ~ first window - early triggered
     results.containsAll(asList("four-2", "one-1", "three-1", "two-3"));
@@ -347,19 +350,17 @@ public class BasicOperatorTest {
         .combineBy(Sums.ofLongs())
         .output();
 
-    ListDataSink<Pair<String, Long>> f = ListDataSink.get(1);
-    streamOutput.persist(f);
+    ListDataSink<Pair<String, Long>> out = ListDataSink.get();
+    streamOutput.persist(out);
 
     executor.submit(flow).get();
 
-    assertNotNull(f.getOutput(0));
-    ImmutableMap<String, Pair<String, Long>> idx =
-        Maps.uniqueIndex(f.getOutput(0), Pair::getFirst);
-    assertEquals(4, idx.size());
-    assertEquals((long) idx.get("one").getSecond(), 4L);
-    assertEquals((long) idx.get("two").getSecond(), 3L);
-    assertEquals((long) idx.get("three").getSecond(), 2L);
-    assertEquals((long) idx.get("four").getSecond(), 1L);
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
+        Pair.of("one", 4L),
+        Pair.of("two", 3L),
+        Pair.of("three", 2L),
+        Pair.of("four", 1L));
   }
 
   @Test
@@ -374,15 +375,14 @@ public class BasicOperatorTest {
         .output();
 
     Dataset<String> output = Distinct.of(words).output();
-    ListDataSink<String> f = ListDataSink.get(1);
-    output.persist(f);
+    ListDataSink<String> out = ListDataSink.get();
+    output.persist(out);
 
     executor.submit(flow).get();
 
-    assertNotNull(f.getOutput(0));
-    assertEquals(
-        asList("four", "one", "three", "two"),
-        f.getOutput(0).stream().sorted().collect(toList()));
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
+        "four", "one", "three", "two");
   }
 
   @Test
@@ -403,19 +403,15 @@ public class BasicOperatorTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    ListDataSink<String> f = ListDataSink.get(1);
-    output.persist(f);
+    ListDataSink<String> out = ListDataSink.get();
+    output.persist(out);
 
     executor.submit(flow).get();
 
-    List<String> out = f.getOutput(0);
-    assertNotNull(out);
-    assertEquals(
-        asList("four", "one", "three", "two"),
-        out.subList(0, 4).stream().sorted().collect(toList()));
-    assertEquals(
-        asList("one", "three", "two"),
-        out.subList(4, out.size()).stream().sorted().collect(toList()));
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
+        "four", "one", "three", "two",
+        "one", "three", "two");
   }
 
   @Test
@@ -438,19 +434,19 @@ public class BasicOperatorTest {
                 context.collect(Pair.of((TimeInterval) context.getWindow(), elem)))
         .output();
 
-    ListDataSink<Pair<TimeInterval, String>> f = ListDataSink.get(1);
-    output.persist(f);
+    ListDataSink<String> out = ListDataSink.get();
+    // strip the labels again because we cannot test them
+    MapElements.of(output)
+        .using(Pair::getSecond)
+        .output()
+        .persist(out);
 
     executor.submit(flow).get();
 
-    List<Pair<TimeInterval, String>> out = f.getOutput(0);
-    assertNotNull(out);
-
-    long firstWindowStart =
-        assertOutput1(out.subList(0, 4), 1000L, "four", "one", "three", "two");
-    long secondWindowStart =
-        assertOutput1(out.subList(4, out.size()), 1000L, "one", "three", "two");
-    assertTrue(firstWindowStart < secondWindowStart);
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
+        "four", "one", "three", "two",
+        "one", "three", "two");
   }
 
   private <S> long assertOutput1(
@@ -478,7 +474,7 @@ public class BasicOperatorTest {
             asList("1-one 1-two 1-three 2-three 2-four 2-one 2-one 2-two".split(" ")),
             asList("1-one 1-two 1-four 2-three 2-three 2-three".split(" "))));
 
-    ListDataSink<HashSet<String>> f = ListDataSink.get(4);
+    ListDataSink<HashSet<String>> out = ListDataSink.get();
 
     // expand it to words
     Dataset<String> words = FlatMap.of(lines)
@@ -492,9 +488,8 @@ public class BasicOperatorTest {
     ReduceWindow.of(words)
         .reduceBy(Sets::newHashSet)
         .windowBy(Time.of(Duration.ofMinutes(1)))
-        .setNumPartitions(4)
         .output()
-        .persist(f);
+        .persist(out);
 
     executor
         .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler(0))
@@ -502,13 +497,9 @@ public class BasicOperatorTest {
         .submit(flow)
         .get();
 
-    List<HashSet<String>> output = f.getOutput(0);
-    assertEquals(1, output.size());
-    assertEquals(Sets.newHashSet(
-        Arrays.asList("2-three", "2-one", "2-two", "2-four")), output.get(0));
-    output = f.getOutput(3);
-    assertEquals(1, output.size());
-    assertEquals(Sets.newHashSet(
-        Arrays.asList("1-one", "1-two", "1-three", "1-four")), output.get(0));
+    DatasetAssert.unorderedEquals(
+        out.getOutputs(),
+        Sets.newHashSet("2-three", "2-one", "2-two", "2-four"),
+        Sets.newHashSet("1-one", "1-two", "1-three", "1-four"));
   }
 }

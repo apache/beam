@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
@@ -26,10 +27,6 @@ import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Comparator;
-import java.util.stream.Collectors;
-
-import static org.junit.Assert.assertEquals;
 
 public class TestDistinctBasic {
 
@@ -37,7 +34,7 @@ public class TestDistinctBasic {
   public void test() throws Exception {
     Flow f = Flow.create("Test");
 
-    ListDataSink<Pair<String, String>> output = ListDataSink.get(1);
+    ListDataSink<Pair<String, String>> output = ListDataSink.get();
 
     Dataset<Pair<String, String>> input =
         f.createInput(ListDataSource.unbounded(
@@ -54,15 +51,9 @@ public class TestDistinctBasic {
 
     new TestFlinkExecutor().submit(f).get();
 
-    assertEquals(
-        Arrays.asList(
-            Pair.of("foo", "bar"),
-            Pair.of("quux", "ibis"))
-            .stream().sorted(Comparator.comparing(Pair::getFirst))
-            .collect(Collectors.toList()),
-        output.getOutput(0)
-            .stream()
-            .sorted(Comparator.comparing(Pair::getFirst))
-            .collect(Collectors.toList()));
+    DatasetAssert.unorderedEquals(
+        output.getOutputs(),
+        Pair.of("foo", "bar"),
+        Pair.of("quux", "ibis"));
   }
 }
