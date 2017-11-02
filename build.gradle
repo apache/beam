@@ -174,6 +174,7 @@ buildscript {
     classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"
     classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"
   }
 }
 
@@ -331,6 +332,13 @@ configure([
   applyJavaNature(javaVersion: 1.8)
 }
 
+// Configure Go projects
+configure([
+        project(":beam-sdks-parent:beam-sdks-go"),
+]) {
+  applyGoNature()
+}
+
 // Configure Avro code generation projects
 configure([
     project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core"),
@@ -348,4 +356,3 @@ configure([
   ]) {
   applyGrpcNature()
 }
-    
