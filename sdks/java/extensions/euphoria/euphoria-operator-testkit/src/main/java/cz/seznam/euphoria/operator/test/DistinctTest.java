@@ -38,10 +38,10 @@ import java.util.List;
 public class DistinctTest extends AbstractOperatorTest {
 
   /**
-   * Test simple duplicates with single output partition.
+   * Test simple duplicates.
    */
   @Test
-  public void testSimpleDuplicatesWithSinglePartitionNoWindowing() {
+  public void testSimpleDuplicatesWithNoWindowing() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
@@ -62,11 +62,11 @@ public class DistinctTest extends AbstractOperatorTest {
   }
 
   /**
-   * Test simple duplicates with single output partition and unbounded input
+   * Test simple duplicates with unbounded input
    * with count window.
    */
   @Test
-  public void testSimpleDuplicatesWithSinglePartitionTimeWindowing() {
+  public void testSimpleDuplicatesWithTimeWindowing() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
@@ -92,12 +92,8 @@ public class DistinctTest extends AbstractOperatorTest {
     });
   }
 
-  /**
-   * Test duplicates with two output partitions and unbounded input
-   * with two partitions with count window.
-   */
   @Test
-  public void testSimpleDuplicatesWithSinglePartitionStreamTwoPartitions() {
+  public void testSimpleDuplicatesWithStream() {
     execute(new AbstractTestCase<Pair<Integer, Long>, Integer>() {
 
       @Override
