@@ -31,6 +31,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineRunner;
@@ -469,7 +470,7 @@ public class PAssert {
     private final PAssertionSite site;
 
     public PCollectionContentsAssert(PCollection<T> actual, PAssertionSite site) {
-      this(actual, IntoGlobalWindow.<T>of(), PaneExtractors.<T>allPanes(), site);
+      this(actual, IntoGlobalWindow.of(), PaneExtractors.<T>allPanes(), site);
     }
 
     public PCollectionContentsAssert(
@@ -515,7 +516,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionContentsAssert<>(
-          actual, IntoStaticWindows.<T>of(windowCoder, window), paneExtractor, site);
+          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site);
     }
 
     /**
@@ -605,6 +606,7 @@ public class PAssert {
       }
 
       @Override
+      @Nullable
       public Void apply(T actual) {
         assertThat(actual, matcher);
         return null;
@@ -651,7 +653,7 @@ public class PAssert {
         PCollection<Iterable<T>> actual, PAssertionSite site) {
       this(
           actual,
-          IntoGlobalWindow.<Iterable<T>>of(),
+          IntoGlobalWindow.of(),
           PaneExtractors.<Iterable<T>>allPanes(),
           site);
     }
@@ -706,7 +708,7 @@ public class PAssert {
       Coder<BoundedWindow> windowCoder =
           (Coder) actual.getWindowingStrategy().getWindowFn().windowCoder();
       return new PCollectionSingletonIterableAssert<>(
-          actual, IntoStaticWindows.<Iterable<T>>of(windowCoder, window), paneExtractor, site);
+          actual, IntoStaticWindows.of(windowCoder, window), paneExtractor, site);
     }
 
     @Override
@@ -764,7 +766,7 @@ public class PAssert {
       this(
           actual,
           view,
-          IntoGlobalWindow.<ElemT>of(),
+          IntoGlobalWindow.of(),
           PaneExtractors.<ElemT>allPanes(),
           coder,
           site);
@@ -1269,6 +1271,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(T actual) {
       assertThat(actual, equalTo(expected));
       return null;
@@ -1287,6 +1290,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(T actual) {
       assertThat(actual, not(equalTo(expected)));
       return null;
@@ -1316,6 +1320,7 @@ public class PAssert {
     }
 
     @Override
+    @Nullable
     public Void apply(Iterable<T> actual) {
       assertThat(actual, containsInAnyOrder(expected));
       return null;

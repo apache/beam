@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -362,7 +363,7 @@ public class WinningBids extends PTransform<PCollection<Event>, PCollection<Auct
 
             @ProcessElement
             public void processElement(ProcessContext c) {
-              Auction auction =
+              @Nullable Auction auction =
                   c.element().getValue().getOnly(NexmarkQuery.AUCTION_TAG, null);
               if (auction == null) {
                 // We have bids without a matching auction. Give up.

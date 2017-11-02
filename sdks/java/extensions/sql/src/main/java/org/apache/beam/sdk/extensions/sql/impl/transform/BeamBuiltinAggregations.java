@@ -23,6 +23,7 @@ import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Date;
 import java.util.Iterator;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -253,6 +254,7 @@ class BeamBuiltinAggregations {
   }
 
   static class IntegerAvg extends Avg<Integer>{
+    @Nullable
     public Integer extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).intValue();
     }
@@ -263,6 +265,7 @@ class BeamBuiltinAggregations {
   }
 
   static class LongAvg extends Avg<Long>{
+    @Nullable
     public Long extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).longValue();
     }
@@ -273,6 +276,7 @@ class BeamBuiltinAggregations {
   }
 
   static class ShortAvg extends Avg<Short>{
+    @Nullable
     public Short extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).shortValue();
     }
@@ -282,7 +286,8 @@ class BeamBuiltinAggregations {
     }
   }
 
-  static class ByteAvg extends Avg<Byte>{
+  static class ByteAvg extends Avg<Byte> {
+    @Nullable
     public Byte extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).byteValue();
     }
@@ -293,6 +298,7 @@ class BeamBuiltinAggregations {
   }
 
   static class FloatAvg extends Avg<Float>{
+    @Nullable
     public Float extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).floatValue();
     }
@@ -303,6 +309,7 @@ class BeamBuiltinAggregations {
   }
 
   static class DoubleAvg extends Avg<Double>{
+    @Nullable
     public Double extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator).doubleValue();
     }
@@ -313,6 +320,7 @@ class BeamBuiltinAggregations {
   }
 
   static class BigDecimalAvg extends Avg<BigDecimal>{
+    @Nullable
     public BigDecimal extractOutput(KV<Integer, BigDecimal> accumulator) {
       return accumulator.getKey() == 0 ? null : prepareOutput(accumulator);
     }

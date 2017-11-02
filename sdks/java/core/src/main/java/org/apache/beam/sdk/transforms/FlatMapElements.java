@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -34,15 +35,15 @@ import org.apache.beam.sdk.values.TypeDescriptors;
  */
 public class FlatMapElements<InputT, OutputT>
 extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
-  private final transient TypeDescriptor<InputT> inputType;
-  private final transient TypeDescriptor<OutputT> outputType;
+  @Nullable private final transient TypeDescriptor<InputT> inputType;
+  @Nullable private final transient TypeDescriptor<OutputT> outputType;
   @Nullable private final transient Object originalFnForDisplayData;
   @Nullable private final Contextful<Fn<InputT, Iterable<OutputT>>> fn;
 
   private FlatMapElements(
       @Nullable Contextful<Fn<InputT, Iterable<OutputT>>> fn,
       @Nullable Object originalFnForDisplayData,
-      TypeDescriptor<InputT> inputType,
+      @Nullable TypeDescriptor<InputT> inputType,
       TypeDescriptor<OutputT> outputType) {
     this.fn = fn;
     this.originalFnForDisplayData = originalFnForDisplayData;
@@ -146,6 +147,13 @@ extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
 
                   @Override
                   public TypeDescriptor<OutputT> getOutputTypeDescriptor() {
+                    checkState(
+                        outputType != null,
+                        "%s output type descriptor was null; "
+                            + "this probably means that getOutputTypeDescriptor() was called after "
+                            + "serialization/deserialization, but it is only available prior to "
+                            + "serialization, for constructing a pipeline and inferring coders",
+                        FlatMapElements.class.getSimpleName());
                     return outputType;
                   }
 

@@ -21,6 +21,8 @@
 # Standard file names used for staging files.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
+STAGED_PIPELINE_FILENAME = "pipeline.pb"
+STAGED_PIPELINE_URL_METADATA_FIELD = "pipeline_url"
 
 # String constants related to sources framework
 SOURCE_FORMAT = 'custom_source'

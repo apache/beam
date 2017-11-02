@@ -18,34 +18,17 @@
 package org.apache.beam.sdk.testing;
 
 import com.google.common.base.MoreObjects;
-import java.io.IOException;
-import java.io.ObjectInputStream;
 import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.util.SerializableThrowable;
 
 /**
  * Output of {@link PAssert}. Passed to a conclude function to act upon.
  */
 @DefaultCoder(SerializableCoder.class)
 public final class SuccessOrFailure implements Serializable {
-  private static final class SerializableThrowable implements Serializable {
-    @Nullable private final Throwable throwable;
-    @Nullable private final StackTraceElement[] stackTrace;
-
-    private SerializableThrowable(@Nullable Throwable t) {
-      this.throwable = t;
-      this.stackTrace = (t == null) ? null : t.getStackTrace();
-    }
-
-    private void readObject(ObjectInputStream is) throws IOException, ClassNotFoundException {
-      is.defaultReadObject();
-      if (throwable != null) {
-        throwable.setStackTrace(stackTrace);
-      }
-    }
-  }
 
   private final boolean isSuccess;
   @Nullable
@@ -68,7 +51,7 @@ public final class SuccessOrFailure implements Serializable {
 
   @Nullable
   public AssertionError assertionError() {
-    return site == null ? null : site.wrap(throwable.throwable);
+    return site == null ? null : site.wrap(throwable.getThrowable());
   }
 
   public static SuccessOrFailure success() {

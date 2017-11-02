@@ -28,7 +28,7 @@ import io.netty.channel.unix.DomainSocketAddress;
 import java.net.SocketAddress;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
@@ -37,7 +37,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  */
 public abstract class ManagedChannelFactory {
   public static ManagedChannelFactory from(PipelineOptions options) {
-    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
       io.netty.channel.epoll.Epoll.ensureAvailability();
       return new Epoll();

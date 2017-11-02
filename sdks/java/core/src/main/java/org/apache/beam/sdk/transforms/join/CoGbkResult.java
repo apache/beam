@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -116,15 +117,13 @@ public class CoGbkResult {
       // against a given tag would not match anything.
       final Boolean[] containsTag = new Boolean[schema.size()];
       for (int unionTag = 0; unionTag < schema.size(); unionTag++) {
-        final int unionTag0 = unionTag;
-        updateUnionTag(tail, containsTag, unionTag, unionTag0);
+        updateUnionTag(tail, containsTag, unionTag);
       }
     }
   }
 
   private <T> void updateUnionTag(
-      final Reiterator<RawUnionValue> tail, final Boolean[] containsTag,
-      int unionTag, final int unionTag0) {
+      final Reiterator<RawUnionValue> tail, final Boolean[] containsTag, final int unionTag) {
     @SuppressWarnings("unchecked")
     final Iterable<T> head = (Iterable<T>) valueMap.get(unionTag);
     valueMap.set(
@@ -134,7 +133,7 @@ public class CoGbkResult {
           public Iterator<T> iterator() {
             return Iterators.concat(
                 head.iterator(),
-                new UnionValueIterator<T>(unionTag0, tail.copy(), containsTag));
+                new UnionValueIterator<T>(unionTag, tail.copy(), containsTag));
           }
         });
   }
@@ -197,7 +196,8 @@ public class CoGbkResult {
    * <p>If tag was not part of the original {@link CoGroupByKey},
    * throws an IllegalArgumentException.
    */
-  public <V> V getOnly(TupleTag<V> tag, V defaultValue) {
+  @Nullable
+  public <V> V getOnly(TupleTag<V> tag, @Nullable V defaultValue) {
     return innerGetOnly(tag, defaultValue, true);
   }
 
@@ -356,9 +356,10 @@ public class CoGbkResult {
     this.valueMap = valueMap;
   }
 
+  @Nullable
   private <V> V innerGetOnly(
       TupleTag<V> tag,
-      V defaultValue,
+      @Nullable V defaultValue,
       boolean useDefault) {
     int index = schema.getIndex(tag);
     if (index < 0) {

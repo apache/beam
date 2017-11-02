@@ -91,13 +91,6 @@
                     </shadedPattern>
                   </relocation>
                   <relocation>
-                    <pattern>org.apache.beam.model</pattern>
-                    <!--suppress MavenModelInspection -->
-                    <shadedPattern>
-                      org.apache.beam.fn.harness.private.org.apache.beam.model
-                    </shadedPattern>
-                  </relocation>
-                  <relocation>
                     <pattern>org.apache.beam.runners</pattern>
                     <!--suppress MavenModelInspection -->
                     <shadedPattern>
@@ -170,12 +163,6 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-core-construction-java</artifactId>
-    </dependency>
-
-    <dependency>
-      <!-- TODO: BEAM-2566 remove this dependency -->
-      <groupId>org.apache.beam</groupId>
-      <artifactId>beam-runners-google-cloud-dataflow-java</artifactId>
     </dependency>
 
     <dependency>

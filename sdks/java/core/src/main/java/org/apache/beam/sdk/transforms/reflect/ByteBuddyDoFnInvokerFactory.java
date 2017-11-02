@@ -394,7 +394,8 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
     /** Whether the target method returns non-void. */
     private final boolean targetHasReturn;
 
-    protected FieldDescription delegateField;
+    /** Starts {@code null}, initialized by {@link #prepare(InstrumentedType)}. */
+    @Nullable protected FieldDescription delegateField;
 
     private final TypeDescription doFnType;
 

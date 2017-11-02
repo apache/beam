@@ -272,6 +272,9 @@ class DataflowRunner(PipelineRunner):
           'Google Cloud Dataflow runner not available, '
           'please install apache_beam[gcp]')
 
+    # Snapshot the pipeline in a portable proto before mutating it
+    proto_pipeline = pipeline.to_runner_api()
+
     # Performing configured PTransform overrides.
     pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
 
@@ -282,7 +285,7 @@ class DataflowRunner(PipelineRunner):
       plugins = list(set(plugins + setup_options.beam_plugins))
     setup_options.beam_plugins = plugins
 
-    self.job = apiclient.Job(pipeline._options)
+    self.job = apiclient.Job(pipeline._options, proto_pipeline)
 
     # Dataflow runner requires a KV type for GBK inputs, hence we enforce that
     # here.

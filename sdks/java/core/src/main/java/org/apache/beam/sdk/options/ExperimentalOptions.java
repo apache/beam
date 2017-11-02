@@ -15,40 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.kinesis;
+package org.apache.beam.sdk.options;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.collect.Queues.newArrayDeque;
-
-import java.util.Deque;
-import java.util.Iterator;
+import java.util.List;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.annotations.Experimental;
 
 /**
- * Very simple implementation of round robin algorithm.
+ * Apache Beam provides a number of experimental features that can
+ * be enabled with this flag. If executing against a managed service, please contact the
+ * service owners before enabling any experiments.
  */
-class RoundRobin<T> implements Iterable<T> {
-
-  private final Deque<T> deque;
-
-  public RoundRobin(Iterable<T> collection) {
-    this.deque = newArrayDeque(collection);
-    checkArgument(!deque.isEmpty(), "Tried to initialize RoundRobin with empty collection");
-  }
-
-  public T getCurrent() {
-    return deque.getFirst();
-  }
-
-  public void moveForward() {
-    deque.addLast(deque.removeFirst());
-  }
-
-  public int size() {
-    return deque.size();
-  }
-
-  @Override
-  public Iterator<T> iterator() {
-    return deque.iterator();
-  }
+@Experimental
+@Hidden
+public interface ExperimentalOptions extends PipelineOptions {
+  @Description("[Experimental] Apache Beam provides a number of experimental features that can "
+      + "be enabled with this flag. If executing against a managed service, please contact the "
+      + "service owners before enabling any experiments.")
+  @Nullable
+  List<String> getExperiments();
+  void setExperiments(@Nullable List<String> value);
 }

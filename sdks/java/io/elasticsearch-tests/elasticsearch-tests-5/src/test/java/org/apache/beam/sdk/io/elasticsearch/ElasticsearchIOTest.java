@@ -60,7 +60,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
   private String[] fillAddresses(){
     ArrayList<String> result = new ArrayList<>();
     for (InetSocketAddress address : cluster().httpAddresses()){
-      result.add(String.format("http://%s:%d", address.getHostString(), address.getPort()));
+      result.add(String.format("http://%s:%s", address.getHostString(), address.getPort()));
     }
     return result.toArray(new String[result.size()]);
   }
@@ -68,6 +68,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
 
   @Override
   protected Settings nodeSettings(int nodeOrdinal) {
+    System.setProperty("es.set.netty.runtime.available.processors", "false");
     return Settings.builder().put(super.nodeSettings(nodeOrdinal))
         .put("http.enabled", "true")
         // had problems with some jdk, embedded ES was too slow for bulk insertion,

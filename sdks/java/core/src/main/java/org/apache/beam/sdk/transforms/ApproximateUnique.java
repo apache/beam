@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.PriorityQueue;
-import org.apache.avro.reflect.Nullable;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
@@ -455,7 +455,7 @@ public class ApproximateUnique {
   }
 
   private static void populateDisplayData(
-      DisplayData.Builder builder, long sampleSize, Double maxEstimationError) {
+      DisplayData.Builder builder, long sampleSize, @Nullable Double maxEstimationError) {
     builder
         .add(DisplayData.item("sampleSize", sampleSize)
           .withLabel("Sample Size"))

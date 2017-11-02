@@ -427,8 +427,9 @@ class SetupTest(unittest.TestCase):
       dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
-        'The --extra_package option expects a full path ending with ".tar" or '
-        '".tar.gz" instead of %s' % os.path.join(source_dir, 'abc.tgz'))
+        'The --extra_package option expects a full path ending with '
+        '".tar", ".tar.gz", ".whl" or ".zip" '
+        'instead of %s' % os.path.join(source_dir, 'abc.tgz'))
 
 
 if __name__ == '__main__':
