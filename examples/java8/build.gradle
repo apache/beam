@@ -18,9 +18,6 @@
 
 description = "Apache Beam :: Examples :: Java 8"
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")

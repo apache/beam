@@ -1,3 +1,9 @@
+// Define common lifecycle tasks
+task check {}
+task build {}
+task test {}
+task clean {}
+
 task setupTest {
   doLast {
     exec {

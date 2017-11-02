@@ -18,9 +18,6 @@
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
-
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile library.java.guava
