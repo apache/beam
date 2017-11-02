@@ -32,7 +32,7 @@ import java.util.List;
 public class FilterTest extends AbstractOperatorTest {
 
   @Test
-  public void testTwoPartitions() {
+  public void testFilter() {
     execute(new AbstractTestCase<Integer, Integer>() {
 
       @Override
