@@ -172,6 +172,16 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
+      public void validate(List<Pair<String, Integer>> outputs) {
+        assertEquals(10, outputs.size());
+        List<Integer> values = outputs.stream().map(Pair::getSecond)
+            .collect(Collectors.toList());
+
+        assertEquals(Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9), values);
+      }
+
+
+      @Override
       public List<Pair<String, Integer>> getUnorderedOutput() {
         return Arrays.asList(1, 2, 3, 4, 5, 5, 6, 7, 8, 9)
             .stream()
@@ -209,9 +219,45 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      public List<Triple<Integer, Integer, Integer>> getUnorderedOutput() {
-        throw new UnsupportedOperationException("FIXME");
+      public void validate(List<Triple<Integer, Integer, Integer>> outputs) {
+        assertEquals(12, outputs.size());
+
+        // map (window, key) -> list(data)
+        Map<Pair<Integer, Integer>, List<Triple<Integer, Integer, Integer>>>
+            windowKeyMap = outputs.stream()
+            .collect(Collectors.groupingBy(p -> Pair.of(p.getFirst(), p.getSecond())));
+
+        // two windows, three keys
+        assertEquals(6, windowKeyMap.size());
+
+        List<Integer> list;
+
+        // second window, key 0
+        list = flatten(windowKeyMap.get(Pair.of(1, 0)));
+        assertEquals(Arrays.asList(6, 6), list);
+        // second window, key 1
+        list = flatten(windowKeyMap.get(Pair.of(1, 1)));
+        assertEquals(Arrays.asList(4, 7), list);
+        // second window, key 2
+        list = flatten(windowKeyMap.get(Pair.of(1, 2)));
+        assertEquals(Arrays.asList(5, 5), list);
+
+        // third window, key 0
+        list = flatten(windowKeyMap.get(Pair.of(2, 0)));
+        assertEquals(Arrays.asList(9, 9), list);
+        // third window, key 1
+        list = flatten(windowKeyMap.get(Pair.of(2, 1)));
+        assertEquals(Collections.singletonList(10), list);
+        // third window, key 2
+        list = flatten(windowKeyMap.get(Pair.of(2, 2)));
+        assertEquals(Arrays.asList(8, 8, 11), list);
+
       }
+
+      List<Integer> flatten(List<Triple<Integer, Integer, Integer>> l) {
+        return l.stream().map(Triple::getThird).collect(Collectors.toList());
+      }
+
 
     });
   }
@@ -345,25 +391,25 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
             Pair.of("1-one",   1),
             Pair.of("2-one",   2),
             Pair.of("1-two",   4),
-            Pair.of("1-three", 8),
-            Pair.of("1-four",  10),
+            Pair.of("1-three", 8),  // end of first window
+            Pair.of("1-four",  10), // end of second window
             Pair.of("2-two",   10),
-            Pair.of("1-five",  18),
+            Pair.of("1-five",  18), // end of third window
             Pair.of("2-three", 20),
-            Pair.of("1-six",   22));
+            Pair.of("1-six",   22));  // end of fourth window
       }
 
       @Override
       protected Dataset<Triple<TimeInterval, Integer, String>>
       getOutput(Dataset<Pair<String, Integer>> input) {
-        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
+        input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
         Dataset<Pair<Integer, String>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
-                .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
+                .stateFactory(AccState<String>::new)
                 .mergeStatesBy(AccState::combine)
-                .windowBy(Time.of(Duration.ofSeconds(5)))
+                .windowBy(Time.of(Duration.ofMillis(5)))
                 .output();
 
         return FlatMap.of(reduced)
@@ -407,14 +453,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
       @Override
       protected Dataset<Triple<TimeInterval, Integer, String>> getOutput(Dataset<Pair<String, Integer>> input) {
-        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
+        input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
         Dataset<Pair<Integer, String>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(e -> e.getFirst().substring(2))
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .mergeStatesBy(AccState::combine)
-                .windowBy(TimeSliding.of(Duration.ofSeconds(10), Duration.ofSeconds(5)))
+                .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
                 .output();
 
         return FlatMap.of(reduced)
@@ -467,14 +513,14 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, Integer, String>>
       getOutput(Dataset<Pair<String, Integer>> input) {
-        input = AssignEventTime.of(input).using(e -> e.getSecond() * 1000L).output();
+        input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
         Dataset<Pair<Integer, String>> reduced =
             ReduceStateByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
                 .stateFactory((StateFactory<String, String, AccState<String>>) AccState::new)
                 .mergeStatesBy(AccState::combine)
-                .windowBy(Session.of(Duration.ofSeconds(5)))
+                .windowBy(Session.of(Duration.ofMillis(5)))
                 .output();
 
         return FlatMap.of(reduced)

@@ -230,7 +230,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       Flow flow = left.getFlow();
       Join<LEFT, RIGHT, KEY, OUT, W> join =
           new Join<>(name, flow, left, right,
-              windowing, leftKeyExtractor, rightKeyExtractor, joinFunc, outer, hints);
+              windowing, leftKeyExtractor, rightKeyExtractor, joinFunc, outer,
+              hints);
       flow.add(join);
       return join.output();
     }

@@ -64,10 +64,23 @@ public abstract class AbstractOperatorTest implements Serializable {
 
     /**
      * Retrieve expected outputs.
+     * @return list of expected outputs that will be compared irrespective of order
      *
      * These outputs will be compared irrespective of order.
      */
-    List<T> getUnorderedOutput();
+    default List<T> getUnorderedOutput() {
+      throw new UnsupportedOperationException(
+          "Override either `getUnorderedOutput()`, or `validate`");
+    }
+
+    /**
+     * Validate that the raw output is correct.
+     * @param outputs the raw outputs produced by sink
+     * @throws AssertionError when the output is not correct
+     */
+    default void validate(List<T> outputs) throws AssertionError {
+      assertUnorderedEquals(outputs, getUnorderedOutput());
+    }
 
     /**
      * Validate accumulators given a provider capturing the accumulated values.
@@ -167,8 +180,7 @@ public abstract class AbstractOperatorTest implements Serializable {
           throw new RuntimeException("Test failure at run #" + i, e);
         }
         List outputs = (List) sink.getOutputs();
-        List expected = (List) tc.getUnorderedOutput();
-        assertUnorderedEquals(expected, outputs);
+        tc.validate(outputs);
         tc.validateAccumulators(accs);
       }
     }

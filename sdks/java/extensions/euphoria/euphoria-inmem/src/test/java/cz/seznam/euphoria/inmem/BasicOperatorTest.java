@@ -224,32 +224,42 @@ public class BasicOperatorTest {
 
     DatasetAssert.unorderedEquals(
         outputs,
-        Pair.of("four", 2L),
+        // first emission, early at watermark 1003
         Pair.of("one", 1L),
-        Pair.of("three", 1L),
         Pair.of("two", 3L),
+        Pair.of("three", 1L),
+        Pair.of("four", 2L),
+
+        // second emission, early at watermark 4012
+        Pair.of("two", 5L),
         Pair.of("one", 4L),
         Pair.of("three", 2L),
-        Pair.of("two", 5L));
+        Pair.of("four", 2L),
+
+        // final emission
+        Pair.of("two", 5L),
+        Pair.of("one", 4L),
+        Pair.of("three", 2L),
+        Pair.of("four", 2L));
   }
 
   @Test
   public void testWordCountStreamEarlyTriggeredInSession() throws Exception {
     ListDataSource<Pair<String, Integer>> input =
         ListDataSource.unbounded(asList(
-            Pair.of("one", 150),
-            Pair.of("two", 450),
-            Pair.of("three", 999),
-            Pair.of("four", 1111),
-            Pair.of("four", 1500),
+            Pair.of("one", 150),    // early trigger at 1153
+            Pair.of("two", 450),    // early trigger at 1453
+            Pair.of("three", 999),  // early trigger at 2002
+            Pair.of("four", 1111),  // early trigger at 2114
+            Pair.of("four", 1500),  // 1st triggers `one` (next 2156) and `two` (2456)
             Pair.of("two", 1777),
             Pair.of("two", 1999),
-            Pair.of("one", 4003),
-            Pair.of("one", 4158),
-            Pair.of("one", 4899),
+            Pair.of("one", 4003),   // 2nd triggers `one` (4162), `two` (4462), `three` (4008)  and `four` (4120)
+            Pair.of("one", 4158),   // 3rd triggers `three` (5011) and `four` (5123)
+            Pair.of("one", 4899),   // 4th triggers `one` (5165) and `two` (5465)
             Pair.of("two", 5001),
-            Pair.of("two", 5123),
-            Pair.of("three", 5921)));
+            Pair.of("two", 5123),   // 5th triggers `three` (6014) and `four` (5126)
+            Pair.of("three", 5921))); // 6th triggers `one` and `two`
 
     Flow flow = Flow.create("Test");
     Dataset<Pair<String, Integer>> lines = flow.createInput(input);
@@ -286,14 +296,43 @@ public class BasicOperatorTest {
 
     DatasetAssert.unorderedEquals(
         outputs,
-        Pair.of("four", 2L),
+        // first
         Pair.of("one", 1L),
-        Pair.of("three", 1L),
-        Pair.of("two", 3L),
-        Pair.of("one", 4L),
-        Pair.of("three", 2L),
-        Pair.of("two", 5L));
+        Pair.of("two", 1L),
 
+        // second
+        Pair.of("one", 1L),
+        Pair.of("two", 1L),
+        Pair.of("three", 1L),
+        Pair.of("four", 2L),
+
+        // third
+        Pair.of("three", 1L),
+        Pair.of("four", 2L),
+
+        // fourth
+        Pair.of("one", 3L),
+        Pair.of("two", 3L),
+
+        // fifth
+        Pair.of("three", 1L),
+        Pair.of("four", 2L),
+
+        // sixth
+        Pair.of("two", 5L),
+        Pair.of("one", 4L),
+
+        // last, early
+        Pair.of("one", 4L),
+        Pair.of("two", 5L),
+        Pair.of("three", 2L),
+        Pair.of("four", 2L),
+
+        // final counts
+        Pair.of("one", 4L),
+        Pair.of("two", 5L),
+        Pair.of("three", 2L),
+        Pair.of("four", 2L));
   }
 
 

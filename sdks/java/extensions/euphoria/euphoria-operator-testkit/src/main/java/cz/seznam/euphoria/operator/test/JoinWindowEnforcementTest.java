@@ -81,10 +81,10 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
     JoinTest.JoinTestCase<Object, Object, Pair<Object, Object>>
         test = new JoinTest.JoinTestCase<Object, Object, Pair<Object,Object>>() {
 
+
       @Override
-      public List<Pair<Object, Object>> getUnorderedOutput() {
-        // ~ nothing to validate here
-        return Arrays.asList();
+      public void validate(List<Pair<Object, Object>> outputs) throws AssertionError {
+        // nothing to validate here
       }
 
       @SuppressWarnings("unchecked")
