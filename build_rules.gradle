@@ -120,6 +120,19 @@ ext.applyJavaNature = {
     }
   }
 
+  if (!(project.name in [
+    'beam-model-pipeline',
+    'beam-model-job-management',
+    'beam-model-fn-execution',
+    'beam-runners-google-cloud-dataflow-java',
+    'beam-sdks-java-io-kafka'])) {
+    delegate.apply plugin: 'findbugs'
+    delegate.findbugs {
+      excludeFilter = rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
+      sourceSets = [sourceSets.main]
+    }
+  }
+
   // Ban these dependencies from all configurations
   delegate.configurations.all {
     exclude group: "com.google.guava", module: "guava-jdk5"
