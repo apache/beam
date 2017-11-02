@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -83,13 +82,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     // to better utilize cluster resources
     Partitioner groupingPartitioner;
     Comparator<KeyedWindow> comparator = new KeyTimestampComparator();
-    if (windowing instanceof MergingWindowing ||
-            !operator.getPartitioning().hasDefaultPartitioner()) {
-
-      groupingPartitioner = new PartitioningWrapper(operator.getPartitioning());
-    } else {
-      groupingPartitioner = new HashPartitioner(operator.getPartitioning().getNumPartitions());
-    }
+    groupingPartitioner = new HashPartitioner(tuples.getNumPartitions());
 
     JavaPairRDD<KeyedWindow, Object> sorted = tuples.repartitionAndSortWithinPartitions(
             groupingPartitioner,

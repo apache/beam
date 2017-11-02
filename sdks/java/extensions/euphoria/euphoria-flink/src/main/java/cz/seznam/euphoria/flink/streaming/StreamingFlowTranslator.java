@@ -22,7 +22,6 @@ import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
-import cz.seznam.euphoria.core.client.operator.Repartition;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.util.Settings;
@@ -71,7 +70,6 @@ public class StreamingFlowTranslator extends FlowTranslator {
 
     translators.put(FlowUnfolder.InputOperator.class, new InputTranslator());
     translators.put(FlatMap.class, new FlatMapTranslator());
-    translators.put(Repartition.class, new RepartitionTranslator());
     translators.put(ReduceStateByKey.class, new ReduceStateByKeyTranslator());
     translators.put(Union.class, new UnionTranslator());
   }
