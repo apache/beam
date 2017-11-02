@@ -56,7 +56,7 @@ public class RBKTimeSlidingTest {
         ListDataSource.unbounded(
             Arrays.asList(
                 Pair.of("one",   1),
-                Pair.of("aaa",   1), // ~ this one goes to a different partition than the rest
+                Pair.of("aaa",   1),
                 Pair.of("one",   2),
                 Pair.of("two",   3),
                 Pair.of("two",   6),
@@ -90,7 +90,6 @@ public class RBKTimeSlidingTest {
         .submit(f)
         .get();
 
-
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
         Triple.of(new TimeInterval(-5, 5), "one", 2L),
@@ -113,7 +112,7 @@ public class RBKTimeSlidingTest {
         ListDataSource.unbounded(
             Arrays.asList(
                 Pair.of("one",   1),
-                Pair.of("aaa",   1), // ~ this one goes to a different partition than the rest
+                Pair.of("aaa",   1),
                 Pair.of("one",   2),
                 Pair.of("two",   3),
                 Pair.of("two",   6),

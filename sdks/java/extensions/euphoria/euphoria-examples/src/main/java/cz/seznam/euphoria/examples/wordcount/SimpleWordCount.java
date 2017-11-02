@@ -69,13 +69,12 @@ public class SimpleWordCount {
   public static void main(String[] args) throws Exception {
     if (args.length < 3) {
       System.err.println("Usage: " + SimpleWordCount.class
-          + " <executor-name> <input-path> <output-path> [num-output-partitions]");
+          + " <executor-name> <input-path> <output-path>");
       System.exit(1);
     }
     final String executorName = args[0];
     final String input = args[1];
     final String output = args[2];
-    final int partitions = args.length > 3 ? Integer.parseInt(args[3]) : -1;
 
     // Define a source of data to read text lines from.  We utilize an
     // already predefined DataSource implementations hiding some of
@@ -94,7 +93,7 @@ public class SimpleWordCount {
 
     // Construct a flow which we'll later submit for execution. For the sake
     // of readability we've moved the definition into its own method.
-    Flow flow = buildFlow(inSource, outSink, partitions);
+    Flow flow = buildFlow(inSource, outSink);
 
     // Allocate an executor by the specified name.
     Executor executor = Executors.createExecutor(executorName);
@@ -115,12 +114,10 @@ public class SimpleWordCount {
    *
    * @param input the source to read lines of text from
    * @param output the sink to write the output of the business logic to
-   * @param partitions the parallelism of computation's execution and
-   *                    number of output partitions to generate
    *
    * @return a flow, a unit to be executed on a specific executor
    */
-  private static Flow buildFlow(DataSource<String> input, DataSink<String> output, int partitions) {
+  private static Flow buildFlow(DataSource<String> input, DataSink<String> output) {
     // The first step in building a euphoria flow is creating a ...
     // well, a `Flow` object. It is a container encapsulating a chain
     // of transformations. Within a program we can have many flows. Though,
