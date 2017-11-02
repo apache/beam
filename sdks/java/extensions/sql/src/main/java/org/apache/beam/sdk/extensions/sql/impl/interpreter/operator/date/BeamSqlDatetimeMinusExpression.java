@@ -41,11 +41,11 @@ import org.joda.time.PeriodType;
  * with corresponding TimeUnit's multiplier.
  *
  * <p>In addition to this TIMESTAMPDIFF(..) implementation, Calcite also supports infix
- * operations 'interval minus interval' and 'timestamp minus interval'.
+ * operations 'interval - interval' and 'timestamp - interval'.
  * These are not implemented yet.
  */
 public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
-  private SqlTypeName intervalTypeToCount;
+  private SqlTypeName intervalType;
 
   private static final Map<SqlTypeName, DurationFieldType> INTERVALS_DURATIONS_TYPES =
       ImmutableMap.<SqlTypeName, DurationFieldType>builder()
@@ -60,7 +60,7 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
   public BeamSqlDatetimeMinusExpression(
       List<BeamSqlExpression> operands, SqlTypeName intervalType) {
     super(operands, SqlTypeName.BIGINT);
-    this.intervalTypeToCount = intervalType;
+    this.intervalType = intervalType;
   }
 
   /**
@@ -68,7 +68,7 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
    */
   @Override
   public boolean accept() {
-    return INTERVALS_DURATIONS_TYPES.containsKey(intervalTypeToCount)
+    return INTERVALS_DURATIONS_TYPES.containsKey(intervalType)
         && operands.size() == 2
         && SqlTypeName.TIMESTAMP.equals(operands.get(0).getOutputType())
         && SqlTypeName.TIMESTAMP.equals(operands.get(1).getOutputType());
@@ -84,15 +84,15 @@ public class BeamSqlDatetimeMinusExpression extends BeamSqlExpression {
     DateTime timestampEnd = new DateTime(opValueEvaluated(0, inputRow, window));
 
     long numberOfIntervals = numberOfIntervalsBetweenDates(timestampStart, timestampEnd);
-    long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalTypeToCount).longValue();
+    long multiplier = TimeUnitUtils.timeUnitInternalMultiplier(intervalType).longValue();
 
     return BeamSqlPrimitive.of(SqlTypeName.BIGINT, multiplier * numberOfIntervals);
   }
 
   private long numberOfIntervalsBetweenDates(DateTime timestampStart, DateTime timestampEnd) {
     Period period = new Period(timestampStart, timestampEnd,
-        PeriodType.forFields(new DurationFieldType[] { durationFieldType(intervalTypeToCount) }));
-    return period.get(durationFieldType(intervalTypeToCount));
+        PeriodType.forFields(new DurationFieldType[] { durationFieldType(intervalType) }));
+    return period.get(durationFieldType(intervalType));
   }
 
   private static DurationFieldType durationFieldType(SqlTypeName intervalTypeToCount) {
