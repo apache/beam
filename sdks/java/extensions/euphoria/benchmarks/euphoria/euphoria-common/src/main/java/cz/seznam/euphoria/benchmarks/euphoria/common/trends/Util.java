@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 Seznam.cz, a.s.
+ * Copyright 2017 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,27 +21,37 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
+import cz.seznam.euphoria.core.client.io.StdoutSink;
+import cz.seznam.euphoria.core.client.io.VoidSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.input.SimpleHadoopTextFileSource;
+import cz.seznam.euphoria.hadoop.output.SimpleHadoopTextFileSink;
+import cz.seznam.euphoria.kafka.KafkaSource;
 
 import java.net.URI;
 
 class Util {
 
-  static Dataset<Pair<Long, String>> getInput(boolean test, URI uri, Flow flow)
-      throws Exception {
+  static Dataset<Pair<Long, String>> getTestInput(Flow flow) {
+    ListDataSource<Pair<Long, String>> source = ListDataSource.bounded(
+        Benchmarks.testInput(Pair::of));
+    return flow.createInput(source);
+  }
 
-    if (test) {
-      ListDataSource<Pair<Long, String>> source = ListDataSource.bounded(Benchmarks.testInput(Pair::of));
-      return flow.createInput(source);
-    }
+  static Dataset<Pair<Long, String>> getInput(
+      URI uri, Settings settings, Flow flow)
+      throws Exception {
 
     switch (uri.getScheme()) {
       case "kafka": {
-        Dataset<Pair<byte[], byte[]>> input = flow.createInput(uri);
+        Dataset<Pair<byte[], byte[]>> input = flow.createInput(
+            new KafkaSource(uri.getAuthority(),
+                uri.getPath().substring(1), settings));
         return FlatMap.of(input)
             .using(new UnaryFunctor<Pair<byte[], byte[]>, Pair<Long, String>>() {
               private final SearchEventsParser parser = new SearchEventsParser();
@@ -87,4 +97,24 @@ class Util {
       }
     }
   }
+
+  static DataSink<String> getStringSink(Parameters params) {
+    if (params.getSinkUri() == null) {
+      return new VoidSink<>();
+    }
+
+    switch (params.getSinkUri().getScheme()) {
+      case "stdout":
+        return new StdoutSink<>();
+
+      case "file":
+      case "hftp":
+      case "hdfs":
+        return new SimpleHadoopTextFileSink<>(params.getSinkUri().toString());
+    }
+
+    throw new IllegalArgumentException(
+        "Unsopported scheme in " + params.getSinkUri());
+  }
+
 }

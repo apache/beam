@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 Seznam.cz, a.s.
+ * Copyright 2017 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
-import cz.seznam.euphoria.core.client.io.StdoutSink;
-import cz.seznam.euphoria.core.client.io.VoidSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -34,8 +32,6 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.util.Settings;
-import cz.seznam.euphoria.hadoop.output.HadoopToStringSink;
-import cz.seznam.euphoria.kafka.KafkaSource;
 
 import java.io.File;
 import java.net.URI;
@@ -71,14 +67,6 @@ public class EuphoriaTrends {
     Parameters params = configToParams(this.config);
 
     Settings settings = executorFactory.newFlowSettings(this.config);
-    settings.setClass(
-        "euphoria.io.datasource.factory.kafka", KafkaSource.Factory.class);
-    settings.setClass(
-        "euphoria.io.datasink.factory.hdfs", HadoopToStringSink.Factory.class);
-    settings.setClass(
-        "euphoria.io.datasink.factory.stdout", StdoutSink.Factory.class);
-    settings.setClass(
-        "euphoria.io.datasink.factory.void", VoidSink.Factory.class);
 
     // ~ handle some set-up specific to repeated runs of this benchmark
     {
@@ -109,8 +97,8 @@ public class EuphoriaTrends {
     Flow flow = Flow.create(getClass().getSimpleName(), settings);
 
     Dataset<Pair<Long, String>> input = Util.getInput(
-        params.getSourceUri() == null,
         params.getSourceUri(),
+        params.getEuphoriaSettings(),
         flow);
 
     Dataset<String> queries = FlatMap.of(input)
@@ -126,7 +114,6 @@ public class EuphoriaTrends {
             .valueBy(e -> 1)
             .combineBy(Sums.ofInts())
             .windowBy(TimeSliding.of(params.getLongStats(), params.getShortStats()))
-            .applyIf(params.getParallelism() > 0, o -> o.setNumPartitions(params.getParallelism()))
             .output();
 
     Dataset<Pair<String, Integer>> shortStats =
@@ -136,7 +123,6 @@ public class EuphoriaTrends {
             .valueBy(e -> 1)
             .combineBy(Sums.ofInts())
             .windowBy(Time.of(params.getShortStats()))
-            .applyIf(params.getParallelism() > 0, o -> o.setNumPartitions(params.getParallelism()))
             .output();
 
     long longIntervalMillis = params.getLongStats().toMillis();
@@ -158,7 +144,6 @@ public class EuphoriaTrends {
               }
             })
             .windowBy(Time.of(params.getShortStats()))
-            .applyIf(params.getParallelism() > 0, o -> o.setNumPartitions(params.getParallelism()))
             .output();
 
     Dataset<Triple<Byte, Pair<String, Double>, Double>> output =
@@ -166,7 +151,6 @@ public class EuphoriaTrends {
             .keyBy(e -> (byte) 0)
             .valueBy(e -> e)
             .scoreBy(Pair::getSecond)
-            .setNumPartitions(1)
             .output();
 
     FlatMap.of(output)
@@ -176,7 +160,7 @@ public class EuphoriaTrends {
           c.collect(now + ": " + stamp + ", " + e.getSecond().getFirst() + ", " + e.getSecond().getSecond());
         })
         .output()
-        .persist(params.getSinkUri() == null ? URI.create("void:///") : params.getSinkUri());
+        .persist(Util.getStringSink(params));
 
     executorFactory.newExecutor(this.config, dataClasses()).submit(flow).get();
   }
@@ -204,4 +188,5 @@ public class EuphoriaTrends {
                              int smooth) {
     return ((double) shortCount / (longCount + smooth)) * ((double) longInterval / shortInterval);
   }
+
 }
