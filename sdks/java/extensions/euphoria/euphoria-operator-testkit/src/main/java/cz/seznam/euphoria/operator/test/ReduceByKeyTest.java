@@ -34,6 +34,7 @@ import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
@@ -48,6 +49,7 @@ import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
@@ -75,7 +77,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   public void testReductionType0() {
     execute(new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>(
         /* don't parallelize this test, because it doesn't work
-         *well with count windows */
+         * well with count windows */
         1) {
       @Override
       protected List<Integer> getInput() {
@@ -102,6 +104,62 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
     });
   }
+
+
+  /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
+  @Test
+  public void testReductionType0WithSortedValues() {
+    execute(new AbstractTestCase<Integer, ArrayList<Pair<Integer, ArrayList<Integer>>>>(
+        /* don't parallelize this test, because it doesn't work
+         * well with count windows */
+        1) {
+      @Override
+      protected List<Integer> getInput() {
+        return Arrays.asList(9, 8, 7, 6, 5, 4, 3, 2, 1);
+      }
+
+      @Override
+      protected Dataset<ArrayList<Pair<Integer, ArrayList<Integer>>>>
+      getOutput(Dataset<Integer> input) {
+        Dataset<Pair<Integer, ArrayList<Integer>>> reducedByWindow = ReduceByKey.of(input)
+            .keyBy(e -> e % 2)
+            .valueBy(e -> e)
+            .reduceBy((ReduceFunction<Integer, ArrayList<Integer>>) Lists::newArrayList)
+            .withSortedValues(Integer::compare)
+            .windowBy(Count.of(3))
+            .output();
+
+        return ReduceWindow.of(reducedByWindow)
+            .reduceBy(Lists::newArrayList)
+            .withSortedValues((l, r) -> {
+              int cmp = l.getFirst().compareTo(r.getFirst());
+              if (cmp == 0) {
+                int firstLeft = l.getSecond().get(0);
+                int firstRight = r.getSecond().get(0);
+                cmp = Integer.compare(firstLeft, firstRight);
+              }
+              return cmp;
+            })
+            .windowBy(GlobalWindowing.get())
+            .output();
+      }
+
+      @Override
+      public void validate(
+          List<ArrayList<Pair<Integer, ArrayList<Integer>>>> outputs) throws AssertionError {
+
+        assertEquals(1, outputs.size());
+        assertEquals(Lists.newArrayList(
+            Pair.of(0, Lists.newArrayList(2)),
+            Pair.of(0, Lists.newArrayList(4, 6, 8)),
+            Pair.of(1, Lists.newArrayList(1, 3)),
+            Pair.of(1, Lists.newArrayList(5, 7, 9))),
+            outputs.get(0));
+      }
+
+    });
+  }
+
 
   /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test

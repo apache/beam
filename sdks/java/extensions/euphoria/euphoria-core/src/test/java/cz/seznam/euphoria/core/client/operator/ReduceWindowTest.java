@@ -72,6 +72,25 @@ public class ReduceWindowTest {
     assertEquals(windowing, producer.windowing);
   }
 
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testSimpleBuildWithValueSorted() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+    Windowing<String, ?> windowing = Time.of(Duration.ofHours(1));
+
+    Dataset<Long> output = ReduceWindow.of(dataset)
+        .reduceBy(e -> 1L)
+        .withSortedValues((l, r) -> l.compareTo(r))
+        .windowBy(windowing)
+        .output();
+
+    ReduceWindow<String, String, Long, ?> producer;
+    producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
+    assertNotNull(producer.valueComparator);
+  }
+
+
   private <IN, OUT> OUT collectSingle(
       ReduceFunctor<IN, OUT> fn, Iterable<IN> values) {
 

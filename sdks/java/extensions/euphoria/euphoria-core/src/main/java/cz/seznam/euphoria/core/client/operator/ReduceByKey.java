@@ -38,10 +38,15 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import java.util.ArrayList;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Operator performing state-less aggregation by given reduce function. The reduction
@@ -221,11 +226,11 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
           implements Builders.Output<Pair<KEY, OUT>>, Builders.WindowBy<IN>,
               OptionalMethodBuilder<DatasetBuilder4<IN, KEY, VALUE, OUT>> {
 
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
-    private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final ReduceFunctor<VALUE, OUT> reducer;
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, KEY> keyExtractor;
+    final UnaryFunction<IN, VALUE> valueExtractor;
+    final ReduceFunctor<VALUE, OUT> reducer;
     final @Nullable BinaryFunction<VALUE, VALUE, Integer> valuesComparator;
 
     DatasetBuilder4(String name,
@@ -282,7 +287,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      *
      * @return next step builder
      */
-    DatasetBuilder4<IN, KEY, VALUE, OUT> withSortedValues(
+    public DatasetBuilder4<IN, KEY, VALUE, OUT> withSortedValues(
         BinaryFunction<VALUE, VALUE, Integer> comparator) {
 
       return new SortableDatasetBuilder4<>(
@@ -416,7 +421,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
             new StateSupport.MergeFromStateMerger<>();
     StateFactory stateFactory = reducer.isCombinable()
             ? new CombiningReduceState.Factory<>((ReduceFunctor) reducer)
-            : new NonCombiningReduceState.Factory<>(reducer);
+            : new NonCombiningReduceState.Factory<>(reducer, valueComparator);
     Flow flow = getFlow();
     Operator reduceState = new ReduceStateByKey(getName(),
         flow, input, keyExtractor, valueExtractor,
@@ -508,16 +513,22 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     static final class Factory<IN, OUT>
             implements StateFactory<IN, OUT, NonCombiningReduceState<IN, OUT>> {
-      private final ReduceFunctor<IN, OUT> r;
 
-      Factory(ReduceFunctor<IN, OUT> r) {
+      private final ReduceFunctor<IN, OUT> r;
+      private final BinaryFunction<IN, IN, Integer> comparator;
+
+      Factory(
+          ReduceFunctor<IN, OUT> r,
+          @Nullable BinaryFunction<IN, IN, Integer> comparator) {
+
         this.r = Objects.requireNonNull(r);
+        this.comparator = comparator;
       }
 
       @Override
       public NonCombiningReduceState<IN, OUT>
       createState(StorageProvider storageProvider, Collector<OUT> context) {
-        return new NonCombiningReduceState<>(storageProvider, r);
+        return new NonCombiningReduceState<>(storageProvider, r, comparator);
       }
     }
 
@@ -527,10 +538,16 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     private final ReduceFunctor<IN, OUT> reducer;
     private final ListStorage<IN> reducibleValues;
+    @Nullable
+    private final BinaryFunction<IN, IN, Integer> comparator;
 
-    NonCombiningReduceState(StorageProvider storageProvider,
-                            ReduceFunctor<IN, OUT> reducer) {
+    NonCombiningReduceState(
+        StorageProvider storageProvider,
+        ReduceFunctor<IN, OUT> reducer,
+        BinaryFunction<IN, IN, Integer> comparator) {
+
       this.reducer = Objects.requireNonNull(reducer);
+      this.comparator = comparator;
 
       @SuppressWarnings("unchecked")
       ListStorage<IN> ls = storageProvider.getListStorage(STORAGE_DESC);
@@ -544,7 +561,13 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     @Override
     public void flush(Collector<OUT> ctx) {
-      reducer.apply(reducibleValues.get(), ctx);
+      if (comparator != null) {
+        Comparator<IN> c = comparator::apply;
+        Iterable<Iterable<IN>> parts = mergeSorted(reducibleValues.get(), c);
+        reducer.apply(Iterables.mergeSorted(parts, c), ctx);
+      } else {
+        reducer.apply(reducibleValues.get(), ctx);
+      }
     }
 
     @Override
@@ -556,5 +579,27 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public void mergeFrom(NonCombiningReduceState<IN, OUT> other) {
       this.reducibleValues.addAll(other.reducibleValues.get());
     }
+
+    private Iterable<Iterable<IN>> mergeSorted(
+        Iterable<IN> input, Comparator<IN> comparator) {
+
+      // FIXME: add configuration
+      List<IN> buffer = new ArrayList<>();
+      List<Iterable<IN>> ret = new ArrayList<>();
+      for (IN v : input) {
+        if (buffer.size() >= 2) {
+          // FIXME: spill
+          ret.add(buffer.stream().sorted(comparator).collect(Collectors.toList()));
+          buffer.clear();
+        }
+        buffer.add(v);
+      }
+      if (!buffer.isEmpty()) {
+        ret.add(buffer.stream().sorted(comparator).collect(Collectors.toList()));
+      }
+
+      return ret;
+    }
+
   }
 }
