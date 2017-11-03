@@ -100,7 +100,7 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
   }
 
   @SuppressWarnings({"rawtypes"})
-  private List<PTransformOverride> getOverrides() {
+  protected List<PTransformOverride> getOverrides() {
     return ImmutableList.<PTransformOverride>builder()
         .add(
             PTransformOverride.of(
@@ -109,6 +109,18 @@ public class ApexRunner extends PipelineRunner<ApexRunnerResult> {
         .add(
             PTransformOverride.of(
                 PTransformMatchers.createViewWithViewFn(PCollectionViews.IterableViewFn.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.createViewWithViewFn(PCollectionViews.ListViewFn.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.createViewWithViewFn(PCollectionViews.MapViewFn.class),
+                new StreamingViewAsIterable.Factory()))
+        .add(
+            PTransformOverride.of(
+                PTransformMatchers.createViewWithViewFn(PCollectionViews.MultimapViewFn.class),
                 new StreamingViewAsIterable.Factory()))
         .add(
             PTransformOverride.of(
