@@ -41,7 +41,7 @@ dependencies {
   runtime library.java.commons_io_2x
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile group: "org.elasticsearch.plugin", name: "transport-netty4-client", version:"5.0.0"
   testCompile group: "org.elasticsearch.client", name: "transport", version:"5.0.0"
   testCompile group: "io.netty", name: "netty-transport-native-epoll", version:"4.1.0.CR3"
@@ -54,7 +54,7 @@ dependencies {
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
 }
 
 task packageTests(type: Jar) {

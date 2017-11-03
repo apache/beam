@@ -37,10 +37,10 @@ dependencies {
   compileOnly "org.scala-lang:scala-library:2.11.8"
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   testCompile library.java.junit
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile library.java.jackson_databind
   testCompile library.java.jackson_dataformat_yaml
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
 }
 
 task packageTests(type: Jar) {

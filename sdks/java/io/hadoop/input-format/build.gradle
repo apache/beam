@@ -39,14 +39,14 @@ dependencies {
   compile library.java.findbugs_jsr305
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
 
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
 }
 
 task packageTests(type: Jar) {

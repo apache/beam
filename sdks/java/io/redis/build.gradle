@@ -29,7 +29,7 @@ dependencies {
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile "com.github.kstyrc:embedded-redis:0.6"
 }
 

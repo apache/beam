@@ -44,9 +44,9 @@ dependencies {
   compile library.java.slf4j_api
   compile library.java.grpc_core
   compile library.java.grpc_stub
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
 }
 
 task packageTests(type: Jar) {

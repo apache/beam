@@ -52,7 +52,7 @@ dependencies {
   provided library.java.commons_compress
   provided library.java.commons_lang3
   provided library.java.commons_io_2x
-  provided library.java.hamcrest_all
+  provided library.java.hamcrest_core
   provided "org.apache.zookeeper:zookeeper:3.4.6"
   provided "org.scala-lang:scala-library:2.10.5"
   provided "com.esotericsoftware.kryo:kryo:2.21"
@@ -63,7 +63,7 @@ dependencies {
   testCompile library.java.avro
   testCompile library.java.kafka_clients
   testCompile library.java.junit
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.kafka:kafka_2.10:0.9.0.1"
 }

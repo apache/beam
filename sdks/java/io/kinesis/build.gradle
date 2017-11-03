@@ -36,9 +36,9 @@ dependencies {
   compile "commons-lang:commons-lang:2.6"
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile "org.assertj:assertj-core:2.5.0"
 }
 

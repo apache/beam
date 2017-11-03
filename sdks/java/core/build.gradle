@@ -52,14 +52,15 @@ dependencies {
   compile library.java.commons_compress
   compile library.java.commons_lang3
   compile library.java.joda_time
-  compile library.java.hamcrest_all
+  compile library.java.hamcrest_core
+  compile library.java.hamcrest_library
   compile library.java.junit
   runtime "org.tukaani:xz:1.5"
   testCompile project(":beam-model-parent:beam-model-fn-execution")
   testCompile library.java.guava_testlib
   testCompile library.java.jackson_dataformat_yaml
   testCompile library.java.slf4j_jdk14
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
   testCompile "com.esotericsoftware.kryo:kryo:2.21"
 }
 

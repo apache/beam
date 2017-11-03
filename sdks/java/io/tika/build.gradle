@@ -39,7 +39,6 @@ dependencies {
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_all
   testCompile "org.apache.tika:tika-parsers:1.16"
 }
 

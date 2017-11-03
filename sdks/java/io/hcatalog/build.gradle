@@ -36,7 +36,7 @@ dependencies {
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.commons_io_2x
   testCompile library.java.junit
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile "org.apache.hive.hcatalog:hive-hcatalog-core:2.1.0:tests"
   testCompile "org.apache.hive:hive-exec:2.1.0"
   testCompile "org.apache.hive:hive-common:2.1.0"

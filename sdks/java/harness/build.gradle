@@ -40,9 +40,9 @@ dependencies {
   compile library.java.slf4j_api
   compileOnly library.java.error_prone_annotations
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile library.java.junit
-  testCompile library.java.mockito_all
+  testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
 }
 

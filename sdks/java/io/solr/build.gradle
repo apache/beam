@@ -31,7 +31,6 @@ dependencies {
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_all
   testCompile library.java.junit
   testCompile library.java.slf4j_api
   testCompile library.java.slf4j_log4j12
