@@ -73,13 +73,15 @@ class KafkaUtils {
   }
 
   public static Consumer<byte[], byte[]>
-  newConsumer(String brokerList, String groupId, @Nullable Settings config)
+  newConsumer(String brokerList, @Nullable String groupId, @Nullable Settings config)
   {
     Properties ps = toProperties(config);
     ps.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokerList);
     ps.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
     ps.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName());
-    ps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+    if (groupId != null) {
+      ps.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+    }
     if (ps.getProperty(ConsumerConfig.CLIENT_ID_CONFIG) == null) {
       final String name = "euphoria.client-id-" + UUID.randomUUID().toString();
       LOG.warn("Autogenerating name of consumer's {} to {}",
@@ -114,7 +116,7 @@ class KafkaUtils {
         List<TopicMetadata> metaData = resp.topicsMetadata();
         for (TopicMetadata item : metaData) {
           for (PartitionMetadata part : item.partitionsMetadata()) {
-            
+
             String clientName = "Client_" + topic + "_" + part.partitionId();
             SimpleConsumer offsetsConsumer =
                 new SimpleConsumer(part.leader().host(), port, 100000, 64 * 1024, clientName);
@@ -161,7 +163,7 @@ class KafkaUtils {
           "Error fetching data Offset Data the Broker. Reason: "
               + response.errorCode(topic, partition));
     }
-    
+
     long[] offsets = response.offsets(topic, partition);
     return (offsets != null && offsets.length > 0) ? offsets[0] : -1;
   }

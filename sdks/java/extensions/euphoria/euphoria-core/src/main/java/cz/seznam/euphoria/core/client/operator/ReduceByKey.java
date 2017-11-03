@@ -44,11 +44,11 @@ import java.util.Objects;
 /**
  * Operator performing state-less aggregation by given reduce function. The reduction
  * is performed on all extracted values on each key-window.<p>
- * 
+ *
  * If provided function is {@link CombinableReduceFunction} partial reduction is performed
  * before shuffle. If the function is not combinable all values must be first sent through the
  * network and the reduction is done afterwards on target machines.<p>
- * 
+ *
  * Custom {@link Windowing} can be set, otherwise values from
  * input operator are used.<p>
  *
@@ -88,29 +88,29 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
     private final String name;
     private final Dataset<IN> input;
-    
+
     KeyByBuilder(String name, Dataset<IN> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
-    
+
     @Override
     public <KEY> DatasetBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
       return new DatasetBuilder2<>(name, input, keyExtractor);
     }
   }
-  
+
   interface ReduceBy<IN, KEY, VALUE> {
 
     /**
      * Define a function that reduces all values related to one key into one result object.
      * The function is not combinable - i.e. partial results cannot be made up before shuffle.
      * To get better performance use {@link #combineBy} method.
-     * 
+     *
      * @param <OUT> type of output element
-     * 
+     *
      * @param reducer function that reduces all values into one output object
-     * 
+     *
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
     default <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
@@ -134,12 +134,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
     <OUT> DatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(ReduceFunctor<VALUE, OUT> reducer);
-    
+
     /**
      * Define a function that reduces all values related to one key into one result object.
      * The function is combinable (associative and commutative) so it can be used to
      * compute partial results before shuffle.
-     * 
+     *
      * @param reducer function that reduces all values into one output object
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
@@ -154,7 +154,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
-    
+
     DatasetBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
@@ -176,7 +176,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public <VALUE> DatasetBuilder3<IN, KEY, VALUE> valueBy(UnaryFunction<IN, VALUE> valueExtractor) {
       return new DatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
     }
-    
+
     @Override
     public <OUT> DatasetBuilder4<IN, KEY, IN, OUT> reduceBy(ReduceFunctor<IN, OUT> reducer) {
       return new DatasetBuilder4<>(name, input, keyExtractor, e-> e, reducer);
@@ -207,7 +207,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
   public static class DatasetBuilder4<IN, KEY, VALUE, OUT>
-          implements Builders.Output<Pair<KEY, OUT>>, Builders.WindowBy<IN> {
+          implements Builders.Output<Pair<KEY, OUT>>, Builders.WindowBy<IN>,
+              OptionalMethodBuilder<DatasetBuilder4<IN, KEY, VALUE, OUT>> {
+
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
@@ -225,7 +227,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.reducer = Objects.requireNonNull(reducer);
     }
-    
+
     @Override
     public <W extends Window>
     DatasetBuilder5<IN, KEY, VALUE, OUT, W>
@@ -234,7 +236,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
           name, input, keyExtractor, valueExtractor,
           reducer, Objects.requireNonNull(windowing));
     }
-    
+
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder5<>(name, input, keyExtractor, valueExtractor,
