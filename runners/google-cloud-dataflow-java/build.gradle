@@ -78,6 +78,10 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
 }
 
+test {
+  systemProperties = [ "beamUseDummyRunner" : "true" ]
+}
+
 task packageTests(type: Jar) {
   from sourceSets.test.output
   classifier = "tests"
