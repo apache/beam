@@ -52,6 +52,11 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
 }
 
+task testDependencyTree {
+
+}
+test.dependsOn
+
 task packageTests(type: Jar) {
   from sourceSets.test.output
   classifier = "tests"
