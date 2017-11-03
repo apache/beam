@@ -30,6 +30,14 @@ description = "Apache Beam :: SDKs :: Java :: IO :: HBase"
  */
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
 
+test {
+  systemProperty "log4j.configuration", "log4j-test.properties"
+  jvmArgs "-XX:-UseGCOverheadLimit"
+  if (System.getProperty("beamSurefireArgline")) {
+    jvmArgs System.getProperty("beamSurefireArgline")
+  }
+}
+
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common")

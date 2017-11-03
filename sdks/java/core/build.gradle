@@ -24,9 +24,17 @@ description = "Apache Beam :: SDKs :: Java :: Core"
 
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
-          'pom.version' : version,
-          'timestamp' : new Date().format("yyyy-MM-dd HH:mm")
+    'pom.version': version,
+    'timestamp': new Date().format("yyyy-MM-dd HH:mm")
   ]
+}
+
+// Exclude tests that need a runner
+test {
+  systemProperty "beamUseDummyRunner", "true" 
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.NeedsRunner"
+  }
 }
 
 dependencies {

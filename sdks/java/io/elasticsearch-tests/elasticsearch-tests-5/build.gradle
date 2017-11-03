@@ -31,6 +31,11 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch-Tests :: 5.x"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common")
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
 
+test {
+  // needed for ESIntegTestCase
+  systemProperty "tests.security.manager", "false"
+}
+
 def jna_version = "4.1.0"
 def log4j_version = "2.6.2"
 

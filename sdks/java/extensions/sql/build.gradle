@@ -21,6 +21,10 @@ applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 
+test {
+  jvmArgs "-da"
+}
+
 def calcite_version = "1.13.0"
 def avatica_version = "1.10.0"
 
