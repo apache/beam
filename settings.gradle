@@ -67,8 +67,8 @@ include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-harness'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-java8tests'
 include ':beam-sdks-parent:beam-sdks-java-parent'
-include ':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container'
-include ':beam-sdks-parent:beam-sdks-python'
+//include ':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container'
+//include ':beam-sdks-parent:beam-sdks-python'
 include ':beam-sdks-parent'
 include ':beam-runners-parent:beam-runners-core-construction-java'
 include ':beam-runners-parent:beam-runners-core-java'
@@ -140,8 +140,8 @@ project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-harness').projec
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container').projectDir = "$rootDir/sdks/java/container" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-java8tests').projectDir = "$rootDir/sdks/java/java8tests" as File
 project(':beam-sdks-parent:beam-sdks-java-parent').projectDir = "$rootDir/sdks/java" as File
-project(':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container').projectDir = "$rootDir/sdks/python/container" as File
-project(':beam-sdks-parent:beam-sdks-python').projectDir = "$rootDir/sdks/python" as File
+//project(':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container').projectDir = "$rootDir/sdks/python/container" as File
+//project(':beam-sdks-parent:beam-sdks-python').projectDir = "$rootDir/sdks/python" as File
 project(':beam-sdks-parent').projectDir = "$rootDir/sdks" as File
 project(':beam-runners-parent:beam-runners-core-construction-java').projectDir = "$rootDir/runners/core-construction-java" as File
 project(':beam-runners-parent:beam-runners-core-java').projectDir = "$rootDir/runners/core-java" as File
