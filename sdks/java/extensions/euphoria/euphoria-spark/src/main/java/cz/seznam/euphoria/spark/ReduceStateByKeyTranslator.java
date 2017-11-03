@@ -20,11 +20,12 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.Constants;
 import cz.seznam.euphoria.core.executor.greduce.GroupReducer;
 import cz.seznam.euphoria.core.util.Settings;
 import org.apache.spark.HashPartitioner;
@@ -46,21 +47,19 @@ import java.util.Map;
 
 class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateByKey> {
 
-  static final String CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY = "euphoria.spark.batch.list-storage.max-memory-elements";
-  static final int CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT = 1000;
+  private final Settings settings;
+  private final int listStorageMaxElements;
 
-  private int listStorageMaxElements;
-
-  void loadSettings(Settings settings) {
-    this.listStorageMaxElements = settings.getInt(CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY, CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT);
+  ReduceStateByKeyTranslator(Settings settings) {
+    this.settings = settings;
+    this.listStorageMaxElements = settings.getInt(
+        Constants.SPILL_BUFFER_ITEMS, Constants.SPILL_BUFFER_ITEMS_DEFAULT);
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public JavaRDD<?> translate(ReduceStateByKey operator,
                               SparkExecutorContext context) {
-
-    loadSettings(context.getSettings());
 
     final JavaRDD<SparkElement> input = (JavaRDD) context.getSingleInput(operator);
 
@@ -91,7 +90,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     // ~ iterate through the sorted partition and incrementally reduce states
     return sorted.mapPartitions(
             new StateReducer(windowing, stateFactory, stateCombiner,
-                    new SparkStorageProvider(SparkEnv.get().serializer(), listStorageMaxElements),
+                    new SparkStateContext(settings, SparkEnv.get().serializer(), listStorageMaxElements),
                     new LazyAccumulatorProvider(context.getAccumulatorFactory(), context.getSettings())));
   }
 
@@ -155,7 +154,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final Trigger trigger;
     private final StateFactory<?, ?, State<?, ?>> stateFactory;
     private final StateMerger<?, ?, State<?, ?>> stateCombiner;
-    private final StorageProvider storageProvider;
+    private final StateContext stateContext;
     private final LazyAccumulatorProvider accumulators;
 
     // mapping of [Key -> GroupReducer]
@@ -164,13 +163,13 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     public StateReducer(Windowing windowing,
                         StateFactory<?, ?, State<?, ?>> stateFactory,
                         StateMerger<?, ?, State<?, ?>> stateCombiner,
-                        StorageProvider storageProvider,
+                        StateContext stateContext,
                         LazyAccumulatorProvider accumulators) {
       this.windowing = windowing;
       this.trigger = windowing.getTrigger();
       this.stateFactory = stateFactory;
       this.stateCombiner = stateCombiner;
-      this.storageProvider = storageProvider;
+      this.stateContext = stateContext;
       this.accumulators = accumulators;
     }
 
@@ -201,7 +200,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
             reducer = new GroupReducer(
                 stateFactory,
                 stateCombiner,
-                storageProvider,
+                stateContext,
                 SparkElement::new,
                 windowing,
                 trigger,

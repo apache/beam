@@ -13,19 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.executor.storage;
+package cz.seznam.euphoria.core.executor.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.net.URI;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -41,43 +39,7 @@ import java.util.Objects;
  * @param <T> the type of elements stored in this list storage
  */
 @Audience(Audience.Type.EXECUTOR)
-public class FsSpillingListStorage<T> implements ListStorage<T> {
-
-  /**
-   * A factory for spill files.
-   */
-  @FunctionalInterface
-  public interface SpillFileFactory {
-    /**
-     * Invoked to request a unique path to a new spill file.
-     *
-     * @return the path to a new spill file
-     */
-    File newSpillFile();
-  }
-
-  /**
-   * The default spill file factory to create new files in the current
-   * working directory.
-   */
-  public static class DefaultSpillFileFactory implements SpillFileFactory {
-    static final SpillFileFactory INSTANCE = new DefaultSpillFileFactory();
-    private DefaultSpillFileFactory() {}
-
-    public static SpillFileFactory getInstance() {
-      return INSTANCE;
-    }
-
-    @Override
-    public File newSpillFile() {
-      try {
-        Path workDir = FileSystems.getFileSystem(new URI("file:///")).getPath("./");
-        return Files.createTempFile(workDir, getClass().getName(), ".dat").toFile();
-      } catch (Exception e) {
-        throw new IllegalStateException(e);
-      }
-    }
-  }
+public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterable<T> {
 
   private final SerializerFactory serializerFactory;
   private final SpillFileFactory spillFileFactory;
@@ -90,7 +52,7 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
 
   private File storageFile;
   private SerializerFactory.Serializer serializerInstance;
-  private SerializerFactory.Serializer.OutputStream serializerStream;
+  private SerializerFactory.Serializer.Output serializerStream;
   private boolean needsFlush;
 
   public FsSpillingListStorage(SerializerFactory serializerFactory,
@@ -127,14 +89,14 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
         return Collections.emptyIterator();
       }
 
-      SerializerFactory.Serializer.InputStream is;
+      SerializerFactory.Serializer.Input is;
       if (serializerStream != null) {
         if (needsFlush) {
           serializerStream.flush();
           needsFlush = false;
         }
         try {
-          is = serializerInstance.newInputStream(new FileInputStream(storageFile));
+          is = serializerInstance.newInput(new FileInputStream(storageFile));
         } catch (FileNotFoundException e) {
           throw new IllegalStateException(
               "Failed to open spilling storage: "
@@ -184,6 +146,15 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
     }
   }
 
+  /**
+   * Force persisting all the data to disk.
+   */
+  void flush() {
+    spillElems();
+    serializerStream.flush();
+    needsFlush = false;
+  }
+
   private void initDiskStorage() {
     assert storageFile == null;
     assert serializerInstance == null;
@@ -191,9 +162,21 @@ public class FsSpillingListStorage<T> implements ListStorage<T> {
     storageFile = spillFileFactory.newSpillFile();
     serializerInstance = serializerFactory.newSerializer();
     try {
-      serializerStream = serializerInstance.newOutputStream(new FileOutputStream(storageFile));
+      serializerStream = serializerInstance.newOutput(new FileOutputStream(storageFile));
     } catch (FileNotFoundException e) {
       throw new IllegalStateException(e);
     }
   }
+
+  @Override
+  public Iterator<T> iterator() {
+    return get().iterator();
+  }
+
+  @Override
+  public void close() throws IOException {
+    clear();
+  }
+
+
 }

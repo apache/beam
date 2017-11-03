@@ -96,10 +96,10 @@ class ReduceStateByKeyTranslator implements StreamingOperatorTranslator<ReduceSt
       reduced = input.keyBy(new UnaryFunctionKeyExtractor(keyExtractor))
                      .transform(operator.getName(), TypeInformation.of(StreamingElement.class),
                                 new StreamingElementWindowOperator(
-                                        elMapper, windowing, stateFactory, stateCombiner,
-                                        context.isLocalMode(), descriptorsCacheMaxSize,
-                                        allowEarlyEmitting,
-                                        context.getAccumulatorFactory(), context.getSettings()))
+                                    elMapper, windowing, stateFactory, stateCombiner,
+                                    context.isLocalMode(), descriptorsCacheMaxSize,
+                                    allowEarlyEmitting,
+                                    context.getAccumulatorFactory(), context.getSettings()))
                      .setParallelism(operator.getParallelism());
     } else {
       // assign windows

@@ -13,22 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink.batch;
+package cz.seznam.euphoria.flink;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-import cz.seznam.euphoria.core.executor.storage.SerializerFactory;
+import cz.seznam.euphoria.core.executor.io.SerializerFactory;
+import java.io.OutputStream;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.util.LinkedHashMap;
+import java.util.Map;
 
-class FlinkSerializerFactory implements SerializerFactory {
+public class FlinkSerializerFactory implements SerializerFactory {
 
   static class FlinkSerializerAdapter implements Serializer {
-    private final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> flinkSerializers;
+
+    private final Map<Class<?>, ExecutionConfig.SerializableSerializer<?>> flinkSerializers;
     private final Kryo kryo;
 
     // the class that we will serialize
@@ -37,16 +37,17 @@ class FlinkSerializerFactory implements SerializerFactory {
     com.esotericsoftware.kryo.Serializer serializer;
 
     FlinkSerializerAdapter(
-        LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> flinkSerializers,
+        Map<Class<?>, ExecutionConfig.SerializableSerializer<?>> flinkSerializers,
         Kryo kryo) {
       this.flinkSerializers = flinkSerializers;
       this.kryo = kryo;
     }
 
     @Override
-    public OutputStream newOutputStream(java.io.OutputStream os) {
-      Output output = new Output(os);
-      return new OutputStream() {
+    public SerializerFactory.Serializer.Output newOutput(OutputStream os) {
+
+      com.esotericsoftware.kryo.io.Output output = new com.esotericsoftware.kryo.io.Output(os);
+      return new SerializerFactory.Serializer.Output() {
         @SuppressWarnings("unchecked")
         @Override
         public void writeObject(Object element) {
@@ -84,9 +85,9 @@ class FlinkSerializerFactory implements SerializerFactory {
     }
 
     @Override
-    public InputStream newInputStream(java.io.InputStream is) {
-      Input input = new Input(is);
-      return new InputStream() {
+    public SerializerFactory.Serializer.Input newInput(java.io.InputStream is) {
+      com.esotericsoftware.kryo.io.Input input = new com.esotericsoftware.kryo.io.Input(is);
+      return new SerializerFactory.Serializer.Input() {
         @SuppressWarnings("unchecked")
         @Override
         public Object readObject() {
@@ -108,11 +109,11 @@ class FlinkSerializerFactory implements SerializerFactory {
     }
   }
 
-  final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> serializers;
-  transient Kryo kryo;
+  private final LinkedHashMap<Class<?>, ExecutionConfig.SerializableSerializer<?>> serializers;
+  private transient Kryo kryo;
 
-  FlinkSerializerFactory(ExecutionEnvironment env) {
-    this.serializers = env.getConfig().getDefaultKryoSerializers();
+  public FlinkSerializerFactory(ExecutionConfig conf) {
+    this.serializers = conf.getDefaultKryoSerializers();
   }
 
   @Override
@@ -124,7 +125,8 @@ class FlinkSerializerFactory implements SerializerFactory {
     if (this.kryo == null) {
       // FIXME: how to get to the kryo instance in flink?
       this.kryo = new Kryo();
-      this.kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+      ((Kryo.DefaultInstantiatorStrategy) kryo.getInstantiatorStrategy())
+          .setFallbackInstantiatorStrategy(new StdInstantiatorStrategy());
     }
     return this.kryo;
   }

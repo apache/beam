@@ -45,6 +45,6 @@ public interface StorageProvider extends Serializable {
    * @return the descriptor of a single value
    */
   <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor);
-  
+
 
 }

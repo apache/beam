@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.executor.storage.SerializerFactory;
+import cz.seznam.euphoria.core.executor.io.SerializerFactory;
 import org.apache.spark.serializer.DeserializationStream;
 import org.apache.spark.serializer.SerializationStream;
 import org.apache.spark.serializer.SerializerInstance;
@@ -23,6 +23,8 @@ import scala.reflect.ClassTag;
 import scala.reflect.ClassTag$;
 
 import java.io.EOFException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 
@@ -34,11 +36,11 @@ class SparkSerializerFactory implements SerializerFactory {
 
     // ~ adapts spark's SerializationStream to
     // euphoria's SerializerFactory.Serializer.OutputStream
-    static class SparkSerializerOutputStream implements OutputStream {
+    static class SparkSerializerOutput implements Output {
       private final SerializationStream sparkSerializationStream;
       private ClassTag type;
 
-      SparkSerializerOutputStream(SerializationStream s) {
+      SparkSerializerOutput(SerializationStream s) {
         sparkSerializationStream = Objects.requireNonNull(s);
       }
 
@@ -64,13 +66,13 @@ class SparkSerializerFactory implements SerializerFactory {
 
     // ~ adopts spark's DeserializationStream to
     // euphoria's SerializerFactory.Serializer.InputStream
-    static class SparkSerializerInputStream implements InputStream {
+    static class SparkSerializerInput implements Input {
       private final DeserializationStream sparkDeserializationStream;
 
       private boolean streamFinished;
       private Object next;
 
-      SparkSerializerInputStream(DeserializationStream s) {
+      SparkSerializerInput(DeserializationStream s) {
         sparkDeserializationStream = s;
       }
 
@@ -131,13 +133,13 @@ class SparkSerializerFactory implements SerializerFactory {
     }
 
     @Override
-    public OutputStream newOutputStream(java.io.OutputStream out) {
-      return new SparkSerializerOutputStream(sparkSerializerInstance.serializeStream(out));
+    public Output newOutput(OutputStream out) {
+      return new SparkSerializerOutput(sparkSerializerInstance.serializeStream(out));
     }
 
     @Override
-    public InputStream newInputStream(java.io.InputStream in) {
-      return new SparkSerializerInputStream(sparkSerializerInstance.deserializeStream(in));
+    public Input newInput(InputStream in) {
+      return new SparkSerializerInput(sparkSerializerInstance.deserializeStream(in));
     }
   }
 

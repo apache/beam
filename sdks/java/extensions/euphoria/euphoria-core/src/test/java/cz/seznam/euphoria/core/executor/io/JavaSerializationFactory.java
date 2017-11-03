@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.executor.storage;
+package cz.seznam.euphoria.core.executor.io;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -24,7 +24,7 @@ public class JavaSerializationFactory implements SerializerFactory {
 
   static class JavaSerializer implements Serializer {
 
-    static class ObjectOutputStreamAdapter implements OutputStream {
+    static class ObjectOutputStreamAdapter implements Output {
       private final ObjectOutputStream out;
 
       ObjectOutputStreamAdapter(ObjectOutputStream out) {
@@ -59,7 +59,7 @@ public class JavaSerializationFactory implements SerializerFactory {
       }
     }
 
-    static class ObjectInputStreamAdapter implements InputStream {
+    static class ObjectInputStreamAdapter implements Input {
       private final ObjectInputStream in;
 
       private boolean finished;
@@ -113,7 +113,7 @@ public class JavaSerializationFactory implements SerializerFactory {
     }
 
     @Override
-    public OutputStream newOutputStream(java.io.OutputStream out) {
+    public Output newOutput(java.io.OutputStream out) {
       try {
         return new ObjectOutputStreamAdapter(new ObjectOutputStream(out));
       } catch (IOException e) {
@@ -122,7 +122,7 @@ public class JavaSerializationFactory implements SerializerFactory {
     }
 
     @Override
-    public InputStream newInputStream(java.io.InputStream in) {
+    public Input newInput(java.io.InputStream in) {
       try {
         return new ObjectInputStreamAdapter(new ObjectInputStream(in));
       } catch (IOException e) {
