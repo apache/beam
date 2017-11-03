@@ -24,12 +24,12 @@ description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile library.java.guava
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_common
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.hamcrest_all
   testCompile library.java.mockito_all
   testCompile library.java.junit
-  compileOnly library.java.hadoop_mapreduce_client_core
-  compileOnly library.java.hadoop_common
 }
 
 task packageTests(type: Jar) {
