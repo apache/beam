@@ -76,9 +76,11 @@ public class ReduceWindow<
         UnaryFunction<T, VALUE> valueExtractor) {
       return new ReduceBuilder<>(name, input, valueExtractor);
     }
-    public <OUT> OutputBuilder<T, T, OUT> reduceBy(
+    public <OUT> SortableOutputBuilder<T, T, OUT> reduceBy(
         ReduceFunction<T, OUT> reducer) {
-      return new OutputBuilder<>(name, input, e -> e, reducer, null, null);
+
+      return new SortableOutputBuilder<>(
+          name, input, e -> e, reducer, null);
     }
     public OutputBuilder<T, T, T> combineBy(
         CombinableReduceFunction<T> reducer) {
@@ -99,7 +101,7 @@ public class ReduceWindow<
       this.input = input;
       this.valueExtractor = valueExtractor;
     }
-    public <OUT> OutputBuilder<T, VALUE, OUT> reduceBy(
+    public <OUT> SortableOutputBuilder<T, VALUE, OUT> reduceBy(
         ReduceFunction<VALUE, OUT> reducer) {
       return reduceBy((Iterable<VALUE> in, Collector<OUT> ctx) -> {
         ctx.collect(reducer.apply(in));
@@ -178,7 +180,7 @@ public class ReduceWindow<
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
       return new OutputBuilder<>(
-          name, input, valueExtractor, reducer, windowing, null);
+          name, input, valueExtractor, reducer, windowing, valueComparator);
     }
 
   }
