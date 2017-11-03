@@ -24,10 +24,6 @@ println "Applying build_rules.gradle to $project.name"
 group = "org.apache.beam"
 version = "2.3.0-SNAPSHOT"
 
-// Add a task "allDeps" which lists all dependencies of the project
-// and all subprojects.
-task allD
-
 // Define the default set of properties
 repositories {
   mavenLocal()
@@ -49,6 +45,8 @@ repositories {
 task allDeps(type: DependencyReportTask) {
 }
 
+apply plugin: 'project-report'
+
 /*************************************************************************************************/
 
 /** Used as configuration within the applyJavaNature closure. */
@@ -64,15 +62,15 @@ ext.applyJavaNature = {
   apply plugin: "maven"
   apply plugin: "java"
 
-  delegate.sourceCompatibility = configuration.javaVersion
-  delegate.targetCompatibility = configuration.javaVersion
-  delegate.tasks.withType(JavaCompile) {
+  sourceCompatibility = configuration.javaVersion
+  targetCompatibility = configuration.javaVersion
+  tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
   }
 
   // Skip test failures to enumerate all that is failing
-  delegate.test {
-    ignoreFailures = true
+  test {
+//    ignoreFailures = true
     exclude '**/*IT.class'
     useJUnit {
       setExcludeCategories([
@@ -81,8 +79,8 @@ ext.applyJavaNature = {
     }
   }
 
-  delegate.apply plugin: "net.ltgt.apt"
-  delegate.dependencies {
+  apply plugin: "net.ltgt.apt"
+  dependencies {
     def auto_value = "com.google.auto.value:auto-value:1.4.1"
     def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
     compileOnly auto_value
@@ -97,20 +95,20 @@ ext.applyJavaNature = {
   }
 
   // Add the optional and provided scopes for dependencies
-  delegate.apply plugin: 'propdeps'
-  delegate.apply plugin: 'propdeps-maven'
+  apply plugin: 'propdeps'
+  apply plugin: 'propdeps-maven'
 
-  delegate.apply plugin: 'checkstyle'
+  apply plugin: 'checkstyle'
 
-  delegate.tasks.withType(Checkstyle) {
+  tasks.withType(Checkstyle) {
     configFile = project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
     configProperties = [ "checkstyle.suppressions.file": project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml") ]
     showViolations = true
     maxErrors = 0
   }
 
-  delegate.apply plugin: 'com.diffplug.gradle.spotless'
-  delegate.spotless {
+  apply plugin: 'com.diffplug.gradle.spotless'
+  spotless {
     java {
       target rootProject.fileTree(rootProject.rootDir) {
         include 'sdks/java/**/*.java'
@@ -134,10 +132,17 @@ ext.applyJavaNature = {
   }
 
   // Ban these dependencies from all configurations
-  delegate.configurations.all {
+  configurations.all {
     exclude group: "com.google.guava", module: "guava-jdk5"
     exclude group: "jdk.tools", module: "jdk.tools"
   }
+
+  configurations.all {
+    resolutionStrategy {
+      force library.java.values()
+    }
+  }
+
 }
 
 ext.applyGoNature = {
