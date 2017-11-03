@@ -22,6 +22,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
@@ -77,11 +78,11 @@ public class ReduceWindow<
     }
     public <OUT> OutputBuilder<T, T, OUT> reduceBy(
         ReduceFunction<T, OUT> reducer) {
-      return new OutputBuilder<>(name, input, e -> e, reducer);
+      return new OutputBuilder<>(name, input, e -> e, reducer, null, null);
     }
     public OutputBuilder<T, T, T> combineBy(
         CombinableReduceFunction<T> reducer) {
-      return new OutputBuilder<>(name, input, e -> e, reducer);
+      return new OutputBuilder<>(name, input, e -> e, reducer, null, null);
     }
   }
 
@@ -104,57 +105,71 @@ public class ReduceWindow<
         ctx.collect(reducer.apply(in));
       });
     }
-    public <OUT> OutputBuilder<T, VALUE, OUT> reduceBy(
+    public <OUT> SortableOutputBuilder<T, VALUE, OUT> reduceBy(
         ReduceFunctor<VALUE, OUT> reducer) {
-      return new OutputBuilder<>(name, input, valueExtractor, reducer);
+
+      return new SortableOutputBuilder<>(
+          name, input, valueExtractor, reducer, null);
     }
     public OutputBuilder<T, VALUE, VALUE> combineBy(
         CombinableReduceFunction<VALUE> reducer) {
       return new OutputBuilder<>(
           name, input, valueExtractor,
-          ReduceByKey.toReduceFunctor(reducer));
+          ReduceByKey.toReduceFunctor(reducer),
+          null, null);
     }
   }
 
   public static class OutputBuilder<T, VALUE, OUT>
       implements Builders.WindowBy<T>, OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
 
-    private final String name;
-    private final Dataset<T> input;
-    private final UnaryFunction<T, VALUE> valueExtractor;
-    private final ReduceFunctor<VALUE, OUT> reducer;
-    private Windowing<T, ?> windowing;
-
+    final String name;
+    final Dataset<T> input;
+    final UnaryFunction<T, VALUE> valueExtractor;
+    final ReduceFunctor<VALUE, OUT> reducer;
+    final Windowing<T, ?> windowing;
+    @Nullable
+    final BinaryFunction<VALUE, VALUE, Integer> valueComparator;
 
     public OutputBuilder(
         String name,
         Dataset<T> input,
         UnaryFunction<T, VALUE> valueExtractor,
-        ReduceFunction<VALUE, OUT> reducer) {
+        ReduceFunction<VALUE, OUT> reducer,
+        @Nullable Windowing<T, ?> windowing,
+        @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
+
       this(
           name, input, valueExtractor,
           (Iterable<VALUE> in, Collector<OUT> ctx) -> {
             ctx.collect(reducer.apply(in));
-          });
+          },
+          windowing,
+          valueComparator);
     }
 
     public OutputBuilder(
         String name,
         Dataset<T> input,
         UnaryFunction<T, VALUE> valueExtractor,
-        ReduceFunctor<VALUE, OUT> reducer) {
+        ReduceFunctor<VALUE, OUT> reducer,
+        Windowing<T, ?> windowing,
+        @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
 
       this.name = name;
       this.input = input;
       this.valueExtractor = valueExtractor;
       this.reducer = reducer;
+      this.windowing = windowing;
+      this.valueComparator = valueComparator;
     }
+
     @SuppressWarnings("unchecked")
     public Dataset<OUT> output() {
       Flow flow = input.getFlow();
       ReduceWindow<T, VALUE, OUT, ?> operator = new ReduceWindow<>(
           name, flow, input, valueExtractor,
-              (Windowing) windowing, reducer);
+              (Windowing) windowing, reducer, valueComparator);
       flow.add(operator);
       return operator.output();
     }
@@ -162,11 +177,51 @@ public class ReduceWindow<
     @Override
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
-      this.windowing = windowing;
-      return this;
+      return new OutputBuilder<>(
+          name, input, valueExtractor, reducer, windowing, null);
     }
 
   }
+
+  public static class SortableOutputBuilder<T, VALUE, OUT>
+      extends OutputBuilder<T, VALUE, OUT> {
+
+    public SortableOutputBuilder(
+        String name,
+        Dataset<T> input,
+        UnaryFunction<T, VALUE> valueExtractor,
+        ReduceFunction<VALUE, OUT> reducer,
+        @Nullable Windowing<T, ?> windowing) {
+
+      super(name, input, valueExtractor, reducer, windowing, null);
+    }
+
+    public SortableOutputBuilder(
+        String name,
+        Dataset<T> input,
+        UnaryFunction<T, VALUE> valueExtractor,
+        ReduceFunctor<VALUE, OUT> reducer,
+        @Nullable Windowing<T, ?> windowing) {
+
+      super(name, input, valueExtractor, reducer, windowing, null);
+    }
+
+
+    /**
+     * Sort values going to `reduceBy` function by given comparator.
+     * @param comparator function with contract defined by {@code java.util.Comparator#compare}.
+     *
+     * @return next step builder
+     */
+    public OutputBuilder<T, VALUE, OUT> withSortedValues(
+        BinaryFunction<VALUE, VALUE, Integer> comparator) {
+
+      return new OutputBuilder<>(
+          name, input, valueExtractor, reducer, windowing, comparator);
+    }
+
+  }
+
 
   /**
    * Starts building a nameless {@link ReduceWindow} operator to process
@@ -198,6 +253,7 @@ public class ReduceWindow<
 
   final ReduceFunctor<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;
+  final BinaryFunction<VALUE, VALUE, Integer> valueComparator;
 
   static final Byte B_ZERO = (byte) 0;
 
@@ -207,11 +263,13 @@ public class ReduceWindow<
           Dataset<IN> input,
           UnaryFunction<IN, VALUE> valueExtractor,
           @Nullable Windowing<IN, W> windowing,
-          ReduceFunctor<VALUE, OUT> reducer) {
+          ReduceFunctor<VALUE, OUT> reducer,
+          @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
 
     super(name, flow, input, e -> B_ZERO, windowing);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;
+    this.valueComparator = valueComparator;
   }
 
   public ReduceFunctor<VALUE, OUT> getReducer() {
@@ -225,7 +283,7 @@ public class ReduceWindow<
     reduceByKey = new ReduceByKey<>(
         getName() + "::ReduceByKey", getFlow(), input,
         getKeyExtractor(), valueExtractor,
-        windowing, reducer);
+        windowing, reducer, valueComparator);
     Dataset<Pair<Byte, OUT>> output = reduceByKey.output();
 
     MapElements<Pair<Byte, OUT>, OUT> format = new MapElements<>(
