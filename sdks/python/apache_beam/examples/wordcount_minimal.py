@@ -56,6 +56,8 @@ from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
+from past.builtins import unicode
+
 
 def run(argv=None):
   """Main entry point; defines and runs the wordcount pipeline."""

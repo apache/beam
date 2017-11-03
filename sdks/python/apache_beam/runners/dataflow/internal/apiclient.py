@@ -49,6 +49,8 @@ from apache_beam.transforms import cy_combiners
 from apache_beam.transforms.display import DisplayData
 from apache_beam.utils import retry
 
+from past.builtins import unicode
+
 # Environment version information. It is passed to the service during a
 # a job submission and is used by the service to establish what features
 # are expected by the workers.

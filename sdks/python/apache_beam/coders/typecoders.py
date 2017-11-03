@@ -67,6 +67,8 @@ See apache_beam.typehints.decorators module for more details.
 from apache_beam.coders import coders
 from apache_beam.typehints import typehints
 
+from past.builtins import unicode
+
 __all__ = ['registry']
 
 

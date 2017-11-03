@@ -36,6 +36,9 @@ from apache_beam.transforms import core
 from apache_beam.transforms import window
 from apache_beam.transforms.display import DisplayDataItem
 
+
+from past.builtins import unicode
+
 __all__ = ['ReadStringsFromPubSub', 'WriteStringsToPubSub']
 
 

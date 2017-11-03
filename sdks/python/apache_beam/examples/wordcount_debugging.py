@@ -54,6 +54,8 @@ from apache_beam.options.pipeline_options import SetupOptions
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
+from past.builtins import unicode
+
 
 class FilterTextFn(beam.DoFn):
   """A DoFn that filters for a specific key based on a regular expression."""

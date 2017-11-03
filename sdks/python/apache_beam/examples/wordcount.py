@@ -31,6 +31,8 @@ from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
 
+from past.builtins import unicode
+
 
 class WordExtractingDoFn(beam.DoFn):
   """Parse each line of input text into words."""

@@ -28,13 +28,13 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
-from types import NoneType
-
 from apache_beam.coders import observable
 from apache_beam.utils import windowed_value
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
+
+from past.builtins import unicode
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -264,7 +264,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
 
   def encode_to_stream(self, value, stream, nested):
     t = type(value)
-    if t is NoneType:
+    if value is None:
       stream.write_byte(NONE_TYPE)
     elif t is int:
       stream.write_byte(INT_TYPE)

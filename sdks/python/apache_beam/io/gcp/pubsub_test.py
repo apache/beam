@@ -41,6 +41,8 @@ except ImportError:
   pubsub = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
+from past.builtins import unicode
+
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestReadStringsFromPubSubOverride(unittest.TestCase):

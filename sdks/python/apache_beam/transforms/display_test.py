@@ -31,6 +31,8 @@ from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.display import HasDisplayData
 
+from past.builtins import unicode
+
 
 class DisplayDataItemMatcher(BaseMatcher):
   """ Matcher class for DisplayDataItems in unit tests.

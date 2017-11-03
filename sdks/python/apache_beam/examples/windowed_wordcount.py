@@ -29,6 +29,8 @@ import logging
 import apache_beam as beam
 import apache_beam.transforms.window as window
 
+from past.builtins import unicode
+
 TABLE_SCHEMA = ('word:STRING, count:INTEGER, '
                 'window_start:TIMESTAMP, window_end:TIMESTAMP')
 
