@@ -36,7 +36,7 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
@@ -261,7 +261,7 @@ public class InMemExecutor implements Executor {
   private boolean allowWindowBasedShuffling = false;
   private boolean allowEarlyEmitting = false;
 
-  private StorageProvider storageProvider = new InMemStorageProvider();
+  private StateContext stateContext = new InMemStateContext();
 
   private AccumulatorProvider.Factory accumulatorFactory =
           VoidAccumulatorProvider.getFactory();
@@ -325,16 +325,16 @@ public class InMemExecutor implements Executor {
   }
 
   /**
-   * Set provider for state's storage. Defaults to {@code InMemStorageProvider}.
+   * Set context for state's creation. Defaults to {@code StateContext}.
    *
-   * @param provider the storage provide
+   * @param context the context to use for state creation
    *
    * @return this instance (for method chaining purposes)
    *
    * @throws NullPointerException if the given reference is {@code null}
    */
-  public InMemExecutor setStateStorageProvider(StorageProvider provider) {
-    this.storageProvider = Objects.requireNonNull(provider);
+  public InMemExecutor setStateContext(StateContext context) {
+    this.stateContext = Objects.requireNonNull(context);
     return this;
   }
 
@@ -645,7 +645,7 @@ public class InMemExecutor implements Executor {
                   ? triggerSchedulerSupplier.get()
                   : new WatermarkTriggerScheduler(watermarkDuration)),
           watermarkEmitStrategySupplier.get(),
-          storageProvider,
+          stateContext,
           accumulatorFactory,
           context.getSettings(),
           allowEarlyEmitting));
