@@ -155,6 +155,14 @@ ext.applyGoNature = {
   }
 }
 
+ext.applyDockerNature = {
+  println "applyDockerNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
+  apply plugin: "com.palantir.docker"
+  docker {
+    noCache true
+  }
+}
+
 ext.applyGrpcNature = {
   println "applyGrpcNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.google.protobuf"
