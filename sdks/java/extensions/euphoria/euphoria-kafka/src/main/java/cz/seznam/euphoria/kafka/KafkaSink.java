@@ -115,11 +115,11 @@ public class KafkaSink implements DataSink<Pair<byte[], byte[]>> {
   private final static ConcurrentMap<String, Producer<byte[], byte[]>> PRODUCERS =
       new ConcurrentHashMap<>();
 
-  private String brokers;
-  private String topic;
-  private Settings config;
+  private final String brokers;
+  private final String topic;
+  private final Settings config;
 
-  KafkaSink(String brokers, String topic, Settings config) {
+  public KafkaSink(String brokers, String topic, Settings config) {
     this.brokers = brokers;
     this.topic = topic;
     this.config = config;
