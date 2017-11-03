@@ -1,7 +1,8 @@
 ---
-layout: default
+layout: section
 title: "Support"
 permalink: /get-started/support/
+section_menu: section-menu/get-started.html
 redirect_from:
   - /use/issue-tracking/
   - /use/mailing-lists/
@@ -71,5 +72,3 @@ You can find answers to many questions about [Beam on Stack Overflow](http://sta
 ## Beam Slack Channel
 
 You can participate in discussions and ask questions on the [Beam Slack Channel](https://apachebeam.slack.com/).
-
-

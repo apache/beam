@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: 'Beam Docker Images'
+section_menu: section-menu/contribute.html
 permalink: /contribute/docker-images/
 ---
 
@@ -12,19 +13,19 @@ Beam. You can use the docker images by using the provided [Docker scripts](https
 In this directory you will find scripts to build and run docker images for
 different purposes:
 
-- [file](#file): Create a Docker container from a Beam source code .zip file
+- [file](#file-based-image): Create a Docker container from a Beam source code .zip file
   in a given environment. It is useful to test a specific version of Beam,
   for example to validate a release vote.
 
-- [git](#git): Same as file but the Beam source code comes from the git repository,
+- [git](#git-based-image): Same as file but the Beam source code comes from the git repository,
   you can choose a given branch/tag/pull-request. Useful to test in a specific
   environment.
 
-- [release](#release): It builds an end-user distribution of the latest version of Beam
+- [release](#release-image): It builds an end-user distribution of the latest version of Beam
   and its dependencies. Useful for end-users who want to have a ready to use
   container with Beam (Python only for the moment).
 
-## <a name="file"></a>File based image
+## File based image
 
 If you want to build a container with a ready JDK 8 environment to test Beam:
 
@@ -151,7 +152,7 @@ enable the threading execution:
 mvn --threads 1C ...
 ```
 
-## <a name="git"></a>Git based image
+## Git based image
 
 It creates a docker container with a cloned version of the git repository, its
 branches and all the pull-requests. When it is run, it updates and checks out
@@ -171,7 +172,7 @@ docker build -t beam:git .
 docker run -e BRANCH=pr/ID -it beam:git /bin/bash
 ```
 
-## <a name="release"></a>Release image
+## Release image
 
 The release image is a container with the needed requirements to run Beam out of
 the box in a container, or to submit a pipeline to execute on Google Cloud
