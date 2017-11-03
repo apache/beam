@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 Seznam.cz, a.s.
+ * Copyright 2017 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package cz.seznam.euphoria.benchmarks.beam;
 
 import cz.seznam.euphoria.benchmarks.datamodel.Benchmarks;
 import cz.seznam.euphoria.benchmarks.datamodel.SearchEventsParser;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.Read;
@@ -42,6 +43,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 
+@SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
 public class Util {
 
   static PCollection<Tuple2<Long, String>> createInput(Pipeline ppl, Parameters params) {
@@ -120,7 +122,7 @@ public class Util {
       }));
     }
   }
-  
+
   private static String createOutputPath(Parameters params, String runner) {
     String base = params.getBatch().getSinkHdfsBaseUri().toString();
     base = base.endsWith("/") ? base : base + "/";
