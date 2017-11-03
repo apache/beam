@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>DSLs: SQL</title>
+  <title>Beam DSLs: SQL</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -12,6 +12,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
   <link rel="canonical" href="https://beam.apache.org/documentation/dsls/sql/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
@@ -25,106 +28,40 @@
   </script>
 </head>
 
-  <body class="body ">
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
     <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
       <a href="/" class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
-        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-        </button>
     </div>
-    <div id="navbar" class="navbar-collapse collapse">
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
-            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
-            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Example Walkthroughs</li>
-            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
-            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Resources</li>
-            <li><a href="/get-started/downloads">Downloads</a></li>
-            <li><a href="/get-started/support">Support</a></li>
-          </ul>
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/documentation">Using the Documentation</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Beam Concepts</li>
-            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
-            <li><a href="/documentation/execution-model/">Execution Model</a></li>
-            <li><a href="/documentation/resources/">Additional Resources</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Pipeline Fundamentals</li>
-            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">SDKs</li>
-            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Runners</li>
-            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
-            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
-            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
-            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
-            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
-
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">DSLs</li>
-            <li><a href="/documentation/dsls/sql/">SQL</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/">Documentation</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/contribute">Get Started Contributing</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Guides</li>
-            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
-            <li><a href="/contribute/testing/">Testing Guide</a></li>
-            <li><a href="/contribute/release-guide/">Release Guide</a></li>
-            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
-            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Technical References</li>
-            <li><a href="/contribute/design-principles/">Design Principles</a></li>
-            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
-            <li><a href="/contribute/source-repository/">Source Repository</a></li>
-            <li><a href="/contribute/docker-images/">Docker Images</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Promotion</li>
-            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="/contribute/logos/">Logos and Design</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
-            <li><a href="/contribute/team/">Team</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
         </li>
-
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -140,30 +77,88 @@
           </ul>
         </li>
       </ul>
-    </div><!--/.nav-collapse -->
+    </div>
 </nav>
 
-    <div class="body__contained">
-      <ul>
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <li><span class="section-nav-list-main-title">SDKS</span></li>
+<li><a href="/documentation/sdks/java/">Java SDK</a></li>
+<li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                              alt="External link."></a>
+</li>
+<li><a href="/documentation/sdks/python/">Python SDK</a></li>
+<li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                              alt="External link."></a>
+</li>
+<li>
+  <span class="section-nav-list-title">DSLs</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/dsls/sql/">SQL</a></li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        
+
+<ul class="nav">
   <li><a href="#overview">1. Overview</a></li>
-  <li><a href="#usage">2. Usage of DSL APIs</a></li>
+  <li><a href="#usage">2. Usage of DSL APIs</a>
+    <ul>
+      <li><a href="#beamrecord">BeamRecord</a></li>
+      <li><a href="#beamsql">BeamSql</a></li>
+    </ul>
+  </li>
   <li><a href="#functionality">3. Functionality in Beam SQL</a>
     <ul>
       <li><a href="#features">3.1. Supported Features</a></li>
-      <li><a href="#data-type">3.2. Data Types</a></li>
-      <li><a href="#built-in-functions">3.3. built-in SQL functions</a></li>
+      <li><a href="#data-types">3.2. Data Types</a></li>
+      <li><a href="#built-in-functions">3.3. Built-in SQL functions</a></li>
     </ul>
   </li>
-  <li><a href="#internal-of-sql">4. The Internal of Beam SQL</a></li>
+  <li><a href="#internals-of-sql">4. Internals of Beam SQL</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <h1 id="beam-sql">Beam SQL</h1>
+
+<ul id="markdown-toc">
+  <li><a href="#overview" id="markdown-toc-overview">1. Overview</a></li>
+  <li><a href="#usage" id="markdown-toc-usage">2. Usage of DSL APIs</a>    <ul>
+      <li><a href="#beamrecord" id="markdown-toc-beamrecord">BeamRecord</a></li>
+      <li><a href="#beamsql" id="markdown-toc-beamsql">BeamSql</a></li>
+    </ul>
+  </li>
+  <li><a href="#functionality" id="markdown-toc-functionality">3. Functionality in Beam SQL</a>    <ul>
+      <li><a href="#features" id="markdown-toc-features">3.1. Supported Features</a></li>
+      <li><a href="#data-types" id="markdown-toc-data-types">3.2. Data Types</a></li>
+      <li><a href="#built-in-functions" id="markdown-toc-built-in-functions">3.3. Built-in SQL functions</a></li>
+    </ul>
+  </li>
+  <li><a href="#internals-of-sql" id="markdown-toc-internals-of-sql">4. Internals of Beam SQL</a></li>
 </ul>
 
 <p>This page describes the implementation of Beam SQL, and how to simplify a Beam pipeline with DSL APIs.</p>
 
 <blockquote>
-  <p>Note, Beam SQL hasn’t been merged to master branch yet(being developed with branch <a href="https://github.com/apache/beam/tree/DSL_SQL">DSL_SQL</a>), but is coming soon.</p>
+  <p>Note: Beam SQL hasn’t been merged to master branch yet (being developed with branch <a href="https://github.com/apache/beam/tree/DSL_SQL">DSL_SQL</a>), but is coming soon.</p>
 </blockquote>
 
-<h1 id="a-nameoverviewa1-overview"><a name="overview"></a>1. Overview</h1>
+<h2 id="overview">1. Overview</h2>
+
 <p>SQL is a well-adopted standard to process data with concise syntax. With DSL APIs (currently available only in Java), now <code class="highlighter-rouge">PCollection</code>s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage <a href="http://calcite.apache.org/">Apache Calcite</a> to parse and optimize SQL queries, then translate into a composite Beam <code class="highlighter-rouge">PTransform</code>. In this way, both SQL and normal Beam <code class="highlighter-rouge">PTransform</code>s can be mixed in the same pipeline.</p>
 
 <p>There are two main pieces to the SQL DSL API:</p>
@@ -175,11 +170,11 @@
 
 <p>We’ll look at each of these below.</p>
 
-<h1 id="a-nameusagea2-usage-of-dsl-apis"><a name="usage"></a>2. Usage of DSL APIs</h1>
+<h2 id="usage">2. Usage of DSL APIs</h2>
 
-<h2 id="beamrecord">BeamRecord</h2>
+<h3 id="beamrecord">BeamRecord</h3>
 
-<p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must be in <code class="highlighter-rouge">BeamRecord</code> format. A <code class="highlighter-rouge">BeamRecord</code> represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the record are defined by its associated <a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/values/BeamRecordType.html">BeamRecordType</a>; for SQL queries, you should use the <a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/extensions/sql/BeamRecordSqlType.html">BeamRecordSqlType</a> subclass (see <a href="#data-type">Data Types</a> for more details on supported primitive data types).</p>
+<p>Before applying a SQL query to a <code class="highlighter-rouge">PCollection</code>, the data in the collection must be in <code class="highlighter-rouge">BeamRecord</code> format. A <code class="highlighter-rouge">BeamRecord</code> represents a single, immutable row in a Beam SQL <code class="highlighter-rouge">PCollection</code>. The names and types of the fields/columns in the record are defined by its associated <a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/values/BeamRecordType.html">BeamRecordType</a>; for SQL queries, you should use the <a href="/documentation/sdks/javadoc/2.1.0/index.html?org/apache/beam/sdk/extensions/sql/BeamRecordSqlType.html">BeamRecordSqlType</a> subclass (see <a href="#data-types">Data Types</a> for more details on supported primitive data types).</p>
 
 <p>A <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> can be created explicitly or implicitly:</p>
 
@@ -234,7 +229,7 @@ PCollection&lt;BeamRecord&gt; apps = pojos.apply(
 
 <p>Once you have a <code class="highlighter-rouge">PCollection&lt;BeamRecord&gt;</code> in hand, you may use the <code class="highlighter-rouge">BeamSql</code> APIs to apply SQL queries to it.</p>
 
-<h2 id="beamsql">BeamSql</h2>
+<h3 id="beamsql">BeamSql</h3>
 
 <p><code class="highlighter-rouge">BeamSql</code> provides two methods for generating a <code class="highlighter-rouge">PTransform</code> from a SQL query, both of which are equivalent except for the number of inputs they support:</p>
 
@@ -268,7 +263,7 @@ PCollection&lt;BeamRecord&gt; output = namesAndFoods.apply(
 
 <p><a href="https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a> in the code repository shows basic usage of both APIs.</p>
 
-<h1 id="a-namefunctionalitya3-functionality-in-beam-sql"><a name="functionality"></a>3. Functionality in Beam SQL</h1>
+<h2 id="functionality">3. Functionality in Beam SQL</h2>
 <p>Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded <code class="highlighter-rouge">PCollection</code> as well. Here’s the supported SQL grammar supported in <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a>-like form. An <code class="highlighter-rouge">UnsupportedOperationException</code> is thrown for unsupported features.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>query:
@@ -302,7 +297,7 @@ tableExpression:
 booleanExpression:
     expression [ IS NULL | IS NOT NULL ]
   | expression [ &gt; | &gt;= | = | &lt; | &lt;= | &lt;&gt; ] expression
-  | booleanExpression [ AND | OR ] booleanExpression 
+  | booleanExpression [ AND | OR ] booleanExpression
   | NOT booleanExpression
   | '(' booleanExpression ')'
 
@@ -325,7 +320,7 @@ groupItem:
 </code></pre>
 </div>
 
-<h2 id="a-namefeaturesa31-supported-features"><a name="features"></a>3.1. Supported Features</h2>
+<h3 id="features">3.1. Supported Features</h3>
 
 <p><strong>1. aggregations;</strong></p>
 
@@ -453,7 +448,7 @@ PCollection&lt;BeamSqlRow&gt; result =
 </code></pre>
 </div>
 
-<h2 id="a-namedata-typea32-data-types"><a name="data-type"></a>3.2. Data Types</h2>
+<h3 id="data-types">3.2. Data Types</h3>
 <p>Each type in Beam SQL maps to a Java class to holds the value in <code class="highlighter-rouge">BeamRecord</code>. The following table lists the relation between SQL types and Java classes, which are supported in current repository:</p>
 
 <table class="table">
@@ -503,7 +498,7 @@ PCollection&lt;BeamSqlRow&gt; result =
   </tbody>
 </table>
 
-<h2 id="a-namebuilt-in-functionsa33-built-in-sql-functions"><a name="built-in-functions"></a>3.3. built-in SQL functions</h2>
+<h3 id="built-in-functions">3.3. Built-in SQL functions</h3>
 
 <p>Beam SQL has implemented lots of build-in functions defined in <a href="http://calcite.apache.org">Apache Calcite</a>. The available functions are listed as below:</p>
 
@@ -901,7 +896,7 @@ PCollection&lt;BeamSqlRow&gt; result =
   </tbody>
 </table>
 
-<h1 id="a-nameinternal-of-sqla4-the-internal-of-beam-sql"><a name="internal-of-sql"></a>4. The Internal of Beam SQL</h1>
+<h2 id="internals-of-sql">4. Internals of Beam SQL</h2>
 <p>Figure 1 describes the back-end steps from a SQL statement to a Beam <code class="highlighter-rouge">PTransform</code>.</p>
 
 <p><img src="/images/beam_sql_dsl_workflow.png" alt="Workflow of Beam SQL DSL" title="workflow of Beam SQL DSL" /></p>
@@ -938,7 +933,7 @@ PCollection&lt;BeamSqlRow&gt; result =
 </code></pre>
 </div>
 
-
+      </div>
     </div>
     <footer class="footer">
   <div class="footer__contained">

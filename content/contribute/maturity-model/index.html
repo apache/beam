@@ -12,6 +12,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
   <link rel="canonical" href="https://beam.apache.org/contribute/maturity-model/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
@@ -25,106 +28,40 @@
   </script>
 </head>
 
-  <body class="body ">
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
     <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
       <a href="/" class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
-        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-        </button>
     </div>
-    <div id="navbar" class="navbar-collapse collapse">
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
-            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
-            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Example Walkthroughs</li>
-            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
-            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Resources</li>
-            <li><a href="/get-started/downloads">Downloads</a></li>
-            <li><a href="/get-started/support">Support</a></li>
-          </ul>
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/documentation">Using the Documentation</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Beam Concepts</li>
-            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
-            <li><a href="/documentation/execution-model/">Execution Model</a></li>
-            <li><a href="/documentation/resources/">Additional Resources</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Pipeline Fundamentals</li>
-            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">SDKs</li>
-            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Runners</li>
-            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
-            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
-            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
-            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
-            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
-
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">DSLs</li>
-            <li><a href="/documentation/dsls/sql/">SQL</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/">Documentation</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/contribute">Get Started Contributing</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Guides</li>
-            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
-            <li><a href="/contribute/testing/">Testing Guide</a></li>
-            <li><a href="/contribute/release-guide/">Release Guide</a></li>
-            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
-            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Technical References</li>
-            <li><a href="/contribute/design-principles/">Design Principles</a></li>
-            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
-            <li><a href="/contribute/source-repository/">Source Repository</a></li>
-            <li><a href="/contribute/docker-images/">Docker Images</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Promotion</li>
-            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="/contribute/logos/">Logos and Design</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
-            <li><a href="/contribute/team/">Team</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
         </li>
-
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -140,11 +77,71 @@
           </ul>
         </li>
       </ul>
-    </div><!--/.nav-collapse -->
+    </div>
 </nav>
 
-    <div class="body__contained">
-      <h1 id="apache-maturity-model-assessment-for-apache-beam">Apache Maturity Model Assessment for Apache Beam</h1>
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <li><span class="section-nav-list-main-title">Contribute</span></li>
+<li><a href="/contribute">Get started contributing</a></li>
+<li>
+  <span class="section-nav-list-title">Guides</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+    <li><a href="/contribute/testing/">Testing guide</a></li>
+    <li><a href="/contribute/release-guide/">Release guide</a></li>
+    <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
+    <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Technical References</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/design-principles/">Design principles</a></li>
+    <li><a href="/contribute/work-in-progress/">Ongoing projects</a></li>
+    <li><a href="/contribute/source-repository/">Source repository</a></li>
+    <li><a href="/contribute/docker-images/">Docker images</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Promotion</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/presentation-materials/">Presentation materials</a></li>
+    <li><a href="/contribute/logos/">Logos and design</a></li>
+  </ul>
+</li>
+<li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+<li><a href="/contribute/team/">Team</a></li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        
+
+<ul class="nav">
+  <li><a href="#maturity-model">Maturity model</a></li>
+  <li><a href="#independence--community">Independence / Community</a></li>
+  <li><a href="#dependency-analysis">Dependency analysis</a>
+    <ul>
+      <li><a href="#license-analysis">License analysis</a></li>
+      <li><a href="#dependency-tree">Dependency tree</a></li>
+    </ul>
+  </li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <h1 id="apache-maturity-model-assessment-for-apache-beam">Apache Maturity Model Assessment for Apache Beam</h1>
 
 <p><em>Apache Beam has graduated from incubation as a top-level project at the
 Apache Software Foundation. This page was last updated as a part of the
@@ -829,7 +826,7 @@ graduation process and is no longer being maintained.</em></p>
 <div class="highlighter-rouge"><pre class="highlight"><code>[INFO] Scanning for projects...
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Build Order:
-[INFO] 
+[INFO]
 [INFO] Apache Beam :: Parent
 [INFO] Apache Beam :: SDKs :: Java :: Build Tools
 [INFO] Apache Beam :: SDKs
@@ -866,35 +863,35 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Parent 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-parent ---
 [INFO] org.apache.beam:beam-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Build Tools 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-build-tools ---
 [INFO] org.apache.beam:beam-sdks-java-build-tools:jar:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-parent ---
 [INFO] org.apache.beam:beam-sdks-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-parent ---
 [INFO] org.apache.beam:beam-sdks-java-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Core 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-core ---
 [INFO] org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- io.grpc:grpc-auth:jar:1.0.1:compile
@@ -1066,14 +1063,14 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-parent ---
 [INFO] org.apache.beam:beam-runners-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Core Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-core-java ---
 [INFO] org.apache.beam:beam-runners-core-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1267,7 +1264,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Direct Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-direct-java ---
 [INFO] org.apache.beam:beam-runners-direct-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1489,7 +1486,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Google Cloud Dataflow 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-google-cloud-dataflow-java ---
 [INFO] org.apache.beam:beam-runners-google-cloud-dataflow-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -1711,14 +1708,14 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-parent ---
 [INFO] org.apache.beam:beam-sdks-java-io-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-google-cloud-platform ---
 [INFO] org.apache.beam:beam-sdks-java-io-google-cloud-platform:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2000,7 +1997,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: HDFS 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-hdfs ---
 [INFO] org.apache.beam:beam-sdks-java-io-hdfs:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2393,7 +2390,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: JMS 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-jms ---
 [INFO] org.apache.beam:beam-sdks-java-io-jms:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2577,7 +2574,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: Kafka 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-kafka ---
 [INFO] org.apache.beam:beam-sdks-java-io-kafka:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2751,7 +2748,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: Kinesis 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-kinesis ---
 [INFO] org.apache.beam:beam-sdks-java-io-kinesis:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -2949,7 +2946,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: MongoDB 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-mongodb ---
 [INFO] org.apache.beam:beam-sdks-java-io-mongodb:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -3130,7 +3127,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: IO :: JDBC 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-io-jdbc ---
 [INFO] org.apache.beam:beam-sdks-java-io-jdbc:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -3306,14 +3303,14 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Maven Archetypes 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-maven-archetypes-parent ---
 [INFO] org.apache.beam:beam-sdks-java-maven-archetypes-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Maven Archetypes :: Starter 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-maven-archetypes-starter ---
 [INFO] org.apache.beam:beam-sdks-java-maven-archetypes-starter:maven-archetype:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:runtime
@@ -3460,7 +3457,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-maven-archetypes-examples ---
 [INFO] org.apache.beam:beam-sdks-java-maven-archetypes-examples:maven-archetype:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:runtime
@@ -3709,14 +3706,14 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Extensions 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-extensions-parent ---
 [INFO] org.apache.beam:beam-sdks-java-extensions-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Extensions :: Join library 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-extensions-join-library ---
 [INFO] org.apache.beam:beam-sdks-java-extensions-join-library:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -3880,7 +3877,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Extensions :: Sorter 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-extensions-sorter ---
 [INFO] org.apache.beam:beam-sdks-java-extensions-sorter:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -4195,7 +4192,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: SDKs :: Java :: Java 8 Tests 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-sdks-java-java8tests ---
 [INFO] org.apache.beam:beam-sdks-java-java8tests:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:test
@@ -4360,14 +4357,14 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Flink 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-flink-parent ---
 [INFO] org.apache.beam:beam-runners-flink-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Flink :: Core 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-flink_2.10 ---
 [INFO] org.apache.beam:beam-runners-flink_2.10:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.flink:flink-streaming-java_2.10:jar:1.1.2:compile
@@ -4806,7 +4803,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Flink :: Examples 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-flink_2.10-examples ---
 [WARNING] The parameter output is deprecated. Use outputFile instead.
 [INFO] Wrote dependency tree to: /usr/local/google/home/davor/GitHub/incubator-beam/runners/flink/examples/wordcounts.txt
@@ -4814,7 +4811,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Spark 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-spark ---
 [INFO] org.apache.beam:beam-runners-spark:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.spark:spark-core_2.10:jar:1.6.2:provided
@@ -5398,7 +5395,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Runners :: Apex 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-runners-apex ---
 [INFO] org.apache.beam:beam-runners-apex:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.apex:apex-common:jar:3.5.0-SNAPSHOT:compile
@@ -5832,14 +5829,14 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Examples 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-examples-parent ---
 [INFO] org.apache.beam:beam-examples-parent:pom:0.4.0-incubating-SNAPSHOT
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Examples :: Java 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-examples-java ---
 [INFO] org.apache.beam:beam-examples-java:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -6074,7 +6071,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO] ------------------------------------------------------------------------
 [INFO] Building Apache Beam :: Examples :: Java 8 0.4.0-incubating-SNAPSHOT
 [INFO] ------------------------------------------------------------------------
-[INFO] 
+[INFO]
 [INFO] --- maven-dependency-plugin:2.10:tree (default-cli) @ beam-examples-java8 ---
 [INFO] org.apache.beam:beam-examples-java8:jar:0.4.0-incubating-SNAPSHOT
 [INFO] +- org.apache.beam:beam-sdks-java-core:jar:0.4.0-incubating-SNAPSHOT:compile
@@ -6768,7 +6765,7 @@ graduation process and is no longer being maintained.</em></p>
 [INFO]    \- (org.spark-project.spark:unused:jar:1.0.0:runtime - omitted for duplicate)
 [INFO] ------------------------------------------------------------------------
 [INFO] Reactor Summary:
-[INFO] 
+[INFO]
 [INFO] Apache Beam :: Parent ............................. SUCCESS [0.821s]
 [INFO] Apache Beam :: SDKs :: Java :: Build Tools ........ SUCCESS [0.008s]
 [INFO] Apache Beam :: SDKs ............................... SUCCESS [0.007s]
@@ -6811,6 +6808,7 @@ graduation process and is no longer being maintained.</em></p>
 </code></pre>
 </div>
 
+      </div>
     </div>
     <footer class="footer">
   <div class="footer__contained">

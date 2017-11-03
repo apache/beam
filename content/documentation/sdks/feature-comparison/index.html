@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>In Progress Work in Beam</title>
+  <title>Beam Java SDK</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -15,7 +15,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/work-in-progress/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/documentation/sdks/feature-comparison/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -85,39 +85,24 @@
         <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
         <nav>
           <ul class="section-nav-list" data-section-nav>
-            <li><span class="section-nav-list-main-title">Contribute</span></li>
-<li><a href="/contribute">Get started contributing</a></li>
-<li>
-  <span class="section-nav-list-title">Guides</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
-    <li><a href="/contribute/testing/">Testing guide</a></li>
-    <li><a href="/contribute/release-guide/">Release guide</a></li>
-    <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
-    <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
-  </ul>
+            <li><span class="section-nav-list-main-title">SDKS</span></li>
+<li><a href="/documentation/sdks/java/">Java SDK</a></li>
+<li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                              alt="External link."></a>
+</li>
+<li><a href="/documentation/sdks/python/">Python SDK</a></li>
+<li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
+                                                                                                                                   width="14" height="14"
+                                                                                                                                              alt="External link."></a>
 </li>
 <li>
-  <span class="section-nav-list-title">Technical References</span>
+  <span class="section-nav-list-title">DSLs</span>
 
   <ul class="section-nav-list">
-    <li><a href="/contribute/design-principles/">Design principles</a></li>
-    <li><a href="/contribute/work-in-progress/">Ongoing projects</a></li>
-    <li><a href="/contribute/source-repository/">Source repository</a></li>
-    <li><a href="/contribute/docker-images/">Docker images</a></li>
+    <li><a href="/documentation/dsls/sql/">SQL</a></li>
   </ul>
 </li>
-<li>
-  <span class="section-nav-list-title">Promotion</span>
-
-  <ul class="section-nav-list">
-    <li><a href="/contribute/presentation-materials/">Presentation materials</a></li>
-    <li><a href="/contribute/logos/">Logos and design</a></li>
-  </ul>
-</li>
-<li><a href="/contribute/maturity-model/">Maturity Model</a></li>
-<li><a href="/contribute/team/">Team</a></li>
 
           </ul>
         </nav>
@@ -126,76 +111,12 @@
       <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
         
 
-<ul class="nav">
-  <li><a href="#starter-tasks">Starter Tasks</a></li>
-  <li><a href="#feature-branches">Feature Branches</a></li>
-</ul>
 
 
       </nav>
 
       <div class="body__contained body__section-nav">
-        <h1 id="work-in-progress-in-the-apache-beam-project">Work In Progress in the Apache Beam Project</h1>
-
-<p>As mentioned in the <a href="/contribute/contribution-guide/">Contribution Guide</a>, all work in Beam is tracked in our <a href="https://issues.apache.org/jira/browse/BEAM">Apache JIRA</a>. In addition, the following types of work may be of particular interest to the Beam community.</p>
-
-<ul id="markdown-toc">
-  <li><a href="#starter-tasks" id="markdown-toc-starter-tasks">Starter Tasks</a></li>
-  <li><a href="#feature-branches" id="markdown-toc-feature-branches">Feature Branches</a></li>
-</ul>
-
-<h2 id="starter-tasks">Starter Tasks</h2>
-
-<p>The community regular tags good getting started tasks with the label <code class="highlighter-rouge">starter</code>. Use a quick <a href="https://issues.apache.org/jira/issues?jql=project%20%3D%20BEAM%20AND%20status%20%3D%20Open%20AND%20labels%20%3D%20starter">JIRA search</a> to identify ways you can get started <a href="/contribute/contribution-guide/">contributing</a> to Beam.</p>
-
-<h2 id="feature-branches">Feature Branches</h2>
-
-<p>Larger features with multiple active developers may be developed on a <a href="/contribute/contribution-guide/#feature-branches">feature branch</a> before being merged in the master branch. In particular, this is often used for initial development of new components like SDKs or runners.</p>
-
-<p>Current branches include:</p>
-
-<table class="table">
-  <thead>
-    <tr>
-      <th>Feature</th>
-      <th>Branch</th>
-      <th>JIRA Component</th>
-      <th>More Info</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>Apache Spark 2.0 Runner</td>
-      <td><a href="https://github.com/apache/beam/tree/runners-spark2">runners-spark2</a></td>
-      <td>-</td>
-      <td><a href="https://lists.apache.org/thread.html/e38ac4e4914a6cb1b865b1f32a6ca06c2be28ea4aa0f6b18393de66f@%3Cdev.beam.apache.org%3E">thread</a></td>
-    </tr>
-    <tr>
-      <td><a href="/documentation/runners/jstorm">JStorm Runner</a></td>
-      <td><a href="https://github.com/apache/beam/tree/jstorm-runner">jstorm-runner</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM/component/12332477">runner-jstorm</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-1899">BEAM-1899</a></td>
-    </tr>
-    <tr>
-      <td>MapReduce Runner</td>
-      <td><a href="https://github.com/apache/beam/tree/mr-runner">mr-runner</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM/component/12333013">runner-mapreduce</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-165">BEAM-165</a></td>
-    </tr>
-    <tr>
-      <td>Tez Runner</td>
-      <td><a href="https://github.com/apache/beam/tree/tez-runner">tez-runner</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM/component/12333014">runner-tez</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-2709">BEAM-2709</a></td>
-    </tr>
-    <tr>
-      <td>Beam SQL DSL</td>
-      <td><a href="https://github.com/apache/beam/tree/DSL_SQL">DSL_SQL</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM/component/12332480">dsl-sql</a></td>
-      <td><a href="https://issues.apache.org/jira/browse/BEAM-301">BEAM-301</a></td>
-    </tr>
-  </tbody>
-</table>
+        <h1 id="beam-sdk-feature-comparison">Beam SDK feature comparison</h1>
 
       </div>
     </div>

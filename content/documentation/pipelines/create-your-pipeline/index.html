@@ -12,6 +12,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
   <link rel="canonical" href="https://beam.apache.org/documentation/pipelines/create-your-pipeline/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
@@ -25,106 +28,40 @@
   </script>
 </head>
 
-  <body class="body ">
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
     <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
       <a href="/" class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
-        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-        </button>
     </div>
-    <div id="navbar" class="navbar-collapse collapse">
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
-            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
-            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Example Walkthroughs</li>
-            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
-            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Resources</li>
-            <li><a href="/get-started/downloads">Downloads</a></li>
-            <li><a href="/get-started/support">Support</a></li>
-          </ul>
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/documentation">Using the Documentation</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Beam Concepts</li>
-            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
-            <li><a href="/documentation/execution-model/">Execution Model</a></li>
-            <li><a href="/documentation/resources/">Additional Resources</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Pipeline Fundamentals</li>
-            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">SDKs</li>
-            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Runners</li>
-            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
-            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
-            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
-            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
-            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
-
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">DSLs</li>
-            <li><a href="/documentation/dsls/sql/">SQL</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/">Documentation</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/contribute">Get Started Contributing</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Guides</li>
-            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
-            <li><a href="/contribute/testing/">Testing Guide</a></li>
-            <li><a href="/contribute/release-guide/">Release Guide</a></li>
-            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
-            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Technical References</li>
-            <li><a href="/contribute/design-principles/">Design Principles</a></li>
-            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
-            <li><a href="/contribute/source-repository/">Source Repository</a></li>
-            <li><a href="/contribute/docker-images/">Docker Images</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Promotion</li>
-            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="/contribute/logos/">Logos and Design</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
-            <li><a href="/contribute/team/">Team</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
         </li>
-
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -140,11 +77,131 @@
           </ul>
         </li>
       </ul>
-    </div><!--/.nav-collapse -->
+    </div>
 </nav>
 
-    <div class="body__contained">
-      <h1 id="create-your-pipeline">Create Your Pipeline</h1>
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <li><span class="section-nav-list-main-title">Documentation</span></li>
+<li><a href="/documentation">Using the Documentation</a></li>
+<li><a href="/documentation/execution-model">Beam Execution Model</a></li>
+<li>
+  <span class="section-nav-list-title">Pipeline development lifecycle</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
+    <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Beam programming guide</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/documentation/programming-guide/">Overview</a></li>
+    <li><a href="/documentation/programming-guide/#creating-a-pipeline">Pipelines</a></li>
+    <li>
+      <span class="section-nav-list-title">PCollections</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pcollections">Creating a PCollection</a></li>
+        <li><a href="/documentation/programming-guide/#pcollection-characteristics">PCollection characteristics</a></li>
+      </ul>
+    </li>
+    <li>
+      <span class="section-nav-list-title">Transforms</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#applying-transforms">Applying transforms</a></li>
+        <li>
+          <span class="section-nav-list-title">Core Beam transforms</span>
+
+          <ul class="section-nav-list">
+            <li><a href="/documentation/programming-guide/#pardo">ParDo</a></li>
+            <li><a href="/documentation/programming-guide/#groupbykey">GroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#cogroupbykey">CoGroupByKey</a></li>
+            <li><a href="/documentation/programming-guide/#combine">Combine</a></li>
+            <li><a href="/documentation/programming-guide/#flatten">Flatten</a></li>
+            <li><a href="/documentation/programming-guide/#partition">Partition</a></li>
+          </ul>
+        </li>
+
+        <li><a href="/documentation/programming-guide/#requirements-for-writing-user-code-for-beam-transforms">Requirements for user code</a></li>
+        <li><a href="/documentation/programming-guide/#side-inputs">Side inputs</a></li>
+        <li><a href="/documentation/programming-guide/#additional-outputs">Additional outputs</a></li>
+        <li><a href="/documentation/programming-guide/#composite-transforms">Composite transforms</a></li>
+      </ul>
+    </li>
+    <li>
+      <span class="section-nav-list-title">Pipeline I/O</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#pipeline-io">Using I/O transforms</a></li>
+        <li><a href="/documentation/io/built-in/">Built-in I/O transforms</a></li>
+        <li><a href="/documentation/io/authoring-overview/">Authoring new I/O transforms</a></li>
+        <li><a href="/documentation/io/testing/">Testing I/O transforms</a></li>
+      </ul>
+    </li>
+    <li>
+      <span class="section-nav-list-title">Data encoding and type safety</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#data-encoding-and-type-safety">Data encoding basics</a></li>
+        <li><a href="/documentation/programming-guide/#specifying-coders">Specifying coders</a></li>
+        <li><a href="/documentation/programming-guide/#default-coders-and-the-coderregistry">Default coders and the CoderRegistry</a></li>
+      </ul>
+    </li>
+    <li>
+      <span class="section-nav-list-title">Windowing</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#windowing">Windowing basics</a></li>
+        <li><a href="/documentation/programming-guide/#provided-windowing-functions">Provided windowing functions</a></li>
+        <li><a href="/documentation/programming-guide/#setting-your-pcollections-windowing-function">Setting your PCollection’s windowing function</a></li>
+        <li><a href="/documentation/programming-guide/#watermarks-and-late-data">Watermarks and late data</a></li>
+        <li><a href="/documentation/programming-guide/#adding-timestamps-to-a-pcollections-elements">Adding timestamps to a PCollection’s elements</a></li>
+      </ul>
+    </li>
+    <li>
+      <span class="section-nav-list-title">Triggers</span>
+
+      <ul class="section-nav-list">
+        <li><a href="/documentation/programming-guide/#triggers">Trigger basics</a></li>
+        <li><a href="/documentation/programming-guide/#event-time-triggers">Event time triggers and the default trigger</a></li>
+        <li><a href="/documentation/programming-guide/#processing-time-triggers">Processing time triggers</a></li>
+        <li><a href="/documentation/programming-guide/#data-driven-triggers">Data-driven triggers</a></li>
+        <li><a href="/documentation/programming-guide/#setting-a-trigger">Setting a trigger</a></li>
+        <li><a href="/documentation/programming-guide/#composite-triggers">Composite triggers</a></li>
+      </ul>
+    </li>
+    <li><a href="/documentation/resources/">Additional Resources</a></li>
+  </ul>
+</li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        
+
+<ul class="nav">
+  <li><a href="#creating-your-pipeline-object">Creating Your Pipeline Object</a></li>
+  <li><a href="#reading-data-into-your-pipeline">Reading Data Into Your Pipeline</a></li>
+  <li><a href="#applying-transforms-to-process-pipeline-data">Applying Transforms to Process Pipeline Data</a></li>
+  <li><a href="#writing-or-outputting-your-final-pipeline-data">Writing or Outputting Your Final Pipeline Data</a></li>
+  <li><a href="#running-your-pipeline">Running Your Pipeline</a></li>
+  <li><a href="#whats-next">What’s next</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <h1 id="create-your-pipeline">Create Your Pipeline</h1>
 
 <ul id="markdown-toc">
   <li><a href="#creating-your-pipeline-object" id="markdown-toc-creating-your-pipeline-object">Creating Your Pipeline Object</a></li>
@@ -241,6 +298,7 @@
   <li><a href="/documentation/pipelines/test-your-pipeline">Test your pipeline</a>.</li>
 </ul>
 
+      </div>
     </div>
     <footer class="footer">
   <div class="footer__contained">

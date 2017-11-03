@@ -12,6 +12,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
   <link rel="canonical" href="https://beam.apache.org/contribute/docker-images/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
@@ -25,106 +28,40 @@
   </script>
 </head>
 
-  <body class="body ">
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
     <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
       <a href="/" class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
-        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-        </button>
     </div>
-    <div id="navbar" class="navbar-collapse collapse">
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
-            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
-            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Example Walkthroughs</li>
-            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
-            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Resources</li>
-            <li><a href="/get-started/downloads">Downloads</a></li>
-            <li><a href="/get-started/support">Support</a></li>
-          </ul>
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/documentation">Using the Documentation</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Beam Concepts</li>
-            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
-            <li><a href="/documentation/execution-model/">Execution Model</a></li>
-            <li><a href="/documentation/resources/">Additional Resources</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Pipeline Fundamentals</li>
-            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">SDKs</li>
-            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Runners</li>
-            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
-            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
-            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
-            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
-            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
-
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">DSLs</li>
-            <li><a href="/documentation/dsls/sql/">SQL</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/">Documentation</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/contribute">Get Started Contributing</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Guides</li>
-            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
-            <li><a href="/contribute/testing/">Testing Guide</a></li>
-            <li><a href="/contribute/release-guide/">Release Guide</a></li>
-            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
-            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Technical References</li>
-            <li><a href="/contribute/design-principles/">Design Principles</a></li>
-            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
-            <li><a href="/contribute/source-repository/">Source Repository</a></li>
-            <li><a href="/contribute/docker-images/">Docker Images</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Promotion</li>
-            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="/contribute/logos/">Logos and Design</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
-            <li><a href="/contribute/team/">Team</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
         </li>
-
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -140,11 +77,72 @@
           </ul>
         </li>
       </ul>
-    </div><!--/.nav-collapse -->
+    </div>
 </nav>
 
-    <div class="body__contained">
-      <h1 id="docker-images">Docker Images</h1>
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <li><span class="section-nav-list-main-title">Contribute</span></li>
+<li><a href="/contribute">Get started contributing</a></li>
+<li>
+  <span class="section-nav-list-title">Guides</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+    <li><a href="/contribute/testing/">Testing guide</a></li>
+    <li><a href="/contribute/release-guide/">Release guide</a></li>
+    <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
+    <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Technical References</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/design-principles/">Design principles</a></li>
+    <li><a href="/contribute/work-in-progress/">Ongoing projects</a></li>
+    <li><a href="/contribute/source-repository/">Source repository</a></li>
+    <li><a href="/contribute/docker-images/">Docker images</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Promotion</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/presentation-materials/">Presentation materials</a></li>
+    <li><a href="/contribute/logos/">Logos and design</a></li>
+  </ul>
+</li>
+<li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+<li><a href="/contribute/team/">Team</a></li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        
+
+<ul class="nav">
+  <li><a href="#file-based-image">File based image</a>
+    <ul>
+      <li><a href="#configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</a></li>
+      <li><a href="#testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</a></li>
+      <li><a href="#performance-improvements">Performance improvements</a></li>
+    </ul>
+  </li>
+  <li><a href="#git-based-image">Git based image</a></li>
+  <li><a href="#release-image">Release image</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <h1 id="docker-images">Docker Images</h1>
 
 <p>Docker images allow to create a reproducible environment to build and test
 Beam. You can use the docker images by using the provided <a href="https://github.com/apache/beam/tree/master/sdks/java/build-tools/src/main/resources/docker">Docker scripts</a>.</p>
@@ -154,23 +152,23 @@ different purposes:</p>
 
 <ul>
   <li>
-    <p><a href="#file">file</a>: Create a Docker container from a Beam source code .zip file
+    <p><a href="#file-based-image">file</a>: Create a Docker container from a Beam source code .zip file
 in a given environment. It is useful to test a specific version of Beam,
 for example to validate a release vote.</p>
   </li>
   <li>
-    <p><a href="#git">git</a>: Same as file but the Beam source code comes from the git repository,
+    <p><a href="#git-based-image">git</a>: Same as file but the Beam source code comes from the git repository,
 you can choose a given branch/tag/pull-request. Useful to test in a specific
 environment.</p>
   </li>
   <li>
-    <p><a href="#release">release</a>: It builds an end-user distribution of the latest version of Beam
+    <p><a href="#release-image">release</a>: It builds an end-user distribution of the latest version of Beam
 and its dependencies. Useful for end-users who want to have a ready to use
 container with Beam (Python only for the moment).</p>
   </li>
 </ul>
 
-<h2 id="a-namefileafile-based-image"><a name="file"></a>File based image</h2>
+<h2 id="file-based-image">File based image</h2>
 
 <p>If you want to build a container with a ready JDK 8 environment to test Beam:</p>
 
@@ -297,7 +295,7 @@ enable the threading execution:</p>
 </code></pre>
 </div>
 
-<h2 id="a-namegitagit-based-image"><a name="git"></a>Git based image</h2>
+<h2 id="git-based-image">Git based image</h2>
 
 <p>It creates a docker container with a cloned version of the git repository, its
 branches and all the pull-requests. When it is run, it updates and checks out
@@ -317,7 +315,7 @@ docker run -e BRANCH=pr/ID -it beam:git /bin/bash
 </code></pre>
 </div>
 
-<h2 id="a-namereleasearelease-image"><a name="release"></a>Release image</h2>
+<h2 id="release-image">Release image</h2>
 
 <p>The release image is a container with the needed requirements to run Beam out of
 the box in a container, or to submit a pipeline to execute on Google Cloud
@@ -328,6 +326,7 @@ docker build -t beam:python2 .
 </code></pre>
 </div>
 
+      </div>
     </div>
     <footer class="footer">
   <div class="footer__contained">
