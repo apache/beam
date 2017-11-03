@@ -14,7 +14,12 @@ body
 
   &:not(.body--index)
     .body__contained
-      +contained
+      padding: 0 30px
+      max-width: 1280px
+
+      figure
+        img
+          width: 100%
 
 .section
   &:not(.section--wide)
@@ -29,3 +34,21 @@ body
 
   a
     color: $color-brand
+
+.body__section-nav
+  margin-left: 256px
+  width: calc(100% - 492px)
+
+  > [id]:before
+    content: ''
+    display: block
+    height: 82px // fixed header height
+    margin: -82px 0 0 // negative fixed header height
+
+  @media (max-width: $ak-breakpoint-lg)
+    margin-left: 0
+    width: 100%
+
+.container-main-content
+  padding: 0 20px
+  position: relative
