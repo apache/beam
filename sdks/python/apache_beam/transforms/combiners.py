@@ -36,6 +36,8 @@ from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
 
+from past.builtins import long
+
 __all__ = [
     'Count',
     'Mean',
