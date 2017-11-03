@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -319,8 +320,9 @@ public class TopPerKey<
                 keyExtractor,
                 e -> Pair.of(valueFn.apply(e), scoreFn.apply(e)),
                 windowing,
-                (StorageProvider storageProvider, Collector<Pair<VALUE, SCORE>> ctx) -> new MaxScored<>(storageProvider),
-                stateCombiner);
+                (StateContext context, Collector<Pair<VALUE, SCORE>> collector) -> {
+                  return new MaxScored<>(context.getStorageProvider());
+                }, stateCombiner);
 
     MapElements<Pair<KEY, Pair<VALUE, SCORE>>, Triple<KEY, VALUE, SCORE>>
         format =
