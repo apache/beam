@@ -94,8 +94,24 @@ else:
   except ImportError:
     cythonize = lambda *args, **kwargs: []
 
+COMMON_PACKAGES = [
+      'crcmod>=1.7,<2.0',
+      'dill==0.2.6',
+      'grpcio>=1.0,<2.0',
+      'httplib2>=0.8,<0.10',
+      'mock>=1.0.1,<3.0.0',
+      'oauth2client>=2.0.1,<4.0.0',
+      'protobuf>=3.2.0,<=3.3.0',
+      'pyyaml>=3.12,<4.0.0',
+      # Six 1.11.0 incompatible with apitools.
+      # TODO(BEAM-2964): Remove the upper bound.
+      'six>=1.9,<1.11',
+      'typing>=3.6.0,<3.7.0',
+      'future>=0.16.0',
+]
 
-REQUIRED_PACKAGES = [
+
+COMMON_PACKAGES = [
     'avro>=1.8.1,<2.0.0',
     'crcmod>=1.7,<2.0',
     'dill==0.2.6',
@@ -112,6 +128,16 @@ REQUIRED_PACKAGES = [
     'typing>=3.6.0,<3.7.0',
     'futures>=3.1.1,<4.0.0',
     ]
+
+if sys.version_info[0] >= 3:
+  REQUIRED_PACKAGES = [
+      'avro-python3>=1.8.2,<2.0.0',
+  ] + COMMON_PACKAGES
+else:
+  REQUIRED_PACKAGES = [
+      'avro>=1.8.1,<2.0.0',
+  ] + COMMON_PACKAGES
+
 
 REQUIRED_SETUP_PACKAGES = [
     'nose>=1.0',
