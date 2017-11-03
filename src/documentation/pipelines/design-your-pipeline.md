@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Design Your Pipeline"
+section_menu: section-menu/documentation.html
 permalink: /documentation/pipelines/design-your-pipeline/
 ---
 # Design Your Pipeline

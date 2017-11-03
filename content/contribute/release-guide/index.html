@@ -12,6 +12,9 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
   <script src="/js/bootstrap.min.js"></script>
   <script src="/js/language-switch.js"></script>
+  <script src="/js/fix-menu.js"></script>
+  <script src="/js/section-nav.js"></script>
+  <script src="/js/page-nav.js"></script>
   <link rel="canonical" href="https://beam.apache.org/contribute/release-guide/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
@@ -25,106 +28,40 @@
   </script>
 </head>
 
-  <body class="body ">
+  <body class="body" data-spy="scroll" data-target=".page-nav" data-offset="0">
     <nav class="header navbar navbar-fixed-top">
     <div class="navbar-header">
+      <button type="button" class="navbar-toggle" aria-expanded="false" aria-controls="navbar">
+        <span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+
       <a href="/" class="navbar-brand" >
         <img alt="Brand" style="height: 25px" src="/images/beam_logo_navbar.png">
       </a>
-        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
-          <span class="sr-only">Toggle navigation</span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-          <span class="icon-bar"></span>
-        </button>
     </div>
-    <div id="navbar" class="navbar-collapse collapse">
+
+    <div class="navbar-mask closed"></div>
+
+    <div id="navbar" class="navbar-container closed">
       <ul class="nav navbar-nav">
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Get Started <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/get-started/beam-overview/">Beam Overview</a></li>
-            <li><a href="/get-started/quickstart-java/">Quickstart - Java</a></li>
-            <li><a href="/get-started/quickstart-py/">Quickstart - Python</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Example Walkthroughs</li>
-            <li><a href="/get-started/wordcount-example/">WordCount</a></li>
-            <li><a href="/get-started/mobile-gaming-example/">Mobile Gaming</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Resources</li>
-            <li><a href="/get-started/downloads">Downloads</a></li>
-            <li><a href="/get-started/support">Support</a></li>
-          </ul>
+        <li>
+          <a href="/get-started/beam-overview/">Get Started</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Documentation <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/documentation">Using the Documentation</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Beam Concepts</li>
-            <li><a href="/documentation/programming-guide/">Programming Guide</a></li>
-            <li><a href="/documentation/execution-model/">Execution Model</a></li>
-            <li><a href="/documentation/resources/">Additional Resources</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Pipeline Fundamentals</li>
-            <li><a href="/documentation/pipelines/design-your-pipeline/">Design Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/create-your-pipeline/">Create Your Pipeline</a></li>
-            <li><a href="/documentation/pipelines/test-your-pipeline/">Test Your Pipeline</a></li>
-            <li><a href="/documentation/io/io-toc/">Pipeline I/O</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">SDKs</li>
-            <li><a href="/documentation/sdks/java/">Java SDK</a></li>
-            <li><a href="/documentation/sdks/javadoc/2.1.0/" target="_blank">Java SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li><a href="/documentation/sdks/python/">Python SDK</a></li>
-            <li><a href="/documentation/sdks/pydoc/2.1.0/" target="_blank">Python SDK API Reference <img src="/images/external-link-icon.png"
-                                                                                                                                               width="14" height="14"
-                                                                                                                                                          alt="External link."></a>
-            </li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Runners</li>
-            <li><a href="/documentation/runners/capability-matrix/">Capability Matrix</a></li>
-            <li><a href="/documentation/runners/direct/">Direct Runner</a></li>
-            <li><a href="/documentation/runners/apex/">Apache Apex Runner</a></li>
-            <li><a href="/documentation/runners/flink/">Apache Flink Runner</a></li>
-            <li><a href="/documentation/runners/gearpump/">Apache Gearpump Runner</a></li>
-            <li><a href="/documentation/runners/spark/">Apache Spark Runner</a></li>
-            <li><a href="/documentation/runners/dataflow/">Cloud Dataflow Runner</a></li>
-
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">DSLs</li>
-            <li><a href="/documentation/dsls/sql/">SQL</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/">Documentation</a>
         </li>
-        <li class="dropdown">
-          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Contribute <span class="caret"></span></a>
-          <ul class="dropdown-menu">
-            <li><a href="/contribute">Get Started Contributing</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Guides</li>
-            <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
-            <li><a href="/contribute/testing/">Testing Guide</a></li>
-            <li><a href="/contribute/release-guide/">Release Guide</a></li>
-            <li><a href="/contribute/ptransform-style-guide/">PTransform Style Guide</a></li>
-            <li><a href="/contribute/runner-guide/">Runner Authoring Guide</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Technical References</li>
-            <li><a href="/contribute/design-principles/">Design Principles</a></li>
-            <li><a href="/contribute/work-in-progress/">Ongoing Projects</a></li>
-            <li><a href="/contribute/source-repository/">Source Repository</a></li>
-            <li><a href="/contribute/docker-images/">Docker Images</a></li>
-            <li role="separator" class="divider"></li>
-            <li class="dropdown-header">Promotion</li>
-            <li><a href="/contribute/presentation-materials/">Presentation Materials</a></li>
-            <li><a href="/contribute/logos/">Logos and Design</a></li>
-            <li role="separator" class="divider"></li>
-            <li><a href="/contribute/maturity-model/">Maturity Model</a></li>
-            <li><a href="/contribute/team/">Team</a></li>
-          </ul>
+        <li>
+          <a href="/documentation/sdks/java/">SDKS</a>
         </li>
-
+        <li>
+          <a href="/documentation/runners/capability-matrix/">RUNNERS</a>
+        </li>
+        <li>
+          <a href="/contribute/">Contribute</a>
+        </li>
         <li><a href="/blog">Blog</a></li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -140,11 +77,123 @@
           </ul>
         </li>
       </ul>
-    </div><!--/.nav-collapse -->
+    </div>
 </nav>
 
-    <div class="body__contained">
-      <h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
+    <div class="clearfix container-main-content">
+      <div class="section-nav closed" data-offset-top="90" data-offset-bottom="500">
+        <span class="section-nav-back glyphicon glyphicon-menu-left"></span>
+        <nav>
+          <ul class="section-nav-list" data-section-nav>
+            <li><span class="section-nav-list-main-title">Contribute</span></li>
+<li><a href="/contribute">Get started contributing</a></li>
+<li>
+  <span class="section-nav-list-title">Guides</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/contribution-guide/">Contribution Guide</a></li>
+    <li><a href="/contribute/testing/">Testing guide</a></li>
+    <li><a href="/contribute/release-guide/">Release guide</a></li>
+    <li><a href="/contribute/ptransform-style-guide/">PTransform style guide</a></li>
+    <li><a href="/contribute/runner-guide/">Runner authoring guide</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Technical References</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/design-principles/">Design principles</a></li>
+    <li><a href="/contribute/work-in-progress/">Ongoing projects</a></li>
+    <li><a href="/contribute/source-repository/">Source repository</a></li>
+    <li><a href="/contribute/docker-images/">Docker images</a></li>
+  </ul>
+</li>
+<li>
+  <span class="section-nav-list-title">Promotion</span>
+
+  <ul class="section-nav-list">
+    <li><a href="/contribute/presentation-materials/">Presentation materials</a></li>
+    <li><a href="/contribute/logos/">Logos and design</a></li>
+  </ul>
+</li>
+<li><a href="/contribute/maturity-model/">Maturity Model</a></li>
+<li><a href="/contribute/team/">Team</a></li>
+
+          </ul>
+        </nav>
+      </div>
+
+      <nav class="page-nav clearfix" data-offset-top="90" data-offset-bottom="500">
+        
+
+<ul class="nav">
+  <li><a href="#introduction">Introduction</a></li>
+  <li><a href="#overview">Overview</a></li>
+  <li><a href="#decide-to-release">Decide to release</a>
+    <ul>
+      <li><a href="#checklist-to-proceed-to-the-next-step">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#prepare-for-the-release">Prepare for the release</a>
+    <ul>
+      <li><a href="#one-time-setup-instructions">One-time setup instructions</a></li>
+      <li><a href="#create-a-new-version-in-jira">Create a new version in JIRA</a></li>
+      <li><a href="#triage-release-blocking-issues-in-jira">Triage release-blocking issues in JIRA</a></li>
+      <li><a href="#review-release-notes-in-jira">Review Release Notes in JIRA</a></li>
+      <li><a href="#verify-that-a-release-build-works">Verify that a Release Build Works</a></li>
+      <li><a href="#update-and-verify-javadoc">Update and Verify Javadoc</a></li>
+      <li><a href="#create-a-release-branch">Create a release branch</a></li>
+      <li><a href="#update-the-python-sdk-version">Update the Python SDK version</a></li>
+      <li><a href="#update-release-specific-configurations">Update release specific configurations</a></li>
+      <li><a href="#checklist-to-proceed-to-the-next-step-1">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#build-a-release-candidate">Build a release candidate</a>
+    <ul>
+      <li><a href="#build-and-stage-java-artifacts-with-maven">Build and stage Java artifacts with Maven</a></li>
+      <li><a href="#stage-source-release-on-distapacheorg">Stage source release on dist.apache.org</a></li>
+      <li><a href="#build-the-pydoc-api-reference">Build the Pydoc API reference</a></li>
+      <li><a href="#propose-a-pull-request-for-website-updates">Propose a pull request for website updates</a></li>
+      <li><a href="#checklist-to-proceed-to-the-next-step-2">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#vote-on-the-release-candidate">Vote on the release candidate</a>
+    <ul>
+      <li><a href="#checklist-to-proceed-to-the-finalization-step">Checklist to proceed to the finalization step</a></li>
+    </ul>
+  </li>
+  <li><a href="#fix-any-issues">Fix any issues</a>
+    <ul>
+      <li><a href="#checklist-to-proceed-to-the-next-step-3">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#finalize-the-release">Finalize the release</a>
+    <ul>
+      <li><a href="#deploy-artifacts-to-maven-central-repository">Deploy artifacts to Maven Central Repository</a></li>
+      <li><a href="#deploy-python-artifacts-to-pypi">Deploy Python artifacts to PyPI</a></li>
+      <li><a href="#git-tag">Git tag</a></li>
+      <li><a href="#merge-website-pull-request">Merge website pull request</a></li>
+      <li><a href="#mark-the-version-as-released-in-jira">Mark the version as released in JIRA</a></li>
+      <li><a href="#checklist-to-proceed-to-the-next-step-4">Checklist to proceed to the next step</a></li>
+    </ul>
+  </li>
+  <li><a href="#promote-the-release">Promote the release</a>
+    <ul>
+      <li><a href="#apache-mailing-lists">Apache mailing lists</a></li>
+      <li><a href="#recordkeeping">Recordkeeping</a></li>
+      <li><a href="#beam-blog">Beam blog</a></li>
+      <li><a href="#social-media">Social media</a></li>
+      <li><a href="#checklist-to-declare-the-process-completed">Checklist to declare the process completed</a></li>
+    </ul>
+  </li>
+  <li><a href="#improve-the-process">Improve the process</a></li>
+</ul>
+
+
+      </nav>
+
+      <div class="body__contained body__section-nav">
+        <h1 id="apache-beam-release-guide">Apache Beam Release Guide</h1>
 
 <ul id="markdown-toc">
   <li><a href="#introduction" id="markdown-toc-introduction">Introduction</a></li>
@@ -658,7 +707,7 @@ The complete staging area is available for your review, which includes:
 * source code tag "v1.2.3-RC3" [5],
 * website pull request listing the release and publishing the API reference manual [6].
 * Java artifacts were built with Maven MAVEN_VERSION and OpenJDK/Oracle JDK JDK_VERSION.
-* Python artifacts are deployed along with the source release to the dist.apache.org [2]. 
+* Python artifacts are deployed along with the source release to the dist.apache.org [2].
 
 The vote will be open for at least 72 hours. It is adopted by majority approval, with at least 3 PMC affirmative votes.
 
@@ -812,6 +861,7 @@ Thanks everyone!
 
 <p>If we have specific ideas, please start a discussion on the dev@ mailing list and/or propose a pull request to update this guide. Thanks!</p>
 
+      </div>
     </div>
     <footer class="footer">
   <div class="footer__contained">

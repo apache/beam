@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Apache Gearpump (incubating) Runner"
+section_menu: section-menu/runners.html
 permalink: /documentation/runners/gearpump/
 ---
 # Using the Apache Gearpump Runner
@@ -126,8 +127,3 @@ When executing your pipeline with the Gearpump Runner, you should consider the f
   <td><code>beam_gearpump_app</code></td>
 </tr>
 </table>
-
-
-
-
-

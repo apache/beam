@@ -1,6 +1,7 @@
 ---
-layout: default
+layout: section
 title: "Testing I/O Transforms"
+section_menu: section-menu/documentation.html
 permalink: /documentation/io/testing/
 ---
 
@@ -73,7 +74,7 @@ Python:
 *   Validate the correctness of the code in your I/O transform.
 *   Validate that the I/O transform works correctly when used in concert with reference implementations of the data store it connects with (where "reference implementation" means a fake or in-memory version).
 *   Be able to run quickly and need only one machine, with a reasonably small memory/disk footprint and no non-local network access (preferably none at all). Aim for tests than run within several seconds - anything above 20 seconds should be discussed with the beam dev mailing list.
-*   Validate that the I/O transform can handle network failures. 
+*   Validate that the I/O transform can handle network failures.
 
 
 ### Non-goals
@@ -158,7 +159,7 @@ mvn verify -Dio-it-suite-local -pl sdks/java/io/jdbc,sdks/java/io/jdbc -DpkbLoca
 
 Example run with the Cloud Dataflow runner:
 ```
-mvn verify -Dio-it-suite -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions=["--project=PROJECT","--gcpTempLocation=GSBUCKET"] -DintegrationTestRunner=dataflow -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py" 
+mvn verify -Dio-it-suite -pl sdks/java/io/jdbc -DintegrationTestPipelineOptions=["--project=PROJECT","--gcpTempLocation=GSBUCKET"] -DintegrationTestRunner=dataflow -DpkbLocation="/Users/me/dev/PerfKitBenchmarker/pkb.py"
 ```
 
 
