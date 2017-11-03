@@ -32,6 +32,23 @@ evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core
 evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
 evaluationDependsOn(":beam-runners-parent:beam-runners-core-java")
 
+test {
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beamTestPipelineOptions", """[
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                  ]"""
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1 
+  useJUnit {
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+    excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+  }
+}
+
 dependencies {
   compile project(":beam-model-parent:beam-model-pipeline")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
