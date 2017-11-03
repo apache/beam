@@ -32,6 +32,8 @@ def hadoop_version = "2.7.3"
 def jackson_version = "2.8.9"
 def spark_version = "1.6.3"
 def pubsub_grpc_version = "0.1.18"
+def apex_core_version = "3.6.0"
+def apex_malhar_version = "3.4.0"
 
 ext.library = [
   java: [
@@ -42,8 +44,8 @@ ext.library = [
     activemq_junit: "org.apache.activemq.tooling:activemq-junit:5.13.1",
     activemq_kahadb_store: "org.apache.activemq:activemq-kahadb-store:5.13.1",
     activemq_mqtt: "org.apache.activemq:activemq-mqtt:5.13.1",
-    apex_common: "org.apache.apex:apex-common:3.6.0",
-    apex_engine: "org.apache.apex:apex-engine:3.4.0",
+    apex_common: "org.apache.apex:apex-common:$apex_core_version",
+    apex_engine: "org.apache.apex:apex-engine:$apex_core_version",
     args4j: "args4j:args4j:2.33",
     avro: "org.apache.avro:avro:1.8.2",
     bigdataoss_gcsio: "com.google.cloud.bigdataoss:gcsio:$google_cloud_bigdataoss_version",
@@ -110,7 +112,7 @@ ext.library = [
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
     kafka_clients: "org.apache.kafka:kafka-clients:0.10.1.0",
-    malhar_library: "org.apache.apex:malhar-library:3.4.0",
+    malhar_library: "org.apache.apex:malhar-library:$apex_malhar_version",
     mockito_core: "org.mockito:mockito-core:1.9.5",
     netty_handler: "io.netty:netty-handler:$netty_version",
     netty_tcnative_boringssl_static: "io.netty:netty-tcnative-boringssl-static:1.1.33.Fork26",

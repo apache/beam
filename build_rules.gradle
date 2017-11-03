@@ -71,8 +71,12 @@ ext.applyJavaNature = {
 
   // Skip test failures to enumerate all that is failing
   test {
-//    ignoreFailures = true
-    exclude '**/*IT.class'
+    // Configure the gradle include defaults to be equivalent to the maven-surefire-plugin
+    // http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
+    include "**/Test*.class"
+    include "**/*Test.class"
+    include "**/*Tests.class"
+    include "**/*TestCase.class"
     useJUnit { }
   }
 
@@ -125,10 +129,12 @@ ext.applyJavaNature = {
 
   // Ban these dependencies from all configurations
   configurations.all {
-    // This is banned because it brings in classes which conflict with guava
+    // guava-jdk5 brings in classes which conflict with guava
     exclude group: "com.google.guava", module: "guava-jdk5"
     // Ban the usage of the JDK tools as a library as this is system dependent
     exclude group: "jdk.tools", module: "jdk.tools"
+    // protobuf-lite duplicates classes which conflict with protobuf-java
+    exclude group: "com.google.protobuf", module: "protobuf-lite"
     // Exclude these test dependencies because they bundle other common
     // test libraries classes causing version conflicts. Users should rely
     // on using the yyy-core package instead of the yyy-all package.
