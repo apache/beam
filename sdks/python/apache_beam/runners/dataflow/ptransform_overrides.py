@@ -16,10 +16,11 @@
 #
 
 """Ptransform overrides for DataflowRunner."""
+from __future__ import absolute_import
+
 
 from apache_beam.coders import typecoders
-from apache_beam.pipeline import PTransformOverride
-
+from apache_beam.pipeline import *
 
 class CreatePTransformOverride(PTransformOverride):
   """A ``PTransformOverride`` for ``Create`` in streaming mode."""

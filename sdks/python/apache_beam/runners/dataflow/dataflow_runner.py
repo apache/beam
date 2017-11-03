@@ -20,6 +20,7 @@
 The runner will create a JSON description of the job graph and then submit it
 to the Dataflow Service for remote execution by a worker.
 """
+from __future__ import absolute_import
 
 import logging
 import threading
@@ -71,14 +72,6 @@ class DataflowRunner(PipelineRunner):
   # not change.
   # For internal SDK use only. This should not be updated by Beam pipeline
   # authors.
-
-  # Imported here to avoid circular dependencies.
-  # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
-  from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
-
-  _PTRANSFORM_OVERRIDES = [
-      CreatePTransformOverride(),
-  ]
 
   def __init__(self, cache=None):
     # Cache of CloudWorkflowStep protos generated while the runner
@@ -285,7 +278,11 @@ class DataflowRunner(PipelineRunner):
         return_context=True)
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(DataflowRunner._PTRANSFORM_OVERRIDES)
+    # Imported here to avoid circular dependencies.
+    # TODO: Remove the apache_beam.pipeline dependency in CreatePTransformOverride
+    from apache_beam.runners.dataflow.ptransform_overrides import CreatePTransformOverride
+
+    pipeline.replace_all(CreatePTransformOverride())
 
     # Add setup_options for all the BeamPlugin imports
     setup_options = pipeline._options.view_as(SetupOptions)
