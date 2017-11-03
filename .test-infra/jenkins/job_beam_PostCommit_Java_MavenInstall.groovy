@@ -47,7 +47,7 @@ mavenJob('beam_PostCommit_Java_MavenInstall') {
   goals([
       'clean',
       'install',
-      '--projects sdks/java/core,runners/direct-java',
+      '--projects sdks/java/core,runners/direct-java,sdks/java/fn-execution',
       ' --also-make',
       '--also-make-dependents',
       '--batch-mode',

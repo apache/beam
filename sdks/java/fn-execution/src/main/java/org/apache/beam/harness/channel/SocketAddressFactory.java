@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.channel;
+package org.apache.beam.harness.channel;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
