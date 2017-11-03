@@ -1,5 +1,5 @@
 /**
- * Copyright 2016-2017 Seznam.cz, a.s.
+ * Copyright 2017 Seznam.cz, a.s.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import cz.seznam.euphoria.benchmarks.datamodel.Benchmarks;
 import cz.seznam.euphoria.benchmarks.datamodel.windowing.Time;
 import cz.seznam.euphoria.benchmarks.datamodel.windowing.TimeSliding;
 import cz.seznam.euphoria.benchmarks.datamodel.windowing.Windowing;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.flink.translation.types.FlinkCoder;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -42,13 +43,14 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.Comparator;
 
+@SuppressFBWarnings("UMAC_UNCALLABLE_METHOD_OF_ANONYMOUS_CLASS")
 public class BeamTrends {
 
   public static void main(PipelineOptions opts, Parameters params, String exec) {
     int smooth = params.getRankSmoothness();
     Duration longInterval = params.getLongStats();
     Duration shortInterval = params.getShortStats();
-    
+
     // define windowings
     Windowing longWindowing = TimeSliding.of(longInterval, shortInterval);
     Windowing shortWindowing = Time.of(shortInterval);
@@ -56,7 +58,7 @@ public class BeamTrends {
     // get input data
     Pipeline ppl = Pipeline.create(opts);
     PCollection<Tuple2<Long, String>> input = Util.createInput(ppl, params);
-    
+
     // expand windows
     PCollection<Tuple2<Long, String>> longWindows = expandWindows("LongWindowing", input, longWindowing);
     PCollection<KV<Tuple2<Long, String>, Long>> longStats = longWindows.apply("LongCount", Count.perElement());
@@ -83,7 +85,7 @@ public class BeamTrends {
             int shortCount = value.getOnly(shortStatsTag, 0L).intValue();
             if (longCount > 0 && shortCount > 0) {
               double rank = Benchmarks.trendsRank(
-                  longInterval.toMillis(), longCount, 
+                  longInterval.toMillis(), longCount,
                   shortInterval.toMillis(), shortCount,
                   smooth);
               c.output(KV.of(key.f0, Tuple2.of(key.f1, rank)));
@@ -94,7 +96,7 @@ public class BeamTrends {
 
     // find max in windows
     PCollection<KV<Long, Tuple2<String, Double>>> max = ranked.apply(Max.perKey(new RankComparator()));
-    
+
     Util.output(max, params, BeamTrends.class.getSimpleName() + "_" + exec);
 
     try {

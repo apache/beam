@@ -81,6 +81,7 @@
   </developers>
 
   <modules>
+    <module>benchmarks</module>
     <module>euphoria-core</module>
     <module>euphoria-fluent</module>
     <module>euphoria-inmem</module>
@@ -369,6 +370,7 @@
             <artifactId>maven-remote-resources-plugin</artifactId>
             <executions>
               <execution>
+                <phase>validate</phase>
                 <goals>
                   <goal>process</goal>
                 </goals>
