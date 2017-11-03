@@ -27,7 +27,7 @@ import os
 import re
 import time
 from datetime import datetime
-from StringIO import StringIO
+from io import StringIO
 
 from apitools.base.py import encoding
 from apitools.base.py import exceptions
