@@ -99,6 +99,25 @@ public class ReduceByKeyTest {
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
+    assertNull(reduce.valueComparator);
   }
+
+  @Test
+  public void testBuild_sortedValues() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .withSortedValues(Long::compare)
+            .windowBy(Time.of(Duration.ofHours(1)))
+            .output();
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertNotNull(reduce.valueComparator);
+  }
+
 
 }
