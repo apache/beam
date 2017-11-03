@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 
-    Copyright 2016-2017 Seznam.cz, a.s.
+    Copyright 2017 Seznam.cz, a.s.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,10 +16,16 @@
     limitations under the License.
 
 -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
+  <parent>
+    <groupId>cz.seznam.euphoria</groupId>
+    <artifactId>euphoria-parent</artifactId>
+    <version>0.8-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
   <groupId>cz.seznam.euphoria.benchmarks</groupId>
   <artifactId>benchmarks-parent</artifactId>
   <version>0.1-SNAPSHOT</version>
@@ -231,7 +237,7 @@
   </dependencyManagement>
 
   <properties>
-    <euphoria.version>0.7.1-SNAPSHOT</euphoria.version>
+    <euphoria.version>0.8-SNAPSHOT</euphoria.version>
     <flink.version>1.2.1</flink.version>
     <spark.version>2.1.0</spark.version>
     <kafka.version>0.10.1.0</kafka.version>
