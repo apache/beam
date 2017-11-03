@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import java.io.IOException;
 import java.util.Iterator;
@@ -24,9 +25,10 @@ import java.util.Iterator;
  * Use this class with care, because it might cause OOME or other
  * performance issues.
  */
+@Audience(Audience.Type.INTERNAL)
 public class InMemExternalIterable<T> implements ExternalIterable<T> {
 
-  final Iterable<T> wrap;
+  private final Iterable<T> wrap;
 
   public InMemExternalIterable(Iterable<T> wrap) {
     this.wrap = wrap;

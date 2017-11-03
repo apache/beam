@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.executor.storage;
+package cz.seznam.euphoria.core.executor.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Closeable;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.Serializable;
 
 @Audience(Audience.Type.EXECUTOR)
@@ -24,20 +26,22 @@ public interface SerializerFactory extends Serializable {
 
   interface Serializer {
 
-    interface OutputStream extends Closeable {
+    interface Output extends Closeable {
       void writeObject(Object o);
       void flush();
+      @Override
       void close();
     }
 
-    interface InputStream extends Closeable {
+    interface Input extends Closeable {
       Object readObject();
       boolean eof();
+      @Override
       void close();
     }
 
-    OutputStream newOutputStream(java.io.OutputStream out);
-    InputStream newInputStream(java.io.InputStream in);
+    Output newOutput(OutputStream out);
+    Input newInput(InputStream in);
   }
 
   Serializer newSerializer();

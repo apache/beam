@@ -40,9 +40,11 @@ public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window>
           boolean allowEarlyEmitting,
           FlinkAccumulatorFactory accumulatorFactory,
           Settings settings) {
-    super(windowing, stateFactory, stateCombiner, localMode,
-            descriptorsCacheMaxSize, allowEarlyEmitting,
-            accumulatorFactory, settings);
+
+    super(
+        windowing, stateFactory, stateCombiner, localMode,
+        descriptorsCacheMaxSize, allowEarlyEmitting,
+        accumulatorFactory, settings);
   }
 
   @Override
