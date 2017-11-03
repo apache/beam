@@ -52,6 +52,7 @@ apply plugin: 'project-report'
 /** Used as configuration within the applyJavaNature closure. */
 class JavaNatureConfiguration {
   double javaVersion = 1.7
+  boolean enableFindbugs = true
 }
 
 /** Takes a map of parameters. See JavaNatureConfiguration for the set of parameters allowed. */
@@ -73,9 +74,9 @@ ext.applyJavaNature = {
 //    ignoreFailures = true
     exclude '**/*IT.class'
     useJUnit {
-      setExcludeCategories([
-              "org.apache.beam.sdk.testing.NeedsRunner",
-              "org.apache.beam.sdk.testing.ValidatesRunner"] as Set)
+      excludeCategories(
+        "org.apache.beam.sdk.testing.NeedsRunner",
+        "org.apache.beam.sdk.testing.ValidatesRunner")
     }
   }
 
@@ -118,14 +119,9 @@ ext.applyJavaNature = {
     }
   }
 
-  if (!(project.name in [
-    'beam-model-pipeline',
-    'beam-model-job-management',
-    'beam-model-fn-execution',
-    'beam-runners-google-cloud-dataflow-java',
-    'beam-sdks-java-io-kafka'])) {
-    delegate.apply plugin: 'findbugs'
-    delegate.findbugs {
+  if (configuration.enableFindbugs) {
+    apply plugin: 'findbugs'
+    findbugs {
       excludeFilter = rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
       sourceSets = [sourceSets.main]
     }
@@ -137,6 +133,9 @@ ext.applyJavaNature = {
     exclude group: "jdk.tools", module: "jdk.tools"
   }
 
+  // Force usage of the libraries defined within our common set
+  // instead of using Gradles default dependency resolution mechanism
+  // which chooses the latest version available.
   configurations.all {
     resolutionStrategy {
       force library.java.values()
