@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
-import org.junit.Ignore;
 
 /**
  * Tests for operator {@code MapElements}.
@@ -38,7 +37,6 @@ import org.junit.Ignore;
 public class MapElementsTest extends AbstractOperatorTest {
 
   @Test
-  @Ignore
   public void testMapElements() {
     execute(new AbstractTestCase<Integer, String>() {
 
