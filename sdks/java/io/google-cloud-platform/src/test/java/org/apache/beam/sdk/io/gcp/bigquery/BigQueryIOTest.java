@@ -908,7 +908,6 @@ public class BigQueryIOTest implements Serializable {
         new TableRow().set("name", "c").set("number", 3))
         .withCoder(TableRowJsonCoder.of()))
     .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
-        .withTableDescription(null)
         .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
         .withSchema(new TableSchema().setFields(
             ImmutableList.of(
@@ -1249,6 +1248,63 @@ public class BigQueryIOTest implements Serializable {
       File tempDir = new File(bqOptions.getTempLocation());
       testNumFiles(tempDir, 0);
     }
+  }
+
+  @Test
+  public void testWriteWithMissingSchemaFromView() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(new FakeDatasetService());
+
+    Pipeline p = TestPipeline.create(bqOptions);
+
+    PCollectionView<Map<String, String>> view =
+        p.apply("Create schema view", Create.of(KV.of("foo", "bar"), KV.of("bar", "boo")))
+            .apply(View.<String, String>asMap());
+    p.apply(Create.empty(TableRowJsonCoder.of()))
+        .apply(BigQueryIO.writeTableRows().to("dataset-id.table-id")
+            .withCreateDisposition(CreateDisposition.CREATE_IF_NEEDED)
+            .withSchemaFromView(view)
+            .withTestServices(fakeBqServices)
+            .withoutValidation());
+
+    thrown.expectMessage("does not contain data for table destination dataset-id.table-id");
+    p.run();
+  }
+
+  @Test
+  public void testWriteWithBrokenGetTable() throws Exception {
+    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
+    bqOptions.setProject("project-id");
+    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
+
+    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
+        .withJobService(new FakeJobService())
+        .withDatasetService(new FakeDatasetService());
+
+    Pipeline p = TestPipeline.create(bqOptions);
+
+    p.apply(Create.<TableRow>of(new TableRow().set("foo", "bar")))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to(
+                    new SerializableFunction<ValueInSingleWindow<TableRow>, TableDestination>() {
+                      @Override
+                      public TableDestination apply(ValueInSingleWindow<TableRow> input) {
+                        return null;
+                      }
+                    })
+                .withCreateDisposition(CreateDisposition.CREATE_NEVER)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+
+    thrown.expectMessage("result of tableFunction can not be null");
+    thrown.expectMessage("foo");
+    p.run();
   }
 
   @Test
@@ -2130,7 +2186,7 @@ public class BigQueryIOTest implements Serializable {
 
     @Override
     public TableSchema getSchema(String destination) {
-      return null;
+      return new TableSchema();
     }
   }
 
