@@ -19,6 +19,7 @@ package org.apache.beam.runners.apex.translation.utils;
 
 import com.datatorrent.api.StreamCodec;
 import com.datatorrent.netlet.util.Slice;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -35,6 +36,11 @@ public class CoderAdapterStreamCodec implements StreamCodec<Object>, Serializabl
 
   public CoderAdapterStreamCodec(Coder<? super Object> coder) {
     this.coder = coder;
+  }
+
+  @VisibleForTesting
+  public Coder<?> getCoder() {
+    return this.coder;
   }
 
   @Override
