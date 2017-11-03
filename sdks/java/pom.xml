@@ -53,6 +53,7 @@
         <jdk>[1.8,)</jdk>
       </activation>
       <modules>
+        <module>fn-execution</module>
         <module>harness</module>
         <module>container</module>
         <module>java8tests</module>

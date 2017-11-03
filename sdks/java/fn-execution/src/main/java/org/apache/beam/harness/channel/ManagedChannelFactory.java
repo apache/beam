@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.channel;
+package org.apache.beam.harness.channel;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -26,23 +26,19 @@ import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.unix.DomainSocketAddress;
 import java.net.SocketAddress;
-import java.util.List;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
-import org.apache.beam.sdk.options.ExperimentalOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Uses {@link PipelineOptions} to configure which underlying {@link ManagedChannel} implementation
- * to use.
+ * A Factory which creates an underlying {@link ManagedChannel} implementation.
  */
 public abstract class ManagedChannelFactory {
-  public static ManagedChannelFactory from(PipelineOptions options) {
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    if (experiments != null && experiments.contains("beam_fn_api_epoll")) {
-      io.netty.channel.epoll.Epoll.ensureAvailability();
-      return new Epoll();
-    }
+  public static ManagedChannelFactory createDefault() {
     return new Default();
+  }
+
+  public static ManagedChannelFactory createEpoll() {
+    io.netty.channel.epoll.Epoll.ensureAvailability();
+    return new Epoll();
   }
 
   public abstract ManagedChannel forDescriptor(ApiServiceDescriptor apiServiceDescriptor);
