@@ -37,12 +37,12 @@ dependencies {
   compile library.java.guava
   compile library.java.slf4j_api
   compile library.java.findbugs_jsr305
-  compileOnly library.java.hadoop_client
-  compileOnly library.java.hadoop_common
-  compileOnly library.java.hadoop_mapreduce_client_core
+  provided library.java.hadoop_client
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
-  testCompile library.java.guava
+  testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit
