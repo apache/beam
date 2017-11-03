@@ -67,13 +67,75 @@ from apache_beam.runners.laser.channels import Interface
 from apache_beam.runners.laser.channels import set_channel_config
 from apache_beam.runners.laser.channels import get_channel_manager
 from apache_beam.runners.laser.channels import remote_method
+from apache_beam.runners.dataflow import DataflowRunner
+from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.io import iobase
+from apache_beam.runners.worker import operation_specs
+# from apache_beam.runners.worker import operations
+
+class StepGraph(object):
+  def __init__(self):
+    self.steps = []  # set?
+
+  # def register_origin_transform_node()
+
+class Step(object):
+  def __init__(self):
+    self.inputs = []
+    self.outputs = []
+
+  def _add_input(self, input_step):
+    assert isinstance(input_step, Step)
+    self.inputs.append(input_step)
+
+  def _add_output(self, output_step):  # add_consumer? what happens with named outputs? do we care?
+    assert isinstance(input_step, Step)
+    self.outputs.append(output_step)
+
+class ReadStep(Step):
+  def __init__(self, source_bundle, element_coder):
+    self.original_source_bundle = source_bundle
+    self.element_coder = element_coder
+
 
 
 class LaserRunner(PipelineRunner):
   """Executes a pipeline using multiple processes on the local machine."""
 
   def __init__(self):
-    pass 
+    self.step_graph = StepGraph()
+
+  def run_Read(self, transform_node):
+    self._run_read_from(transform_node, transform_node.transform.source)
+
+  def _run_read_from(self, transform_node, source_input):
+    """Used when this operation is the result of reading source."""
+    if not isinstance(source, NativeSource):
+      source_bundle = iobase.SourceBundle(1.0, source, None, None)
+    else:
+      source_bundle = source_input
+    print 'source', source_bundle
+    print 'split off', list(source_bundle.source.split(1))
+    output = transform_node.outputs[None]
+    element_coder = self._get_coder(output)
+    read_op = operation_specs.WorkerRead(source, output_coders=[element_coder])
+    print 'READ OP', read_op
+    self.outputs[output] = len(self.map_tasks), 0, 0
+    self.map_tasks.append([(transform_node.full_label, read_op)])
+    return len(self.map_tasks) - 1
+
+  def _get_coder(self, pvalue, windowed=True):
+    # TODO(robertwb): This should be an attribute of the pvalue itself.
+    return DataflowRunner._get_coder(
+        pvalue.element_type or typehints.Any,
+        pvalue.windowing.windowfn.get_window_coder() if windowed else None)
+
+  def run_ParDo(self, transform_node):
+    transform = transform_node.transform
+    output = transform_node.outputs[None]
+    element_coder = self._get_coder(output)
+    map_task_index, producer_index, output_index = self.outputs[
+        transform_node.inputs[0]]
 
 
 
@@ -228,8 +290,12 @@ def run(argv):
     link_strategies=[
       LinkStrategy(
         LinkStrategyType.LISTEN,
-        mode=LinkMode.UNIX,
-        address='./uds_socket3-%s' % COORDINATOR_PORT)]))
+        mode=LinkMode.TCP,
+        address='localhost',
+        port=COORDINATOR_PORT,
+        # mode=LinkMode.UNIX,
+        # address='./uds_socket3-%s' % COORDINATOR_PORT,
+        )]))
   manager = get_channel_manager()
 
   coordinator = LaserCoordinator()
@@ -245,8 +311,12 @@ def run(argv):
     link_strategies=[
       LinkStrategy(
         LinkStrategyType.CONNECT,
-        mode=LinkMode.UNIX,
-        address='./uds_socket3-%s' % COORDINATOR_PORT)]).to_dict(),
+        mode=LinkMode.TCP,
+        address='localhost',
+        port=COORDINATOR_PORT,
+        # mode=LinkMode.UNIX,
+        # address='./uds_socket3-%s' % COORDINATOR_PORT,
+        )]).to_dict(),
     })
   print 'DONE'
   # spawn_worker({
@@ -263,5 +333,10 @@ def run(argv):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
-  run(sys.argv)
+  # run(sys.argv)
+  from apache_beam import Pipeline
+  from apache_beam import Create
+  p = Pipeline(runner=LaserRunner())
+  p | Create([1, 2, 3])
+  p.run()
 
