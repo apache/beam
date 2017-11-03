@@ -148,6 +148,7 @@ buildscript {
     classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"
     classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"
     classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"
   }
 }
 
