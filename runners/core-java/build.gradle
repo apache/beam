@@ -50,8 +50,8 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
-  testCompile library.java.hamcrest_all
-  testCompile library.java.mockito_all
+  testCompile library.java.hamcrest_core
+  testCompile library.java.mockito_core
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.jackson_dataformat_yaml

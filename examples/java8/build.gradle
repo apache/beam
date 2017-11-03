@@ -37,8 +37,8 @@ dependencies {
   compile library.java.google_api_client
   runtime project(":beam-runners-parent:beam-runners-direct-java")
   runtime library.java.slf4j_jdk14
-  testCompile library.java.hamcrest_all
-  testCompile library.java.mockito_all
+  testCompile library.java.hamcrest_core
+  testCompile library.java.mockito_core
   testCompile library.java.junit
 }
 

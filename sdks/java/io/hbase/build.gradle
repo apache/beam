@@ -49,7 +49,7 @@ dependencies {
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.commons_lang3
   testCompile library.java.junit
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile library.java.hadoop_minicluster
   testCompile library.java.hadoop_hdfs
   testCompile library.java.hadoop_common

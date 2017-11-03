@@ -125,8 +125,15 @@ ext.applyJavaNature = {
 
   // Ban these dependencies from all configurations
   configurations.all {
+    // This is banned because it brings in classes which conflict with guava
     exclude group: "com.google.guava", module: "guava-jdk5"
+    // Ban the usage of the JDK tools as a library as this is system dependent
     exclude group: "jdk.tools", module: "jdk.tools"
+    // Exclude these test dependencies because they bundle other common
+    // test libraries classes causing version conflicts. Users should rely
+    // on using the yyy-core package instead of the yyy-all package.
+    exclude group: "org.hamcrest", module: "hamcrest-all"
+    exclude group: "org.mockito", module: "mockito-all"
   }
 
   // Force usage of the libraries defined within our common set

@@ -38,7 +38,7 @@ dependencies {
   compile library.java.hamcrest_core
   runtime project(":beam-runners-parent:beam-runners-direct-java")
   runtime library.java.slf4j_jdk14
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
 }
 
 task packageTests(type: Jar) {

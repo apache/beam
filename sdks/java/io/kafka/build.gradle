@@ -42,7 +42,7 @@ dependencies {
   compile "org.springframework:spring-expression:4.3.5.RELEASE"
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
 }

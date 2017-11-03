@@ -28,7 +28,7 @@ dependencies {
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
   testCompile library.java.commons_lang3
-  testCompile library.java.hamcrest_all
+  testCompile library.java.hamcrest_core
   testCompile library.java.junit
 }
 
