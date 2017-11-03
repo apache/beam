@@ -73,11 +73,7 @@ ext.applyJavaNature = {
   test {
 //    ignoreFailures = true
     exclude '**/*IT.class'
-    useJUnit {
-      excludeCategories(
-        "org.apache.beam.sdk.testing.NeedsRunner",
-        "org.apache.beam.sdk.testing.ValidatesRunner")
-    }
+    useJUnit { }
   }
 
   apply plugin: "net.ltgt.apt"
