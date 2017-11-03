@@ -15,12 +15,14 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
+import cz.seznam.euphoria.flink.FlinkSerializerFactory;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import cz.seznam.euphoria.core.executor.storage.FsSpillingListStorage;
+import cz.seznam.euphoria.core.executor.io.FsSpillingListStorage;
+import cz.seznam.euphoria.core.executor.io.SpillFileFactory.DefaultSpillFileFactory;
 import org.apache.flink.api.java.ExecutionEnvironment;
 
 import java.io.Serializable;
@@ -64,7 +66,7 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
 
   BatchStateStorageProvider(int maxInMemElements, ExecutionEnvironment env) {
     this.MAX_ELEMENTS_IN_MEMORY = maxInMemElements;
-    serializerFactory = new FlinkSerializerFactory(env);
+    serializerFactory = new FlinkSerializerFactory(env.getConfig());
   }
 
   @Override
@@ -77,7 +79,7 @@ class BatchStateStorageProvider implements StorageProvider, Serializable {
   public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
     return new FsSpillingListStorage<>(
         serializerFactory,
-        FsSpillingListStorage.DefaultSpillFileFactory.getInstance(),
+        DefaultSpillFileFactory.getInstance(),
         MAX_ELEMENTS_IN_MEMORY);
   }
 }

@@ -60,6 +60,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import org.apache.flink.api.java.ExecutionEnvironment;
 
 public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
         extends AbstractStreamOperator<StreamingElement<WID, Pair<?, ?>>>
@@ -70,7 +71,6 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   private final Trigger<WID> trigger;
   private final StateFactory<?, ?, State<?, ?>> stateFactory;
   private final StateMerger<?, ?, State<?, ?>> stateCombiner;
-
 
   // FIXME Arguable hack that ensures all remaining opened windows
   // are flushed to output when end of stream is reached. This is intended
@@ -96,7 +96,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
   private transient TriggerContextAdapter triggerContext;
   private transient OutputCollector outputContext;
-  private transient WindowedStorageProvider storageProvider;
+  private transient WindowedStateContext<WID> stateContext;
 
   private transient ListStateDescriptor<Tuple2<WID, WID>> mergingWindowsDescriptor;
 
@@ -135,13 +135,16 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     this.endOfStreamTimerService =
             getInternalTimerService("end-of-stream-timers", windowSerializer, this);
     this.triggerContext = new TriggerContextAdapter();
-    this.outputContext = new OutputCollector(accumulatorFactory, settings, getRuntimeContext());
-    this.storageProvider = new WindowedStorageProvider<>(
-            getKeyedStateBackend(), windowSerializer, descriptorsCacheMaxSize);
+    this.outputContext = new OutputCollector(
+        accumulatorFactory, settings, getRuntimeContext());
+    this.stateContext = new WindowedStateContext<>(
+        ExecutionEnvironment.getExecutionEnvironment().getConfig(),
+        settings, getKeyedStateBackend(), windowSerializer,
+        descriptorsCacheMaxSize);
 
     if (windowing instanceof MergingWindowing) {
-      TupleSerializer<Tuple2<WID, WID>> tupleSerializer =
-              new TupleSerializer<>((Class) Tuple2.class, new TypeSerializer[]{windowSerializer, windowSerializer});
+      TupleSerializer<Tuple2<WID, WID>> tupleSerializer = new TupleSerializer<>(
+          (Class) Tuple2.class, new TypeSerializer[]{windowSerializer, windowSerializer});
       this.mergingWindowsDescriptor = new ListStateDescriptor<>("merging-window-set", tupleSerializer);
     }
   }
@@ -149,7 +152,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   private void setupEnvironment(Object key, WID window) {
     outputContext.setKey(key);
     outputContext.setWindow(window);
-    storageProvider.setWindow(window);
+    stateContext.setWindow(window);
   }
 
   /**
@@ -190,7 +193,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
                   // clear all merged windows
                   for (WID merged : mergedWindows) {
-                    storageProvider.setWindow(merged);
+                    stateContext.setWindow(merged);
                     trigger.onClear(merged, triggerContext);
                     removeWindow(merged, null);
                   }
@@ -323,7 +326,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
       if (tr.isPurge()) {
         windowState.close();
-        storageProvider.setWindow(window);
+        stateContext.setWindow(window);
         trigger.onClear(window, triggerContext);
         removeWindow(window, mergingWindowSet);
       }
@@ -332,8 +335,8 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
 
   @SuppressWarnings("unchecked")
   private State getWindowState(WID window) {
-    storageProvider.setWindow(window);
-    return stateFactory.createState(storageProvider, allowEarlyEmitting ? outputContext : null);
+    stateContext.setWindow(window);
+    return stateFactory.createState(stateContext, allowEarlyEmitting ? outputContext : null);
   }
 
   private MergingWindowSet<WID> getMergingWindowSet()  {
@@ -394,13 +397,13 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     @Override
     @SuppressWarnings("unchecked")
     public <T> ValueStorage<T> getValueStorage(ValueStorageDescriptor<T> descriptor) {
-      return storageProvider.getValueStorage(descriptor);
+      return stateContext.getStorageProvider().getValueStorage(descriptor);
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
-      return storageProvider.getListStorage(descriptor);
+      return stateContext.getStorageProvider().getListStorage(descriptor);
     }
 
     @Override
