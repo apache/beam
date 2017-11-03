@@ -115,7 +115,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   static final class KafkaPartition implements Partition<Pair<byte[], byte[]>> {
     private final String brokerList;
     private final String topicId;
-    private final String groupId;
     private final int partition;
     private final String host;
     @Nullable
@@ -126,7 +125,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     private final long stopReadingAtStamp;
 
     KafkaPartition(String brokerList, String topicId,
-                   String groupId,
                    int partition, String host,
                    @Nullable Settings config,
                    long startOffset,
@@ -134,7 +132,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     {
       this.brokerList = brokerList;
       this.topicId = topicId;
-      this.groupId = groupId;
       this.partition = partition;
       this.host = host;
       this.config = config;
@@ -150,7 +147,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     @Override
     public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
       Consumer<byte[], byte[]> c =
-          KafkaUtils.newConsumer(brokerList, groupId, config);
+          KafkaUtils.newConsumer(brokerList, null, config);
       TopicPartition tp = new TopicPartition(topicId, partition);
       ArrayList<TopicPartition> partitionList = Lists.newArrayList(tp);
       c.assign(partitionList);
@@ -167,7 +164,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   static final class AllPartitionsConsumer implements Partition<Pair<byte[], byte[]>> {
     private final String brokerList;
     private final String topicId;
-    private final String groupId;
     @Nullable
     private final Settings config;
     private final long offsetTimestamp; // ~ effective iff > 0
@@ -176,14 +172,12 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     AllPartitionsConsumer(
         String brokerList,
         String topicId,
-        String groupId,
         @Nullable Settings config,
         long offsetTimestamp,
         long stopReadingStamp) {
 
       this.brokerList = brokerList;
       this.topicId = topicId;
-      this.groupId = groupId;
       this.config = config;
       this.offsetTimestamp = offsetTimestamp;
       this.stopReadingAtStamp = stopReadingStamp;
@@ -197,7 +191,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     @Override
     public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
       Consumer<byte[], byte[]> c = KafkaUtils.newConsumer(
-          brokerList, groupId, config);
+          brokerList, null, config);
 
       c.assign(
           c.partitionsFor(topicId)
@@ -219,18 +213,16 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
 
   private final String brokerList;
   private final String topicId;
-  private final String groupId;
   @Nullable
   private final Settings config;
 
   public KafkaSource(
       String brokerList,
       String topicId,
-      String groupId,
       @Nullable Settings config) {
+
     this.brokerList = requireNonNull(brokerList);
     this.topicId = requireNonNull(topicId);
-    this.groupId = requireNonNull(groupId);
     this.config = config;
   }
 
@@ -256,7 +248,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       }
       if (config.getBoolean(CFG_SINGLE_READER_ONLY, false)) {
         return Collections.singletonList(
-          new AllPartitionsConsumer(brokerList, topicId, groupId,
+          new AllPartitionsConsumer(brokerList, topicId,
               config, offsetTimestamp, stopReadingAtStamp));
       }
     }
@@ -279,7 +271,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           // ~ FIXME a leader might not be available (check p.leader().id() == -1)
           // ... fail in this situation
           new KafkaPartition(
-              brokerList, topicId, groupId, p.partition(),
+              brokerList, topicId, p.partition(),
               p.leader().host(), config,
               offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
               stopAtStamp))
