@@ -29,7 +29,6 @@ dependencies {
   compile library.java.grpc_stub
   compile library.java.protobuf_java
   compile library.java.slf4j_api
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   testCompile library.java.hamcrest_all
   testCompile library.java.mockito_all
   testCompile library.java.junit

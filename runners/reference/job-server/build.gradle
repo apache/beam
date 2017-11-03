@@ -29,7 +29,6 @@ dependencies {
   compile library.java.args4j
   runtime library.java.grpc_netty
   testCompile library.java.junit
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
 }
 
 task packageTests(type: Jar) {
