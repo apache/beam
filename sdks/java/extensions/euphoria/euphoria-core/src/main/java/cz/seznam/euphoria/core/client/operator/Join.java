@@ -30,6 +30,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -531,11 +532,12 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
         keyExtractor,
         e -> e,
         getWindowing(),
-        (StorageProvider storages, Collector ctx) ->
-            ctx == null
-                ? new StableJoinState(storages)
-                : new EarlyEmittingJoinState(storages, ctx),
-        new StateSupport.MergeFromStateMerger<>());
+        (StateContext context, Collector ctx) -> {
+          StorageProvider storages = context.getStorageProvider();
+          return ctx == null
+              ? new StableJoinState(storages)
+              : new EarlyEmittingJoinState(storages, ctx);
+        }, new StateSupport.MergeFromStateMerger<>());
 
     DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);

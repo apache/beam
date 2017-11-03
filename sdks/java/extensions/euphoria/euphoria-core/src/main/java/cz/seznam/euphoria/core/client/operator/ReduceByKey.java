@@ -29,9 +29,12 @@ import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.ExternalIterable;
+import cz.seznam.euphoria.core.client.io.SpillTools;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
@@ -39,14 +42,13 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
-import java.util.ArrayList;
+import java.io.IOException;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * Operator performing state-less aggregation by given reduce function. The reduction
@@ -459,8 +461,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
       @Override
       public State<E, E> createState(
-          StorageProvider storageProvider, Collector<E> context) {
-        return new CombiningReduceState<>(storageProvider, r);
+          StateContext context, Collector<E> collector) {
+        return new CombiningReduceState<>(context.getStorageProvider(), r);
       }
     }
 
@@ -527,8 +529,8 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
       @Override
       public NonCombiningReduceState<IN, OUT>
-      createState(StorageProvider storageProvider, Collector<OUT> context) {
-        return new NonCombiningReduceState<>(storageProvider, r, comparator);
+      createState(StateContext context, Collector<OUT> collector) {
+        return new NonCombiningReduceState<>(context, r, comparator);
       }
     }
 
@@ -538,11 +540,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
     private final ReduceFunctor<IN, OUT> reducer;
     private final ListStorage<IN> reducibleValues;
+    private final SpillTools spill;
     @Nullable
     private final BinaryFunction<IN, IN, Integer> comparator;
 
     NonCombiningReduceState(
-        StorageProvider storageProvider,
+        StateContext context,
         ReduceFunctor<IN, OUT> reducer,
         BinaryFunction<IN, IN, Integer> comparator) {
 
@@ -550,8 +553,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       this.comparator = comparator;
 
       @SuppressWarnings("unchecked")
-      ListStorage<IN> ls = storageProvider.getListStorage(STORAGE_DESC);
+      ListStorage<IN> ls = context.getStorageProvider().getListStorage(STORAGE_DESC);
       reducibleValues = ls;
+      this.spill = context.getSpillTools();
     }
 
     @Override
@@ -563,8 +567,15 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public void flush(Collector<OUT> ctx) {
       if (comparator != null) {
         Comparator<IN> c = comparator::apply;
-        Iterable<Iterable<IN>> parts = mergeSorted(reducibleValues.get(), c);
+        Collection<ExternalIterable<IN>> parts = spill.spillAndSortParts(reducibleValues.get(), c);
         reducer.apply(Iterables.mergeSorted(parts, c), ctx);
+        parts.forEach(i -> {
+          try {
+            i.close();
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          }
+        });
       } else {
         reducer.apply(reducibleValues.get(), ctx);
       }
@@ -578,27 +589,6 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     @Override
     public void mergeFrom(NonCombiningReduceState<IN, OUT> other) {
       this.reducibleValues.addAll(other.reducibleValues.get());
-    }
-
-    private Iterable<Iterable<IN>> mergeSorted(
-        Iterable<IN> input, Comparator<IN> comparator) {
-
-      // FIXME: add configuration
-      List<IN> buffer = new ArrayList<>();
-      List<Iterable<IN>> ret = new ArrayList<>();
-      for (IN v : input) {
-        if (buffer.size() >= 2) {
-          // FIXME: spill
-          ret.add(buffer.stream().sorted(comparator).collect(Collectors.toList()));
-          buffer.clear();
-        }
-        buffer.add(v);
-      }
-      if (!buffer.isEmpty()) {
-        ret.add(buffer.stream().sorted(comparator).collect(Collectors.toList()));
-      }
-
-      return ret;
     }
 
   }

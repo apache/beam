@@ -36,7 +36,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.CountTrigger;
@@ -561,8 +561,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   static class SumState implements State<Integer, Integer> {
     private final ValueStorage<Integer> sum;
 
-    SumState(StorageProvider storageProvider, Collector<Integer> context) {
-      sum = storageProvider.getValueStorage(
+    SumState(StateContext context, Collector<Integer> collector) {
+      sum = context.getStorageProvider().getValueStorage(
           ValueStorageDescriptor.of("sum-state", Integer.class, 0));
     }
 

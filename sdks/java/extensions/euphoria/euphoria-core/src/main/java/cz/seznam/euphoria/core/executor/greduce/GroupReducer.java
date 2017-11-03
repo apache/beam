@@ -31,11 +31,11 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -57,7 +57,7 @@ import java.util.Objects;
 @Audience(Audience.Type.EXECUTOR)
 public class GroupReducer<WID extends Window, KEY, I> {
 
-  // ~ a think facade around an executor dependent implementation
+  // ~ a thin facade around an executor dependent implementation
   @FunctionalInterface
   public interface Collector<T> {
     void collect(T elem);
@@ -87,7 +87,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   private final StateFactory<I, ?, State<I, ?>> stateFactory;
   private final StateMerger<I, ?, State<I, ?>> stateCombiner;
   private final WindowedElementFactory<WID, Object> elementFactory;
-  private final StorageProvider stateStorageProvider;
+  private final StateContext stateContext;
   private final Collector<WindowedElement<?, Pair<KEY, ?>>> collector;
   private final Windowing windowing;
   private final Trigger trigger;
@@ -101,7 +101,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
 
   public GroupReducer(StateFactory<I, ?, State<I, ?>> stateFactory,
                       StateMerger<I, ?, State<I, ?>> stateCombiner,
-                      StorageProvider stateStorageProvider,
+                      StateContext stateContext,
                       WindowedElementFactory<WID, Object> elementFactory,
                       Windowing windowing,
                       Trigger trigger,
@@ -111,14 +111,14 @@ public class GroupReducer<WID extends Window, KEY, I> {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
-    this.stateStorageProvider = Objects.requireNonNull(stateStorageProvider);
+    this.stateContext = Objects.requireNonNull(stateContext);
     this.collector = Objects.requireNonNull(collector);
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = Objects.requireNonNull(trigger);
     this.accumulators = Objects.requireNonNull(accumulators);
     this.allowEarlyEmitting = allowEarlyEmitting;
 
-    this.triggerStorage = new TriggerStorage(stateStorageProvider);
+    this.triggerStorage = new TriggerStorage(stateContext.getStorageProvider());
   }
 
   @SuppressWarnings("unchecked")
@@ -158,7 +158,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
       ElementCollector col = allowEarlyEmitting
           ? new ElementCollector(collector, w)
           : null;
-      return stateFactory.createState(stateStorageProvider, col);
+      return stateFactory.createState(stateContext, col);
     });
   }
 

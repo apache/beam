@@ -27,6 +27,7 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.MergingStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 import cz.seznam.euphoria.core.client.operator.state.Storage;
@@ -184,7 +185,7 @@ class ReduceStateByKeyReducer implements Runnable {
           this.scope,
           descriptor);
     }
-    
+
   } // ~ end of ElementTriggerContext
 
   class MergingElementTriggerContext
@@ -400,7 +401,7 @@ class ReduceStateByKeyReducer implements Runnable {
     final boolean allowEarlyEmitting;
 
     final ScopedStorage triggerStorage;
-    final StorageProvider storageProvider;
+    final StateContext stateContext;
     final WindowRegistry wRegistry = new WindowRegistry();
 
     final Collector<Datum> stateOutput;
@@ -419,11 +420,11 @@ class ReduceStateByKeyReducer implements Runnable {
             TriggerScheduler<Window, Object> triggering,
             StateFactory stateFactory,
             StateMerger stateMerger,
-            StorageProvider storageProvider,
+            StateContext stateContext,
             boolean allowEarlyEmitting) {
 
-      this.triggerStorage = new ScopedStorage(storageProvider);
-      this.storageProvider = storageProvider;
+      this.stateContext = stateContext;
+      this.triggerStorage = new ScopedStorage(stateContext.getStorageProvider());
       this.stateOutput = InMemExecutor.QueueCollector.wrap(requireNonNull(output));
       this.rawOutput = output;
       this.triggering = requireNonNull(triggering);
@@ -497,8 +498,7 @@ class ReduceStateByKeyReducer implements Runnable {
       State state = wRegistry.getWindowState(kw);
       if (state == null) {
         // ~ if no such window yet ... set it up
-        state = stateFactory.createState(
-            storageProvider,
+        state = stateFactory.createState(stateContext,
             allowEarlyEmitting ? newCollector(kw) : null);
         wRegistry.setWindowState(kw, state);
       }
@@ -628,7 +628,7 @@ class ReduceStateByKeyReducer implements Runnable {
                           UnaryFunction valueExtractor,
                           TriggerScheduler scheduler,
                           WatermarkEmitStrategy watermarkStrategy,
-                          StorageProvider storageProvider,
+                          StateContext stateContext,
                           AccumulatorProvider.Factory accumulatorFactory,
                           Settings settings,
                           boolean allowEarlyEmitting) {
@@ -650,7 +650,7 @@ class ReduceStateByKeyReducer implements Runnable {
         output, scheduler,
         requireNonNull(operator.getStateFactory()),
         requireNonNull(operator.getStateMerger()),
-        storageProvider,
+        stateContext,
         allowEarlyEmitting);
   }
 

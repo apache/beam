@@ -32,8 +32,8 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.CountTrigger;
@@ -69,8 +69,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
     final ListStorage<Integer> data;
 
-    SortState(StorageProvider storageProvider, Collector<Integer> c) {
-      this.data = storageProvider.getListStorage(
+    SortState(StateContext context, Collector<Integer> collector) {
+      this.data = context.getStorageProvider().getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
 
@@ -110,8 +110,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   }
 
   static class CountingSortState extends SortState {
-    public CountingSortState(StorageProvider storageProvider, Collector<Integer> c) {
-      super(storageProvider, c);
+    public CountingSortState(StateContext context, Collector<Integer> collector) {
+      super(context, collector);
     }
     @Override
     public void flush(Collector<Integer> context) {
@@ -266,8 +266,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
 
   private static class CountState<IN> implements State<IN, Long> {
     final ValueStorage<Long> count;
-    CountState(StorageProvider storageProvider, Collector<Long> context) {
-      this.count = storageProvider.getValueStorage(
+    CountState(StateContext context, Collector<Long> collector) {
+      this.count = context.getStorageProvider().getValueStorage(
           ValueStorageDescriptor.of("count-state", Long.class, 0L));
     }
 
@@ -347,8 +347,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   private static class AccState<VALUE> implements State<VALUE, VALUE> {
     final ListStorage<VALUE> vals;
     @SuppressWarnings("unchecked")
-    AccState(StorageProvider storageProvider, Collector<VALUE> context) {
-      vals = storageProvider.getListStorage(
+    AccState(StateContext context, Collector<VALUE> collector) {
+      vals = context.getStorageProvider().getListStorage(
           ListStorageDescriptor.of("vals", (Class) Object.class));
     }
 

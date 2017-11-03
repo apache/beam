@@ -38,7 +38,7 @@ import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -161,8 +161,8 @@ public class InMemExecutorTest {
 
     final ListStorage<Integer> data;
 
-    SortState(StorageProvider storageProvider, Collector<Integer> c) {
-      data = storageProvider.getListStorage(
+    SortState(StateContext context, Collector<Integer> c) {
+      data = context.getStorageProvider().getListStorage(
           ListStorageDescriptor.of("data", Integer.class));
     }
 
