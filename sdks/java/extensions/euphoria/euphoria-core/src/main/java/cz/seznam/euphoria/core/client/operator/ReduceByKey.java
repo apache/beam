@@ -41,12 +41,10 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import java.io.IOException;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -567,15 +565,13 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public void flush(Collector<OUT> ctx) {
       if (comparator != null) {
         Comparator<IN> c = comparator::apply;
-        Collection<ExternalIterable<IN>> parts = spill.spillAndSortParts(reducibleValues.get(), c);
-        reducer.apply(Iterables.mergeSorted(parts, c), ctx);
-        parts.forEach(i -> {
-          try {
-            i.close();
-          } catch (IOException ex) {
-            throw new RuntimeException(ex);
-          }
-        });
+        ExternalIterable<IN> sorted = spill.sorted(reducibleValues.get(), c);
+        reducer.apply(sorted, ctx);
+        try {
+          sorted.close();
+        } catch (IOException ex) {
+          throw new RuntimeException(ex);
+        }
       } else {
         reducer.apply(reducibleValues.get(), ctx);
       }

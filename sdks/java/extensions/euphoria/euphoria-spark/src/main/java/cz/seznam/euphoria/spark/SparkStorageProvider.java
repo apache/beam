@@ -20,12 +20,11 @@ import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
-import cz.seznam.euphoria.core.executor.storage.FsSpillingListStorage;
+import cz.seznam.euphoria.core.executor.io.FsSpillingListStorage;
+import cz.seznam.euphoria.core.executor.io.SpillFileFactory.DefaultSpillFileFactory;
 import org.apache.spark.serializer.Serializer;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Storage provider for batch processing. Date are stored in memory.
@@ -59,26 +58,6 @@ class SparkStorageProvider implements StorageProvider, Serializable {
     }
   }
 
-  static class MemListStorage<T> implements ListStorage<T> {
-
-    private final List<T> data = new ArrayList<>();
-
-    @Override
-    public void add(T element) {
-      data.add(element);
-    }
-
-    @Override
-    public Iterable<T> get() {
-      return data;
-    }
-
-    @Override
-    public final void clear() {
-      data.clear();
-    }
-  }
-
   private final SparkSerializerFactory sf;
   private final int listStorageMaxElemsInMemory;
 
@@ -96,7 +75,7 @@ class SparkStorageProvider implements StorageProvider, Serializable {
   public <T> ListStorage<T> getListStorage(ListStorageDescriptor<T> descriptor) {
       return new FsSpillingListStorage<>(
           sf,
-          FsSpillingListStorage.DefaultSpillFileFactory.getInstance(),
+          DefaultSpillFileFactory.getInstance(),
           listStorageMaxElemsInMemory);
   }
 }

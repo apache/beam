@@ -13,17 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.io;
+package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.annotation.audience.Audience;
-import java.io.Closeable;
+import cz.seznam.euphoria.core.executor.io.GenericSpillTools;
+import cz.seznam.euphoria.core.util.Settings;
+import org.apache.spark.serializer.Serializer;
 
 /**
- * An {@code Iterable} that is externalized to external storage
- * (i.e. spilled to disk).
+ * A {@code SpillTools} implementation for spark.
  */
-@Audience(Audience.Type.EXECUTOR)
-public interface ExternalIterable<T> extends Iterable<T>, Closeable {
+class SparkSpillTools extends GenericSpillTools {
 
+  SparkSpillTools(Serializer serializer, Settings settings) {
+    super(new SparkSerializerFactory(serializer), settings);
+  }
 
 }

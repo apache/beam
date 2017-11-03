@@ -95,7 +95,7 @@ public class SparkFlowTranslator {
     // basic operators
     Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
     Translation.set(translations, FlatMap.class, new FlatMapTranslator());
-    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator());
+    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(flowSettings));
     Translation.set(translations, Union.class, new UnionTranslator());
 
     // derived operators

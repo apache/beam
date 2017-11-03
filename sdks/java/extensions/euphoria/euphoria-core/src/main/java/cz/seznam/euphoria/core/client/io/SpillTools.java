@@ -15,13 +15,21 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.util.IOUtils;
+import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 
 /**
  * Tools that can be used to externalize a dataset to local storage.
  */
-public interface SpillTools {
+@Audience(Audience.Type.CLIENT)
+public interface SpillTools extends Serializable {
 
   /**
    * Simply externalize {@code Iterable}.
@@ -44,5 +52,34 @@ public interface SpillTools {
    */
   <T> Collection<ExternalIterable<T>> spillAndSortParts(
       Iterable<T> what, Comparator<T> comparator);
+
+  /**
+   * Use external sort to return given {@code Iterable} sorted according
+   * to given comparator.
+   *
+   * @param <T> type of data in the {@code Iterable}.
+   * @param what the {@code Iterable} to external sort
+   * @param comparator the comparator to use when sorting
+   * @return the sorted {@code Iterable}
+   */
+  default <T> ExternalIterable<T> sorted(Iterable<T> what, Comparator<T> comparator) {
+
+    Collection<ExternalIterable<T>> parts = spillAndSortParts(what, comparator);
+    Iterable<T> ret = Iterables.mergeSorted(parts, comparator);
+
+    return new ExternalIterable<T>() {
+
+      @Override
+      public Iterator<T> iterator() {
+        return ret.iterator();
+      }
+
+      @Override
+      public void close() throws IOException {
+        IOUtils.forEach(parts, Closeable::close);
+      }
+
+    };
+  }
 
 }
