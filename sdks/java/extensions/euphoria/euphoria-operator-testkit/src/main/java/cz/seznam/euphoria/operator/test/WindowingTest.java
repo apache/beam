@@ -30,7 +30,7 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.state.State;
-import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
+import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
@@ -201,8 +201,8 @@ public class WindowingTest extends AbstractOperatorTest {
 
     private final ValueStorage<Object> storage;
 
-    DistinctState(StorageProvider storageProvider, Collector<Object> context) {
-      this.storage = storageProvider.getValueStorage(
+    DistinctState(StateContext context, Collector<Object> collector) {
+      this.storage = context.getStorageProvider().getValueStorage(
               ValueStorageDescriptor.of("element", Object.class, null));
     }
 
