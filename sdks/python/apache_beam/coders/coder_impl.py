@@ -34,7 +34,7 @@ from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Timestamp
 
-from past.builtins import unicode
+from past.builtins import basestring, unicode, long
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
@@ -184,7 +184,7 @@ class DeterministicFastPrimitivesCoderImpl(CoderImpl):
     self._step_label = step_label
 
   def _check_safe(self, value):
-    if isinstance(value, (str, unicode, long, int, float)):
+    if isinstance(value, (str, basestring, bytes, long, int, float)):
       pass
     elif value is None:
       pass
@@ -272,10 +272,10 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
     elif t is float:
       stream.write_byte(FLOAT_TYPE)
       stream.write_bigendian_double(value)
-    elif t is str:
+    elif t is bytes:
       stream.write_byte(STR_TYPE)
       stream.write(value, nested)
-    elif t is unicode:
+    elif t is str or t is basestring or t is unicode:
       unicode_value = value  # for typing
       stream.write_byte(UNICODE_TYPE)
       stream.write(unicode_value.encode('utf-8'), nested)
@@ -315,7 +315,7 @@ class FastPrimitivesCoderImpl(StreamCoderImpl):
       vlen = stream.read_var_int64()
       vlist = [self.decode_from_stream(stream, True) for _ in range(vlen)]
       if t == LIST_TYPE:
-        return vlist
+        return list(vlist)
       elif t == TUPLE_TYPE:
         return tuple(vlist)
       return set(vlist)
