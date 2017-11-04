@@ -22,6 +22,15 @@ applyAvroNature()
 
 description = "Apache Beam :: SDKs :: Java :: Core"
 
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
+
 processResources {
   filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
     'pom.version': version,
@@ -56,7 +65,7 @@ dependencies {
   compile library.java.hamcrest_library
   compile library.java.junit
   runtime "org.tukaani:xz:1.5"
-  testCompile project(":beam-model-parent:beam-model-fn-execution")
+  testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
   testCompile library.java.guava_testlib
   testCompile library.java.jackson_dataformat_yaml
   testCompile library.java.slf4j_jdk14
