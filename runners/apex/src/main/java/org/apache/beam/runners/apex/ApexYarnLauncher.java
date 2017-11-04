@@ -177,21 +177,9 @@ public class ApexYarnLauncher {
         List<String> excludes = new ArrayList<>();
         int excludeLevel = Integer.MAX_VALUE;
         while ((line = br.readLine()) != null) {
-          for (int i = 0; i < line.length(); i++) {
-            char c = line.charAt(i);
-            if (Character.isLetter(c)) {
-              if (i > excludeLevel) {
-                excludes.add(line.substring(i));
-              } else {
-                if (line.substring(i).startsWith("org.apache.hadoop")) {
-                  excludeLevel = i;
-                  excludes.add(line.substring(i));
-                } else {
-                  excludeLevel = Integer.MAX_VALUE;
-                }
-              }
-              break;
-            }
+          int startIndex = line.indexOf("org.apache.hadoop");
+          if (startIndex != -1) {
+            excludes.add(line.substring(startIndex));
           }
         }
 

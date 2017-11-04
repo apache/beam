@@ -52,10 +52,20 @@ dependencies {
   testCompile library.java.jackson_dataformat_yaml
 }
 
-task testDependencyTree {
+// TODO: Update this so that the generated file is added to the explicitly added instead of
+// just outputting the file in the correct path.
+task buildDependencyTree(type: DependencyReportTask) {
+  configurations = [project.configurations.runtimeClasspath]
+  outputFile = new File(buildDir, "classes/java/main/org/apache/beam/runners/apex/dependency-tree")
+  // TODO: Migrate ApexYarnLauncher to use the Gradles dependency tree output instead of Mavens
+  // so we don't have to try to replace the format of the file on the fly
 
+  // TODO: Fix the regular expression replacement
+  doLast {
+    ant.replaceregexp(file: outputFile, match: "org.apache.hadoop[^:]*:[^:]*", replace: "\0:jar", flags: "g")
+  }
 }
-test.dependsOn
+compileJava.dependsOn buildDependencyTree
 
 task packageTests(type: Jar) {
   from sourceSets.test.output
