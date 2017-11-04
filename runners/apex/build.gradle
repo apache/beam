@@ -55,14 +55,21 @@ dependencies {
 // TODO: Update this so that the generated file is added to the explicitly added instead of
 // just outputting the file in the correct path.
 task buildDependencyTree(type: DependencyReportTask) {
-  configurations = [project.configurations.runtimeClasspath]
+  configurations = [project.configurations.testRuntimeClasspath]
   outputFile = new File(buildDir, "classes/java/main/org/apache/beam/runners/apex/dependency-tree")
   // TODO: Migrate ApexYarnLauncher to use the Gradles dependency tree output instead of Mavens
   // so we don't have to try to replace the format of the file on the fly
-
-  // TODO: Fix the regular expression replacement
   doLast {
-    ant.replaceregexp(file: outputFile, match: "org.apache.hadoop[^:]*:[^:]*", replace: "\0:jar", flags: "g")
+    // Filter out lines which don't have any dependencies by looking for lines with "--- "
+    ant.replaceregexp(file: outputFile, match: "^((?!--- ).)*\$", replace: "", byline: true)
+    // Remove empty lines
+    ant.replaceregexp(file: outputFile, match: "\\n\\n", replace: "", flags: "gm")
+    // Replace strings with ":a.b.c -> x.y.z" to just be ":x.y.z" getting the used version of the dependency.
+    ant.replaceregexp(file: outputFile, match: ":([^:]*) -> (.*)", replace: ":\\2", byline: true)
+    // Remove a trailing " (*)" off the end to so there is nothing after the version identifier.
+    ant.replaceregexp(file: outputFile, match: " \\(\\*\\)", replace: "", byline: true)
+    // Add ":jar" to the maven dependency string assuming that all resource types are jars.
+    ant.replaceregexp(file: outputFile, match: "[^:]*:[^:]*", replace: "\\0:jar", byline: true)
   }
 }
 compileJava.dependsOn buildDependencyTree
