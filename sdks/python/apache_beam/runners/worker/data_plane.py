@@ -24,7 +24,7 @@ from __future__ import print_function
 import abc
 import collections
 import logging
-import Queue as queue
+import queue
 import sys
 import threading
 
