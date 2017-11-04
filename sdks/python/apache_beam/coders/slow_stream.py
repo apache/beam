@@ -21,6 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import struct
+import sys
 from past.builtins import basestring
 
 class OutputStream(object):
@@ -127,7 +128,10 @@ class InputStream(object):
 
   def read_byte(self):
     self.pos += 1
-    return self.data[self.pos - 1]
+    if sys.version_info[0] == 3:
+      return self.data[self.pos - 1]
+    else:
+      return ord(self.data[self.pos - 1])
 
   def read_var_int64(self):
     shift = 0
