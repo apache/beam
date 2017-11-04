@@ -43,7 +43,7 @@ class OutputStream(object):
       self.data.append(b.encode("LATIN-1"))
 
   def write_byte(self, val):
-    self.data.append(chr(val).encode("LATIN-1"))
+    self.data.append(bytes(chr(val), "latin1"))
 
   def write_var_int64(self, v):
     if v < 0:
