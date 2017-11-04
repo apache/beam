@@ -29,6 +29,7 @@ import zlib
 from six import integer_types
 
 from apache_beam.utils.plugin import BeamPlugin
+from future.utils import with_metaclass
 
 logger = logging.getLogger(__name__)
 
@@ -423,14 +424,13 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(BeamPlugin):
+class FileSystem(with_metaclass(abc.ABCMeta, BeamPlugin)):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
   implement. Clients should use the FileSystems class to interact with
   the correct file system based on the provided file pattern scheme.
   """
-  __metaclass__ = abc.ABCMeta
   CHUNK_SIZE = 1  # Chuck size in the batch operations
 
   def __init__(self, pipeline_options):

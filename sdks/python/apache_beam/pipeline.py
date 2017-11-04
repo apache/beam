@@ -70,6 +70,7 @@ from apache_beam.transforms import ptransform
 from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import typehints
 from apache_beam.utils.annotations import deprecated
+from future.utils import with_metaclass
 
 __all__ = ['Pipeline', 'PTransformOverride']
 
@@ -859,7 +860,7 @@ class AppliedPTransform(object):
     return result
 
 
-class PTransformOverride(object):
+class PTransformOverride(with_metaclass(abc.ABCMeta, object)):
   """For internal use only; no backwards-compatibility guarantees.
 
   Gives a matcher and replacements for matching PTransforms.
@@ -867,7 +868,6 @@ class PTransformOverride(object):
   TODO: Update this to support cases where input and/our output types are
   different.
   """
-  __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
   def matches(self, applied_ptransform):

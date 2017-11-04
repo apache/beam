@@ -40,6 +40,7 @@ from apache_beam.transforms.window import WindowFn
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import TIME_GRANULARITY
+from future.utils import with_metaclass
 
 # AfterCount is experimental. No backwards compatibility guarantees.
 
@@ -66,14 +67,13 @@ class AccumulationMode(object):
   # RETRACTING = 3
 
 
-class _StateTag(object):
+class _StateTag(with_metaclass(ABCMeta, object)):
   """An identifier used to store and retrieve typed, combinable state.
 
   The given tag must be unique for this stage.  If CombineFn is None then
   all elements will be returned as a list, otherwise the given CombineFn
   will be applied (possibly incrementally and eagerly) when adding elements.
   """
-  __metaclass__ = ABCMeta
 
   def __init__(self, tag):
     self.tag = tag
@@ -134,12 +134,11 @@ class _WatermarkHoldStateTag(_StateTag):
 
 # pylint: disable=unused-argument
 # TODO(robertwb): Provisional API, Java likely to change as well.
-class TriggerFn(object):
+class TriggerFn(with_metaclass(ABCMeta, object)):
   """A TriggerFn determines when window (panes) are emitted.
 
   See https://beam.apache.org/documentation/programming-guide/#triggers
   """
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def on_element(self, element, window, context):
@@ -456,9 +455,7 @@ class Repeatedly(TriggerFn):
             subtrigger=self.underlying.to_runner_api(context)))
 
 
-class _ParallelTriggerFn(TriggerFn):
-
-  __metaclass__ = ABCMeta
+class _ParallelTriggerFn(with_metaclass(ABCMeta, TriggerFn)):
 
   def __init__(self, *triggers):
     self.triggers = triggers
@@ -678,13 +675,11 @@ class NestedContext(object):
 
 
 # pylint: disable=unused-argument
-class SimpleState(object):
+class SimpleState(with_metaclass(ABCMeta, object)):
   """Basic state storage interface used for triggering.
 
   Only timers must hold the watermark (by their timestamp).
   """
-
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def set_timer(self, window, name, time_domain, timestamp):
@@ -850,10 +845,8 @@ def create_trigger_driver(windowing, is_batch=False, phased_combine_fn=None):
   return driver
 
 
-class TriggerDriver(object):
+class TriggerDriver(with_metaclass(ABCMeta, object)):
   """Breaks a series of bundle and timer firings into window (pane)s."""
-
-  __metaclass__ = ABCMeta
 
   @abstractmethod
   def process_elements(self, state, windowed_values, output_watermark):

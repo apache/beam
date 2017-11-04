@@ -67,6 +67,7 @@ from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.utils.windowed_value import WindowedValue
+from future.utils import with_metaclass
 
 __all__ = [
     'TimestampCombiner',
@@ -108,10 +109,8 @@ class TimestampCombiner(object):
       raise ValueError('Invalid TimestampCombiner: %s.' % timestamp_combiner)
 
 
-class WindowFn(urns.RunnerApiFn):
+class WindowFn(with_metaclass(abc.ABCMeta, urns.RunnerApiFn)):
   """An abstract windowing function defining a basic assign and merge."""
-
-  __metaclass__ = abc.ABCMeta
 
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
