@@ -110,6 +110,12 @@ def generate_proto_files(force=False):
         raise RuntimeError(
             'Protoc returned non-zero status (see logs for details): '
             '%s' % ret_code)
+      ret_code = subprocess.call(
+          ["futurize", "-0", "-wv", "--no-diff", out_dir])
+
+      if ret_code:
+        raise RuntimeError(
+            'Error applying futurize to pb2 files.')
 
 
 # Though wheels are available for grpcio-tools, setup_requires uses
