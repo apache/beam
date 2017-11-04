@@ -55,6 +55,8 @@ from apache_beam.typehints.trivial_inference import element_type
 from apache_beam.typehints.typehints import is_consistent_with
 from apache_beam.utils import urns
 
+from past.builtins import basestring
+
 __all__ = [
     'DoFn',
     'CombineFn',

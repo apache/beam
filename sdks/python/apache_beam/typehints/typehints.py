@@ -67,6 +67,7 @@ import collections
 import copy
 import sys
 import types
+from future.utils import with_metaclass
 
 __all__ = [
     'Any',
@@ -990,7 +991,7 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(TypeConstraint):
+class WindowedTypeConstraint(with_metaclass(GetitemConstructor, TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -998,7 +999,6 @@ class WindowedTypeConstraint(TypeConstraint):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
-  __metaclass__ = GetitemConstructor
 
   def __init__(self, inner_type):
     self.inner_type = inner_type

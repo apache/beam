@@ -344,6 +344,8 @@ class BytesCoderImpl(CoderImpl):
     return in_stream.read_all(nested)
 
   def encode(self, value):
+    if (not isinstance(value, bytes)) and isinstance(value, str):
+      return value.encode("LATIN-1")
     assert isinstance(value, bytes), (value, type(value))
     return value
 

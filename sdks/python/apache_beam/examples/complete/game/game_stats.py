@@ -229,8 +229,8 @@ class CalculateSpammyUsers(beam.PTransform):
         sum_scores
         # Use the derived mean total score (global_mean_score) as a side input.
         | 'ProcessAndFilter' >> beam.Filter(
-            lambda (_, score), global_mean:\
-                score > global_mean * self.SCORE_WEIGHT,
+            lambda x_score, global_mean:\
+                x_score[1] > global_mean * self.SCORE_WEIGHT,
             global_mean_score))
     return filtered
 # [END abuse_detect]

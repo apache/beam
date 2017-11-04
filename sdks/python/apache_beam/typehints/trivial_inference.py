@@ -41,6 +41,11 @@ class TypeInferenceError(ValueError):
   pass
 
 
+try:
+  from types import InstanceType
+except ImportError:
+  InstanceType = object
+
 def instance_to_type(o):
   """Given a Python object o, return the corresponding type hint.
   """
