@@ -206,12 +206,11 @@ class EvaluationContext(object):
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)
 
-      # If the result is for a view, update side inputs container.
       if (result.uncommitted_output_bundles
-          and result.uncommitted_output_bundles[0].pcollection
+          and next(iter(result.uncommitted_output_bundles)).pcollection
           in self._pcollection_to_views):
         for view in self._pcollection_to_views[
-            result.uncommitted_output_bundles[0].pcollection]:
+            next(iter(result.uncommitted_output_bundles)).pcollection]:
           for committed_bundle in committed_bundles:
             # side_input must be materialized.
             self._side_inputs_container.add_values(
@@ -231,7 +230,7 @@ class EvaluationContext(object):
 
       # Commit partial GBK states
       existing_keyed_state = self._transform_keyed_states[result.transform]
-      for k, v in result.partial_keyed_state.iteritems():
+      for k, v in result.partial_keyed_state.items():
         existing_keyed_state[k] = v
       return committed_bundles
 

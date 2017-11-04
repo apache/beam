@@ -104,7 +104,7 @@ def insert_values_in_args(args, kwargs, values):
       for arg in args]
   new_kwargs = dict(
       (k, next(v_iter)) if isinstance(v, ArgumentPlaceholder) else (k, v)
-      for k, v in sorted(kwargs.iteritems()))
+      for k, v in sorted(kwargs.items()))
   return (new_args, new_kwargs)
 
 
