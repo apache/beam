@@ -141,7 +141,7 @@ class CodersTest(unittest.TestCase):
     self.check_coder(coders.TupleCoder((coder,)), ('a',), (1,))
 
   def test_bytes_coder(self):
-    self.check_coder(coders.BytesCoder(), 'a', '\0', 'z' * 1000)
+    self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
 
   def test_varint_coder(self):
     # Small ints.
@@ -208,14 +208,14 @@ class CodersTest(unittest.TestCase):
         kv_coder.as_cloud_object())
     # Test binary representation
     self.assertEqual(
-        '\x04abc',
+        b'\x04abc',
         kv_coder.encode((4, 'abc')))
     # Test unnested
     self.check_coder(
         kv_coder,
-        (1, 'a'),
-        (-2, 'a' * 100),
-        (300, 'abc\0' * 5))
+        (1, b'a'),
+        (-2, b'a' * 100),
+        (300, b'abc\0' * 5))
     # Test nested
     self.check_coder(
         coders.TupleCoder(
@@ -292,7 +292,7 @@ class CodersTest(unittest.TestCase):
         },
         coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
+    self.assertEqual(b'\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
                      coder.encode(window.GlobalWindows.windowed_value(1)))
 
     # Test decoding large timestamp
@@ -361,16 +361,16 @@ class CodersTest(unittest.TestCase):
         },
         coder.as_cloud_object())
     # Test binary representation
-    self.assertEqual('\x00', coder.encode(''))
-    self.assertEqual('\x01a', coder.encode('a'))
-    self.assertEqual('\x02bc', coder.encode('bc'))
-    self.assertEqual('\xff\x7f' + 'z' * 16383, coder.encode('z' * 16383))
+    self.assertEqual(b'\x00', coder.encode(''))
+    self.assertEqual(b'\x01a', coder.encode('a'))
+    self.assertEqual(b'\x02bc', coder.encode('bc'))
+    self.assertEqual(b'\xff\x7f' + b'z' * 16383, coder.encode('z' * 16383))
     # Test unnested
-    self.check_coder(coder, '', 'a', 'bc', 'def')
+    self.check_coder(coder, b'', b'a', b'bc', b'def')
     # Test nested
     self.check_coder(coders.TupleCoder((coder, coder)),
-                     ('', 'a'),
-                     ('bc', 'def'))
+                     (b'', b'a'),
+                     (b'bc', b'def'))
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):
