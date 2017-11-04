@@ -22,6 +22,11 @@ applyDockerNature()
 
 description = "Apache Beam :: SDKs :: Python :: Container"
 
+// Figure out why the golang plugin does not add a build dependency between projects.
+// Without the line below, we get spurious errors about not being able to resolve
+// "./github.com/apache/beam/sdks/go"
+resolveBuildDependencies.dependsOn ":beam-sdks-parent:beam-sdks-go:build"
+
 dependencies {
     golang {
         // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
