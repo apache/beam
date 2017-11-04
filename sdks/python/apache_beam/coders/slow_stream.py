@@ -21,7 +21,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import struct
-
+from past.builtins import basestring
 
 class OutputStream(object):
   """For internal use only; no backwards-compatibility guarantees.
@@ -32,13 +32,17 @@ class OutputStream(object):
     self.data = []
 
   def write(self, b, nested=False):
-    assert isinstance(b, str)
+    assert (isinstance(b, basestring) or isinstance(b, bytes),
+            "%r is not a basestring or bytes it is a %r" % (b, type(b)))
     if nested:
       self.write_var_int64(len(b))
-    self.data.append(b)
+    if isinstance(b, bytes):
+      self.data.append(b)
+    else:
+      self.data.append(b.encode("LATIN-1"))
 
   def write_byte(self, val):
-    self.data.append(chr(val))
+    self.data.append(chr(val).encode("LATIN-1"))
 
   def write_var_int64(self, v):
     if v < 0:
@@ -67,7 +71,7 @@ class OutputStream(object):
     self.write(struct.pack('>d', v))
 
   def get(self):
-    return ''.join(self.data)
+    return b''.join(self.data)
 
   def size(self):
     return len(self.data)
@@ -123,7 +127,7 @@ class InputStream(object):
 
   def read_byte(self):
     self.pos += 1
-    return ord(self.data[self.pos - 1])
+    return self.data[self.pos - 1]
 
   def read_var_int64(self):
     shift = 0
