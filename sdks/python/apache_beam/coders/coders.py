@@ -76,7 +76,7 @@ def serialize_coder(coder):
 
 def deserialize_coder(serialized):
   from apache_beam.internal import pickler
-  return pickler.loads(bytes(serialized.split('$', 1)[1], "latin-1"))
+  return pickler.loads(serialized.split('$', 1)[1])
 # pylint: enable=wrong-import-order, wrong-import-position
 
 
