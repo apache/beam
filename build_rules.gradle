@@ -45,7 +45,11 @@ repositories {
 task allDeps(type: DependencyReportTask) {
 }
 
-apply plugin: 'project-report'
+apply plugin: "project-report"
+
+// Apply a task dependency visualization plugin which creates a ".dot" file in the build directory
+// giving the task dependencies for that project
+apply plugin: "cz.malohlava.visteg"
 
 /*************************************************************************************************/
 
