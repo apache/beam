@@ -21,8 +21,13 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import division
 
-import __builtin__
+from builtins import zip
+from builtins import str
+from past.utils import old_div
+from builtins import object
+import builtins
 import collections
 import dis
 import pprint
@@ -344,7 +349,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     opname = dis.opname[op]
     jmp = jmp_state = None
     if opname.startswith('CALL_FUNCTION'):
-      standard_args = (arg & 0xF) + (arg & 0xF0) / 8
+      standard_args = (arg & 0xF) + old_div((arg & 0xF0), 8)
       var_args = 'VAR' in opname
       kw_args = 'KW' in opname
       pop_count = standard_args + var_args + kw_args + 1

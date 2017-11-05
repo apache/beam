@@ -72,6 +72,17 @@ class TrivialInferenceTest(unittest.TestCase):
       return None
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
+  def testSimpleList(self):
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: list([1, 2]),
+        [typehints.Tuple[int, ...]])
+
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: list(xs),
+        [typehints.Tuple[int, ...]])
+
   def testListComprehension(self):
     self.assertReturnType(
         typehints.List[int],
