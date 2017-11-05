@@ -18,18 +18,19 @@
 package main
 
 import (
-"context"
-"flag"
-"fmt"
-"log"
-"os"
-"path/filepath"
-"strings"
+	"context"
+	"flag"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
-"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-"github.com/apache/beam/sdks/go/pkg/beam/provision"
-"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
-"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/provision"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
+	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -94,8 +95,8 @@ func main() {
 	// (3) Invoke python
 
 	os.Setenv("PIPELINE_OPTIONS", options)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", fmt.Sprintf("url: \"%v\"\n", *loggingEndpoint))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", fmt.Sprintf("url: \"%v\"\n", *controlEndpoint))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
 
 	args := []string{
 		"-m",
