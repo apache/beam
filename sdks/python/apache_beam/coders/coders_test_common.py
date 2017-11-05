@@ -23,6 +23,7 @@ import math
 import unittest
 
 import dill
+import sys
 
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
 from apache_beam.coders import coders
@@ -83,6 +84,12 @@ class CodersTest(unittest.TestCase):
         cls.seen_nested.add(type(c))
         cls._observe_nested(c)
 
+  def assertItemsEqual(self, a, b):
+     if sys.version_info[0] >= 3:
+       self.assertCountEqual(a, b)
+     else:
+       super(CodersTest, self).assertItemsEqual(a, b)
+
   def check_coder(self, coder, *values):
     self._observe(coder)
     for v in values:
@@ -105,7 +112,7 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(CustomCoder(), 1, -10, 5)
     self.check_coder(coders.TupleCoder((CustomCoder(), coders.BytesCoder())),
-                     (1, 'a'), (-10, 'b'), (5, 'c'))
+                     (1, b'a'), (-10, b'b'), (5, b'c'))
 
   def test_pickle_coder(self):
     self.check_coder(coders.PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
@@ -192,7 +199,7 @@ class CodersTest(unittest.TestCase):
                      timestamp.Timestamp(micros=1234567890123456789))
     self.check_coder(
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
-        (timestamp.Timestamp.of(27), 'abc'))
+        (timestamp.Timestamp.of(27), b'abc'))
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
@@ -334,7 +341,7 @@ class CodersTest(unittest.TestCase):
     proto_coder = coders.ProtoCoder(ma.__class__)
     self.check_coder(proto_coder, ma)
     self.check_coder(coders.TupleCoder((proto_coder, coders.BytesCoder())),
-                     (ma, 'a'), (mb, 'b'))
+                     (ma, b'a'), (mb, b'b'))
 
   def test_global_window_coder(self):
     coder = coders.GlobalWindowCoder()

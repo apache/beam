@@ -116,7 +116,10 @@ class InputStream(object):
   A pure Python implementation of stream.InputStream."""
 
   def __init__(self, data):
-    self.data = data
+    if sys.version_info[0] == 3 and isinstance(data, str):
+      self.data = bytes(data, "latin-1")
+    else:
+      self.data = data
     self.pos = 0
 
   def size(self):
@@ -140,7 +143,7 @@ class InputStream(object):
     shift = 0
     result = 0
     while True:
-      byte = self.read_byte()
+      byte = int(self.read_byte())
       if byte < 0:
         raise RuntimeError('VarLong not terminated.')
 
