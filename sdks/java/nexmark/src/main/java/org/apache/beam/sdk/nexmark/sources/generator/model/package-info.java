@@ -17,6 +17,6 @@
  */
 
 /**
- * Utility classes for Generator.
+ * Model Generators.
  */
-package org.apache.beam.sdk.nexmark.sources.utils;
+package org.apache.beam.sdk.nexmark.sources.generator.model;
