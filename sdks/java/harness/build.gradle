@@ -19,6 +19,8 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature(javaVersion: 1.8)
 
+apply plugin: "com.github.johnrengelman.shadow"
+
 description = "Apache Beam :: SDKs :: Java :: Harness"
 
 /*
@@ -55,6 +57,13 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.slf4j_jdk14
+}
+
+// Create an uber jar without repackaging for the SDK harness
+// Note, this jar should never be published because it bundles
+// dependencies without repackaging.
+shadowJar {
+  mergeServiceFiles()
 }
 
 task packageTests(type: Jar) {
