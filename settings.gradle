@@ -24,6 +24,7 @@ include ':beam-model-parent:beam-model-fn-execution'
 include ':beam-model-parent'
 include ':beam-sdks-parent:beam-sdks-go'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core'
+include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-amqp'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-cassandra'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common'
@@ -70,6 +71,7 @@ include ':beam-sdks-parent:beam-sdks-java-parent'
 include ':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container'
 include ':beam-sdks-parent:beam-sdks-python'
 include ':beam-sdks-parent'
+include ':beam-runners-parent:beam-java-fn-execution'
 include ':beam-runners-parent:beam-runners-core-construction-java'
 include ':beam-runners-parent:beam-runners-core-java'
 include ':beam-runners-parent:beam-local-artifact-service-java'
@@ -97,6 +99,7 @@ project(':beam-model-parent:beam-model-fn-execution').projectDir = "$rootDir/mod
 project(':beam-model-parent').projectDir = "$rootDir/model" as File
 project(':beam-sdks-parent:beam-sdks-go').projectDir = "$rootDir/sdks/go" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core').projectDir = "$rootDir/sdks/java/core" as File
+project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution').projectDir = "$rootDir/sdks/java/fn-execution" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-amqp').projectDir = "$rootDir/sdks/java/io/amqp" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-cassandra').projectDir = "$rootDir/sdks/java/io/cassandra" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common').projectDir = "$rootDir/sdks/java/io/common" as File
@@ -143,6 +146,7 @@ project(':beam-sdks-parent:beam-sdks-java-parent').projectDir = "$rootDir/sdks/j
 project(':beam-sdks-parent:beam-sdks-python:beam-sdks-python-container').projectDir = "$rootDir/sdks/python/container" as File
 project(':beam-sdks-parent:beam-sdks-python').projectDir = "$rootDir/sdks/python" as File
 project(':beam-sdks-parent').projectDir = "$rootDir/sdks" as File
+project(':beam-runners-parent:beam-java-fn-execution').projectDir = "$rootDir/runners/java-fn-execution" as File
 project(':beam-runners-parent:beam-runners-core-construction-java').projectDir = "$rootDir/runners/core-construction-java" as File
 project(':beam-runners-parent:beam-runners-core-java').projectDir = "$rootDir/runners/core-java" as File
 project(':beam-runners-parent:beam-local-artifact-service-java').projectDir = "$rootDir/runners/local-artifact-service-java" as File

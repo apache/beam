@@ -17,34 +17,20 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(javaVersion: 1.8)
 
-description = "Apache Beam :: SDKs :: Java :: IO :: Kinesis"
-
-test {
-  // Forking every test resolves an issue where KinesisMockReadTest gets stuck forever.
-  forkEvery 1
-}
-
-def aws_version = "1.11.18"
+description = "Apache Beam :: SDKs :: Java :: Harness Core"
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
-  compile library.java.slf4j_api
-  compile library.java.joda_time
+  compile project(":beam-model-parent:beam-model-pipeline")
+  compile library.java.grpc_core
+  compile library.java.grpc_stub
+  compile library.java.grpc_netty
+  compile library.java.netty_transport_native_epoll
   compile library.java.guava
-  compile library.java.findbugs_jsr305
-  compile "com.amazonaws:aws-java-sdk-core:$aws_version"
-  compile "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
-  compile "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
-  compile "com.amazonaws:amazon-kinesis-client:1.6.1"
-  compile "commons-lang:commons-lang:2.6"
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
-  testCompile "org.assertj:assertj-core:2.5.0"
+  testCompile library.java.hamcrest_library
 }
 
 task packageTests(type: Jar) {

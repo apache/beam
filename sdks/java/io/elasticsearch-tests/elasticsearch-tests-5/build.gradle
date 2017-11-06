@@ -38,27 +38,37 @@ test {
 
 def jna_version = "4.1.0"
 def log4j_version = "2.6.2"
+def elastic_search_version = "5.6.3"
+
+configurations.all {
+  resolutionStrategy {
+    // Make sure the log4j versions for api and core match instead of taking the default
+    // Gradle rule of using the latest.
+    force "org.apache.logging.log4j:log4j-api:$log4j_version"
+    force "org.apache.logging.log4j:log4j-core:$log4j_version"
+  }
+}
 
 dependencies {
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch-tests-parent:beam-sdks-java-io-elasticsearch-tests-common").sourceSets.test.output
-  testCompile group: "org.elasticsearch.test", name: "framework", version:"5.4.0"
-  testCompile group: "org.elasticsearch.plugin", name: "transport-netty4-client", version:"5.4.0"
-  testCompile group: "com.carrotsearch.randomizedtesting", name: "randomizedtesting-runner", version:"2.5.0"
-  testCompile group: "org.elasticsearch", name: "elasticsearch", version:"5.4.0"
+  testCompile "org.elasticsearch.test:framework:$elastic_search_version"
+  testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
+  testCompile "com.carrotsearch.randomizedtesting:randomizedtesting-runner:2.5.0"
+  testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
 
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-elasticsearch")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
+  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
   testCompile library.java.slf4j_api
   testCompile "net.java.dev.jna:jna:$jna_version"
-  testCompile "org.apache.logging.log4j:log4j-api:$log4j_version"
-  testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.hamcrest_core
   testCompile library.java.slf4j_jdk14
   testCompile library.java.commons_io_1x
   testCompile library.java.junit
-  testCompile "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
+  testCompile "org.elasticsearch.client:elasticsearch-rest-client:$elastic_search_version"
 }
 
 task packageTests(type: Jar) {
