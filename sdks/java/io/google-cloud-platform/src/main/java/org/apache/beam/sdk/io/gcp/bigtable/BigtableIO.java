@@ -639,7 +639,7 @@ public class BigtableIO {
 
       @Teardown
       public void tearDown() throws Exception {
-        if (bigtableWriter == null) {
+        if (bigtableWriter != null) {
           bigtableWriter.close();
           bigtableWriter = null;
         }
