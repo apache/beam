@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.generator;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -50,7 +50,7 @@ public class GeneratorConfig implements Serializable {
   /**
    * Environment options.
    */
-  public final NexmarkConfiguration configuration;
+  private final NexmarkConfiguration configuration;
 
   /**
    * Delay between events, in microseconds. If the array has more than one entry then

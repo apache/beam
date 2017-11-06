@@ -16,22 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.utils;
+package org.apache.beam.sdk.nexmark.sources.generator.model;
 
 import java.util.Random;
 
 /**
- * LongGenerator.
+ * Generates a random price.
  */
-public class LongGenerator {
+public class PriceGenerator {
 
-  /** Return a random long from {@code [0, n)}. */
-  public static long nextLong(Random random, long n) {
-    if (n < Integer.MAX_VALUE) {
-      return random.nextInt((int) n);
-    } else {
-      // WARNING: Very skewed distribution! Bad!
-      return Math.abs(random.nextLong() % n);
-    }
+  /** Return a random price. */
+  public static long nextPrice(Random random) {
+    return Math.round(Math.pow(10.0, random.nextDouble() * 6.0) * 100.0);
   }
 }
