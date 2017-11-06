@@ -892,9 +892,9 @@ public class SpannerIO {
 
     private transient SpannerAccessor spannerAccessor;
     // Current batch of mutations to be written.
-    private transient List<Mutation> mutations;
+    private List<Mutation> mutations;
     // total size of the current batch.
-    private transient long batchSizeBytes;
+    private long batchSizeBytes;
 
     private BatchFn(long maxBatchSizeBytes, SpannerConfig spannerConfig,
         PCollectionView<SpannerSchema> schemaView) {
