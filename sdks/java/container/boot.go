@@ -20,7 +20,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -28,11 +27,13 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/syscallx"
+	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -92,8 +93,8 @@ func main() {
 	// (3) Invoke the Java harness, preserving artifact ordering in classpath.
 
 	os.Setenv("PIPELINE_OPTIONS", options)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", fmt.Sprintf("url: \"%v\"\n", *loggingEndpoint))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", fmt.Sprintf("url: \"%v\"\n", *controlEndpoint))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
 
 	const jarsDir = "/opt/apache/beam/jars"
 	cp := []string{
@@ -107,6 +108,7 @@ func main() {
 
 	args := []string{
 		"-Xmx" + strconv.FormatUint(heapSizeLimit(info), 10),
+		"-XX:-OmitStackTraceInFastThrow",
 		"-cp", strings.Join(cp, ":"),
 		"org.apache.beam.fn.harness.FnHarness",
 	}
@@ -121,7 +123,7 @@ func main() {
 // that value, it returns 1GB. This is an imperfect heuristic. It aims to
 // ensure there is memory for non-heap use and other overhead, while also not
 // underutilizing the machine.
-func heapSizeLimit(info *pb.ProvisionInfo) uint64 {
+func heapSizeLimit(info *fnpb.ProvisionInfo) uint64 {
 	if provided := info.GetResourceLimits().GetMemory().GetSize(); provided > 0 {
 		return (provided * 80) / 100
 	}
