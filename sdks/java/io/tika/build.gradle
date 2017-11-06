@@ -30,16 +30,18 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
  */
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
 
+def tika_version = "1.16"
+
 dependencies {
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
   compile library.java.guava
   compile library.java.findbugs_jsr305
-  compile "org.apache.tika:tika-core:1.16"
+  compile "org.apache.tika:tika-core:$tika_version"
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
-  testCompile "org.apache.tika:tika-parsers:1.16"
+  testCompile "org.apache.tika:tika-parsers:$tika_version"
 }
 
 task packageTests(type: Jar) {
