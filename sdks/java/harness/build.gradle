@@ -21,10 +21,20 @@ applyJavaNature(javaVersion: 1.8)
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
 
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
+
 dependencies {
   compile project(":beam-model-parent:beam-model-pipeline")
   compile project(":beam-model-parent:beam-model-fn-execution")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
   compile project(":beam-runners-parent:beam-runners-core-java")
   compile project(":beam-runners-parent:beam-runners-core-construction-java")
@@ -38,8 +48,9 @@ dependencies {
   compile library.java.netty_transport_native_epoll
   compile library.java.joda_time
   compile library.java.slf4j_api
-  compileOnly library.java.error_prone_annotations
+  provided library.java.error_prone_annotations
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.mockito_core
