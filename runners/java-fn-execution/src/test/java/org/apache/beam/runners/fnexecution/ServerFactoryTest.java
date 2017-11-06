@@ -39,6 +39,7 @@ import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.beam.harness.channel.ManagedChannelFactory;
+import org.apache.beam.harness.test.Consumer;
 import org.apache.beam.harness.test.TestStreams;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
@@ -74,24 +75,48 @@ public class ServerFactoryTest {
     Endpoints.ApiServiceDescriptor.Builder apiServiceDescriptorBuilder =
         Endpoints.ApiServiceDescriptor.newBuilder();
 
-    Collection<Elements> serverElements = new ArrayList<>();
-    CountDownLatch clientHangedUp = new CountDownLatch(1);
+    final Collection<Elements> serverElements = new ArrayList<>();
+    final CountDownLatch clientHangedUp = new CountDownLatch(1);
     CallStreamObserver<Elements> serverInboundObserver =
-        TestStreams.withOnNext(serverElements::add)
-        .withOnCompleted(clientHangedUp::countDown)
-        .build();
+        TestStreams.withOnNext(
+                new Consumer<Elements>() {
+                  @Override
+                  public void accept(Elements item) {
+                    serverElements.add(item);
+                  }
+                })
+            .withOnCompleted(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    clientHangedUp.countDown();
+                  }
+                })
+            .build();
     TestDataService service = new TestDataService(serverInboundObserver);
     Server server = serverFactory.allocatePortAndCreate(service, apiServiceDescriptorBuilder);
     assertFalse(server.isShutdown());
 
     ManagedChannel channel = channelFactory.forDescriptor(apiServiceDescriptorBuilder.build());
     BeamFnDataGrpc.BeamFnDataStub stub = BeamFnDataGrpc.newStub(channel);
-    Collection<BeamFnApi.Elements> clientElements = new ArrayList<>();
-    CountDownLatch serverHangedUp = new CountDownLatch(1);
+    final Collection<BeamFnApi.Elements> clientElements = new ArrayList<>();
+    final CountDownLatch serverHangedUp = new CountDownLatch(1);
     CallStreamObserver<BeamFnApi.Elements> clientInboundObserver =
-        TestStreams.withOnNext(clientElements::add)
-        .withOnCompleted(serverHangedUp::countDown)
-        .build();
+        TestStreams.withOnNext(
+                new Consumer<Elements>() {
+                  @Override
+                  public void accept(Elements item) {
+                    clientElements.add(item);
+                  }
+                })
+            .withOnCompleted(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    serverHangedUp.countDown();
+                  }
+                })
+            .build();
 
     StreamObserver<Elements> clientOutboundObserver = stub.data(clientInboundObserver);
     StreamObserver<BeamFnApi.Elements> serverOutboundObserver = service.outboundObservers.take();

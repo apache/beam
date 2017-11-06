@@ -27,26 +27,12 @@
   </parent>
 
   <artifactId>beam-sdks-java-fn-execution</artifactId>
-  <name>Apache Beam :: SDKs :: Java :: Harness Core</name>
-  <description>Contains code shared across the Beam Java SDK Harness and the Java Runner Harness
-    libraries.
+  <name>Apache Beam :: SDKs :: Java :: Fn Execution</name>
+  <description>Contains code shared across the Beam Java SDK Harness Java Runners to execute using
+    the Beam Portability Framework
   </description>
 
   <packaging>jar</packaging>
-
-  <build>
-    <plugins>
-      <plugin>
-        <!--  Override Beam parent to allow Java8 -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 
   <dependencies>
     <dependency>
