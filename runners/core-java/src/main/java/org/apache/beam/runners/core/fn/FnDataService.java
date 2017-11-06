@@ -27,7 +27,11 @@ import org.apache.beam.sdk.util.WindowedValue;
  * The {@link FnDataService} is able to forward inbound elements to a consumer and is also a
  * consumer of outbound elements. Callers can register themselves as consumers for inbound elements
  * or can get a handle for a consumer for outbound elements.
+ *
+ * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
+ *     functionality.
  */
+@Deprecated
 public interface FnDataService {
 
   /**
