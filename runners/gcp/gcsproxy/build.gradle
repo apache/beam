@@ -22,7 +22,7 @@ applyGoNature()
 description = "Apache Beam :: Runners :: Google Cloud Platform :: GCS artifact proxy"
 
 golang {
-    packagePath = 'github.com/apache/beam/cmd/gcsproxy'
+    packagePath = 'github.com/apache/beam/runners/gcp/gcsproxy'
     build {
         go 'build -o ./build/bin/gcsproxy github.com/apache/beam/cmd/gcsproxy'
 
