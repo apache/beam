@@ -639,8 +639,10 @@ public class BigtableIO {
 
       @Teardown
       public void tearDown() throws Exception {
-        bigtableWriter.close();
-        bigtableWriter = null;
+        if (bigtableWriter == null) {
+          bigtableWriter.close();
+          bigtableWriter = null;
+        }
       }
 
       @Override
