@@ -143,6 +143,24 @@ public class BeamSqlDateFunctionsIntegrationTest
     checker.buildRunAndCheck();
   }
 
+  @Test public void testTimestampMinusInterval() throws Exception {
+    ExpressionChecker checker = new ExpressionChecker()
+        .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '2' SECOND",
+            parseDate("1984-04-19 01:01:56"))
+        .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '1' MINUTE",
+            parseDate("1984-04-19 01:00:58"))
+        .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '4' HOUR",
+            parseDate("1984-04-18 21:01:58"))
+        .addExpr("TIMESTAMP '1984-04-19 01:01:58' - INTERVAL '5' DAY",
+            parseDate("1984-04-14 01:01:58"))
+        .addExpr("TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '2' MONTH",
+            parseDate("1983-11-19 01:01:58"))
+        .addExpr("TIMESTAMP '1984-01-19 01:01:58' - INTERVAL '1' YEAR",
+            parseDate("1983-01-19 01:01:58"))
+        ;
+    checker.buildRunAndCheck();
+  }
+
   @Test public void testDateTimeFunctions_currentTime() throws Exception {
     String sql = "SELECT "
         + "LOCALTIME as l,"
