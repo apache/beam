@@ -40,11 +40,11 @@ repositories {
   maven { url "https://repository.apache.org/content/repositories/releases" }
 }
 
-// Add a task "allDeps" which lists all dependencies of the project
-// and all subprojects.
-task allDeps(type: DependencyReportTask) {
-}
+// Provide code coverage
+apply plugin: "jacoco"
 
+// Provies "htmlDependencyReport" task which spits out a nice page per subproject
+// showing all the dependencies per Gradle configuration.
 apply plugin: "project-report"
 
 // Apply a task dependency visualization plugin which creates a ".dot" file in the build directory
