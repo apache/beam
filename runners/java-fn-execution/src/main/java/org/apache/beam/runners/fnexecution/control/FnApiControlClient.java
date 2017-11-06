@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.fn;
+package org.apache.beam.runners.fnexecution.control;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
@@ -39,11 +39,7 @@ import org.slf4j.LoggerFactory;
  * connections).
  *
  * <p>This low-level client is responsible only for correlating requests with responses.
- *
- * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
- *     functionality.
  */
-@Deprecated
 class FnApiControlClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);
 
