@@ -49,3 +49,5 @@ docker {
     name System.properties['user.name'] + '-docker-apache.bintray.io/beam/python:latest'
     files "./build/"
 }
+// Ensure that making the docker image builds any required artifacts
+dockerPrepare.dependsOn build
