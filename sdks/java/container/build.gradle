@@ -44,9 +44,11 @@ dependencies {
 
 task copyDockerfileDependencies(type: Copy) {
   from configurations.dockerDependency
+  rename "slf4j-api.*", "slf4j-api.jar"
+  rename "slf4j-jdk14.*", "slf4j-jdk14.jar"
+  rename "beam-sdks-java-harness.*", "beam-sdks-java-harness.jar"
   into "build/target"
 }
-docker.dependsOn copyDockerfileDependencies
 
 golang {
   packagePath = 'github.com/apache/beam/sdks/python/boot'
@@ -59,6 +61,9 @@ golang {
 
 docker {
   // TODO(herohde): make the name easier to generate for releases.
-  name System.properties['user.name'] + '-docker-apache.bintray.io/beam/python:latest'
+  name System.properties['user.name'] + '-docker-apache.bintray.io/beam/java:latest'
   files "./build/"
 }
+// Ensure that we build the required resources and copy and file dependencies from related projects
+dockerPrepare.dependsOn build
+dockerPrepare.dependsOn copyDockerfileDependencies
