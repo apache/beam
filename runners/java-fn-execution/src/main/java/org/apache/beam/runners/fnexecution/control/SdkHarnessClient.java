@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.fn;
+package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Function;
@@ -25,17 +25,14 @@ import java.io.IOException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.runners.fnexecution.data.FnDataReceiver;
 
 /**
  * A high-level client for an SDK harness.
  *
  * <p>This provides a Java-friendly wrapper around {@link FnApiControlClient} and {@link
  * FnDataReceiver}, which handle lower-level gRPC message wrangling.
- *
- * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
- *     functionality.
  */
-@Deprecated
 public class SdkHarnessClient {
 
   /**
