@@ -29,7 +29,13 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
 
-/** Processes a bundle by sending it to an SDK harness over the Fn API. */
+/**
+ * Processes a bundle by sending it to an SDK harness over the Fn API.
+ *
+ * @deprecated Runners should interact with the Control and Data plane directly, rather than through
+ *     a {@link DoFnRunner}. Consider the beam-runners-java-fn-execution artifact instead.
+ */
+@Deprecated
 public class SdkHarnessDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   private final SdkHarnessClient sdkHarnessClient;
