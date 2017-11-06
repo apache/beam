@@ -128,6 +128,12 @@ members:
     organization: Talend
     roles: committer, PMC
     time_zone: "+1"
+  - name: Melissa Pashniak
+    apache_id: melap
+    email: melap [at] apache [dot] org
+    organization: Google
+    roles: committer
+    time_zone: "-8"
   - name: Frances Perry
     apache_id: frances
     email: frances [at] apache [dot] org
