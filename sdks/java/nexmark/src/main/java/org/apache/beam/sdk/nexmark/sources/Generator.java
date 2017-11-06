@@ -18,14 +18,9 @@
 package org.apache.beam.sdk.nexmark.sources;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.nexmark.sources.utils.AuctionGenerator.lastBase0AuctionId;
 import static org.apache.beam.sdk.nexmark.sources.utils.AuctionGenerator.nextAuction;
-import static org.apache.beam.sdk.nexmark.sources.utils.AuctionGenerator.nextBase0AuctionId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.lastBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.nextBase0PersonId;
+import static org.apache.beam.sdk.nexmark.sources.utils.BidGenerator.nextBid;
 import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.nextPerson;
-import static org.apache.beam.sdk.nexmark.sources.utils.PriceGenerator.nextPrice;
-import static org.apache.beam.sdk.nexmark.sources.utils.StringsGenerator.nextExtra;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -52,12 +47,6 @@ import org.joda.time.Instant;
  */
 public class Generator implements Iterator<TimestampedValue<Event>>, Serializable {
 
-  /**
-   * Fraction of people/auctions which may be 'hot' sellers/bidders/auctions are 1
-   * over these values.
-   */
-  private static final int HOT_AUCTION_RATIO = 100;
-  private static final int HOT_BIDDER_RATIO = 100;
 
   /**
    * The next event and its various timestamps. Ordered by increasing wallclock timestamp, then
@@ -195,39 +184,6 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
     return config.firstEventId + config.nextAdjustedEventNumber(eventsCountSoFar);
   }
 
-
-
-  /**
-   * Generate and return a random bid with next available id.
-   */
-  private Bid nextBid(long eventId, Random random, long timestamp) {
-    long auction;
-    // Here P(bid will be for a hot auction) = 1 - 1/hotAuctionRatio.
-    if (random.nextInt(config.configuration.hotAuctionRatio) > 0) {
-      // Choose the first auction in the batch of last HOT_AUCTION_RATIO auctions.
-      auction = (lastBase0AuctionId(eventId) / HOT_AUCTION_RATIO) * HOT_AUCTION_RATIO;
-    } else {
-      auction = nextBase0AuctionId(eventId, random, config);
-    }
-    auction += GeneratorConfig.FIRST_AUCTION_ID;
-
-    long bidder;
-    // Here P(bid will be by a hot bidder) = 1 - 1/hotBiddersRatio
-    if (random.nextInt(config.configuration.hotBiddersRatio) > 0) {
-      // Choose the second person (so hot bidders and hot sellers don't collide) in the batch of
-      // last HOT_BIDDER_RATIO people.
-      bidder = (lastBase0PersonId(getNextEventId()) / HOT_BIDDER_RATIO) * HOT_BIDDER_RATIO + 1;
-    } else {
-      bidder = nextBase0PersonId(eventId, random, config);
-    }
-    bidder += GeneratorConfig.FIRST_PERSON_ID;
-
-    long price = nextPrice(random);
-    int currentSize = 8 + 8 + 8 + 8;
-    String extra = nextExtra(random, currentSize, config.configuration.avgBidByteSize);
-    return new Bid(auction, bidder, price, timestamp, extra);
-  }
-
   @Override
   public boolean hasNext() {
     return eventsCountSoFar < config.maxEvents;
@@ -275,7 +231,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
       event = new Event(
           nextAuction(eventsCountSoFar, newEventId, random, adjustedEventTimestamp, config));
     } else {
-      event = new Event(nextBid(newEventId, random, adjustedEventTimestamp));
+      event = new Event(nextBid(newEventId, random, adjustedEventTimestamp, config));
     }
 
     eventsCountSoFar++;

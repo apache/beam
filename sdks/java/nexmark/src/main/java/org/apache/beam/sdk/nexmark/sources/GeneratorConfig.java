@@ -50,7 +50,7 @@ public class GeneratorConfig implements Serializable {
   /**
    * Environment options.
    */
-  public final NexmarkConfiguration configuration;
+  private final NexmarkConfiguration configuration;
 
   /**
    * Delay between events, in microseconds. If the array has more than one entry then

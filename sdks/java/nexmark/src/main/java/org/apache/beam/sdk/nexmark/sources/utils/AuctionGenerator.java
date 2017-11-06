@@ -76,7 +76,7 @@ public class AuctionGenerator {
     String desc = nextString(random, 100);
     long reserve = initialBid + nextPrice(random);
     int currentSize = 8 + name.length() + desc.length() + 8 + 8 + 8 + 8 + 8;
-    String extra = nextExtra(random, currentSize, config.configuration.avgAuctionByteSize);
+    String extra = nextExtra(random, currentSize, config.getAvgAuctionByteSize());
     return new Auction(id, name, desc, initialBid, reserve, timestamp, expires, seller, category,
         extra);
   }
@@ -128,7 +128,7 @@ public class AuctionGenerator {
     long currentEventNumber = config.nextAdjustedEventNumber(eventsCountSoFar);
     // How many events till we've generated numInFlightAuctions?
     long numEventsForAuctions =
-        (config.configuration.numInFlightAuctions * GeneratorConfig.PROPORTION_DENOMINATOR)
+        (config.getNumInFlightAuctions() * GeneratorConfig.PROPORTION_DENOMINATOR)
             / GeneratorConfig.AUCTION_PROPORTION;
     // When will the auction numInFlightAuctions beyond now be generated?
     long futureAuction =
