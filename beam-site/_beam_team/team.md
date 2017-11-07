@@ -102,7 +102,7 @@ members:
     apache_id: reuvenlax
     email: reuvenlax [at] apache [dot] org
     organization: Google
-    roles: committer
+    roles: committer, PMC
     time_zone: "-8"
   - name: Jingsong Lee
     apache_id: lzljs3620320
