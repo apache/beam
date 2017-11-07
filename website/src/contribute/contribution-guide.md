@@ -33,7 +33,7 @@ We look forward to working with you!
 ## Engage
 
 ### Mailing list(s)
-We discuss design and implementation issues on the dev@beam.apache.org mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
+We discuss design and implementation issues on the `dev@beam.apache.org` mailing list, which is archived [here](https://lists.apache.org/list.html?dev@beam.apache.org). Join by emailing [`dev-subscribe@beam.apache.org`](mailto:dev-subscribe@beam.apache.org).
 
 If interested, you can also join the other [mailing lists]({{ site.baseurl }}/get-started/support/).
 
@@ -110,35 +110,36 @@ Depending on your preferred development environment, you may need to prepare it 
 ###### Enable Annotation Processing
 To configure annotation processing in IntelliJ:
 
-1. Open Annotation Processors Settings dialog box by going to Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors.
+1. Open Annotation Processors Settings dialog box by going to Settings -> Build, Execution, Deployment -> Compiler -> Annotation Processors
 1. Select the following buttons:
    * "Enable annotation processing"
    * "Obtain processors from project classpath"
    * "Store generated sources relative to: _Module content root_"
 1. Set the generated source directories to be equal to the Maven directories:
-   * Set "Production sources directory:" to "target/generated-sources/annotations".
-   * Set "Test sources directory:" to "target/generated-test-sources/test-annotations".
-1. Click "OK".
+   * Set "Production sources directory:" to `target/generated-sources/annotations`
+   * Set "Test sources directory:" to `target/generated-test-sources/test-annotations`
+1. Click "OK"
 
 ###### Checkstyle
 IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
 
-1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository.
-1. Configure the plugin by going to Settings -> Other Settings -> Checkstyle.
-1. Set the "Scan Scope" to "Only Java sources (including tests)".
+1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository
+1. Configure the plugin by going to Settings -> Other Settings -> Checkstyle
+1. Set Checkstyle version to the same as in `/pom.xml` (e.g. 6.19)
+1. Set the "Scan Scope" to "Only Java sources (including tests)"
 1. In the "Configuration File" pane, add a new configuration using the plus icon:
-    1. Set the "Description" to "Beam".
+    1. Set the "Description" to "Beam"
     1. Select "Use a local Checkstyle file", and point it to
-      "sdks/java/build-tools/src/main/resources/beam/checkstyle.xml" within
-      your repository.
+      `sdks/java/build-tools/src/main/resources/beam/checkstyle.xml` within
+      your repository
     1. Check the box for "Store relative to project location", and click
-      "Next".
-    1. Configure the "checkstyle.suppressions.file" property value to
-      "suppressions.xml", and click "Next", then "Finish".
+      "Next"
+    1. Configure the `checkstyle.suppressions.file` property value to
+      `suppressions.xml`, and click "Next", then "Finish"
 1. Select "Beam" as the only active configuration file, and click "Apply" and
-   "OK".
+   "OK"
 1. Checkstyle will now give warnings in the editor for any Checkstyle
-   violations.
+   violations
 
 You can also scan an entire module by opening the Checkstyle tools window and
 clicking the "Check Module" button. The scan should report no errors.
@@ -150,13 +151,13 @@ modules as they are not configured for Checkstyle validation.
 IntelliJ supports code styles within the IDE. Use one of the following to ensure your code style
 matches the project's checkstyle enforcements.
 
-1. (Option 1) Configure IntelliJ to use "beam-codestyle.xml".
-    1. Go to Settings -> Code Style -> Java.
-    1. Click the cogwheel icon next to 'Scheme' and select Import Scheme -> Eclipse XML Profile.
-    1. Select "sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml".
-    1. Click "OK".
-    1. Click "Apply" and "OK".
-1. (Option 2) Install [Google Java Format plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format).
+1. (Option 1) Configure IntelliJ to use `beam-codestyle.xml`
+    1. Go to Settings -> Code Style -> Java
+    1. Click the cogwheel icon next to 'Scheme' and select Import Scheme -> Eclipse XML Profile
+    1. Select `sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml`
+    1. Click "OK"
+    1. Click "Apply" and "OK"
+1. (Option 2) Install [Google Java Format plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format)
 
 ##### Eclipse
 
@@ -196,21 +197,21 @@ Eclipse supports checkstyle within the IDE using the Checkstyle plugin.
 
 1. Install the [Checkstyle plugin](https://marketplace.eclipse.org/content/checkstyle-plug).
 1. Configure Checkstyle plugin by going to Preferences - Checkstyle.
-    1. Click "New...".
-    1. Select "External Configuration File" for type.
-    1. Click "Browse..." and select "sdks/java/build-tools/src/main/resources/beam/checkstyle.xml".
-    1. Enter "Beam Checks" under "Name:".
-    1. Click "OK", then "OK".
+    1. Click "New..."
+    1. Select "External Configuration File" for type
+    1. Click "Browse..." and select `sdks/java/build-tools/src/main/resources/beam/checkstyle.xml`
+    1. Enter "Beam Checks" under "Name:"
+    1. Click "OK", then "OK"
 
 ###### Code Style
 Eclipse supports code styles within the IDE. Use one of the following to ensure your code style
 matches the project's checkstyle enforcements.
 
-1. (Option 1) Configure Eclipse to use "beam-codestyle.xml".
-    1. Go to Preferences -> Java -> Code Style -> Formatter.
-    1. Click "Import..." and select "sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml".
-    1. Click "Apply" and "OK".
-1. (Option 2) Install [Google Java Format plugin](https://github.com/google/google-java-format#eclipse).
+1. (Option 1) Configure Eclipse to use `beam-codestyle.xml`
+    1. Go to Preferences -> Java -> Code Style -> Formatter
+    1. Click "Import..." and select `sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml`
+    1. Click "Apply" and "OK"
+1. (Option 2) Install [Google Java Format plugin](https://github.com/google/google-java-format#eclipse)
 
 ### Create a branch in your fork
 You’ll work on your contribution in a branch in your own (forked) repository. Create a local branch, initialized with the state of the branch you expect your changes to be merged into. Keep in mind that we use several branches, including `master`, feature-specific, and release-specific branches. If you are unsure, initialize with the state of the `master` branch.
