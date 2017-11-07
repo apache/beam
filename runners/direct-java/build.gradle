@@ -33,10 +33,10 @@ evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  compile project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
   shadow library.java.slf4j_api
@@ -52,6 +52,18 @@ dependencies {
   testCompile library.java.woodstox_core_asl
   testCompile library.java.google_cloud_dataflow_java_proto_library_all
   testCompile library.java.jackson_dataformat_yaml
+}
+
+shadowJar {
+  dependencies {
+    include(dependency(library.java.protobuf_java))
+    include(project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow"))
+    include(project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow"))
+  }
+  relocate "org.apache.beam.runners.core", "org.apache.beam.${project.name}.repackaged.runners.core"
+  relocate "org.apache.beam.model", "org.apache.beam.${project.name}.repackaged.model"
+  relocate "com.google.protobuf", "org.apache.beam.${project.name}.repackaged.com.google.protobuf"
 }
 
 task packageTests(type: Jar) {
