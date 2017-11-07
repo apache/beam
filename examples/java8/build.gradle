@@ -22,21 +22,21 @@ applyJavaNature(javaVersion: 1.8)
 description = "Apache Beam :: Examples :: Java 8"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
-  compile project(":beam-examples-parent:beam-examples-java")
   compile library.java.guava
-  compile library.java.slf4j_api
-  compile library.java.avro
-  compile library.java.joda_time
-  compile library.java.google_api_services_bigquery
-  compile library.java.google_http_client
-  compile library.java.google_oauth_client
-  compile library.java.google_api_services_pubsub
-  compile library.java.google_api_client
-  runtime project(":beam-runners-parent:beam-runners-direct-java")
-  runtime library.java.slf4j_jdk14
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadow")
+  shadow library.java.slf4j_api
+  shadow library.java.avro
+  shadow library.java.joda_time
+  shadow library.java.google_api_services_bigquery
+  shadow library.java.google_http_client
+  shadow library.java.google_oauth_client
+  shadow library.java.google_api_services_pubsub
+  shadow library.java.google_api_client
+  shadow project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  shadow library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit

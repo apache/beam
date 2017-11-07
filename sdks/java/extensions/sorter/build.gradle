@@ -22,11 +22,11 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Sorter"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   provided library.java.hadoop_mapreduce_client_core
   provided library.java.hadoop_common
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core
   testCompile library.java.junit

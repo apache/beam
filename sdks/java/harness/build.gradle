@@ -32,13 +32,13 @@ description = "Apache Beam :: SDKs :: Java :: Harness"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
 
 dependencies {
-  compile project(":beam-model-parent:beam-model-pipeline")
-  compile project(":beam-model-parent:beam-model-fn-execution")
+  compile project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  compile project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")
   compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
-  compile project(":beam-runners-parent:beam-runners-core-java")
-  compile project(":beam-runners-parent:beam-runners-core-construction-java")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution", configuration: "shadow")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  compile project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
+  compile project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
   compile library.java.jackson_databind
   compile library.java.findbugs_jsr305
   compile library.java.guava

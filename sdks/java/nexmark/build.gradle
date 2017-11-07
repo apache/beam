@@ -22,22 +22,22 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Nexmark"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
-  compile library.java.google_api_services_bigquery
-  compile library.java.jackson_core
-  compile library.java.jackson_annotations
-  compile library.java.jackson_databind
-  compile library.java.avro
-  compile library.java.joda_time
   compile library.java.guava
-  compile library.java.slf4j_api
-  compile library.java.findbugs_jsr305
-  compile library.java.junit
-  compile library.java.hamcrest_core
-  runtime project(":beam-runners-parent:beam-runners-direct-java")
-  runtime library.java.slf4j_jdk14
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow library.java.google_api_services_bigquery
+  shadow library.java.jackson_core
+  shadow library.java.jackson_annotations
+  shadow library.java.jackson_databind
+  shadow library.java.avro
+  shadow library.java.joda_time
+  shadow library.java.slf4j_api
+  shadow library.java.findbugs_jsr305
+  shadow library.java.junit
+  shadow library.java.hamcrest_core
+  shadow project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  shadow library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core
 }
 

@@ -49,17 +49,17 @@ test {
 }
 
 dependencies {
-  compile project(":beam-model-parent:beam-model-pipeline")
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile project(":beam-runners-parent:beam-runners-core-construction-java")
-  compile project(":beam-runners-parent:beam-runners-core-java")
-  compile library.java.findbugs_jsr305
-  compile library.java.guava
-  compile library.java.jackson_annotations
-  compile library.java.slf4j_api
-  compile library.java.joda_time
-  compile library.java.commons_text
-  compile "io.dropwizard.metrics:metrics-core:3.1.2"
+  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
+  shadow library.java.findbugs_jsr305
+  shadow library.java.guava
+  shadow library.java.jackson_annotations
+  shadow library.java.slf4j_api
+  shadow library.java.joda_time
+  shadow library.java.commons_text
+  shadow "io.dropwizard.metrics:metrics-core:3.1.2"
   provided library.java.spark_core
   provided library.java.spark_streaming
   provided library.java.spark_network_common
@@ -72,7 +72,7 @@ dependencies {
   provided "org.apache.zookeeper:zookeeper:3.4.6"
   provided "org.scala-lang:scala-library:2.10.5"
   provided "com.esotericsoftware.kryo:kryo:2.21"
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka")
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka", configuration: "shadow")
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
   testCompile project(":beam-runners-parent:beam-runners-core-java").sourceSets.test.output

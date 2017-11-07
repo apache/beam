@@ -31,12 +31,12 @@ description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
-  compile library.java.findbugs_jsr305
-  compile "org.apache.commons:commons-dbcp2:2.1.1"
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.findbugs_jsr305
+  shadow "org.apache.commons:commons-dbcp2:2.1.1"
+  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

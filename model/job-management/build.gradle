@@ -23,12 +23,12 @@ applyGrpcNature()
 description = "Apache Beam :: Model :: Job Management"
 
 dependencies {
-  compile project(":beam-model-parent:beam-model-pipeline")
-  compile library.java.protobuf_java
   compile library.java.guava
-  compile library.java.grpc_core
-  compile library.java.grpc_protobuf
-  compile library.java.grpc_stub
+  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow library.java.protobuf_java
+  shadow library.java.grpc_core
+  shadow library.java.grpc_protobuf
+  shadow library.java.grpc_stub
 }
 
 task packageTests(type: Jar) {

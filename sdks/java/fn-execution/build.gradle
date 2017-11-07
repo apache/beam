@@ -22,12 +22,12 @@ applyJavaNature(javaVersion: 1.8)
 description = "Apache Beam :: SDKs :: Java :: Harness Core"
 
 dependencies {
-  compile project(":beam-model-parent:beam-model-pipeline")
-  compile library.java.grpc_core
-  compile library.java.grpc_stub
-  compile library.java.grpc_netty
-  compile library.java.netty_transport_native_epoll
   compile library.java.guava
+  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow library.java.grpc_core
+  shadow library.java.grpc_stub
+  shadow library.java.grpc_netty
+  shadow library.java.netty_transport_native_epoll
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

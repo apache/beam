@@ -32,16 +32,16 @@ evaluationDependsOn(":beam-runners-parent:beam-runners-core-java")
 evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
 
 dependencies {
-  compile project(":beam-model-parent:beam-model-pipeline")
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile project(":beam-runners-parent:beam-runners-core-construction-java")
-  compile project(":beam-runners-parent:beam-runners-core-java")
   compile library.java.guava
-  compile library.java.joda_time
-  compile library.java.findbugs_jsr305
-  compile library.java.slf4j_api
-  provided library.java.hamcrest_core
-  provided library.java.junit
+  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
+  shadow library.java.joda_time
+  shadow library.java.findbugs_jsr305
+  shadow library.java.slf4j_api
+  shadow library.java.hamcrest_core
+  shadow library.java.junit
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-runners-parent:beam-runners-core-java").sourceSets.test.output
   testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output

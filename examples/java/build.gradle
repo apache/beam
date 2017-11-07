@@ -31,25 +31,25 @@ description = "Apache Beam :: Examples :: Java"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
-  compile library.java.google_api_client
-  compile library.java.google_api_services_bigquery
-  compile library.java.findbugs_jsr305
-  compile library.java.google_http_client
-  compile library.java.bigdataoss_util
-  compile library.java.google_auth_library_oauth2_http
-  compile library.java.google_auth_library_credentials
-  compile library.java.avro
-  compile library.java.google_api_services_pubsub
   compile library.java.guava
-  compile library.java.datastore_v1_proto_client
-  compile library.java.datastore_v1_protos
-  compile library.java.joda_time
-  compile library.java.slf4j_api
-  runtime project(":beam-runners-parent:beam-runners-direct-java")
-  runtime library.java.slf4j_jdk14
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform", configuration: "shadow")
+  shadow library.java.google_api_client
+  shadow library.java.google_api_services_bigquery
+  shadow library.java.findbugs_jsr305
+  shadow library.java.google_http_client
+  shadow library.java.bigdataoss_util
+  shadow library.java.google_auth_library_oauth2_http
+  shadow library.java.google_auth_library_credentials
+  shadow library.java.avro
+  shadow library.java.google_api_services_pubsub
+  shadow library.java.datastore_v1_proto_client
+  shadow library.java.datastore_v1_protos
+  shadow library.java.joda_time
+  shadow library.java.slf4j_api
+  shadow project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  shadow library.java.slf4j_jdk14
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
