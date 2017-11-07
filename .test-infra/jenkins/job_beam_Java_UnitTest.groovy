@@ -28,17 +28,9 @@ mavenJob('beam_Java_UnitTest') {
   common_job_properties.setPipelineDownstreamJobProperties(delegate, 'beam_Java_Build')
 
   // Construct Maven goals for this job.
-  profiles = [
-    'direct-runner',
-    'dataflow-runner',
-    'spark-runner',
-    'flink-runner',
-    'apex-runner'
-  ]
   args = [
     '-B',
     '-e',
-    "-P${profiles.join(',')}",
     'surefire:test@default-test',
     "-pl '!sdks/python'",
     '-DrepoToken=$COVERALLS_REPO_TOKEN',
