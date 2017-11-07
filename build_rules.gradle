@@ -200,6 +200,32 @@ ext.applyGoNature = {
   golang {
     goVersion = '1.9'
   }
+
+  // GoGradle fails in a parallel build during dependency resolution/installation.
+  // Force a dependency between all GoGradle projects during dependency resolution/installation.
+  // TODO: Figure out how to do this by automatically figuring out the task dependency DAG
+  // based upon task type.
+  List<String> goProjects = [
+      ":beam-sdks-parent:beam-sdks-go",
+      ":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd",
+      ":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy",
+      ":beam-sdks-parent:beam-sdks-python:beam-sdks-python-container",
+      ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container",
+  ]
+  if (!goProjects.contains(project.path)) {
+    throw new GradleException(project.path + " has not been defined within the list of well known go projects within build_rules.gradle.")
+  }
+
+  int index = goProjects.indexOf(project.path)
+  if (index != 0) {
+    String previous = goProjects.get(index - 1)
+    println "Forcing: '" + previous + "' to be evaulated before '" + project.path + "'"
+    evaluationDependsOn(previous)
+    afterEvaluate {
+      println "Forcing: '" + previous + ":installBuildDependencies' must run before '" + project.path + ":resolveBuildDependencies'"
+      tasks.getByPath(project.path + ":resolveBuildDependencies").mustRunAfter tasks.getByPath(previous + ":installDependencies")
+    }
+  }
 }
 
 ext.applyDockerNature = {
