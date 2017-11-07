@@ -16,17 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.utils;
-
-import java.util.Random;
-
 /**
- * Generates a random price.
+ * Classes to read the events form an Avro files.
  */
-public class PriceGenerator {
-
-  /** Return a random price. */
-  public static long nextPrice(Random random) {
-    return Math.round(Math.pow(10.0, random.nextDouble() * 6.0) * 100.0);
-  }
-}
+package org.apache.beam.sdk.nexmark.sources.avro;

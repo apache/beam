@@ -15,12 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.nexmark.sources.utils.AuctionGenerator.nextAuction;
-import static org.apache.beam.sdk.nexmark.sources.utils.BidGenerator.nextBid;
-import static org.apache.beam.sdk.nexmark.sources.utils.PersonGenerator.nextPerson;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.AuctionGenerator.nextAuction;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.BidGenerator.nextBid;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.PersonGenerator.nextPerson;
 
 import java.io.Serializable;
 import java.util.Iterator;
@@ -166,7 +166,7 @@ public class Generator implements Iterator<TimestampedValue<Event>>, Serializabl
   /**
    * Mutate this generator so that it will only generate events up to but not including
    * {@code eventId}. Return a config to represent the events this generator will no longer yield.
-   * The generators will run in on a serial timeline.
+   * The model will run in on a serial timeline.
    */
   public GeneratorConfig splitAtEventId(long eventId) {
     long newMaxEvents = eventId - (config.firstEventId + config.firstEventNumber);

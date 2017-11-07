@@ -17,6 +17,6 @@
  */
 
 /**
- * Utility classes for Generator.
+ * Event generator for Nexmark suite.
  */
-package org.apache.beam.sdk.nexmark.sources.utils;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;

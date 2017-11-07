@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -69,7 +69,7 @@ public class GeneratorConfig implements Serializable {
   public final long baseTime;
 
   /**
-   * Event id of first event to be generated. Event ids are unique over all generators, and
+   * Event id of first event to be generated. Event ids are unique over all model, and
    * are used as a seed to generate each event's data.
    */
   public final long firstEventId;
@@ -144,7 +144,7 @@ public class GeneratorConfig implements Serializable {
 
   /**
    * Split this config into {@code n} sub-configs with roughly equal number of
-   * possible events, but distinct value spaces. The generators will run on parallel timelines.
+   * possible events, but distinct value spaces. The model will run on parallel timelines.
    * This config should no longer be used.
    */
   public List<GeneratorConfig> split(int n) {

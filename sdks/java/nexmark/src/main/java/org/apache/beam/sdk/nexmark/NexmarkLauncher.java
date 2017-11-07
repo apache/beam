@@ -25,23 +25,23 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.AvroIO;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -77,15 +77,20 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.sources.EventSourceFactory;
+import org.apache.beam.sdk.nexmark.sources.pubsub.PubsubEventsGenerator;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -130,12 +135,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    */
   @Nullable
   private NexmarkConfiguration configuration;
-
-  /**
-   * If in --pubsubMode=COMBINED, the event monitor for the publisher pipeline. Otherwise null.
-   */
-  @Nullable
-  private Monitor<Event> publisherMonitor;
 
   /**
    * If in --pubsubMode=COMBINED, the pipeline result for the publisher pipeline. Otherwise null.
@@ -426,20 +425,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
   /**
-   * Build and run a pipeline using specified options.
-   */
-  interface PipelineBuilder<OptionT extends NexmarkOptions> {
-    void build(OptionT publishOnlyOptions);
-  }
-
-  /**
-   * Invoke the builder with options suitable for running a publish-only child pipeline.
-   */
-  private void invokeBuilderForPublishOnlyPipeline(PipelineBuilder<NexmarkOptions> builder) {
-    builder.build(options);
-  }
-
-  /**
    * Monitor the performance and progress of a running job. Return final performance if
    * it was measured.
    */
@@ -606,43 +591,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   // Basic sources and sinks
   // ================================================================================
 
-  /**
-   * Return a topic name.
-   */
-  private String shortTopic(long now) {
-    String baseTopic = options.getPubsubTopic();
-    if (Strings.isNullOrEmpty(baseTopic)) {
-      throw new RuntimeException("Missing --pubsubTopic");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return baseTopic;
-      case QUERY:
-        return String.format("%s_%s_source", baseTopic, queryName);
-      case QUERY_AND_SALT:
-        return String.format("%s_%s_%d_source", baseTopic, queryName, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
-
-  /**
-   * Return a subscription name.
-   */
-  private String shortSubscription(long now) {
-    String baseSubscription = options.getPubsubSubscription();
-    if (Strings.isNullOrEmpty(baseSubscription)) {
-      throw new RuntimeException("Missing --pubsubSubscription");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return baseSubscription;
-      case QUERY:
-        return String.format("%s_%s_source", baseSubscription, queryName);
-      case QUERY_AND_SALT:
-        return String.format("%s_%s_%d_source", baseSubscription, queryName, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
 
   /**
    * Return a file name for plain text.
@@ -702,110 +650,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return String.format("%s/logs_%s_%d", baseFilename, queryName, now);
     }
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
-
-  /**
-   * Return a source of synthetic events.
-   */
-  private PCollection<Event> sourceEventsFromSynthetic(Pipeline p) {
-    if (isStreaming()) {
-      NexmarkUtils.console("Generating %d events in streaming mode", configuration.numEvents);
-      return p.apply(queryName + ".ReadUnbounded", NexmarkUtils.streamEventsSource(configuration));
-    } else {
-      NexmarkUtils.console("Generating %d events in batch mode", configuration.numEvents);
-      return p.apply(queryName + ".ReadBounded", NexmarkUtils.batchEventsSource(configuration));
-    }
-  }
-
-  /**
-   * Return source of events from Pubsub.
-   */
-  private PCollection<Event> sourceEventsFromPubsub(Pipeline p, long now) {
-    String shortSubscription = shortSubscription(now);
-    NexmarkUtils.console("Reading events from Pubsub %s", shortSubscription);
-
-    PubsubIO.Read<PubsubMessage> io =
-        PubsubIO.readMessagesWithAttributes().fromSubscription(shortSubscription)
-            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
-    if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
-    }
-
-    return p
-      .apply(queryName + ".ReadPubsubEvents", io)
-      .apply(queryName + ".PubsubMessageToEvent", ParDo.of(new DoFn<PubsubMessage, Event>() {
-        @ProcessElement
-        public void processElement(ProcessContext c) {
-          byte[] payload = c.element().getPayload();
-          try {
-            Event event = CoderUtils.decodeFromByteArray(Event.CODER, payload);
-            c.output(event);
-          } catch (CoderException e) {
-            LOG.error("Error while decoding Event from pusbSub message: serialization error");
-          }
-        }
-      }));
-  }
-
-  /**
-   * Return Avro source of events from {@code options.getInputFilePrefix}.
-   */
-  private PCollection<Event> sourceEventsFromAvro(Pipeline p) {
-    String filename = options.getInputPath();
-    if (Strings.isNullOrEmpty(filename)) {
-      throw new RuntimeException("Missing --inputPath");
-    }
-    NexmarkUtils.console("Reading events from Avro files at %s", filename);
-    return p
-        .apply(queryName + ".ReadAvroEvents", AvroIO.read(Event.class)
-                          .from(filename + "*.avro"))
-        .apply("OutputWithTimestamp", NexmarkQuery.EVENT_TIMESTAMP_FROM_DATA);
-  }
-
-  /**
-   * Send {@code events} to Pubsub.
-   */
-  private void sinkEventsToPubsub(PCollection<Event> events, long now) {
-    String shortTopic = shortTopic(now);
-    NexmarkUtils.console("Writing events to Pubsub %s", shortTopic);
-
-    PubsubIO.Write<PubsubMessage> io =
-        PubsubIO.writeMessages().to(shortTopic)
-            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
-    if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
-    }
-
-    events.apply(queryName + ".EventToPubsubMessage",
-            ParDo.of(new DoFn<Event, PubsubMessage>() {
-              @ProcessElement
-              public void processElement(ProcessContext c) {
-                try {
-                  byte[] payload = CoderUtils.encodeToByteArray(Event.CODER, c.element());
-                  c.output(new PubsubMessage(payload, new HashMap<String, String>()));
-                } catch (CoderException e1) {
-                  LOG.error("Error while sending Event {} to pusbSub: serialization error",
-                      c.element().toString());
-                }
-              }
-            })
-        )
-        .apply(queryName + ".WritePubsubEvents", io);
-  }
-
-  /**
-   * Send {@code formattedResults} to Pubsub.
-   */
-  private void sinkResultsToPubsub(PCollection<String> formattedResults, long now) {
-    String shortTopic = shortTopic(now);
-    NexmarkUtils.console("Writing results to Pubsub %s", shortTopic);
-    PubsubIO.Write<String> io =
-        PubsubIO.writeStrings().to(shortTopic)
-            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
-    if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
-    }
-    formattedResults.apply(queryName + ".WritePubsubResults", io);
   }
 
   /**
@@ -890,66 +734,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   // Construct overall pipeline
   // ================================================================================
 
-  /**
-   * Return source of events for this run, or null if we are simply publishing events
-   * to Pubsub.
-   */
-  private PCollection<Event> createSource(Pipeline p, final long now) {
-    PCollection<Event> source = null;
-    switch (configuration.sourceType) {
-      case DIRECT:
-        source = sourceEventsFromSynthetic(p);
-        break;
-      case AVRO:
-        source = sourceEventsFromAvro(p);
-        break;
-      case PUBSUB:
-        // Setup the sink for the publisher.
-        switch (configuration.pubSubMode) {
-          case SUBSCRIBE_ONLY:
-            // Nothing to publish.
-            break;
-          case PUBLISH_ONLY:
-            // Send synthesized events to Pubsub in this job.
-            sinkEventsToPubsub(sourceEventsFromSynthetic(p).apply(queryName + ".Snoop",
-                    NexmarkUtils.snoop(queryName)), now);
-            break;
-          case COMBINED:
-            // Send synthesized events to Pubsub in separate publisher job.
-            // We won't start the main pipeline until the publisher has sent the pre-load events.
-            // We'll shutdown the publisher job when we notice the main job has finished.
-            invokeBuilderForPublishOnlyPipeline(new PipelineBuilder<NexmarkOptions>() {
-              @Override
-              public void build(NexmarkOptions publishOnlyOptions) {
-                Pipeline sp = Pipeline.create(options);
-                NexmarkUtils.setupPipeline(configuration.coderStrategy, sp);
-                publisherMonitor = new Monitor<>(queryName, "publisher");
-                sinkEventsToPubsub(
-                    sourceEventsFromSynthetic(sp)
-                            .apply(queryName + ".Monitor", publisherMonitor.getTransform()),
-                    now);
-                publisherResult = sp.run();
-              }
-            });
-            break;
-        }
-
-        // Setup the source for the consumer.
-        switch (configuration.pubSubMode) {
-          case PUBLISH_ONLY:
-            // Nothing to consume. Leave source null.
-            break;
-          case SUBSCRIBE_ONLY:
-          case COMBINED:
-            // Read events from pubsub.
-            source = sourceEventsFromPubsub(p, now);
-            break;
-        }
-        break;
-    }
-    return source;
-  }
-
   private static final TupleTag<String> MAIN = new TupleTag<String>(){};
   private static final TupleTag<String> SIDE = new TupleTag<String>(){};
 
@@ -987,7 +771,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         formattedResults.apply(queryName + ".DevNull", NexmarkUtils.devNull(queryName));
         break;
       case PUBSUB:
-        sinkResultsToPubsub(formattedResults, now);
+        sinkResultsToPubsub(configuration, options, queryName, formattedResults, now);
         break;
       case TEXT:
         sinkResultsToText(formattedResults, now);
@@ -1008,6 +792,48 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         // Short-circuited above.
         throw new RuntimeException();
     }
+  }
+
+  /**
+   * Send {@code formattedResults} to Pubsub.
+   */
+  private static void sinkResultsToPubsub(
+      NexmarkConfiguration configuration,
+      NexmarkOptions options,
+      String queryName,
+      PCollection<String> formattedResults, long now) {
+
+    String shortTopic = shortTopic(options, queryName, now);
+    NexmarkUtils.console("Writing results to Pubsub %s", shortTopic);
+    PubsubIO.Write<String> io =
+        PubsubIO.writeStrings().to(shortTopic)
+            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
+    if (!configuration.usePubsubPublishTime) {
+      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
+    }
+    formattedResults.apply(queryName + ".WritePubsubResults", io);
+  }
+
+  /**
+   * Return a topic name.
+   */
+  private static String shortTopic(NexmarkOptions options,
+                                   String queryName,
+                                   long now) {
+
+    String baseTopic = options.getPubsubTopic();
+    if (Strings.isNullOrEmpty(baseTopic)) {
+      throw new RuntimeException("Missing --pubsubTopic");
+    }
+    switch (options.getResourceNameMode()) {
+      case VERBATIM:
+        return baseTopic;
+      case QUERY:
+        return String.format("%s_%s_source", baseTopic, queryName);
+      case QUERY_AND_SALT:
+        return String.format("%s_%s_%d_source", baseTopic, queryName, now);
+    }
+    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
   // ================================================================================
@@ -1056,36 +882,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return null;
       }
 
-      List<NexmarkQuery> queries = Arrays.asList(new Query0(configuration),
-                                                 new Query1(configuration),
-                                                 new Query2(configuration),
-                                                 new Query3(configuration),
-                                                 new Query4(configuration),
-                                                 new Query5(configuration),
-                                                 new Query6(configuration),
-                                                 new Query7(configuration),
-                                                 new Query8(configuration),
-                                                 new Query9(configuration),
-                                                 new Query10(configuration),
-                                                 new Query11(configuration),
-                                                 new Query12(configuration));
+      List<NexmarkQuery> queries = createQueries();
       NexmarkQuery query = queries.get(configuration.query);
       queryName = query.getName();
 
-      List<NexmarkQueryModel> models = Arrays.asList(
-          new Query0Model(configuration),
-          new Query1Model(configuration),
-          new Query2Model(configuration),
-          new Query3Model(configuration),
-          new Query4Model(configuration),
-          new Query5Model(configuration),
-          new Query6Model(configuration),
-          new Query7Model(configuration),
-          new Query8Model(configuration),
-          new Query9Model(configuration),
-          null,
-          null,
-          null);
+      List<NexmarkQueryModel> models = createModels();
       NexmarkQueryModel model = models.get(configuration.query);
 
       if (options.getJustModelResultRate()) {
@@ -1097,61 +898,161 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       }
 
       long now = System.currentTimeMillis();
-      Pipeline p = Pipeline.create(options);
-      NexmarkUtils.setupPipeline(configuration.coderStrategy, p);
+      Pipeline pipeline = newPipeline();
 
-      // Generate events.
-      PCollection<Event> source = createSource(p, now);
-
-      if (options.getLogEvents()) {
-        source = source.apply(queryName + ".Events.Log",
-                NexmarkUtils.<Event>log(queryName + ".Events"));
+      if (PubsubEventsGenerator.isPublishOnly(configuration)) {
+        return onlyPublishEvents(query, now, pipeline);
       }
 
-      // Source will be null if source type is PUBSUB and mode is PUBLISH_ONLY.
-      // In that case there's nothing more to add to pipeline.
-      if (source != null) {
-        // Optionally sink events in Avro format.
-        // (Query results are ignored).
-        if (configuration.sinkType == NexmarkUtils.SinkType.AVRO) {
-          sinkEventsToAvro(source);
-        }
-
-        // Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
-        // so, set parallelism. Also set the output path where to write log files.
-        if (configuration.query == 10) {
-          String path = null;
-          if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
-            path = logsDir(now);
-          }
-          ((Query10) query).setOutputPath(path);
-          ((Query10) query).setMaxNumWorkers(maxNumWorkers());
-        }
-
-        // Apply query.
-        PCollection<TimestampedValue<KnownSize>> results = source.apply(query);
-
-        if (options.getAssertCorrectness()) {
-          if (model == null) {
-            throw new RuntimeException(String.format("No model for %s", queryName));
-          }
-          // We know all our streams have a finite number of elements.
-          results.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
-          // If we have a finite number of events then assert our pipeline's
-          // results match those of a model using the same sequence of events.
-          PAssert.that(results).satisfies(model.assertionFor());
-        }
-
-        // Output results.
-        sink(results, now);
-      }
-
-      mainResult = p.run();
-      mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
-      return monitor(query);
+      return executeQuery(query, model, now, pipeline);
     } finally {
       configuration = null;
       queryName = null;
     }
+  }
+
+  /**
+   * Publish-only mode, send event so Pubsub, no queries are executed.
+   */
+  private NexmarkPerf onlyPublishEvents(NexmarkQuery query, long now, Pipeline pipeline) {
+    pipeline.apply(createPubsubPublisher(now));
+    mainResult = pipeline.run();
+    mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
+    return monitor(query);
+  }
+
+  /**
+   * Get events and execute query.
+   */
+  private NexmarkPerf executeQuery(
+      NexmarkQuery query,
+      NexmarkQueryModel model,
+      long now,
+      Pipeline pipeline) {
+
+    if (PubsubEventsGenerator.needPublisher(configuration)) {
+      startPublisher(now);
+    }
+
+    PTransform<PBegin, PCollection<Event>> eventsSource =
+        EventSourceFactory.createSource(configuration, options, queryName, now);
+
+    PCollection<Event> events = pipeline.apply(eventsSource);
+
+    if (options.getLogEvents()) {
+      events = logEvents(events);
+    }
+
+    // Optionally sink events in Avro format.
+    // (Query results are ignored).
+    if (configuration.sinkType == NexmarkUtils.SinkType.AVRO) {
+      sinkEventsToAvro(events);
+    }
+
+    // Apply query
+    PCollection<TimestampedValue<KnownSize>> results = applyNexmarkQuery(query, events, now);
+
+    if (options.getAssertCorrectness()) {
+      assertNexmarkQueryResults(model, results);
+    }
+
+    // Output results.
+    sink(results, now);
+
+    mainResult = pipeline.run();
+    mainResult.waitUntilFinish(Duration.standardSeconds(configuration.streamTimeout));
+    return monitor(query);
+  }
+
+  private void startPublisher(long now) {
+    Pipeline publisherPipeline = newPipeline();
+    publisherPipeline.apply(createPubsubPublisher(now));
+    publisherResult = publisherPipeline.run();
+  }
+
+  private PTransform<PBegin, PDone> createPubsubPublisher(long now) {
+    return PubsubEventsGenerator
+            .create(configuration, options, queryName, now);
+  }
+
+  private List<NexmarkQuery> createQueries() {
+    return Arrays.asList(
+        new Query0(configuration),
+        new Query1(configuration),
+        new Query2(configuration),
+        new Query3(configuration),
+        new Query4(configuration),
+        new Query5(configuration),
+        new Query6(configuration),
+        new Query7(configuration),
+        new Query8(configuration),
+        new Query9(configuration),
+        new Query10(configuration),
+        new Query11(configuration),
+        new Query12(configuration));
+  }
+
+  private List<NexmarkQueryModel> createModels() {
+    return Arrays.asList(
+        new Query0Model(configuration),
+        new Query1Model(configuration),
+        new Query2Model(configuration),
+        new Query3Model(configuration),
+        new Query4Model(configuration),
+        new Query5Model(configuration),
+        new Query6Model(configuration),
+        new Query7Model(configuration),
+        new Query8Model(configuration),
+        new Query9Model(configuration),
+        null,
+        null,
+        null);
+  }
+
+  private Pipeline newPipeline() {
+    Pipeline p = Pipeline.create(options);
+    NexmarkUtils.setupPipeline(configuration.coderStrategy, p);
+    return p;
+  }
+
+  private PCollection<Event> logEvents(PCollection<Event> events) {
+    return events.apply(
+        queryName + ".Events.Log",
+        NexmarkUtils.<Event> log(queryName + ".Events"));
+  }
+
+  private PCollection<TimestampedValue<KnownSize>> applyNexmarkQuery(
+      NexmarkQuery query,
+      PCollection<Event> events,
+      long now) {
+
+    // Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
+    // so, set parallelism. Also set the output path where to write log files.
+    if (configuration.query == 10) {
+      String path = null;
+      if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
+        path = logsDir(now);
+      }
+      ((Query10) query).setOutputPath(path);
+      ((Query10) query).setMaxNumWorkers(maxNumWorkers());
+    }
+
+    // Apply query.
+    return events.apply(query);
+  }
+
+  private void assertNexmarkQueryResults(
+      NexmarkQueryModel model,
+      PCollection<TimestampedValue<KnownSize>> results) {
+
+    if (model == null) {
+      throw new RuntimeException(String.format("No model for %s", queryName));
+    }
+
+    // We know all our streams have a finite number of elements.
+    results.setIsBoundedInternal(PCollection.IsBounded.BOUNDED);
+    // If we have a finite number of events then assert our pipeline's
+    // results match those of a model using the same sequence of events.
+    PAssert.that(results).satisfies(model.assertionFor());
   }
 }

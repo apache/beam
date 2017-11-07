@@ -15,18 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources.utils;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator.model;
 
-import static org.apache.beam.sdk.nexmark.sources.utils.LongGenerator.nextLong;
-import static org.apache.beam.sdk.nexmark.sources.utils.StringsGenerator.nextExtra;
-import static org.apache.beam.sdk.nexmark.sources.utils.StringsGenerator.nextString;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.LongGenerator.nextLong;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.StringsGenerator.nextExtra;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.StringsGenerator.nextString;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
 import org.apache.beam.sdk.nexmark.model.Person;
-import org.apache.beam.sdk.nexmark.sources.GeneratorConfig;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorConfig;
 
 /**
  * Generates people.
