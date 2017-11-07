@@ -25,6 +25,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -105,7 +106,9 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
-  private transient TypeDescriptor<T> typeDescriptor;
+
+  /** Access via {@link #getEncodedTypeDescriptor()}. */
+  @Nullable private transient TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;

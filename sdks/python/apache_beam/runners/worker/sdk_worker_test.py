@@ -23,16 +23,17 @@ from __future__ import print_function
 
 import logging
 import unittest
-
 from concurrent import futures
+
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.worker import sdk_worker
 
 
-class BeamFnControlServicer(beam_fn_api_pb2.BeamFnControlServicer):
+class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
   def __init__(self, requests, raise_errors=True):
     self.requests = requests
@@ -74,12 +75,12 @@ class SdkWorkerTest(unittest.TestCase):
             process_bundle_descriptor=process_bundle_descriptors))])
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    beam_fn_api_pb2.add_BeamFnControlServicer_to_server(test_controller, server)
+    beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
+        test_controller, server)
     test_port = server.add_insecure_port("[::]:0")
     server.start()
 
-    channel = grpc.insecure_channel("localhost:%s" % test_port)
-    harness = sdk_worker.SdkHarness(channel)
+    harness = sdk_worker.SdkHarness("localhost:%s" % test_port)
     harness.run()
     self.assertEqual(
         harness.worker.fns,

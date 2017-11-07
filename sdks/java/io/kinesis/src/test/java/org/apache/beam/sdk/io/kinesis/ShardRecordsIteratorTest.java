@@ -104,27 +104,31 @@ public class ShardRecordsIteratorTest {
   }
 
   @Test
-  public void returnsAbsentIfNoRecordsPresent() throws IOException, TransientKinesisException {
-    assertThat(iterator.next()).isEqualTo(CustomOptional.absent());
-    assertThat(iterator.next()).isEqualTo(CustomOptional.absent());
-    assertThat(iterator.next()).isEqualTo(CustomOptional.absent());
-  }
-
-  @Test
   public void goesThroughAvailableRecords() throws IOException, TransientKinesisException {
     when(firstResult.getRecords()).thenReturn(asList(a, b, c));
     when(secondResult.getRecords()).thenReturn(singletonList(d));
+    when(thirdResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
 
     assertThat(iterator.getCheckpoint()).isEqualTo(firstCheckpoint);
-    assertThat(iterator.next()).isEqualTo(CustomOptional.of(a));
+    assertThat(iterator.readNextBatch()).isEqualTo(asList(a, b, c));
+    assertThat(iterator.readNextBatch()).isEqualTo(singletonList(d));
+    assertThat(iterator.readNextBatch()).isEqualTo(Collections.emptyList());
+
+  }
+
+  @Test
+  public void conformingRecordsMovesCheckpoint() throws IOException, TransientKinesisException {
+    when(firstResult.getRecords()).thenReturn(asList(a, b, c));
+    when(secondResult.getRecords()).thenReturn(singletonList(d));
+    when(thirdResult.getRecords()).thenReturn(Collections.<KinesisRecord>emptyList());
+
+    iterator.ackRecord(a);
     assertThat(iterator.getCheckpoint()).isEqualTo(aCheckpoint);
-    assertThat(iterator.next()).isEqualTo(CustomOptional.of(b));
+    iterator.ackRecord(b);
     assertThat(iterator.getCheckpoint()).isEqualTo(bCheckpoint);
-    assertThat(iterator.next()).isEqualTo(CustomOptional.of(c));
+    iterator.ackRecord(c);
     assertThat(iterator.getCheckpoint()).isEqualTo(cCheckpoint);
-    assertThat(iterator.next()).isEqualTo(CustomOptional.of(d));
-    assertThat(iterator.getCheckpoint()).isEqualTo(dCheckpoint);
-    assertThat(iterator.next()).isEqualTo(CustomOptional.absent());
+    iterator.ackRecord(d);
     assertThat(iterator.getCheckpoint()).isEqualTo(dCheckpoint);
   }
 
@@ -140,9 +144,10 @@ public class ShardRecordsIteratorTest {
     when(kinesisClient.getRecords(SECOND_REFRESHED_ITERATOR, STREAM_NAME, SHARD_ID))
         .thenReturn(secondResult);
 
-    assertThat(iterator.next()).isEqualTo(CustomOptional.of(a));
-    assertThat(iterator.next()).isEqualTo(CustomOptional.of(b));
-    assertThat(iterator.next()).isEqualTo(CustomOptional.absent());
+    assertThat(iterator.readNextBatch()).isEqualTo(singletonList(a));
+    iterator.ackRecord(a);
+    assertThat(iterator.readNextBatch()).isEqualTo(singletonList(b));
+    assertThat(iterator.readNextBatch()).isEqualTo(Collections.emptyList());
   }
 
   private static class IdentityAnswer implements Answer<Object> {

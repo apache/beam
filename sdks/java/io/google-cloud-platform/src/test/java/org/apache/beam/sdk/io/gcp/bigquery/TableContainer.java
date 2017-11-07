@@ -32,6 +32,7 @@ class TableContainer {
   Long sizeBytes;
   TableContainer(Table table) {
     this.table = table;
+
     this.rows = new ArrayList<>();
     this.ids = new ArrayList<>();
     this.sizeBytes = 0L;
@@ -53,6 +54,7 @@ class TableContainer {
   Table getTable() {
     return table;
   }
+
 
   List<TableRow> getRows() {
     return rows;

@@ -21,18 +21,16 @@ import tempfile
 import unittest
 
 import apache_beam as beam
-
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.metrics.metricbase import MetricName
-
 from apache_beam.pvalue import AsList
-from apache_beam.testing.util import assert_that
+from apache_beam.runners.portability import maptask_executor_runner
 from apache_beam.testing.util import BeamAssertException
+from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.runners.portability import maptask_executor_runner
 
 
 class MapTaskExecutorRunnerTest(unittest.TestCase):
@@ -154,7 +152,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
       derived = ((pcoll,) | beam.Flatten()
                  | beam.Map(lambda x: (x, x))
                  | beam.GroupByKey()
-                 | 'Unkey' >> beam.Map(lambda (x, _): x))
+                 | 'Unkey' >> beam.Map(lambda kv: kv[0]))
       assert_that(
           pcoll | beam.FlatMap(cross_product, AsList(derived)),
           equal_to([('a', 'a'), ('a', 'b'), ('b', 'a'), ('b', 'b')]))
@@ -164,7 +162,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
       res = (p
              | beam.Create([('a', 1), ('a', 2), ('b', 3)])
              | beam.GroupByKey()
-             | beam.Map(lambda (k, vs): (k, sorted(vs))))
+             | beam.Map(lambda k_vs: (k_vs[0], sorted(k_vs[1]))))
       assert_that(res, equal_to([('a', [1, 2]), ('b', [3])]))
 
   def test_flatten(self):
@@ -201,7 +199,7 @@ class MapTaskExecutorRunnerTest(unittest.TestCase):
              | beam.Map(lambda t: TimestampedValue(('k', t), t))
              | beam.WindowInto(beam.transforms.window.Sessions(10))
              | beam.GroupByKey()
-             | beam.Map(lambda (k, vs): (k, sorted(vs))))
+             | beam.Map(lambda k_vs1: (k_vs1[0], sorted(k_vs1[1]))))
       assert_that(res, equal_to([('k', [1, 2]), ('k', [100, 101, 102])]))
 
   def test_errors(self):

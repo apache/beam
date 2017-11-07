@@ -97,7 +97,7 @@ public class SplittableDoFnOperator<
       public StateInternals stateInternalsForKey(String key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals) stateInternals;
+        return (StateInternals) keyedStateInternals;
       }
     };
     TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
@@ -148,7 +148,7 @@ public class SplittableDoFnOperator<
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
     doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
         KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem(
-            (String) stateInternals.getKey(),
+            (String) keyedStateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }
 

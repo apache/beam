@@ -29,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -393,9 +394,13 @@ public class Pipeline {
      */
     class Defaults implements PipelineVisitor {
 
-      private Pipeline pipeline;
+      @Nullable private Pipeline pipeline;
 
       protected Pipeline getPipeline() {
+        if (pipeline == null) {
+          throw new IllegalStateException(
+              "Illegal access to pipeline after visitor traversal was completed");
+        }
         return pipeline;
       }
 
@@ -484,7 +489,10 @@ public class Pipeline {
 
   private final TransformHierarchy transforms;
   private Set<String> usedFullNames = new HashSet<>();
-  private CoderRegistry coderRegistry;
+
+  /** Lazily initialized; access via {@link #getCoderRegistry()}. */
+  @Nullable private CoderRegistry coderRegistry;
+
   private final List<String> unstableNames = new ArrayList<>();
   private final PipelineOptions defaultOptions;
 

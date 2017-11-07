@@ -61,6 +61,7 @@ import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.SourceMetrics;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -1097,13 +1098,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     public final PubsubUnboundedSource outer;
     // The subscription to read from.
     @VisibleForTesting
-    final SubscriptionPath subscriptionPath;
+    final ValueProvider<SubscriptionPath> subscriptionPath;
 
     public PubsubSource(PubsubUnboundedSource outer) {
-      this(outer, outer.getSubscription());
+      this(outer, outer.getSubscriptionProvider());
     }
 
-    private PubsubSource(PubsubUnboundedSource outer, SubscriptionPath subscriptionPath) {
+    private PubsubSource(
+        PubsubUnboundedSource outer, ValueProvider<SubscriptionPath> subscriptionPath) {
       this.outer = outer;
       this.subscriptionPath = subscriptionPath;
     }
@@ -1114,7 +1116,9 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       List<PubsubSource> result = new ArrayList<>(desiredNumSplits);
       PubsubSource splitSource = this;
       if (subscriptionPath == null) {
-        splitSource = new PubsubSource(outer, outer.createRandomSubscription(options));
+        splitSource =
+            new PubsubSource(
+                outer, StaticValueProvider.of(outer.createRandomSubscription(options)));
       }
       for (int i = 0; i < desiredNumSplits * SCALE_OUT; i++) {
         // Since the source is immutable and Pubsub automatically shards we simply
@@ -1129,8 +1133,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         PipelineOptions options,
         @Nullable PubsubCheckpoint checkpoint) {
       PubsubReader reader;
-      SubscriptionPath subscription = subscriptionPath;
-      if (subscription == null) {
+      SubscriptionPath subscription;
+      if (subscriptionPath == null || subscriptionPath.get() == null) {
         if (checkpoint == null) {
           // This reader has never been started and there was no call to #split;
           // create a single random subscription, which will be kept in the checkpoint.
@@ -1138,6 +1142,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         } else {
           subscription = checkpoint.getSubscription();
         }
+      } else {
+        subscription = subscriptionPath.get();
       }
       try {
         reader = new PubsubReader(options.as(PubsubOptions.class), this, subscription);
@@ -1222,21 +1228,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Override
     public void populateDisplayData(Builder builder) {
       super.populateDisplayData(builder);
-      if (subscription != null) {
-        String subscriptionString = subscription.isAccessible()
-            ? subscription.get().getPath()
-            : subscription.toString();
-        builder.add(DisplayData.item("subscription", subscriptionString));
-      }
-      if (topic != null) {
-        String topicString = topic.isAccessible()
-            ? topic.get().getPath()
-            : topic.toString();
-        builder.add(DisplayData.item("topic", topicString));
-      }
-      builder.add(DisplayData.item("transport", pubsubFactory.getKind()));
-      builder.addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute));
-      builder.addIfNotNull(DisplayData.item("idAttribute", idAttribute));
+      builder
+          .addIfNotNull(DisplayData.item("subscription", subscription))
+          .addIfNotNull(DisplayData.item("topic", topic))
+          .add(DisplayData.item("transport", pubsubFactory.getKind()))
+          .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute))
+          .addIfNotNull(DisplayData.item("idAttribute", idAttribute));
     }
   }
 
@@ -1416,8 +1413,6 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       try (PubsubClient pubsubClient =
           pubsubFactory.newClient(
               timestampAttribute, idAttribute, options.as(PubsubOptions.class))) {
-        checkState(project.isAccessible(), "createRandomSubscription must be called at runtime.");
-        checkState(topic.isAccessible(), "createRandomSubscription must be called at runtime.");
         SubscriptionPath subscriptionPath =
             pubsubClient.createRandomSubscription(
                 project.get(), topic.get(), DEAULT_ACK_TIMEOUT_SEC);

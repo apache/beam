@@ -25,9 +25,11 @@ from hamcrest.core.core.allof import all_of
 from nose.plugins.attrib import attr
 
 from apache_beam.examples import wordcount
+from apache_beam.examples import wordcount_fnapi
 from apache_beam.testing.pipeline_verifiers import FileChecksumMatcher
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import delete_files
 
 
 class WordCountIT(unittest.TestCase):
@@ -56,9 +58,23 @@ class WordCountIT(unittest.TestCase):
     extra_opts = {'output': output,
                   'on_success_matcher': all_of(*pipeline_verifiers)}
 
+    # Register clean up before pipeline execution
+    self.addCleanup(delete_files, [output + '*'])
+
     # Get pipeline options from command argument: --test-pipeline-options,
     # and start pipeline job by calling pipeline main function.
     wordcount.run(test_pipeline.get_full_options_as_args(**extra_opts))
+
+  @attr('IT')
+  def test_wordcount_fnapi_it(self):
+    test_pipeline = TestPipeline(is_integration_test=True)
+
+    # Get pipeline options from command argument: --test-pipeline-options,
+    # and start pipeline job by calling pipeline main function.
+    wordcount_fnapi.run(
+        test_pipeline.get_full_options_as_args(
+            experiment='beam_fn_api',
+            on_success_matcher=PipelineStateMatcher()))
 
 
 if __name__ == '__main__':

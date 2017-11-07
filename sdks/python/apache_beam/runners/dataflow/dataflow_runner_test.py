@@ -25,21 +25,22 @@ import mock
 
 import apache_beam as beam
 import apache_beam.transforms as ptransform
-
 from apache_beam.options.pipeline_options import PipelineOptions
-from apache_beam.pipeline import Pipeline, AppliedPTransform
+from apache_beam.pipeline import AppliedPTransform
+from apache_beam.pipeline import Pipeline
 from apache_beam.pvalue import PCollection
-from apache_beam.runners import create_runner
 from apache_beam.runners import DataflowRunner
 from apache_beam.runners import TestDataflowRunner
+from apache_beam.runners import create_runner
 from apache_beam.runners.dataflow.dataflow_runner import DataflowPipelineResult
 from apache_beam.runners.dataflow.dataflow_runner import DataflowRuntimeException
 from apache_beam.runners.dataflow.internal.clients import dataflow as dataflow_api
+from apache_beam.runners.runner import PipelineState
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.transforms.display import DisplayDataItem
-from apache_beam.transforms.core import _GroupByKeyOnly
-from apache_beam.transforms.core import Windowing
 from apache_beam.transforms import window
+from apache_beam.transforms.core import Windowing
+from apache_beam.transforms.core import _GroupByKeyOnly
+from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.typehints import typehints
 
 # Protect against environments where apitools library is not available.
@@ -68,13 +69,17 @@ class DataflowRunnerTest(unittest.TestCase):
 
     class MockDataflowRunner(object):
 
-      def __init__(self, final_state):
+      def __init__(self, states):
         self.dataflow_client = mock.MagicMock()
         self.job = mock.MagicMock()
         self.job.currentState = values_enum.JOB_STATE_UNKNOWN
+        self._states = states
+        self._next_state_index = 0
 
         def get_job_side_effect(*args, **kwargs):
-          self.job.currentState = final_state
+          self.job.currentState = self._states[self._next_state_index]
+          if self._next_state_index < (len(self._states) - 1):
+            self._next_state_index += 1
           return mock.DEFAULT
 
         self.dataflow_client.get_job = mock.MagicMock(
@@ -84,14 +89,76 @@ class DataflowRunnerTest(unittest.TestCase):
 
     with self.assertRaisesRegexp(
         DataflowRuntimeException, 'Dataflow pipeline failed. State: FAILED'):
-      failed_runner = MockDataflowRunner(values_enum.JOB_STATE_FAILED)
+      failed_runner = MockDataflowRunner([values_enum.JOB_STATE_FAILED])
       failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
       failed_result.wait_until_finish()
 
-    succeeded_runner = MockDataflowRunner(values_enum.JOB_STATE_DONE)
+    succeeded_runner = MockDataflowRunner([values_enum.JOB_STATE_DONE])
     succeeded_result = DataflowPipelineResult(
         succeeded_runner.job, succeeded_runner)
-    succeeded_result.wait_until_finish()
+    result = succeeded_result.wait_until_finish()
+    self.assertEqual(result, PipelineState.DONE)
+
+    # Time array has duplicate items, because some logging implementations also
+    # call time.
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
+      duration_succeeded_runner = MockDataflowRunner(
+          [values_enum.JOB_STATE_RUNNING, values_enum.JOB_STATE_DONE])
+      duration_succeeded_result = DataflowPipelineResult(
+          duration_succeeded_runner.job, duration_succeeded_runner)
+      result = duration_succeeded_result.wait_until_finish(5000)
+      self.assertEqual(result, PipelineState.DONE)
+
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 9, 9, 20, 20])):
+      duration_timedout_runner = MockDataflowRunner(
+          [values_enum.JOB_STATE_RUNNING])
+      duration_timedout_result = DataflowPipelineResult(
+          duration_timedout_runner.job, duration_timedout_runner)
+      result = duration_timedout_result.wait_until_finish(5000)
+      self.assertEqual(result, PipelineState.RUNNING)
+
+    with mock.patch('time.time', mock.MagicMock(side_effect=[1, 1, 2, 2, 3])):
+      with self.assertRaisesRegexp(
+          DataflowRuntimeException,
+          'Dataflow pipeline failed. State: CANCELLED'):
+        duration_failed_runner = MockDataflowRunner(
+            [values_enum.JOB_STATE_CANCELLED])
+        duration_failed_result = DataflowPipelineResult(
+            duration_failed_runner.job, duration_failed_runner)
+        duration_failed_result.wait_until_finish(5000)
+
+  @mock.patch('time.sleep', return_value=None)
+  def test_cancel(self, patched_time_sleep):
+    values_enum = dataflow_api.Job.CurrentStateValueValuesEnum
+
+    class MockDataflowRunner(object):
+
+      def __init__(self, state, cancel_result):
+        self.dataflow_client = mock.MagicMock()
+        self.job = mock.MagicMock()
+        self.job.currentState = state
+
+        self.dataflow_client.get_job = mock.MagicMock(return_value=self.job)
+        self.dataflow_client.modify_job_state = mock.MagicMock(
+            return_value=cancel_result)
+        self.dataflow_client.list_messages = mock.MagicMock(
+            return_value=([], None))
+
+    with self.assertRaisesRegexp(
+        DataflowRuntimeException, 'Failed to cancel job'):
+      failed_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, False)
+      failed_result = DataflowPipelineResult(failed_runner.job, failed_runner)
+      failed_result.cancel()
+
+    succeeded_runner = MockDataflowRunner(values_enum.JOB_STATE_RUNNING, True)
+    succeeded_result = DataflowPipelineResult(
+        succeeded_runner.job, succeeded_runner)
+    succeeded_result.cancel()
+
+    terminal_runner = MockDataflowRunner(values_enum.JOB_STATE_DONE, False)
+    terminal_result = DataflowPipelineResult(
+        terminal_runner.job, terminal_runner)
+    terminal_result.cancel()
 
   def test_create_runner(self):
     self.assertTrue(

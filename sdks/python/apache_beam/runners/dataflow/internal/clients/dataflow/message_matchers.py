@@ -17,7 +17,6 @@
 
 from hamcrest.core.base_matcher import BaseMatcher
 
-
 IGNORED = object()
 
 

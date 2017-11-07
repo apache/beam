@@ -94,7 +94,7 @@ public class GroupByKeyTranslator<K, V> implements TransformTranslator<GroupByKe
     }
 
     @Override
-    public <T> Window[]  apply(Context<T> context) {
+    public <T> Window[] apply(Context<T> context) {
       try {
         Object element = context.element();
         if (element instanceof TranslatorUtils.RawUnionValue) {

@@ -25,7 +25,6 @@ from apache_beam.runners.worker.opcounters import OperationCounters
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils.counters import CounterFactory
 
-
 # Classes to test that we can handle a variety of objects.
 # These have to be at top level so the pickler can find them.
 

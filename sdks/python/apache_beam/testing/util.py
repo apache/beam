@@ -27,10 +27,9 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import Create
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import WindowInto
-from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.transforms.ptransform import PTransform
+from apache_beam.transforms.util import CoGroupByKey
 from apache_beam.utils.annotations import experimental
-
 
 __all__ = [
     'assert_that',
@@ -104,7 +103,7 @@ def assert_that(actual, matcher, label='assert_that'):
           | "ToVoidKey" >> Map(lambda v: (None, v)))
       _ = ((keyed_singleton, keyed_actual)
            | "Group" >> CoGroupByKey()
-           | "Unkey" >> Map(lambda (k, (_, actual_values)): actual_values)
+           | "Unkey" >> Map(lambda k___actual_values: k___actual_values[1][1])
            | "Match" >> Map(matcher))
 
     def default_label(self):

@@ -39,7 +39,7 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class WithKeysTest {
-  static final String[] COLLECTION = new String[] {
+  private static final String[] COLLECTION = new String[] {
     "a",
     "aa",
     "b",
@@ -47,7 +47,7 @@ public class WithKeysTest {
     "bbb"
   };
 
-  static final List<KV<Integer, String>> WITH_KEYS = Arrays.asList(
+  private static final List<KV<Integer, String>> WITH_KEYS = Arrays.asList(
     KV.of(1, "a"),
     KV.of(2, "aa"),
     KV.of(1, "b"),
@@ -55,12 +55,20 @@ public class WithKeysTest {
     KV.of(3, "bbb")
   );
 
-  static final List<KV<Integer, String>> WITH_CONST_KEYS = Arrays.asList(
+  private static final List<KV<Integer, String>> WITH_CONST_KEYS = Arrays.asList(
     KV.of(100, "a"),
     KV.of(100, "aa"),
     KV.of(100, "b"),
     KV.of(100, "bb"),
     KV.of(100, "bbb")
+  );
+
+  private static final List<KV<Void, String>> WITH_CONST_NULL_KEYS = Arrays.asList(
+      KV.of((Void) null, "a"),
+      KV.of((Void) null, "aa"),
+      KV.of((Void) null, "b"),
+      KV.of((Void) null, "bb"),
+      KV.of((Void) null, "bbb")
   );
 
   @Rule
@@ -94,6 +102,22 @@ public class WithKeysTest {
         input.apply(WithKeys.<Integer, String>of(100));
     PAssert.that(output)
         .containsInAnyOrder(WITH_CONST_KEYS);
+
+    p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testConstantVoidKeys() {
+
+    PCollection<String> input =
+        p.apply(Create.of(Arrays.asList(COLLECTION)).withCoder(
+            StringUtf8Coder.of()));
+
+    PCollection<KV<Void, String>> output =
+        input.apply(WithKeys.<Void, String>of((Void) null));
+    PAssert.that(output)
+        .containsInAnyOrder(WITH_CONST_NULL_KEYS);
 
     p.run();
   }

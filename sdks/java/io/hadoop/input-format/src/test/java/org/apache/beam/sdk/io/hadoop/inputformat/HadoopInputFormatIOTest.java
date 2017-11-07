@@ -161,7 +161,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadObjectCreationFailsIfConfigurationIsNull() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     HadoopInputFormatIO.<Text, Employee>read()
           .withConfiguration(null);
   }
@@ -192,7 +192,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadObjectCreationFailsIfKeyTranslationFunctionIsNull() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     HadoopInputFormatIO.<String, Employee>read()
         .withConfiguration(serConf.get())
         .withKeyTranslation(null);
@@ -225,7 +225,7 @@ public class HadoopInputFormatIOTest {
    */
   @Test
   public void testReadObjectCreationFailsIfValueTranslationFunctionIsNull() {
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     HadoopInputFormatIO.<Text, String>read()
         .withConfiguration(serConf.get())
         .withValueTranslation(null);
@@ -278,7 +278,7 @@ public class HadoopInputFormatIOTest {
   @Test
   public void testReadValidationFailsMissingConfiguration() {
     HadoopInputFormatIO.Read<String, String> read = HadoopInputFormatIO.<String, String>read();
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     read.validateTransform();
   }
 
@@ -292,7 +292,7 @@ public class HadoopInputFormatIOTest {
     Configuration configuration = new Configuration();
     configuration.setClass("key.class", Text.class, Object.class);
     configuration.setClass("value.class", Employee.class, Object.class);
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(configuration);
   }
@@ -307,7 +307,7 @@ public class HadoopInputFormatIOTest {
     configuration.setClass("mapreduce.job.inputformat.class", EmployeeInputFormat.class,
         InputFormat.class);
     configuration.setClass("value.class", Employee.class, Object.class);
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     HadoopInputFormatIO.<Text, Employee>read()
         .withConfiguration(configuration);
   }
@@ -322,7 +322,7 @@ public class HadoopInputFormatIOTest {
     configuration.setClass("mapreduce.job.inputformat.class", EmployeeInputFormat.class,
         InputFormat.class);
     configuration.setClass("key.class", Text.class, Object.class);
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     HadoopInputFormatIO.<Text, Employee>read().withConfiguration(configuration);
   }
 

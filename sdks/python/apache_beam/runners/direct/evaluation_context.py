@@ -22,11 +22,11 @@ from __future__ import absolute_import
 import collections
 import threading
 
-from apache_beam.transforms import sideinputs
 from apache_beam.runners.direct.clock import Clock
-from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
+from apache_beam.runners.direct.executor import TransformExecutor
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.transforms import sideinputs
 from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
 
@@ -43,6 +43,9 @@ class _ExecutionContext(object):
     if not self._step_context:
       self._step_context = DirectStepContext(self.keyed_states)
     return self._step_context
+
+  def reset(self):
+    self._step_context = None
 
 
 class _SideInputView(object):
@@ -241,6 +244,10 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
+      # Commit partial GBK states
+      existing_keyed_state = self._transform_keyed_states[result.transform]
+      for k, v in result.partial_keyed_state.iteritems():
+        existing_keyed_state[k] = v
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -320,12 +327,16 @@ class DirectUnmergedState(InMemoryUnmergedState):
 class DirectStepContext(object):
   """Context for the currently-executing step."""
 
-  def __init__(self, keyed_existing_state):
-    self.keyed_existing_state = keyed_existing_state
+  def __init__(self, existing_keyed_state):
+    self.existing_keyed_state = existing_keyed_state
+    # In order to avoid partial writes of a bundle, every time
+    # existing_keyed_state is accessed, a copy of the state is made
+    # to be transferred to the bundle state once the bundle is committed.
+    self.partial_keyed_state = {}
 
   def get_keyed_state(self, key):
-    # TODO(ccy): consider implementing transactional copy on write semantics
-    # for state so that work items can be safely retried.
-    if not self.keyed_existing_state.get(key):
-      self.keyed_existing_state[key] = DirectUnmergedState()
-    return self.keyed_existing_state[key]
+    if not self.existing_keyed_state.get(key):
+      self.existing_keyed_state[key] = DirectUnmergedState()
+    if not self.partial_keyed_state.get(key):
+      self.partial_keyed_state[key] = self.existing_keyed_state[key].copy()
+    return self.partial_keyed_state[key]

@@ -22,14 +22,13 @@ import unittest
 
 import hamcrest as hc
 
-from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
-from apache_beam.io.gcp.pubsub import _PubSubPayloadSource
 from apache_beam.io.gcp.pubsub import ReadStringsFromPubSub
 from apache_beam.io.gcp.pubsub import WriteStringsToPubSub
+from apache_beam.io.gcp.pubsub import _PubSubPayloadSink
+from apache_beam.io.gcp.pubsub import _PubSubPayloadSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
 
 # Protect against environments where the PubSub library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position

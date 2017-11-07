@@ -32,7 +32,6 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils import timestamp
 from apache_beam.utils.windowed_value import WindowedValue
 
-
 __all__ = [
     'Event',
     'ElementEvent',

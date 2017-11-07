@@ -114,9 +114,6 @@ public class FileBasedSourceTest {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }

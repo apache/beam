@@ -47,6 +47,10 @@ class MetricName(object):
       namespace: A string with the namespace of a metric.
       name: A string with the name of a metric.
     """
+    if not namespace:
+      raise ValueError('Metric namespace must be non-empty')
+    if not name:
+      raise ValueError('Metric name must be non-empty')
     self.namespace = namespace
     self.name = name
 

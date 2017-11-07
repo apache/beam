@@ -137,7 +137,7 @@ public class Create<T> {
    * Otherwise, use {@link Create.Values#withCoder} to set the coder explicitly.
    */
   @SafeVarargs
-  public static <T> Values<T> of(T elem, T... elems) {
+  public static <T> Values<T> of(@Nullable T elem, @Nullable T... elems) {
     // This can't be an ImmutableList, as it may accept nulls
     List<T> input = new ArrayList<>(elems.length + 1);
     input.add(elem);
@@ -402,9 +402,6 @@ public class Create<T> {
           throws IOException {
         return new BytesReader<>(this);
       }
-
-      @Override
-      public void validate() {}
 
       @Override
       public Coder<T> getOutputCoder() {

@@ -30,7 +30,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.beam.runners.gearpump.GearpumpPipelineOptions;
 import org.apache.beam.runners.gearpump.translators.io.UnboundedSourceWrapper;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
@@ -62,6 +64,8 @@ public class FlattenPCollectionsTranslatorTest {
 
     when(translationContext.getInputs()).thenReturn(Collections.EMPTY_MAP);
     when(translationContext.getOutput()).thenReturn(mockOutput);
+    when(translationContext.getPipelineOptions())
+        .thenReturn(PipelineOptionsFactory.as(GearpumpPipelineOptions.class));
 
     translator.translate(transform, translationContext);
     verify(translationContext).getSourceStream(argThat(new UnboundedSourceWrapperMatcher()));
@@ -141,6 +145,8 @@ public class FlattenPCollectionsTranslatorTest {
 
     when(translationContext.getInputs()).thenReturn(inputs);
     when(translationContext.getInputStream(mockCollection1)).thenReturn(javaStream1);
+    when(translationContext.getPipelineOptions())
+        .thenReturn(PipelineOptionsFactory.as(GearpumpPipelineOptions.class));
 
     translator.translate(transform, translationContext);
     verify(javaStream1).map(any(MapFunction.class), eq("dummy"));

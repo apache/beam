@@ -18,4 +18,8 @@
 /**
  * Defines annotations used across the SDK.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.annotations;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

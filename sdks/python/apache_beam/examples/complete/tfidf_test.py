@@ -30,7 +30,6 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import open_shards
 
-
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032),
     ('abc', '1.txt', 0.0),
@@ -52,6 +51,10 @@ class TfIdfTest(unittest.TestCase):
 
   def test_tfidf_transform(self):
     with TestPipeline() as p:
+      def re_key(word_uri_tfidf):
+        (word, (uri, tfidf)) = word_uri_tfidf
+        return (word, uri, tfidf)
+
       uri_to_line = p | 'create sample' >> beam.Create(
           [('1.txt', 'abc def ghi'),
            ('2.txt', 'abc def'),
@@ -59,7 +62,7 @@ class TfIdfTest(unittest.TestCase):
       result = (
           uri_to_line
           | tfidf.TfIdf()
-          | beam.Map(lambda (word, (uri, tfidf)): (word, uri, tfidf)))
+          | beam.Map(re_key))
       assert_that(result, equal_to(EXPECTED_RESULTS))
       # Run the pipeline. Note that the assert_that above adds to the pipeline
       # a check that the result PCollection contains expected values.

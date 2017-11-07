@@ -164,10 +164,13 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
             DynamicDestinations.class,
             new TypeDescriptors.TypeVariableExtractor<
                 DynamicDestinations<T, DestinationT>, DestinationT>() {});
-    checkArgument(
-        descriptor != null,
-        "Unable to infer a coder for DestinationT, "
-            + "please specify it explicitly by overriding getDestinationCoder()");
-    return registry.getCoder(descriptor);
+    try {
+      return registry.getCoder(descriptor);
+    } catch (CannotProvideCoderException e) {
+      throw new CannotProvideCoderException(
+          "Failed to infer coder for DestinationT from type "
+              + descriptor + ", please provide it explicitly by overriding getDestinationCoder()",
+          e);
+    }
   }
 }

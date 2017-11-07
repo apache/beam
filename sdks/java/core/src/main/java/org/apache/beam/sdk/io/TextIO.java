@@ -20,22 +20,26 @@ package org.apache.beam.sdk.io;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.io.FileIO.ReadMatches.DirectoryTreatment;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.CompressedSource.CompressionMode;
 import org.apache.beam.sdk.io.DefaultFilenamePolicy.Params;
 import org.apache.beam.sdk.io.FileBasedSink.DynamicDestinations;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
 import org.apache.beam.sdk.io.FileBasedSink.WritableByteChannelFactory;
+import org.apache.beam.sdk.io.FileIO.MatchConfiguration;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -55,13 +59,18 @@ import org.joda.time.Duration;
 /**
  * {@link PTransform}s for reading and writing text files.
  *
+ * <h2>Reading text files</h2>
+ *
  * <p>To read a {@link PCollection} from one or more text files, use {@code TextIO.read()} to
  * instantiate a transform and use {@link TextIO.Read#from(String)} to specify the path of the
  * file(s) to be read. Alternatively, if the filenames to be read are themselves in a {@link
- * PCollection}, apply {@link TextIO#readAll()}.
+ * PCollection}, apply {@link TextIO#readAll()} or {@link TextIO#readFiles}.
  *
  * <p>{@link #read} returns a {@link PCollection} of {@link String Strings}, each corresponding to
- * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n').
+ * one line of an input UTF-8 text file (split into lines delimited by '\n', '\r', or '\r\n',
+ * or specified delimiter see {@link TextIO.Read#withDelimiter}).
+ *
+ * <h3>Filepattern expansion and watching</h3>
  *
  * <p>By default, the filepatterns are expanded only once. {@link Read#watchForNewFiles} and {@link
  * ReadAll#watchForNewFiles} allow streaming of new files matching the filepattern(s).
@@ -79,11 +88,6 @@ import org.joda.time.Duration;
  * // A simple Read of a local file (only runs locally):
  * PCollection<String> lines = p.apply(TextIO.read().from("/local/path/to/file.txt"));
  * }</pre>
- *
- * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
- * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
- * scalability. Note that it may decrease performance if the filepattern matches only a small number
- * of files.
  *
  * <p>Example 2: reading a PCollection of filenames.
  *
@@ -112,6 +116,15 @@ import org.joda.time.Duration;
  *       afterTimeSinceNewOutput(Duration.standardHours(1))));
  * }</pre>
  *
+ * <h3>Reading a very large number of files</h3>
+ *
+ * <p>If it is known that the filepattern will match a very large number of files (e.g. tens of
+ * thousands or more), use {@link Read#withHintMatchesManyFiles} for better performance and
+ * scalability. Note that it may decrease performance if the filepattern matches only a small number
+ * of files.
+ *
+ * <h2>Writing text files</h2>
+ *
  * <p>To write a {@link PCollection} to one or more text files, use {@code TextIO.write()}, using
  * {@link TextIO.Write#to(String)} to specify the output prefix of the files to write.
  *
@@ -126,8 +139,15 @@ import org.joda.time.Duration;
  * PCollection<String> lines = ...;
  * lines.apply(TextIO.write().to("/path/to/file.txt"))
  *      .withSuffix(".txt")
- *      .withWritableByteChannelFactory(FileBasedSink.CompressionType.GZIP));
+ *      .withCompression(Compression.GZIP));
  * }</pre>
+ *
+ * <p>Any existing files with the same names as generated output files will be overwritten.
+ *
+ * <p>If you want better control over how filenames are generated than the default policy allows, a
+ * custom {@link FilenamePolicy} can also be set using {@link TextIO.Write#to(FilenamePolicy)}.
+ *
+ * <h3>Writing windowed or unbounded data</h3>
  *
  * <p>By default, all input is put into the global window before writing. If per-window writes are
  * desired - for example, when using a streaming runner - {@link TextIO.Write#withWindowedWrites()}
@@ -139,8 +159,7 @@ import org.joda.time.Duration;
  * for the window and the pane; W is expanded into the window text, and P into the pane; the default
  * template will include both the window and the pane in the filename.
  *
- * <p>If you want better control over how filenames are generated than the default policy allows, a
- * custom {@link FilenamePolicy} can also be set using {@link TextIO.Write#to(FilenamePolicy)}.
+ * <h3>Writing data to multiple destinations</h3>
  *
  * <p>TextIO also supports dynamic, value-dependent file destinations. The most general form of this
  * is done via {@link TextIO.Write#to(DynamicDestinations)}. A {@link DynamicDestinations} class
@@ -165,8 +184,6 @@ import org.joda.time.Duration;
  *       }),
  *       new Params().withBaseFilename(baseDirectory + "/empty");
  * }</pre>
- *
- * <p>Any existing files with the same names as generated output files will be overwritten.
  */
 public class TextIO {
   /**
@@ -175,9 +192,9 @@ public class TextIO {
    */
   public static Read read() {
     return new AutoValue_TextIO_Read.Builder()
-        .setCompressionType(CompressionType.AUTO)
+        .setCompression(Compression.AUTO)
         .setHintMatchesManyFiles(false)
-        .setEmptyMatchTreatment(EmptyMatchTreatment.DISALLOW)
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.DISALLOW))
         .build();
   }
 
@@ -193,12 +210,21 @@ public class TextIO {
    */
   public static ReadAll readAll() {
     return new AutoValue_TextIO_ReadAll.Builder()
-        .setCompressionType(CompressionType.AUTO)
+        .setCompression(Compression.AUTO)
+        .setMatchConfiguration(MatchConfiguration.create(EmptyMatchTreatment.ALLOW_IF_WILDCARD))
+        .build();
+  }
+
+  /**
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link
+   * FileIO.ReadableFile}, returned by {@link FileIO#readMatches}.
+   */
+  public static ReadFiles readFiles() {
+    return new AutoValue_TextIO_ReadFiles.Builder()
         // 64MB is a reasonable value that allows to amortize the cost of opening files,
         // but is not so large as to exhaust a typical runner's maximum amount of output per
         // ProcessElement call.
         .setDesiredBundleSizeBytes(64 * 1024 * 1024L)
-        .setEmptyMatchTreatment(EmptyMatchTreatment.ALLOW_IF_WILDCARD)
         .build();
   }
 
@@ -226,8 +252,8 @@ public class TextIO {
    * DynamicDestinations} object, set via {@link Write#to(DynamicDestinations)} to examine the
    * custom type when choosing a destination.
    */
-  public static <UserT> TypedWrite<UserT> writeCustomType() {
-    return new AutoValue_TextIO_TypedWrite.Builder<UserT>()
+  public static <UserT> TypedWrite<UserT, Void> writeCustomType() {
+    return new AutoValue_TextIO_TypedWrite.Builder<UserT, Void>()
         .setFilenamePrefix(null)
         .setTempDirectory(null)
         .setShardTemplate(null)
@@ -243,28 +269,28 @@ public class TextIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
-    @Nullable abstract ValueProvider<String> getFilepattern();
-    abstract CompressionType getCompressionType();
-
     @Nullable
-    abstract Duration getWatchForNewFilesInterval();
+    abstract ValueProvider<String> getFilepattern();
 
-    @Nullable
-    abstract TerminationCondition getWatchForNewFilesTerminationCondition();
+    abstract MatchConfiguration getMatchConfiguration();
 
     abstract boolean getHintMatchesManyFiles();
-    abstract EmptyMatchTreatment getEmptyMatchTreatment();
+
+    abstract Compression getCompression();
+
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    @Nullable
+    abstract byte[] getDelimiter();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setFilepattern(ValueProvider<String> filepattern);
-      abstract Builder setCompressionType(CompressionType compressionType);
-      abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
-      abstract Builder setWatchForNewFilesTerminationCondition(TerminationCondition condition);
+      abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
       abstract Builder setHintMatchesManyFiles(boolean hintManyFiles);
-      abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
+      abstract Builder setCompression(Compression compression);
+      abstract Builder setDelimiter(byte[] delimiter);
 
       abstract Read build();
     }
@@ -283,40 +309,46 @@ public class TextIO {
      * of thousands), use {@link #withHintMatchesManyFiles} for better performance and scalability.
      */
     public Read from(String filepattern) {
-      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      checkArgument(filepattern != null, "filepattern can not be null");
       return from(StaticValueProvider.of(filepattern));
     }
 
     /** Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}. */
     public Read from(ValueProvider<String> filepattern) {
-      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      checkArgument(filepattern != null, "filepattern can not be null");
       return toBuilder().setFilepattern(filepattern).build();
+    }
+
+    /** Sets the {@link MatchConfiguration}. */
+    public Read withMatchConfiguration(MatchConfiguration matchConfiguration) {
+      return toBuilder().setMatchConfiguration(matchConfiguration).build();
+    }
+
+    /** @deprecated Use {@link #withCompression}. */
+    @Deprecated
+    public Read withCompressionType(TextIO.CompressionType compressionType) {
+      return withCompression(compressionType.canonical);
     }
 
     /**
      * Reads from input sources using the specified compression type.
      *
-     * <p>If no compression type is specified, the default is {@link TextIO.CompressionType#AUTO}.
+     * <p>If no compression type is specified, the default is {@link Compression#AUTO}.
      */
-    public Read withCompressionType(TextIO.CompressionType compressionType) {
-      return toBuilder().setCompressionType(compressionType).build();
+    public Read withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     /**
-     * Continuously watches for new files matching the filepattern, polling it at the given
-     * interval, until the given termination condition is reached. The returned {@link PCollection}
-     * is unbounded.
+     * See {@link MatchConfiguration#continuously}.
      *
      * <p>This works only in runners supporting {@link Kind#SPLITTABLE_DO_FN}.
-     *
-     * @see TerminationCondition
      */
     @Experimental(Kind.SPLITTABLE_DO_FN)
-    public Read watchForNewFiles(Duration pollInterval, TerminationCondition terminationCondition) {
-      return toBuilder()
-          .setWatchForNewFilesInterval(pollInterval)
-          .setWatchForNewFilesTerminationCondition(terminationCondition)
-          .build();
+    public Read watchForNewFiles(
+        Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
     /**
@@ -332,88 +364,70 @@ public class TextIO {
       return toBuilder().setHintMatchesManyFiles(true).build();
     }
 
-    /**
-     * Configures whether or not a filepattern matching no files is allowed. When using {@link
-     * #watchForNewFiles}, it is always allowed and this parameter is ignored.
-     */
+    /** See {@link MatchConfiguration#withEmptyMatchTreatment}. */
     public Read withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
-      return toBuilder().setEmptyMatchTreatment(treatment).build();
+      return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
+    }
+
+    /**
+     * Set the custom delimiter to be used in place of the default ones ('\r', '\n' or '\r\n').
+     */
+    public Read withDelimiter(byte[] delimiter) {
+      checkArgument(delimiter != null, "delimiter can not be null");
+      checkArgument(!isSelfOverlapping(delimiter), "delimiter must not self-overlap");
+      return toBuilder().setDelimiter(delimiter).build();
+    }
+
+    static boolean isSelfOverlapping(byte[] s) {
+      // s self-overlaps if v exists such as s = vu = wv with u and w non empty
+      for (int i = 1; i < s.length - 1; ++i) {
+        if (ByteBuffer.wrap(s, 0, i).equals(ByteBuffer.wrap(s, s.length - i, i))) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override
     public PCollection<String> expand(PBegin input) {
       checkNotNull(getFilepattern(), "need to set the filepattern of a TextIO.Read transform");
-      if (getWatchForNewFilesInterval() == null && !getHintMatchesManyFiles()) {
+      if (getMatchConfiguration().getWatchInterval() == null && !getHintMatchesManyFiles()) {
         return input.apply("Read", org.apache.beam.sdk.io.Read.from(getSource()));
       }
       // All other cases go through ReadAll.
-      ReadAll readAll =
-          readAll()
-              .withCompressionType(getCompressionType())
-              .withEmptyMatchTreatment(getEmptyMatchTreatment());
-      if (getWatchForNewFilesInterval() != null) {
-        readAll =
-            readAll.watchForNewFiles(
-                getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
-      }
       return input
           .apply("Create filepattern", Create.ofProvider(getFilepattern(), StringUtf8Coder.of()))
-          .apply("Via ReadAll", readAll);
+          .apply(
+              "Via ReadAll",
+              readAll()
+                  .withCompression(getCompression())
+                  .withMatchConfiguration(getMatchConfiguration())
+                  .withDelimiter(getDelimiter()));
     }
 
     // Helper to create a source specific to the requested compression type.
     protected FileBasedSource<String> getSource() {
-      return wrapWithCompression(
-          new TextSource(getFilepattern(), getEmptyMatchTreatment()),
-          getCompressionType());
-    }
-
-    private static FileBasedSource<String> wrapWithCompression(
-        FileBasedSource<String> source, CompressionType compressionType) {
-      switch (compressionType) {
-        case UNCOMPRESSED:
-          return source;
-        case AUTO:
-          return CompressedSource.from(source);
-        case BZIP2:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.BZIP2);
-        case GZIP:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.GZIP);
-        case ZIP:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.ZIP);
-        case DEFLATE:
-          return
-              CompressedSource.from(source)
-                  .withDecompression(CompressionMode.DEFLATE);
-        default:
-          throw new IllegalArgumentException("Unknown compression type: " + compressionType);
-      }
+      return CompressedSource.from(
+              new TextSource(
+                  getFilepattern(),
+                  getMatchConfiguration().getEmptyMatchTreatment(),
+                  getDelimiter()))
+          .withCompression(getCompression());
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-
-      String filepatternDisplay = getFilepattern().isAccessible()
-        ? getFilepattern().get() : getFilepattern().toString();
       builder
           .add(
-              DisplayData.item("compressionType", getCompressionType().toString())
+              DisplayData.item("compressionType", getCompression().toString())
                   .withLabel("Compression Type"))
           .addIfNotNull(
-              DisplayData.item("filePattern", filepatternDisplay).withLabel("File Pattern"))
-          .add(
-              DisplayData.item("emptyMatchTreatment", getEmptyMatchTreatment().toString())
-                  .withLabel("Treatment of filepatterns that match no files"))
+              DisplayData.item("filePattern", getFilepattern()).withLabel("File Pattern"))
+          .include("matchConfiguration", getMatchConfiguration())
           .addIfNotNull(
-              DisplayData.item("watchForNewFilesInterval", getWatchForNewFilesInterval())
-                  .withLabel("Interval to watch for new files"));
+              DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
+              .withLabel("Custom delimiter to split records"));
     }
   }
 
@@ -423,114 +437,139 @@ public class TextIO {
   @AutoValue
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
-    abstract CompressionType getCompressionType();
+    abstract MatchConfiguration getMatchConfiguration();
 
+    abstract Compression getCompression();
+
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
     @Nullable
-    abstract Duration getWatchForNewFilesInterval();
-
-    @Nullable
-    abstract TerminationCondition<String, ?> getWatchForNewFilesTerminationCondition();
-
-    abstract EmptyMatchTreatment getEmptyMatchTreatment();
-    abstract long getDesiredBundleSizeBytes();
+    abstract byte[] getDelimiter();
 
     abstract Builder toBuilder();
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setCompressionType(CompressionType compressionType);
-      abstract Builder setWatchForNewFilesInterval(Duration watchForNewFilesInterval);
-      abstract Builder setWatchForNewFilesTerminationCondition(
-          TerminationCondition<String, ?> condition);
-      abstract Builder setEmptyMatchTreatment(EmptyMatchTreatment treatment);
-      abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
-
+      abstract Builder setMatchConfiguration(MatchConfiguration matchConfiguration);
+      abstract Builder setCompression(Compression compression);
+      abstract Builder setDelimiter(byte[] delimiter);
       abstract ReadAll build();
     }
 
-    /** Same as {@link Read#withCompressionType(CompressionType)}. */
-    public ReadAll withCompressionType(CompressionType compressionType) {
-      return toBuilder().setCompressionType(compressionType).build();
+    /** Sets the {@link MatchConfiguration}. */
+    public ReadAll withMatchConfiguration(MatchConfiguration configuration) {
+      return toBuilder().setMatchConfiguration(configuration).build();
+    }
+
+    /** @deprecated Use {@link #withCompression}. */
+    @Deprecated
+    public ReadAll withCompressionType(TextIO.CompressionType compressionType) {
+      return withCompression(compressionType.canonical);
+    }
+
+    /**
+     * Reads from input sources using the specified compression type.
+     *
+     * <p>If no compression type is specified, the default is {@link Compression#AUTO}.
+     */
+    public ReadAll withCompression(Compression compression) {
+      return toBuilder().setCompression(compression).build();
     }
 
     /** Same as {@link Read#withEmptyMatchTreatment}. */
     public ReadAll withEmptyMatchTreatment(EmptyMatchTreatment treatment) {
-      return toBuilder().setEmptyMatchTreatment(treatment).build();
+      return withMatchConfiguration(getMatchConfiguration().withEmptyMatchTreatment(treatment));
     }
 
     /** Same as {@link Read#watchForNewFiles(Duration, TerminationCondition)}. */
     @Experimental(Kind.SPLITTABLE_DO_FN)
     public ReadAll watchForNewFiles(
         Duration pollInterval, TerminationCondition<String, ?> terminationCondition) {
-      return toBuilder()
-          .setWatchForNewFilesInterval(pollInterval)
-          .setWatchForNewFilesTerminationCondition(terminationCondition)
-          .build();
+      return withMatchConfiguration(
+          getMatchConfiguration().continuously(pollInterval, terminationCondition));
     }
 
-    @VisibleForTesting
-    ReadAll withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
-      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    ReadAll withDelimiter(byte[] delimiter) {
+      return toBuilder().setDelimiter(delimiter).build();
     }
 
     @Override
     public PCollection<String> expand(PCollection<String> input) {
-      Match.Filepatterns matchFilepatterns =
-          Match.filepatterns().withEmptyMatchTreatment(getEmptyMatchTreatment());
-      if (getWatchForNewFilesInterval() != null) {
-        matchFilepatterns =
-            matchFilepatterns.continuously(
-                getWatchForNewFilesInterval(), getWatchForNewFilesTerminationCondition());
-      }
       return input
-          .apply(matchFilepatterns)
+          .apply(FileIO.matchAll().withConfiguration(getMatchConfiguration()))
           .apply(
-              "Read all via FileBasedSource",
-              new ReadAllViaFileBasedSource<>(
-                  new IsSplittableFn(getCompressionType()),
-                  getDesiredBundleSizeBytes(),
-                  new CreateTextSourceFn(getCompressionType(), getEmptyMatchTreatment())))
-          .setCoder(StringUtf8Coder.of());
+              FileIO.readMatches()
+                  .withCompression(getCompression())
+                  .withDirectoryTreatment(DirectoryTreatment.PROHIBIT))
+          .apply(readFiles().withDelimiter(getDelimiter()));
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
 
-      builder.add(
-          DisplayData.item("compressionType", getCompressionType().toString())
-              .withLabel("Compression Type"));
+      builder
+          .add(
+              DisplayData.item("compressionType", getCompression().toString())
+                  .withLabel("Compression Type"))
+          .addIfNotNull(
+              DisplayData.item("delimiter", Arrays.toString(getDelimiter()))
+                  .withLabel("Custom delimiter to split records"))
+          .include("matchConfiguration", getMatchConfiguration());
+    }
+
+  }
+
+  /** Implementation of {@link #readFiles}. */
+  @AutoValue
+  public abstract static class ReadFiles
+      extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<String>> {
+    abstract long getDesiredBundleSizeBytes();
+
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    @Nullable
+    abstract byte[] getDelimiter();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setDesiredBundleSizeBytes(long desiredBundleSizeBytes);
+      abstract Builder setDelimiter(byte[] delimiter);
+      abstract ReadFiles build();
+    }
+
+    @VisibleForTesting
+    ReadFiles withDesiredBundleSizeBytes(long desiredBundleSizeBytes) {
+      return toBuilder().setDesiredBundleSizeBytes(desiredBundleSizeBytes).build();
+    }
+
+    /** Like {@link Read#withDelimiter}. */
+    public ReadFiles withDelimiter(byte[] delimiter) {
+      return toBuilder().setDelimiter(delimiter).build();
+    }
+
+    @Override
+    public PCollection<String> expand(PCollection<FileIO.ReadableFile> input) {
+      return input.apply(
+          "Read all via FileBasedSource",
+          new ReadAllViaFileBasedSource<>(
+              getDesiredBundleSizeBytes(),
+              new CreateTextSourceFn(getDelimiter()),
+              StringUtf8Coder.of()));
     }
 
     private static class CreateTextSourceFn
         implements SerializableFunction<String, FileBasedSource<String>> {
-      private final CompressionType compressionType;
-      private final EmptyMatchTreatment emptyMatchTreatment;
+      private byte[] delimiter;
 
-      private CreateTextSourceFn(
-          CompressionType compressionType, EmptyMatchTreatment emptyMatchTreatment) {
-        this.compressionType = compressionType;
-        this.emptyMatchTreatment = emptyMatchTreatment;
+      private CreateTextSourceFn(byte[] delimiter) {
+        this.delimiter = delimiter;
       }
 
       @Override
       public FileBasedSource<String> apply(String input) {
-        return Read.wrapWithCompression(
-            new TextSource(StaticValueProvider.of(input), emptyMatchTreatment), compressionType);
-      }
-    }
-
-    private static class IsSplittableFn implements SerializableFunction<String, Boolean> {
-      private final CompressionType compressionType;
-
-      private IsSplittableFn(CompressionType compressionType) {
-        this.compressionType = compressionType;
-      }
-
-      @Override
-      public Boolean apply(String filename) {
-        return compressionType == CompressionType.UNCOMPRESSED
-            || (compressionType == CompressionType.AUTO && !CompressionMode.isCompressed(filename));
+        return new TextSource(
+            StaticValueProvider.of(input), EmptyMatchTreatment.DISALLOW, delimiter);
       }
     }
   }
@@ -539,7 +578,8 @@ public class TextIO {
 
   /** Implementation of {@link #write}. */
   @AutoValue
-  public abstract static class TypedWrite<UserT> extends PTransform<PCollection<UserT>, PDone> {
+  public abstract static class TypedWrite<UserT, DestinationT>
+      extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
     /** The prefix of each file written, combined with suffix and shardTemplate. */
     @Nullable abstract ValueProvider<ResourceId> getFilenamePrefix();
 
@@ -567,14 +607,14 @@ public class TextIO {
 
     /** Allows for value-dependent {@link DynamicDestinations} to be vended. */
     @Nullable
-    abstract DynamicDestinations<UserT, ?, String> getDynamicDestinations();
+    abstract DynamicDestinations<UserT, DestinationT, String> getDynamicDestinations();
 
+    /** A destination function for using {@link DefaultFilenamePolicy}. */
     @Nullable
-    /** A destination function for using {@link DefaultFilenamePolicy} */
     abstract SerializableFunction<UserT, Params> getDestinationFunction();
 
-    @Nullable
     /** A default destination for empty PCollections. */
+    @Nullable
     abstract Params getEmptyDestination();
 
     /** A function that converts UserT to a String, for writing to the file. */
@@ -590,42 +630,46 @@ public class TextIO {
      */
     abstract WritableByteChannelFactory getWritableByteChannelFactory();
 
-    abstract Builder<UserT> toBuilder();
+    abstract Builder<UserT, DestinationT> toBuilder();
 
     @AutoValue.Builder
-    abstract static class Builder<UserT> {
-      abstract Builder<UserT> setFilenamePrefix(ValueProvider<ResourceId> filenamePrefix);
+    abstract static class Builder<UserT, DestinationT> {
+      abstract Builder<UserT, DestinationT> setFilenamePrefix(
+          ValueProvider<ResourceId> filenamePrefix);
 
-      abstract Builder<UserT> setTempDirectory(ValueProvider<ResourceId> tempDirectory);
+      abstract Builder<UserT, DestinationT> setTempDirectory(
+          ValueProvider<ResourceId> tempDirectory);
 
-      abstract Builder<UserT> setShardTemplate(@Nullable String shardTemplate);
+      abstract Builder<UserT, DestinationT> setShardTemplate(@Nullable String shardTemplate);
 
-      abstract Builder<UserT> setFilenameSuffix(@Nullable String filenameSuffix);
+      abstract Builder<UserT, DestinationT> setFilenameSuffix(@Nullable String filenameSuffix);
 
-      abstract Builder<UserT> setHeader(@Nullable String header);
+      abstract Builder<UserT, DestinationT> setHeader(@Nullable String header);
 
-      abstract Builder<UserT> setFooter(@Nullable String footer);
+      abstract Builder<UserT, DestinationT> setFooter(@Nullable String footer);
 
-      abstract Builder<UserT> setFilenamePolicy(@Nullable FilenamePolicy filenamePolicy);
+      abstract Builder<UserT, DestinationT> setFilenamePolicy(
+          @Nullable FilenamePolicy filenamePolicy);
 
-      abstract Builder<UserT> setDynamicDestinations(
-          @Nullable DynamicDestinations<UserT, ?, String> dynamicDestinations);
+      abstract Builder<UserT, DestinationT> setDynamicDestinations(
+          @Nullable DynamicDestinations<UserT, DestinationT, String> dynamicDestinations);
 
-      abstract Builder<UserT> setDestinationFunction(
+      abstract Builder<UserT, DestinationT> setDestinationFunction(
           @Nullable SerializableFunction<UserT, Params> destinationFunction);
 
-      abstract Builder<UserT> setEmptyDestination(Params emptyDestination);
+      abstract Builder<UserT, DestinationT> setEmptyDestination(Params emptyDestination);
 
-      abstract Builder<UserT> setFormatFunction(SerializableFunction<UserT, String> formatFunction);
+      abstract Builder<UserT, DestinationT> setFormatFunction(
+          SerializableFunction<UserT, String> formatFunction);
 
-      abstract Builder<UserT> setNumShards(int numShards);
+      abstract Builder<UserT, DestinationT> setNumShards(int numShards);
 
-      abstract Builder<UserT> setWindowedWrites(boolean windowedWrites);
+      abstract Builder<UserT, DestinationT> setWindowedWrites(boolean windowedWrites);
 
-      abstract Builder<UserT> setWritableByteChannelFactory(
+      abstract Builder<UserT, DestinationT> setWritableByteChannelFactory(
           WritableByteChannelFactory writableByteChannelFactory);
 
-      abstract TypedWrite<UserT> build();
+      abstract TypedWrite<UserT, DestinationT> build();
     }
 
     /**
@@ -645,18 +689,18 @@ public class TextIO {
      * <p>If {@link #withTempDirectory} has not been called, this filename prefix will be used to
      * infer a directory for temporary files.
      */
-    public TypedWrite<UserT> to(String filenamePrefix) {
+    public TypedWrite<UserT, DestinationT> to(String filenamePrefix) {
       return to(FileBasedSink.convertToFileResourceIfPossible(filenamePrefix));
     }
 
     /** Like {@link #to(String)}. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT> to(ResourceId filenamePrefix) {
+    public TypedWrite<UserT, DestinationT> to(ResourceId filenamePrefix) {
       return toResource(StaticValueProvider.of(filenamePrefix));
     }
 
     /** Like {@link #to(String)}. */
-    public TypedWrite<UserT> to(ValueProvider<String> outputPrefix) {
+    public TypedWrite<UserT, DestinationT> to(ValueProvider<String> outputPrefix) {
       return toResource(NestedValueProvider.of(outputPrefix,
           new SerializableFunction<String, ResourceId>() {
             @Override
@@ -670,7 +714,7 @@ public class TextIO {
      * Writes to files named according to the given {@link FileBasedSink.FilenamePolicy}. A
      * directory for temporary files must be specified using {@link #withTempDirectory}.
      */
-    public TypedWrite<UserT> to(FilenamePolicy filenamePolicy) {
+    public TypedWrite<UserT, DestinationT> to(FilenamePolicy filenamePolicy) {
       return toBuilder().setFilenamePolicy(filenamePolicy).build();
     }
 
@@ -679,8 +723,9 @@ public class TextIO {
      * objects can examine the input record when creating a {@link FilenamePolicy}. A directory for
      * temporary files must be specified using {@link #withTempDirectory}.
      */
-    public TypedWrite<UserT> to(DynamicDestinations<UserT, ?, String> dynamicDestinations) {
-      return toBuilder().setDynamicDestinations(dynamicDestinations).build();
+    public <NewDestinationT> TypedWrite<UserT, NewDestinationT> to(
+        DynamicDestinations<UserT, DestinationT, String> dynamicDestinations) {
+      return (TypedWrite) toBuilder().setDynamicDestinations(dynamicDestinations).build();
     }
 
     /**
@@ -690,9 +735,9 @@ public class TextIO {
      * emptyDestination parameter specified where empty files should be written for when the written
      * {@link PCollection} is empty.
      */
-    public TypedWrite<UserT> to(
+    public TypedWrite<UserT, Params> to(
         SerializableFunction<UserT, Params> destinationFunction, Params emptyDestination) {
-      return toBuilder()
+      return (TypedWrite) toBuilder()
           .setDestinationFunction(destinationFunction)
           .setEmptyDestination(emptyDestination)
           .build();
@@ -700,7 +745,7 @@ public class TextIO {
 
     /** Like {@link #to(ResourceId)}. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT> toResource(ValueProvider<ResourceId> filenamePrefix) {
+    public TypedWrite<UserT, DestinationT> toResource(ValueProvider<ResourceId> filenamePrefix) {
       return toBuilder().setFilenamePrefix(filenamePrefix).build();
     }
 
@@ -709,20 +754,21 @@ public class TextIO {
      * #to(DynamicDestinations)} is used, {@link DynamicDestinations#formatRecord(Object)} must be
      * used instead.
      */
-    public TypedWrite<UserT> withFormatFunction(
+    public TypedWrite<UserT, DestinationT> withFormatFunction(
         SerializableFunction<UserT, String> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
     /** Set the base directory used to generate temporary files. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT> withTempDirectory(ValueProvider<ResourceId> tempDirectory) {
+    public TypedWrite<UserT, DestinationT> withTempDirectory(
+        ValueProvider<ResourceId> tempDirectory) {
       return toBuilder().setTempDirectory(tempDirectory).build();
     }
 
     /** Set the base directory used to generate temporary files. */
     @Experimental(Kind.FILESYSTEM)
-    public TypedWrite<UserT> withTempDirectory(ResourceId tempDirectory) {
+    public TypedWrite<UserT, DestinationT> withTempDirectory(ResourceId tempDirectory) {
       return withTempDirectory(StaticValueProvider.of(tempDirectory));
     }
 
@@ -734,7 +780,7 @@ public class TextIO {
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
      */
-    public TypedWrite<UserT> withShardNameTemplate(String shardTemplate) {
+    public TypedWrite<UserT, DestinationT> withShardNameTemplate(String shardTemplate) {
       return toBuilder().setShardTemplate(shardTemplate).build();
     }
 
@@ -746,7 +792,7 @@ public class TextIO {
      * <p>See {@link DefaultFilenamePolicy} for how the prefix, shard name template, and suffix are
      * used.
      */
-    public TypedWrite<UserT> withSuffix(String filenameSuffix) {
+    public TypedWrite<UserT, DestinationT> withSuffix(String filenameSuffix) {
       return toBuilder().setFilenameSuffix(filenameSuffix).build();
     }
 
@@ -760,7 +806,7 @@ public class TextIO {
      *
      * @param numShards the number of shards to use, or 0 to let the system decide.
      */
-    public TypedWrite<UserT> withNumShards(int numShards) {
+    public TypedWrite<UserT, DestinationT> withNumShards(int numShards) {
       checkArgument(numShards >= 0);
       return toBuilder().setNumShards(numShards).build();
     }
@@ -774,7 +820,7 @@ public class TextIO {
      *
      * <p>This is equivalent to {@code .withNumShards(1).withShardNameTemplate("")}
      */
-    public TypedWrite<UserT> withoutSharding() {
+    public TypedWrite<UserT, DestinationT> withoutSharding() {
       return withNumShards(1).withShardNameTemplate("");
     }
 
@@ -783,7 +829,7 @@ public class TextIO {
      *
      * <p>A {@code null} value will clear any previously configured header.
      */
-    public TypedWrite<UserT> withHeader(@Nullable String header) {
+    public TypedWrite<UserT, DestinationT> withHeader(@Nullable String header) {
       return toBuilder().setHeader(header).build();
     }
 
@@ -792,20 +838,30 @@ public class TextIO {
      *
      * <p>A {@code null} value will clear any previously configured footer.
      */
-    public TypedWrite<UserT> withFooter(@Nullable String footer) {
+    public TypedWrite<UserT, DestinationT> withFooter(@Nullable String footer) {
       return toBuilder().setFooter(footer).build();
     }
 
     /**
      * Returns a transform for writing to text files like this one but that has the given {@link
      * WritableByteChannelFactory} to be used by the {@link FileBasedSink} during output. The
-     * default is value is {@link FileBasedSink.CompressionType#UNCOMPRESSED}.
+     * default is value is {@link Compression#UNCOMPRESSED}.
      *
      * <p>A {@code null} value will reset the value to the default value mentioned above.
      */
-    public TypedWrite<UserT> withWritableByteChannelFactory(
+    public TypedWrite<UserT, DestinationT> withWritableByteChannelFactory(
         WritableByteChannelFactory writableByteChannelFactory) {
       return toBuilder().setWritableByteChannelFactory(writableByteChannelFactory).build();
+    }
+
+    /**
+     * Returns a transform for writing to text files like this one but that compresses output using
+     * the given {@link Compression}. The default value is {@link Compression#UNCOMPRESSED}.
+     */
+    public TypedWrite<UserT, DestinationT> withCompression(Compression compression) {
+      checkArgument(compression != null, "compression can not be null");
+      return withWritableByteChannelFactory(
+          FileBasedSink.CompressionType.fromCanonical(compression));
     }
 
     /**
@@ -814,18 +870,22 @@ public class TextIO {
      * <p>If using {@link #to(FileBasedSink.FilenamePolicy)}. Filenames will be generated using
      * {@link FilenamePolicy#windowedFilename}. See also {@link WriteFiles#withWindowedWrites()}.
      */
-    public TypedWrite<UserT> withWindowedWrites() {
+    public TypedWrite<UserT, DestinationT> withWindowedWrites() {
       return toBuilder().setWindowedWrites(true).build();
     }
 
-    private DynamicDestinations<UserT, ?, String> resolveDynamicDestinations() {
-      DynamicDestinations<UserT, ?, String> dynamicDestinations = getDynamicDestinations();
+    private DynamicDestinations<UserT, DestinationT, String> resolveDynamicDestinations() {
+      DynamicDestinations<UserT, DestinationT, String> dynamicDestinations =
+          getDynamicDestinations();
       if (dynamicDestinations == null) {
         if (getDestinationFunction() != null) {
+          // In this case, DestinationT == Params
           dynamicDestinations =
-              DynamicFileDestinations.toDefaultPolicies(
-                  getDestinationFunction(), getEmptyDestination(), getFormatFunction());
+              (DynamicDestinations)
+                  DynamicFileDestinations.toDefaultPolicies(
+                      getDestinationFunction(), getEmptyDestination(), getFormatFunction());
         } else {
+          // In this case, DestinationT == Void
           FilenamePolicy usedFilenamePolicy = getFilenamePolicy();
           if (usedFilenamePolicy == null) {
             usedFilenamePolicy =
@@ -836,14 +896,15 @@ public class TextIO {
                     getWindowedWrites());
           }
           dynamicDestinations =
-              DynamicFileDestinations.constant(usedFilenamePolicy, getFormatFunction());
+              (DynamicDestinations)
+                  DynamicFileDestinations.constant(usedFilenamePolicy, getFormatFunction());
         }
       }
       return dynamicDestinations;
     }
 
     @Override
-    public PDone expand(PCollection<UserT> input) {
+    public WriteFilesResult<DestinationT> expand(PCollection<UserT> input) {
       checkState(
           getFilenamePrefix() != null || getTempDirectory() != null,
           "Need to set either the filename prefix or the tempDirectory of a TextIO.Write "
@@ -872,12 +933,6 @@ public class TextIO {
             "shardTemplate and filenameSuffix should only be used with the default "
                 + "filename policy");
       }
-      return expandTyped(input, resolveDynamicDestinations());
-    }
-
-    public <DestinationT> PDone expandTyped(
-        PCollection<UserT> input,
-        DynamicDestinations<UserT, DestinationT, String> dynamicDestinations) {
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
       if (tempDirectory == null) {
         tempDirectory = getFilenamePrefix();
@@ -886,7 +941,7 @@ public class TextIO {
           WriteFiles.to(
               new TextSink<>(
                   tempDirectory,
-                  dynamicDestinations,
+                  resolveDynamicDestinations(),
                   getHeader(),
                   getFooter(),
                   getWritableByteChannelFactory()));
@@ -904,18 +959,11 @@ public class TextIO {
       super.populateDisplayData(builder);
 
       resolveDynamicDestinations().populateDisplayData(builder);
-      String tempDirectory = null;
-      if (getTempDirectory() != null) {
-        tempDirectory =
-            getTempDirectory().isAccessible()
-                ? getTempDirectory().get().toString()
-                : getTempDirectory().toString();
-      }
       builder
           .addIfNotDefault(
               DisplayData.item("numShards", getNumShards()).withLabel("Maximum Output Shards"), 0)
           .addIfNotNull(
-              DisplayData.item("tempDirectory", tempDirectory)
+              DisplayData.item("tempDirectory", getTempDirectory())
                   .withLabel("Directory for temporary files"))
           .addIfNotNull(DisplayData.item("fileHeader", getHeader()).withLabel("File Header"))
           .addIfNotNull(DisplayData.item("fileFooter", getFooter()).withLabel("File Footer"))
@@ -933,13 +981,13 @@ public class TextIO {
    * This class exists for backwards compatibility, and will be removed in Beam 3.0.
    */
   public static class Write extends PTransform<PCollection<String>, PDone> {
-    @VisibleForTesting TypedWrite<String> inner;
+    @VisibleForTesting TypedWrite<String, ?> inner;
 
     Write() {
       this(TextIO.<String>writeCustomType());
     }
 
-    Write(TypedWrite<String> inner) {
+    Write(TypedWrite<String, ?> inner) {
       this.inner = inner;
     }
 
@@ -981,7 +1029,8 @@ public class TextIO {
     /** See {@link TypedWrite#to(DynamicDestinations)}. */
     @Experimental(Kind.FILESYSTEM)
     public Write to(DynamicDestinations<String, ?, String> dynamicDestinations) {
-      return new Write(inner.to(dynamicDestinations).withFormatFunction(null));
+      return new Write(
+          inner.to((DynamicDestinations) dynamicDestinations).withFormatFunction(null));
     }
 
     /** See {@link TypedWrite#to(SerializableFunction, Params)}. */
@@ -1047,6 +1096,22 @@ public class TextIO {
       return new Write(inner.withWindowedWrites());
     }
 
+    /**
+     * Specify that output filenames are wanted.
+     *
+     * <p>The nested {@link TypedWrite}transform always has access to output filenames, however due
+     * to backwards-compatibility concerns, {@link Write} cannot return them. This method simply
+     * returns the inner {@link TypedWrite} transform which has {@link WriteFilesResult} as its
+     * output type, allowing access to output files.
+     *
+     * <p>The supplied {@code DestinationT} type must be: the same as that supplied in {@link
+     * #to(DynamicDestinations)} if that method was used; {@link Params} if {@link
+     * #to(SerializableFunction, Params)} was used, or {@code Void} otherwise.
+     */
+    public <DestinationT> TypedWrite<String, DestinationT> withOutputFilenames() {
+      return (TypedWrite) inner;
+    }
+
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       inner.populateDisplayData(builder);
@@ -1054,52 +1119,41 @@ public class TextIO {
 
     @Override
     public PDone expand(PCollection<String> input) {
-      return inner.expand(input);
+      inner.expand(input);
+      return PDone.in(input.getPipeline());
     }
   }
 
-  /**
-   * Possible text file compression types.
-   */
+  /** @deprecated Use {@link Compression}. */
+  @Deprecated
   public enum CompressionType {
-    /**
-     * Automatically determine the compression type based on filename extension.
-     */
-    AUTO(""),
-    /**
-     * Uncompressed (i.e., may be split).
-     */
-    UNCOMPRESSED(""),
-    /**
-     * GZipped.
-     */
-    GZIP(".gz"),
-    /**
-     * BZipped.
-     */
-    BZIP2(".bz2"),
-    /**
-     * Zipped.
-     */
-    ZIP(".zip"),
-    /**
-     * Deflate compressed.
-     */
-    DEFLATE(".deflate");
+    /** @see Compression#AUTO */
+    AUTO(Compression.AUTO),
 
-    private String filenameSuffix;
+    /** @see Compression#UNCOMPRESSED */
+    UNCOMPRESSED(Compression.UNCOMPRESSED),
 
-    CompressionType(String suffix) {
-      this.filenameSuffix = suffix;
+    /** @see Compression#GZIP */
+    GZIP(Compression.GZIP),
+
+    /** @see Compression#BZIP2 */
+    BZIP2(Compression.BZIP2),
+
+    /** @see Compression#ZIP */
+    ZIP(Compression.ZIP),
+
+    /** @see Compression#ZIP */
+    DEFLATE(Compression.DEFLATE);
+
+    private Compression canonical;
+
+    CompressionType(Compression canonical) {
+      this.canonical = canonical;
     }
 
-    /**
-     * Determine if a given filename matches a compression type based on its extension.
-     * @param filename the filename to match
-     * @return true iff the filename ends with the compression type's known extension.
-     */
+    /** @see Compression#matches */
     public boolean matches(String filename) {
-      return filename.toLowerCase().endsWith(filenameSuffix.toLowerCase());
+      return canonical.matches(filename);
     }
   }
 

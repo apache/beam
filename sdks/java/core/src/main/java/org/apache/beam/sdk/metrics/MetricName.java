@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.metrics;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.auto.value.AutoValue;
+import com.google.common.base.Strings;
 import java.io.Serializable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -38,10 +41,14 @@ public abstract class MetricName implements Serializable {
   public abstract String name();
 
   public static MetricName named(String namespace, String name) {
+    checkArgument(!Strings.isNullOrEmpty(namespace), "Metric namespace must be non-empty");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
     return new AutoValue_MetricName(namespace, name);
   }
 
   public static MetricName named(Class<?> namespace, String name) {
+    checkArgument(namespace != null, "Metric namespace must be non-null");
+    checkArgument(!Strings.isNullOrEmpty(name), "Metric name must be non-empty");
     return new AutoValue_MetricName(namespace.getName(), name);
   }
 }

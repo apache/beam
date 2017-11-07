@@ -41,6 +41,7 @@ import javax.xml.bind.ValidationEventHandler;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlRootElement;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -456,60 +457,6 @@ public class XmlSourceTest {
         trainsToStrings(expectedResults),
         containsInAnyOrder(
             trainsToStrings(readEverythingFromReader(source.createReader(null))).toArray()));
-  }
-
-  @Test
-  public void testReadXMLNoRootElement() throws IOException {
-    File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
-
-    BoundedSource<Train> source =
-        XmlIO.<Train>read()
-            .from(file.toPath().toString())
-            .withRecordElement("train")
-            .withRecordClass(Train.class)
-            .createSource();
-
-    exception.expect(NullPointerException.class);
-    exception.expectMessage(
-        "rootElement is null. Use builder method withRootElement() to set this.");
-    readEverythingFromReader(source.createReader(null));
-  }
-
-  @Test
-  public void testReadXMLNoRecordElement() throws IOException {
-    File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
-
-    BoundedSource<Train> source =
-        XmlIO.<Train>read()
-            .from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordClass(Train.class)
-            .createSource();
-
-    exception.expect(NullPointerException.class);
-    exception.expectMessage(
-        "recordElement is null. Use builder method withRecordElement() to set this.");
-    readEverythingFromReader(source.createReader(null));
-  }
-
-  @Test
-  public void testReadXMLNoRecordClass() throws IOException {
-    File file = tempFolder.newFile("trainXMLSmall");
-    Files.write(file.toPath(), trainXML.getBytes(StandardCharsets.UTF_8));
-
-    BoundedSource<Train> source =
-        XmlIO.<Train>read()
-            .from(file.toPath().toString())
-            .withRootElement("trains")
-            .withRecordElement("train")
-            .createSource();
-
-    exception.expect(NullPointerException.class);
-    exception.expectMessage(
-        "recordClass is null. Use builder method withRecordClass() to set this.");
-    readEverythingFromReader(source.createReader(null));
   }
 
   @Test
@@ -938,7 +885,7 @@ public class XmlSourceTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testReadXMLFilePattern() throws IOException {
+  public void testReadXMLFilePatternUsingReadAndReadFiles() throws IOException {
     List<Train> trains1 = generateRandomTrainList(20);
     File file = createRandomTrainXML("temp1.xml", trains1);
     List<Train> trains2 = generateRandomTrainList(10);
@@ -948,9 +895,9 @@ public class XmlSourceTest {
     generateRandomTrainList(8);
     createRandomTrainXML("otherfile.xml", trains1);
 
-    PCollection<Train> output =
+    PCollection<Train> read =
         p.apply(
-            "ReadFileData",
+            "Read",
             XmlIO.<Train>read()
                 .from(file.getParent() + "/" + "temp*.xml")
                 .withRootElement("trains")
@@ -958,12 +905,23 @@ public class XmlSourceTest {
                 .withRecordClass(Train.class)
                 .withMinBundleSize(1024));
 
+    PCollection<Train> readFiles =
+        p.apply(FileIO.match().filepattern(file.getParent() + "/" + "temp*.xml"))
+            .apply(FileIO.readMatches())
+            .apply(
+                "ReadFiles",
+                XmlIO.<Train>readFiles()
+                    .withRootElement("trains")
+                    .withRecordElement("train")
+                    .withRecordClass(Train.class));
+
     List<Train> expectedResults = new ArrayList<>();
     expectedResults.addAll(trains1);
     expectedResults.addAll(trains2);
     expectedResults.addAll(trains3);
 
-    PAssert.that(output).containsInAnyOrder(expectedResults);
+    PAssert.that(read).containsInAnyOrder(expectedResults);
+    PAssert.that(readFiles).containsInAnyOrder(expectedResults);
     p.run();
   }
 

@@ -20,6 +20,20 @@
 import logging
 import time
 
+from apache_beam.io.gcp.datastore.v1 import helper
+from apache_beam.io.gcp.datastore.v1 import query_splitter
+from apache_beam.io.gcp.datastore.v1 import util
+from apache_beam.io.gcp.datastore.v1.adaptive_throttler import AdaptiveThrottler
+from apache_beam.metrics.metric import Metrics
+from apache_beam.transforms import Create
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import FlatMap
+from apache_beam.transforms import GroupByKey
+from apache_beam.transforms import Map
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
+from apache_beam.transforms.util import Values
+
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
@@ -29,18 +43,6 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.io.gcp.datastore.v1 import helper
-from apache_beam.io.gcp.datastore.v1 import query_splitter
-from apache_beam.io.gcp.datastore.v1 import util
-from apache_beam.transforms import Create
-from apache_beam.transforms import DoFn
-from apache_beam.transforms import FlatMap
-from apache_beam.transforms import GroupByKey
-from apache_beam.transforms import Map
-from apache_beam.transforms import PTransform
-from apache_beam.transforms import ParDo
-from apache_beam.transforms.util import Values
-from apache_beam.metrics.metric import Metrics
 
 __all__ = ['ReadFromDatastore', 'WriteToDatastore', 'DeleteFromDatastore']
 
@@ -87,10 +89,10 @@ class ReadFromDatastore(PTransform):
   _DEFAULT_BUNDLE_SIZE_BYTES = 64 * 1024 * 1024
 
   def __init__(self, project, query, namespace=None, num_splits=0):
-    """Initialize the ReadFromDatastore transform.
+    """Initialize the `ReadFromDatastore` transform.
 
     Args:
-      project: The Project ID
+      project: The ID of the project to read from.
       query: Cloud Datastore query to be read from.
       namespace: An optional namespace.
       num_splits: Number of splits for the query.
@@ -402,10 +404,15 @@ class _Mutate(PTransform):
           _Mutate.DatastoreWriteFn, "datastoreRpcSuccesses")
       self._rpc_errors = Metrics.counter(
           _Mutate.DatastoreWriteFn, "datastoreRpcErrors")
+      self._throttled_secs = Metrics.counter(
+          _Mutate.DatastoreWriteFn, "cumulativeThrottlingSeconds")
+      self._throttler = AdaptiveThrottler(window_ms=120000, bucket_ms=1000,
+                                          overload_ratio=1.25)
 
-    def _update_rpc_stats(self, successes=0, errors=0):
+    def _update_rpc_stats(self, successes=0, errors=0, throttled_secs=0):
       self._rpc_successes.inc(successes)
       self._rpc_errors.inc(errors)
+      self._throttled_secs.inc(throttled_secs)
 
     def start_bundle(self):
       self._mutations = []
@@ -415,7 +422,8 @@ class _Mutate(PTransform):
         self._target_batch_size = self._fixed_batch_size
       else:
         self._batch_sizer = _Mutate._DynamicBatchSizer()
-        self._target_batch_size = self._batch_sizer.get_batch_size(time.time())
+        self._target_batch_size = self._batch_sizer.get_batch_size(
+            time.time()*1000)
 
     def process(self, element):
       size = element.ByteSize()
@@ -435,12 +443,13 @@ class _Mutate(PTransform):
       # Flush the current batch of mutations to Cloud Datastore.
       _, latency_ms = helper.write_mutations(
           self._datastore, self._project, self._mutations,
-          self._update_rpc_stats)
+          self._throttler, self._update_rpc_stats,
+          throttle_delay=_Mutate._WRITE_BATCH_TARGET_LATENCY_MS/1000)
       logging.debug("Successfully wrote %d mutations in %dms.",
                     len(self._mutations), latency_ms)
 
       if not self._fixed_batch_size:
-        now = time.time()
+        now = time.time()*1000
         self._batch_sizer.report_latency(now, latency_ms, len(self._mutations))
         self._target_batch_size = self._batch_sizer.get_batch_size(now)
 
@@ -450,7 +459,13 @@ class _Mutate(PTransform):
 
 class WriteToDatastore(_Mutate):
   """A ``PTransform`` to write a ``PCollection[Entity]`` to Cloud Datastore."""
+
   def __init__(self, project):
+    """Initialize the `WriteToDatastore` transform.
+
+    Args:
+      project: The ID of the project to write to.
+    """
 
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -477,6 +492,12 @@ class WriteToDatastore(_Mutate):
 class DeleteFromDatastore(_Mutate):
   """A ``PTransform`` to delete a ``PCollection[Key]`` from Cloud Datastore."""
   def __init__(self, project):
+    """Initialize the `DeleteFromDatastore` transform.
+
+    Args:
+      project: The ID of the project from which the entities will be deleted.
+    """
+
     super(DeleteFromDatastore, self).__init__(
         project, DeleteFromDatastore.to_delete_mutation)
 

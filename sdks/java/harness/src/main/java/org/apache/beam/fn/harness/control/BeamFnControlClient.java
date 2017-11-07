@@ -32,8 +32,9 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnControlGrpc;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,14 +43,14 @@ import org.slf4j.LoggerFactory;
  * an unbounded number of requests.
  *
  * <p>Also can delegate to a set of handlers based upon the
- * {@link org.apache.beam.fn.v1.BeamFnApi.InstructionRequest.RequestCase request type}.
+ * {@link BeamFnApi.InstructionRequest.RequestCase request type}.
  *
  * <p>When the inbound instruction stream finishes successfully, the {@code onFinish} is
  * completed successfully signaling to the caller that this client will not produce any more
- * {@link org.apache.beam.fn.v1.BeamFnApi.InstructionRequest}s. If the inbound instruction stream
+ * {@link BeamFnApi.InstructionRequest}s. If the inbound instruction stream
  * errors, the {@code onFinish} is completed exceptionally propagating the failure reason
  * to the caller and signaling that this client will not produce any more
- * {@link org.apache.beam.fn.v1.BeamFnApi.InstructionRequest}s.
+ * {@link BeamFnApi.InstructionRequest}s.
  */
 public class BeamFnControlClient {
   private static final String FAKE_INSTRUCTION_ID = "FAKE_INSTRUCTION_ID";
@@ -65,8 +66,8 @@ public class BeamFnControlClient {
   private final CompletableFuture<Void> onFinish;
 
   public BeamFnControlClient(
-      BeamFnApi.ApiServiceDescriptor apiServiceDescriptor,
-      Function<BeamFnApi.ApiServiceDescriptor, ManagedChannel> channelFactory,
+      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      Function<Endpoints.ApiServiceDescriptor, ManagedChannel> channelFactory,
       BiFunction<Function<StreamObserver<BeamFnApi.InstructionRequest>,
                           StreamObserver<BeamFnApi.InstructionResponse>>,
                  StreamObserver<BeamFnApi.InstructionRequest>,

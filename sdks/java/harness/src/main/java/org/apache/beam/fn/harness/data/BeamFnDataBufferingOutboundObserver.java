@@ -24,9 +24,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * A buffering outbound {@link Consumer} for the Beam Fn Data API.
  *
  * <p>Encodes individually consumed elements with the provided {@link Coder} producing
- * a single {@link org.apache.beam.fn.v1.BeamFnApi.Elements} message when the buffer threshold
+ * a single {@link BeamFnApi.Elements} message when the buffer threshold
  * is surpassed.
  *
  * <p>The default buffer threshold can be overridden by specifying the experiment
@@ -81,7 +81,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
    * returns the default buffer limit.
    */
   private static int getBufferLimit(PipelineOptions options) {
-    List<String> experiments = options.as(DataflowPipelineDebugOptions.class).getExperiments();
+    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
     for (String experiment : experiments == null ? Collections.<String>emptyList() : experiments) {
       if (experiment.startsWith(BEAM_FN_API_DATA_BUFFER_LIMIT)) {
         return Integer.parseInt(experiment.substring(BEAM_FN_API_DATA_BUFFER_LIMIT.length()));

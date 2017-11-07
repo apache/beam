@@ -655,7 +655,17 @@ public class DoFnInvokersTest {
                 return null;
               }
             })
-        .invokeProcessElement(new FakeArgumentProvider<Integer, Integer>());
+        .invokeProcessElement(new FakeArgumentProvider<Integer, Integer>() {
+          @Override
+          public DoFn.ProcessContext processContext(DoFn<Integer, Integer> doFn) {
+            return null; // will not be touched
+          }
+
+          @Override
+          public RestrictionTracker<?> restrictionTracker() {
+            return null; // will not be touched
+          }
+        });
   }
 
   @Test

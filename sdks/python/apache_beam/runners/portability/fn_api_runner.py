@@ -23,20 +23,21 @@ import copy
 import logging
 import Queue as queue
 import threading
-
+import time
 from concurrent import futures
-from google.protobuf import wrappers_pb2
+
 import grpc
 
 import apache_beam as beam  # pylint: disable=ungrouped-imports
-from apache_beam.coders import registry
 from apache_beam.coders import WindowedValueCoder
+from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
 from apache_beam.runners.portability import maptask_executor_runner
@@ -45,10 +46,10 @@ from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -64,12 +65,15 @@ def streaming_rpc_handler(cls, method_name):
       self._push_queue = queue.Queue()
       self._pull_queue = queue.Queue()
       setattr(self, method_name, self.run)
-      self._read_thread = threading.Thread(target=self._read)
+      self._read_thread = threading.Thread(
+          name='streaming_rpc_handler_read', target=self._read)
+      self._started = False
 
     def run(self, iterator, context):
       self._inputs = iterator
       # Note: We only support one client for now.
       self._read_thread.start()
+      self._started = True
       while True:
         to_push = self._push_queue.get()
         if to_push is self._DONE:
@@ -91,6 +95,9 @@ def streaming_rpc_handler(cls, method_name):
 
     def done(self):
       self.push(self._DONE)
+      # Can't join a thread before it's started.
+      while not self._started:
+        time.sleep(.01)
       self._read_thread.join()
 
   return StreamingRpcHandler()
@@ -121,33 +128,72 @@ OLDE_SOURCE_SPLITTABLE_DOFN_DATA = pickler.dumps(
 
 class _GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
-  def __init__(self, pre_grouped_coder, post_grouped_coder):
-    self._key_coder = pre_grouped_coder.value_coder().key_coder()
+  def __init__(self, pre_grouped_coder, post_grouped_coder, windowing):
+    self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
     self._table = collections.defaultdict(list)
+    self._windowing = windowing
 
   def append(self, elements_data):
     input_stream = create_InputStream(elements_data)
     while input_stream.size() > 0:
-      key, value = self._pre_grouped_coder.get_impl().decode_from_stream(
-          input_stream, True).value
-      self._table[self._key_coder.encode(key)].append(value)
+      windowed_key_value = self._pre_grouped_coder.get_impl(
+          ).decode_from_stream(input_stream, True)
+      key = windowed_key_value.value[0]
+      windowed_value = windowed_key_value.with_value(
+          windowed_key_value.value[1])
+      self._table[self._key_coder.encode(key)].append(windowed_value)
 
   def __iter__(self):
     output_stream = create_OutputStream()
-    for encoded_key, values in self._table.items():
+    trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+    for encoded_key, windowed_values in self._table.items():
       key = self._key_coder.decode(encoded_key)
-      self._post_grouped_coder.get_impl().encode_to_stream(
-          GlobalWindows.windowed_value((key, values)), output_stream, True)
+      for wkvs in trigger_driver.process_entire_key(key, windowed_values):
+        self._post_grouped_coder.get_impl().encode_to_stream(
+            wkvs, output_stream, True)
     return iter([output_stream.get()])
+
+
+class _WindowGroupingBuffer(object):
+  """Used to partition windowed side inputs."""
+  def __init__(self, side_input_data):
+    # Here's where we would use a different type of partitioning
+    # (e.g. also by key) for a different access pattern.
+    assert side_input_data.access_pattern == urns.ITERABLE_ACCESS
+    self._windowed_value_coder = side_input_data.coder
+    self._window_coder = side_input_data.coder.window_coder
+    self._value_coder = side_input_data.coder.wrapped_value_coder
+    self._values_by_window = collections.defaultdict(list)
+
+  def append(self, elements_data):
+    input_stream = create_InputStream(elements_data)
+    while input_stream.size() > 0:
+      windowed_value = self._windowed_value_coder.get_impl(
+          ).decode_from_stream(input_stream, True)
+      for window in windowed_value.windows:
+        self._values_by_window[window].append(windowed_value.value)
+
+  def items(self):
+    value_coder_impl = self._value_coder.get_impl()
+    for window, values in self._values_by_window.items():
+      encoded_window = self._window_coder.encode(window)
+      output_stream = create_OutputStream()
+      for value in values:
+        value_coder_impl.encode_to_stream(value, output_stream, True)
+      yield encoded_window, output_stream.get()
 
 
 class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
-  def __init__(self):
+  def __init__(self, use_grpc=False, sdk_harness_factory=None):
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
+    self._use_grpc = use_grpc
+    if sdk_harness_factory and not use_grpc:
+      raise ValueError('GRPC must be used if a harness factory is provided.')
+    self._sdk_harness_factory = sdk_harness_factory
 
   def has_metrics_support(self):
     return False
@@ -190,11 +236,14 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
       def __repr__(self):
         must_follow = ', '.join(prev.name for prev in self.must_follow)
-        return "%s\n    %s\n    must follow: %s" % (
+        downstream_side_inputs = ', '.join(
+            str(si) for si in self.downstream_side_inputs)
+        return "%s\n  %s\n  must follow: %s\n  downstream_side_inputs: %s" % (
             self.name,
             '\n'.join(["%s:%s" % (transform.unique_name, transform.spec.urn)
                        for transform in self.transforms]),
-            must_follow)
+            must_follow,
+            downstream_side_inputs)
 
       def can_fuse(self, consumer):
         def no_overlap(a, b):
@@ -218,16 +267,16 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       def side_inputs(self):
         for transform in self.transforms:
           if transform.spec.urn == urns.PARDO_TRANSFORM:
-            payload = proto_utils.unpack_Any(
-                transform.spec.parameter, beam_runner_api_pb2.ParDoPayload)
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             for side_input in payload.side_inputs:
               yield transform.inputs[side_input]
 
       def has_as_main_input(self, pcoll):
         for transform in self.transforms:
           if transform.spec.urn == urns.PARDO_TRANSFORM:
-            payload = proto_utils.unpack_Any(
-                transform.spec.parameter, beam_runner_api_pb2.ParDoPayload)
+            payload = proto_utils.parse_Bytes(
+                transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
             local_side_inputs = payload.side_inputs
           else:
             local_side_inputs = {}
@@ -249,17 +298,82 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
     # Now define the "optimization" phases.
 
+    safe_coders = {}
+
     def expand_gbk(stages):
       """Transforms each GBK into a write followed by a read.
       """
+      good_coder_urns = set(beam.coders.Coder._known_urns.keys()) - set([
+          urns.PICKLED_CODER])
+      coders = pipeline_components.coders
+
+      for coder_id, coder_proto in coders.items():
+        if coder_proto.spec.spec.urn == urns.BYTES_CODER:
+          bytes_coder_id = coder_id
+          break
+      else:
+        bytes_coder_id = unique_name(coders, 'bytes_coder')
+        pipeline_components.coders[bytes_coder_id].CopyFrom(
+            beam.coders.BytesCoder().to_runner_api(None))
+
+      coder_substitutions = {}
+
+      def wrap_unknown_coders(coder_id, with_bytes):
+        if (coder_id, with_bytes) not in coder_substitutions:
+          wrapped_coder_id = None
+          coder_proto = coders[coder_id]
+          if coder_proto.spec.spec.urn == urns.LENGTH_PREFIX_CODER:
+            coder_substitutions[coder_id, with_bytes] = (
+                bytes_coder_id if with_bytes else coder_id)
+          elif coder_proto.spec.spec.urn in good_coder_urns:
+            wrapped_components = [wrap_unknown_coders(c, with_bytes)
+                                  for c in coder_proto.component_coder_ids]
+            if wrapped_components == list(coder_proto.component_coder_ids):
+              # Use as is.
+              coder_substitutions[coder_id, with_bytes] = coder_id
+            else:
+              wrapped_coder_id = unique_name(
+                  coders,
+                  coder_id + ("_bytes" if with_bytes else "_len_prefix"))
+              coders[wrapped_coder_id].CopyFrom(coder_proto)
+              coders[wrapped_coder_id].component_coder_ids[:] = [
+                  wrap_unknown_coders(c, with_bytes)
+                  for c in coder_proto.component_coder_ids]
+              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
+          else:
+            # Not a known coder.
+            if with_bytes:
+              coder_substitutions[coder_id, with_bytes] = bytes_coder_id
+            else:
+              wrapped_coder_id = unique_name(coders, coder_id +  "_len_prefix")
+              len_prefix_coder_proto = beam_runner_api_pb2.Coder(
+                  spec=beam_runner_api_pb2.SdkFunctionSpec(
+                      spec=beam_runner_api_pb2.FunctionSpec(
+                          urn=urns.LENGTH_PREFIX_CODER)),
+                  component_coder_ids=[coder_id])
+              coders[wrapped_coder_id].CopyFrom(len_prefix_coder_proto)
+              coder_substitutions[coder_id, with_bytes] = wrapped_coder_id
+          # This operation is idempotent.
+          if wrapped_coder_id:
+            coder_substitutions[wrapped_coder_id, with_bytes] = wrapped_coder_id
+        return coder_substitutions[coder_id, with_bytes]
+
+      def fix_pcoll_coder(pcoll):
+        new_coder_id = wrap_unknown_coders(pcoll.coder_id, False)
+        safe_coders[new_coder_id] = wrap_unknown_coders(pcoll.coder_id, True)
+        pcoll.coder_id = new_coder_id
+
       for stage in stages:
         assert len(stage.transforms) == 1
         transform = stage.transforms[0]
-        if transform.spec.urn == urns.GROUP_BY_KEY_ONLY_TRANSFORM:
+        if transform.spec.urn == urns.GROUP_BY_KEY_TRANSFORM:
+          for pcoll_id in transform.inputs.values():
+            fix_pcoll_coder(pipeline_components.pcollections[pcoll_id])
+          for pcoll_id in transform.outputs.values():
+            fix_pcoll_coder(pipeline_components.pcollections[pcoll_id])
+
           # This is used later to correlate the read and write.
-          param = proto_utils.pack_Any(
-              wrappers_pb2.BytesValue(
-                  value=str("group:%s" % stage.name)))
+          param = str("group:%s" % stage.name)
           gbk_write = Stage(
               transform.unique_name + '/Write',
               [beam_runner_api_pb2.PTransform(
@@ -267,7 +381,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   inputs=transform.inputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_OUTPUT_URN,
-                      parameter=param))],
+                      payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=stage.must_follow)
           yield gbk_write
@@ -279,7 +393,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      parameter=param))],
+                      payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
         else:
@@ -299,9 +413,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         transform = stage.transforms[0]
         if transform.spec.urn == urns.FLATTEN_TRANSFORM:
           # This is used later to correlate the read and writes.
-          param = proto_utils.pack_Any(
-              wrappers_pb2.BytesValue(
-                  value=str("materialize:%s" % transform.unique_name)))
+          param = str("materialize:%s" % transform.unique_name)
           output_pcoll_id, = transform.outputs.values()
           output_coder_id = pcollections[output_pcoll_id].coder_id
           flatten_writes = []
@@ -337,7 +449,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                     inputs={local_in: transcoded_pcollection},
                     spec=beam_runner_api_pb2.FunctionSpec(
                         urn=bundle_processor.DATA_OUTPUT_URN,
-                        parameter=param))],
+                        payload=param))],
                 downstream_side_inputs=frozenset(),
                 must_follow=stage.must_follow)
             flatten_writes.append(flatten_write)
@@ -350,7 +462,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                   outputs=transform.outputs,
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
-                      parameter=param))],
+                      payload=param))],
               downstream_side_inputs=frozenset(),
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
@@ -390,11 +502,12 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           for transform in stage.transforms:
             for output in transform.outputs.values():
               if output in all_side_inputs:
-                downstream_side_inputs = union(downstream_side_inputs, output)
-                for consumer in consumers[output]:
-                  downstream_side_inputs = union(
-                      downstream_side_inputs,
-                      compute_downstream_side_inputs(consumer))
+                downstream_side_inputs = union(
+                    downstream_side_inputs, frozenset([output]))
+              for consumer in consumers[output]:
+                downstream_side_inputs = union(
+                    downstream_side_inputs,
+                    compute_downstream_side_inputs(consumer))
           downstream_side_inputs_by_stage[stage] = downstream_side_inputs
         return downstream_side_inputs_by_stage[stage]
 
@@ -439,15 +552,13 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
       # Now try to fuse away all pcollections.
       for pcoll, producer in producers_by_pcoll.items():
-        pcoll_as_param = proto_utils.pack_Any(
-            wrappers_pb2.BytesValue(
-                value=str("materialize:%s" % pcoll)))
+        pcoll_as_param = str("materialize:%s" % pcoll)
         write_pcoll = None
         for consumer in consumers_by_pcoll[pcoll]:
           producer = replacement(producer)
           consumer = replacement(consumer)
           # Update consumer.must_follow set, as it's used in can_fuse.
-          consumer.must_follow = set(
+          consumer.must_follow = frozenset(
               replacement(s) for s in consumer.must_follow)
           if producer.can_fuse(consumer):
             fuse(producer, consumer)
@@ -461,7 +572,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       inputs={'in': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_OUTPUT_URN,
-                          parameter=pcoll_as_param))])
+                          payload=pcoll_as_param))])
               fuse(producer, write_pcoll)
             if consumer.has_as_main_input(pcoll):
               read_pcoll = Stage(
@@ -471,9 +582,12 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                       outputs={'out': pcoll},
                       spec=beam_runner_api_pb2.FunctionSpec(
                           urn=bundle_processor.DATA_INPUT_URN,
-                          parameter=pcoll_as_param))],
-                  must_follow={write_pcoll})
+                          payload=pcoll_as_param))],
+                  must_follow=frozenset([write_pcoll]))
               fuse(read_pcoll, consumer)
+            else:
+              consumer.must_follow = union(
+                  consumer.must_follow, frozenset([write_pcoll]))
 
       # Everything that was originally a stage or a replacement, but wasn't
       # replaced, should be in the final graph.
@@ -522,11 +636,21 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         pcoll.coder_id = coders.get_id(coder)
     coders.populate_map(pipeline_components.coders)
 
-    # Initial set of stages are singleton transforms.
+    known_composites = set([urns.GROUP_BY_KEY_TRANSFORM])
+
+    def leaf_transforms(root_ids):
+      for root_id in root_ids:
+        root = pipeline_proto.components.transforms[root_id]
+        if root.spec.urn in known_composites or not root.subtransforms:
+          yield root_id
+        else:
+          for leaf in leaf_transforms(root.subtransforms):
+            yield leaf
+
+    # Initial set of stages are singleton leaf transforms.
     stages = [
-        Stage(name, [transform])
-        for name, transform in pipeline_proto.components.transforms.items()
-        if not transform.subtransforms]
+        Stage(name, [pipeline_proto.components.transforms[name]])
+        for name in leaf_transforms(pipeline_proto.root_transform_ids)]
 
     # Apply each phase in order.
     for phase in [
@@ -537,27 +661,31 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       logging.debug('Stages: %s', [str(s) for s in stages])
 
     # Return the (possibly mutated) context and ordered set of stages.
-    return pipeline_components, stages
+    return pipeline_components, stages, safe_coders
 
-  def run_stages(self, pipeline_components, stages, direct=True):
+  def run_stages(self, pipeline_components, stages, safe_coders):
 
-    if direct:
-      controller = FnApiRunner.DirectController()
+    if self._use_grpc:
+      controller = FnApiRunner.GrpcController(self._sdk_harness_factory)
     else:
-      controller = FnApiRunner.GrpcController()
+      controller = FnApiRunner.DirectController()
+    metrics_by_stage = {}
 
     try:
       pcoll_buffers = collections.defaultdict(list)
       for stage in stages:
-        self.run_stage(controller, pipeline_components, stage, pcoll_buffers)
+        metrics_by_stage[stage.name] = self.run_stage(
+            controller, pipeline_components, stage,
+            pcoll_buffers, safe_coders).process_bundle.metrics
     finally:
       controller.close()
 
-    return maptask_executor_runner.WorkerRunnerResult(PipelineState.DONE)
+    return RunnerResult(PipelineState.DONE, metrics_by_stage)
 
-  def run_stage(self, controller, pipeline_components, stage, pcoll_buffers):
+  def run_stage(
+      self, controller, pipeline_components, stage, pcoll_buffers, safe_coders):
 
-    coders = pipeline_context.PipelineContext(pipeline_components).coders
+    context = pipeline_context.PipelineContext(pipeline_components)
     data_operation_spec = controller.data_operation_spec()
 
     def extract_endpoints(stage):
@@ -567,10 +695,9 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       data_side_input = {}
       data_output = {}
       for transform in stage.transforms:
-        pcoll_id = proto_utils.unpack_Any(
-            transform.spec.parameter, wrappers_pb2.BytesValue).value
         if transform.spec.urn in (bundle_processor.DATA_INPUT_URN,
                                   bundle_processor.DATA_OUTPUT_URN):
+          pcoll_id = transform.spec.payload
           if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
             target = transform.unique_name, only_element(transform.outputs)
             data_input[target] = pcoll_id
@@ -580,16 +707,21 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
           else:
             raise NotImplementedError
           if data_operation_spec:
-            transform.spec.parameter.CopyFrom(data_operation_spec)
+            transform.spec.payload = data_operation_spec.SerializeToString()
           else:
-            transform.spec.parameter.Clear()
+            transform.spec.payload = ""
+        elif transform.spec.urn == urns.PARDO_TRANSFORM:
+          payload = proto_utils.parse_Bytes(
+              transform.spec.payload, beam_runner_api_pb2.ParDoPayload)
+          for tag, si in payload.side_inputs.items():
+            data_side_input[transform.unique_name, tag] = (
+                'materialize:' + transform.inputs[tag],
+                beam.pvalue.SideInputData.from_runner_api(si, None))
       return data_input, data_side_input, data_output
 
     logging.info('Running %s', stage.name)
     logging.debug('       %s', stage)
     data_input, data_side_input, data_output = extract_endpoints(stage)
-    if data_side_input:
-      raise NotImplementedError('Side inputs.')
 
     process_bundle_descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(
         id=self._next_uid(),
@@ -621,6 +753,20 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         data_out.write(element_data)
       data_out.close()
 
+    # Store the required side inputs into state.
+    for (transform_id, tag), (pcoll_id, si) in data_side_input.items():
+      elements_by_window = _WindowGroupingBuffer(si)
+      for element_data in pcoll_buffers[pcoll_id]:
+        elements_by_window.append(element_data)
+      for window, elements_data in elements_by_window.items():
+        state_key = beam_fn_api_pb2.StateKey(
+            multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+                ptransform_id=transform_id,
+                side_input_id=tag,
+                window=window))
+        controller.state_handler.blocking_append(
+            state_key, elements_data, process_bundle.instruction_id)
+
     # Register and start running the bundle.
     controller.control_handler.push(process_bundle_registration)
     controller.control_handler.push(process_bundle)
@@ -628,7 +774,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
     # Wait for the bundle to finish.
     while True:
       result = controller.control_handler.pull()
-      if result.instruction_id == process_bundle.instruction_id:
+      if result and result.instruction_id == process_bundle.instruction_id:
         if result.error:
           raise RuntimeError(result.error)
         break
@@ -655,17 +801,21 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
                 original_gbk_transform]
             input_pcoll = only_element(transform_proto.inputs.values())
             output_pcoll = only_element(transform_proto.outputs.values())
-            pre_gbk_coder = coders[
-                pipeline_components.pcollections[input_pcoll].coder_id]
-            post_gbk_coder = coders[
-                pipeline_components.pcollections[output_pcoll].coder_id]
+            pre_gbk_coder = context.coders[safe_coders[
+                pipeline_components.pcollections[input_pcoll].coder_id]]
+            post_gbk_coder = context.coders[safe_coders[
+                pipeline_components.pcollections[output_pcoll].coder_id]]
+            windowing_strategy = context.windowing_strategies[
+                pipeline_components
+                .pcollections[output_pcoll].windowing_strategy_id]
             pcoll_buffers[pcoll_id] = _GroupingBuffer(
-                pre_gbk_coder, post_gbk_coder)
+                pre_gbk_coder, post_gbk_coder, windowing_strategy)
           pcoll_buffers[pcoll_id].append(output.data)
         else:
           # These should be the only two identifiers we produce for now,
           # but special side input writes may go here.
           raise NotImplementedError(pcoll_id)
+    return result
 
   # This is the "old" way of executing pipelines.
   # TODO(robertwb): Remove once runner API supports side inputs.
@@ -728,7 +878,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
         runner_sinks[(transform_id, target_name)] = operation
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.DATA_OUTPUT_URN,
-            parameter=proto_utils.pack_Any(data_operation_spec))
+            payload=data_operation_spec.SerializeToString() \
+                if data_operation_spec is not None else None)
 
       elif isinstance(operation, operation_specs.WorkerRead):
         # A Read from an in-memory source is done over the data plane.
@@ -742,19 +893,19 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
               operation.source.source.default_output_coder())
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.DATA_INPUT_URN,
-              parameter=proto_utils.pack_Any(data_operation_spec))
+              payload=data_operation_spec.SerializeToString() \
+                  if data_operation_spec is not None else None)
 
         else:
           # Otherwise serialize the source and execute it there.
           # TODO: Use SDFs with an initial impulse.
           # The Dataflow runner harness strips the base64 encoding. do the same
           # here until we get the same thing back that we sent in.
+          source_bytes = base64.b64decode(
+              pickler.dumps(operation.source.source))
           transform_spec = beam_runner_api_pb2.FunctionSpec(
               urn=bundle_processor.PYTHON_SOURCE_URN,
-              parameter=proto_utils.pack_Any(
-                  wrappers_pb2.BytesValue(
-                      value=base64.b64decode(
-                          pickler.dumps(operation.source.source)))))
+              payload=source_bytes)
 
       elif isinstance(operation, operation_specs.WorkerDoFn):
         # Record the contents of each side input for access via the state api.
@@ -773,8 +924,7 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
             (operation.serialized_fn, side_input_extras))
         transform_spec = beam_runner_api_pb2.FunctionSpec(
             urn=bundle_processor.PYTHON_DOFN_URN,
-            parameter=proto_utils.pack_Any(
-                wrappers_pb2.BytesValue(value=augmented_serialized_fn)))
+            payload=augmented_serialized_fn)
 
       elif isinstance(operation, operation_specs.WorkerFlatten):
         # Flatten is nice and simple.
@@ -881,34 +1031,56 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
 
   # These classes are used to interact with the worker.
 
-  class SimpleState(object):  # TODO(robertwb): Inherit from GRPC servicer.
+  class StateServicer(beam_fn_api_pb2_grpc.BeamFnStateServicer):
 
     def __init__(self):
-      self._all = collections.defaultdict(list)
+      self._lock = threading.Lock()
+      self._state = collections.defaultdict(list)
 
-    def Get(self, state_key):
-      return beam_fn_api_pb2.Elements.Data(
-          data=''.join(self._all[self._to_key(state_key)]))
+    def blocking_get(self, state_key, instruction_reference=None):
+      with self._lock:
+        return ''.join(self._state[self._to_key(state_key)])
 
-    def Append(self, state_key, data):
-      self._all[self._to_key(state_key)].extend(data)
+    def blocking_append(self, state_key, data, instruction_reference=None):
+      with self._lock:
+        self._state[self._to_key(state_key)].append(data)
 
-    def Clear(self, state_key):
-      try:
-        del self._all[self._to_key(state_key)]
-      except KeyError:
-        pass
+    def blocking_clear(self, state_key, instruction_reference=None):
+      with self._lock:
+        del self._state[self._to_key(state_key)]
 
     @staticmethod
     def _to_key(state_key):
-      return state_key.window, state_key.key
+      return state_key.SerializeToString()
+
+  class GrpcStateServicer(
+      StateServicer, beam_fn_api_pb2_grpc.BeamFnStateServicer):
+    def State(self, request_stream, context=None):
+      # Note that this eagerly mutates state, assuming any failures are fatal.
+      # Thus it is safe to ignore instruction_reference.
+      for request in request_stream:
+        if request.get:
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id,
+              get=beam_fn_api_pb2.StateGetResponse(
+                  data=self.blocking_get(request.state_key)))
+        elif request.append:
+          self.blocking_append(request.state_key, request.append.data)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id,
+              append=beam_fn_api_pb2.AppendResponse())
+        elif request.clear:
+          self.blocking_clear(request.state_key)
+          yield beam_fn_api_pb2.StateResponse(
+              id=request.id,
+              clear=beam_fn_api_pb2.ClearResponse())
 
   class DirectController(object):
     """An in-memory controller for fn API control, state and data planes."""
 
     def __init__(self):
       self._responses = []
-      self.state_handler = FnApiRunner.SimpleState()
+      self.state_handler = FnApiRunner.StateServicer()
       self.control_handler = self
       self.data_plane_handler = data_plane.InMemoryDataChannel()
       self.worker = sdk_worker.SdkWorker(
@@ -936,8 +1108,8 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
   class GrpcController(object):
     """An grpc based controller for fn API control, state and data planes."""
 
-    def __init__(self):
-      self.state_handler = FnApiRunner.SimpleState()
+    def __init__(self, sdk_harness_factory=None):
+      self.sdk_harness_factory = sdk_harness_factory
       self.control_server = grpc.server(
           futures.ThreadPoolExecutor(max_workers=10))
       self.control_port = self.control_server.add_insecure_port('[::]:0')
@@ -946,22 +1118,29 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.data_port = self.data_server.add_insecure_port('[::]:0')
 
       self.control_handler = streaming_rpc_handler(
-          beam_fn_api_pb2.BeamFnControlServicer, 'Control')
-      beam_fn_api_pb2.add_BeamFnControlServicer_to_server(
+          beam_fn_api_pb2_grpc.BeamFnControlServicer, 'Control')
+      beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
           self.control_handler, self.control_server)
 
       self.data_plane_handler = data_plane.GrpcServerDataChannel()
-      beam_fn_api_pb2.add_BeamFnDataServicer_to_server(
+      beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
           self.data_plane_handler, self.data_server)
+
+      # TODO(robertwb): Is sharing the control channel fine?  Alternatively,
+      # how should this be plumbed?
+      self.state_handler = FnApiRunner.GrpcStateServicer()
+      beam_fn_api_pb2_grpc.add_BeamFnStateServicer_to_server(
+          self.state_handler, self.control_server)
 
       logging.info('starting control server on port %s', self.control_port)
       logging.info('starting data server on port %s', self.data_port)
       self.data_server.start()
       self.control_server.start()
 
-      self.worker = sdk_worker.SdkHarness(
-          grpc.insecure_channel('localhost:%s' % self.control_port))
-      self.worker_thread = threading.Thread(target=self.worker.run)
+      self.worker = (self.sdk_harness_factory or sdk_worker.SdkHarness)(
+          'localhost:%s' % self.control_port)
+      self.worker_thread = threading.Thread(
+          name='run_worker', target=self.worker.run)
       logging.info('starting worker')
       self.worker_thread.start()
 
@@ -979,6 +1158,24 @@ class FnApiRunner(maptask_executor_runner.MapTaskExecutorRunner):
       self.data_server.stop(5).wait()
 
 
+class RunnerResult(maptask_executor_runner.WorkerRunnerResult):
+  def __init__(self, state, metrics_by_stage):
+    super(RunnerResult, self).__init__(state)
+    self._metrics_by_stage = metrics_by_stage
+
+
 def only_element(iterable):
   element, = iterable
   return element
+
+
+def unique_name(existing, prefix):
+  if prefix in existing:
+    counter = 0
+    while True:
+      counter += 1
+      prefix_counter = prefix + "_%s" % counter
+      if prefix_counter not in existing:
+        return prefix_counter
+  else:
+    return prefix

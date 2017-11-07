@@ -25,11 +25,12 @@ import logging
 import sys
 import threading
 import unittest
-
 from concurrent import futures
+
 import grpc
 
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import data_plane
 
 
@@ -62,12 +63,12 @@ class DataChannelTest(unittest.TestCase):
     data_channel_service = data_plane.GrpcServerDataChannel()
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
-    beam_fn_api_pb2.add_BeamFnDataServicer_to_server(
+    beam_fn_api_pb2_grpc.add_BeamFnDataServicer_to_server(
         data_channel_service, server)
     test_port = server.add_insecure_port('[::]:0')
     server.start()
 
-    data_channel_stub = beam_fn_api_pb2.BeamFnDataStub(
+    data_channel_stub = beam_fn_api_pb2_grpc.BeamFnDataStub(
         grpc.insecure_channel('localhost:%s' % test_port))
     data_channel_client = data_plane.GrpcClientDataChannel(data_channel_stub)
 

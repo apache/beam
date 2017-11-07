@@ -21,14 +21,15 @@ from __future__ import absolute_import
 import logging
 import struct
 
+import crcmod
+
 from apache_beam import coders
-from apache_beam.io import filebasedsource
 from apache_beam.io import filebasedsink
+from apache_beam.io import filebasedsource
 from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.iobase import Read
 from apache_beam.io.iobase import Write
 from apache_beam.transforms import PTransform
-import crcmod
 
 __all__ = ['ReadFromTFRecord', 'WriteToTFRecord']
 

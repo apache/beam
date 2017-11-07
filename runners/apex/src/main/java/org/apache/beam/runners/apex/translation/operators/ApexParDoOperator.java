@@ -73,11 +73,14 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -133,7 +136,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
-      Coder<WindowedValue<InputT>> inputCoder,
+      Coder<InputT> linputCoder,
       ApexStateBackend stateBackend
       ) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
@@ -151,10 +154,13 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       throw new UnsupportedOperationException(msg);
     }
 
-    Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(inputCoder);
+    WindowedValueCoder<InputT> wvCoder =
+        FullWindowedValueCoder.of(
+            linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
+    Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(),
         listCoder);
-    this.inputCoder = inputCoder;
+    this.inputCoder = wvCoder;
 
     TimerInternals.TimerDataCoder timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
@@ -165,8 +171,16 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       Coder<?> keyCoder = StringUtf8Coder.of();
       this.currentKeyStateInternals = new StateInternalsProxy<>(
           stateBackend.newStateInternalsFactory(keyCoder));
+    } else {
+      DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+      if (signature.usesState()) {
+        checkArgument(linputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
+        @SuppressWarnings("rawtypes")
+        Coder<?> keyCoder = ((KvCoder) linputCoder).getKeyCoder();
+        this.currentKeyStateInternals = new StateInternalsProxy<>(
+            stateBackend.newStateInternalsFactory(keyCoder));
+      }
     }
-
   }
 
   @SuppressWarnings("unused") // for Kryo

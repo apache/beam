@@ -16,6 +16,7 @@
 #
 
 """Tests common to all coder implementations."""
+from __future__ import absolute_import
 
 import logging
 import math
@@ -23,15 +24,16 @@ import unittest
 
 import dill
 
-from apache_beam.transforms.window import GlobalWindow
-from apache_beam.utils.timestamp import MIN_TIMESTAMP
-import observable
+from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from apache_beam.coders import coders
+from apache_beam.runners import pipeline_context
 from apache_beam.transforms import window
+from apache_beam.transforms.window import GlobalWindow
 from apache_beam.utils import timestamp
 from apache_beam.utils import windowed_value
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
-from apache_beam.coders import coders
-from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from . import observable
 
 
 # Defined out of line for picklability.
@@ -90,7 +92,8 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(coder.get_impl().get_estimated_size_and_observables(v),
                        (coder.get_impl().estimate_size(v), []))
     copy1 = dill.loads(dill.dumps(coder))
-    copy2 = dill.loads(dill.dumps(coder))
+    context = pipeline_context.PipelineContext()
+    copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
       self.assertEqual(v, copy1.decode(copy2.encode(v)))
       if coder.is_deterministic():
@@ -118,7 +121,7 @@ class CodersTest(unittest.TestCase):
                      (1, dict()), ('a', [dict()]))
 
   def test_dill_coder(self):
-    cell_value = (lambda x: lambda: x)(0).func_closure[0]
+    cell_value = (lambda x: lambda: x)(0).__closure__[0]
     self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),

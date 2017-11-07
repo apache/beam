@@ -37,7 +37,6 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTag.StateBinder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -141,7 +140,6 @@ public class ApexStateInternals<K> implements StateInternals {
           namespace,
           address,
           accumCoder,
-          key,
           combineFn
           );
     }
@@ -184,7 +182,7 @@ public class ApexStateInternals<K> implements StateInternals {
         // TODO: reuse input
         Input input = new Input(buf);
         try {
-          return coder.decode(input, Context.OUTER);
+          return coder.decode(input);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -195,7 +193,7 @@ public class ApexStateInternals<K> implements StateInternals {
     public void writeValue(T input) {
       ByteArrayOutputStream output = new ByteArrayOutputStream();
       try {
-        coder.encode(input, output, Context.OUTER);
+        coder.encode(input, output);
         stateTable.put(namespace.stringKey(), address.getId(), output.toByteArray());
       } catch (IOException e) {
         throw new RuntimeException(e);
@@ -306,15 +304,13 @@ public class ApexStateInternals<K> implements StateInternals {
   private final class ApexCombiningState<K, InputT, AccumT, OutputT>
       extends AbstractState<AccumT>
       implements CombiningState<InputT, AccumT, OutputT> {
-    private final K key;
     private final CombineFn<InputT, AccumT, OutputT> combineFn;
 
     private ApexCombiningState(StateNamespace namespace,
         StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Coder<AccumT> coder,
-        K key, CombineFn<InputT, AccumT, OutputT> combineFn) {
+        CombineFn<InputT, AccumT, OutputT> combineFn) {
       super(namespace, address, coder);
-      this.key = key;
       this.combineFn = combineFn;
     }
 
@@ -330,8 +326,7 @@ public class ApexStateInternals<K> implements StateInternals {
 
     @Override
     public void add(InputT input) {
-      AccumT accum = getAccum();
-      combineFn.addInput(accum, input);
+      AccumT accum = combineFn.addInput(getAccum(), input);
       writeValue(accum);
     }
 
@@ -431,7 +426,7 @@ public class ApexStateInternals<K> implements StateInternals {
     /**
      * Serializable state for internals (namespace to state tag to coded value).
      */
-    private Map<Slice, Table<String, String, byte[]>> perKeyState = new HashMap<>();
+    private Map<Slice, HashBasedTable<String, String, byte[]>> perKeyState = new HashMap<>();
     private final Coder<K> keyCoder;
 
     private ApexStateInternalsFactory(Coder<K> keyCoder) {
@@ -451,7 +446,7 @@ public class ApexStateInternals<K> implements StateInternals {
       } catch (CoderException e) {
         throw new RuntimeException(e);
       }
-      Table<String, String, byte[]> stateTable = perKeyState.get(keyBytes);
+      HashBasedTable<String, String, byte[]> stateTable = perKeyState.get(keyBytes);
       if (stateTable == null) {
         stateTable = HashBasedTable.create();
         perKeyState.put(keyBytes, stateTable);

@@ -119,11 +119,19 @@ class CountWords(beam.PTransform):
   """
 
   def expand(self, pcoll):
+    def count_ones(word_ones):
+      (word, ones) = word_ones
+      return (word, sum(ones))
+
+    def format_result(word_count):
+      (word, count) = word_count
+      return '%s: %s' % (word, count)
+
     return (pcoll
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-            | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c)))
+            | 'count' >> beam.Map(count_ones)
+            | 'format' >> beam.Map(format_result))
 
 
 def run(argv=None):
@@ -163,7 +171,7 @@ def run(argv=None):
     (character_count
      | 'pair_with_key' >> beam.Map(lambda x: ('chars_temp_key', x))
      | beam.GroupByKey()
-     | 'count chars' >> beam.Map(lambda (_, counts): sum(counts))
+     | 'count chars' >> beam.Map(lambda char_counts: sum(char_counts[1]))
      | 'write chars' >> WriteToText(known_args.output + '-chars'))
 
     # pylint: disable=expression-not-assigned

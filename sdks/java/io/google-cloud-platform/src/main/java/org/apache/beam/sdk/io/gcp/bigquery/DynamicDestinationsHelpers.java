@@ -108,7 +108,7 @@ class DynamicDestinationsHelpers {
 
     @Override
     public Coder<TableDestination> getDestinationCoder() {
-      return TableDestinationCoder.of();
+      return TableDestinationCoderV2.of();
     }
   }
 
@@ -161,6 +161,31 @@ class DynamicDestinationsHelpers {
     @Override
     public TableSchema getSchema(TableDestination destination) {
       return BigQueryHelpers.fromJsonString(jsonSchema.get(), TableSchema.class);
+    }
+  }
+
+  static class ConstantTimePartitioningDestinations<T>
+      extends DelegatingDynamicDestinations<T, TableDestination> {
+
+    @Nullable
+    private final ValueProvider<String> jsonTimePartitioning;
+
+    ConstantTimePartitioningDestinations(DynamicDestinations<T, TableDestination> inner,
+        ValueProvider<String> jsonTimePartitioning) {
+      super(inner);
+      this.jsonTimePartitioning = jsonTimePartitioning;
+    }
+
+    @Override
+    public TableDestination getDestination(ValueInSingleWindow<T> element) {
+      TableDestination destination = super.getDestination(element);
+      return new TableDestination(destination.getTableSpec(), destination.getTableDescription(),
+          jsonTimePartitioning.get());
+    }
+
+    @Override
+    public Coder<TableDestination> getDestinationCoder() {
+      return TableDestinationCoderV2.of();
     }
   }
 

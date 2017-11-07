@@ -40,6 +40,9 @@ class CreateStreamingFlinkView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
   private final PCollectionView<ViewT> view;
 
+  public static final String CREATE_STREAMING_FLINK_VIEW_URN =
+      "beam:transform:flink:create-streaming-flink-view:v1";
+
   public CreateStreamingFlinkView(PCollectionView<ViewT> view) {
     this.view = view;
   }

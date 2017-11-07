@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import java.io.Serializable;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -31,16 +32,35 @@ public class TableDestination implements Serializable {
   private final String tableSpec;
   @Nullable
   private final String tableDescription;
+  @Nullable
+  private final String jsonTimePartitioning;
 
 
   public TableDestination(String tableSpec, @Nullable String tableDescription) {
-    this.tableSpec = tableSpec;
-    this.tableDescription = tableDescription;
+    this(tableSpec, tableDescription, (String) null);
   }
 
   public TableDestination(TableReference tableReference, @Nullable String tableDescription) {
-    this.tableSpec = BigQueryHelpers.toTableSpec(tableReference);
+    this(tableReference, tableDescription, null);
+  }
+
+  public TableDestination(TableReference tableReference, @Nullable String tableDescription,
+      TimePartitioning timePartitioning) {
+    this(BigQueryHelpers.toTableSpec(tableReference), tableDescription,
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null);
+  }
+
+  public TableDestination(String tableSpec, @Nullable String tableDescription,
+      TimePartitioning timePartitioning) {
+    this(tableSpec, tableDescription,
+        timePartitioning != null ? BigQueryHelpers.toJsonString(timePartitioning) : null);
+  }
+
+  public TableDestination(String tableSpec, @Nullable String tableDescription,
+      @Nullable String jsonTimePartitioning) {
+    this.tableSpec = tableSpec;
     this.tableDescription = tableDescription;
+    this.jsonTimePartitioning = jsonTimePartitioning;
   }
 
   public String getTableSpec() {
@@ -49,6 +69,18 @@ public class TableDestination implements Serializable {
 
   public TableReference getTableReference() {
     return BigQueryHelpers.parseTableSpec(tableSpec);
+  }
+
+  public String getJsonTimePartitioning() {
+    return jsonTimePartitioning;
+  }
+
+  public TimePartitioning getTimePartitioning() {
+    if (jsonTimePartitioning == null) {
+      return null;
+    } else {
+      return BigQueryHelpers.fromJsonString(jsonTimePartitioning, TimePartitioning.class);
+    }
   }
 
   @Nullable
@@ -72,11 +104,12 @@ public class TableDestination implements Serializable {
     }
     TableDestination other = (TableDestination) o;
     return Objects.equals(this.tableSpec, other.tableSpec)
-        && Objects.equals(this.tableDescription, other.tableDescription);
+        && Objects.equals(this.tableDescription, other.tableDescription)
+        && Objects.equals(this.jsonTimePartitioning, other.jsonTimePartitioning);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(tableSpec, tableDescription);
+    return Objects.hash(tableSpec, tableDescription, jsonTimePartitioning);
   }
 }

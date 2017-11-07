@@ -23,7 +23,6 @@ import tempfile
 import unittest
 
 import apache_beam as beam
-
 from apache_beam import coders
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers

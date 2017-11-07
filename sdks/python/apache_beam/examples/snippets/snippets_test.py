@@ -30,16 +30,14 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.coders.coders import ToStringCoder
-from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.examples.snippets import snippets
 from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.utils.windowed_value import WindowedValue
-
-# pylint: disable=expression-not-assigned
-from apache_beam.testing.test_pipeline import TestPipeline
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -360,7 +358,7 @@ class TypeHintsTest(unittest.TestCase):
       # [END type_hints_deterministic_key]
 
       assert_that(
-          totals | beam.Map(lambda (k, v): (k.name, v)),
+          totals | beam.Map(lambda k_v: (k_v[0].name, k_v[1])),
           equal_to([('banana', 3), ('kiwi', 4), ('zucchini', 3)]))
 
 
@@ -696,12 +694,56 @@ class SnippetsTest(unittest.TestCase):
     self.assertEqual([str(s) for s in expected], self.get_output(result_path))
 
   def test_model_co_group_by_key_tuple(self):
-    email_list = [['a', 'a@example.com'], ['b', 'b@example.com']]
-    phone_list = [['a', 'x4312'], ['b', 'x8452']]
-    result_path = self.create_temp_file()
-    snippets.model_co_group_by_key_tuple(email_list, phone_list, result_path)
-    expect = ['a; a@example.com; x4312', 'b; b@example.com; x8452']
-    self.assertEqual(expect, self.get_output(result_path))
+    with TestPipeline() as p:
+      # [START model_group_by_key_cogroupbykey_tuple_inputs]
+      emails_list = [
+          ('amy', 'amy@example.com'),
+          ('carl', 'carl@example.com'),
+          ('julia', 'julia@example.com'),
+          ('carl', 'carl@email.com'),
+      ]
+      phones_list = [
+          ('amy', '111-222-3333'),
+          ('james', '222-333-4444'),
+          ('amy', '333-444-5555'),
+          ('carl', '444-555-6666'),
+      ]
+
+      emails = p | 'CreateEmails' >> beam.Create(emails_list)
+      phones = p | 'CreatePhones' >> beam.Create(phones_list)
+      # [END model_group_by_key_cogroupbykey_tuple_inputs]
+
+      result_path = self.create_temp_file()
+      snippets.model_co_group_by_key_tuple(emails, phones, result_path)
+
+    # [START model_group_by_key_cogroupbykey_tuple_outputs]
+    results = [
+        ('amy', {
+            'emails': ['amy@example.com'],
+            'phones': ['111-222-3333', '333-444-5555']}),
+        ('carl', {
+            'emails': ['carl@email.com', 'carl@example.com'],
+            'phones': ['444-555-6666']}),
+        ('james', {
+            'emails': [],
+            'phones': ['222-333-4444']}),
+        ('julia', {
+            'emails': ['julia@example.com'],
+            'phones': []}),
+    ]
+    # [END model_group_by_key_cogroupbykey_tuple_outputs]
+    # [START model_group_by_key_cogroupbykey_tuple_formatted_outputs]
+    formatted_results = [
+        "amy; ['amy@example.com']; ['111-222-3333', '333-444-5555']",
+        "carl; ['carl@email.com', 'carl@example.com']; ['444-555-6666']",
+        "james; []; ['222-333-4444']",
+        "julia; ['julia@example.com']; []",
+    ]
+    # [END model_group_by_key_cogroupbykey_tuple_formatted_outputs]
+    expected_results = ['%s; %s; %s' % (name, info['emails'], info['phones'])
+                        for name, info in results]
+    self.assertEqual(expected_results, formatted_results)
+    self.assertEqual(formatted_results, self.get_output(result_path))
 
   def test_model_use_and_query_metrics(self):
     """DebuggingWordCount example snippets."""
@@ -846,14 +888,16 @@ class CombineTest(unittest.TestCase):
       def create_accumulator(self):
         return (0.0, 0)
 
-      def add_input(self, (sum, count), input):
+      def add_input(self, sum_count, input):
+        (sum, count) = sum_count
         return sum + input, count + 1
 
       def merge_accumulators(self, accumulators):
         sums, counts = zip(*accumulators)
         return sum(sums), sum(counts)
 
-      def extract_output(self, (sum, count)):
+      def extract_output(self, sum_count):
+        (sum, count) = sum_count
         return sum / count if count else float('NaN')
     # [END combine_custom_average_define]
     # [START combine_custom_average_execute]

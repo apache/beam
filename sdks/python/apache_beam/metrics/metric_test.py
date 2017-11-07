@@ -21,9 +21,9 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metric import MetricsFilter
-from apache_beam.metrics.metric import MetricResults
 from apache_beam.metrics.metricbase import MetricName
 
 
@@ -97,6 +97,22 @@ class MetricsTest(unittest.TestCase):
   def test_get_namespace_error(self):
     with self.assertRaises(ValueError):
       Metrics.get_namespace(object())
+
+  def test_counter_empty_name(self):
+    with self.assertRaises(ValueError):
+      Metrics.counter("namespace", "")
+
+  def test_counter_empty_namespace(self):
+    with self.assertRaises(ValueError):
+      Metrics.counter("", "names")
+
+  def test_distribution_empty_name(self):
+    with self.assertRaises(ValueError):
+      Metrics.distribution("namespace", "")
+
+  def test_distribution_empty_namespace(self):
+    with self.assertRaises(ValueError):
+      Metrics.distribution("", "names")
 
   def test_create_counter_distribution(self):
     MetricsEnvironment.set_current_container(MetricsContainer('mystep'))

@@ -24,12 +24,11 @@ import tempfile
 import unittest
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.runners.dataflow.internal import dependency
-from apache_beam.runners.dataflow.internal import names
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
-
+from apache_beam.runners.dataflow.internal import dependency
+from apache_beam.runners.dataflow.internal import names
 
 # Protect against environments where GCS library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -428,8 +427,9 @@ class SetupTest(unittest.TestCase):
       dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
-        'The --extra_package option expects a full path ending with ".tar" or '
-        '".tar.gz" instead of %s' % os.path.join(source_dir, 'abc.tgz'))
+        'The --extra_package option expects a full path ending with '
+        '".tar", ".tar.gz", ".whl" or ".zip" '
+        'instead of %s' % os.path.join(source_dir, 'abc.tgz'))
 
 
 if __name__ == '__main__':
