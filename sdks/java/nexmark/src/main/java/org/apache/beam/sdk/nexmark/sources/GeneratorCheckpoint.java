@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.nexmark.sources;
 
+import static com.google.common.base.MoreObjects.toStringHelper;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -72,7 +74,9 @@ public class GeneratorCheckpoint implements UnboundedSource.CheckpointMark {
 
   @Override
   public String toString() {
-    return String.format("Generator.GeneratorCheckpoint{numEvents:%d;wallclockBaseTime:%d}",
-        numEvents, wallclockBaseTime);
+    return toStringHelper(this)
+        .add("numEvents", numEvents)
+        .add("wallclockBaseTime", wallclockBaseTime)
+        .toString();
   }
 }
