@@ -277,7 +277,7 @@
 <h2 id="engage">Engage</h2>
 
 <h3 id="mailing-lists">Mailing list(s)</h3>
-<p>We discuss design and implementation issues on the dev@beam.apache.org mailing list, which is archived <a href="https://lists.apache.org/list.html?dev@beam.apache.org">here</a>. Join by emailing <a href="mailto:dev-subscribe@beam.apache.org"><code class="highlighter-rouge">dev-subscribe@beam.apache.org</code></a>.</p>
+<p>We discuss design and implementation issues on the <code class="highlighter-rouge">dev@beam.apache.org</code> mailing list, which is archived <a href="https://lists.apache.org/list.html?dev@beam.apache.org">here</a>. Join by emailing <a href="mailto:dev-subscribe@beam.apache.org"><code class="highlighter-rouge">dev-subscribe@beam.apache.org</code></a>.</p>
 
 <p>If interested, you can also join the other <a href="/get-started/support/">mailing lists</a>.</p>
 
@@ -359,7 +359,7 @@ $ cd beam
 <p>To configure annotation processing in IntelliJ:</p>
 
 <ol>
-  <li>Open Annotation Processors Settings dialog box by going to Settings -&gt; Build, Execution, Deployment -&gt; Compiler -&gt; Annotation Processors.</li>
+  <li>Open Annotation Processors Settings dialog box by going to Settings -&gt; Build, Execution, Deployment -&gt; Compiler -&gt; Annotation Processors</li>
   <li>Select the following buttons:
     <ul>
       <li>“Enable annotation processing”</li>
@@ -369,36 +369,37 @@ $ cd beam
   </li>
   <li>Set the generated source directories to be equal to the Maven directories:
     <ul>
-      <li>Set “Production sources directory:” to “target/generated-sources/annotations”.</li>
-      <li>Set “Test sources directory:” to “target/generated-test-sources/test-annotations”.</li>
+      <li>Set “Production sources directory:” to <code class="highlighter-rouge">target/generated-sources/annotations</code></li>
+      <li>Set “Test sources directory:” to <code class="highlighter-rouge">target/generated-test-sources/test-annotations</code></li>
     </ul>
   </li>
-  <li>Click “OK”.</li>
+  <li>Click “OK”</li>
 </ol>
 
 <h6 id="checkstyle">Checkstyle</h6>
 <p>IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.</p>
 
 <ol>
-  <li>Install the “Checkstyle-IDEA” plugin from the IntelliJ plugin repository.</li>
-  <li>Configure the plugin by going to Settings -&gt; Other Settings -&gt; Checkstyle.</li>
-  <li>Set the “Scan Scope” to “Only Java sources (including tests)”.</li>
+  <li>Install the “Checkstyle-IDEA” plugin from the IntelliJ plugin repository</li>
+  <li>Configure the plugin by going to Settings -&gt; Other Settings -&gt; Checkstyle</li>
+  <li>Set Checkstyle version to the same as in <code class="highlighter-rouge">/pom.xml</code> (e.g. 6.19)</li>
+  <li>Set the “Scan Scope” to “Only Java sources (including tests)”</li>
   <li>In the “Configuration File” pane, add a new configuration using the plus icon:
     <ol>
-      <li>Set the “Description” to “Beam”.</li>
+      <li>Set the “Description” to “Beam”</li>
       <li>Select “Use a local Checkstyle file”, and point it to
-   “sdks/java/build-tools/src/main/resources/beam/checkstyle.xml” within
-   your repository.</li>
+   <code class="highlighter-rouge">sdks/java/build-tools/src/main/resources/beam/checkstyle.xml</code> within
+   your repository</li>
       <li>Check the box for “Store relative to project location”, and click
-   “Next”.</li>
-      <li>Configure the “checkstyle.suppressions.file” property value to
-   “suppressions.xml”, and click “Next”, then “Finish”.</li>
+   “Next”</li>
+      <li>Configure the <code class="highlighter-rouge">checkstyle.suppressions.file</code> property value to
+   <code class="highlighter-rouge">suppressions.xml</code>, and click “Next”, then “Finish”</li>
     </ol>
   </li>
   <li>Select “Beam” as the only active configuration file, and click “Apply” and
-“OK”.</li>
+“OK”</li>
   <li>Checkstyle will now give warnings in the editor for any Checkstyle
-violations.</li>
+violations</li>
 </ol>
 
 <p>You can also scan an entire module by opening the Checkstyle tools window and
@@ -412,16 +413,16 @@ modules as they are not configured for Checkstyle validation.</p>
 matches the project’s checkstyle enforcements.</p>
 
 <ol>
-  <li>(Option 1) Configure IntelliJ to use “beam-codestyle.xml”.
+  <li>(Option 1) Configure IntelliJ to use <code class="highlighter-rouge">beam-codestyle.xml</code>
     <ol>
-      <li>Go to Settings -&gt; Code Style -&gt; Java.</li>
-      <li>Click the cogwheel icon next to ‘Scheme’ and select Import Scheme -&gt; Eclipse XML Profile.</li>
-      <li>Select “sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml”.</li>
-      <li>Click “OK”.</li>
-      <li>Click “Apply” and “OK”.</li>
+      <li>Go to Settings -&gt; Code Style -&gt; Java</li>
+      <li>Click the cogwheel icon next to ‘Scheme’ and select Import Scheme -&gt; Eclipse XML Profile</li>
+      <li>Select <code class="highlighter-rouge">sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml</code></li>
+      <li>Click “OK”</li>
+      <li>Click “Apply” and “OK”</li>
     </ol>
   </li>
-  <li>(Option 2) Install <a href="https://plugins.jetbrains.com/plugin/8527-google-java-format">Google Java Format plugin</a>.</li>
+  <li>(Option 2) Install <a href="https://plugins.jetbrains.com/plugin/8527-google-java-format">Google Java Format plugin</a></li>
 </ol>
 
 <h5 id="eclipse">Eclipse</h5>
@@ -470,11 +471,11 @@ Start Eclipse with a fresh workspace in a separate directory from your checkout.
   <li>Install the <a href="https://marketplace.eclipse.org/content/checkstyle-plug">Checkstyle plugin</a>.</li>
   <li>Configure Checkstyle plugin by going to Preferences - Checkstyle.
     <ol>
-      <li>Click “New…”.</li>
-      <li>Select “External Configuration File” for type.</li>
-      <li>Click “Browse…” and select “sdks/java/build-tools/src/main/resources/beam/checkstyle.xml”.</li>
-      <li>Enter “Beam Checks” under “Name:”.</li>
-      <li>Click “OK”, then “OK”.</li>
+      <li>Click “New…”</li>
+      <li>Select “External Configuration File” for type</li>
+      <li>Click “Browse…” and select <code class="highlighter-rouge">sdks/java/build-tools/src/main/resources/beam/checkstyle.xml</code></li>
+      <li>Enter “Beam Checks” under “Name:”</li>
+      <li>Click “OK”, then “OK”</li>
     </ol>
   </li>
 </ol>
@@ -484,14 +485,14 @@ Start Eclipse with a fresh workspace in a separate directory from your checkout.
 matches the project’s checkstyle enforcements.</p>
 
 <ol>
-  <li>(Option 1) Configure Eclipse to use “beam-codestyle.xml”.
+  <li>(Option 1) Configure Eclipse to use <code class="highlighter-rouge">beam-codestyle.xml</code>
     <ol>
-      <li>Go to Preferences -&gt; Java -&gt; Code Style -&gt; Formatter.</li>
-      <li>Click “Import…” and select “sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml”.</li>
-      <li>Click “Apply” and “OK”.</li>
+      <li>Go to Preferences -&gt; Java -&gt; Code Style -&gt; Formatter</li>
+      <li>Click “Import…” and select <code class="highlighter-rouge">sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml</code></li>
+      <li>Click “Apply” and “OK”</li>
     </ol>
   </li>
-  <li>(Option 2) Install <a href="https://github.com/google/google-java-format#eclipse">Google Java Format plugin</a>.</li>
+  <li>(Option 2) Install <a href="https://github.com/google/google-java-format#eclipse">Google Java Format plugin</a></li>
 </ol>
 
 <h3 id="create-a-branch-in-your-fork">Create a branch in your fork</h3>
