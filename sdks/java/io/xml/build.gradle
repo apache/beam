@@ -21,22 +21,13 @@ applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: XML"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
-
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.stax2_api
   compile library.java.guava
   compile library.java.findbugs_jsr305
   runtime library.java.woodstox_core_asl
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14

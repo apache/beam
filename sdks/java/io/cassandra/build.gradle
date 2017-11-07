@@ -33,7 +33,7 @@ evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-p
 def cassandra_version = "3.2.0"
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.guava
   compile library.java.findbugs_jsr305

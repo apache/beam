@@ -31,7 +31,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: JDBC"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
   compile library.java.findbugs_jsr305
   compile "org.apache.commons:commons-dbcp2:2.1.1"

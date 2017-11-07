@@ -17,8 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(javaVersion: 1.8)
-
+applyJavaNature(javaVersion: 1.8, enableShadow: false /* Disable shadow because of custom configuration below. */)
 apply plugin: "com.github.johnrengelman.shadow"
 
 description = "Apache Beam :: SDKs :: Java :: Harness"
@@ -35,7 +34,7 @@ evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-e
 dependencies {
   compile project(":beam-model-parent:beam-model-pipeline")
   compile project(":beam-model-parent:beam-model-fn-execution")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
   compile project(":beam-runners-parent:beam-runners-core-java")
@@ -51,7 +50,7 @@ dependencies {
   compile library.java.joda_time
   compile library.java.slf4j_api
   provided library.java.error_prone_annotations
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile library.java.junit

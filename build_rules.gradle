@@ -57,6 +57,7 @@ apply plugin: "cz.malohlava.visteg"
 class JavaNatureConfiguration {
   double javaVersion = 1.7
   boolean enableFindbugs = true
+  boolean enableShadow = true
 }
 
 /** Takes a map of parameters. See JavaNatureConfiguration for the set of parameters allowed. */
@@ -73,7 +74,6 @@ ext.applyJavaNature = {
     options.encoding = "UTF-8"
   }
 
-  // Skip test failures to enumerate all that is failing
   test {
     // Configure the gradle include defaults to be equivalent to the maven-surefire-plugin
     // http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
@@ -129,6 +129,35 @@ ext.applyJavaNature = {
       excludeFilter = rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
       sourceSets = [sourceSets.main]
     }
+  }
+
+  if (configuration.enableShadow) {
+    apply plugin: 'com.github.johnrengelman.shadow'
+
+    // Shade guava in all our dependencies.
+    shadowJar {
+      classifier = "shaded"
+      mergeServiceFiles()
+      dependencies {
+        exclude(".*")
+        include(dependency(library.java.guava))
+      }
+      relocate("com.google.common", "org.apache.beam." + project.name + ".repackaged.com.google.common") {
+        // com.google.common is too generic, need to exclude guava-testlib
+        exclude "com.google.common.*.testing.*"
+      }
+    }
+
+    // Create a new configuration 'shadowTest' like 'shadow' for the test scope
+    configurations {
+      shadowTest {
+        description = "shaded test runtime"
+        extendsFrom testRuntime
+      }
+    }
+    // TODO: Figure out how to create ShadowJar task for testShadowJar here
+    // that is extendable within each sub-project with any additional includes.
+    // Optimally, a single configuration would apply to both.
   }
 
   // Ban these dependencies from all configurations

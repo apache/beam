@@ -29,7 +29,7 @@ test {
 def aws_version = "1.11.18"
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.slf4j_api
   compile library.java.joda_time
   compile library.java.guava

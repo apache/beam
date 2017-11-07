@@ -22,7 +22,7 @@ applyJavaNature(javaVersion: 1.8)
 description = "Apache Beam :: SDKs :: Java :: Java 8 Tests"
 
 dependencies {
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.guava
   testCompile library.java.joda_time
