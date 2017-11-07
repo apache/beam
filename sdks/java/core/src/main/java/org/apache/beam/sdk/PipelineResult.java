@@ -46,14 +46,14 @@ public interface PipelineResult {
   State cancel() throws IOException;
 
   /**
-   * Waits until the pipeline finishes and returns the final status.
-   * It times out after the given duration.
+   * Waits until the pipeline finishes and returns the final status. It times out after the given
+   * duration.
    *
-   * @param duration The time to wait for the pipeline to finish.
-   *     Provide a value less than 1 ms for an infinite wait.
-   *
+   * @param duration The time to wait for the pipeline to finish. Provide a value less than 1 ms for
+   *     an infinite wait.
    * @return The final state of the pipeline or null on timeout.
-   * @throws UnsupportedOperationException if the runner does not support cancellation.
+   * @throws UnsupportedOperationException if the runner does not support waiting to finish with a
+   *     timeout.
    */
   State waitUntilFinish(Duration duration);
 
@@ -61,7 +61,7 @@ public interface PipelineResult {
    * Waits until the pipeline finishes and returns the final status.
    *
    * @return The final state of the pipeline.
-   * @throws UnsupportedOperationException if the runner does not support cancellation.
+   * @throws UnsupportedOperationException if the runner does not support waiting to finish.
    */
   State waitUntilFinish();
 

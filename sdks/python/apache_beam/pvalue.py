@@ -28,8 +28,11 @@ from __future__ import absolute_import
 
 import itertools
 
+from apache_beam import coders
 from apache_beam import typehints
-
+from apache_beam.internal import pickler
+from apache_beam.portability.api import beam_runner_api_pb2
+from apache_beam.utils import urns
 
 __all__ = [
     'PCollection',
@@ -128,19 +131,16 @@ class PCollection(PValue):
     return _InvalidUnpickledPCollection, ()
 
   def to_runner_api(self, context):
-    from apache_beam.portability.api import beam_runner_api_pb2
-    from apache_beam.internal import pickler
     return beam_runner_api_pb2.PCollection(
         unique_name='%d%s.%s' % (
             len(self.producer.full_label), self.producer.full_label, self.tag),
         coder_id=pickler.dumps(self.element_type),
-        is_bounded=beam_runner_api_pb2.BOUNDED,
+        is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED,
         windowing_strategy_id=context.windowing_strategies.get_id(
             self.windowing))
 
   @staticmethod
   def from_runner_api(proto, context):
-    from apache_beam.internal import pickler
     # Producer and tag will be filled in later, the key point is that the
     # same object is returned for the same pcollection id.
     return PCollection(None, element_type=pickler.loads(proto.coder_id))
@@ -289,6 +289,81 @@ class AsSideInput(object):
   def element_type(self):
     return typehints.Any
 
+  # TODO(robertwb): Get rid of _from_runtime_iterable and _view_options
+  # in favor of _side_input_data().
+  def _side_input_data(self):
+    view_options = self._view_options()
+    from_runtime_iterable = type(self)._from_runtime_iterable
+    return SideInputData(
+        urns.ITERABLE_ACCESS,
+        self._window_mapping_fn,
+        lambda iterable: from_runtime_iterable(iterable, view_options),
+        self._input_element_coder())
+
+  def _input_element_coder(self):
+    return coders.WindowedValueCoder(
+        coders.registry.get_coder(self.pvalue.element_type),
+        window_coder=self.pvalue.windowing.windowfn.get_window_coder())
+
+  def to_runner_api(self, context):
+    return self._side_input_data().to_runner_api(context)
+
+  @staticmethod
+  def from_runner_api(proto, context):
+    return _UnpickledSideInput(
+        SideInputData.from_runner_api(proto, context))
+
+
+class _UnpickledSideInput(AsSideInput):
+  def __init__(self, side_input_data):
+    self._data = side_input_data
+    self._window_mapping_fn = side_input_data.window_mapping_fn
+
+  @staticmethod
+  def _from_runtime_iterable(it, options):
+    return options['data'].view_fn(it)
+
+  def _view_options(self):
+    return {
+        'data': self._data,
+        # For non-fn-api runners.
+        'window_mapping_fn': self._data.window_mapping_fn,
+    }
+
+  def _side_input_data(self):
+    return self._data
+
+
+class SideInputData(object):
+  """All of the data about a side input except for the bound PCollection."""
+  def __init__(self, access_pattern, window_mapping_fn, view_fn, coder):
+    self.access_pattern = access_pattern
+    self.window_mapping_fn = window_mapping_fn
+    self.view_fn = view_fn
+    self.coder = coder
+
+  def to_runner_api(self, unused_context):
+    return beam_runner_api_pb2.SideInput(
+        access_pattern=beam_runner_api_pb2.FunctionSpec(
+            urn=self.access_pattern),
+        view_fn=beam_runner_api_pb2.SdkFunctionSpec(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=urns.PICKLED_PYTHON_VIEWFN,
+                payload=pickler.dumps((self.view_fn, self.coder)))),
+        window_mapping_fn=beam_runner_api_pb2.SdkFunctionSpec(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=urns.PICKLED_WINDOW_MAPPING_FN,
+                payload=pickler.dumps(self.window_mapping_fn))))
+
+  @staticmethod
+  def from_runner_api(proto, unused_context):
+    assert proto.view_fn.spec.urn == urns.PICKLED_PYTHON_VIEWFN
+    assert proto.window_mapping_fn.spec.urn == urns.PICKLED_WINDOW_MAPPING_FN
+    return SideInputData(
+        proto.access_pattern.urn,
+        pickler.loads(proto.window_mapping_fn.spec.payload),
+        *pickler.loads(proto.view_fn.spec.payload))
+
 
 class AsSingleton(AsSideInput):
   """Marker specifying that an entire PCollection is to be used as a side input.
@@ -329,8 +404,9 @@ class AsSingleton(AsSideInput):
     elif len(head) == 1:
       return head[0]
     raise ValueError(
-        'PCollection with more than one element accessed as '
-        'a singleton view.')
+        'PCollection of size %d with more than one element accessed as a '
+        'singleton view. First two elements encountered are "%s", "%s".' % (
+            len(head), str(head[0]), str(head[1])))
 
   @property
   def element_type(self):
@@ -358,6 +434,13 @@ class AsIter(AsSideInput):
   def _from_runtime_iterable(it, options):
     return it
 
+  def _side_input_data(self):
+    return SideInputData(
+        urns.ITERABLE_ACCESS,
+        self._window_mapping_fn,
+        lambda iterable: iterable,
+        self._input_element_coder())
+
   @property
   def element_type(self):
     return typehints.Iterable[self.pvalue.element_type]
@@ -382,6 +465,13 @@ class AsList(AsSideInput):
   def _from_runtime_iterable(it, options):
     return list(it)
 
+  def _side_input_data(self):
+    return SideInputData(
+        urns.ITERABLE_ACCESS,
+        self._window_mapping_fn,
+        list,
+        self._input_element_coder())
+
 
 class AsDict(AsSideInput):
   """Marker specifying a PCollection to be used as an indexable side input.
@@ -402,6 +492,13 @@ class AsDict(AsSideInput):
   @staticmethod
   def _from_runtime_iterable(it, options):
     return dict(it)
+
+  def _side_input_data(self):
+    return SideInputData(
+        urns.ITERABLE_ACCESS,
+        self._window_mapping_fn,
+        dict,
+        self._input_element_coder())
 
 
 class EmptySideInput(object):

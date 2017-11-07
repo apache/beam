@@ -41,6 +41,7 @@ import inspect
 import operator
 import os
 import sys
+from functools import reduce
 
 from google.protobuf import wrappers_pb2
 
@@ -48,17 +49,16 @@ from apache_beam import error
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.internal import util
-from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
 from apache_beam.typehints import typehints
-from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.decorators import TypeCheckError
 from apache_beam.typehints.decorators import WithTypeHints
+from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.trivial_inference import instance_to_type
 from apache_beam.typehints.typehints import validate_composite_type_param
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
-
 
 __all__ = [
     'PTransform',
@@ -74,27 +74,27 @@ class _PValueishTransform(object):
 
   This visits a PValueish, contstructing a (possibly mutated) copy.
   """
-  def visit(self, node, *args):
-    return getattr(
-        self,
-        'visit_' + node.__class__.__name__,
-        lambda x, *args: x)(node, *args)
-
-  def visit_list(self, node, *args):
-    return [self.visit(x, *args) for x in node]
-
-  def visit_tuple(self, node, *args):
-    return tuple(self.visit(x, *args) for x in node)
-
-  def visit_dict(self, node, *args):
-    return {key: self.visit(value, *args) for (key, value) in node.items()}
+  def visit_nested(self, node, *args):
+    if isinstance(node, (tuple, list)):
+      args = [self.visit(x, *args) for x in node]
+      if isinstance(node, tuple) and hasattr(node.__class__, '_make'):
+        # namedtuples require unpacked arguments in their constructor
+        return node.__class__(*args)
+      else:
+        return node.__class__(args)
+    elif isinstance(node, dict):
+      return node.__class__(
+          {key: self.visit(value, *args) for (key, value) in node.items()})
+    else:
+      return node
 
 
 class _SetInputPValues(_PValueishTransform):
   def visit(self, node, replacements):
     if id(node) in replacements:
       return replacements[id(node)]
-    return super(_SetInputPValues, self).visit(node, replacements)
+    else:
+      return self.visit_nested(node, replacements)
 
 
 class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
@@ -105,7 +105,9 @@ class _MaterializedDoOutputsTuple(pvalue.DoOutputsTuple):
     self._pvalue_cache = pvalue_cache
 
   def __getitem__(self, tag):
-    return self._pvalue_cache.get_unwindowed_pvalue(self._deferred[tag])
+    # Simply accessing the value should not use it up.
+    return self._pvalue_cache.get_unwindowed_pvalue(
+        self._deferred[tag], decref=False)
 
 
 class _MaterializePValues(_PValueishTransform):
@@ -114,25 +116,29 @@ class _MaterializePValues(_PValueishTransform):
 
   def visit(self, node):
     if isinstance(node, pvalue.PValue):
-      return self._pvalue_cache.get_unwindowed_pvalue(node)
+      # Simply accessing the value should not use it up.
+      return self._pvalue_cache.get_unwindowed_pvalue(node, decref=False)
     elif isinstance(node, pvalue.DoOutputsTuple):
       return _MaterializedDoOutputsTuple(node, self._pvalue_cache)
-    return super(_MaterializePValues, self).visit(node)
+    else:
+      return self.visit_nested(node)
 
 
-class GetPValues(_PValueishTransform):
-  def visit(self, node, pvalues=None):
-    if pvalues is None:
-      pvalues = []
-      self.visit(node, pvalues)
-      return pvalues
-    elif isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
+class _GetPValues(_PValueishTransform):
+  def visit(self, node, pvalues):
+    if isinstance(node, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pvalues.append(node)
     else:
-      super(GetPValues, self).visit(node, pvalues)
+      self.visit_nested(node, pvalues)
 
 
-class _ZipPValues(_PValueishTransform):
+def get_nested_pvalues(pvalueish):
+  pvalues = []
+  _GetPValues().visit(pvalueish, pvalues)
+  return pvalues
+
+
+class _ZipPValues(object):
   """Pairs each PValue in a pvalueish with a value in a parallel out sibling.
 
   Sibling should have the same nested structure as pvalueish.  Leaves in
@@ -154,10 +160,12 @@ class _ZipPValues(_PValueishTransform):
       return pairs
     elif isinstance(pvalueish, (pvalue.PValue, pvalue.DoOutputsTuple)):
       pairs.append((context, pvalueish, sibling))
-    else:
-      super(_ZipPValues, self).visit(pvalueish, sibling, pairs, context)
+    elif isinstance(pvalueish, (list, tuple)):
+      self.visit_sequence(pvalueish, sibling, pairs, context)
+    elif isinstance(pvalueish, dict):
+      self.visit_dict(pvalueish, sibling, pairs, context)
 
-  def visit_list(self, pvalueish, sibling, pairs, context):
+  def visit_sequence(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, (list, tuple)):
       for ix, (p, s) in enumerate(zip(
           pvalueish, list(sibling) + [None] * len(pvalueish))):
@@ -165,9 +173,6 @@ class _ZipPValues(_PValueishTransform):
     else:
       for p in pvalueish:
         self.visit(p, sibling, pairs, context)
-
-  def visit_tuple(self, pvalueish, sibling, pairs, context):
-    self.visit_list(pvalueish, sibling, pairs, context)
 
   def visit_dict(self, pvalueish, sibling, pairs, context):
     if isinstance(sibling, dict):
@@ -214,38 +219,44 @@ class PTransform(WithTypeHints, HasDisplayData):
     return self.__class__.__name__
 
   def with_input_types(self, input_type_hint):
-    """Annotates the input type of a PTransform with a type-hint.
+    """Annotates the input type of a :class:`PTransform` with a type-hint.
 
     Args:
-      input_type_hint: An instance of an allowed built-in type, a custom class,
-        or an instance of a typehints.TypeConstraint.
+      input_type_hint (type): An instance of an allowed built-in type, a custom
+        class, or an instance of a
+        :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      ~exceptions.TypeError: If **input_type_hint** is not a valid type-hint.
+        See
+        :obj:`apache_beam.typehints.typehints.validate_composite_type_param()`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     validate_composite_type_param(input_type_hint,
                                   'Type hints for a PTransform')
     return super(PTransform, self).with_input_types(input_type_hint)
 
   def with_output_types(self, type_hint):
-    """Annotates the output type of a PTransform with a type-hint.
+    """Annotates the output type of a :class:`PTransform` with a type-hint.
 
     Args:
-      type_hint: An instance of an allowed built-in type, a custom class, or a
-        typehints.TypeConstraint.
+      type_hint (type): An instance of an allowed built-in type, a custom class,
+        or a :class:`~apache_beam.typehints.typehints.TypeConstraint`.
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      ~exceptions.TypeError: If **type_hint** is not a valid type-hint. See
+        :obj:`~apache_beam.typehints.typehints.validate_composite_type_param()`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      PTransform: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     validate_composite_type_param(type_hint, 'Type hints for a PTransform')
     return super(PTransform, self).with_output_types(type_hint)
@@ -442,7 +453,8 @@ class PTransform(WithTypeHints, HasDisplayData):
     urn, typed_param = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.FunctionSpec(
         urn=urn,
-        parameter=proto_utils.pack_Any(typed_param))
+        payload=typed_param.SerializeToString()
+        if typed_param is not None else None)
 
   @classmethod
   def from_runner_api(cls, proto, context):
@@ -450,7 +462,7 @@ class PTransform(WithTypeHints, HasDisplayData):
       return None
     parameter_type, constructor = cls._known_urns[proto.urn]
     return constructor(
-        proto_utils.unpack_Any(proto.parameter, parameter_type),
+        proto_utils.parse_Bytes(proto.payload, parameter_type),
         context)
 
   def to_runner_api_parameter(self, context):
@@ -489,13 +501,16 @@ class _ChainedPTransform(PTransform):
 
 
 class PTransformWithSideInputs(PTransform):
-  """A superclass for any PTransform (e.g. FlatMap or Combine)
+  """A superclass for any :class:`PTransform` (e.g.
+  :func:`~apache_beam.transforms.core.FlatMap` or
+  :class:`~apache_beam.transforms.core.CombineFn`)
   invoking user code.
 
-  PTransforms like FlatMap invoke user-supplied code in some kind of
-  package (e.g. a DoFn) and optionally provide arguments and side inputs
-  to that code. This internal-use-only class contains common functionality
-  for PTransforms that fit this model.
+  :class:`PTransform` s like :func:`~apache_beam.transforms.core.FlatMap`
+  invoke user-supplied code in some kind of package (e.g. a
+  :class:`~apache_beam.transforms.core.DoFn`) and optionally provide arguments
+  and side inputs to that code. This internal-use-only class contains common
+  functionality for :class:`PTransform` s that fit this model.
   """
 
   def __init__(self, fn, *args, **kwargs):
@@ -541,16 +556,20 @@ class PTransformWithSideInputs(PTransform):
         of an allowed built-in type, a custom class, or a
         typehints.TypeConstraint.
 
-    Example of annotating the types of side-inputs:
+    Example of annotating the types of side-inputs::
+
       FlatMap().with_input_types(int, int, bool)
 
     Raises:
-      TypeError: If 'type_hint' is not a valid type-hint. See
-        typehints.validate_composite_type_param for further details.
+      :class:`~exceptions.TypeError`: If **type_hint** is not a valid type-hint.
+        See
+        :func:`~apache_beam.typehints.typehints.validate_composite_type_param`
+        for further details.
 
     Returns:
-      A reference to the instance of this particular PTransform object. This
-      allows chaining type-hinting related methods.
+      :class:`PTransform`: A reference to the instance of this particular
+      :class:`PTransform` object. This allows chaining type-hinting related
+      methods.
     """
     super(PTransformWithSideInputs, self).with_input_types(input_type_hint)
 
@@ -696,8 +715,8 @@ def label_from_callable(fn):
   elif hasattr(fn, '__name__'):
     if fn.__name__ == '<lambda>':
       return '<lambda at %s:%s>' % (
-          os.path.basename(fn.func_code.co_filename),
-          fn.func_code.co_firstlineno)
+          os.path.basename(fn.__code__.co_filename),
+          fn.__code__.co_firstlineno)
     return fn.__name__
   return str(fn)
 

@@ -18,16 +18,16 @@
 """Tests for datastore helper."""
 import errno
 import random
-from socket import error as SocketError
 import sys
 import unittest
+from socket import error as SocketError
 
 from mock import MagicMock
 
+# pylint: disable=ungrouped-imports
 from apache_beam.io.gcp.datastore.v1 import fake_datastore
 from apache_beam.io.gcp.datastore.v1 import helper
 from apache_beam.testing.test_utils import patch_retry
-
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -42,6 +42,7 @@ try:
 except ImportError:
   datastore_helper = None
 # pylint: enable=wrong-import-order, wrong-import-position
+# pylint: enable=ungrouped-imports
 
 
 @unittest.skipIf(datastore_helper is None, 'GCP dependencies are not installed')
@@ -153,7 +154,7 @@ class HelperTest(unittest.TestCase):
       self.assertEqual(entity, entities[i].entity)
       i += 1
 
-    limit = query.limit.value if query.HasField('limit') else sys.maxint
+    limit = query.limit.value if query.HasField('limit') else sys.maxsize
     self.assertEqual(i, min(num_entities, limit))
 
   def test_is_key_valid(self):

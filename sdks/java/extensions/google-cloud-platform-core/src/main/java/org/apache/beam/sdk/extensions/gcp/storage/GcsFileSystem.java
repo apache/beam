@@ -88,10 +88,11 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
     for (Boolean isGlob : isGlobBooleans) {
       if (isGlob) {
-        checkState(globsMatchResults.hasNext(), "Expect globsMatchResults has next.");
+        checkState(globsMatchResults.hasNext(), "Expect globsMatchResults has next: %s", globs);
         ret.add(globsMatchResults.next());
       } else {
-        checkState(nonGlobsMatchResults.hasNext(), "Expect nonGlobsMatchResults has next.");
+        checkState(
+            nonGlobsMatchResults.hasNext(), "Expect nonGlobsMatchResults has next: %s", nonGlobs);
         ret.add(nonGlobsMatchResults.next());
       }
     }

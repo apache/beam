@@ -41,13 +41,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.harness.test.TestStreams;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnDataGrpc;
+import org.apache.beam.harness.test.Consumer;
+import org.apache.beam.harness.test.TestStreams;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -129,8 +131,8 @@ public class BeamFnDataGrpcClientTest {
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(inboundServerValues::add).build();
 
-    BeamFnApi.ApiServiceDescriptor apiServiceDescriptor =
-        BeamFnApi.ApiServiceDescriptor.newBuilder()
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
     Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -151,7 +153,7 @@ public class BeamFnDataGrpcClientTest {
 
     BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
         PipelineOptionsFactory.create(),
-        (BeamFnApi.ApiServiceDescriptor descriptor) -> channel,
+        (Endpoints.ApiServiceDescriptor descriptor) -> channel,
         this::createStreamForTest);
 
     CompletableFuture<Void> readFutureA = clientFactory.forInboundConsumer(
@@ -197,8 +199,8 @@ public class BeamFnDataGrpcClientTest {
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(inboundServerValues::add).build();
 
-    BeamFnApi.ApiServiceDescriptor apiServiceDescriptor =
-        BeamFnApi.ApiServiceDescriptor.newBuilder()
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
     Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -220,7 +222,7 @@ public class BeamFnDataGrpcClientTest {
 
       BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
           PipelineOptionsFactory.create(),
-          (BeamFnApi.ApiServiceDescriptor descriptor) -> channel,
+          (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
       CompletableFuture<Void> readFuture = clientFactory.forInboundConsumer(
@@ -262,7 +264,7 @@ public class BeamFnDataGrpcClientTest {
     Collection<BeamFnApi.Elements> inboundServerValues = new ConcurrentLinkedQueue<>();
     CallStreamObserver<BeamFnApi.Elements> inboundServerObserver =
         TestStreams.withOnNext(
-            new Consumer<BeamFnApi.Elements>() {
+            new Consumer<Elements>() {
               @Override
               public void accept(BeamFnApi.Elements t) {
                 inboundServerValues.add(t);
@@ -271,8 +273,8 @@ public class BeamFnDataGrpcClientTest {
             }
             ).build();
 
-    BeamFnApi.ApiServiceDescriptor apiServiceDescriptor =
-        BeamFnApi.ApiServiceDescriptor.newBuilder()
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
             .setUrl(this.getClass().getName() + "-" + UUID.randomUUID().toString())
             .build();
     Server server = InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
@@ -292,7 +294,7 @@ public class BeamFnDataGrpcClientTest {
       BeamFnDataGrpcClient clientFactory = new BeamFnDataGrpcClient(
           PipelineOptionsFactory.fromArgs(
               new String[]{ "--experiments=beam_fn_api_data_buffer_limit=20" }).create(),
-          (BeamFnApi.ApiServiceDescriptor descriptor) -> channel,
+          (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
       try (CloseableThrowingConsumer<WindowedValue<String>> consumer =

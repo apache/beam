@@ -83,7 +83,8 @@ public class GearpumpPipelineResult implements PipelineResult {
 
   @Override
   public MetricResults metrics() {
-    return null;
+    throw new UnsupportedOperationException(
+        String.format("%s does not support querying metrics", getClass().getSimpleName()));
   }
 
   private State getGearpumpState() {

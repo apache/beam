@@ -58,7 +58,7 @@ def count_tornadoes(input_data):
               lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
           | 'monthly count' >> beam.CombinePerKey(sum)
           | 'format' >> beam.Map(
-              lambda (k, v): {'month': k, 'tornado_count': v}))
+              lambda k_v: {'month': k_v[0], 'tornado_count': k_v[1]}))
 
 
 def run(argv=None):

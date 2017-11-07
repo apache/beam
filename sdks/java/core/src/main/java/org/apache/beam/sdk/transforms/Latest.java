@@ -129,7 +129,7 @@ public class Latest {
 
       TimestampedValue.TimestampedValueCoder<T> inputTVCoder =
           (TimestampedValue.TimestampedValueCoder<T>) inputCoder;
-      return NullableCoder.of(inputTVCoder.<T>getValueCoder());
+      return NullableCoder.of(inputTVCoder.getValueCoder());
     }
 
     @Override

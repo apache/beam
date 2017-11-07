@@ -26,10 +26,8 @@ import static org.junit.Assert.fail;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import com.google.common.io.ByteStreams;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
@@ -60,6 +58,7 @@ import org.apache.avro.util.Utf8;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.testing.CoderProperties;
+import org.apache.beam.sdk.testing.InterceptingUrlClassLoader;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -166,42 +165,16 @@ public class AvroCoderTest {
   }
 
   /**
-   * A classloader that intercepts loading of Pojo and makes a new one.
-   */
-  private static class InterceptingUrlClassLoader extends ClassLoader {
-
-    private InterceptingUrlClassLoader(ClassLoader parent) {
-      super(parent);
-    }
-
-    @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
-      if (name.equals(AvroCoderTestPojo.class.getName())) {
-        // Quite a hack?
-        try {
-          String classAsResource = name.replace('.', '/') + ".class";
-          byte[] classBytes =
-              ByteStreams.toByteArray(getParent().getResourceAsStream(classAsResource));
-          return defineClass(name, classBytes, 0, classBytes.length);
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      } else {
-        return getParent().loadClass(name);
-      }
-    }
-  }
-
-  /**
    * Tests that {@link AvroCoder} works around issues in Avro where cache classes might be
    * from the wrong ClassLoader, causing confusing "Cannot cast X to X" error messages.
    */
   @Test
   public void testTwoClassLoaders() throws Exception {
+    ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     ClassLoader loader1 =
-        new InterceptingUrlClassLoader(Thread.currentThread().getContextClassLoader());
+        new InterceptingUrlClassLoader(contextClassLoader, AvroCoderTestPojo.class.getName());
     ClassLoader loader2 =
-        new InterceptingUrlClassLoader(Thread.currentThread().getContextClassLoader());
+        new InterceptingUrlClassLoader(contextClassLoader, AvroCoderTestPojo.class.getName());
 
     Class<?> pojoClass1 = loader1.loadClass(AvroCoderTestPojo.class.getName());
     Class<?> pojoClass2 = loader2.loadClass(AvroCoderTestPojo.class.getName());

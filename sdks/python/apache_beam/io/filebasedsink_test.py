@@ -31,11 +31,10 @@ import mock
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
-from apache_beam.options.value_provider import StaticValueProvider
 
 
 # TODO: Refactor code so all io tests are using same library

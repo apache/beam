@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -365,28 +366,41 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private void assertHasOnlyGlobalAndAllowedTags(
       Set<W> expectedWindows, Set<StateTag<?>> allowedTags) {
     Set<StateNamespace> expectedWindowsSet = new HashSet<>();
+
+    Set<Equivalence.Wrapper<StateTag>> allowedEquivalentTags = new HashSet<>();
+    for (StateTag tag : allowedTags) {
+      allowedEquivalentTags.add(StateTags.ID_EQUIVALENCE.wrap(tag));
+    }
+
     for (W expectedWindow : expectedWindows) {
       expectedWindowsSet.add(windowNamespace(expectedWindow));
     }
-    Map<StateNamespace, Set<StateTag<?>>> actualWindows = new HashMap<>();
+    Map<StateNamespace, Set<Equivalence.Wrapper<StateTag>>> actualWindows = new HashMap<>();
 
     for (StateNamespace namespace : stateInternals.getNamespacesInUse()) {
       if (namespace instanceof StateNamespaces.GlobalNamespace) {
         continue;
       } else if (namespace instanceof StateNamespaces.WindowNamespace) {
-        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<Equivalence.Wrapper<StateTag>> tagsInUse = new HashSet<>();
+        for (StateTag tag : stateInternals.getTagsInUse(namespace)) {
+          tagsInUse.add(StateTags.ID_EQUIVALENCE.wrap(tag));
+        }
         if (tagsInUse.isEmpty()) {
           continue;
         }
         actualWindows.put(namespace, tagsInUse);
-        Set<StateTag<?>> unexpected = Sets.difference(tagsInUse, allowedTags);
+        Set<Equivalence.Wrapper<StateTag>> unexpected =
+            Sets.difference(tagsInUse, allowedEquivalentTags);
         if (unexpected.isEmpty()) {
           continue;
         } else {
           fail(namespace + " has unexpected states: " + tagsInUse);
         }
       } else if (namespace instanceof StateNamespaces.WindowAndTriggerNamespace) {
-        Set<StateTag<?>> tagsInUse = stateInternals.getTagsInUse(namespace);
+        Set<Equivalence.Wrapper<StateTag>> tagsInUse = new HashSet<>();
+        for (StateTag tag : stateInternals.getTagsInUse(namespace)) {
+          tagsInUse.add(StateTags.ID_EQUIVALENCE.wrap(tag));
+        }
         assertTrue(namespace + " contains " + tagsInUse, tagsInUse.isEmpty());
       } else {
         fail("Unrecognized namespace " + namespace);

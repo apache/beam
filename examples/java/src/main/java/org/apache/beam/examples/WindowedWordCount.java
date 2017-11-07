@@ -98,7 +98,6 @@ public class WindowedWordCount {
    * 2-hour period.
    */
   static class AddTimestampFn extends DoFn<String, String> {
-    private static final Duration RAND_RANGE = Duration.standardHours(1);
     private final Instant minTimestamp;
     private final Instant maxTimestamp;
 

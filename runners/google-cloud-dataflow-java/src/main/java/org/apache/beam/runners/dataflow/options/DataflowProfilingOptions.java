@@ -21,6 +21,7 @@ import java.util.HashMap;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.Hidden;
+import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
  * Options for controlling profiling of pipeline execution.
@@ -28,7 +29,7 @@ import org.apache.beam.sdk.options.Hidden;
 @Description("[Experimental] Used to configure profiling of the Dataflow pipeline")
 @Experimental
 @Hidden
-public interface DataflowProfilingOptions {
+public interface DataflowProfilingOptions extends PipelineOptions {
 
   @Description("When set to a non-empty value, enables recording profiles and saving them to GCS.\n"
       + "Profiles will continue until the pipeline is stopped or updated without this option.\n")

@@ -21,14 +21,14 @@ import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Decodes individually consumed {@link org.apache.beam.fn.v1.BeamFnApi.Elements.Data} with the
+ * Decodes individually consumed {@link BeamFnApi.Elements.Data} with the
  * provided {@link Coder} passing the individual decoded elements to the provided consumer.
  */
 public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements.Data> {

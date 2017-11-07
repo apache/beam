@@ -22,7 +22,6 @@ import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
-import com.google.protobuf.BytesValue;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.Collection;
@@ -32,7 +31,8 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
+import org.apache.beam.fn.harness.state.BeamFnStateClient;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -65,6 +65,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
     public BoundedSourceRunner<InputT, OutputT> createRunnerForPTransform(
         PipelineOptions pipelineOptions,
         BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
         String pTransformId,
         RunnerApi.PTransform pTransform,
         Supplier<String> processBundleInstructionId,
@@ -122,17 +123,14 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
   public void start() throws Exception {
     try {
       // The representation here is defined as the java serialized representation of the
-      // bounded source object packed into a protobuf Any using a protobuf BytesValue wrapper.
-      byte[] bytes = definition.getParameter().unpack(BytesValue.class).getValue().toByteArray();
+      // bounded source object in a ByteString wrapper.
+      byte[] bytes = definition.getPayload().toByteArray();
       @SuppressWarnings("unchecked")
       InputT boundedSource =
           (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
       runReadLoop(WindowedValue.valueInGlobalWindow(boundedSource));
     } catch (InvalidProtocolBufferException e) {
-      throw new IOException(
-          String.format("Failed to decode %s, expected %s",
-              definition.getParameter().getTypeUrl(), BytesValue.getDescriptor().getFullName()),
-          e);
+      throw new IOException(String.format("Failed to decode %s", definition.getUrn()), e);
     }
   }
 

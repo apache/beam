@@ -48,6 +48,9 @@ job('beam_PreCommit_Website_Merge') {
         GEM_PATH=~/.gem/ruby/$RUBY_VERSION_NUM/:$GEM_PATH
         gem install bundler --user-install
 
+        # Enter the git clone for remaining commands
+        cd src
+
         # Install all needed gems.
         bundle install --path ~/.gem/
 

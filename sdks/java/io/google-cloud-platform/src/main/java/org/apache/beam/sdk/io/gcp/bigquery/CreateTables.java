@@ -73,7 +73,7 @@ public class CreateTables<DestinationT>
   }
 
   CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
-    return new CreateTables<DestinationT>(createDisposition, bqServices, dynamicDestinations);
+    return new CreateTables<>(createDisposition, bqServices, dynamicDestinations);
   }
 
   @Override
@@ -113,9 +113,7 @@ public class CreateTables<DestinationT>
   private void possibleCreateTable(
       BigQueryOptions options, TableDestination tableDestination, TableSchema tableSchema)
       throws InterruptedException, IOException {
-    String tableSpec = tableDestination.getTableSpec();
-    TableReference tableReference = tableDestination.getTableReference();
-    String tableDescription = tableDestination.getTableDescription();
+    String tableSpec = BigQueryHelpers.stripPartitionDecorator(tableDestination.getTableSpec());
     if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
       synchronized (createdTables) {
         // Another thread may have succeeded in creating the table in the meanwhile, so
@@ -123,12 +121,19 @@ public class CreateTables<DestinationT>
         // every thread from attempting a create and overwhelming our BigQuery quota.
         DatasetService datasetService = bqServices.getDatasetService(options);
         if (!createdTables.contains(tableSpec)) {
+          TableReference tableReference = tableDestination.getTableReference();
+          String tableDescription = tableDestination.getTableDescription();
+          tableReference.setTableId(
+              BigQueryHelpers.stripPartitionDecorator(tableReference.getTableId()));
           if (datasetService.getTable(tableReference) == null) {
-            datasetService.createTable(
-                new Table()
-                    .setTableReference(tableReference)
-                    .setSchema(tableSchema)
-                    .setDescription(tableDescription));
+            Table table = new Table()
+                .setTableReference(tableReference)
+                .setSchema(tableSchema)
+                .setDescription(tableDescription);
+            if (tableDestination.getTimePartitioning() != null) {
+              table.setTimePartitioning(tableDestination.getTimePartitioning());
+            }
+            datasetService.createTable(table);
           }
           createdTables.add(tableSpec);
         }

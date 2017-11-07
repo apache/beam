@@ -24,14 +24,15 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableMap;
-import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
-import com.google.protobuf.BytesValue;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
+import org.apache.beam.model.pipeline.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -39,9 +40,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.SdkFunctionSpec;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.SerializableUtils;
@@ -138,13 +136,9 @@ public class CoderTranslation {
                 .setSpec(
                     FunctionSpec.newBuilder()
                         .setUrn(JAVA_SERIALIZED_CODER_URN)
-                        .setParameter(
-                            Any.pack(
-                                BytesValue.newBuilder()
-                                    .setValue(
-                                        ByteString.copyFrom(
-                                            SerializableUtils.serializeToByteArray(coder)))
-                                    .build()))))
+                        .setPayload(
+                            ByteString.copyFrom(SerializableUtils.serializeToByteArray(coder)))
+                        .build()))
         .build();
   }
 
@@ -182,9 +176,7 @@ public class CoderTranslation {
             protoCoder
                 .getSpec()
                 .getSpec()
-                .getParameter()
-                .unpack(BytesValue.class)
-                .getValue()
+                .getPayload()
                 .toByteArray(),
             "Custom Coder Bytes");
   }

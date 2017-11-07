@@ -46,7 +46,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -537,7 +536,8 @@ public class ParDo {
     if (methodSignature.windowT() != null) {
       checkArgument(
           methodSignature.windowT().isSupertypeOf(actualWindowT),
-          "%s expects window type %s, which is not a supertype of actual window type %s",
+          "%s unable to provide window -- expected window type from parameter (%s) is not a "
+              + "supertype of actual window type assigned by windowing (%s)",
           methodSignature.targetMethod(),
           methodSignature.windowT(),
           actualWindowT);
@@ -588,7 +588,7 @@ public class ParDo {
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
@@ -716,7 +716,7 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
     }
 

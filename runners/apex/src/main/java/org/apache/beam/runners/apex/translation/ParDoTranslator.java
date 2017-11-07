@@ -31,14 +31,11 @@ import java.util.Map.Entry;
 import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.operators.ApexParDoOperator;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -64,15 +61,6 @@ class ParDoTranslator<InputT, OutputT>
           String.format(
               "%s does not support splittable DoFn: %s", ApexRunner.class.getSimpleName(), doFn));
     }
-    if (signature.stateDeclarations().size() > 0) {
-      throw new UnsupportedOperationException(
-          String.format(
-              "Found %s annotations on %s, but %s cannot yet be used with state in the %s.",
-              DoFn.StateId.class.getSimpleName(),
-              doFn.getClass().getName(),
-              DoFn.class.getSimpleName(),
-              ApexRunner.class.getSimpleName()));
-    }
 
     if (signature.timerDeclarations().size() > 0) {
       throw new UnsupportedOperationException(
@@ -87,10 +75,6 @@ class ParDoTranslator<InputT, OutputT>
     Map<TupleTag<?>, PValue> outputs = context.getOutputs();
     PCollection<InputT> input = context.getInput();
     List<PCollectionView<?>> sideInputs = transform.getSideInputs();
-    Coder<InputT> inputCoder = input.getCoder();
-    WindowedValueCoder<InputT> wvInputCoder =
-        FullWindowedValueCoder.of(
-            inputCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
 
     ApexParDoOperator<InputT, OutputT> operator = new ApexParDoOperator<>(
             context.getPipelineOptions(),
@@ -99,7 +83,7 @@ class ParDoTranslator<InputT, OutputT>
             transform.getAdditionalOutputTags().getAll(),
             input.getWindowingStrategy(),
             sideInputs,
-            wvInputCoder,
+            input.getCoder(),
             context.getStateBackend());
 
     Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());
@@ -144,10 +128,6 @@ class ParDoTranslator<InputT, OutputT>
       Map<TupleTag<?>, PValue> outputs = context.getOutputs();
       PCollection<InputT> input = context.getInput();
       List<PCollectionView<?>> sideInputs = transform.getSideInputs();
-      Coder<InputT> inputCoder = input.getCoder();
-      WindowedValueCoder<InputT> wvInputCoder =
-          FullWindowedValueCoder.of(
-              inputCoder, input.getWindowingStrategy().getWindowFn().windowCoder());
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
       DoFn<InputT, OutputT> doFn = (DoFn) transform.newProcessFn(transform.getFn());
@@ -158,7 +138,7 @@ class ParDoTranslator<InputT, OutputT>
               transform.getAdditionalOutputTags().getAll(),
               input.getWindowingStrategy(),
               sideInputs,
-              wvInputCoder,
+              input.getCoder(),
               context.getStateBackend());
 
       Map<PCollection<?>, OutputPort<?>> ports = Maps.newHashMapWithExpectedSize(outputs.size());

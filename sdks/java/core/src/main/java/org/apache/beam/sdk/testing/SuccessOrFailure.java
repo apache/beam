@@ -22,31 +22,27 @@ import java.io.Serializable;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.util.SerializableThrowable;
 
 /**
  * Output of {@link PAssert}. Passed to a conclude function to act upon.
  */
 @DefaultCoder(SerializableCoder.class)
 public final class SuccessOrFailure implements Serializable {
-  // TODO Add a SerializableThrowable. instead of relying on PAssertionSite.(BEAM-1898)
 
   private final boolean isSuccess;
   @Nullable
   private final PAssert.PAssertionSite site;
   @Nullable
-  private final String message;
-
-  private SuccessOrFailure() {
-    this(true, null, null);
-  }
+  private final SerializableThrowable throwable;
 
   private SuccessOrFailure(
       boolean isSuccess,
       @Nullable PAssert.PAssertionSite site,
-      @Nullable String message) {
+      @Nullable Throwable throwable) {
     this.isSuccess = isSuccess;
     this.site = site;
-    this.message = message;
+    this.throwable = new SerializableThrowable(throwable);
   }
 
   public boolean isSuccess() {
@@ -55,7 +51,7 @@ public final class SuccessOrFailure implements Serializable {
 
   @Nullable
   public AssertionError assertionError() {
-    return  site == null ? null : site.wrap(message);
+    return site == null ? null : site.wrap(throwable.getThrowable());
   }
 
   public static SuccessOrFailure success() {
@@ -63,19 +59,15 @@ public final class SuccessOrFailure implements Serializable {
   }
 
   public static SuccessOrFailure failure(@Nullable PAssert.PAssertionSite site,
-      @Nullable String message) {
-    return new SuccessOrFailure(false, site, message);
-  }
-
-  public static SuccessOrFailure failure(@Nullable PAssert.PAssertionSite site) {
-    return new SuccessOrFailure(false, site, null);
+      @Nullable Throwable t) {
+    return new SuccessOrFailure(false, site, t);
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("isSuccess", isSuccess())
-        .addValue(message)
+        .addValue(throwable)
         .omitNullValues()
         .toString();
   }

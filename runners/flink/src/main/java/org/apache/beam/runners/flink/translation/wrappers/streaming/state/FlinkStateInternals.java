@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.nio.ByteBuffer;
@@ -312,7 +313,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             StringSerializer.INSTANCE,
             flinkStateDescriptor).get();
 
-        return result != null ? result : Collections.<T>emptyList();
+        return result != null ? ImmutableList.copyOf(result) : Collections.<T>emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error reading state.", e);
       }
@@ -943,7 +944,7 @@ public class FlinkStateInternals<K> implements StateInternals {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).keys();
-            return result != null ? result : Collections.<KeyT>emptyList();
+            return result != null ? ImmutableList.copyOf(result) : Collections.<KeyT>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state keys.", e);
           }
@@ -966,7 +967,7 @@ public class FlinkStateInternals<K> implements StateInternals {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).values();
-            return result != null ? result : Collections.<ValueT>emptyList();
+            return result != null ? ImmutableList.copyOf(result) : Collections.<ValueT>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state values.", e);
           }
@@ -989,7 +990,9 @@ public class FlinkStateInternals<K> implements StateInternals {
                 namespace.stringKey(),
                 StringSerializer.INSTANCE,
                 flinkStateDescriptor).entries();
-            return result != null ? result : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
+            return result != null
+                ? ImmutableList.copyOf(result)
+                : Collections.<Map.Entry<KeyT, ValueT>>emptyList();
           } catch (Exception e) {
             throw new RuntimeException("Error get map state entries.", e);
           }
@@ -1146,7 +1149,7 @@ public class FlinkStateInternals<K> implements StateInternals {
             namespace.stringKey(),
             StringSerializer.INSTANCE,
             flinkStateDescriptor).keys();
-        return result != null ? result : Collections.<T>emptyList();
+        return result != null ? ImmutableList.copyOf(result) : Collections.<T>emptyList();
       } catch (Exception e) {
         throw new RuntimeException("Error read from state.", e);
       }

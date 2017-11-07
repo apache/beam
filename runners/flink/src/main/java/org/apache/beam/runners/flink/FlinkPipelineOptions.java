@@ -127,4 +127,15 @@ public interface FlinkPipelineOptions
   @Default.Boolean(false)
   Boolean getRetainExternalizedCheckpointsOnCancellation();
   void setRetainExternalizedCheckpointsOnCancellation(Boolean retainOnCancellation);
+
+  @Description("The maximum number of elements in a bundle.")
+  @Default.Long(1000)
+  Long getMaxBundleSize();
+  void setMaxBundleSize(Long size);
+
+  @Description("The maximum time to wait before finalising a bundle (in milliseconds).")
+  @Default.Long(1000)
+  Long getMaxBundleTimeMills();
+  void setMaxBundleTimeMills(Long time);
+
 }

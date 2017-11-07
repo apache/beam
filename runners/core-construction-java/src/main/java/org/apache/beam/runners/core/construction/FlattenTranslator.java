@@ -21,9 +21,9 @@ package org.apache.beam.runners.core.construction;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -32,7 +32,8 @@ import org.apache.beam.sdk.transforms.windowing.Window.Assign;
 /**
  * Utility methods for translating a {@link Assign} to and from {@link RunnerApi} representations.
  */
-public class FlattenTranslator implements TransformPayloadTranslator<Flatten.PCollections<?>> {
+public class FlattenTranslator
+    extends TransformPayloadTranslator.WithDefaultRehydration<Flatten.PCollections<?>> {
 
   public static TransformPayloadTranslator create() {
     return new FlattenTranslator();
@@ -58,6 +59,11 @@ public class FlattenTranslator implements TransformPayloadTranslator<Flatten.PCo
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(Flatten.PCollections.class, new FlattenTranslator());
+    }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 }

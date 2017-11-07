@@ -17,11 +17,10 @@
  */
 package org.apache.beam.sdk.io;
 
-import static org.apache.beam.sdk.io.TFRecordIO.CompressionType;
-import static org.apache.beam.sdk.io.TFRecordIO.CompressionType.AUTO;
-import static org.apache.beam.sdk.io.TFRecordIO.CompressionType.GZIP;
-import static org.apache.beam.sdk.io.TFRecordIO.CompressionType.NONE;
-import static org.apache.beam.sdk.io.TFRecordIO.CompressionType.ZLIB;
+import static org.apache.beam.sdk.io.Compression.AUTO;
+import static org.apache.beam.sdk.io.Compression.DEFLATE;
+import static org.apache.beam.sdk.io.Compression.GZIP;
+import static org.apache.beam.sdk.io.Compression.UNCOMPRESSED;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertEquals;
@@ -144,7 +143,7 @@ public class TFRecordIOTest {
   public void testReadDisplayData() {
     TFRecordIO.Read read = TFRecordIO.read()
         .from("foo.*")
-        .withCompressionType(GZIP)
+        .withCompression(GZIP)
         .withoutValidation();
 
     DisplayData displayData = DisplayData.from(read);
@@ -161,7 +160,7 @@ public class TFRecordIOTest {
         .withSuffix("bar")
         .withShardNameTemplate("-SS-of-NN-")
         .withNumShards(100)
-        .withCompressionType(GZIP);
+        .withCompression(GZIP);
 
     DisplayData displayData = DisplayData.from(write);
 
@@ -265,25 +264,25 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTrip() throws IOException {
-    runTestRoundTrip(LARGE, 10, ".tfrecords", NONE, NONE);
+    runTestRoundTrip(LARGE, 10, ".tfrecords", UNCOMPRESSED, UNCOMPRESSED);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTripWithEmptyData() throws IOException {
-    runTestRoundTrip(EMPTY, 10, ".tfrecords", NONE, NONE);
+    runTestRoundTrip(EMPTY, 10, ".tfrecords", UNCOMPRESSED, UNCOMPRESSED);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTripWithOneShards() throws IOException {
-    runTestRoundTrip(LARGE, 1, ".tfrecords", NONE, NONE);
+    runTestRoundTrip(LARGE, 1, ".tfrecords", UNCOMPRESSED, UNCOMPRESSED);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTripWithSuffix() throws IOException {
-    runTestRoundTrip(LARGE, 10, ".suffix", NONE, NONE);
+    runTestRoundTrip(LARGE, 10, ".suffix", UNCOMPRESSED, UNCOMPRESSED);
   }
 
   @Test
@@ -295,13 +294,13 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTripZlib() throws IOException {
-    runTestRoundTrip(LARGE, 10, ".tfrecords", ZLIB, ZLIB);
+    runTestRoundTrip(LARGE, 10, ".tfrecords", DEFLATE, DEFLATE);
   }
 
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTripUncompressedFilesWithAuto() throws IOException {
-    runTestRoundTrip(LARGE, 10, ".tfrecords", NONE, AUTO);
+    runTestRoundTrip(LARGE, 10, ".tfrecords", UNCOMPRESSED, AUTO);
   }
 
   @Test
@@ -313,14 +312,14 @@ public class TFRecordIOTest {
   @Test
   @Category(NeedsRunner.class)
   public void runTestRoundTripZlibFilesWithAuto() throws IOException {
-    runTestRoundTrip(LARGE, 10, ".tfrecords", ZLIB, AUTO);
+    runTestRoundTrip(LARGE, 10, ".tfrecords", DEFLATE, AUTO);
   }
 
   private void runTestRoundTrip(Iterable<String> elems,
                                 int numShards,
                                 String suffix,
-                                CompressionType writeCompressionType,
-                                CompressionType readCompressionType) throws IOException {
+                                Compression writeCompression,
+                                Compression readCompression) throws IOException {
     String outputName = "file";
     Path baseDir = Files.createTempDirectory(tempFolder, "test-rt");
     String baseFilename = baseDir.resolve(outputName).toString();
@@ -328,14 +327,14 @@ public class TFRecordIOTest {
     TFRecordIO.Write write = TFRecordIO.write().to(baseFilename)
         .withNumShards(numShards)
         .withSuffix(suffix)
-        .withCompressionType(writeCompressionType);
+        .withCompression(writeCompression);
     p.apply(Create.of(elems).withCoder(StringUtf8Coder.of()))
         .apply(ParDo.of(new StringToByteArray()))
         .apply(write);
     p.run();
 
     TFRecordIO.Read read = TFRecordIO.read().from(baseFilename + "*")
-        .withCompressionType(readCompressionType);
+        .withCompression(readCompression);
     PCollection<String> output = p2.apply(read).apply(ParDo.of(new ByteArrayToString()));
 
     PAssert.that(output).containsInAnyOrder(elems);

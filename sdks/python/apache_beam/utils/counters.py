@@ -24,7 +24,62 @@ For internal use only; no backwards-compatibility guarantees.
 """
 
 import threading
+from collections import namedtuple
+
 from apache_beam.transforms import cy_combiners
+
+# Information identifying the IO being measured by a counter.
+IOTargetName = namedtuple('IOTargetName', ['side_input_step_name',
+                                           'side_input_index',
+                                           'original_shuffle_step_name'])
+
+
+def side_input_id(step_name, input_index):
+  """Create an IOTargetName that identifies the reading of a side input."""
+  return IOTargetName(step_name, input_index, None)
+
+
+def shuffle_id(step_name):
+  """Create an IOTargetName that identifies a GBK step."""
+  return IOTargetName(None, None, step_name)
+
+
+_CounterName = namedtuple('_CounterName', ['name',
+                                           'stage_name',
+                                           'step_name',
+                                           'system_name',
+                                           'namespace',
+                                           'origin',
+                                           'output_index',
+                                           'io_target'])
+
+
+class CounterName(_CounterName):
+  """Naming information for a counter."""
+  SYSTEM = object()
+  USER = object()
+
+  def __new__(cls, name, stage_name=None, step_name=None,
+              system_name=None, namespace=None,
+              origin=None, output_index=None, io_target=None):
+    origin = origin or CounterName.SYSTEM
+    return super(CounterName, cls).__new__(cls, name, stage_name, step_name,
+                                           system_name, namespace,
+                                           origin, output_index, io_target)
+
+  def __str__(self):
+    return '%s' % self._str_internal()
+
+  def __repr__(self):
+    return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
+
+  def _str_internal(self):
+    if self.origin == CounterName.USER:
+      return 'user-%s-%s' % (self.step_name, self.name)
+    elif self.origin == CounterName.SYSTEM and self.output_index:
+      return '%s-out%s-%s' % (self.step_name, self.output_index, self.name)
+    else:
+      return '%s-%s-%s' % (self.stage_name, self.step_name, self.name)
 
 
 class Counter(object):
@@ -52,8 +107,8 @@ class Counter(object):
     """Creates a Counter object.
 
     Args:
-      name: the name of this counter.  Typically has three parts:
-        "step-output-counter".
+      name: the name of this counter. It may be a string,
+            or a CounterName object.
       combine_fn: the CombineFn to use for aggregation
     """
     self.name = name
@@ -90,10 +145,6 @@ class AccumulatorCombineFnCounter(Counter):
     self._fast_add_input(value)
 
 
-# Counters that represent Accumulators have names starting with this
-USER_COUNTER_PREFIX = 'user-'
-
-
 class CounterFactory(object):
   """Keeps track of unique counters."""
 
@@ -128,21 +179,6 @@ class CounterFactory(object):
         self.counters[name] = counter
       return counter
 
-  def get_aggregator_counter(self, step_name, aggregator):
-    """Returns an AggregationCounter for this step's aggregator.
-
-    Passing in the same values will return the same counter.
-
-    Args:
-      step_name: the name of this step.
-      aggregator: an Aggregator object.
-    Returns:
-      A new or existing counter.
-    """
-    return self.get_counter(
-        '%s%s-%s' % (USER_COUNTER_PREFIX, step_name, aggregator.name),
-        aggregator.combine_fn)
-
   def get_counters(self):
     """Returns the current set of counters.
 
@@ -154,32 +190,3 @@ class CounterFactory(object):
     """
     with self._lock:
       return self.counters.values()
-
-  def get_aggregator_values(self, aggregator_or_name):
-    """Returns dict of step names to values of the aggregator."""
-    with self._lock:
-      return get_aggregator_values(
-          aggregator_or_name, self.counters, lambda counter: counter.value())
-
-
-def get_aggregator_values(aggregator_or_name, counter_dict,
-                          value_extractor=None):
-  """Extracts the named aggregator value from a set of counters.
-
-  Args:
-    aggregator_or_name: an Aggregator object or the name of one.
-    counter_dict: a dict object of {name: value_wrapper}
-    value_extractor: a function to convert the value_wrapper into a value.
-      If None, no extraction is done and the value is return unchanged.
-
-  Returns:
-    dict of step names to values of the aggregator.
-  """
-  name = aggregator_or_name
-  if value_extractor is None:
-    value_extractor = lambda x: x
-  if not isinstance(aggregator_or_name, basestring):
-    name = aggregator_or_name.name
-    return {n: value_extractor(c) for n, c in counter_dict.iteritems()
-            if n.startswith(USER_COUNTER_PREFIX)
-            and n.endswith('-%s' % name)}

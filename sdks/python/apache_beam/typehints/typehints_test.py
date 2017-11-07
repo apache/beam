@@ -20,7 +20,6 @@ import functools
 import inspect
 import unittest
 
-
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
 from apache_beam.typehints import Tuple
@@ -28,12 +27,12 @@ from apache_beam.typehints import TypeCheckError
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
+from apache_beam.typehints.decorators import GeneratorWrapper
 from apache_beam.typehints.decorators import _check_instance_type
 from apache_beam.typehints.decorators import _interleave_type_check
 from apache_beam.typehints.decorators import _positional_arg_hints
 from apache_beam.typehints.decorators import get_type_hints
 from apache_beam.typehints.decorators import getcallargs_forhints
-from apache_beam.typehints.decorators import GeneratorWrapper
 from apache_beam.typehints.typehints import is_consistent_with
 
 

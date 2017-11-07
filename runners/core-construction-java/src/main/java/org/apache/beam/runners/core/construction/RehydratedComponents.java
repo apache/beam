@@ -26,10 +26,10 @@ import com.google.common.cache.LoadingCache;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.Components;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowingStrategy;
 
@@ -71,8 +71,9 @@ public class RehydratedComponents {
               new CacheLoader<String, Coder<?>>() {
                 @Override
                 public Coder<?> load(String id) throws Exception {
-                  return CoderTranslation.fromProto(
-                      components.getCodersOrThrow(id), RehydratedComponents.this);
+                  @Nullable RunnerApi.Coder coder = components.getCodersOrDefault(id, null);
+                  checkState(coder != null, "No coder with id '%s' in serialized components", id);
+                  return CoderTranslation.fromProto(coder, RehydratedComponents.this);
                 }
               });
 

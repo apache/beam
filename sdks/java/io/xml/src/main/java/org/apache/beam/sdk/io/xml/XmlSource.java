@@ -42,8 +42,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.FileBasedSource;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
-import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.codehaus.stax2.XMLInputFactory2;
 
 /** Implementation of {@link XmlIO#read}. */
@@ -51,21 +50,29 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
   private static final String XML_VERSION = "1.1";
 
-  private final XmlIO.Read<T> spec;
+  private final XmlIO.MappingConfiguration<T> configuration;
 
-  XmlSource(XmlIO.Read<T> spec) {
-    super(StaticValueProvider.of(spec.getFileOrPatternSpec()), spec.getMinBundleSize());
-    this.spec = spec;
+  XmlSource(
+      ValueProvider<String> spec,
+      XmlIO.MappingConfiguration<T> configuration,
+      long minBundleSizeBytes) {
+    super(spec, minBundleSizeBytes);
+    this.configuration = configuration;
   }
 
-  private XmlSource(XmlIO.Read<T> spec, Metadata metadata, long startOffset, long endOffset) {
-    super(metadata, spec.getMinBundleSize(), startOffset, endOffset);
-    this.spec = spec;
+  private XmlSource(
+      XmlIO.MappingConfiguration<T> configuration,
+      long minBundleSizeBytes,
+      Metadata metadata,
+      long startOffset,
+      long endOffset) {
+    super(metadata, minBundleSizeBytes, startOffset, endOffset);
+    this.configuration = configuration;
   }
 
   @Override
   protected FileBasedSource<T> createForSubrangeOfFile(Metadata metadata, long start, long end) {
-    return new XmlSource<T>(spec.from(metadata.toString()), metadata, start, end);
+    return new XmlSource<T>(configuration, getMinBundleSize(), metadata, start, end);
   }
 
   @Override
@@ -74,19 +81,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
   }
 
   @Override
-  public void validate() {
-    super.validate();
-    spec.validate(null);
-  }
-
-  @Override
-  public void populateDisplayData(DisplayData.Builder builder) {
-    spec.populateDisplayData(builder);
-  }
-
-  @Override
   public Coder<T> getOutputCoder() {
-    return JAXBCoder.of(spec.getRecordClass());
+    return JAXBCoder.of(configuration.getRecordClass());
   }
 
   /**
@@ -137,10 +133,12 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
       // Set up a JAXB Unmarshaller that can be used to unmarshall record objects.
       try {
-        JAXBContext jaxbContext = JAXBContext.newInstance(getCurrentSource().spec.getRecordClass());
+        JAXBContext jaxbContext =
+            JAXBContext.newInstance(getCurrentSource().configuration.getRecordClass());
         jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-        if (getCurrentSource().spec.getValidationEventHandler() != null) {
-          jaxbUnmarshaller.setEventHandler(getCurrentSource().spec.getValidationEventHandler());
+        if (getCurrentSource().configuration.getValidationEventHandler() != null) {
+          jaxbUnmarshaller.setEventHandler(
+              getCurrentSource().configuration.getValidationEventHandler());
         }
       } catch (JAXBException e) {
         throw new RuntimeException(e);
@@ -179,10 +177,10 @@ public class XmlSource<T> extends FileBasedSource<T> {
       byte[] dummyStartDocumentBytes =
           (String.format(
                   "<?xml version=\"%s\" encoding=\""
-                      + getCurrentSource().spec.getCharset()
+                      + getCurrentSource().configuration.getCharset()
                       + "\"?><%s>",
-                  XML_VERSION, getCurrentSource().spec.getRootElement()))
-              .getBytes(getCurrentSource().spec.getCharset());
+                  XML_VERSION, getCurrentSource().configuration.getRootElement()))
+              .getBytes(getCurrentSource().configuration.getCharset());
       preambleByteBuffer.write(dummyStartDocumentBytes);
       // Gets the byte offset (in the input file) of the first record in ReadableByteChannel. This
       // method returns the offset and stores any bytes that should be used when creating the XML
@@ -230,7 +228,8 @@ public class XmlSource<T> extends FileBasedSource<T> {
 
       ByteBuffer buf = ByteBuffer.allocate(BUF_SIZE);
       byte[] recordStartBytes =
-          ("<" + getCurrentSource().spec.getRecordElement()).getBytes(StandardCharsets.UTF_8);
+          ("<" + getCurrentSource().configuration.getRecordElement())
+              .getBytes(StandardCharsets.UTF_8);
 
       outer: while (channel.read(buf) > 0) {
         buf.flip();
@@ -334,14 +333,14 @@ public class XmlSource<T> extends FileBasedSource<T> {
         this.parser = xmlInputFactory.createXMLStreamReader(
             new SequenceInputStream(
                 new ByteArrayInputStream(lookAhead), Channels.newInputStream(channel)),
-            getCurrentSource().spec.getCharset());
+            getCurrentSource().configuration.getCharset());
 
         // Current offset should be the offset before reading the record element.
         while (true) {
           int event = parser.next();
           if (event == XMLStreamConstants.START_ELEMENT) {
             String localName = parser.getLocalName();
-            if (localName.equals(getCurrentSource().spec.getRecordElement())) {
+            if (localName.equals(getCurrentSource().configuration.getRecordElement())) {
               break;
             }
           }
@@ -369,7 +368,7 @@ public class XmlSource<T> extends FileBasedSource<T> {
           }
         }
         JAXBElement<T> jb =
-            jaxbUnmarshaller.unmarshal(parser, getCurrentSource().spec.getRecordClass());
+            jaxbUnmarshaller.unmarshal(parser, getCurrentSource().configuration.getRecordClass());
         currentRecord = jb.getValue();
         return true;
       } catch (JAXBException | XMLStreamException e) {

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -174,7 +175,7 @@ public class View {
    * {@link PCollectionView} mapping each window to a {@link List} containing
    * all of the elements in the window.
    *
-   * <p>The resulting list is required to fit in memory.
+   * <p>Unlike with {@link #asIterable}, the resulting list is required to fit in memory.
    */
   public static <T> AsList<T> asList() {
     return new AsList<>();
@@ -300,7 +301,7 @@ public class View {
    */
   @Internal
   public static class AsSingleton<T> extends PTransform<PCollection<T>, PCollectionView<T>> {
-    private final T defaultValue;
+    @Nullable private final T defaultValue;
     private final boolean hasDefault;
 
     private AsSingleton() {
@@ -353,8 +354,8 @@ public class View {
 
   private static class SingletonCombineFn<T> extends Combine.BinaryCombineFn<T> {
     private final boolean hasDefault;
-    private final Coder<T> valueCoder;
-    private final byte[] defaultValue;
+    @Nullable private final Coder<T> valueCoder;
+    @Nullable private final byte[] defaultValue;
 
     private SingletonCombineFn(boolean hasDefault, Coder<T> coder, T defaultValue) {
       this.hasDefault = hasDefault;

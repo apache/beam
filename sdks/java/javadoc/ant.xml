@@ -30,6 +30,7 @@
       <fileset dir="..">
         <include name="**/src/main/java/**/*.java"/>
         <exclude name="**/maven-archetypes/**"/>
+        <exclude name="**/nexmark/**"/>
       </fileset>
       <!-- For each pathname, turn X/src/main/java/Y to Y. This
            results in one Java source tree. -->

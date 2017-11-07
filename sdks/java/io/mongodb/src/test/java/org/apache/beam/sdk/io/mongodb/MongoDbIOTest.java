@@ -45,6 +45,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -270,4 +271,14 @@ public class MongoDbIOTest implements Serializable {
 
   }
 
+  @Test
+  public void testWriteEmptyCollection() throws Exception {
+    MongoDbIO.Write write =
+        MongoDbIO.write()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase("test")
+            .withCollection("empty");
+    DoFnTester<Document, Void> fnTester = DoFnTester.of(new MongoDbIO.Write.WriteFn(write));
+    fnTester.processBundle(new ArrayList<Document>());
+  }
 }

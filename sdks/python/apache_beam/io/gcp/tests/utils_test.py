@@ -19,7 +19,9 @@
 
 import logging
 import unittest
-from mock import Mock, patch
+
+from mock import Mock
+from mock import patch
 
 from apache_beam.io.gcp.tests import utils
 from apache_beam.testing.test_utils import patch_retry
@@ -38,31 +40,69 @@ class UtilsTest(unittest.TestCase):
     self._mock_result = Mock()
     patch_retry(self, utils)
 
-  @patch('google.cloud.bigquery.Table.delete')
-  @patch('google.cloud.bigquery.Table.exists', side_effect=[True, False])
-  @patch('google.cloud.bigquery.Dataset.exists', return_value=True)
-  def test_delete_bq_table_succeeds(self, *_):
+  @patch.object(bigquery, 'Client')
+  def test_delete_table_succeeds(self, mock_client):
+    mock_dataset = Mock()
+    mock_client.return_value.dataset = mock_dataset
+    mock_dataset.return_value.exists.return_value = True
+
+    mock_table = Mock()
+    mock_dataset.return_value.table = mock_table
+    mock_table.return_value.exists.side_effect = [True, False]
+
     utils.delete_bq_table('unused_project',
                           'unused_dataset',
                           'unused_table')
 
-  @patch('google.cloud.bigquery.Table.delete', side_effect=Exception)
-  @patch('google.cloud.bigquery.Table.exists', return_value=True)
-  @patch('google.cloud.bigquery.Dataset.exists', return_vaue=True)
-  def test_delete_bq_table_fails_with_server_error(self, *_):
-    with self.assertRaises(Exception):
-      utils.delete_bq_table('unused_project',
-                            'unused_dataset',
-                            'unused_table')
+  @patch.object(bigquery, 'Client')
+  def test_delete_table_fails_dataset_not_exist(self, mock_client):
+    mock_dataset = Mock()
+    mock_client.return_value.dataset = mock_dataset
+    mock_dataset.return_value.exists.return_value = False
 
-  @patch('google.cloud.bigquery.Table.delete')
-  @patch('google.cloud.bigquery.Table.exists', return_value=[True, True])
-  @patch('google.cloud.bigquery.Dataset.exists', return_vaue=True)
-  def test_delete_bq_table_fails_with_delete_error(self, *_):
-    with self.assertRaises(RuntimeError):
+    with self.assertRaises(Exception) as e:
       utils.delete_bq_table('unused_project',
                             'unused_dataset',
                             'unused_table')
+    self.assertTrue(
+        e.exception.message.startswith('Failed to cleanup. Bigquery dataset '
+                                       'unused_dataset doesn\'t exist'))
+
+  @patch.object(bigquery, 'Client')
+  def test_delete_table_fails_table_not_exist(self, mock_client):
+    mock_dataset = Mock()
+    mock_client.return_value.dataset = mock_dataset
+    mock_dataset.return_value.exists.return_value = True
+
+    mock_table = Mock()
+    mock_dataset.return_value.table = mock_table
+    mock_table.return_value.exists.return_value = False
+
+    with self.assertRaises(Exception) as e:
+      utils.delete_bq_table('unused_project',
+                            'unused_dataset',
+                            'unused_table')
+    self.assertTrue(
+        e.exception.message.startswith('Failed to cleanup. Bigquery table '
+                                       'unused_table doesn\'t exist'))
+
+  @patch.object(bigquery, 'Client')
+  def test_delete_table_fails_service_error(self, mock_client):
+    mock_dataset = Mock()
+    mock_client.return_value.dataset = mock_dataset
+    mock_dataset.return_value.exists.return_value = True
+
+    mock_table = Mock()
+    mock_dataset.return_value.table = mock_table
+    mock_table.return_value.exists.return_value = True
+
+    with self.assertRaises(Exception) as e:
+      utils.delete_bq_table('unused_project',
+                            'unused_dataset',
+                            'unused_table')
+    self.assertTrue(
+        e.exception.message.startswith('Failed to cleanup. Bigquery table '
+                                       'unused_table still exists'))
 
 
 if __name__ == '__main__':
