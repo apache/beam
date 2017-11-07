@@ -241,7 +241,7 @@ public abstract class NexmarkQuery
               // Monitor events as they go by.
               .apply(name + ".Monitor", eventMonitor.getTransform())
               // Count each type of event.
-              .apply(name + ".Snoop", NexmarkUtils.snoop(name));
+              .apply(name + ".Snoop", NexmarkUtils.countEvents(name));
     }
 
     if (configuration.cpuDelayMs > 0) {

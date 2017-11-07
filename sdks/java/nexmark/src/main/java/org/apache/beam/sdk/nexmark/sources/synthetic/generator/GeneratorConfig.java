@@ -15,12 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources.generator;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.KV;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.generator;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 

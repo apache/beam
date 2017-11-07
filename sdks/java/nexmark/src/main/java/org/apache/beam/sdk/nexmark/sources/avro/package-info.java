@@ -17,10 +17,6 @@
  */
 
 /**
- * org.apache.beam.sdk.nexmark.sources.generator.
+ * Classes to read the events form an Avro files.
  */
-
-/**
- * Events generation logic.
- */
-package org.apache.beam.sdk.nexmark.sources.generator;
+package org.apache.beam.sdk.nexmark.sources.avro;
