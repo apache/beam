@@ -26,10 +26,12 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
+import cz.seznam.euphoria.core.client.io.BoundedPartition;
+import cz.seznam.euphoria.core.client.io.BoundedReader;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.core.client.io.UnboundedPartition;
+import cz.seznam.euphoria.core.client.io.UnboundedReader;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -40,6 +42,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
+import cz.seznam.euphoria.core.executor.VectorClock;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.Settings;
@@ -85,11 +88,48 @@ public class LocalExecutor implements Executor {
     Datum get() throws InterruptedException;
   }
 
-  static final class PartitionSupplierStream implements Supplier {
+  static final class UnboundedPartitionSupplierStream implements Supplier {
 
-    final Reader<?> reader;
-    final Partition<?> partition;
-    PartitionSupplierStream(Partition<?> partition) {
+    final UnboundedReader<?, Object> reader;
+    final UnboundedPartition<?, Object> partition;
+    @SuppressWarnings("unchecked")
+    UnboundedPartitionSupplierStream(UnboundedPartition<?, ?> partition) {
+      this.partition = (UnboundedPartition) partition;
+      try {
+        this.reader = this.partition.openReader();
+      } catch (IOException e) {
+        throw new RuntimeException(
+            "Failed to open reader for partition: " + partition, e);
+      }
+    }
+
+    @Override
+    public Datum get() {
+      if (!this.reader.hasNext()) {
+        try {
+          this.reader.close();
+        } catch (IOException e) {
+          throw new RuntimeException(
+              "Failed to close reader for partition: " + this.partition, e);
+        }
+        return Datum.endOfStream();
+      }
+      Object next = this.reader.next();
+      // we commit right away
+      this.reader.commitOffset(this.reader.getCurrentOffset());
+      // we assign it to global windowing
+      return Datum.of(
+          GlobalWindowing.Window.get(), next,
+          // ingestion time
+          System.currentTimeMillis());
+    }
+  }
+
+  static final class BoundedPartitionSupplierStream implements Supplier {
+
+    final BoundedReader<?> reader;
+    final BoundedPartition<?> partition;
+    BoundedPartitionSupplierStream(BoundedPartition<?> partition) {
       this.partition = partition;
       try {
         this.reader = partition.openReader();
@@ -118,6 +158,7 @@ public class LocalExecutor implements Executor {
           System.currentTimeMillis());
     }
   }
+
 
   /** Partitioned provider of input data for single operator. */
   private static final class InputProvider implements Iterable<Supplier> {
@@ -474,9 +515,15 @@ public class LocalExecutor implements Executor {
   private InputProvider createStream(DataSource<?> source) {
     InputProvider ret = new InputProvider();
 
-    source.getPartitions().stream()
-        .map(PartitionSupplierStream::new)
-        .forEach(ret::add);
+    if (source.isBounded()) {
+      source.asBounded().getPartitions().stream()
+          .map(BoundedPartitionSupplierStream::new)
+          .forEach(ret::add);
+    } else {
+      source.asUnbounded().getPartitions().stream()
+          .map(UnboundedPartitionSupplierStream::new)
+          .forEach(ret::add);
+    }
 
     return ret;
   }

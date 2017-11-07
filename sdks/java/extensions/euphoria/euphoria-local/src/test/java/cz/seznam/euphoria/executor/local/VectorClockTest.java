@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import cz.seznam.euphoria.core.executor.VectorClock;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

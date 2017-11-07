@@ -28,7 +28,7 @@ public class StreamingElement<W extends Window, T> {
   private Window window;
   private T element;
 
-  // This class needs to ne POJO for effective serialization
+  // This class needs to be POJO for effective serialization
   public StreamingElement() {
   }
 

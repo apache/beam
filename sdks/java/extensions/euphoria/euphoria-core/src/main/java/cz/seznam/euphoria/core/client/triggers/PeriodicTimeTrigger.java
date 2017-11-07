@@ -19,6 +19,8 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Trigger} that is periodically fired based on given time interval.
@@ -26,6 +28,8 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
  */
 @Audience(Audience.Type.CLIENT)
 public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(PeriodicTimeTrigger.class);
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */
   private static final ValueStorageDescriptor<Long> FIRE_TIME_DESCR =
@@ -46,6 +50,7 @@ public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
       long start = window.getStartMillis() - (window.getStartMillis() % interval);
       long nextFireTimestamp = start + interval;
 
+      LOG.trace("Registering PeriodicTimeTrigger for time {}", nextFireTimestamp);
       ctx.registerTimer(nextFireTimestamp, window);
       fireStamp.set(nextFireTimestamp);
     }

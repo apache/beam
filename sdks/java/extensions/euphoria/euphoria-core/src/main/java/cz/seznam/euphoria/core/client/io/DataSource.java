@@ -17,7 +17,6 @@ package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * Source of data for dataset.
@@ -25,13 +24,34 @@ import java.util.List;
 @Audience(Audience.Type.CLIENT)
 public interface DataSource<T> extends Serializable {
 
-  /** @return a list of all partitions of this source */
-  List<Partition<T>> getPartitions();
-
   /**
    * @return {@code true} if this source is bounded,
-   *         {@code false} if it is unbounded.
+   *         {@code false} if it is unbounded or it is not known if it is bounded or unbounded.
    */
   boolean isBounded();
+
+  /**
+   * Retrieve batch {@code DataSource}.
+   * @return {@code BoundedDataSource} if this is bounded source
+   * @throws UnsupportedOperationException if this is not {@code BoundedDataSource}.
+   */
+  default BoundedDataSource<T> asBounded() {
+    throw new UnsupportedOperationException("Not supported.");
+  }
+
+  /**
+   * Retrieve stream {@code DataSource}.
+   * @return {@code UnboundedDataSource} if this is unbounded source
+   * @throws UnsupportedOperationException if this is not {@code UnboundedDataSource}.
+   */
+  default UnboundedDataSource<T, ?> asUnbounded() {
+    throw new UnsupportedOperationException("Not supported.");
+  }
+
+  /**
+   * @return input parallelism with which the input can be read
+   */
+  int getParallelism();
+
 
 }

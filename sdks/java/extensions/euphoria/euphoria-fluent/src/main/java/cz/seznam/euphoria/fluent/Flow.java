@@ -17,7 +17,6 @@ package cz.seznam.euphoria.fluent;
 
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.util.Settings;
-
 import static java.util.Objects.requireNonNull;
 
 public class Flow {

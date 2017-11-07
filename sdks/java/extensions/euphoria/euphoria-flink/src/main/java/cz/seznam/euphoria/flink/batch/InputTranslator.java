@@ -26,9 +26,9 @@ import org.apache.flink.core.io.LocatableInputSplit;
 import java.util.function.BiFunction;
 
 class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOperator> {
-  
+
   private final BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
-  
+
   InputTranslator(BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
     this.splitAssignerFactory = splitAssignerFactory;
   }
@@ -42,7 +42,7 @@ class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOpera
 
     return context
         .getExecutionEnvironment()
-        .createInput(new DataSourceWrapper<>(ds, splitAssignerFactory))
+        .createInput(new DataSourceWrapper<>(ds.asBounded(), splitAssignerFactory))
         .setParallelism(operator.getParallelism());
   }
 }

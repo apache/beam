@@ -32,14 +32,14 @@ public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window>
         extends AbstractWindowOperator<KeyedMultiWindowedElement<WID, KEY, ?>, KEY, WID> {
 
   public KeyedMultiWindowedElementWindowOperator(
-          Windowing<?, WID> windowing,
-          StateFactory<?, ?, State<?, ?>> stateFactory,
-          StateMerger<?, ?, State<?, ?>> stateCombiner,
-          boolean localMode,
-          int descriptorsCacheMaxSize,
-          boolean allowEarlyEmitting,
-          FlinkAccumulatorFactory accumulatorFactory,
-          Settings settings) {
+      Windowing<?, WID> windowing,
+      StateFactory<?, ?, State<?, ?>> stateFactory,
+      StateMerger<?, ?, State<?, ?>> stateCombiner,
+      boolean localMode,
+      int descriptorsCacheMaxSize,
+      boolean allowEarlyEmitting,
+      FlinkAccumulatorFactory accumulatorFactory,
+      Settings settings) {
 
     super(
         windowing, stateFactory, stateCombiner, localMode,
