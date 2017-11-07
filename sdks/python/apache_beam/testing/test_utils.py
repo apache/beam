@@ -52,22 +52,19 @@ class TempDir(object):
     """Returns the path to the temporary directory."""
     return self._tempdir
 
-  def create_temp_file(self, name='', suffix='', lines=None):
+  def create_temp_file(self, suffix='', lines=None):
     """Creates a temporary file in the temporary directory.
 
     Args:
-      name (str): The name of the temporary file that will be created.
       suffix (str): The filename suffix of the temporary file (e.g. '.txt')
       lines (List[str]): A list of lines that will be written to the temporary
         file.
     Returns:
       The name of the temporary file created.
     """
-    if not name:
-      name = tempfile.template
-    f = tempfile.NamedTemporaryFile(
-        delete=False, prefix=name,
-        dir=self._tempdir, suffix=suffix)
+    f = tempfile.NamedTemporaryFile(delete=False,
+                                    dir=self._tempdir,
+                                    suffix=suffix)
     if lines:
       for line in lines:
         f.write(line)

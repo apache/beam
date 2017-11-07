@@ -95,13 +95,13 @@ class _TextSource(filebasedsource.FileBasedSource):
     """Initialize a _TextSource
 
     Args:
-      header_processor_fns (tuple): a tuple of a header_matcher function
-        and a header_processor function. The header_matcher should
-        return True for all lines at the start of the file that are part
-        of the file header and False otherwise. These header_lines will
+      header_processor_fns (tuple): a tuple of a `header_matcher` function
+        and a `header_processor` function. The `header_matcher` should
+        return `True` for all lines at the start of the file that are part
+        of the file header and `False` otherwise. These header lines will
         not be yielded when reading records and instead passed into
-        header_processor to be handled. If skip_header_lines and a
-        header_matcher are both provided, the value of skip_header_lines
+        `header_processor` to be handled. If `skip_header_lines` and a
+        `header_matcher` are both provided, the value of `skip_header_lines`
         lines will be skipped and the header will be processed from
         there.
     Raises:
