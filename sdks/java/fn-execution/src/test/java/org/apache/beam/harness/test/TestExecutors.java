@@ -21,7 +21,6 @@ package org.apache.beam.harness.test;
 import com.google.common.util.concurrent.ForwardingExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -31,6 +30,15 @@ import org.junit.runners.model.Statement;
  * allows for testing that tasks have exercised the appropriate shutdown logic.
  */
 public class TestExecutors {
+  public static TestExecutorService from(final ExecutorService staticExecutorService) {
+    return from(new Supplier<ExecutorService>() {
+      @Override
+      public ExecutorService get() {
+        return staticExecutorService;
+      }
+    });
+  }
+
   public static TestExecutorService from(Supplier<ExecutorService> executorServiceSuppler) {
     return new FromSupplier(executorServiceSuppler);
   }
@@ -48,7 +56,7 @@ public class TestExecutors {
     }
 
     @Override
-    public Statement apply(Statement statement, Description arg1) {
+    public Statement apply(final Statement statement, Description arg1) {
       return new Statement() {
         @Override
         public void evaluate() throws Throwable {
