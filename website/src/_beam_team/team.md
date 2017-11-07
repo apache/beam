@@ -114,7 +114,7 @@ members:
     apache_id: iemejia
     email: iemejia [at] apache [dot] org
     organization: Talend
-    roles: committer
+    roles: committer, PMC
     time_zone: "+1"
   - name: Maximilian Michels
     apache_id: mxm
