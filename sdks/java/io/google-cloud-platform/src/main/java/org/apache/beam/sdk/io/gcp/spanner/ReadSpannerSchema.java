@@ -79,7 +79,7 @@ class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     return tx.executeQuery(Statement.of(
         "SELECT c.table_name, c.column_name, c.spanner_type"
             + " FROM information_schema.columns as c"
-            + " WHERE where c.table_catalog = '' AND c.table_schema = ''"
+            + " WHERE c.table_catalog = '' AND c.table_schema = ''"
             + " ORDER BY c.table_name, c.ordinal_position"));
   }
 
