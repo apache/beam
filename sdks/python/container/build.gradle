@@ -28,26 +28,26 @@ description = "Apache Beam :: SDKs :: Python :: Container"
 resolveBuildDependencies.dependsOn ":beam-sdks-parent:beam-sdks-go:build"
 
 dependencies {
-    golang {
-        // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
-        // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
-        build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-parent:beam-sdks-go').projectDir
-    }
+  golang {
+    // TODO(herohde): use "./" prefix to prevent gogradle use base github path, for now.
+    // TODO(herohde): get the pkg subdirectory only, if possible. We spend mins pulling cmd/beamctl deps.
+    build name: './github.com/apache/beam/sdks/go', dir: project(':beam-sdks-parent:beam-sdks-go').projectDir
+  }
 }
 
 golang {
-    packagePath = 'github.com/apache/beam/sdks/python/boot'
-    build {
-        // TODO(herohde): build local platform + linux-amd64, if possible.
-        targetPlatform = ['linux-amd64']
-        outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
-    }
+  packagePath = 'github.com/apache/beam/sdks/python/boot'
+  build {
+    // TODO(herohde): build local platform + linux-amd64, if possible.
+    targetPlatform = ['linux-amd64']
+    outputLocation = './build/target/${GOOS}_${GOARCH}/boot'
+  }
 }
 
 docker {
-    // TODO(herohde): make the name easier to generate for releases.
-    name System.properties['user.name'] + '-docker-apache.bintray.io/beam/python:latest'
-    files "./build/"
+  // TODO(herohde): make the name easier to generate for releases.
+  name System.properties['user.name'] + '-docker-apache.bintray.io/beam/python:latest'
+  files "./build/"
 }
 // Ensure that making the docker image builds any required artifacts
 dockerPrepare.dependsOn build

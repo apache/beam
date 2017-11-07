@@ -35,9 +35,9 @@ task setupTest {
 }
 
 task sdist {
-         exec {
-           commandLine 'python', 'setup.py', 'sdist', '--formats', 'zip,gztar', '--dist-dir', project.buildDir
-         }
+  exec {
+    commandLine 'python', 'setup.py', 'sdist', '--formats', 'zip,gztar', '--dist-dir', project.buildDir
+  }
 }
 
 task cleanPython {
@@ -51,10 +51,10 @@ clean.dependsOn cleanPython
 
 task buildPython {
   doLast {
-         println 'Building Python Dependencies'
-         exec {
-           commandLine 'python', 'setup.py', 'build', '--build-base', project.buildDir
-         }
+    println 'Building Python Dependencies'
+    exec {
+      commandLine 'python', 'setup.py', 'build', '--build-base', project.buildDir
+    }
   }
 }
 build.dependsOn buildPython

@@ -22,12 +22,9 @@ applyGoNature()
 description = "Apache Beam :: Runners :: Google Cloud Platform :: GCE metadata provisioning"
 
 golang {
-    packagePath = 'github.com/apache/beam/runners/gcp/gcemd'
-    build {
-        go 'build -o ./build/bin/gcemd github.com/apache/beam/cmd/gcemd'
-
-        // The symlinks makes it hard (impossible?) to do a wildcard build
-        // of pkg. Go build refuses to follow symlinks. Drop for now. The files
-        // are built when tested anyway.
-    }
+  packagePath = 'github.com/apache/beam/runners/gcp/gcemd'
+  build {
+    targetPlatform = ['linux-amd64']
+    outputLocation = './build/target/${GOOS}_${GOARCH}/gcemd'
+  }
 }
