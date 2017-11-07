@@ -22,11 +22,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.List;
+
 import org.apache.beam.sdk.extensions.sql.impl.interpreter.BeamSqlFnExecutorTestBase;
+import org.apache.beam.sdk.extensions.sql.impl.interpreter.operator.reinterpret.BeamSqlReinterpretExpression;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.calcite.sql.type.SqlTypeName;
 import org.junit.Test;
 
@@ -34,42 +37,97 @@ import org.junit.Test;
  * Test for {@code BeamSqlReinterpretExpression}.
  */
 public class BeamSqlReinterpretExpressionTest extends BeamSqlFnExecutorTestBase {
+  private static final long DATE_LONG = 1000L;
+  private static final Date DATE = new Date(DATE_LONG);
+  private static final GregorianCalendar CALENDAR = new GregorianCalendar(2017, 8, 9);
 
-  @Test public void accept() throws Exception {
-    List<BeamSqlExpression> operands = new ArrayList<>();
+  private static final BeamRecord NULL_ROW = null;
+  private static final BoundedWindow NULL_WINDOW = null;
 
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE, new Date()));
-    assertTrue(new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT).accept());
+  private static final BeamSqlExpression DATE_PRIMITIVE = BeamSqlPrimitive.of(
+      SqlTypeName.DATE, DATE);
 
-    operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIMESTAMP, new Date()));
-    assertTrue(new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT).accept());
+  private static final BeamSqlExpression TIME_PRIMITIVE = BeamSqlPrimitive.of(
+      SqlTypeName.TIME, CALENDAR);
 
-    operands.clear();
-    GregorianCalendar calendar = new GregorianCalendar();
-    calendar.setTime(new Date());
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, calendar));
-    assertTrue(new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT).accept());
+  private static final BeamSqlExpression TIMESTAMP_PRIMITIVE = BeamSqlPrimitive.of(
+      SqlTypeName.TIMESTAMP, DATE);
 
-    // currently only support reinterpret DATE
-    operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.VARCHAR, "hello"));
-    assertFalse(new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT).accept());
+  private static final BeamSqlExpression TINYINT_PRIMITIVE_5 = BeamSqlPrimitive.of(
+      SqlTypeName.TINYINT, (byte) 5);
 
-    // currently only support convert to BIGINT
-    operands.clear();
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.TIME, calendar));
-    assertFalse(new BeamSqlReinterpretExpression(operands, SqlTypeName.TINYINT).accept());
+  private static final BeamSqlExpression SMALLINT_PRIMITIVE_6 = BeamSqlPrimitive.of(
+      SqlTypeName.SMALLINT, (short) 6);
+
+  private static final BeamSqlExpression INTEGER_PRIMITIVE_8 = BeamSqlPrimitive.of(
+      SqlTypeName.INTEGER, 8);
+
+  private static final BeamSqlExpression BIGINT_PRIMITIVE_15 = BeamSqlPrimitive.of(
+      SqlTypeName.BIGINT, 15L);
+
+  private static final BeamSqlExpression VARCHAR_PRIMITIVE = BeamSqlPrimitive.of(
+      SqlTypeName.VARCHAR, "hello");
+
+  @Test
+  public void testAcceptsDateTypes() throws Exception {
+    assertTrue(reinterpretExpression(DATE_PRIMITIVE).accept());
+    assertTrue(reinterpretExpression(TIMESTAMP_PRIMITIVE).accept());
   }
 
-  @Test public void evaluate() throws Exception {
-    List<BeamSqlExpression> operands = new ArrayList<>();
-
-    Date d = new Date();
-    d.setTime(1000);
-    operands.add(BeamSqlPrimitive.of(SqlTypeName.DATE, d));
-    assertEquals(1000L, new BeamSqlReinterpretExpression(operands, SqlTypeName.BIGINT)
-        .evaluate(record, null).getValue());
+  @Test
+  public void testAcceptsTime() {
+    assertTrue(reinterpretExpression(TIME_PRIMITIVE).accept());
   }
 
+  @Test
+  public void testAcceptsIntTypes() {
+    assertTrue(reinterpretExpression(TINYINT_PRIMITIVE_5).accept());
+    assertTrue(reinterpretExpression(SMALLINT_PRIMITIVE_6).accept());
+    assertTrue(reinterpretExpression(INTEGER_PRIMITIVE_8).accept());
+    assertTrue(reinterpretExpression(BIGINT_PRIMITIVE_15).accept());
+  }
+
+  @Test
+  public void testDoesNotAcceptUnsupportedType() {
+    assertFalse(reinterpretExpression(VARCHAR_PRIMITIVE).accept());
+  }
+
+  @Test
+  public void testHasCorrectOutputType() {
+    BeamSqlReinterpretExpression reinterpretExpression1 =
+        new BeamSqlReinterpretExpression(Arrays.asList(DATE_PRIMITIVE), SqlTypeName.BIGINT);
+    assertEquals(SqlTypeName.BIGINT, reinterpretExpression1.getOutputType());
+
+    BeamSqlReinterpretExpression reinterpretExpression2 =
+        new BeamSqlReinterpretExpression(Arrays.asList(DATE_PRIMITIVE), SqlTypeName.INTERVAL_YEAR);
+    assertEquals(SqlTypeName.INTERVAL_YEAR, reinterpretExpression2.getOutputType());
+  }
+
+  @Test
+  public void evaluateDate() {
+    assertEquals(DATE_LONG, evaluateReinterpretExpression(DATE_PRIMITIVE));
+    assertEquals(DATE_LONG, evaluateReinterpretExpression(TIMESTAMP_PRIMITIVE));
+  }
+
+  @Test
+  public void evaluateTime() {
+    assertEquals(CALENDAR.getTimeInMillis(), evaluateReinterpretExpression(TIME_PRIMITIVE));
+  }
+
+  @Test
+  public void evaluateInts() {
+    assertEquals(5L, evaluateReinterpretExpression(TINYINT_PRIMITIVE_5));
+    assertEquals(6L, evaluateReinterpretExpression(SMALLINT_PRIMITIVE_6));
+    assertEquals(8L, evaluateReinterpretExpression(INTEGER_PRIMITIVE_8));
+    assertEquals(15L, evaluateReinterpretExpression(BIGINT_PRIMITIVE_15));
+  }
+
+  private static long evaluateReinterpretExpression(BeamSqlExpression operand) {
+    return reinterpretExpression(operand).evaluate(NULL_ROW, NULL_WINDOW).getLong();
+  }
+
+  private static BeamSqlReinterpretExpression reinterpretExpression(
+      BeamSqlExpression... operands) {
+    return new BeamSqlReinterpretExpression(Arrays.asList(operands), SqlTypeName.BIGINT);
+  }
 }
