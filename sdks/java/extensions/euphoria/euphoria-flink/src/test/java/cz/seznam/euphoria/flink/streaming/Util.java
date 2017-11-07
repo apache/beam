@@ -38,4 +38,22 @@ class Util {
         })
         .output();
   }
+
+  static <W, T> Dataset<Pair<W, T>>
+  extractWindowsToPair(Dataset<T> input, Class<W> expectedWindowType) {
+    return FlatMap.of(input)
+        .using((UnaryFunctor<T, Pair<W, T>>) (elem, context) -> {
+          Object actualWindow = context.getWindow();
+          if (actualWindow != null && !expectedWindowType.isAssignableFrom(actualWindow.getClass())) {
+            throw new IllegalStateException(
+                    "Encountered window of type " + actualWindow.getClass()
+                    + " but expected only " + expectedWindowType);
+          }
+          @SuppressWarnings("unchecked")
+          Pair<W, T> out = Pair.of((W) actualWindow, elem);
+          context.collect(out);
+        })
+        .output();
+  }
+
 }

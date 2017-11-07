@@ -19,11 +19,10 @@ import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.hadoop.input.DataSourceInputFormat;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-
-import java.io.IOException;
 
 class InputTranslator implements SparkOperatorTranslator<FlowUnfolder.InputOperator> {
 

@@ -58,10 +58,6 @@ public final class GlobalWindowing<T>
       return 0;
     }
 
-    @Override
-    public long maxTimestamp() {
-      return Long.MAX_VALUE;
-    }
   } // ~ end of Label
 
   private final static GlobalWindowing<?> INSTANCE = new GlobalWindowing<>();

@@ -35,8 +35,8 @@ import javax.annotation.Nullable;
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks
-  private static final Map<ListDataSink<?>, Map<Integer, List<?>>> storage =
-          Collections.synchronizedMap(new WeakHashMap<>());
+  private static final Map<ListDataSink<?>, Map<Integer, List<?>>> storage
+      = Collections.synchronizedMap(new WeakHashMap<>());
 
   public static <T> ListDataSink<T> get() {
     return new ListDataSink<>();
@@ -71,7 +71,8 @@ public class ListDataSink<T> implements DataSink<T> {
 
 
   private final int sinkId = System.identityHashCode(this);
-  private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
+  private final List<ListWriter> writers = Collections.synchronizedList(
+      new ArrayList<>());
 
   @Nullable
   private Consumer<Dataset<T>> prepareDataset = null;
