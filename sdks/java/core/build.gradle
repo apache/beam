@@ -80,10 +80,10 @@ shadowJar {
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
   }
-  relocate "com.google.thirdparty", "org.apache.beam.${project.name}.repackaged.com.google.thirdparty"
-  relocate "com.google.protobuf", "org.apache.beam.${project.name}.repackaged.com.google.protobuf"
-  relocate "net.bytebuddy", "org.apache.beam.${project.name}.repackaged.net.bytebuddy"
-  relocate "org.apache.commons", "org.apache.beam.${project.name}.repackaged.org.apache.commons"
+  relocate "com.google.thirdparty", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.thirdparty"
+  relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
+  relocate "net.bytebuddy", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.net.bytebuddy"
+  relocate "org.apache.commons", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.org.apache.commons"
 }
 
 // Create a shaded test jar.
@@ -98,17 +98,17 @@ task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
   }
-  relocate("com.google.common", "org.apache.beam.sdk.repackaged.com.google.common") {
+  relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
     // com.google.common is too generic, need to exclude guava-testlib
     exclude "com.google.common.collect.testing.**"
     exclude "com.google.common.escape.testing.**"
     exclude "com.google.common.testing.**"
     exclude "com.google.common.util.concurrent.testing.**"
   }
-  relocate "com.google.thirdparty", "org.apache.beam.${project.name}.repackaged.com.google.thirdparty"
-  relocate "com.google.protobuf", "org.apache.beam.${project.name}.repackaged.com.google.protobuf"
-  relocate "net.bytebuddy", "org.apache.beam.${project.name}.repackaged.net.bytebuddy"
-  relocate "org.apache.commons", "org.apache.beam.${project.name}.repackaged.org.apache.commons"
+  relocate "com.google.thirdparty", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.thirdparty"
+  relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
+  relocate "net.bytebuddy", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.net.bytebuddy"
+  relocate "org.apache.commons", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.org.apache.commons"
 }
 
 task packageTests(type: Jar) {

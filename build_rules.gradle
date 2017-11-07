@@ -142,7 +142,7 @@ ext.applyJavaNature = {
         exclude(".*")
         include(dependency(library.java.guava))
       }
-      relocate("com.google.common", "org.apache.beam.${project.name}.repackaged.com.google.common") {
+      relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
         // com.google.common is too generic, need to exclude guava-testlib
         exclude "com.google.common.collect.testing.**"
         exclude "com.google.common.escape.testing.**"
