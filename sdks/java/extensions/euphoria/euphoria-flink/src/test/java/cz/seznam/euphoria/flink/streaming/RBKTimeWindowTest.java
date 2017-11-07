@@ -15,30 +15,28 @@
  */
 package cz.seznam.euphoria.flink.streaming;
 
+import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
-import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import com.google.common.collect.Sets;
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 import org.junit.Test;
 
 import java.time.Duration;
+import static java.util.Arrays.asList;
 import java.util.HashSet;
 import java.util.Iterator;
-
-import static java.util.Arrays.asList;
 
 public class RBKTimeWindowTest {
   @Test
@@ -64,11 +62,11 @@ public class RBKTimeWindowTest {
             .output();
     Dataset<Pair<String, Long>> reduced =
         ReduceByKey.of(input)
-        .keyBy(Pair::getFirst)
-        .valueBy(e -> 1L)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofMillis(5)))
-        .output();
+            .keyBy(Pair::getFirst)
+            .valueBy(e -> 1L)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofMillis(5)))
+            .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
 
@@ -87,59 +85,44 @@ public class RBKTimeWindowTest {
 
   @Test
   public void testEventWindowingEarlyTriggered() throws Exception {
-    ListDataSink<Triple<TimeInterval, String, HashSet<String>>> output = ListDataSink.get();
+    ListDataSink<Pair<TimeInterval, HashSet<Integer>>> output = ListDataSink.get();
 
-    ListDataSource<Pair<String, Integer>> source =
+    ListDataSource<Integer> source =
         ListDataSource.unbounded(
             asList(
-                Pair.of("one",     1),
-                Pair.of("two",     2),
-                Pair.of("three",   3),
-                Pair.of("four",    4),
-                Pair.of("five",    5),
-                Pair.of("six",     6),
-                Pair.of("seven",   7),
-                Pair.of("eight",   8),
-                Pair.of("nine",    9),
-                Pair.of("ten",    10),
-                Pair.of("eleven", 11)))
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11))
             .withReadDelay(Duration.ofMillis(200));
 
     Flow f = Flow.create("test-attached-windowing");
-    Dataset<Pair<String, HashSet<String>>> reduced =
-        ReduceByKey.of(f.createInput(source, Pair::getSecond))
-        .keyBy(e -> "")
-        .valueBy((UnaryFunction<Pair<String, Integer>, HashSet<String>>) what ->
-            Sets.newHashSet(what.getFirst()))
-        .combineBy((CombinableReduceFunction<HashSet<String>>) what -> {
-          Iterator<HashSet<String>> iter = what.iterator();
-          HashSet<String> s = iter.next();
-          while (iter.hasNext()) {
-            s.addAll(iter.next());
-          }
-          return s;
-        })
-        .windowBy(Time.of(Duration.ofMillis(6))
-            .earlyTriggering(Duration.ofMillis(2)))
-        .output();
+    Dataset<HashSet<Integer>> reduced =
+        ReduceWindow.of(f.createInput(source, e -> e))
+            .valueBy(Sets::newHashSet)
+            .combineBy(what -> {
+              Iterator<HashSet<Integer>> iter = what.iterator();
+              HashSet<Integer> s = iter.next();
+              iter.forEachRemaining(s::addAll);
+              return s;
+            })
+            .windowBy(Time.of(Duration.ofMillis(6))
+                .earlyTriggering(Duration.ofMillis(2)))
+            .output();
 
-    Dataset<Triple<TimeInterval, String, HashSet<String>>> extracted;
-    extracted = Util.extractWindows(reduced, TimeInterval.class);
+    Dataset<Pair<TimeInterval, HashSet<Integer>>> extracted;
+    extracted = Util.extractWindowsToPair(reduced, TimeInterval.class);
     extracted.persist(output);
 
     new TestFlinkExecutor()
-        .setAutoWatermarkInterval(Duration.ofMillis(10))
         .submit(f)
         .get();
 
     DatasetAssert.unorderedEquals(
         output.getOutputs(),
-        Triple.of(new TimeInterval(0, 6), "", Sets.newHashSet("one", "two")),
-        Triple.of(new TimeInterval(0, 6), "", Sets.newHashSet("four", "one", "three", "two")),
-        Triple.of(new TimeInterval(0, 6), "", Sets.newHashSet("five", "four", "one", "three", "two")),
-        Triple.of(new TimeInterval(6, 12), "", Sets.newHashSet("eight", "seven", "six")),
-        Triple.of(new TimeInterval(6, 12), "", Sets.newHashSet("eight", "nine", "seven", "six", "ten")),
-        Triple.of(new TimeInterval(6, 12), "", Sets.newHashSet("eight", "eleven", "nine", "seven", "six", "ten")));
+        Pair.of(new TimeInterval(0, 6), Sets.newHashSet(1, 2)),
+        Pair.of(new TimeInterval(0, 6), Sets.newHashSet(1, 2, 3, 4)),
+        Pair.of(new TimeInterval(0, 6), Sets.newHashSet(1, 2, 3, 4, 5)),
+        Pair.of(new TimeInterval(6, 12), Sets.newHashSet(6, 7, 8)),
+        Pair.of(new TimeInterval(6, 12), Sets.newHashSet(6, 7, 8, 9, 10)),
+        Pair.of(new TimeInterval(6, 12), Sets.newHashSet(6, 7, 8, 9, 10, 11)));
   }
 
   @Test

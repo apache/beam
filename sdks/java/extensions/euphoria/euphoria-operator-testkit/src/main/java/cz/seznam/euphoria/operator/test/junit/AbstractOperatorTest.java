@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.operator.test.junit;
 
+import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -25,7 +26,6 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.operator.test.accumulators.SingleJvmAccumulatorProvider;
 import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
-import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -33,7 +33,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-
 import static org.junit.Assert.assertEquals;
 
 public abstract class AbstractOperatorTest implements Serializable {

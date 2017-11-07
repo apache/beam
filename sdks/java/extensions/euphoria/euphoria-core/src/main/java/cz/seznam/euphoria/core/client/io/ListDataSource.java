@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.annotation.audience.Audience;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.WeakHashMap;
 
@@ -34,7 +35,9 @@ import java.util.WeakHashMap;
  * @param <T> the type of elements this source provides
  */
 @Audience({ Audience.Type.CLIENT, Audience.Type.TESTS })
-public class ListDataSource<T> implements DataSource<T> {
+@SuppressWarnings("unchecked")
+public class ListDataSource<T>
+    implements BoundedDataSource<T>, UnboundedDataSource<T, Integer> {
 
   // global storage for all existing ListDataSources
   private static final Map<ListDataSource<?>, List<List<?>>> storage =
@@ -65,6 +68,94 @@ public class ListDataSource<T> implements DataSource<T> {
 
   private final int id = System.identityHashCode(this);
 
+  private class DataIterator implements CloseableIterator<T> {
+
+    final List<T> data;
+    int pos = 0;
+    boolean lastHasNext = true;
+    T next = null;
+
+    DataIterator(List<T> data) {
+      this.data = data;
+    }
+
+    @Override
+    public void close() throws IOException {
+      // nop
+    }
+
+    @Override
+    public boolean hasNext() {
+      boolean hasNext = pos < data.size();
+      if (hasNext != lastHasNext) {
+        lastHasNext = hasNext;
+        try {
+          Thread.sleep(finalSleepMs);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      if (hasNext) {
+        next = data.get(pos);
+        try {
+          if (sleepMs > 0) {
+            Thread.sleep(sleepMs);
+          }
+        } catch (InterruptedException ex) {
+          Thread.currentThread().interrupt();
+        }
+      }
+
+      return hasNext;
+    }
+
+    @Override
+    public T next() {
+      T ret = next;
+      if (ret == null) {
+        throw pos >= data.size()
+            ? new NoSuchElementException()
+            : new IllegalStateException(
+                "Don't call `next` multiple times withou call to `hasNext`");
+      }
+      next = null;
+      pos++;
+      return ret;
+    }
+
+  }
+
+  private class BoundedListReader extends DataIterator implements BoundedReader<T> {
+
+    BoundedListReader(List<T> data) {
+      super(data);
+    }
+
+  }
+
+  private class UnboundedListReader extends DataIterator implements UnboundedReader<T, Integer> {
+
+    public UnboundedListReader(List<T> data) {
+      super(data);
+    }
+
+    @Override
+    public Integer getCurrentOffset() {
+      return pos;
+    }
+
+    @Override
+    public void reset(Integer offset) {
+      pos = offset;
+    }
+
+    @Override
+    public void commitOffset(Integer offset) {
+      // nop
+    }
+
+  }
+
   @SuppressWarnings("unchecked")
   private ListDataSource(boolean bounded, List<List<T>> partitions) {
     this.bounded = bounded;
@@ -88,12 +179,22 @@ public class ListDataSource<T> implements DataSource<T> {
   }
 
   @Override
-  public List<Partition<T>> getPartitions() {
+  @SuppressWarnings({ "unchecked", "rawtypes", "cast" })
+  public List getPartitions() {
+    if (isBounded()) {
+      return getBoundedPartitions();
+    } else {
+      return getUnboundedPartitions();
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  private List getBoundedPartitions() {
     final int n = storage.get(this).size();
-    List<Partition<T>> partitions = new ArrayList<>(n);
+    List<BoundedPartition<T>> partitions = new ArrayList<>(n);
     for (int i = 0; i < n; i++) {
       final int partition = i;
-      partitions.add(new Partition<T>() {
+      partitions.add(new BoundedPartition<T>() {
 
         @Override
         public Set<String> getLocations(){
@@ -102,45 +203,9 @@ public class ListDataSource<T> implements DataSource<T> {
 
         @Override
         @SuppressWarnings("unchecked")
-        public Reader<T> openReader() throws IOException {
-          List<T> data =
-              (List<T>) storage.get(ListDataSource.this).get(partition);
-          return new Reader<T>() {
-            int pos = 0;
-            boolean lastHasNext = true;
-
-            @Override
-            public void close() throws IOException {
-              // nop
-            }
-
-            @Override
-            public boolean hasNext() {
-              boolean hasNext = pos < data.size();
-              if (hasNext != lastHasNext && finalSleepMs > 0) {
-                lastHasNext = hasNext;
-                try {
-                  Thread.sleep(finalSleepMs);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                }
-              }
-              return hasNext;
-            }
-
-            @Override
-            public T next() {
-              try {
-                if (sleepMs > 0) {
-                  Thread.sleep(sleepMs);
-                }
-              } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-              }
-              return data.get(pos++);
-            }
-
-          };
+        public BoundedReader<T> openReader() throws IOException {
+          return new BoundedListReader(
+              (List<T>) storage.get(ListDataSource.this).get(partition));
         }
 
       });
@@ -148,10 +213,49 @@ public class ListDataSource<T> implements DataSource<T> {
     return partitions;
   }
 
+
+  @SuppressWarnings("unchecked")
+  private List getUnboundedPartitions() {
+    final int n = storage.get(this).size();
+    List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
+    for (int i = 0; i < n; i++) {
+      final int partition = i;
+      partitions.add(() -> new UnboundedListReader(
+            (List<T>) storage.get(ListDataSource.this).get(partition)));
+    }
+    return partitions;
+  }
+
+
   @Override
   public boolean isBounded() {
     return bounded;
   }
+
+
+  @Override
+  public ListDataSource<T> asBounded() {
+    if (isBounded()) {
+      return this;
+    }
+    throw new UnsupportedOperationException("Source is unbounded.");
+  }
+
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public ListDataSource<T> asUnbounded() {
+    if (!isBounded()) {
+      return this;
+    }
+    throw new UnsupportedOperationException("Source is bounded.");
+  }
+
+  @Override
+  public int getParallelism() {
+    return getPartitions().size();
+  }
+
 
   /**
    * Converts this list data source into a bounded data source.
@@ -165,7 +269,9 @@ public class ListDataSource<T> implements DataSource<T> {
       return this;
     }
     List<List<?>> list = storage.get(this);
-    return ListDataSource.bounded(list.toArray(new List[list.size()]));
+    return ListDataSource.bounded(list.toArray(new List[list.size()]))
+        .withReadDelay(Duration.ofMillis(sleepMs))
+        .withFinalDelay(Duration.ofMillis(finalSleepMs));
   }
 
   /**
@@ -180,7 +286,9 @@ public class ListDataSource<T> implements DataSource<T> {
       return this;
     }
     List<List<?>> list = storage.get(this);
-    return ListDataSource.unbounded(list.toArray(new List[list.size()]));
+    return ListDataSource.unbounded(list.toArray(new List[list.size()]))
+        .withReadDelay(Duration.ofMillis(sleepMs))
+        .withFinalDelay(Duration.ofMillis(finalSleepMs));
   }
 
   /**
@@ -206,4 +314,5 @@ public class ListDataSource<T> implements DataSource<T> {
     this.finalSleepMs = timeout.toMillis();
     return this;
   }
+
 }

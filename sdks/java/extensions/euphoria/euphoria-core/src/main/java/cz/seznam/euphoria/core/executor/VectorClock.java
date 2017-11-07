@@ -13,29 +13,45 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.executor.local;
+package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Vector clock implementation for local executor.
  */
-class VectorClock {
+@Audience(Audience.Type.EXECUTOR)
+public class VectorClock implements Serializable {
 
   final AtomicLong[] current;
 
-  VectorClock(int dimensions) {
+  /**
+   * Create vector clock with given dimensions.
+   * @param dimensions number of dimensions
+   */
+  public VectorClock(int dimensions) {
     current = new AtomicLong[dimensions];
     for (int i = 0; i < dimensions; i++) {
       current[i] = new AtomicLong();
     }
   }
 
-  long getCurrent() {
+  /**
+   * Retrieve current stamp as indicated by this clock.
+   * @return current stamp
+   */
+  public long getCurrent() {
     return _min(current);
   }
 
-  void update(long stamp, int dimension) {
+  /**
+   * Update clock in given dimension.
+   * @param stamp the timestamp
+   * @param dimension index of dimension
+   */
+  public void update(long stamp, int dimension) {
     current[dimension].accumulateAndGet(
         stamp, (old, update) -> old < update ? update : old);
   }

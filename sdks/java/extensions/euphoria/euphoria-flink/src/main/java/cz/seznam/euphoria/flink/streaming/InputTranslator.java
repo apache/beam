@@ -31,7 +31,7 @@ class InputTranslator implements StreamingOperatorTranslator<FlowUnfolder.InputO
     DataSource<?> ds = operator.output().getSource();
 
     return context.getExecutionEnvironment()
-            .addSource(new DataSourceWrapper<>(ds))
+            .addSource(new DataSourceWrapper<>("input::" + operator.getName(), ds))
             .setParallelism(operator.getParallelism());
   }
 }

@@ -16,14 +16,12 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import java.io.Closeable;
-import java.util.Iterator;
 
 /**
- * Reader of data in a particular partition,
+ * BoundedReader of data in a particular partition,
  * which essentially is merely a closable iterator.
  */
 @Audience(Audience.Type.CLIENT)
-public interface Reader<E> extends Closeable, Iterator<E> {
+public interface BoundedReader<E> extends CloseableIterator<E> {
 
 }
