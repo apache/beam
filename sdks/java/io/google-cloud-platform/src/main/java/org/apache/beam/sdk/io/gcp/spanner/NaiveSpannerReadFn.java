@@ -48,6 +48,7 @@ class NaiveSpannerReadFn extends DoFn<ReadOperation, Struct> {
   public void setup() throws Exception {
     spannerAccessor = config.connectToSpanner();
   }
+
   @Teardown
   public void teardown() throws Exception {
     spannerAccessor.close();
