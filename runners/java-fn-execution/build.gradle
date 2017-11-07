@@ -31,13 +31,13 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
 
 dependencies {
-  compile project(":beam-model-parent:beam-model-pipeline")
-  compile project(":beam-model-parent:beam-model-fn-execution")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
-  compile library.java.grpc_core
-  compile library.java.grpc_stub
-  compile library.java.grpc_netty
   compile library.java.guava
+  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution", configuration: "shadow")
+  shadow library.java.grpc_core
+  shadow library.java.grpc_stub
+  shadow library.java.grpc_netty
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution").sourceSets.test.output
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

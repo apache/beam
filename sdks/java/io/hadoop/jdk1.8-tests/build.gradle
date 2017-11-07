@@ -40,13 +40,15 @@ def log4j_version = "2.6.2"
 def elastic_search_version = "5.0.0"
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format")
-  compile library.java.slf4j_api
-  compile "org.elasticsearch:elasticsearch-hadoop:$elastic_search_version"
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format", configuration: "shadow")
+  shadow library.java.slf4j_api
+  shadow "org.elasticsearch:elasticsearch-hadoop:$elastic_search_version"
+  shadow library.java.commons_io_2x
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  runtime library.java.commons_io_2x
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
+  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java")
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common", configuration: "shadow")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
   testCompile library.java.hamcrest_core
   testCompile "org.elasticsearch.plugin:transport-netty4-client:$elastic_search_version"
@@ -56,9 +58,6 @@ dependencies {
   testCompile "com.datastax.cassandra:cassandra-driver-mapping:3.1.1"
   testCompile "org.apache.cassandra:cassandra-all:3.9"
   testCompile "com.datastax.cassandra:cassandra-driver-core:3.1.1"
-
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
   testCompile library.java.mockito_core

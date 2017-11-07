@@ -144,16 +144,21 @@ ext.applyJavaNature = {
       }
       relocate("com.google.common", "org.apache.beam." + project.name + ".repackaged.com.google.common") {
         // com.google.common is too generic, need to exclude guava-testlib
-        exclude "com.google.common.*.testing.*"
+//        exclude "com.google.common.**.testing.*"
       }
     }
 
     // Create a new configuration 'shadowTest' like 'shadow' for the test scope
     configurations {
-      shadowTest {
-        description = "shaded test runtime"
-        extendsFrom testRuntime
+      shadow {
+        description = "Dependencies for shaded source set 'main'"
       }
+      compile.extendsFrom shadow
+      shadowTest {
+        description = "Dependencies for shaded source set 'test'"
+        extendsFrom shadow
+      }
+      testCompile.extendsFrom shadowTest
     }
     // TODO: Figure out how to create ShadowJar task for testShadowJar here
     // that is extendable within each sub-project with any additional includes.

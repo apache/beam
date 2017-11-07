@@ -23,9 +23,9 @@ applyGrpcNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Protobuf"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile library.java.protobuf_java
   compile library.java.guava
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.protobuf_java
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.mockito_core

@@ -23,7 +23,7 @@ applyGrpcNature()
 description = "Apache Beam :: Model :: Pipeline"
 
 dependencies {
-  compile library.java.protobuf_java
+  shadow library.java.protobuf_java
 }
 
 task packageTests(type: Jar) {

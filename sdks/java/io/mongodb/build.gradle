@@ -22,13 +22,13 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: MongoDB"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile library.java.slf4j_api
   compile library.java.guava
-  compile library.java.findbugs_jsr305
-  compile library.java.joda_time
-  compile "org.mongodb:mongo-java-driver:3.2.2"
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.slf4j_api
+  shadow library.java.findbugs_jsr305
+  shadow library.java.joda_time
+  shadow "org.mongodb:mongo-java-driver:3.2.2"
+  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
   testCompile library.java.hamcrest_core

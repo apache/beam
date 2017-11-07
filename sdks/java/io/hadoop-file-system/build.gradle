@@ -22,16 +22,16 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop File System"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  compile library.java.jackson_core
-  compile library.java.jackson_databind
   compile library.java.guava
-  compile library.java.slf4j_api
-  compile library.java.findbugs_jsr305
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow library.java.jackson_core
+  shadow library.java.jackson_databind
+  shadow library.java.slf4j_api
+  shadow library.java.findbugs_jsr305
   provided library.java.hadoop_client
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core

@@ -22,9 +22,9 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Extensions :: Join library"
 
 dependencies {
-  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
-  testCompile project(":beam-runners-parent:beam-runners-direct-java")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
 }
