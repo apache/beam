@@ -44,17 +44,9 @@ mavenJob('beam_Java_Build') {
   }
 
   // Construct Maven goals for this job.
-  profiles = [
-    'direct-runner',
-    'dataflow-runner',
-    'spark-runner',
-    'flink-runner',
-    'apex-runner'
-  ]
   args = [
     '-B',
     '-e',
-    "-P${profiles.join(',')}",
     'clean',
     'install',
     "-pl '!sdks/python,!sdks/java/javadoc'",
