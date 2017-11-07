@@ -43,7 +43,7 @@ processResources {
 // Exclude tests that need a runner
 test {
   systemProperty "beamTestPipelineOptions", ""
-  systemProperty "beamUseDummyRunner", "true" 
+  systemProperty "beamUseDummyRunner", "true"
 }
 
 dependencies {
