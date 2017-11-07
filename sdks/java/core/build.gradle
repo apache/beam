@@ -80,10 +80,10 @@ shadowJar {
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
   }
-  relocate "com.google.thirdparty", "org.apache.beam.sdk.repackaged.com.google.thirdparty"
-  relocate "com.google.protobuf", "org.apache.beam.sdk.repackaged.com.google.protobuf"
-  relocate "net.bytebuddy", "org.apache.beam.sdk.repackaged.net.bytebuddy"
-  relocate "org.apache.commons", "org.apache.beam.sdk.repackaged.org.apache.commons"
+  relocate "com.google.thirdparty", "org.apache.beam.${project.name}.repackaged.com.google.thirdparty"
+  relocate "com.google.protobuf", "org.apache.beam.${project.name}.repackaged.com.google.protobuf"
+  relocate "net.bytebuddy", "org.apache.beam.${project.name}.repackaged.net.bytebuddy"
+  relocate "org.apache.commons", "org.apache.beam.${project.name}.repackaged.org.apache.commons"
 }
 
 // Create a shaded test jar.
@@ -105,10 +105,10 @@ task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
     exclude "com.google.common.testing.**"
     exclude "com.google.common.util.concurrent.testing.**"
   }
-  relocate "com.google.thirdparty", "org.apache.beam.sdk.repackaged.com.google.thirdparty"
-  relocate "com.google.protobuf", "org.apache.beam.sdk.repackaged.com.google.protobuf"
-  relocate "net.bytebuddy", "org.apache.beam.sdk.repackaged.net.bytebuddy"
-  relocate "org.apache.commons", "org.apache.beam.sdk.repackaged.org.apache.commons"
+  relocate "com.google.thirdparty", "org.apache.beam.${project.name}.repackaged.com.google.thirdparty"
+  relocate "com.google.protobuf", "org.apache.beam.${project.name}.repackaged.com.google.protobuf"
+  relocate "net.bytebuddy", "org.apache.beam.${project.name}.repackaged.net.bytebuddy"
+  relocate "org.apache.commons", "org.apache.beam.${project.name}.repackaged.org.apache.commons"
 }
 
 task packageTests(type: Jar) {

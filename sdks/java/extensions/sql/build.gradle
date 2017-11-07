@@ -30,11 +30,11 @@ def avatica_version = "1.10.0"
 
 dependencies {
   compile library.java.guava
+  compile "org.apache.calcite:calcite-core:$calcite_version"
+  compile "org.apache.calcite:calcite-linq4j:$calcite_version"
+  compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library", configuration: "shadow")
-  shadow "org.apache.calcite:calcite-core:$calcite_version"
-  shadow "org.apache.calcite:calcite-linq4j:$calcite_version"
-  shadow "org.apache.calcite.avatica:avatica-core:$avatica_version"
   shadow library.java.slf4j_api
   shadow library.java.commons_csv
   shadow library.java.joda_time
@@ -44,6 +44,18 @@ dependencies {
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+}
+
+shadowJar {
+  dependencies {
+    include(dependency("org.apache.calcite:.*"))
+    include(dependency("org.apache.calcite.avatica:.*"))
+    include(dependency("org.codehaus.janino:.*"))
+    include(dependency(library.java.protobuf_java))
+  }
+  relocate "com.google.protobuf", "org.apache.beam.${project.name}.repackaged.com.google.protobuf"
+  relocate "org.apache.calcite", "org.apache.beam.${project.name}.repackaged.org.apache.calcite"
+  relocate "org.codehaus", "org.apache.beam.${project.name}.repackaged.org.codehaus"
 }
 
 task packageTests(type: Jar) {
