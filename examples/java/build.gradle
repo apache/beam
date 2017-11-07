@@ -31,7 +31,7 @@ description = "Apache Beam :: Examples :: Java"
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
   compile library.java.google_api_client

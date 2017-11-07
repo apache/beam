@@ -21,23 +21,14 @@ applyJavaNature(javaVersion: 1.8)
 
 description = "Apache Beam :: SDKs :: Java :: IO :: Tika"
 
-/*
- * We need to rely on manually specifying these evaluationDependsOn to ensure that
- * the following projects are evaluated before we evaluate this project. This is because
- * we are attempting to reference the "sourceSets.test.output" directly.
- * TODO: Swap to generating test artifacts which we can then rely on instead of
- * the test outputs directly.
- */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
-
 def tika_version = "1.16"
 
 dependencies {
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile library.java.guava
   compile library.java.findbugs_jsr305
   compile "org.apache.tika:tika-core:$tika_version"
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-runners-parent:beam-runners-direct-java")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

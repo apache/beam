@@ -29,7 +29,6 @@ description = "Apache Beam :: Runners :: Google Cloud Dataflow"
  * the test outputs directly.
  */
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
 evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
 
@@ -49,7 +48,7 @@ test {
 
 dependencies {
   compile project(":beam-model-parent:beam-model-pipeline")
-  compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  compile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core")
   compile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
   compile project(":beam-runners-parent:beam-runners-core-construction-java")
@@ -73,7 +72,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core").sourceSets.test.output
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-google-cloud-platform-core").sourceSets.test.output
   testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
   testCompile library.java.guava_testlib
