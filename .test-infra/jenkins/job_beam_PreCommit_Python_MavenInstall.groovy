@@ -40,17 +40,18 @@ mavenJob('beam_PreCommit_Python_MavenInstall') {
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, 'mvn clean install -pl sdks/python -am -amd', 'Run Python PreCommit')
 
-  // Maven goals for this job: The Python SDK, its dependencies, and things that depend on it.
-  goals('''\
-    --batch-mode \
-    --errors \
-    --activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner \
-    --projects sdks/python,!sdks/python/container \
-    --also-make \
-    --also-make-dependents \
-    -D pullRequest=$ghprbPullId \
-    help:effective-settings \
-    clean \
-    install
-  ''')
+  // Maven modules for this job: The Python SDK, its dependencies, and things that depend on it,
+  // excluding the container.
+  goals([
+    '--batch-mode',
+    '--errors',
+    '--activate-profiles release',
+    '--projects sdks/python,!sdks/python/container',
+    '--also-make',
+    '--also-make-dependents',
+    '-D pullRequest=$ghprbPullId',
+    'help:effective-settings',
+    'clean',
+    'install',
+  ].join(' '))
 }
