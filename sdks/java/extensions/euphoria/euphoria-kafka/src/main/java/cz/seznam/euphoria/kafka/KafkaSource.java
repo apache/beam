@@ -15,17 +15,19 @@
  */
 package cz.seznam.euphoria.kafka;
 
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.core.util.Settings;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
+import cz.seznam.euphoria.core.client.io.UnboundedPartition;
+import cz.seznam.euphoria.core.client.io.UnboundedReader;
+import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.Settings;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
@@ -38,33 +40,38 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import static java.util.Objects.requireNonNull;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
-import static java.util.Objects.requireNonNull;
-
-public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
+public class KafkaSource
+    implements UnboundedDataSource<Pair<byte[], byte[]>, Long> {
 
   // config options
   public static final String CFG_RESET_OFFSET_TIMESTAMP_MILLIS = "reset.offset.timestamp.millis";
   public static final String CFG_STOP_AT_TIMESTAMP_MILLIS = "stop.at.timestamp.millis";
-  public static final String CFG_SINGLE_READER_ONLY = "single.reader.only";
 
   private static final Logger LOG = LoggerFactory.getLogger(KafkaSource.class);
 
   static final class ConsumerReader
       extends AbstractIterator<Pair<byte[], byte[]>>
-      implements Reader<Pair<byte[], byte[]>> {
+      implements UnboundedReader<Pair<byte[], byte[]>, Long> {
 
     private final Consumer<byte[], byte[]> c;
+    private final TopicPartition tp;
     private final long stopReadingAtStamp;
+    private long offset;
 
     private Iterator<ConsumerRecord<byte[], byte[]>> next;
-    private int uncommittedCount = 0;
 
-    ConsumerReader(Consumer<byte[], byte[]> c, long stopReadingAtStamp) {
+    ConsumerReader(
+        Consumer<byte[], byte[]> c,
+        TopicPartition tp,
+        long stopReadingAtStamp) {
+
       this.c = c;
+      this.tp = tp;
       this.stopReadingAtStamp = stopReadingAtStamp;
     }
 
@@ -77,7 +84,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           return null;
         }
 
-        commitIfNeeded();
         ConsumerRecords<byte[], byte[]> polled = c.poll(500);
         next = polled.iterator();
       }
@@ -88,35 +94,43 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           LOG.info(
               "Terminating polling of topic, passed initial timestamp {} with value {}",
               stopReadingAtStamp, messageStamp);
-          commitIfNeeded();
           endOfData();
           return null;
         }
       }
-      ++uncommittedCount;
+      offset = r.offset();
+
       return Pair.of(r.key(), r.value());
     }
 
     @Override
     public void close() throws IOException {
-      commitIfNeeded();
       c.close();
     }
 
-    private void commitIfNeeded() {
-      if (uncommittedCount > 0) {
-        c.commitAsync();
-        LOG.debug("Committed {} records.", uncommittedCount);
-        uncommittedCount = 0;
-      }
+    @Override
+    public Long getCurrentOffset() {
+      return offset;
     }
+
+    @Override
+    public void reset(Long offset) {
+      c.seek(tp, offset);
+    }
+
+    @Override
+    public void commitOffset(Long offset) {
+      c.commitSync(Collections.singletonMap(tp, new OffsetAndMetadata(offset)));
+    }
+
   }
 
-  static final class KafkaPartition implements Partition<Pair<byte[], byte[]>> {
+  static final class KafkaPartition
+      implements UnboundedPartition<Pair<byte[], byte[]>, Long> {
+
     private final String brokerList;
     private final String topicId;
     private final int partition;
-    private final String host;
     @Nullable
     private final Settings config;
     private final long startOffset;
@@ -124,28 +138,24 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
     // should we stop reading when reaching the current offset?
     private final long stopReadingAtStamp;
 
-    KafkaPartition(String brokerList, String topicId,
-                   int partition, String host,
-                   @Nullable Settings config,
-                   long startOffset,
-                   long stopReadingAtStamp)
-    {
+    KafkaPartition(
+        String brokerList, String topicId,
+        int partition,
+        @Nullable Settings config,
+        long startOffset,
+        long stopReadingAtStamp) {
+
       this.brokerList = brokerList;
       this.topicId = topicId;
       this.partition = partition;
-      this.host = host;
       this.config = config;
       this.startOffset = startOffset;
       this.stopReadingAtStamp = stopReadingAtStamp;
     }
 
-    @Override
-    public Set<String> getLocations() {
-      return Sets.newHashSet(host);
-    }
 
     @Override
-    public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
+    public UnboundedReader<Pair<byte[], byte[]>, Long> openReader() throws IOException {
       Consumer<byte[], byte[]> c =
           KafkaUtils.newConsumer(brokerList, null, config);
       TopicPartition tp = new TopicPartition(topicId, partition);
@@ -156,57 +166,9 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       } else if (startOffset == 0) {
         c.seekToBeginning(partitionList);
       }
-      return new ConsumerReader(c, stopReadingAtStamp);
+      return new ConsumerReader(c, tp, stopReadingAtStamp);
     }
 
-  }
-
-  static final class AllPartitionsConsumer implements Partition<Pair<byte[], byte[]>> {
-    private final String brokerList;
-    private final String topicId;
-    @Nullable
-    private final Settings config;
-    private final long offsetTimestamp; // ~ effective iff > 0
-    private final long stopReadingAtStamp;
-
-    AllPartitionsConsumer(
-        String brokerList,
-        String topicId,
-        @Nullable Settings config,
-        long offsetTimestamp,
-        long stopReadingStamp) {
-
-      this.brokerList = brokerList;
-      this.topicId = topicId;
-      this.config = config;
-      this.offsetTimestamp = offsetTimestamp;
-      this.stopReadingAtStamp = stopReadingStamp;
-    }
-
-    @Override
-    public Set<String> getLocations() {
-      return Collections.emptySet();
-    }
-
-    @Override
-    public Reader<Pair<byte[], byte[]>> openReader() throws IOException {
-      Consumer<byte[], byte[]> c = KafkaUtils.newConsumer(
-          brokerList, null, config);
-
-      c.assign(
-          c.partitionsFor(topicId)
-              .stream()
-              .map(p -> new TopicPartition(p.topic(), p.partition()))
-              .collect(Collectors.toList()));
-      if (offsetTimestamp > 0) {
-        Map<Integer, Long> offs =
-            KafkaUtils.getOffsetsBeforeTimestamp(brokerList, topicId, offsetTimestamp);
-        for (Map.Entry<Integer, Long> off : offs.entrySet()) {
-          c.seek(new TopicPartition(topicId, off.getKey()), off.getValue());
-        }
-      }
-      return new ConsumerReader(c, stopReadingAtStamp);
-    }
   }
 
   // ~ -----------------------------------------------------------------------------
@@ -227,7 +189,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
   }
 
   @Override
-  public List<Partition<Pair<byte[], byte[]>>> getPartitions() {
+  public List<UnboundedPartition<Pair<byte[], byte[]>, Long>> getPartitions() {
     long offsetTimestamp = -1L;
     long stopReadingAtStamp = Long.MAX_VALUE;
     if (config != null) {
@@ -245,11 +207,6 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
       if (stopReadingAtStamp < Long.MAX_VALUE) {
         LOG.info("Will stop polling kafka topic at current timestamp {}",
             stopReadingAtStamp);
-      }
-      if (config.getBoolean(CFG_SINGLE_READER_ONLY, false)) {
-        return Collections.singletonList(
-          new AllPartitionsConsumer(brokerList, topicId,
-              config, offsetTimestamp, stopReadingAtStamp));
       }
     }
     try (Consumer<?, ?> c = KafkaUtils.newConsumer(
@@ -272,7 +229,7 @@ public class KafkaSource implements DataSource<Pair<byte[], byte[]>> {
           // ... fail in this situation
           new KafkaPartition(
               brokerList, topicId, p.partition(),
-              p.leader().host(), config,
+              config,
               offs.getOrDefault(p.partition(), defaultOffsetTimestamp),
               stopAtStamp))
           .collect(Collectors.toList());

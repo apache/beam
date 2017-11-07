@@ -16,16 +16,28 @@
 package cz.seznam.euphoria.flink.streaming.io;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.io.BoundedPartition;
+import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.core.client.io.CloseableIterator;
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
+import cz.seznam.euphoria.core.client.io.UnboundedPartition;
+import cz.seznam.euphoria.core.client.io.UnboundedReader;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.shaded.com.google.common.collect.Iterables;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -34,31 +46,79 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 public class DataSourceWrapper<T>
-        extends RichParallelSourceFunction<StreamingElement<GlobalWindowing.Window, T>>
-        implements ResultTypeQueryable<StreamingElement<GlobalWindowing.Window, T>>
-{
+    extends RichParallelSourceFunction<StreamingElement<GlobalWindowing.Window, T>>
+    implements ResultTypeQueryable<StreamingElement<GlobalWindowing.Window, T>>,
+        CheckpointedFunction {
+
+  /** The stored (committed) state of the reader. */
+  private static class SourceState<OFFSET> implements Serializable {
+
+    /** Number of readers. */
+    final int numReaders;
+
+    /** Offset committed. */
+    final List<OFFSET> offsets;
+
+    public int numReaders() {
+      return numReaders;
+    }
+
+    public List<OFFSET> getOffset() {
+      return offsets;
+    }
+
+    SourceState(int numReaders, List<OFFSET> offsets) {
+      this.numReaders = numReaders;
+      this.offsets = offsets;
+    }
+
+  }
+
+  @SuppressWarnings("rawtypes")
+  private final List<UnboundedReader> unboundedReaders = new ArrayList<>();
+  private final String storageName;
   private final DataSource<T> dataSource;
+  private ListState<SourceState> snapshotState;
+
   private volatile boolean isRunning = true;
 
   private volatile transient ThreadPoolExecutor executor;
 
-  public DataSourceWrapper(DataSource<T> dataSource) {
+  public DataSourceWrapper(String storageName, DataSource<T> dataSource) {
+    this.storageName = storageName;
     this.dataSource = dataSource;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
-  public void run(SourceContext<StreamingElement<GlobalWindowing.Window, T>> ctx)
+  public void run(
+      SourceContext<StreamingElement<GlobalWindowing.Window, T>> ctx)
       throws Exception {
+
+    if (dataSource.isBounded()) {
+      runBounded(ctx);
+    } else {
+      runUnbounded(ctx);
+    }
+  }
+
+  private void runBounded(
+      SourceContext<StreamingElement<GlobalWindowing.Window, T>> ctx)
+      throws Exception {
+
+    BoundedDataSource<T> boundedSource = dataSource.asBounded();
     StreamingRuntimeContext runtimeContext =
             (StreamingRuntimeContext) getRuntimeContext();
 
     final int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
     final int totalSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 
-    List<Partition<T>> partitions = dataSource.getPartitions();
-    List<Reader<T>> openReaders = new ArrayList<>();
+    List<BoundedPartition<T>> partitions = boundedSource.getPartitions();
+    List<BoundedReader<T>> openReaders = new ArrayList<>();
 
     // find partitions which this data source is responsible for
     for (int i = 0; i < partitions.size(); i++) {
@@ -67,22 +127,54 @@ public class DataSourceWrapper<T>
       }
     }
 
-    if (openReaders.size() == 1) {
-      try (Reader<T> reader = openReaders.get(0)) {
+    runInternal(
+        ctx,
+        partitions.stream().map(p -> {
+          try {
+            return p.openReader();
+          } catch (IOException ex) {
+            throw new RuntimeException(ex);
+          }
+        }).collect(Collectors.toList()),
+        e -> ctx.collect(toStreamingElement(e)));
+  }
+
+  @SuppressWarnings("unchecked")
+  private void runUnbounded(
+      SourceContext<StreamingElement<GlobalWindowing.Window, T>> ctx)
+      throws Exception {
+
+    // the readers have already been initialized by {@link initializeState}
+    runInternal(
+        ctx,
+        unboundedReaders,
+        e -> produceElement(ctx, e));
+  }
+
+  @SuppressWarnings("unchecked")
+  private void runInternal(
+      SourceContext<StreamingElement<GlobalWindowing.Window, T>> ctx,
+      List<? extends CloseableIterator> inputs,
+      Consumer<T> emit) throws Exception {
+
+    if (inputs.size() == 1) {
+      try (CloseableIterator<T> reader = inputs.get(0)) {
         while (isRunning && reader.hasNext()) {
-          ctx.collect(toStreamingElement(reader.next()));
+          emit.accept(reader.next());
         }
       }
     } else {
-      // start a new thread for each reader
       executor = createThreadPool();
+      // start a new thread for each reader
       Deque<Future> tasks = new ArrayDeque<>();
-      for (Reader<T> reader : openReaders) {
+      int pos = 0;
+      for (CloseableIterator<T> reader : inputs) {
+        final int id = pos++;
         tasks.add(executor.submit(() -> {
           try {
             while (reader.hasNext()) {
               synchronized (ctx) {
-                ctx.collect(toStreamingElement(reader.next()));
+                emit.accept(reader.next());
               }
             }
             return null;
@@ -104,7 +196,39 @@ public class DataSourceWrapper<T>
         }
       }
     }
+
   }
+
+  /**
+   * Produce element to output from given reader.
+   */
+  private void produceElement(
+      SourceContext<StreamingElement<GlobalWindowing.Window, T>> ctx,
+      T elem) {
+
+    synchronized (ctx.getCheckpointLock()) {
+      ctx.collect(toStreamingElement(elem));
+    }
+  }
+
+  private void initializeReaders(UnboundedDataSource<T, ?> source) throws IOException {
+    StreamingRuntimeContext runtimeContext =
+            (StreamingRuntimeContext) getRuntimeContext();
+
+    final int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
+    final int totalSubtasks = runtimeContext.getNumberOfParallelSubtasks();
+
+    List<? extends UnboundedPartition<T, ?>> partitions = source.getPartitions();
+
+    // find partitions which this data source is responsible for
+    for (int i = 0; i < partitions.size(); i++) {
+      if (i % totalSubtasks == subtaskIndex) {
+        unboundedReaders.add(partitions.get(i).openReader());
+      }
+    }
+
+  }
+
 
   private StreamingElement<GlobalWindowing.Window, T> toStreamingElement(T elem) {
     // assign ingestion timestamp to elements
@@ -127,16 +251,47 @@ public class DataSourceWrapper<T>
 
   private ThreadPoolExecutor createThreadPool() {
     return new ThreadPoolExecutor(
-            0, Integer.MAX_VALUE,
-            60,
-            TimeUnit.SECONDS,
-            new LinkedBlockingDeque<>(),
-            new ThreadFactoryBuilder()
-                    .setNameFormat("DataSource-%d")
-                    .setDaemon(true)
-                    .setUncaughtExceptionHandler((Thread t, Throwable e) -> {
-                      e.printStackTrace(System.err);
-                    })
-                    .build());
+        0, Integer.MAX_VALUE,
+        60,
+        TimeUnit.SECONDS,
+        new LinkedBlockingDeque<>(),
+        new ThreadFactoryBuilder()
+            .setNameFormat("DataSource-%d")
+            .setDaemon(true)
+            .setUncaughtExceptionHandler((Thread t, Throwable e) -> {
+              e.printStackTrace(System.err);
+            })
+            .build());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public void snapshotState(FunctionSnapshotContext fsc) throws Exception {
+    if (!dataSource.isBounded()) {
+      List<Object> offsets = new ArrayList<>(this.unboundedReaders.size());
+      for (UnboundedReader<T, Object> r : unboundedReaders) {
+        Object off = r.getCurrentOffset();
+        offsets.add(off);
+        r.commitOffset(off);
+      }
+      snapshotState.clear();
+      snapshotState.add(new SourceState<>(this.unboundedReaders.size(), offsets));
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public void initializeState(FunctionInitializationContext fic) throws Exception {
+    if (!dataSource.isBounded()) {
+      initializeReaders(this.dataSource.asUnbounded());
+      snapshotState = fic.getOperatorStateStore().getSerializableListState(storageName);
+      SourceState state = Iterables.getOnlyElement(snapshotState.get(), null);
+      if (state != null) {
+        int readerId = 0;
+        for (UnboundedReader<T, Object> r : this.unboundedReaders) {
+          r.reset(state.getOffset().get(readerId++));
+        }
+      }
+    }
   }
 }

@@ -15,9 +15,10 @@
  */
 package cz.seznam.euphoria.hadoop.input;
 
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.io.BoundedPartition;
+import cz.seznam.euphoria.core.client.io.BoundedReader;
 import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.hadoop.utils.Serializer;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -67,7 +68,7 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
     return Base64.getEncoder().encodeToString(Serializer.toBytes(source));
   }
 
-  private static <V> DataSource<V> fromBase64(String base64bytes)
+  private static <V> BoundedDataSource<V> fromBase64(String base64bytes)
       throws IOException, ClassNotFoundException {
 
     byte[] serialized = Base64.getDecoder().decode(base64bytes);
@@ -77,14 +78,14 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
 
   private static class SourceSplit<V> extends InputSplit implements Writable {
 
-    private Partition<V> partition;
+    private BoundedPartition<V> partition;
 
     // Writable, DO NOT USE
     public SourceSplit() {
 
     }
 
-    SourceSplit(Partition<V> partition) {
+    SourceSplit(BoundedPartition<V> partition) {
       this.partition = partition;
     }
 
@@ -125,7 +126,7 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
     }
   }
 
-  DataSource<V> source;
+  BoundedDataSource<V> source;
 
   @Override
   public List<InputSplit> getSplits(JobContext jc)
@@ -139,11 +140,11 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
   @Override
   public RecordReader<NullWritable, V> createRecordReader(
       InputSplit is, TaskAttemptContext tac) throws IOException, InterruptedException {
-    
+
     initialize(tac.getConfiguration());
     @SuppressWarnings("unchecked")
     SourceSplit<V> split = (SourceSplit<V>) is;
-    Reader<V> reader = split.partition.openReader();
+    BoundedReader<V> reader = split.partition.openReader();
     return new RecordReader<NullWritable, V>() {
 
       V v;

@@ -15,47 +15,34 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import com.google.common.collect.Sets;
 
-import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /**
  * A mock factory creating a stream datasource.
  */
-public class MockStreamDataSource<T> implements DataSource<T> {
+public class MockStreamDataSource<T>
+    implements UnboundedDataSource<T, MockStreamDataSource.Offset> {
 
-  private final List<Partition<T>> partitions;
+  public static final class Offset implements Serializable {
+    public static Offset get() { return null; }
+  }
+
+  private final List<UnboundedPartition<T, Offset>> partitions;
 
   public MockStreamDataSource() {
     final int p = 4;
-    final List<Partition<T>> partitions = new ArrayList<>(p);
+    this.partitions = new ArrayList<>(p);
     for (int i = 0; i < p; i++) {
-      partitions.add(new Partition<T>() {
-
-        @Override
-        public Set<String> getLocations() {
-          return Sets.newHashSet("localhost");
-        }
-
-        @Override
-        public Reader<T> openReader() throws IOException {
-          return new EmptyReader<>();
-        }
-      });
+      partitions.add((UnboundedPartition<T, Offset>) () -> new EmptyReader<>());
     }
-    this.partitions = partitions;
   }
 
   @Override
-  public List<Partition<T>> getPartitions() {
+  public List<UnboundedPartition<T, Offset>> getPartitions() {
     return partitions;
   }
 
-  @Override
-  public boolean isBounded() {
-    return false;
-  }
 }

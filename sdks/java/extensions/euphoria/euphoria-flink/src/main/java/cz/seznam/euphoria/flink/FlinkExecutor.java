@@ -138,9 +138,12 @@ public class FlinkExecutor implements Executor {
 
       FlowTranslator translator;
       if (mode == ExecutionEnvironment.Mode.BATCH) {
-        translator = createBatchTranslator(settings, environment, accumulatorFactory);
+        translator = createBatchTranslator(
+            settings, environment, accumulatorFactory);
       } else {
-        translator = createStreamTranslator(settings, environment, accumulatorFactory, allowedLateness, autoWatermarkInterval);
+        translator = createStreamTranslator(
+            settings, environment, accumulatorFactory,
+            allowedLateness, autoWatermarkInterval);
       }
 
       List<DataSink<?>> sinks = translator.translateInto(flow);

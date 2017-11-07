@@ -21,12 +21,12 @@ import java.io.Serializable;
 import java.util.Set;
 
 /**
- * Single partition of dataset.
+ * Single partition of a bounded dataset.
  *
  * @param <T> the type of elements this partition hosts, i.e. is able to provide
  */
 @Audience(Audience.Type.CLIENT)
-public interface Partition<T> extends Serializable {
+public interface BoundedPartition<T> extends Serializable {
 
   /**
    * Get location strings (hostnames) of this partition. This is typically
@@ -46,6 +46,6 @@ public interface Partition<T> extends Serializable {
    * @throws IOException if opening a reader to this partitions
    *          data fails for some reason
    */
-  Reader<T> openReader() throws IOException;
+  BoundedReader<T> openReader() throws IOException;
 
 }

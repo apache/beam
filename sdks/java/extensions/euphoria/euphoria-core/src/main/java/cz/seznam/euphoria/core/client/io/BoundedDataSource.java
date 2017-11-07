@@ -13,23 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink.batch.io;
+package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
-import org.apache.flink.core.io.LocatableInputSplit;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import java.util.List;
 
-class PartitionWrapper<T> extends LocatableInputSplit {
+/**
+ * A {@code DataSource} with bounded data.
+ */
+@Audience(Audience.Type.EXECUTOR)
+public interface BoundedDataSource<T> extends DataSource<T> {
 
-  private final BoundedPartition<T> partition;
+  /** @return a list of all partitions of this source */
+  List<BoundedPartition<T>> getPartitions();
 
-  public PartitionWrapper(int splitNumber, BoundedPartition<T> partition) {
-    super(splitNumber, partition.getLocations().toArray(
-            new String[partition.getLocations().size()]));
 
-    this.partition = partition;
+  @Override
+  public default boolean isBounded() {
+    return true;
   }
 
-  public BoundedPartition<T> getPartition() {
-    return partition;
+  @Override
+  default BoundedDataSource<T> asBounded() {
+    return this;
   }
+
+  @Override
+  default int getParallelism() {
+    return getPartitions().size();
+  }
+
 }

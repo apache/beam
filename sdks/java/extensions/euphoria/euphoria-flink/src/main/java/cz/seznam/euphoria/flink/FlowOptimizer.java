@@ -86,7 +86,7 @@ public class FlowOptimizer {
       Operator<?, ?> op = flinkOp.getOriginalOperator();
 
       if (op instanceof FlowUnfolder.InputOperator) {
-        int partitions = op.output().getSource().getPartitions().size();
+        int partitions = op.output().getSource().getParallelism();
         flinkOp.setParallelism(Math.min(maxParallelism, partitions));
       } else {
         // other operators inherit parallelism from their parents

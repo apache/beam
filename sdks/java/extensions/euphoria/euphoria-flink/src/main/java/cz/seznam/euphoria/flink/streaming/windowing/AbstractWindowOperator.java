@@ -313,7 +313,6 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     if (tr.isFlush() || tr.isPurge()) {
       if (windowState == null) {
         if (windowing instanceof MergingWindowing) {
-          Objects.requireNonNull(mergingWindowSet);
           windowState = getWindowState(mergingWindowSet.getStateWindow(window));
         } else {
           windowState = getWindowState(window);

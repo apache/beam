@@ -18,7 +18,8 @@ package cz.seznam.euphoria.core.client.io;
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
-class EmptyReader<T> implements Reader<T> {
+class EmptyReader<T> implements UnboundedReader<T, MockStreamDataSource.Offset> {
+
   @Override
   public void close() throws IOException {
   }
@@ -29,7 +30,23 @@ class EmptyReader<T> implements Reader<T> {
   }
 
   @Override
+  public MockStreamDataSource.Offset getCurrentOffset() {
+    return null;
+  }
+
+  @Override
   public T next() {
     throw new NoSuchElementException();
   }
+
+  @Override
+  public void reset(MockStreamDataSource.Offset offset) {
+    // nop
+  }
+
+  @Override
+  public void commitOffset(MockStreamDataSource.Offset offset) {
+    // nop
+  }
+
 }

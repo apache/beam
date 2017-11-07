@@ -32,7 +32,6 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.examples.Executors;
 import cz.seznam.euphoria.hadoop.input.SimpleHadoopTextFileSource;
-
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.Date;

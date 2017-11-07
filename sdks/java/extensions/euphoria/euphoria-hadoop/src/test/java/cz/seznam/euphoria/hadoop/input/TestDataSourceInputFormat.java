@@ -15,11 +15,11 @@
  */
 package cz.seznam.euphoria.hadoop.input;
 
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.core.client.util.Pair;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.io.BoundedPartition;
+import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -27,6 +27,9 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.junit.Test;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -35,21 +38,17 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 /**
  * {@code DataSourceInputFormat} test suite.
  */
 public class TestDataSourceInputFormat {
-  
-  
-  static class DummyPartition<T> implements Partition<T> {
-    
+
+
+  static class DummyPartition<T> implements BoundedPartition<T> {
+
     final Set<String> locations;
     final Iterable<T> data;
-    
+
     DummyPartition(Set<String> locations, Iterable<T> data) {
       this.locations = locations;
       this.data = data;
@@ -61,8 +60,8 @@ public class TestDataSourceInputFormat {
     }
 
     @Override
-    public Reader<T> openReader() throws IOException {
-      return new Reader<T>() {
+    public BoundedReader<T> openReader() throws IOException {
+      return new BoundedReader<T>() {
 
         Iterator<T> it = data.iterator();
 
@@ -83,10 +82,10 @@ public class TestDataSourceInputFormat {
 
       };
     }
-    
+
   }
 
-  static class DummySource<T> implements DataSource<T> {
+  static class DummySource<T> implements BoundedDataSource<T> {
 
     final Supplier<T> supplier;
 
@@ -95,7 +94,7 @@ public class TestDataSourceInputFormat {
     }
 
     @Override
-    public List<Partition<T>> getPartitions() {
+    public List<BoundedPartition<T>> getPartitions() {
       return Arrays.asList(
           new DummyPartition<>(Sets.newHashSet("a", "b"), elements(2)),
           new DummyPartition<>(Sets.newHashSet("c", "d"), elements(3))
@@ -115,7 +114,7 @@ public class TestDataSourceInputFormat {
       return ret;
     }
 
-    
+
   }
 
   @Test
@@ -124,11 +123,11 @@ public class TestDataSourceInputFormat {
         () -> Pair.of(
                 Math.round(Math.random() * Long.MAX_VALUE),
                 Math.round(Math.random() * Long.MAX_VALUE)));
-    
+
     Configuration conf = new Configuration();
     TaskAttemptContext tac = mock(TaskAttemptContext.class);
     DataSourceInputFormat.configure(conf, source);
-    
+
     when(tac.getConfiguration()).thenReturn(conf);
 
     InputFormat<NullWritable, Pair<Long, Long>> inputFormat = new DataSourceInputFormat<>();
