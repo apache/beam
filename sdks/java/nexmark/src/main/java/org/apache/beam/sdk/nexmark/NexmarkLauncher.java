@@ -19,10 +19,8 @@ package org.apache.beam.sdk.nexmark;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,29 +32,6 @@ import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
-import org.apache.beam.sdk.nexmark.queries.Query0;
-import org.apache.beam.sdk.nexmark.queries.Query0Model;
-import org.apache.beam.sdk.nexmark.queries.Query1;
-import org.apache.beam.sdk.nexmark.queries.Query10;
-import org.apache.beam.sdk.nexmark.queries.Query11;
-import org.apache.beam.sdk.nexmark.queries.Query12;
-import org.apache.beam.sdk.nexmark.queries.Query1Model;
-import org.apache.beam.sdk.nexmark.queries.Query2;
-import org.apache.beam.sdk.nexmark.queries.Query2Model;
-import org.apache.beam.sdk.nexmark.queries.Query3;
-import org.apache.beam.sdk.nexmark.queries.Query3Model;
-import org.apache.beam.sdk.nexmark.queries.Query4;
-import org.apache.beam.sdk.nexmark.queries.Query4Model;
-import org.apache.beam.sdk.nexmark.queries.Query5;
-import org.apache.beam.sdk.nexmark.queries.Query5Model;
-import org.apache.beam.sdk.nexmark.queries.Query6;
-import org.apache.beam.sdk.nexmark.queries.Query6Model;
-import org.apache.beam.sdk.nexmark.queries.Query7;
-import org.apache.beam.sdk.nexmark.queries.Query7Model;
-import org.apache.beam.sdk.nexmark.queries.Query8;
-import org.apache.beam.sdk.nexmark.queries.Query8Model;
-import org.apache.beam.sdk.nexmark.queries.Query9;
-import org.apache.beam.sdk.nexmark.queries.Query9Model;
 import org.apache.beam.sdk.nexmark.sinks.QueryResultsSinkFactory;
 import org.apache.beam.sdk.nexmark.sinks.avro.AvroEventsSink;
 import org.apache.beam.sdk.nexmark.sources.EventSourceFactory;
@@ -75,6 +50,7 @@ import org.joda.time.Duration;
  * Run a single Nexmark query using a given configuration.
  */
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
+
   /**
    * NexmarkOptions shared by all runs.
    */
@@ -108,38 +84,56 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     this.options = options;
   }
 
-
   /**
-   * Is this query running in streaming mode?
+   * Run {@code configuration} and return its performance if possible.
    */
-  private boolean isStreaming() {
-    return options.isStreaming();
-  }
-
-  /**
-   * Return maximum number of workers.
-   */
-  private int maxNumWorkers() {
-    return 5;
-  }
-
-  /**
-   * Return a directory for logs.
-   */
-  private String logsDir(long now) {
-    String baseFilename = options.getOutputPath();
-    if (Strings.isNullOrEmpty(baseFilename)) {
-      throw new RuntimeException("Missing --outputPath");
+  @Nullable
+  public NexmarkPerf run(NexmarkConfiguration runConfiguration) {
+    if (options.getManageResources() && !options.getMonitorJobs()) {
+      throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
     }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return baseFilename;
-      case QUERY:
-        return String.format("%s/logs_%s", baseFilename, queryName);
-      case QUERY_AND_SALT:
-        return String.format("%s/logs_%s_%d", baseFilename, queryName, now);
+
+    //
+    // Setup per-run state.
+    //
+    checkState(configuration == null);
+    checkState(queryName == null);
+    configuration = runConfiguration;
+
+    try {
+      NexmarkUtils.console("Running %s", configuration.toShortString());
+
+      if (configuration.numEvents < 0) {
+        NexmarkUtils.console("skipping since configuration is disabled");
+        return null;
+      }
+
+      long now = System.currentTimeMillis();
+      NexmarkQuery query = NexmarkQueries.createQuery(configuration, options, now);
+      queryName = query.getName();
+
+      NexmarkQueryModel model = NexmarkQueries.createQueryModel(configuration);
+
+      if (options.getJustModelResultRate()) {
+        if (model == null) {
+          throw new RuntimeException(String.format("No model for %s", queryName));
+        }
+        modelResultRates(model);
+        return null;
+      }
+
+      Pipeline pipeline = newPipeline();
+
+      if (PubsubEventsGenerator.isPublishOnly(configuration)) {
+        return onlyPublishEvents(now, pipeline, query);
+      }
+
+      return executeQuery(query, model, now, pipeline);
+
+    } finally {
+      configuration = null;
+      queryName = null;
     }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
   private void sinkEventsToAvro(PCollection<Event> events) {
@@ -192,58 +186,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                            model.configuration.query, n, counts.get(0), counts.get(n / 4),
                            counts.get(n / 2),
                            counts.get(n - 1 - n / 4), counts.get(n - 1));
-    }
-  }
-
-  /**
-   * Run {@code configuration} and return its performance if possible.
-   */
-  @Nullable
-  public NexmarkPerf run(NexmarkConfiguration runConfiguration) {
-    if (options.getManageResources() && !options.getMonitorJobs()) {
-      throw new RuntimeException("If using --manageResources then must also use --monitorJobs.");
-    }
-
-    //
-    // Setup per-run state.
-    //
-    checkState(configuration == null);
-    checkState(queryName == null);
-    configuration = runConfiguration;
-
-    try {
-      NexmarkUtils.console("Running %s", configuration.toShortString());
-
-      if (configuration.numEvents < 0) {
-        NexmarkUtils.console("skipping since configuration is disabled");
-        return null;
-      }
-
-      NexmarkQuery query = createQueries().get(configuration.query);
-      queryName = query.getName();
-
-      List<NexmarkQueryModel> models = createModels();
-      NexmarkQueryModel model = models.get(configuration.query);
-
-      if (options.getJustModelResultRate()) {
-        if (model == null) {
-          throw new RuntimeException(String.format("No model for %s", queryName));
-        }
-        modelResultRates(model);
-        return null;
-      }
-
-      long now = System.currentTimeMillis();
-      Pipeline pipeline = newPipeline();
-
-      if (PubsubEventsGenerator.isPublishOnly(configuration)) {
-        return onlyPublishEvents(now, pipeline, query);
-      }
-
-      return executeQuery(query, model, now, pipeline);
-    } finally {
-      configuration = null;
-      queryName = null;
     }
   }
 
@@ -315,39 +257,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
             .create(configuration, options, queryName, now);
   }
 
-  private List<NexmarkQuery> createQueries() {
-    return Arrays.asList(
-        new Query0(configuration),
-        new Query1(configuration),
-        new Query2(configuration),
-        new Query3(configuration),
-        new Query4(configuration),
-        new Query5(configuration),
-        new Query6(configuration),
-        new Query7(configuration),
-        new Query8(configuration),
-        new Query9(configuration),
-        new Query10(configuration),
-        new Query11(configuration),
-        new Query12(configuration));
-  }
-
-  private List<NexmarkQueryModel> createModels() {
-    return Arrays.asList(
-        new Query0Model(configuration),
-        new Query1Model(configuration),
-        new Query2Model(configuration),
-        new Query3Model(configuration),
-        new Query4Model(configuration),
-        new Query5Model(configuration),
-        new Query6Model(configuration),
-        new Query7Model(configuration),
-        new Query8Model(configuration),
-        new Query9Model(configuration),
-        null,
-        null,
-        null);
-  }
 
   private Pipeline newPipeline() {
     Pipeline p = Pipeline.create(options);
@@ -366,16 +275,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       PCollection<Event> events,
       long now) {
 
-    // Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
-    // so, set parallelism. Also set the output path where to write log files.
-    if (configuration.query == 10) {
-      String path = null;
-      if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
-        path = logsDir(now);
-      }
-      ((Query10) query).setOutputPath(path);
-      ((Query10) query).setMaxNumWorkers(maxNumWorkers());
-    }
 
     // Apply query.
     return events.apply(query);
