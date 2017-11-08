@@ -80,7 +80,8 @@ public class BeamAggregationRel extends Aggregate implements BeamRelNode {
         BeamSqlRelUtils.getBeamRelInput(input).buildBeamPipeline(inputPCollections, sqlEnv);
     if (windowFieldIdx != -1) {
       upstream = upstream.apply(stageName + "assignEventTimestamp", WithTimestamps
-          .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx)))
+          .of(new BeamAggregationTransforms.WindowTimestampFn(windowFieldIdx))
+          .withAllowedTimestampSkew(new Duration(Long.MAX_VALUE)))
           .setCoder(upstream.getCoder());
     }
 
