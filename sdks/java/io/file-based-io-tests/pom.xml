@@ -27,9 +27,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>beam-sdks-java-io-text</artifactId>
-    <name>Apache Beam :: SDKs :: Java :: IO :: Text</name>
-    <description>IO to read and write on Text datasource.</description>
+    <artifactId>beam-sdks-java-io-file-based-io-tests</artifactId>
+    <name>Apache Beam :: SDKs :: Java :: IO :: File-based-io-tests</name>
+    <description>Integration tests for reading/writing using file-based sources/sinks.</description>
 
     <dependencies>
         <dependency>

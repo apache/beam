@@ -53,7 +53,9 @@ public abstract class TestTextLine {
   public static String getExpectedHashForLineCount(Long lineCount) {
     String hash = EXPECTED_HASHES.get(lineCount);
     if (hash == null) {
-      throw new UnsupportedOperationException("No hash for that line count");
+      throw new UnsupportedOperationException(
+          String.format("No hash for that line count: %s", lineCount)
+      );
     }
     return hash;
   }

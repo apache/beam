@@ -45,6 +45,7 @@
     <module>common</module>
     <module>elasticsearch</module>
     <module>elasticsearch-tests</module>
+    <module>file-based-io-tests</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
     <module>hadoop-file-system</module>
@@ -59,7 +60,6 @@
     <module>mqtt</module>
     <module>redis</module>
     <module>solr</module>
-    <module>text</module>
     <module>tika</module>
     <module>xml</module>
   </modules>

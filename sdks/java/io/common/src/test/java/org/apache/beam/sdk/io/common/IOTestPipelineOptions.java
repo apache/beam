@@ -88,10 +88,13 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   Integer getCassandraPort();
   void setCassandraPort(Integer port);
 
-  /* Text */
-  @Description("Lines of text count")
+  /*
+   * Options for test pipeline for TextIO in
+   * 'sdks/java/io/file-based-io-tests/src/test/java/org/apache/beam/sdk/io/text/TextIOIT.java'.
+   */
+  @Description("Number records that will be written and read by the test")
   @Default.Long(100000)
-  Long getLinesOfTextCount();
+  Long getNumberOfRecords();
 
-  void setLinesOfTextCount(Long count);
+  void setNumberOfRecords(Long count);
 }

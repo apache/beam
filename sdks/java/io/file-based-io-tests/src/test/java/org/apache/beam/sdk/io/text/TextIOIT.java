@@ -17,16 +17,22 @@
  */
 package org.apache.beam.sdk.io.text;
 
-import java.io.File;
-import java.io.FileFilter;
+import com.google.common.base.Function;
+import com.google.common.collect.FluentIterable;
+import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.text.ParseException;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
-
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestTextLine;
+import org.apache.beam.sdk.io.fs.MatchResult;
+import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -43,15 +49,13 @@ import org.junit.runners.JUnit4;
 
 
 /**
- * A test of {@link org.apache.beam.sdk.io.TextIO}.
+ * An integration test for {@link org.apache.beam.sdk.io.TextIO}.
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
  *  mvn -e -Pio-it verify -pl sdks/java/io/text -DintegrationTestPipelineOptions='[
- *  "--linesOfTextCount=100000" ]'
+ *  "--numberOfRecords=100000" ]'
  * </pre>
- *
- * <p>For now, this test can be run on DirectRunner only.
  * */
 @RunWith(JUnit4.class)
 public class TextIOIT {
@@ -68,40 +72,33 @@ public class TextIOIT {
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
-    if (options.getLinesOfTextCount() != null) {
-      linesOfTextCount = options.getLinesOfTextCount();
-    }
-
+    linesOfTextCount = options.getNumberOfRecords();
     filenamePrefix = generateFileBasename();
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    MatchResult match = Iterables.getOnlyElement(
+        FileSystems.match(Collections.singletonList(String.format("%s*", filenamePrefix))));
+    FileSystems.delete(toResourceIds(match));
+  }
+
+  private Collection<ResourceId> toResourceIds(MatchResult match) throws IOException {
+    return FluentIterable.from(match.metadata())
+        .transform(new Function<MatchResult.Metadata, ResourceId>() {
+          @Override
+          public ResourceId apply(MatchResult.Metadata metadata) {
+            return metadata.resourceId();
+          }
+        }).toList();
   }
 
   private static String generateFileBasename() {
     return String.format("TEXTIOIT_%s", new Date().getTime());
   }
 
-  @After public void tearDown() throws Exception {
-    deleteFiles();
-  }
-
-  private void deleteFiles() {
-    File currentDirectory = new File(".");
-    File[] filesToDelete = currentDirectory
-        .listFiles(new FileFilter() {
-          @Override
-          public boolean accept(File pathname) {
-            return (pathname.getName().startsWith(filenamePrefix));
-          }
-        });
-
-    if (filesToDelete != null) {
-      for (File f : filesToDelete) {
-        f.delete();
-      }
-    }
-  }
-
   @Test
-  public void testWriteThenRead() {
+  public void writeThenReadAll() {
     PCollection<String> consolidatedHashcode = pipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(linesOfTextCount))
         .apply("Produce text lines",
@@ -109,18 +106,11 @@ public class TextIOIT {
         .apply("Write content to files", TextIO.write().to(filenamePrefix).withOutputFilenames())
         .getPerDestinationOutputFilenames().apply(Values.<String>create())
         .apply("Read all files", TextIO.readAll())
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()).withoutDefaults());
+        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    assertHashcodeIsOk(consolidatedHashcode);
+    String expectedHash = TestTextLine.getExpectedHashForLineCount(linesOfTextCount);
+    PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
     pipeline.run().waitUntilFinish();
-  }
-
-  /**
-   * Assert that the obtained PCollection's consolidated hashcode equals a precalculated one.
-   */
-  private void assertHashcodeIsOk(PCollection<String> consolidatedContentHashcode) {
-    String expectedHash = TestTextLine.getExpectedHashForLineCount(linesOfTextCount);
-    PAssert.that(consolidatedContentHashcode).containsInAnyOrder(expectedHash);
   }
 }
