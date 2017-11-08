@@ -104,6 +104,7 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4.0.0',
     'protobuf>=3.2.0,<=3.3.0',
     'pyyaml>=3.12,<4.0.0',
+    'pyvcf>=0.6.8,<0.7.0',
     # Six 1.11.0 incompatible with apitools.
     # TODO(BEAM-2964): Remove the upper bound.
     'six>=1.9,<1.11',
@@ -160,7 +161,7 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',

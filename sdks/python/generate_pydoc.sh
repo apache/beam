@@ -115,6 +115,9 @@ ignore_identifiers = [
   'Set',
   'Tuple',
 
+  # Ignore broken built-in type references
+  'tuple',
+
   # Ignore private classes
   'apache_beam.coders.coders._PickleCoderBase',
   'apache_beam.coders.coders.FastCoder',
@@ -143,6 +146,9 @@ ignore_identifiers = [
 
   # Private classes which are used within the same module
   'WindowedTypeConstraint',  # apache_beam.typehints.typehints
+
+  # stdlib classes without documentation
+  'unittest.case.TestCase'
 ]
 
 # When inferring a base class it will use ':py:class'; if inferring a function

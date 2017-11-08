@@ -56,6 +56,30 @@ class TestUtilsTest(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       utils.delete_files([])
 
+  def test_temp_dir_removes_files(self):
+    dir_path = ''
+    file_path = ''
+    with utils.TempDir() as tempdir:
+      dir_path = tempdir.get_path()
+      file_path = tempdir.create_temp_file()
+      self.assertTrue(os.path.exists(dir_path))
+      self.assertTrue(os.path.exists(file_path))
+
+    self.assertFalse(os.path.exists(dir_path))
+    self.assertFalse(os.path.exists(file_path))
+
+  def test_temp_file_field_correct(self):
+    with utils.TempDir() as tempdir:
+      filename = tempdir.create_temp_file(
+          suffix='.txt',
+          lines=['line1\n', 'line2\n', 'line3\n'])
+      self.assertTrue(filename.endswith('.txt'))
+
+      with open(filename, 'rb') as f:
+        self.assertEqual(f.readline(), 'line1\n')
+        self.assertEqual(f.readline(), 'line2\n')
+        self.assertEqual(f.readline(), 'line3\n')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
