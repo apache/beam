@@ -19,11 +19,7 @@ package org.apache.beam.sdk.nexmark;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableRow;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
@@ -32,26 +28,18 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.concurrent.ThreadLocalRandom;
 
 import javax.annotation.Nullable;
 
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.io.AvroIO;
-import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
-import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
-import org.apache.beam.sdk.nexmark.model.Auction;
-import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
-import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQuery;
 import org.apache.beam.sdk.nexmark.queries.NexmarkQueryModel;
 import org.apache.beam.sdk.nexmark.queries.Query0;
@@ -77,19 +65,17 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.sinks.QueryResultsSinkFactory;
+import org.apache.beam.sdk.nexmark.sinks.avro.AvroEventsSink;
 import org.apache.beam.sdk.nexmark.sources.EventSourceFactory;
 import org.apache.beam.sdk.nexmark.sources.pubsub.PubsubEventsGenerator;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.TimestampedValue;
-import org.apache.beam.sdk.values.TupleTag;
-import org.apache.beam.sdk.values.TupleTagList;
 
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
@@ -587,52 +573,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     return perf;
   }
 
-  // ================================================================================
-  // Basic sources and sinks
-  // ================================================================================
-
-
-  /**
-   * Return a file name for plain text.
-   */
-  private String textFilename(long now) {
-    String baseFilename = options.getOutputPath();
-    if (Strings.isNullOrEmpty(baseFilename)) {
-      throw new RuntimeException("Missing --outputPath");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return baseFilename;
-      case QUERY:
-        return String.format("%s/nexmark_%s.txt", baseFilename, queryName);
-      case QUERY_AND_SALT:
-        return String.format("%s/nexmark_%s_%d.txt", baseFilename, queryName, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
-
-  /**
-   * Return a BigQuery table spec.
-   */
-  private String tableSpec(long now, String version) {
-    String baseTableName = options.getBigQueryTable();
-    if (Strings.isNullOrEmpty(baseTableName)) {
-      throw new RuntimeException("Missing --bigQueryTable");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return String.format("%s:nexmark.%s_%s",
-                             options.getProject(), baseTableName, version);
-      case QUERY:
-        return String.format("%s:nexmark.%s_%s_%s",
-                             options.getProject(), baseTableName, queryName, version);
-      case QUERY_AND_SALT:
-        return String.format("%s:nexmark.%s_%s_%s_%d",
-                             options.getProject(), baseTableName, queryName, version, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
-
   /**
    * Return a directory for logs.
    */
@@ -652,107 +592,16 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
     throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
   }
 
-  /**
-   * Sink all raw Events in {@code source} to {@code options.getOutputPath}.
-   * This will configure the job to write the following files:
-   * <ul>
-   * <li>{@code $outputPath/event*.avro} All Event entities.
-   * <li>{@code $outputPath/auction*.avro} Auction entities.
-   * <li>{@code $outputPath/bid*.avro} Bid entities.
-   * <li>{@code $outputPath/person*.avro} Person entities.
-   * </ul>
-   *
-   * @param source A PCollection of events.
-   */
-  private void sinkEventsToAvro(PCollection<Event> source) {
-    String filename = options.getOutputPath();
-    if (Strings.isNullOrEmpty(filename)) {
-      throw new RuntimeException("Missing --outputPath");
-    }
-    NexmarkUtils.console("Writing events to Avro files at %s", filename);
-    source.apply(queryName + ".WriteAvroEvents",
-            AvroIO.write(Event.class).to(filename + "/event").withSuffix(".avro"));
-    source.apply(NexmarkQuery.JUST_BIDS)
-          .apply(queryName + ".WriteAvroBids",
-            AvroIO.write(Bid.class).to(filename + "/bid").withSuffix(".avro"));
-    source.apply(NexmarkQuery.JUST_NEW_AUCTIONS)
-          .apply(queryName + ".WriteAvroAuctions",
-            AvroIO.write(Auction.class).to(filename + "/auction").withSuffix(".avro"));
-    source.apply(NexmarkQuery.JUST_NEW_PERSONS)
-          .apply(queryName + ".WriteAvroPeople",
-            AvroIO.write(Person.class).to(filename + "/person").withSuffix(".avro"));
-  }
-
-  /**
-   * Send {@code formattedResults} to text files.
-   */
-  private void sinkResultsToText(PCollection<String> formattedResults, long now) {
-    String filename = textFilename(now);
-    NexmarkUtils.console("Writing results to text files at %s", filename);
-    formattedResults.apply(queryName + ".WriteTextResults",
-        TextIO.write().to(filename));
-  }
-
-  private static class StringToTableRow extends DoFn<String, TableRow> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      int n = ThreadLocalRandom.current().nextInt(10);
-      List<TableRow> records = new ArrayList<>(n);
-      for (int i = 0; i < n; i++) {
-        records.add(new TableRow().set("index", i).set("value", Integer.toString(i)));
-      }
-      c.output(new TableRow().set("result", c.element()).set("records", records));
-    }
-  }
-
-  /**
-   * Send {@code formattedResults} to BigQuery.
-   */
-  private void sinkResultsToBigQuery(
-      PCollection<String> formattedResults, long now,
-      String version) {
-    String tableSpec = tableSpec(now, version);
-    TableSchema tableSchema =
-        new TableSchema().setFields(ImmutableList.of(
-            new TableFieldSchema().setName("result").setType("STRING"),
-            new TableFieldSchema().setName("records").setMode("REPEATED").setType("RECORD")
-                                  .setFields(ImmutableList.of(
-                                      new TableFieldSchema().setName("index").setType("INTEGER"),
-                                      new TableFieldSchema().setName("value").setType("STRING")))));
-    NexmarkUtils.console("Writing results to BigQuery table %s", tableSpec);
-    BigQueryIO.Write io =
-        BigQueryIO.write().to(tableSpec)
-                        .withSchema(tableSchema)
-                        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-                        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
-    formattedResults
-        .apply(queryName + ".StringToTableRow", ParDo.of(new StringToTableRow()))
-        .apply(queryName + ".WriteBigQueryResults", io);
-  }
-
-  // ================================================================================
-  // Construct overall pipeline
-  // ================================================================================
-
-  private static final TupleTag<String> MAIN = new TupleTag<String>(){};
-  private static final TupleTag<String> SIDE = new TupleTag<String>(){};
-
-  private static class PartitionDoFn extends DoFn<String, String> {
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      if (c.element().hashCode() % 2 == 0) {
-        c.output(c.element());
-      } else {
-        c.output(SIDE, c.element());
-      }
-    }
+  private void sinkEventsToAvro(PCollection<Event> events) {
+    events.apply(AvroEventsSink.createSink(options, queryName));
   }
 
   /**
    * Consume {@code results}.
    */
   private void sink(PCollection<TimestampedValue<KnownSize>> results, long now) {
-    if (configuration.sinkType == NexmarkUtils.SinkType.COUNT_ONLY) {
+    if (configuration.sinkType == NexmarkUtils.SinkType.COUNT_ONLY
+        || configuration.sinkType == NexmarkUtils.SinkType.DEVNULL) {
       // Avoid the cost of formatting the results.
       results.apply(queryName + ".DevNull", NexmarkUtils.devNull(queryName));
       return;
@@ -760,85 +609,23 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     PCollection<String> formattedResults =
       results.apply(queryName + ".Format", NexmarkUtils.format(queryName));
+
     if (options.getLogResults()) {
       formattedResults = formattedResults.apply(queryName + ".Results.Log",
-              NexmarkUtils.<String>log(queryName + ".Results"));
+              NexmarkUtils.<String> log(queryName + ".Results"));
     }
 
-    switch (configuration.sinkType) {
-      case DEVNULL:
-        // Discard all results
-        formattedResults.apply(queryName + ".DevNull", NexmarkUtils.devNull(queryName));
-        break;
-      case PUBSUB:
-        sinkResultsToPubsub(configuration, options, queryName, formattedResults, now);
-        break;
-      case TEXT:
-        sinkResultsToText(formattedResults, now);
-        break;
-      case AVRO:
-        NexmarkUtils.console(
-            "WARNING: with --sinkType=AVRO, actual query results will be discarded.");
-        break;
-      case BIGQUERY:
-        // Multiple BigQuery backends to mimic what most customers do.
-        PCollectionTuple res = formattedResults.apply(queryName + ".Partition",
-            ParDo.of(new PartitionDoFn()).withOutputTags(MAIN, TupleTagList.of(SIDE)));
-        sinkResultsToBigQuery(res.get(MAIN), now, "main");
-        sinkResultsToBigQuery(res.get(SIDE), now, "side");
-        sinkResultsToBigQuery(formattedResults, now, "copy");
-        break;
-      case COUNT_ONLY:
-        // Short-circuited above.
-        throw new RuntimeException();
+    if (configuration.sinkType == NexmarkUtils.SinkType.AVRO) {
+      NexmarkUtils.console(
+          "WARNING: with --sinkType=AVRO, actual query results will be discarded.");
+      return;
     }
+
+    PTransform<PCollection<String>, ? extends POutput> sink =
+        QueryResultsSinkFactory.createSink(configuration, options, queryName, now);
+
+    formattedResults.apply(sink);
   }
-
-  /**
-   * Send {@code formattedResults} to Pubsub.
-   */
-  private static void sinkResultsToPubsub(
-      NexmarkConfiguration configuration,
-      NexmarkOptions options,
-      String queryName,
-      PCollection<String> formattedResults, long now) {
-
-    String shortTopic = shortTopic(options, queryName, now);
-    NexmarkUtils.console("Writing results to Pubsub %s", shortTopic);
-    PubsubIO.Write<String> io =
-        PubsubIO.writeStrings().to(shortTopic)
-            .withIdAttribute(NexmarkUtils.PUBSUB_ID);
-    if (!configuration.usePubsubPublishTime) {
-      io = io.withTimestampAttribute(NexmarkUtils.PUBSUB_TIMESTAMP);
-    }
-    formattedResults.apply(queryName + ".WritePubsubResults", io);
-  }
-
-  /**
-   * Return a topic name.
-   */
-  private static String shortTopic(NexmarkOptions options,
-                                   String queryName,
-                                   long now) {
-
-    String baseTopic = options.getPubsubTopic();
-    if (Strings.isNullOrEmpty(baseTopic)) {
-      throw new RuntimeException("Missing --pubsubTopic");
-    }
-    switch (options.getResourceNameMode()) {
-      case VERBATIM:
-        return baseTopic;
-      case QUERY:
-        return String.format("%s_%s_source", baseTopic, queryName);
-      case QUERY_AND_SALT:
-        return String.format("%s_%s_%d_source", baseTopic, queryName, now);
-    }
-    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
-  }
-
-  // ================================================================================
-  // Entry point
-  // ================================================================================
 
   /**
    * Calculate the distribution of the expected rate of results per minute (in event time, not
@@ -882,8 +669,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return null;
       }
 
-      List<NexmarkQuery> queries = createQueries();
-      NexmarkQuery query = queries.get(configuration.query);
+      NexmarkQuery query = createQueries().get(configuration.query);
       queryName = query.getName();
 
       List<NexmarkQueryModel> models = createModels();
