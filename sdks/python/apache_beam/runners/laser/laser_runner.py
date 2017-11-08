@@ -27,6 +27,7 @@ import cPickle as pickle
 import json
 import logging
 import multiprocessing
+from Queue import Queue
 import random
 import socket
 import struct
@@ -74,6 +75,10 @@ from apache_beam import pvalue
 from apache_beam.pvalue import PBegin
 from apache_beam.runners.worker import operation_specs
 # from apache_beam.runners.worker import operations
+
+
+from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 
 class StepGraph(object):
   def __init__(self):
@@ -135,7 +140,7 @@ class PCollectionNode(object):
     self.consumers.append(consumer_step)
 
   def __repr__(self):
-    return 'Step[%s.%s]' % (self.step.name, self.tag)
+    return 'PCollectionNode[%s.%s]' % (self.step.name, self.tag)
 
 
 
@@ -151,22 +156,29 @@ class Step(object):
     # self.side_input_steps
     self.outputs = {}
 
-  def _add_input(self, input_step):
-    assert isinstance(input_step, Step)
-    self.inputs.append(input_step)
+  # def _add_input(self, input_step):
+  #   assert isinstance(input_step, Step)
+  #   self.inputs.append(input_step)
 
-  def _add_output(self, output_step):  # add_consumer? what happens with named outputs? do we care?
-    assert isinstance(output_step, Step)
-    self.outputs.append(output_step)
+  # def _add_output(self, output_step):  # add_consumer? what happens with named outputs? do we care?
+  #   assert isinstance(output_step, Step)
+  #   self.outputs.append(output_step)
+  
+  def copy(self):
+    """Return copy of this Step, without its attached inputs or outputs."""
+    raise NotImplementedError()
 
   def __repr__(self):
     return 'Step(%s, coder: %s)' % (self.name, getattr(self, 'element_coder', None))
 
 class ReadStep(Step):
-  def __init__(self, name, source_bundle, element_coder):
+  def __init__(self, name, original_source_bundle, element_coder):
     super(ReadStep, self).__init__(name)
-    self.original_source_bundle = source_bundle
+    self.original_source_bundle = original_source_bundle
     self.element_coder = element_coder
+
+  def copy(self):
+    return ReadStep(self.name, self.original_source_bundle, self.element_coder)
 
 
 class ParDoFnData(object):
@@ -189,10 +201,146 @@ class ParDoStep(Step):
     self.pardo_fn_data = pardo_fn_data
     self.element_coder = element_coder
 
+  def copy(self):
+    return ParDoStep(self.name, self.pardo_fn_data, self.element_coder)
+
 class GroupByKeyStep(Step):
   def __init__(self, name, element_coder):
     super(GroupByKeyStep, self).__init__(name)
     self.element_coder = element_coder
+
+  def copy(self):
+    return GroupByKeyStep(self.element_coder)
+
+
+class WatermarkNode(object):
+  def __init__(self):
+    self.input_watermark = MIN_TIMESTAMP
+    self.watermark_hold = MAX_TIMESTAMP
+    self.output_watermark = MIN_TIMESTAMP
+    self.dependents = []
+
+  def set_watermark_hold(self, hold_time=None):
+    # TODO: do we need some synchronization?
+    if hold_time is None:
+      self.watermark_hold = MAX_TIMESTAMP
+    self.watermark_hold = hold_time
+
+  def watermark_advanced(self, new_watermark):
+    pass
+
+class CompositeWatermarkNode(WatermarkNode):
+  class InputWatermarkNode(WatermarkNode):
+    def __init__(self, composite_node):
+      super(CompositeWatermarkNode.InputWatermarkNode, self).__init__()
+      self.composite_node = composite_node
+
+    def watermark_advanced(self, new_watermark):
+      self.composite_node.watermark_advanced
+
+  class OutputWatermarkNode(WatermarkNode):
+    pass
+
+  def __init__(self):
+    super(CompositeWatermarkNode, self).__init__()
+    self.input_watermark_node = CompositeWatermarkNode.InputWatermarkNode(self)
+    self.output_watermark_node = CompositeWatermarkNode.OutputWatermarkNode(self)
+
+  def set_watermark_hold(self, hold_time=None):
+    self.output_watermark_node.set_watermark_hold(hold_time=hold_time)
+
+
+class ExecutionGraph(object):
+  def __init__(self):
+    self.stages = []
+
+  def add_stage(self, stage):
+    self.stages.append(stage)
+
+
+class Stage(object):
+  def __init__(self):
+    pass
+
+
+class FusedStage(Stage, CompositeWatermarkNode):
+
+  def __init__(self):
+    super(FusedStage, self).__init__()
+    self.step_to_original_step = {}
+    self.original_step_to_step = {}
+    self.read_step = None
+    self.steps = []
+
+  def add_step(self, original_step):
+    # when a FusedStage adds a step, the step is copied.
+    step = original_step.copy()
+    # self.step_to_original_step[step] = original_step
+    self.original_step_to_step[original_step] = step
+    # Replicate outputs.
+    for tag, original_output_pcoll in original_step.outputs.iteritems():
+      step.outputs[tag] = PCollectionNode(step, tag)
+
+    if isinstance(step, ReadStep):
+      assert not original_step.inputs
+      assert not self.read_step
+      self.read_step = step
+    else:
+      # Copy inputs.
+      for original_input_pcoll in original_step.inputs:
+        input_pcoll = self.original_step_to_step[original_input_pcoll.step].outputs[tag]
+        step.inputs.append(input_pcoll)
+        input_pcoll.add_consumer(step)
+    self.steps.append(step)
+
+  def __repr__(self):
+    return 'FusedStage(steps: %s)' % self.steps
+
+
+
+def generate_execution_graph(step_graph):
+  # TODO: if we ever support interactive pipelines or incremental execution,
+  # we want to implement idempotent application of a step graph into updating
+  # the execution graph.
+  execution_graph = ExecutionGraph()
+  root_steps = list(step for step in step_graph.steps if not step.inputs)
+  to_process = Queue()
+  for step in root_steps:
+    to_process.put(step)
+  seen = set(root_steps)
+
+  # Grow fused stages through a breadth-first traversal.
+  steps_to_fused_stages = {}
+  while not to_process.empty():
+    original_step = to_process.get()
+    if isinstance(original_step, ReadStep):
+      assert not original_step.inputs
+      fused_stage = FusedStage()
+      fused_stage.add_step(original_step)
+      print 'fused_stage', original_step, fused_stage
+      steps_to_fused_stages[original_step] = fused_stage
+    elif isinstance(original_step, ParDoStep):
+      assert len(original_step.inputs) == 1
+      input_step = original_step.inputs[0].step
+      print 'input_step', input_step
+      fused_stage = steps_to_fused_stages[input_step]
+      fused_stage.add_step(original_step)
+      steps_to_fused_stages[original_step] = fused_stage
+      # TODO: add original step -> new step mapping.
+      # TODO: add dependencies via WatermarkNode.
+    # TODO: handle GroupByKeyStep.
+    for unused_tag, pcoll_node in original_step.outputs.iteritems():
+      for consumer_step in pcoll_node.consumers:
+        if consumer_step not in seen:
+          to_process.put(consumer_step)
+          seen.add(consumer_step)
+
+  # Add fused stages to graph.
+  for fused_stage in set(steps_to_fused_stages.values()):
+    execution_graph.add_stage(fused_stage)
+
+  return execution_graph
+
 
 
 
@@ -291,6 +439,9 @@ class LaserRunner(PipelineRunner):
     print 'COMPLETEd step graph', self.step_graph
     for step in self.step_graph.steps:
       print step.inputs, step.outputs
+    execution_graph = generate_execution_graph(self.step_graph)
+    print 'EXECUTION GRAPH', execution_graph
+    print execution_graph.stages
 
 
 
@@ -497,6 +648,7 @@ if __name__ == '__main__':
   # def fn(input):
   #   print input
   p | Create([1, 2, 3]) | beam.Map(lambda x: (x, '1')) | beam.GroupByKey()
+  p | 'yo' >> Create(['a', 'b', 'c']) | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey()
   # | beam.Map(fn)
   p.run()
 
