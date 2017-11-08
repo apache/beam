@@ -91,7 +91,7 @@ class SdkWorkerTest(unittest.TestCase):
     harness = sdk_worker.SdkHarness("localhost:%s" % test_port)
     harness.run()
     self.assertEqual(
-      harness.worker.fns,
+      harness.worker_wrapper.worker.fns,
       {item.id: item for item in process_bundle_descriptors})
 
   def test_fn_registration(self):

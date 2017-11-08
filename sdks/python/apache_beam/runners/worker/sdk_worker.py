@@ -40,18 +40,17 @@ from apache_beam.runners.worker import data_plane
 class SdkHarness(object):
 
   def __init__(self, control_address):
+    self._worker_count = 1
     self._control_channel = grpc.insecure_channel(control_address)
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     # TODO: Ensure thread safety to run with more than 1 thread.
-    self._default_work_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
-    self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
 
   def run(self):
     control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
-    state_stub = beam_fn_api_pb2_grpc.BeamFnStateStub(self._control_channel)
-    state_handler = GrpcStateHandler(state_stub)
-    state_handler.start()
-    self.worker = SdkWorker(state_handler, self._data_channel_factory)
+
+    self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+    self.worker_wrapper = SDKWorkerWrapper(control_channel=self._control_channel,
+                                           data_channel_factory=self._data_channel_factory)
 
     responses = queue.Queue()
     no_more_work = object()
@@ -66,49 +65,66 @@ class SdkHarness(object):
     for work_request in control_stub.Control(get_responses()):
       logging.info('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
-      # WhichOneOf returns the name of the set field as a single string
-      if request_type in ['process_bundle_progress']:
-        thread_pool = self._progress_thread_pool
-      else:
-        thread_pool = self._default_work_thread_pool
 
-      # Need this wrapper to capture the original stack trace.
-      def do_instruction(request):
-        try:
-          return self.worker.do_instruction(request)
-        except Exception as e:  # pylint: disable=broad-except
-          traceback_str = traceback.format_exc(e)
-          raise Exception("Error processing request. Original traceback "
-                          "is\n%s\n" % traceback_str)
+      def schedule(thread_pool, work_request, worker):
+        # Need this wrapper to capture the original stack trace.
+        def do_instruction(request):
+          try:
+            return worker.do_instruction(request)
+          except Exception as e:  # pylint: disable=broad-except
+            traceback_str = traceback.format_exc(e)
+            raise Exception("Error processing request. Original traceback "
+                            "is\n%s\n" % traceback_str)
 
-      def handle_response(request, response_future):
-        try:
-          response = response_future.result()
-        except Exception as e:  # pylint: disable=broad-except
-          logging.error(
+        def handle_response(request, response_future):
+          try:
+            response = response_future.result()
+          except Exception as e:  # pylint: disable=broad-except
+            logging.error(
               'Error processing instruction %s',
               request.instruction_id,
               exc_info=True)
-          response = beam_fn_api_pb2.InstructionResponse(
+            response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=request.instruction_id,
               error=str(e))
-        responses.put(response)
+          responses.put(response)
 
-      thread_pool.submit(do_instruction, work_request).add_done_callback(
+        thread_pool.submit(do_instruction, work_request).add_done_callback(
           functools.partial(handle_response, work_request))
+
+      if request_type == 'register':
+        # Register will all the workers as the next process bundle request can go to any worker
+        schedule(self.worker_wrapper.worker_thread_pool, work_request, self.worker_wrapper.worker)
+      elif request_type == 'process_bundle':
+        # Schedule process bundle on a new worker and map the instruction_id to the worker
+        schedule(self.worker_wrapper.worker_thread_pool, work_request, self.worker_wrapper.worker)
+      elif request_type == 'process_bundle_progress':
+        # get the worker for this process_bundle and
+        schedule(self._progress_thread_pool, work_request, self.worker_wrapper.worker)
 
     logging.info("No more requests from control plane")
     logging.info("SDK Harness waiting for in-flight requests to complete")
     # Wait until existing requests are processed.
     self._progress_thread_pool.shutdown()
-    self._default_work_thread_pool.shutdown()
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
     responses.put(no_more_work)
     self._data_channel_factory.close()
-    state_handler.done()
+    self.worker_wrapper.stop()
     logging.info('Done consuming work.')
 
+
+class SDKWorkerWrapper(object):
+  def __init__(self, control_channel, data_channel_factory):
+    self.state_handler = GrpcStateHandler(beam_fn_api_pb2_grpc.BeamFnStateStub(control_channel))
+    self.state_handler.start()
+    self.data_channel_factory = data_channel_factory
+    self.worker_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+    self.worker = SdkWorker(self.state_handler, self.data_channel_factory)
+
+  def stop(self):
+    self.worker_thread_pool.shutdown()
+    self.state_handler.done()
 
 class SdkWorker(object):
 
