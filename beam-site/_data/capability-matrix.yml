@@ -15,6 +15,8 @@ columns:
     name: Apache Hadoop MapReduce
   - class: jstorm
     name: JStorm
+  - class: ibmstreams
+    name: IBM Streams
 
 categories:
   - description: What is being computed?
@@ -58,6 +60,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: GroupByKey
         values:
           - class: model
@@ -89,6 +95,10 @@ categories:
             l2: fully supported
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -126,6 +136,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''            
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Combine
         values:
           - class: model
@@ -160,6 +174,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''            
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Composite Transforms
         values:
           - class: model
@@ -193,7 +211,11 @@ categories:
           - class: jstorm
             l1: 'Yes'
             l2: fully supported
-            l3: ''            
+            l3: ''
+          - class: ibmstreams
+            l1: 'Partially'
+            l2: supported via inlining
+            l3: ''
       - name: Side Inputs
         values:
           - class: model
@@ -228,6 +250,10 @@ categories:
             l1: 'Yes'
             l2: some size restrictions
             l3: ''            
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
       - name: Source API
         values:
           - class: model
@@ -259,6 +285,10 @@ categories:
             l2: bounded source only
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -296,6 +326,10 @@ categories:
             l1: 'No'
             l2: not implemented
             l3:
+          - class: ibmstreams
+            l1: 'No'
+            l2: not implemented
+            l3: 
       - name: Metrics
         values:
           - class: model
@@ -330,6 +364,10 @@ categories:
             l1: 'Partially'
             l2: Metrics are only supported in local mode.
             l3: ''
+          - class: ibmstreams
+            l1: 'Partially'
+            l2: All metrics types are supported.
+            l3: Only attempted values are supported. No committed values for metrics.
       - name: Stateful Processing
         values:
           - class: model
@@ -361,6 +399,10 @@ categories:
             l2: non-merging windows
             l3: ''
           - class: jstorm
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: ''
+          - class: ibmstreams
             l1: 'Partially'
             l2: non-merging windows
             l3: ''
@@ -405,6 +447,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Fixed windows
         values:
           - class: model
@@ -436,6 +482,10 @@ categories:
             l2: supported
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -473,6 +523,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Session windows
         values:
           - class: model
@@ -504,6 +558,10 @@ categories:
             l2: supported
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -541,6 +599,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
       - name: Custom merging windows
         values:
           - class: model
@@ -572,6 +634,10 @@ categories:
             l2: supported
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: supported
             l3: ''
@@ -609,7 +675,10 @@ categories:
             l1: 'Yes'
             l2: supported
             l3: ''
-
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: supported
+            l3: ''
 
   - description: When in processing time?
     anchor: when
@@ -653,6 +722,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Event-time triggers
         values:
@@ -685,6 +758,10 @@ categories:
             l2: ''
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -723,6 +800,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Count triggers
         values:
@@ -755,6 +836,10 @@ categories:
             l2: ''
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -794,6 +879,10 @@ categories:
             l1: 'No'
             l2: pending model support
             l3:
+          - class: ibmstreams
+            l1: 'No'
+            l2: pending model support
+            l3: 
 
       - name: Composite triggers
         values:
@@ -826,6 +915,10 @@ categories:
             l2: ''
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -864,6 +957,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Timers
         values:
@@ -896,6 +993,10 @@ categories:
             l2: ''
             l3: ''
           - class: jstorm
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: ''
+          - class: ibmstreams
             l1: 'Partially'
             l2: non-merging windows
             l3: ''
@@ -942,6 +1043,10 @@ categories:
             l1: 'Yes'
             l2: fully supported
             l3: ''
+          - class: ibmstreams
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
 
       - name: Accumulating
         values:
@@ -974,6 +1079,10 @@ categories:
             l2: ''
             l3: ''
           - class: jstorm
+            l1: 'Yes'
+            l2: fully supported
+            l3: ''
+          - class: ibmstreams
             l1: 'Yes'
             l2: fully supported
             l3: ''
@@ -1010,6 +1119,10 @@ categories:
             l2: ''
             l3: ''
           - class: jstorm
+            l1: 'No'
+            l2: pending model support
+            l3: ''
+          - class: ibmstreams
             l1: 'No'
             l2: pending model support
             l3: ''
