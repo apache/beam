@@ -16,11 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.schema.text;
+package org.apache.beam.sdk.extensions.sql.meta.provider.text;
+
+import static org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils.csvLine2BeamRecord;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.impl.schema.BeamTableUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -35,13 +36,13 @@ public class BeamTextCSVTableIOReader
     extends PTransform<PCollection<String>, PCollection<BeamRecord>>
     implements Serializable {
   private String filePattern;
-  protected BeamRecordSqlType beamSqlRowType;
+  protected BeamRecordSqlType beamRecordSqlType;
   protected CSVFormat csvFormat;
 
-  public BeamTextCSVTableIOReader(BeamRecordSqlType beamSqlRowType, String filePattern,
+  public BeamTextCSVTableIOReader(BeamRecordSqlType beamRecordSqlType, String filePattern,
       CSVFormat csvFormat) {
     this.filePattern = filePattern;
-    this.beamSqlRowType = beamSqlRowType;
+    this.beamRecordSqlType = beamRecordSqlType;
     this.csvFormat = csvFormat;
   }
 
@@ -51,7 +52,7 @@ public class BeamTextCSVTableIOReader
           @ProcessElement
           public void processElement(ProcessContext ctx) {
             String str = ctx.element();
-            ctx.output(BeamTableUtils.csvLine2BeamSqlRow(csvFormat, str, beamSqlRowType));
+            ctx.output(csvLine2BeamRecord(csvFormat, str, beamRecordSqlType));
           }
         }));
   }

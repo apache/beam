@@ -15,22 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.extensions.sql.impl.schema;
-
-import java.io.Serializable;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
-import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 
 /**
- * Each IO in Beam has one table schema, by extending {@link BaseBeamTable}.
+ * table schema for KafkaIO.
  */
-public abstract class BaseBeamTable implements BeamSqlTable, Serializable {
-  protected BeamRecordSqlType beamRecordSqlType;
-  public BaseBeamTable(BeamRecordSqlType beamRecordSqlType) {
-    this.beamRecordSqlType = beamRecordSqlType;
-  }
-
-  @Override public BeamRecordSqlType getRowType() {
-    return beamRecordSqlType;
-  }
-}
+package org.apache.beam.sdk.extensions.sql.meta.provider.kafka;

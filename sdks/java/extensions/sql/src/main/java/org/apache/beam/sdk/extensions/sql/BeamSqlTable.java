@@ -16,10 +16,10 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.schema;
+package org.apache.beam.sdk.extensions.sql;
 
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
