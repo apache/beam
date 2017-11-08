@@ -75,6 +75,7 @@ class UniversalLocalRunnerTestWithGrpc(UniversalLocalRunnerTest):
   _use_grpc = True
 
 
+@unittest.skip("BEAM-3040")
 class UniversalLocalRunnerTestWithSubprocesses(UniversalLocalRunnerTest):
   _use_grpc = True
   _use_subprocesses = True
