@@ -44,7 +44,7 @@ mavenJob('beam_PreCommit_Java_MavenInstall') {
   goals([
     '--batch-mode',
     '--errors',
-    '--activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner',
+    '--activate-profiles release,jenkins-precommit,direct-runner,dataflow-runner,spark-runner,flink-runner,apex-runner,mapreduce-runner',
     '--projects sdks/java/core,runners/direct-java,sdks/java/fn-execution',
     '--also-make',
     '--also-make-dependents',

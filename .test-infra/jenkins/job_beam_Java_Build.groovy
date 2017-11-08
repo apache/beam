@@ -49,7 +49,8 @@ mavenJob('beam_Java_Build') {
     'dataflow-runner',
     'spark-runner',
     'flink-runner',
-    'apex-runner'
+    'apex-runner',
+    'mapreduce-runner'
   ]
   args = [
     '-B',

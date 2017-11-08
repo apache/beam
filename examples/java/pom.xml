@@ -107,6 +107,18 @@
       </dependencies>
     </profile>
 
+    <!-- Include the Apache Hadoop MapReduce runner with -P mapreduce-runner -->
+    <profile>
+      <id>mapreduce-runner</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-mapreduce</artifactId>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
     <!-- Include the Apache Spark runner -P spark-runner -->
     <profile>
       <id>spark-runner</id>
@@ -230,6 +242,30 @@
                       "--project=apache-beam-testing",
                       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
                       "--runner=org.apache.beam.runners.flink.TestFlinkRunner"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
+              <execution>
+                <id>mapreduce-runner-integration-tests</id>
+                <goals>
+                  <goal>integration-test</goal>
+                  <goal>verify</goal>
+                </goals>
+                <configuration>
+                  <includes>
+                    <include>WordCountIT.java</include>
+                    <include>WindowedWordCountIT.java</include>
+                  </includes>
+                  <parallel>all</parallel>
+                  <threadCount>4</threadCount>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--project=apache-beam-testing",
+                      "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+                      "--runner=org.apache.beam.runners.mapreduce.MapReduceRunner"
                       ]
                     </beamTestPipelineOptions>
                   </systemPropertyVariables>

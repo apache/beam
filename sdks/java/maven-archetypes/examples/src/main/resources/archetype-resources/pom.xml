@@ -222,6 +222,19 @@
     </profile>
 
     <profile>
+      <id>mapreduce-runner</id>
+      <!-- Makes the MapReduceRunner available when running a pipeline. -->
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-runners-mapreduce</artifactId>
+          <version>${beam.version}</version>
+          <scope>runtime</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+
+    <profile>
       <id>spark-runner</id>
       <!-- Makes the SparkRunner available when running a pipeline. Additionally,
            overrides some Spark dependencies to Beam-compatible versions. -->

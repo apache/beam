@@ -34,7 +34,8 @@ mavenJob('beam_Java_IntegrationTest') {
     'dataflow-runner',
     'spark-runner',
     'flink-runner',
-    'apex-runner'
+    'apex-runner',
+    'mapreduce-runner'
   ]
   // In the case of the precommit integration tests, we are currently only running the integration
   // tests in the examples directory. By directly invoking failsafe with an execution name (which we
@@ -47,6 +48,7 @@ mavenJob('beam_Java_IntegrationTest') {
     'direct-runner-integration-tests',
     'flink-runner-integration-tests',
     'spark-runner-integration-tests',
+    'mapreduce-runner-integration-tests',
   ]
   // Arguments to provide Maven.
   args = [
