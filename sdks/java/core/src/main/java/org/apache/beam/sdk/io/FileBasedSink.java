@@ -694,6 +694,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         for (Map.Entry<ResourceId, ResourceId> srcDestPair : filenames.entrySet()) {
           srcFiles.add(srcDestPair.getKey());
           dstFiles.add(srcDestPair.getValue());
+          LOG.info(
+              "Will copy temporary file {} to final location {}",
+              srcDestPair.getKey(),
+              srcDestPair.getValue());
         }
         // During a failure case, files may have been deleted in an earlier step. Thus
         // we ignore missing files here.
@@ -734,6 +738,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
                   FileSystems.match(Collections.singletonList(tempDir.toString() + "*")));
           for (Metadata matchResult : singleMatch.metadata()) {
             matches.add(matchResult.resourceId());
+            LOG.info("Will remove temporary file {}", matchResult.resourceId());
           }
         } catch (Exception e) {
           LOG.warn("Failed to match temporary files under: [{}].", tempDir);
@@ -921,7 +926,15 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           getWriteOperation().getSink().writableByteChannelFactory;
       // The factory may force a MIME type or it may return null, indicating to use the sink's MIME.
       String channelMimeType = firstNonNull(factory.getMimeType(), mimeType);
-      LOG.debug("Opening {} for write with MIME type {}.", outputFile, channelMimeType);
+      LOG.info(
+          "Opening temporary file {} with MIME type {} "
+              + "to write destination {} shard {} window {} pane {}",
+          outputFile,
+          channelMimeType,
+          destination,
+          shard,
+          window,
+          paneInfo);
       WritableByteChannel tempChannel = FileSystems.create(outputFile, channelMimeType);
       try {
         channel = factory.create(tempChannel);
@@ -950,6 +963,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     public final void cleanup() throws Exception {
       if (outputFile != null) {
+        LOG.info("Deleting temporary file {}", outputFile);
         // outputFile may be null if open() was not called or failed.
         FileSystems.delete(
             Collections.singletonList(outputFile), StandardMoveOptions.IGNORE_MISSING_FILES);
@@ -991,7 +1005,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
       FileResult<DestinationT> result =
           new FileResult<>(outputFile, shard, window, paneInfo, destination);
-      LOG.debug("Result for bundle {}: {}", this.id, outputFile);
+      LOG.info("Successfully wrote temporary file {}", outputFile);
       return result;
     }
 
