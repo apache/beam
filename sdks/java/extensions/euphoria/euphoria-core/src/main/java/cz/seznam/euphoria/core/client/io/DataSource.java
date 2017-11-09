@@ -15,12 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 import java.util.List;
 
 /**
  * Source of data for dataset.
  */
+@Audience(Audience.Type.CLIENT)
 public interface DataSource<T> extends Serializable {
 
   /** @return a list of all partitions of this source */

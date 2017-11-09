@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 
 /**
  * A state for stateful operations.
  */
+@Audience(Audience.Type.CLIENT)
 public interface State<IN, OUT> {
 
   /**

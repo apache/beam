@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Context;
 
 import java.io.Serializable;
@@ -25,9 +26,10 @@ import java.io.Serializable;
  * @param <IN> the type of the element processed
  * @param <OUT> the type of the result applying element to the function
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface UnaryFunctionEnv<IN, OUT> extends Serializable {
-  
+
   /**
    * Applies function to given element.
    *

@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
  * Descriptor of storage.
  */
+@Audience(Audience.Type.INTERNAL)
 public abstract class StorageDescriptor implements Serializable {
 
   final String name;

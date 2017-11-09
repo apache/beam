@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 /**
@@ -24,6 +25,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
  * @param <IN> the type of (input) elements being processed
  * @param <KEY> the type of the elements' keys
  */
+@Audience(Audience.Type.INTERNAL)
 public interface StateAware<IN, KEY> {
 
   /**

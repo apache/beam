@@ -16,8 +16,8 @@
 package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.graph.Node;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;

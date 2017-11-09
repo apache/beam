@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -49,6 +50,7 @@ import java.util.Objects;
  * Note: the order of the dataset does not matter. Indeed, the order of the
  * elements themselves in the union is intentionally not specified at all.
  */
+@Audience(Audience.Type.CLIENT)
 @Basic(
     state = StateComplexity.ZERO,
     repartitions = 0

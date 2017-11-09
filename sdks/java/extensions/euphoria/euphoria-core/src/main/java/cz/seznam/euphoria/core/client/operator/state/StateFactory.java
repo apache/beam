@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.io.Collector;
 
@@ -24,6 +25,7 @@ import java.io.Serializable;
 /**
  * Factory for states.
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Serializable {
 

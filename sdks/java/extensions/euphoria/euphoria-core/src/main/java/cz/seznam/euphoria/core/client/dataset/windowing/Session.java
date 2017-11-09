@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.stability.Experimental;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
@@ -36,6 +37,7 @@ import java.util.Objects;
 /**
  * Session windowing.
  */
+@Audience(Audience.Type.CLIENT)
 public final class Session<T> implements MergingWindowing<T, TimeInterval> {
 
   private final long gapDurationMillis;

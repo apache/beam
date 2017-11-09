@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -30,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 /**
  * The client side, public, technology independent interface to an executor.
  */
+@Audience(Audience.Type.CLIENT)
 public interface Executor {
 
   /**

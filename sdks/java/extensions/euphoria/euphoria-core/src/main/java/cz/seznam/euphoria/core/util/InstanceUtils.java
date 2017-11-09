@@ -15,12 +15,14 @@
  */
 package cz.seznam.euphoria.core.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.lang.reflect.Constructor;
 
 /**
  * Util class that helps instantiations of objects throwing {@link RuntimeException}.
  * For core purposes only. Should not be used in client code.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class InstanceUtils {
 
   public static <T> T create(Class<T> cls) {
@@ -36,7 +38,7 @@ public class InstanceUtils {
   public static <T> T create(String className, Class<T> superType) {
     return create(forName(className, superType));
   }
-  
+
   @SuppressWarnings("unchecked")
   public static <T> Class<? extends T> forName(String className, Class<T> superType) {
     try {

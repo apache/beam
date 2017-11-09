@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 
@@ -22,6 +23,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
  * Operator working element-wise, with no context between elements.
  * No windowing scheme is needed to be defined on input.
  */
+@Audience(Audience.Type.INTERNAL)
 public abstract class ElementWiseOperator<IN, OUT>
     extends SingleInputOperator<IN, OUT> {
 
@@ -31,7 +33,7 @@ public abstract class ElementWiseOperator<IN, OUT>
     super(name, flow, input);
     this.output = createOutput(input);
   }
-  
+
   @Override
   public Dataset<OUT> output() {
     return output;

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
@@ -25,6 +26,7 @@ import java.util.Collections;
  * Windowing with single window across the whole dataset. Suitable for
  * batch processing.
  */
+@Audience(Audience.Type.CLIENT)
 public final class GlobalWindowing<T>
     implements Windowing<T, GlobalWindowing.Window> {
 

@@ -15,11 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * State storage for single value.
  *
  * @param <T> the type of value stored
  */
+@Audience(Audience.Type.CLIENT)
 public interface ValueStorage<T> extends Storage<T> {
 
   /**

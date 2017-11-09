@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrdernessTimestampExtractor;
 
 import java.time.Duration;

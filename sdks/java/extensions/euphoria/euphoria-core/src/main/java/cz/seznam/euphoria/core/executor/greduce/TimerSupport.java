@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor.greduce;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 import javax.annotation.Nullable;
@@ -26,6 +27,7 @@ import java.util.PriorityQueue;
  * services around timers. This implementation assumes the reduce operation is
  * performed on ascending data for one and the same key.
  */
+@Audience(Audience.Type.EXECUTOR)
 class TimerSupport<W extends Window> {
 
   static final class Timer<W> implements Comparable<Timer<W>> {

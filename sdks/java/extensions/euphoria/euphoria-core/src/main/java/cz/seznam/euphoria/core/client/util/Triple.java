@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.util.Objects;
 
 /**
  * Triple of any types.
  */
+@Audience(Audience.Type.CLIENT)
 public final class Triple<F, S, T> {
   final F first;
   final S second;

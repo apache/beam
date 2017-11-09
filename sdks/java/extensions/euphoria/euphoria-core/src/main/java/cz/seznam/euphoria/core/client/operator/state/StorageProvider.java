@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
  * A provider of storage instances.
  */
+@Audience(Audience.Type.CLIENT)
 public interface StorageProvider extends Serializable {
 
   /**

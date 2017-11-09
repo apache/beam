@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -22,7 +23,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 
@@ -32,9 +33,9 @@ import java.util.Objects;
 /**
  * Operator for summing of long values extracted from elements. The sum is operated upon
  * defined key and window.
- * 
+ *
  * Example:
- * 
+ *
  * <pre>{@code
  *   Dataset<Pair<String, Long>> summed = SumByKey.of(elements)
  *       .keyBy(Pair::getFirst)
@@ -42,6 +43,7 @@ import java.util.Objects;
  *       .output();
  * }</pre>
  */
+@Audience(Audience.Type.CLIENT)
 @Derived(
     state = StateComplexity.CONSTANT,
     repartitions = 1
@@ -49,9 +51,9 @@ import java.util.Objects;
 public class SumByKey<IN, KEY, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, Long>, W, SumByKey<IN, KEY, W>> {
-  
+
   public static class OfBuilder implements Builders.Of {
-    
+
     private final String name;
 
     OfBuilder(String name) {
@@ -67,12 +69,12 @@ public class SumByKey<IN, KEY, W extends Window>
   public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
     private final String name;
     private final Dataset<IN> input;
-    
+
     KeyByBuilder(String name, Dataset<IN> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
-    
+
     @Override
     public <KEY> ByBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
       return new ByBuilder2<>(name, input, keyExtractor);
@@ -85,18 +87,18 @@ public class SumByKey<IN, KEY, W extends Window>
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
     private UnaryFunction<IN, Long> valueExtractor = e -> 1L;
-    
+
     ByBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
-    
+
     public ByBuilder2<IN, KEY> valueBy(UnaryFunction<IN, Long> valueExtractor) {
       this.valueExtractor = valueExtractor;
       return this;
     }
-    
+
     @Override
     public <W extends Window> OutputBuilder<IN, KEY, W>
     windowBy(Windowing<IN, W> windowing) {

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -23,6 +24,7 @@ import java.io.Serializable;
  *
  * @param <T> the type of the element consumed by this sink
  */
+@Audience(Audience.Type.CLIENT)
 public interface DataSink<T> extends Serializable {
 
   /**

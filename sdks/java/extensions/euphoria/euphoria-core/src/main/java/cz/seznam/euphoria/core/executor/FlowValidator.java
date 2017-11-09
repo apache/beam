@@ -15,11 +15,12 @@
  */
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.graph.Node;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 /**
  * Validate invariants. Throw exceptions if any invariant is violated.
  */
+@Audience(Audience.Type.EXECUTOR)
 class FlowValidator {
 
   /**
@@ -127,7 +129,7 @@ class FlowValidator {
         .filter(n -> n.output().getOutputSink() != null)
         .map(o -> Pair.of((Dataset) o.output(), (DataSink) o.output().getOutputSink()))
         .collect(Collectors.toList());
-    
+
     Map<DataSink, Dataset> sinkDatasets = new HashMap<>();
 
     outputs.forEach(p -> {

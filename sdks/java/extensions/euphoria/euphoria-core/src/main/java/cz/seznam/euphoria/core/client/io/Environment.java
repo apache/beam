@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
@@ -22,6 +23,7 @@ import cz.seznam.euphoria.core.client.accumulators.Timer;
 /**
  * Defines basic methods available in user defined functions.
  */
+@Audience(Audience.Type.CLIENT)
 public interface Environment {
 
   /**

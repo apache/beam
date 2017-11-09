@@ -15,10 +15,10 @@
  */
 package cz.seznam.euphoria.core.time;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.Override;import java.lang.Runnable;
 import java.time.Duration;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -27,6 +27,7 @@ import java.util.TimerTask;
  * A scheduler implementation with an underlying timer periodically executing
  * the specified runnables.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class TimerScheduler implements Scheduler {
 
   private static final Logger LOG = LoggerFactory.getLogger(TimerScheduler.class);

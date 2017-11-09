@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor.storage;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 
 import java.io.File;
@@ -39,6 +40,7 @@ import java.util.Objects;
  *
  * @param <T> the type of elements stored in this list storage
  */
+@Audience(Audience.Type.EXECUTOR)
 public class FsSpillingListStorage<T> implements ListStorage<T> {
 
   /**

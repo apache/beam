@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -25,13 +26,14 @@ import javax.annotation.Nullable;
 /**
  * Operator with internal state.
  */
+@Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
     IN, WIN, KIN, KEY, OUT, W extends Window,
     OP extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
     extends WindowWiseOperator<IN, WIN, OUT, W>
     implements StateAware<KIN, KEY>
 {
-  
+
   protected final UnaryFunction<KIN, KEY> keyExtractor;
 
   protected StateAwareWindowWiseOperator(
@@ -39,7 +41,7 @@ public abstract class StateAwareWindowWiseOperator<
           Flow flow,
           @Nullable Windowing<WIN, W> windowing,
           UnaryFunction<KIN, KEY> keyExtractor) {
-    
+
     super(name, flow, windowing);
     this.keyExtractor = keyExtractor;
   }

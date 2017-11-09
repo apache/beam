@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
+@Audience(Audience.Type.CLIENT)
 public final class TimeInterval
     extends Window<TimeInterval>
     implements TimedWindow {

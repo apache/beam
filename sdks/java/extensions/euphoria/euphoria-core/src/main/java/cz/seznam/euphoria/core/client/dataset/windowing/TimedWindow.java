@@ -15,10 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Extension to {@link cz.seznam.euphoria.core.client.dataset.windowing.Window}
  * defining time based constraints on the implementor.
  */
+@Audience(Audience.Type.INTERNAL)
 public interface TimedWindow {
 
   /**

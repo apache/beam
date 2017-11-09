@@ -16,6 +16,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Recommended;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -24,7 +25,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
@@ -33,6 +34,7 @@ import java.util.Objects;
 /**
  * Operator outputting distinct (based on {@link Object#equals}) elements.
  */
+@Audience(Audience.Type.CLIENT)
 @Recommended(
     reason =
         "Might be useful to override the default "
@@ -97,13 +99,13 @@ public class Distinct<IN, ELEM, W extends Window>
     public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
     }
-    
+
     @Override
     public <W extends Window> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input, mapper, windowing);
     }
-    
+
     @Override
     public Dataset<ELEM> output() {
       return new OutputBuilder<>(name, input, mapper, null).output();

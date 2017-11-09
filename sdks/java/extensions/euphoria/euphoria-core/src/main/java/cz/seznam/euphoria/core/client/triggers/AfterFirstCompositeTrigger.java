@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.triggers;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.List;
  * Composite {@link Trigger} that fires once after at least one of sub-triggers
  * have fired. In other words sub-triggers are composed using logical OR.
  */
+@Audience(Audience.Type.CLIENT)
 public class AfterFirstCompositeTrigger<W extends Window> implements Trigger<W> {
 
   private final List<Trigger<W>> subtriggers;
