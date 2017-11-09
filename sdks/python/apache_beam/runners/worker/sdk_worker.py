@@ -67,8 +67,6 @@ class SdkHarness(object):
       logging.info('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
       # WhichOneOf returns the name of the set field as a single string
-      # FIXME: angoenka Race condition can happen between process_bundle request and process_bundle_progress request
-      # as they are executed on different threads
       if request_type == 'process_bundle_progress':
         thread_pool = self._progress_thread_pool
       else:
