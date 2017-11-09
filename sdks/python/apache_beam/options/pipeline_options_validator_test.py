@@ -20,10 +20,11 @@
 import logging
 import unittest
 
+from hamcrest.core.base_matcher import BaseMatcher
+
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options_validator import PipelineOptionsValidator
-from hamcrest.core.base_matcher import BaseMatcher
 
 
 # Mock runners to use for validations.
@@ -299,14 +300,6 @@ class SetupTest(unittest.TestCase):
     validator = PipelineOptionsValidator(options, runner)
     errors = validator.validate()
     self.assertFalse(errors)
-
-  def test_streaming(self):
-    pipeline_options = PipelineOptions(['--streaming'])
-    runner = MockRunners.TestDataflowRunner()
-    validator = PipelineOptionsValidator(pipeline_options, runner)
-    errors = validator.validate()
-
-    self.assertIn('Streaming pipelines are not supported.', errors)
 
   def test_test_matcher(self):
     def get_validator(matcher):

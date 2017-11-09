@@ -27,7 +27,8 @@ and displayed as part of their pipeline execution.
 import inspect
 
 from apache_beam.metrics.execution import MetricsEnvironment
-from apache_beam.metrics.metricbase import Counter, Distribution
+from apache_beam.metrics.metricbase import Counter
+from apache_beam.metrics.metricbase import Distribution
 from apache_beam.metrics.metricbase import MetricName
 
 __all__ = ['Metrics', 'MetricsFilter']

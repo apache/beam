@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-parent</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -35,12 +35,16 @@
   <modules>
     <module>core-construction-java</module>
     <module>core-java</module>
+    <module>java-fn-execution</module>
+    <module>local-artifact-service-java</module>
+    <module>reference</module>
     <module>direct-java</module>
     <module>jstorm</module>
     <module>flink</module>
     <module>google-cloud-dataflow-java</module>
     <module>spark</module>
     <module>apex</module>
+    <module>gcp</module>
   </modules>
 
   <profiles>
@@ -54,6 +58,15 @@
           </plugin>
         </plugins>
       </build>
+    </profile>
+    <profile>
+      <id>java8</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <modules>
+        <module>gearpump</module>
+      </modules>
     </profile>
   </profiles>
 

@@ -467,4 +467,73 @@ public class CoderRegistryTest {
               AutoRegistrationClassCoder.INSTANCE));
     }
   }
+
+  @Test
+  public void testCoderPrecedence() throws Exception {
+    CoderRegistry registry = CoderRegistry.createDefault();
+
+    // DefaultCoder precedes CoderProviderRegistrar
+    assertEquals(AvroCoder.of(MyValueA.class), registry.getCoder(MyValueA.class));
+
+    // CoderProviderRegistrar precedes SerializableCoder
+    assertEquals(MyValueBCoder.INSTANCE, registry.getCoder(MyValueB.class));
+
+    // fallbacks to SerializableCoder at last
+    assertEquals(SerializableCoder.of(MyValueC.class), registry.getCoder(MyValueC.class));
+  }
+
+  @DefaultCoder(AvroCoder.class)
+  private static class MyValueA implements Serializable {}
+
+  private static class MyValueB implements Serializable {}
+
+  private static class MyValueC implements Serializable {}
+
+  private static class MyValueACoder extends CustomCoder<MyValueA> {
+    private static final MyValueACoder INSTANCE = new MyValueACoder();
+
+    @Override
+    public void encode(MyValueA value, OutputStream outStream) throws CoderException, IOException {}
+
+    @Override
+    public MyValueA decode(InputStream inStream) throws CoderException, IOException {
+      return null;
+    }
+  }
+
+  /**
+   * A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration.
+   */
+  @AutoService(CoderProviderRegistrar.class)
+  public static class MyValueACoderProviderRegistrar implements CoderProviderRegistrar {
+    @Override
+    public List<CoderProvider> getCoderProviders() {
+      return ImmutableList.of(
+          CoderProviders.forCoder(TypeDescriptor.of(MyValueA.class), MyValueACoder.INSTANCE));
+    }
+  }
+
+  private static class MyValueBCoder extends CustomCoder<MyValueB> {
+    private static final MyValueBCoder INSTANCE = new MyValueBCoder();
+
+    @Override
+    public void encode(MyValueB value, OutputStream outStream) throws CoderException, IOException {}
+
+    @Override
+    public MyValueB decode(InputStream inStream) throws CoderException, IOException {
+      return null;
+    }
+  }
+
+  /**
+   * A {@link CoderProviderRegistrar} to demonstrate default {@link Coder} registration.
+   */
+  @AutoService(CoderProviderRegistrar.class)
+  public static class MyValueBCoderProviderRegistrar implements CoderProviderRegistrar {
+    @Override
+    public List<CoderProvider> getCoderProviders() {
+      return ImmutableList.of(
+          CoderProviders.forCoder(TypeDescriptor.of(MyValueB.class), MyValueBCoder.INSTANCE));
+    }
+  }
 }

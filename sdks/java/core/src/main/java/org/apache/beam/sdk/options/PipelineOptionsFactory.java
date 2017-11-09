@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -184,18 +185,20 @@ public class PipelineOptionsFactory {
     private final String[] args;
     private final boolean validation;
     private final boolean strictParsing;
+    private final boolean isCli;
 
     // Do not allow direct instantiation
     private Builder() {
-      this(null, false, true);
+      this(null, false, true, false);
     }
 
     private Builder(String[] args, boolean validation,
-        boolean strictParsing) {
+        boolean strictParsing, boolean isCli) {
       this.defaultAppName = findCallersClassName();
       this.args = args;
       this.validation = validation;
       this.strictParsing = strictParsing;
+      this.isCli = isCli;
     }
 
     /**
@@ -237,7 +240,7 @@ public class PipelineOptionsFactory {
      */
     public Builder fromArgs(String... args) {
       checkNotNull(args, "Arguments should not be null.");
-      return new Builder(args, validation, strictParsing);
+      return new Builder(args, validation, strictParsing, true);
     }
 
     /**
@@ -247,7 +250,7 @@ public class PipelineOptionsFactory {
      * validation.
      */
     public Builder withValidation() {
-      return new Builder(args, true, strictParsing);
+      return new Builder(args, true, strictParsing, isCli);
     }
 
     /**
@@ -255,7 +258,7 @@ public class PipelineOptionsFactory {
      * arguments.
      */
     public Builder withoutStrictParsing() {
-      return new Builder(args, validation, false);
+      return new Builder(args, validation, false, isCli);
     }
 
     /**
@@ -300,7 +303,11 @@ public class PipelineOptionsFactory {
       }
 
       if (validation) {
-        PipelineOptionsValidator.validate(klass, t);
+        if (isCli) {
+          PipelineOptionsValidator.validateCli(klass, t);
+        } else {
+          PipelineOptionsValidator.validate(klass, t);
+        }
       }
       return t;
     }
@@ -575,6 +582,8 @@ public class PipelineOptionsFactory {
   /**
    * Validates that the interface conforms to the following:
    * <ul>
+   *   <li>Every inherited interface of {@code iface} must extend PipelineOptions except for
+   *       PipelineOptions itself.
    *   <li>Any property with the same name must have the same return type for all derived
    *       interfaces of {@link PipelineOptions}.
    *   <li>Every bean property of any interface derived from {@link PipelineOptions} must have a
@@ -595,6 +604,10 @@ public class PipelineOptionsFactory {
   static synchronized <T extends PipelineOptions> Registration<T> validateWellFormed(
       Class<T> iface, Set<Class<? extends PipelineOptions>> validatedPipelineOptionsInterfaces) {
     checkArgument(iface.isInterface(), "Only interface types are supported.");
+
+    // Validate that every inherited interface must extend PipelineOptions except for
+    // PipelineOptions itself.
+    validateInheritedInterfacesExtendPipelineOptions(iface);
 
     @SuppressWarnings("unchecked")
     Set<Class<? extends PipelineOptions>> combinedPipelineOptionsInterfaces =
@@ -1250,6 +1263,44 @@ public class PipelineOptionsFactory {
         "Methods %s on [%s] do not conform to being bean properties.",
         FluentIterable.from(unknownMethods).transform(ReflectHelpers.METHOD_FORMATTER),
         iface.getName());
+  }
+
+  private static void checkInheritedFrom(Class<?> checkClass, Class fromClass,
+                                         Set<Class<?>> nonPipelineOptions) {
+    if (checkClass.equals(fromClass)) {
+      return;
+    }
+
+    if (checkClass.getInterfaces().length == 0) {
+      nonPipelineOptions.add(checkClass);
+      return;
+    }
+
+    for (Class<?> klass : checkClass.getInterfaces()) {
+      checkInheritedFrom(klass, fromClass, nonPipelineOptions);
+    }
+  }
+
+  private static void throwNonPipelineOptions(Class<?> klass,
+                                              Set<Class<?>> nonPipelineOptionsClasses) {
+    StringBuilder errorBuilder = new StringBuilder(String.format(
+        "All inherited interfaces of [%s] should inherit from the PipelineOptions interface. "
+        + "The following inherited interfaces do not:",
+        klass.getName()));
+
+    for (Class<?> invalidKlass : nonPipelineOptionsClasses) {
+      errorBuilder.append(String.format("%n - %s", invalidKlass.getName()));
+    }
+    throw new IllegalArgumentException(errorBuilder.toString());
+  }
+
+  private static void validateInheritedInterfacesExtendPipelineOptions(Class<?> klass) {
+    Set<Class<?>> nonPipelineOptionsClasses = new LinkedHashSet<>();
+    checkInheritedFrom(klass, PipelineOptions.class, nonPipelineOptionsClasses);
+
+    if (!nonPipelineOptionsClasses.isEmpty()) {
+      throwNonPipelineOptions(klass, nonPipelineOptionsClasses);
+    }
   }
 
   private static class MultipleDefinitions {

@@ -21,12 +21,15 @@ package org.apache.beam.runners.direct;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import java.io.IOException;
 import java.io.Serializable;
-import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.ReplacementOutputs;
+import org.apache.beam.runners.core.construction.WriteFilesTranslation;
 import org.apache.beam.sdk.io.WriteFiles;
+import org.apache.beam.sdk.io.WriteFilesResult;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Count;
@@ -38,34 +41,50 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
- * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles}
- * {@link PTransform PTransforms} with an unspecified number of shards with a write with a
- * specified number of shards. The number of shards is the log base 10 of the number of input
- * records, with up to 2 additional shards.
+ * A {@link PTransformOverrideFactory} that overrides {@link WriteFiles} {@link PTransform
+ * PTransforms} with an unspecified number of shards with a write with a specified number of shards.
+ * The number of shards is the log base 10 of the number of input records, with up to 2 additional
+ * shards.
  */
-class WriteWithShardingFactory<InputT>
-    implements PTransformOverrideFactory<PCollection<InputT>, PDone, WriteFiles<InputT>> {
+class WriteWithShardingFactory<InputT, DestinationT>
+    implements PTransformOverrideFactory<
+        PCollection<InputT>, WriteFilesResult<DestinationT>,
+        PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>> {
   static final int MAX_RANDOM_EXTRA_SHARDS = 3;
   @VisibleForTesting static final int MIN_SHARDS_FOR_LOG = 3;
 
   @Override
-  public PTransformReplacement<PCollection<InputT>, PDone> getReplacementTransform(
-      AppliedPTransform<PCollection<InputT>, PDone, WriteFiles<InputT>> transform) {
-
-    return PTransformReplacement.of(
-        PTransformReplacements.getSingletonMainInput(transform),
-        transform.getTransform().withSharding(new LogElementShardsWithDrift<InputT>()));
+  public PTransformReplacement<PCollection<InputT>, WriteFilesResult<DestinationT>>
+      getReplacementTransform(
+          AppliedPTransform<
+                  PCollection<InputT>, WriteFilesResult<DestinationT>,
+                  PTransform<PCollection<InputT>, WriteFilesResult<DestinationT>>>
+              transform) {
+    try {
+      WriteFiles<InputT, DestinationT, ?> replacement =
+          WriteFiles.to(WriteFilesTranslation.getSink(transform))
+              .withSideInputs(WriteFilesTranslation.getDynamicDestinationSideInputs(transform))
+              .withSharding(new LogElementShardsWithDrift<InputT>());
+      if (WriteFilesTranslation.isWindowedWrites(transform)) {
+        replacement = replacement.withWindowedWrites();
+      }
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform), replacement);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   @Override
   public Map<PValue, ReplacementOutput> mapOutputs(
-      Map<TupleTag<?>, PValue> outputs, PDone newOutput) {
-    return Collections.emptyMap();
+      Map<TupleTag<?>, PValue> outputs, WriteFilesResult<DestinationT> newOutput) {
+    // We must connect the new output from WriteFilesResult to the outputs provided by the original
+    // transform.
+    return ReplacementOutputs.tagged(outputs, newOutput);
   }
 
   private static class LogElementShardsWithDrift<T>

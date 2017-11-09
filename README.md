@@ -69,7 +69,7 @@ Have ideas for new Runners? See the [JIRA](https://issues.apache.org/jira/browse
 
 ## Getting Started
 
-Please refer to the [Quickstart](http://beam.apache.org/get-started/quickstart/) available on our website.
+Please refer to the Quickstart[[Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py)] available on our website.
 
 If you'd like to build and install the whole project from the source distribution, you may need some additional tools installed
 in your system. In a Debian-based distribution:
@@ -102,4 +102,4 @@ We also have a [contributor's guide](https://beam.apache.org/contribute/contribu
 
 * [Apache Beam](http://beam.apache.org)
 * [Overview](http://beam.apache.org/use/beam-overview/)
-* [Quickstart](http://beam.apache.org/use/quickstart/)
+* Quickstart: [Java](https://beam.apache.org/get-started/quickstart-java), [Python](https://beam.apache.org/get-started/quickstart-py)

@@ -217,13 +217,11 @@ public class GroupByKey<K, V>
     // merging windows as needed, using the windows assigned to the
     // key/value input elements and the window merge operation of the
     // window function associated with the input PCollection.
-    return PCollection.createPrimitiveOutputInternal(input.getPipeline(),
-        updateWindowingStrategy(input.getWindowingStrategy()), input.isBounded());
-  }
-
-  @Override
-  protected Coder<KV<K, Iterable<V>>> getDefaultOutputCoder(PCollection<KV<K, V>> input) {
-    return getOutputKvCoder(input.getCoder());
+    return PCollection.createPrimitiveOutputInternal(
+        input.getPipeline(),
+        updateWindowingStrategy(input.getWindowingStrategy()),
+        input.isBounded(),
+        getOutputKvCoder(input.getCoder()));
   }
 
   /**

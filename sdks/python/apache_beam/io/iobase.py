@@ -29,21 +29,22 @@ returns a writer object supporting writing records of serialized data to
 the sink.
 """
 
-from collections import namedtuple
-
 import logging
 import random
 import uuid
+from collections import namedtuple
 
-from apache_beam import pvalue
 from apache_beam import coders
+from apache_beam import pvalue
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.pvalue import AsIter
 from apache_beam.pvalue import AsSingleton
 from apache_beam.transforms import core
 from apache_beam.transforms import ptransform
 from apache_beam.transforms import window
-from apache_beam.transforms.display import HasDisplayData
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.transforms.display import HasDisplayData
+from apache_beam.utils import urns
 from apache_beam.utils.windowed_value import WindowedValue
 
 __all__ = ['BoundedSource', 'RangeTracker', 'Read', 'Sink', 'Write', 'Writer']
@@ -70,7 +71,13 @@ SourceBundle = namedtuple(
     'weight source start_position stop_position')
 
 
-class BoundedSource(HasDisplayData):
+class SourceBase(HasDisplayData, urns.RunnerApiFn):
+  """Base class for all sources that can be passed to beam.io.Read(...).
+  """
+  urns.RunnerApiFn.register_pickle_urn(urns.PICKLED_SOURCE)
+
+
+class BoundedSource(SourceBase):
   """A source that reads a finite amount of input records.
 
   This class defines following operations which can be used to read the source
@@ -188,6 +195,9 @@ class BoundedSource(HasDisplayData):
     more efficiently than pickling.
     """
     return coders.registry.get_coder(object)
+
+  def is_bounded(self):
+    return True
 
 
 class RangeTracker(object):
@@ -820,6 +830,24 @@ class Read(ptransform.PTransform):
                                       label='Read Source'),
             'source_dd': self.source}
 
+  def to_runner_api_parameter(self, context):
+    return (urns.READ_TRANSFORM,
+            beam_runner_api_pb2.ReadPayload(
+                source=self.source.to_runner_api(context),
+                is_bounded=beam_runner_api_pb2.IsBounded.BOUNDED
+                if self.source.is_bounded()
+                else beam_runner_api_pb2.IsBounded.UNBOUNDED))
+
+  @staticmethod
+  def from_runner_api_parameter(parameter, context):
+    return Read(SourceBase.from_runner_api(parameter.source, context))
+
+
+ptransform.PTransform.register_urn(
+    urns.READ_TRANSFORM,
+    beam_runner_api_pb2.ReadPayload,
+    Read.from_runner_api_parameter)
+
 
 class Write(ptransform.PTransform):
   """A ``PTransform`` that writes to a sink.
@@ -985,3 +1013,75 @@ class _RoundRobinKeyFn(core.DoFn):
     if self.counter >= self.count:
       self.counter -= self.count
     yield self.counter, element
+
+
+class RestrictionTracker(object):
+  """Manages concurrent access to a restriction.
+
+  Experimental; no backwards-compatibility guarantees.
+
+  Keeps track of the restrictions claimed part for a Splittable DoFn.
+
+  See following documents for more details.
+  * https://s.apache.org/splittable-do-fn
+  * https://s.apache.org/splittable-do-fn-python-sdk
+  """
+
+  def current_restriction(self):
+    """Returns the current restriction.
+
+    Returns a restriction accurately describing the full range of work the
+    current ``DoFn.process()`` call will do, including already completed work.
+
+    The current restriction returned by method may be updated dynamically due
+    to due to concurrent invocation of other methods of the
+    ``RestrictionTracker``, For example, ``checkpoint()``.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
+    """
+    raise NotImplementedError
+
+  def checkpoint(self):
+    """Performs a checkpoint of the current restriction.
+
+    Signals that the current ``DoFn.process()`` call should terminate as soon as
+    possible. After this method returns, the tracker MUST refuse all future
+    claim calls, and ``RestrictionTracker.check_done()`` MUST succeed.
+
+    This invocation modifies the value returned by ``current_restriction()``
+    invocation and returns a restriction representing the rest of the work. The
+    old value of ``current_restriction()`` is equivalent to the new value of
+    ``current_restriction()`` and the return value of this method invocation
+    combined.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
+    """
+
+    raise NotImplementedError
+
+  def check_done(self):
+    """Checks whether the restriction has been fully processed.
+
+    Called by the runner after iterator returned by ``DoFn.process()`` has been
+    fully read.
+
+    Returns: ``True`` if current restriction has been fully processed.
+    Raises ValueError: if there is still any unclaimed work remaining in the
+      restriction invoking this method. Exception raised must have an
+      informative error message.
+
+    ** Thread safety **
+
+    Methods of the class ``RestrictionTracker`` including this method may get
+    invoked by different threads, hence must be made thread-safe, e.g. by using
+    a single lock object.
+    """
+    raise NotImplementedError

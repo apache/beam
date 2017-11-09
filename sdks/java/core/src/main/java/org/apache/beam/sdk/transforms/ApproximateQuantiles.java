@@ -283,8 +283,8 @@ public class ApproximateQuantiles {
      * Like {@link #create(int, Comparator)}, but sorts values using their natural ordering.
      */
     public static <T extends Comparable<T>>
-        ApproximateQuantilesCombineFn<T, Top.Largest<T>> create(int numQuantiles) {
-      return create(numQuantiles, new Top.Largest<T>());
+        ApproximateQuantilesCombineFn<T, Top.Natural<T>> create(int numQuantiles) {
+      return create(numQuantiles, new Top.Natural<T>());
     }
 
     /**
@@ -341,7 +341,7 @@ public class ApproximateQuantiles {
         b++;
       }
       b--;
-      int k = Math.max(2, (int) Math.ceil(maxNumElements / (1 << (b - 1))));
+      int k = Math.max(2, (int) Math.ceil(maxNumElements / (float) (1 << (b - 1))));
       return new ApproximateQuantilesCombineFn<T, ComparatorT>(
           numQuantiles, compareFn, k, b, maxNumElements);
     }
@@ -365,6 +365,14 @@ public class ApproximateQuantiles {
             .withLabel("Quantile Count"))
           .add(DisplayData.item("comparer", compareFn.getClass())
             .withLabel("Record Comparer"));
+    }
+
+    int getNumBuffers() {
+      return numBuffers;
+    }
+
+    int getBufferSize() {
+      return bufferSize;
     }
   }
 

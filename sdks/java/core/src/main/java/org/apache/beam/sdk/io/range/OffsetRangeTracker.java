@@ -26,6 +26,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A {@link RangeTracker} for non-negative positions of type {@code long}.
+ *
+ * <p>Not to be confused with {@link
+ * org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker}.
  */
 public class OffsetRangeTracker implements RangeTracker<Long> {
   private static final Logger LOG = LoggerFactory.getLogger(OffsetRangeTracker.class);
@@ -52,6 +55,8 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
     this.startOffset = startOffset;
     this.stopOffset = stopOffset;
   }
+
+  private OffsetRangeTracker() { }
 
   public synchronized boolean isStarted() {
     // done => started: handles the case when the reader was empty.
@@ -259,11 +264,19 @@ public class OffsetRangeTracker implements RangeTracker<Long> {
    */
   @VisibleForTesting
   OffsetRangeTracker copy() {
-    OffsetRangeTracker res = new OffsetRangeTracker(startOffset, stopOffset);
-    res.offsetOfLastSplitPoint = this.offsetOfLastSplitPoint;
-    res.lastRecordStart = this.lastRecordStart;
-    res.done = this.done;
-    res.splitPointsSeen = this.splitPointsSeen;
-    return res;
+    synchronized (this) {
+      OffsetRangeTracker res = new OffsetRangeTracker();
+      // This synchronized is not really necessary, because there's no concurrent access to "res",
+      // however it is necessary to prevent findbugs from complaining about unsynchronized access.
+      synchronized (res) {
+        res.startOffset = this.startOffset;
+        res.stopOffset = this.stopOffset;
+        res.offsetOfLastSplitPoint = this.offsetOfLastSplitPoint;
+        res.lastRecordStart = this.lastRecordStart;
+        res.done = this.done;
+        res.splitPointsSeen = this.splitPointsSeen;
+      }
+      return res;
+    }
   }
 }

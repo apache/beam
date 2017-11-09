@@ -29,6 +29,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.PriorityQueue;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -144,7 +145,7 @@ public class Top {
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>> Combine.Globally<T, List<T>> smallest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Smallest<T>()));
+    return Combine.globally(new TopCombineFn<>(count, new Reversed<T>()));
   }
 
   /**
@@ -188,7 +189,7 @@ public class Top {
    * {@code KV}s and return the top values associated with each key.
    */
   public static <T extends Comparable<T>> Combine.Globally<T, List<T>> largest(int count) {
-    return Combine.globally(new TopCombineFn<>(count, new Largest<T>()));
+    return Combine.globally(new TopCombineFn<>(count, new Natural<T>()));
   }
 
   /**
@@ -281,7 +282,7 @@ public class Top {
   public static <K, V extends Comparable<V>>
       PTransform<PCollection<KV<K, V>>, PCollection<KV<K, List<V>>>>
       smallestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Smallest<V>()));
+    return Combine.perKey(new TopCombineFn<>(count, new Reversed<V>()));
   }
 
   /**
@@ -327,13 +328,13 @@ public class Top {
   public static <K, V extends Comparable<V>>
       PerKey<K, V, List<V>>
       largestPerKey(int count) {
-    return Combine.perKey(new TopCombineFn<>(count, new Largest<V>()));
+    return Combine.perKey(new TopCombineFn<>(count, new Natural<V>()));
   }
 
   /**
-   * A {@code Serializable} {@code Comparator} that that uses the compared elements' natural
-   * ordering.
+   * @deprecated use {@link Natural} instead
    */
+  @Deprecated
   public static class Largest<T extends Comparable<? super T>>
       implements Comparator<T>, Serializable {
     @Override
@@ -343,10 +344,34 @@ public class Top {
   }
 
   /**
+   * A {@code Serializable} {@code Comparator} that that uses the compared elements' natural
+   * ordering.
+   */
+  public static class Natural<T extends Comparable<? super T>>
+      implements Comparator<T>, Serializable {
+    @Override
+    public int compare(T a, T b) {
+      return a.compareTo(b);
+    }
+  }
+
+  /**
+   * @deprecated use {@link Reversed} instead
+   */
+  @Deprecated
+  public static class Smallest<T extends Comparable<? super T>>
+      implements Comparator<T>, Serializable {
+    @Override
+    public int compare(T a, T b) {
+      return b.compareTo(a);
+    }
+  }
+
+  /**
    * {@code Serializable} {@code Comparator} that that uses the reverse of the compared elements'
    * natural ordering.
    */
-  public static class Smallest<T extends Comparable<? super T>>
+  public static class Reversed<T extends Comparable<? super T>>
       implements Comparator<T>, Serializable {
     @Override
     public int compare(T a, T b) {
@@ -429,14 +454,14 @@ public class Top {
      *
      * <p>Only one of asList and asQueue may be non-null.
      */
-    private PriorityQueue<T> asQueue;
+    @Nullable private PriorityQueue<T> asQueue;
 
     /**
      * A list in with largest first, the form of extractOutput().
      *
      * <p>Only one of asList and asQueue may be non-null.
      */
-    private List<T> asList;
+    @Nullable private List<T> asList;
 
     /** The user-provided Comparator. */
     private final ComparatorT compareFn;

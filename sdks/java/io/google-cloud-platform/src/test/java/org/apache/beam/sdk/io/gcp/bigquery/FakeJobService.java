@@ -19,6 +19,7 @@
 package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
@@ -39,6 +40,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -61,7 +63,6 @@ import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
 import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
@@ -109,6 +110,7 @@ class FakeJobService implements JobService, Serializable {
   public void startLoadJob(JobReference jobRef, JobConfigurationLoad loadConfig)
       throws InterruptedException, IOException {
     synchronized (allJobs) {
+      verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setLoad(loadConfig));
@@ -126,8 +128,7 @@ class FakeJobService implements JobService, Serializable {
               filename + ThreadLocalRandom.current().nextInt(), false /* isDirectory */));
         }
 
-        FileSystems.copy(sourceFiles.build(), loadFiles.build(),
-            MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+        FileSystems.copy(sourceFiles.build(), loadFiles.build());
         filesForLoadJobs.put(jobRef.getProjectId(), jobRef.getJobId(), loadFiles.build());
       }
 
@@ -141,6 +142,7 @@ class FakeJobService implements JobService, Serializable {
     checkArgument(extractConfig.getDestinationFormat().equals("AVRO"),
         "Only extract to AVRO is supported");
     synchronized (allJobs) {
+      verifyUniqueJobId(jobRef.getJobId());
       ++numExtractJobCalls;
 
       Job job = new Job();
@@ -175,6 +177,7 @@ class FakeJobService implements JobService, Serializable {
   public void startCopyJob(JobReference jobRef, JobConfigurationTableCopy copyConfig)
       throws IOException, InterruptedException {
     synchronized (allJobs) {
+      verifyUniqueJobId(jobRef.getJobId());
       Job job = new Job();
       job.setJobReference(jobRef);
       job.setConfiguration(new JobConfiguration().setCopy(copyConfig));
@@ -257,6 +260,12 @@ class FakeJobService implements JobService, Serializable {
     }
   }
 
+  private void verifyUniqueJobId(String jobId) throws IOException {
+    if (allJobs.containsColumn(jobId)) {
+      throw new IOException("Duplicate job id " + jobId);
+    }
+  }
+
   private JobStatus runJob(Job job) throws InterruptedException, IOException {
     if (job.getConfiguration().getLoad() != null) {
       return runLoadJob(job.getJobReference(), job.getConfiguration().getLoad());
@@ -301,14 +310,20 @@ class FakeJobService implements JobService, Serializable {
     if (!validateDispositions(existingTable, createDisposition, writeDisposition)) {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
     }
-
-    datasetService.createTable(new Table().setTableReference(destination).setSchema(schema));
+    if (existingTable == null) {
+      existingTable = new Table().setTableReference(destination).setSchema(schema);
+      if (load.getTimePartitioning() != null) {
+        existingTable = existingTable.setTimePartitioning(load.getTimePartitioning());
+      }
+      datasetService.createTable(existingTable);
+    }
 
     List<TableRow> rows = Lists.newArrayList();
     for (ResourceId filename : sourceFiles) {
       rows.addAll(readRows(filename.toString()));
     }
     datasetService.insertAll(destination, rows, null);
+    FileSystems.delete(sourceFiles);
     return new JobStatus().setState("DONE");
   }
 
@@ -322,13 +337,30 @@ class FakeJobService implements JobService, Serializable {
     if (!validateDispositions(existingTable, createDisposition, writeDisposition)) {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
     }
-
+    TimePartitioning partitioning = null;
+    TableSchema schema = null;
+    boolean first = true;
     List<TableRow> allRows = Lists.newArrayList();
     for (TableReference source : sources) {
+      Table table = checkNotNull(datasetService.getTable(source));
+      if (!first) {
+        if (partitioning != table.getTimePartitioning()) {
+          return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
+        }
+        if (schema != table.getSchema()) {
+          return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
+        }
+      }
+      partitioning = table.getTimePartitioning();
+      schema = table.getSchema();
+      first = false;
       allRows.addAll(datasetService.getAllRows(
           source.getProjectId(), source.getDatasetId(), source.getTableId()));
     }
-    datasetService.createTable(new Table().setTableReference(destination));
+    datasetService.createTable(new Table()
+        .setTableReference(destination)
+        .setSchema(schema)
+        .setTimePartitioning(partitioning));
     datasetService.insertAll(destination, allRows, null);
     return new JobStatus().setState("DONE");
   }

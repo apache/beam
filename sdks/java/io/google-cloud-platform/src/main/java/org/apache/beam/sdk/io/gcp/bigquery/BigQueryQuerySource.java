@@ -27,38 +27,46 @@ import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatistics;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
  * A {@link BigQuerySourceBase} for querying BigQuery tables.
  */
 @VisibleForTesting
-class BigQueryQuerySource extends BigQuerySourceBase {
+class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryQuerySource.class);
 
-  static BigQueryQuerySource create(
+  static <T>BigQueryQuerySource<T> create(
       String stepUuid,
       ValueProvider<String> query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      BigQueryServices bqServices) {
-    return new BigQueryQuerySource(
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    return new BigQueryQuerySource<T>(
         stepUuid,
         query,
         flattenResults,
         useLegacySql,
-        bqServices);
+        bqServices,
+        coder,
+        parseFn);
   }
 
   private final ValueProvider<String> query;
@@ -71,8 +79,10 @@ class BigQueryQuerySource extends BigQuerySourceBase {
       ValueProvider<String> query,
       Boolean flattenResults,
       Boolean useLegacySql,
-      BigQueryServices bqServices) {
-    super(stepUuid, bqServices);
+      BigQueryServices bqServices,
+      Coder<T> coder,
+      SerializableFunction<SchemaAndRecord, T> parseFn) {
+    super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
@@ -83,13 +93,6 @@ class BigQueryQuerySource extends BigQuerySourceBase {
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     return dryRunQueryIfNeeded(bqOptions).getTotalBytesProcessed();
-  }
-
-  @Override
-  public BoundedReader<TableRow> createReader(PipelineOptions options) throws IOException {
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    return new BigQueryReader(this, bqServices.getReaderFromQuery(
-        bqOptions, bqOptions.getProject(), createBasicQueryConfig()));
   }
 
   @Override
@@ -109,19 +112,31 @@ class BigQueryQuerySource extends BigQuerySourceBase {
     TableReference tableToExtract = createTempTableReference(
         bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
+    LOG.info("Creating temporary dataset {} for query results", tableToExtract.getDatasetId());
     tableService.createDataset(
         tableToExtract.getProjectId(),
         tableToExtract.getDatasetId(),
         location,
-        "Dataset for BigQuery query job temporary table");
+        "Temporary tables for query results of job " + bqOptions.getJobName(),
+        // Set a TTL of 1 day on the temporary tables, which ought to be enough in all cases:
+        // the temporary tables are used only to immediately extract them into files.
+        // They are normally cleaned up, but in case of job failure the cleanup step may not run,
+        // and then they'll get deleted after the TTL.
+        24 * 3600 * 1000L /* 1 day */);
 
     // 3. Execute the query.
     String queryJobId = createJobIdToken(bqOptions.getJobName(), stepUuid) + "-query";
+    LOG.info(
+        "Exporting query results into temporary table {} using job {}",
+        tableToExtract,
+        queryJobId);
     executeQuery(
         bqOptions.getProject(),
         queryJobId,
         tableToExtract,
         bqServices.getJobService(bqOptions));
+    LOG.info("Query job {} completed", queryJobId);
+
     return tableToExtract;
   }
 
@@ -131,7 +146,9 @@ class BigQueryQuerySource extends BigQuerySourceBase {
         bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
 
     DatasetService tableService = bqServices.getDatasetService(bqOptions);
+    LOG.info("Deleting temporary table with query results {}", tableToRemove);
     tableService.deleteTable(tableToRemove);
+    LOG.info("Deleting temporary dataset with query results {}", tableToRemove.getDatasetId());
     tableService.deleteDataset(tableToRemove.getProjectId(), tableToRemove.getDatasetId());
   }
 

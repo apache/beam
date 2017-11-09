@@ -66,26 +66,6 @@ python setup.py sdist
 
 SDK_LOCATION=$(find dist/apache-beam-*.tar.gz)
 
-# Install test dependencies for ValidatesRunner tests.
-echo "pyhamcrest" > postcommit_requirements.txt
-echo "mock" >> postcommit_requirements.txt
-
-# Run ValidatesRunner tests on Google Cloud Dataflow service
-echo ">>> RUNNING DATAFLOW RUNNER VALIDATESRUNNER TESTS"
-python setup.py nosetests \
-  --attr ValidatesRunner \
-  --nocapture \
-  --processes=4 \
-  --process-timeout=900 \
-  --test-pipeline-options=" \
-    --runner=TestDataflowRunner \
-    --project=$PROJECT \
-    --staging_location=$GCS_LOCATION/staging-validatesrunner-test \
-    --temp_location=$GCS_LOCATION/temp-validatesrunner-test \
-    --sdk_location=$SDK_LOCATION \
-    --requirements_file=postcommit_requirements.txt \
-    --num_workers=1"
-
 # Run integration tests on the Google Cloud Dataflow service
 # and validate that jobs finish successfully.
 echo ">>> RUNNING TEST DATAFLOW RUNNER it tests"

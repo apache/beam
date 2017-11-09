@@ -24,14 +24,13 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.DoFnRunners.OutputManager;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
 import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
-import org.apache.beam.runners.core.SplittableParDo;
-import org.apache.beam.runners.core.SplittableParDo.ProcessFn;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessElements;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -54,8 +54,7 @@ import org.joda.time.Instant;
 class SplittableProcessElementsEvaluatorFactory<
         InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
     implements TransformEvaluatorFactory {
-  private final ParDoEvaluatorFactory<
-          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+  private final ParDoEvaluatorFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
   private final EvaluationContext evaluationContext;
 
@@ -65,7 +64,8 @@ class SplittableProcessElementsEvaluatorFactory<
         new ParDoEvaluatorFactory<>(
             evaluationContext,
             SplittableProcessElementsEvaluatorFactory
-                .<InputT, OutputT, RestrictionT>processFnRunnerFactory());
+                .<InputT, OutputT, RestrictionT>processFnRunnerFactory(),
+            ParDoEvaluatorFactory.basicDoFnCacheLoader());
   }
 
   @Override
@@ -84,16 +84,14 @@ class SplittableProcessElementsEvaluatorFactory<
   }
 
   @SuppressWarnings({"unchecked", "rawtypes"})
-  private TransformEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
-      createEvaluator(
-          AppliedPTransform<
-                  PCollection<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>,
-                  PCollectionTuple,
-                  SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
-              application,
-          CommittedBundle<InputT> inputBundle)
-          throws Exception {
-    final SplittableParDo.ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
+  private TransformEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>> createEvaluator(
+      AppliedPTransform<
+              PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>, PCollectionTuple,
+              ProcessElements<InputT, OutputT, RestrictionT, TrackerT>>
+          application,
+      CommittedBundle<InputT> inputBundle)
+      throws Exception {
+    final ProcessElements<InputT, OutputT, RestrictionT, TrackerT> transform =
         application.getTransform();
 
     ProcessFn<InputT, OutputT, RestrictionT, TrackerT> processFn =
@@ -102,21 +100,21 @@ class SplittableProcessElementsEvaluatorFactory<
     DoFnLifecycleManager fnManager = DoFnLifecycleManager.of(processFn);
     processFn =
         ((ProcessFn<InputT, OutputT, RestrictionT, TrackerT>)
-            fnManager
-                .<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
-                    get());
+            fnManager.<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>get());
 
     String stepName = evaluationContext.getStepName(application);
     final DirectExecutionContext.DirectStepContext stepContext =
         evaluationContext
             .getExecutionContext(application, inputBundle.getKey())
-            .getOrCreateStepContext(stepName, stepName);
+            .getStepContext(stepName);
 
-    final ParDoEvaluator<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>
+    final ParDoEvaluator<KeyedWorkItem<String, KV<InputT, RestrictionT>>>
         parDoEvaluator =
             delegateFactory.createParDoEvaluator(
                 application,
                 inputBundle.getKey(),
+                (PCollection<KeyedWorkItem<String, KV<InputT, RestrictionT>>>)
+                    inputBundle.getPCollection(),
                 transform.getSideInputs(),
                 transform.getMainOutputTag(),
                 transform.getAdditionalOutputTags().getAll(),
@@ -181,24 +179,25 @@ class SplittableProcessElementsEvaluatorFactory<
                     .setDaemon(true)
                     .setNameFormat("direct-splittable-process-element-checkpoint-executor")
                     .build()),
-            10000,
-            Duration.standardSeconds(10)));
+            // Setting small values here to stimulate frequent checkpointing and better exercise
+            // splittable DoFn's in that respect.
+            100,
+            Duration.standardSeconds(1)));
 
     return DoFnLifecycleManagerRemovingTransformEvaluator.wrapping(parDoEvaluator, fnManager);
   }
 
   private static <InputT, OutputT, RestrictionT>
-  ParDoEvaluator.DoFnRunnerFactory<
-                KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+      ParDoEvaluator.DoFnRunnerFactory<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
           processFnRunnerFactory() {
     return new ParDoEvaluator.DoFnRunnerFactory<
-            KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>() {
+        KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>() {
       @Override
       public PushbackSideInputDoFnRunner<
-          KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT>
+          KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT>
       createRunner(
           PipelineOptions options,
-          DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, OutputT> fn,
+          DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> fn,
           List<PCollectionView<?>> sideInputs,
           ReadyCheckingSideInputReader sideInputReader,
           OutputManager outputManager,

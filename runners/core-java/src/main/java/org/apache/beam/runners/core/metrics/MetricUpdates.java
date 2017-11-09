@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.Collections;
+import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 

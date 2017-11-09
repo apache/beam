@@ -22,6 +22,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
@@ -176,8 +177,12 @@ import org.apache.beam.sdk.values.TupleTag;
 public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
     implements Serializable /* See the note above */, HasDisplayData {
   /**
-   * Applies this {@code PTransform} on the given {@code InputT}, and returns its
-   * {@code Output}.
+   * Override this method to specify how this {@code PTransform} should be expanded
+   * on the given {@code InputT}.
+   *
+   * <p>NOTE: This method should not be called directly. Instead apply the
+   * {@code PTransform} should be applied to the {@code InputT} using the {@code apply}
+   * method.
    *
    * <p>Composite transforms, which are defined in terms of other transforms,
    * should return the output of one of the composed transforms.  Non-composite
@@ -193,7 +198,7 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    *
    * <p>By default, does nothing.
    */
-  public void validate(PipelineOptions options) {}
+  public void validate(@Nullable PipelineOptions options) {}
 
   /**
    * Returns all {@link PValue PValues} that are consumed as inputs to this {@link PTransform} that
@@ -223,13 +228,13 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * The base name of this {@code PTransform}, e.g., from defaults, or
    * {@code null} if not yet assigned.
    */
-  protected final transient String name;
+  @Nullable protected final transient String name;
 
   protected PTransform() {
     this.name = null;
   }
 
-  protected PTransform(String name) {
+  protected PTransform(@Nullable String name) {
     this.name = name;
   }
 
@@ -273,13 +278,16 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
   }
 
   /**
-   * Returns the default {@code Coder} to use for the output of this
-   * single-output {@code PTransform}.
+   * Returns the default {@code Coder} to use for the output of this single-output {@code
+   * PTransform}.
    *
    * <p>By default, always throws
    *
    * @throws CannotProvideCoderException if no coder can be inferred
+   * @deprecated Instead, the PTransform should explicitly call {@link PCollection#setCoder} on the
+   *     returned PCollection.
    */
+  @Deprecated
   protected Coder<?> getDefaultOutputCoder() throws CannotProvideCoderException {
     throw new CannotProvideCoderException("PTransform.getOutputCoder called.");
   }
@@ -291,7 +299,10 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>By default, always throws.
    *
    * @throws CannotProvideCoderException if none can be inferred.
+   * @deprecated Instead, the PTransform should explicitly call {@link PCollection#setCoder} on the
+   *     returned PCollection.
    */
+  @Deprecated
   protected Coder<?> getDefaultOutputCoder(@SuppressWarnings("unused") InputT input)
       throws CannotProvideCoderException {
     return getDefaultOutputCoder();
@@ -304,7 +315,10 @@ public abstract class PTransform<InputT extends PInput, OutputT extends POutput>
    * <p>By default, always throws.
    *
    * @throws CannotProvideCoderException if none can be inferred.
+   * @deprecated Instead, the PTransform should explicitly call {@link PCollection#setCoder} on the
+   *     returned PCollection.
    */
+  @Deprecated
   public <T> Coder<T> getDefaultOutputCoder(
       InputT input, @SuppressWarnings("unused") PCollection<T> output)
       throws CannotProvideCoderException {

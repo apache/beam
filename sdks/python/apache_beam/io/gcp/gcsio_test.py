@@ -641,6 +641,7 @@ class TestGCSIO(unittest.TestCase):
         'apple/fish/cat',
         'apple/fish/cart',
         'apple/fish/carl',
+        'apple/fish/handle',
         'apple/dish/bat',
         'apple/dish/cat',
         'apple/dish/carl',
@@ -661,6 +662,7 @@ class TestGCSIO(unittest.TestCase):
             'apple/fish/cat',
             'apple/fish/cart',
             'apple/fish/carl',
+            'apple/fish/handle',
             'apple/dish/bat',
             'apple/dish/cat',
             'apple/dish/carl',
@@ -686,6 +688,12 @@ class TestGCSIO(unittest.TestCase):
             'apple/fish/carl',
         ]),
         ('gs://gcsio-test/apple/fish/b*', [
+            'apple/fish/blubber',
+            'apple/fish/blowfish',
+            'apple/fish/bambi',
+            'apple/fish/balloon',
+        ]),
+        ('gs://gcsio-test/apple/f*/b*', [
             'apple/fish/blubber',
             'apple/fish/blowfish',
             'apple/fish/bambi',
@@ -726,6 +734,7 @@ class TestGCSIO(unittest.TestCase):
         ('apple/dish/bat', 13),
         ('apple/dish/cat', 14),
         ('apple/dish/carl', 15),
+        ('apple/fish/handle', 16),
     ]
     for (object_name, size) in object_names:
       file_name = 'gs://%s/%s' % (bucket_name, object_name)
@@ -739,13 +748,24 @@ class TestGCSIO(unittest.TestCase):
         ('gs://gcsio-test/apple/fish/car?', [
             ('apple/fish/cart', 11),
             ('apple/fish/carl', 12),
-        ])
+        ]),
+        ('gs://gcsio-test/*/f*/car?', [
+            ('apple/fish/cart', 11),
+            ('apple/fish/carl', 12),
+        ]),
     ]
     for file_pattern, expected_object_names in test_cases:
       expected_file_sizes = {'gs://%s/%s' % (bucket_name, o): s
                              for (o, s) in expected_object_names}
       self.assertEqual(
           self.gcs.size_of_files_in_glob(file_pattern), expected_file_sizes)
+
+    # Check if limits are followed correctly
+    limit = 1
+    for file_pattern, expected_object_names in test_cases:
+      expected_num_items = min(len(expected_object_names), limit)
+      self.assertEqual(
+          len(self.gcs.glob(file_pattern, limit)), expected_num_items)
 
   def test_size_of_files_in_glob_limited(self):
     bucket_name = 'gcsio-test'

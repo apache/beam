@@ -20,13 +20,14 @@ package org.apache.beam.runners.flink.translation.types;
 import java.io.IOException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.api.common.typeutils.base.TypeSerializerSingleton;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 /**
  * {@link TypeSerializer} for values that were encoded using a {@link Coder}.
  */
-public final class EncodedValueSerializer extends TypeSerializer<byte[]> {
+public final class EncodedValueSerializer extends TypeSerializerSingleton<byte[]> {
 
   private static final long serialVersionUID = 1L;
 
@@ -56,7 +57,6 @@ public final class EncodedValueSerializer extends TypeSerializer<byte[]> {
   public int getLength() {
     return -1;
   }
-
 
   @Override
   public void serialize(byte[] record, DataOutputView target) throws IOException {
@@ -94,18 +94,4 @@ public final class EncodedValueSerializer extends TypeSerializer<byte[]> {
     return obj instanceof EncodedValueSerializer;
   }
 
-  @Override
-  public int hashCode() {
-    return this.getClass().hashCode();
-  }
-
-  @Override
-  public boolean equals(Object obj) {
-    return obj instanceof EncodedValueSerializer;
-  }
-
-  @Override
-  public TypeSerializer<byte[]> duplicate() {
-    return this;
-  }
 }

@@ -26,6 +26,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.sdk.Pipeline;
@@ -33,6 +35,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -49,7 +52,6 @@ import org.apache.spark.streaming.api.java.JavaStreamingContext;
 public class EvaluationContext {
   private final JavaSparkContext jsc;
   private JavaStreamingContext jssc;
-  private final SparkRuntimeContext runtime;
   private final Pipeline pipeline;
   private final Map<PValue, Dataset> datasets = new LinkedHashMap<>();
   private final Map<PValue, Dataset> pcollections = new LinkedHashMap<>();
@@ -59,12 +61,13 @@ public class EvaluationContext {
   private final SparkPCollectionView pviews = new SparkPCollectionView();
   private final Map<PCollection, Long> cacheCandidates = new HashMap<>();
   private final PipelineOptions options;
+  private final SerializablePipelineOptions serializableOptions;
 
   public EvaluationContext(JavaSparkContext jsc, Pipeline pipeline, PipelineOptions options) {
     this.jsc = jsc;
     this.pipeline = pipeline;
     this.options = options;
-    this.runtime = new SparkRuntimeContext(pipeline, options);
+    this.serializableOptions = new SerializablePipelineOptions(options);
   }
 
   public EvaluationContext(
@@ -89,8 +92,8 @@ public class EvaluationContext {
     return options;
   }
 
-  public SparkRuntimeContext getRuntimeContext() {
-    return runtime;
+  public SerializablePipelineOptions getSerializableOptions() {
+    return serializableOptions;
   }
 
   public void setCurrentTransform(AppliedPTransform<?, ?, ?> transform) {
@@ -103,7 +106,8 @@ public class EvaluationContext {
 
   public <T extends PValue> T getInput(PTransform<T, ?> transform) {
     @SuppressWarnings("unchecked")
-    T input = (T) Iterables.getOnlyElement(getInputs(transform).values());
+    T input =
+        (T) Iterables.getOnlyElement(TransformInputs.nonAdditionalInputs(getCurrentTransform()));
     return input;
   }
 
@@ -134,18 +138,30 @@ public class EvaluationContext {
     return false;
   }
 
-  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
-    putDataset(getOutput(transform), dataset);
+  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset,
+      boolean forceCache) {
+    putDataset(getOutput(transform), dataset, forceCache);
   }
 
-  public void putDataset(PValue pvalue, Dataset dataset) {
+
+  public void putDataset(PTransform<?, ? extends PValue> transform, Dataset dataset) {
+    putDataset(transform, dataset,  false);
+  }
+
+  public void putDataset(PValue pvalue, Dataset dataset, boolean forceCache) {
     try {
       dataset.setName(pvalue.getName());
     } catch (IllegalStateException e) {
       // name not set, ignore
     }
-    if (shouldCache(pvalue)) {
-      dataset.cache(storageLevel());
+    if (forceCache || shouldCache(pvalue)) {
+      // we cache only PCollection
+      if (pvalue instanceof PCollection) {
+        Coder<?> coder = ((PCollection<?>) pvalue).getCoder();
+        Coder<? extends BoundedWindow> wCoder =
+            ((PCollection<?>) pvalue).getWindowingStrategy().getWindowFn().windowCoder();
+        dataset.cache(storageLevel(), WindowedValue.getFullCoder(coder, wCoder));
+      }
     }
     datasets.put(pvalue, dataset);
     leaves.add(dataset);
@@ -251,8 +267,8 @@ public class EvaluationContext {
     return boundedDataset.getValues(pcollection);
   }
 
-  private String storageLevel() {
-    return runtime.getPipelineOptions().as(SparkPipelineOptions.class).getStorageLevel();
+  public String storageLevel() {
+    return serializableOptions.get().as(SparkPipelineOptions.class).getStorageLevel();
   }
 
 }

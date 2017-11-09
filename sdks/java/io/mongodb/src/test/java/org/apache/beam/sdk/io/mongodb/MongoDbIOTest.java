@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.mongodb;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import com.mongodb.MongoClient;
 import com.mongodb.client.MongoCollection;
@@ -44,6 +45,7 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
@@ -189,6 +191,42 @@ public class MongoDbIOTest implements Serializable {
   }
 
   @Test
+  public void testReadWithCustomConnectionOptions() throws Exception {
+    MongoDbIO.Read read = MongoDbIO.read()
+        .withUri("mongodb://localhost:" + port)
+        .withKeepAlive(false)
+        .withMaxConnectionIdleTime(10)
+        .withDatabase(DATABASE)
+        .withCollection(COLLECTION);
+    assertFalse(read.keepAlive());
+    assertEquals(10, read.maxConnectionIdleTime());
+
+    PCollection<Document> documents = pipeline.apply(read);
+
+    PAssert.thatSingleton(documents.apply("Count All", Count.<Document>globally()))
+        .isEqualTo(1000L);
+
+    PAssert.that(documents
+        .apply("Map Scientist", MapElements.via(new SimpleFunction<Document, KV<String, Void>>() {
+          public KV<String, Void> apply(Document input) {
+            return KV.of(input.getString("scientist"), null);
+          }
+        }))
+        .apply("Count Scientist", Count.<String, Void>perKey())
+    ).satisfies(new SerializableFunction<Iterable<KV<String, Long>>, Void>() {
+      @Override
+      public Void apply(Iterable<KV<String, Long>> input) {
+        for (KV<String, Long> element : input) {
+          assertEquals(100L, element.getValue().longValue());
+        }
+        return null;
+      }
+    });
+
+    pipeline.run();
+  }
+
+  @Test
   public void testReadWithFilter() throws Exception {
 
     PCollection<Document> output = pipeline.apply(
@@ -233,4 +271,14 @@ public class MongoDbIOTest implements Serializable {
 
   }
 
+  @Test
+  public void testWriteEmptyCollection() throws Exception {
+    MongoDbIO.Write write =
+        MongoDbIO.write()
+            .withUri("mongodb://localhost:" + port)
+            .withDatabase("test")
+            .withCollection("empty");
+    DoFnTester<Document, Void> fnTester = DoFnTester.of(new MongoDbIO.Write.WriteFn(write));
+    fnTester.processBundle(new ArrayList<Document>());
+  }
 }

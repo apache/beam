@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertThat;
@@ -28,12 +31,13 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -92,6 +96,30 @@ public class MapElementsTest implements Serializable {
         }));
 
     PAssert.that(output).containsInAnyOrder(-2, -1, -3);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link MapElements} with a {@link Fn} and a side input.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testMapBasicWithSideInput() throws Exception {
+    final PCollectionView<Integer> view =
+        pipeline.apply("Create base", Create.of(40)).apply(View.<Integer>asSingleton());
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(0, 1, 2))
+            .apply(MapElements.into(integers())
+              .via(fn(new Fn<Integer, Integer>() {
+                        @Override
+                        public Integer apply(Integer element, Context c) {
+                          return element + c.sideInput(view);
+                        }
+                      },
+                      requiresSideInputs(view))));
+
+    PAssert.that(output).containsInAnyOrder(40, 41, 42);
     pipeline.run();
   }
 
@@ -157,7 +185,7 @@ public class MapElementsTest implements Serializable {
         pipeline
             .apply(Create.of(1, 2, 3))
             .apply(
-                MapElements.into(TypeDescriptors.integers())
+                MapElements.into(integers())
                     .via(
                         new SerializableFunction<Integer, Integer>() {
                           @Override
@@ -216,9 +244,9 @@ public class MapElementsTest implements Serializable {
         };
 
     MapElements<?, ?> serializableMap =
-        MapElements.into(TypeDescriptors.integers()).via(serializableFn);
+        MapElements.into(integers()).via(serializableFn);
     assertThat(DisplayData.from(serializableMap),
-        hasDisplayItem("mapFn", serializableFn.getClass()));
+        hasDisplayItem("class", serializableFn.getClass()));
   }
 
   @Test
@@ -231,7 +259,7 @@ public class MapElementsTest implements Serializable {
     };
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
   }
   @Test
   public void testSimpleFunctionDisplayData() {
@@ -250,7 +278,7 @@ public class MapElementsTest implements Serializable {
 
 
     MapElements<?, ?> simpleMap = MapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("mapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
     assertThat(DisplayData.from(simpleMap), hasDisplayItem("foo", "baz"));
   }
 
@@ -269,7 +297,7 @@ public class MapElementsTest implements Serializable {
 
     Set<DisplayData> displayData = evaluator.<Integer>displayDataForPrimitiveTransforms(map);
     assertThat("MapElements should include the mapFn in its primitive display data",
-        displayData, hasItem(hasDisplayItem("mapFn", mapFn.getClass())));
+        displayData, hasItem(hasDisplayItem("class", mapFn.getClass())));
   }
 
   static class VoidValues<K, V>

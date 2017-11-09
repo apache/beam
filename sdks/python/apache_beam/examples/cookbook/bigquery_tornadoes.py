@@ -58,7 +58,7 @@ def count_tornadoes(input_data):
               lambda row: [(int(row['month']), 1)] if row['tornado'] else [])
           | 'monthly count' >> beam.CombinePerKey(sum)
           | 'format' >> beam.Map(
-              lambda (k, v): {'month': k, 'tornado_count': v}))
+              lambda k_v: {'month': k_v[0], 'tornado_count': k_v[1]}))
 
 
 def run(argv=None):
@@ -75,23 +75,21 @@ def run(argv=None):
        'or DATASET.TABLE.'))
   known_args, pipeline_args = parser.parse_known_args(argv)
 
-  p = beam.Pipeline(argv=pipeline_args)
+  with beam.Pipeline(argv=pipeline_args) as p:
 
-  # Read the table rows into a PCollection.
-  rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
-  counts = count_tornadoes(rows)
+    # Read the table rows into a PCollection.
+    rows = p | 'read' >> beam.io.Read(beam.io.BigQuerySource(known_args.input))
+    counts = count_tornadoes(rows)
 
-  # Write the output using a "Write" transform that has side effects.
-  # pylint: disable=expression-not-assigned
-  counts | 'write' >> beam.io.Write(
-      beam.io.BigQuerySink(
-          known_args.output,
-          schema='month:INTEGER, tornado_count:INTEGER',
-          create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-          write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE))
+    # Write the output using a "Write" transform that has side effects.
+    # pylint: disable=expression-not-assigned
+    counts | 'Write' >> beam.io.WriteToBigQuery(
+        known_args.output,
+        schema='month:INTEGER, tornado_count:INTEGER',
+        create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=beam.io.BigQueryDisposition.WRITE_TRUNCATE)
 
-  # Run the pipeline (all operations are deferred until run() is called).
-  p.run().wait_until_finish()
+    # Run the pipeline (all operations are deferred until run() is called).
 
 
 if __name__ == '__main__':

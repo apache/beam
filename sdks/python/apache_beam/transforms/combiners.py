@@ -26,16 +26,15 @@ from apache_beam.transforms import core
 from apache_beam.transforms import cy_combiners
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.display import DisplayDataItem
+from apache_beam.typehints import KV
 from apache_beam.typehints import Any
 from apache_beam.typehints import Dict
-from apache_beam.typehints import KV
 from apache_beam.typehints import List
 from apache_beam.typehints import Tuple
 from apache_beam.typehints import TypeVariable
 from apache_beam.typehints import Union
 from apache_beam.typehints import with_input_types
 from apache_beam.typehints import with_output_types
-
 
 __all__ = [
     'Count',
@@ -78,14 +77,16 @@ class MeanCombineFn(core.CombineFn):
   def create_accumulator(self):
     return (0, 0)
 
-  def add_input(self, (sum_, count), element):
+  def add_input(self, sum_count, element):
+    (sum_, count) = sum_count
     return sum_ + element, count + 1
 
   def merge_accumulators(self, accumulators):
     sums, counts = zip(*accumulators)
     return sum(sums), sum(counts)
 
-  def extract_output(self, (sum_, count)):
+  def extract_output(self, sum_count):
+    (sum_, count) = sum_count
     if count == 0:
       return float('NaN')
     return sum_ / float(count)
@@ -149,6 +150,7 @@ class Top(object):
   """Combiners for obtaining extremal elements."""
   # pylint: disable=no-self-argument
 
+  @staticmethod
   @ptransform.ptransform_fn
   def Of(pcoll, n, compare=None, *args, **kwargs):
     """Obtain a list of the compare-most N elements in a PCollection.
@@ -177,6 +179,7 @@ class Top(object):
     return pcoll | core.CombineGlobally(
         TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
+  @staticmethod
   @ptransform.ptransform_fn
   def PerKey(pcoll, n, compare=None, *args, **kwargs):
     """Identifies the compare-most N elements associated with each key.
@@ -210,21 +213,25 @@ class Top(object):
     return pcoll | core.CombinePerKey(
         TopCombineFn(n, compare, key, reverse), *args, **kwargs)
 
+  @staticmethod
   @ptransform.ptransform_fn
   def Largest(pcoll, n):
     """Obtain a list of the greatest N elements in a PCollection."""
     return pcoll | Top.Of(n)
 
+  @staticmethod
   @ptransform.ptransform_fn
   def Smallest(pcoll, n):
     """Obtain a list of the least N elements in a PCollection."""
     return pcoll | Top.Of(n, reverse=True)
 
+  @staticmethod
   @ptransform.ptransform_fn
   def LargestPerKey(pcoll, n):
     """Identifies the N greatest elements associated with each key."""
     return pcoll | Top.PerKey(n)
 
+  @staticmethod
   @ptransform.ptransform_fn
   def SmallestPerKey(pcoll, n, reverse=True):
     """Identifies the N least elements associated with each key."""
@@ -369,10 +376,12 @@ class Sample(object):
   """Combiners for sampling n elements without replacement."""
   # pylint: disable=no-self-argument
 
+  @staticmethod
   @ptransform.ptransform_fn
   def FixedSizeGlobally(pcoll, n):
     return pcoll | core.CombineGlobally(SampleCombineFn(n))
 
+  @staticmethod
   @ptransform.ptransform_fn
   def FixedSizePerKey(pcoll, n):
     return pcoll | core.CombinePerKey(SampleCombineFn(n))

@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableList;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.triggers.TriggerStateMachine.OnceTriggerStateMachine;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.state.TimeDomain;
 
@@ -101,6 +100,10 @@ public class AfterWatermarkStateMachine {
 
     @Override
     public void onElement(OnElementContext c) throws Exception {
+      if (!endOfWindowReached(c)) {
+        c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      }
+
       if (!c.trigger().isMerging()) {
         // If merges can never happen, we just run the unfinished subtrigger
         c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
@@ -242,7 +245,7 @@ public class AfterWatermarkStateMachine {
   /**
    * A watermark trigger targeted relative to the end of the window.
    */
-  public static class FromEndOfWindow extends OnceTriggerStateMachine {
+  public static class FromEndOfWindow extends TriggerStateMachine {
 
     private FromEndOfWindow() {
       super(null);
@@ -271,7 +274,9 @@ public class AfterWatermarkStateMachine {
       // We're interested in knowing when the input watermark passes the end of the window.
       // (It is possible this has already happened, in which case the timer will be fired
       // almost immediately).
-      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      if (!endOfWindowReached(c)) {
+        c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      }
     }
 
     @Override
@@ -319,6 +324,8 @@ public class AfterWatermarkStateMachine {
     }
 
     @Override
-    protected void onOnlyFiring(TriggerStateMachine.TriggerContext context) throws Exception { }
+    public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {
+      context.trigger().setFinished(true);
+    }
   }
 }

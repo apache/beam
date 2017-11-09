@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.transforms.Combine.BinaryCombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 
@@ -158,11 +159,11 @@ public class Min {
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder(T identity) {
-    return new MinFn<T>(identity, new Top.Largest<T>());
+    return new MinFn<T>(identity, new Top.Natural<T>());
   }
 
   public static <T extends Comparable<? super T>> BinaryCombineFn<T> naturalOrder() {
-    return new MinFn<T>(null, new Top.Largest<T>());
+    return new MinFn<T>(null, new Top.Natural<T>());
   }
 
   /**
@@ -214,11 +215,11 @@ public class Min {
 
   private static class MinFn<T> extends BinaryCombineFn<T> {
 
-    private final T identity;
+    @Nullable private final T identity;
     private final Comparator<? super T> comparator;
 
     private <ComparatorT extends Comparator<? super T> & Serializable> MinFn(
-        T identity, ComparatorT comparator) {
+        @Nullable T identity, ComparatorT comparator) {
       this.identity = identity;
       this.comparator = comparator;
     }
@@ -236,8 +237,7 @@ public class Min {
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      builder.add(DisplayData.item("comparer", comparator.getClass())
-        .withLabel("Record Comparer"));
+      builder.add(DisplayData.item("comparer", comparator.getClass()).withLabel("Record Comparer"));
     }
   }
 

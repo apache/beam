@@ -25,23 +25,28 @@ import org.apache.beam.sdk.testing.TestPipelineOptions;
  * Options for Kinesis integration tests.
  */
 public interface KinesisTestOptions extends TestPipelineOptions {
-    @Description("AWS region where Kinesis stream resided")
-    @Default.String("aws-kinesis-region")
-    String getAwsKinesisRegion();
-    void setAwsKinesisRegion(String value);
 
-    @Description("Kinesis stream name")
-    @Default.String("aws-kinesis-stream")
-    String getAwsKinesisStream();
-    void setAwsKinesisStream(String value);
+  @Description("AWS region where Kinesis stream resided")
+  @Default.String("aws-kinesis-region")
+  String getAwsKinesisRegion();
 
-    @Description("AWS secret key")
-    @Default.String("aws-secret-key")
-    String getAwsSecretKey();
-    void setAwsSecretKey(String value);
+  void setAwsKinesisRegion(String value);
 
-    @Description("AWS access key")
-    @Default.String("aws-access-key")
-    String getAwsAccessKey();
-    void setAwsAccessKey(String value);
+  @Description("Kinesis stream name")
+  @Default.String("aws-kinesis-stream")
+  String getAwsKinesisStream();
+
+  void setAwsKinesisStream(String value);
+
+  @Description("AWS secret key")
+  @Default.String("aws-secret-key")
+  String getAwsSecretKey();
+
+  void setAwsSecretKey(String value);
+
+  @Description("AWS access key")
+  @Default.String("aws-access-key")
+  String getAwsAccessKey();
+
+  void setAwsAccessKey(String value);
 }

@@ -123,11 +123,15 @@ public class WordCountTest {
     options.setInputFile(new File(inputFile).getAbsolutePath());
     String outputFilePrefix = "target/wordcountresult.txt";
     options.setOutput(outputFilePrefix);
-    WordCountTest.main(TestPipeline.convertToArgs(options));
 
     File outFile1 = new File(outputFilePrefix + "-00000-of-00002");
     File outFile2 = new File(outputFilePrefix + "-00001-of-00002");
-    Assert.assertTrue(outFile1.exists() && outFile2.exists());
+    Assert.assertTrue(!outFile1.exists() || outFile1.delete());
+    Assert.assertTrue(!outFile2.exists() || outFile2.delete());
+
+    WordCountTest.main(TestPipeline.convertToArgs(options));
+
+    Assert.assertTrue("result files exist", outFile1.exists() && outFile2.exists());
     HashSet<String> results = new HashSet<>();
     results.addAll(FileUtils.readLines(outFile1));
     results.addAll(FileUtils.readLines(outFile2));

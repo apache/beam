@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupAlsoByWindow;
 import org.apache.beam.runners.direct.DirectGroupByKey.DirectGroupByKeyOnly;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
@@ -44,11 +44,11 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 // TODO: Handle Key-preserving transforms when appropriate and more aggressively make PTransforms
 // unkeyed
-class KeyedPValueTrackingVisitor implements PipelineVisitor {
+class KeyedPValueTrackingVisitor extends PipelineVisitor.Defaults {
 
   private static final Set<Class<? extends PTransform>> PRODUCES_KEYED_OUTPUTS =
-      ImmutableSet.of(
-          SplittableParDo.GBKIntoKeyedWorkItems.class,
+      ImmutableSet.<Class<? extends PTransform>>of(
+          SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems.class,
           DirectGroupByKeyOnly.class,
           DirectGroupAlsoByWindow.class);
 
@@ -89,9 +89,6 @@ class KeyedPValueTrackingVisitor implements PipelineVisitor {
       }
     }
   }
-
-  @Override
-  public void visitPrimitiveTransform(TransformHierarchy.Node node) {}
 
   @Override
   public void visitValue(PValue value, TransformHierarchy.Node producer) {

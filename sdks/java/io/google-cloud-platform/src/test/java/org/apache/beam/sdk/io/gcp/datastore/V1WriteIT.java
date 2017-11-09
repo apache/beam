@@ -67,8 +67,7 @@ public class V1WriteIT {
 
     // Write to datastore
     p.apply(GenerateSequence.from(0).to(numEntities))
-        .apply(ParDo.of(new CreateEntityFn(
-            options.getKind(), options.getNamespace(), ancestor)))
+        .apply(ParDo.of(new CreateEntityFn(options.getKind(), options.getNamespace(), ancestor, 0)))
         .apply(DatastoreIO.v1().write().withProjectId(project));
 
     p.run();
@@ -77,6 +76,39 @@ public class V1WriteIT {
     long numEntitiesWritten = countEntities(options, project, ancestor);
 
     assertEquals(numEntitiesWritten, numEntities);
+  }
+
+  /**
+   * An end-to-end test for {@link DatastoreV1.Write}.
+   *
+   * <p>Write some large test entities to Cloud Datastore, to test that a batch is flushed when
+   * the byte size limit is reached. Read and count all the entities. Verify that the count matches
+   * the number of entities written.
+   */
+  @Test
+  public void testE2EV1WriteWithLargeEntities() throws Exception {
+    Pipeline p = Pipeline.create(options);
+
+    /*
+     * Datastore has a limit of 1MB per entity, and 10MB per write RPC. If each entity is around
+     * 1MB in size, then we hit the limit on the size of the write long before we hit the limit on
+     * the number of entities per writes.
+     */
+    final int rawPropertySize = 900_000;
+    final int numLargeEntities = 100;
+
+    // Write to datastore
+    p.apply(GenerateSequence.from(0).to(numLargeEntities))
+        .apply(ParDo.of(new CreateEntityFn(
+                options.getKind(), options.getNamespace(), ancestor, rawPropertySize)))
+        .apply(DatastoreIO.v1().write().withProjectId(project));
+
+    p.run();
+
+    // Count number of entities written to datastore.
+    long numEntitiesWritten = countEntities(options, project, ancestor);
+
+    assertEquals(numEntitiesWritten, numLargeEntities);
   }
 
   @After

@@ -21,10 +21,12 @@ from __future__ import absolute_import
 import abc
 import bz2
 import cStringIO
-import os
-import zlib
 import logging
+import os
 import time
+import zlib
+
+from apache_beam.utils.plugin import BeamPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -185,21 +187,26 @@ class CompressedFile(object):
         del buf  # Free up some possibly large and no-longer-needed memory.
         self._read_buffer.write(decompressed)
       else:
-        # EOF reached.
-        # Verify completeness and no corruption and flush (if needed by
-        # the underlying algorithm).
-        if self._compression_type == CompressionTypes.BZIP2:
-          # Having unused_data past end of stream would imply file corruption.
-          assert not self._decompressor.unused_data, 'Possible file corruption.'
-          try:
-            # EOF implies that the underlying BZIP2 stream must also have
-            # reached EOF. We expect this to raise an EOFError and we catch it
-            # below. Any other kind of error though would be problematic.
-            self._decompressor.decompress('dummy')
-            assert False, 'Possible file corruption.'
-          except EOFError:
-            pass  # All is as expected!
+        # EOF of current stream reached.
+        #
+        # Any uncompressed data at the end of the stream of a gzip or bzip2
+        # file that is not corrupted points to a concatenated compressed
+        # file. We read concatenated files by recursively creating decompressor
+        # objects for the unused compressed data.
+        if (self._compression_type == CompressionTypes.BZIP2 or
+            self._compression_type == CompressionTypes.GZIP):
+          if self._decompressor.unused_data != '':
+            buf = self._decompressor.unused_data
+            self._decompressor = (
+                bz2.BZ2Decompressor()
+                if self._compression_type == CompressionTypes.BZIP2
+                else zlib.decompressobj(self._gzip_mask))
+            decompressed = self._decompressor.decompress(buf)
+            self._read_buffer.write(decompressed)
+            continue
         else:
+          # Gzip and bzip2 formats do not require flushing remaining data in the
+          # decompressor into the read buffer when fully decompressing files.
           self._read_buffer.write(self._decompressor.flush())
 
         # Record that we have hit the end of file, so we won't unnecessarily
@@ -292,23 +299,28 @@ class CompressedFile(object):
     """Set the file's current offset.
 
     Seeking behavior:
-      * seeking from the end (SEEK_END) the whole file is decompressed once to
-        determine it's size. Therefore it is preferred to use
-        SEEK_SET or SEEK_CUR to avoid the processing overhead
-      * seeking backwards from the current position rewinds the file to 0
+
+      * seeking from the end :data:`os.SEEK_END` the whole file is decompressed
+        once to determine it's size. Therefore it is preferred to use
+        :data:`os.SEEK_SET` or :data:`os.SEEK_CUR` to avoid the processing
+        overhead
+      * seeking backwards from the current position rewinds the file to ``0``
         and decompresses the chunks to the requested offset
       * seeking is only supported in files opened for reading
-      * if the new offset is out of bound, it is adjusted to either 0 or EOF.
+      * if the new offset is out of bound, it is adjusted to either ``0`` or
+        ``EOF``.
 
     Args:
-      offset: seek offset in the uncompressed content represented as number
-      whence: seek mode. Supported modes are os.SEEK_SET (absolute seek),
-        os.SEEK_CUR (seek relative to the current position), and os.SEEK_END
-        (seek relative to the end, offset should be negative).
+      offset (int): seek offset in the uncompressed content represented as
+        number
+      whence (int): seek mode. Supported modes are :data:`os.SEEK_SET`
+        (absolute seek), :data:`os.SEEK_CUR` (seek relative to the current
+        position), and :data:`os.SEEK_END` (seek relative to the end, offset
+        should be negative).
 
     Raises:
-      IOError: When this buffer is closed.
-      ValueError: When whence is invalid or the file is not seekable
+      ~exceptions.IOError: When this buffer is closed.
+      ~exceptions.ValueError: When whence is invalid or the file is not seekable
     """
     if whence == os.SEEK_SET:
       absolute_offset = offset
@@ -409,7 +421,7 @@ class BeamIOError(IOError):
     self.exception_details = exception_details
 
 
-class FileSystem(object):
+class FileSystem(BeamPlugin):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
@@ -427,16 +439,6 @@ class FileSystem(object):
       raise TypeError('compression_type must be CompressionType object but '
                       'was %s' % type(compression_type))
     return compression_type
-
-  @classmethod
-  def get_all_subclasses(cls):
-    """Get all the subclasses of the FileSystem class
-    """
-    all_subclasses = []
-    for subclass in cls.__subclasses__():
-      all_subclasses.append(subclass)
-      all_subclasses.extend(subclass.get_all_subclasses())
-    return all_subclasses
 
   @classmethod
   def scheme(cls):

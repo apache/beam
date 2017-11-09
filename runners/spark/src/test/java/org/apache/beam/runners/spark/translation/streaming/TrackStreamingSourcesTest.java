@@ -148,6 +148,12 @@ public class TrackStreamingSourcesTest {
     }
 
     @Override
+    public void enterPipeline(Pipeline p) {
+      super.enterPipeline(p);
+      evaluator.enterPipeline(p);
+    }
+
+    @Override
     public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
       return evaluator.enterCompositeTransform(node);
     }
@@ -156,7 +162,7 @@ public class TrackStreamingSourcesTest {
     public void visitPrimitiveTransform(TransformHierarchy.Node node) {
       PTransform transform = node.getTransform();
       if (transform.getClass() == transformClassToAssert) {
-        AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform();
+        AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
         ctxt.setCurrentTransform(appliedTransform);
         //noinspection unchecked
         Dataset dataset = ctxt.borrowDataset((PTransform<? extends PValue, ?>) transform);
@@ -165,6 +171,12 @@ public class TrackStreamingSourcesTest {
       } else {
         evaluator.visitPrimitiveTransform(node);
       }
+    }
+
+    @Override
+    public void leavePipeline(Pipeline p) {
+      super.leavePipeline(p);
+      evaluator.leavePipeline(p);
     }
   }
 

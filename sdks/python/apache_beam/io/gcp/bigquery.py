@@ -114,11 +114,14 @@ from apache_beam import coders
 from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.runners.dataflow.native_io import iobase as dataflow_io
+from apache_beam.transforms import DoFn
+from apache_beam.transforms import ParDo
+from apache_beam.transforms import PTransform
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.utils import retry
-from apache_beam.options.pipeline_options import GoogleCloudOptions
-from apache_beam.io.gcp.internal.clients import bigquery
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -134,6 +137,7 @@ __all__ = [
     'BigQueryDisposition',
     'BigQuerySource',
     'BigQuerySink',
+    'WriteToBigQuery',
     ]
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
@@ -326,45 +330,49 @@ class BigQuerySource(dataflow_io.NativeSource):
   def __init__(self, table=None, dataset=None, project=None, query=None,
                validate=False, coder=None, use_standard_sql=False,
                flatten_results=True):
-    """Initialize a BigQuerySource.
+    """Initialize a :class:`BigQuerySource`.
 
     Args:
-      table: The ID of a BigQuery table. If specified all data of the table
-        will be used as input of the current source. The ID must contain only
-        letters (a-z, A-Z), numbers (0-9), or underscores (_). If dataset
-        and query arguments are None then the table argument must contain the
-        entire table reference specified as: 'DATASET.TABLE' or
-        'PROJECT:DATASET.TABLE'.
-      dataset: The ID of the dataset containing this table or null if the table
-        reference is specified entirely by the table argument or a query is
-        specified.
-      project: The ID of the project containing this table or null if the table
-        reference is specified entirely by the table argument or a query is
-        specified.
-      query: A query to be used instead of arguments table, dataset, and
+      table (str): The ID of a BigQuery table. If specified all data of the
+        table will be used as input of the current source. The ID must contain
+        only letters ``a-z``, ``A-Z``, numbers ``0-9``, or underscores
+        ``_``. If dataset and query arguments are :data:`None` then the table
+        argument must contain the entire table reference specified as:
+        ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``.
+      dataset (str): The ID of the dataset containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument or a query is specified.
+      project (str): The ID of the project containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument or a query is specified.
+      query (str): A query to be used instead of arguments table, dataset, and
         project.
-      validate: If true, various checks will be done when source gets
-        initialized (e.g., is table present?). This should be True for most
-        scenarios in order to catch errors as early as possible (pipeline
-        construction instead of pipeline execution). It should be False if the
-        table is created during pipeline execution by a previous step.
-      coder: The coder for the table rows if serialized to disk. If None, then
-        the default coder is RowAsDictJsonCoder, which will interpret every line
-        in a file as a JSON serialized dictionary. This argument needs a value
-        only in special cases when returning table rows as dictionaries is not
-        desirable.
-      use_standard_sql: Specifies whether to use BigQuery's standard
-        SQL dialect for this query. The default value is False. If set to True,
-        the query will use BigQuery's updated SQL dialect with improved
-        standards compliance. This parameter is ignored for table inputs.
-      flatten_results: Flattens all nested and repeated fields in the
-        query results. The default value is true.
+      validate (bool): If :data:`True`, various checks will be done when source
+        gets initialized (e.g., is table present?). This should be
+        :data:`True` for most scenarios in order to catch errors as early as
+        possible (pipeline construction instead of pipeline execution). It
+        should be :data:`False` if the table is created during pipeline
+        execution by a previous step.
+      coder (~apache_beam.coders.coders.Coder): The coder for the table
+        rows if serialized to disk. If :data:`None`, then the default coder is
+        :class:`~apache_beam.io.gcp.bigquery.RowAsDictJsonCoder`,
+        which will interpret every line in a file as a JSON serialized
+        dictionary. This argument needs a value only in special cases when
+        returning table rows as dictionaries is not desirable.
+      use_standard_sql (bool): Specifies whether to use BigQuery's standard SQL
+        dialect for this query. The default value is :data:`False`.
+        If set to :data:`True`, the query will use BigQuery's updated SQL
+        dialect with improved standards compliance.
+        This parameter is ignored for table inputs.
+      flatten_results (bool): Flattens all nested and repeated fields in the
+        query results. The default value is :data:`True`.
 
     Raises:
-      ValueError: if any of the following is true
-      (1) the table reference as a string does not match the expected format
-      (2) neither a table nor a query is specified
-      (3) both a table and a query is specified.
+      ~exceptions.ValueError: if any of the following is true:
+
+        1) the table reference as a string does not match the expected format
+        2) neither a table nor a query is specified
+        3) both a table and a query is specified.
     """
 
     # Import here to avoid adding the dependency for local running scenarios.
@@ -435,46 +443,62 @@ class BigQuerySink(dataflow_io.NativeSink):
     """Initialize a BigQuerySink.
 
     Args:
-      table: The ID of the table. The ID must contain only letters
-        (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is
-        None then the table argument must contain the entire table reference
-        specified as: 'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'.
-      dataset: The ID of the dataset containing this table or null if the table
-        reference is specified entirely by the table argument.
-      project: The ID of the project containing this table or null if the table
-        reference is specified entirely by the table argument.
-      schema: The schema to be used if the BigQuery table to write has to be
-        created. This can be either specified as a 'bigquery.TableSchema' object
-        or a single string  of the form 'field1:type1,field2:type2,field3:type3'
-        that defines a comma separated list of fields. Here 'type' should
-        specify the BigQuery type of the field. Single string based schemas do
-        not support nested fields, repeated fields, or specifying a BigQuery
-        mode for fields (mode will always be set to 'NULLABLE').
-      create_disposition: A string describing what happens if the table does not
-        exist. Possible values are:
-        - BigQueryDisposition.CREATE_IF_NEEDED: create if does not exist.
-        - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.
-      write_disposition: A string describing what happens if the table has
-        already some data. Possible values are:
-        -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
-        -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
-        -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
-      validate: If true, various checks will be done when sink gets
-        initialized (e.g., is table present given the disposition arguments?).
-        This should be True for most scenarios in order to catch errors as early
-        as possible (pipeline construction instead of pipeline execution). It
-        should be False if the table is created during pipeline execution by a
-        previous step.
-      coder: The coder for the table rows if serialized to disk. If None, then
-        the default coder is RowAsDictJsonCoder, which will interpret every
-        element written to the sink as a dictionary that will be JSON serialized
-        as a line in a file. This argument needs a value only in special cases
-        when writing table rows as dictionaries is not desirable.
+      table (str): The ID of the table. The ID must contain only letters
+        ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If
+        **dataset** argument is :data:`None` then the table argument must
+        contain the entire table reference specified as: ``'DATASET.TABLE'`` or
+        ``'PROJECT:DATASET.TABLE'``.
+      dataset (str): The ID of the dataset containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument.
+      project (str): The ID of the project containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument.
+      schema (str): The schema to be used if the BigQuery table to write has
+        to be created. This can be either specified as a
+        :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` object or a single string  of the form
+        ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
+        separated list of fields. Here ``'type'`` should specify the BigQuery
+        type of the field. Single string based schemas do not support nested
+        fields, repeated fields, or specifying a BigQuery mode for fields (mode
+        will always be set to ``'NULLABLE'``).
+      create_disposition (BigQueryDisposition): A string describing what
+        happens if the table does not exist. Possible values are:
+
+          * :attr:`BigQueryDisposition.CREATE_IF_NEEDED`: create if does not
+            exist.
+          * :attr:`BigQueryDisposition.CREATE_NEVER`: fail the write if does not
+            exist.
+
+      write_disposition (BigQueryDisposition): A string describing what
+        happens if the table has already some data. Possible values are:
+
+          * :attr:`BigQueryDisposition.WRITE_TRUNCATE`: delete existing rows.
+          * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
+          * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
+            empty.
+
+      validate (bool): If :data:`True`, various checks will be done when sink
+        gets initialized (e.g., is table present given the disposition
+        arguments?). This should be :data:`True` for most scenarios in order to
+        catch errors as early as possible (pipeline construction instead of
+        pipeline execution). It should be :data:`False` if the table is created
+        during pipeline execution by a previous step.
+      coder (~apache_beam.coders.coders.Coder): The coder for the
+        table rows if serialized to disk. If :data:`None`, then the default
+        coder is :class:`~apache_beam.io.gcp.bigquery.RowAsDictJsonCoder`,
+        which will interpret every element written to the sink as a dictionary
+        that will be JSON serialized as a line in a file. This argument needs a
+        value only in special cases when writing table rows as dictionaries is
+        not desirable.
 
     Raises:
-      TypeError: if the schema argument is not a string or a TableSchema object.
-      ValueError: if the table reference as a string does not match the expected
-      format.
+      ~exceptions.TypeError: if the schema argument is not a :class:`str` or a
+        :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` object.
+      ~exceptions.ValueError: if the table reference as a string does not
+        match the expected format.
     """
 
     # Import here to avoid adding the dependency for local running scenarios.
@@ -813,6 +837,7 @@ class BigQueryWrapper(object):
     request = bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
+    logging.debug("Created the table with id %s", table_id)
     # The response is a bigquery.Table instance.
     return response
 
@@ -997,12 +1022,23 @@ class BigQueryWrapper(object):
     if found_table and write_disposition != BigQueryDisposition.WRITE_TRUNCATE:
       return found_table
     else:
+      created_table = self._create_table(project_id=project_id,
+                                         dataset_id=dataset_id,
+                                         table_id=table_id,
+                                         schema=schema or found_table.schema)
       # if write_disposition == BigQueryDisposition.WRITE_TRUNCATE we delete
       # the table before this point.
-      return self._create_table(project_id=project_id,
-                                dataset_id=dataset_id,
-                                table_id=table_id,
-                                schema=schema or found_table.schema)
+      if write_disposition == BigQueryDisposition.WRITE_TRUNCATE:
+        # BigQuery can route data to the old table for 2 mins max so wait
+        # that much time before creating the table and writing it
+        logging.warning('Sleeping for 150 seconds before the write as ' +
+                        'BigQuery inserts can be routed to deleted table ' +
+                        'for 2 mins after the delete and create.')
+        # TODO(BEAM-2673): Remove this sleep by migrating to load api
+        time.sleep(150)
+        return created_table
+      else:
+        return created_table
 
   def run_query(self, project_id, query, use_legacy_sql, flatten_results,
                 dry_run=False):
@@ -1134,3 +1170,269 @@ class BigQueryWrapper(object):
       else:
         result[field.name] = self._convert_cell_value_to_dict(value, field)
     return result
+
+
+class BigQueryWriteFn(DoFn):
+  """A ``DoFn`` that streams writes to BigQuery once the table is created.
+  """
+
+  def __init__(self, table_id, dataset_id, project_id, batch_size, schema,
+               create_disposition, write_disposition, client):
+    """Initialize a WriteToBigQuery transform.
+
+    Args:
+      table_id: The ID of the table. The ID must contain only letters
+        (a-z, A-Z), numbers (0-9), or underscores (_). If dataset argument is
+        None then the table argument must contain the entire table reference
+        specified as: 'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'.
+      dataset_id: The ID of the dataset containing this table or null if the
+        table reference is specified entirely by the table argument.
+      project_id: The ID of the project containing this table or null if the
+        table reference is specified entirely by the table argument.
+      batch_size: Number of rows to be written to BQ per streaming API insert.
+      schema: The schema to be used if the BigQuery table to write has to be
+        created. This can be either specified as a 'bigquery.TableSchema' object
+        or a single string  of the form 'field1:type1,field2:type2,field3:type3'
+        that defines a comma separated list of fields. Here 'type' should
+        specify the BigQuery type of the field. Single string based schemas do
+        not support nested fields, repeated fields, or specifying a BigQuery
+        mode for fields (mode will always be set to 'NULLABLE').
+      create_disposition: A string describing what happens if the table does not
+        exist. Possible values are:
+        - BigQueryDisposition.CREATE_IF_NEEDED: create if does not exist.
+        - BigQueryDisposition.CREATE_NEVER: fail the write if does not exist.
+      write_disposition: A string describing what happens if the table has
+        already some data. Possible values are:
+        -  BigQueryDisposition.WRITE_TRUNCATE: delete existing rows.
+        -  BigQueryDisposition.WRITE_APPEND: add to existing rows.
+        -  BigQueryDisposition.WRITE_EMPTY: fail the write if table not empty.
+        For streaming pipelines WriteTruncate can not be used.
+      test_client: Override the default bigquery client used for testing.
+    """
+    self.table_id = table_id
+    self.dataset_id = dataset_id
+    self.project_id = project_id
+    self.schema = schema
+    self.client = client
+    self.create_disposition = create_disposition
+    self.write_disposition = write_disposition
+    self._rows_buffer = []
+    # The default batch size is 500
+    self._max_batch_size = batch_size or 500
+
+  @staticmethod
+  def get_table_schema(schema):
+    """Transform the table schema into a bigquery.TableSchema instance.
+
+    Args:
+      schema: The schema to be used if the BigQuery table to write has to be
+        created. This is a dictionary object created in the WriteToBigQuery
+        transform.
+    Returns:
+      table_schema: The schema to be used if the BigQuery table to write has
+         to be created but in the bigquery.TableSchema format.
+    """
+    if schema is None:
+      return schema
+    elif isinstance(schema, dict):
+      return parse_table_schema_from_json(json.dumps(schema))
+    else:
+      raise TypeError('Unexpected schema argument: %s.' % schema)
+
+  def start_bundle(self):
+    self._rows_buffer = []
+    self.table_schema = self.get_table_schema(self.schema)
+
+    self.bigquery_wrapper = BigQueryWrapper(client=self.client)
+    self.bigquery_wrapper.get_or_create_table(
+        self.project_id, self.dataset_id, self.table_id, self.table_schema,
+        self.create_disposition, self.write_disposition)
+
+  def process(self, element, unused_create_fn_output=None):
+    self._rows_buffer.append(element)
+    if len(self._rows_buffer) >= self._max_batch_size:
+      self._flush_batch()
+
+  def finish_bundle(self):
+    if self._rows_buffer:
+      self._flush_batch()
+    self._rows_buffer = []
+
+  def _flush_batch(self):
+    # Flush the current batch of rows to BigQuery.
+    passed, errors = self.bigquery_wrapper.insert_rows(
+        project_id=self.project_id, dataset_id=self.dataset_id,
+        table_id=self.table_id, rows=self._rows_buffer)
+    if not passed:
+      raise RuntimeError('Could not successfully insert rows to BigQuery'
+                         ' table [%s:%s.%s]. Errors: %s'%
+                         (self.project_id, self.dataset_id,
+                          self.table_id, errors))
+    logging.debug("Successfully wrote %d rows.", len(self._rows_buffer))
+    self._rows_buffer = []
+
+
+class WriteToBigQuery(PTransform):
+
+  def __init__(self, table, dataset=None, project=None, schema=None,
+               create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+               write_disposition=BigQueryDisposition.WRITE_APPEND,
+               batch_size=None, test_client=None):
+    """Initialize a WriteToBigQuery transform.
+
+    Args:
+      table (str): The ID of the table. The ID must contain only letters
+        ``a-z``, ``A-Z``, numbers ``0-9``, or underscores ``_``. If dataset
+        argument is :data:`None` then the table argument must contain the
+        entire table reference specified as: ``'DATASET.TABLE'`` or
+        ``'PROJECT:DATASET.TABLE'``.
+      dataset (str): The ID of the dataset containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument.
+      project (str): The ID of the project containing this table or
+        :data:`None` if the table reference is specified entirely by the table
+        argument.
+      schema (str): The schema to be used if the BigQuery table to write has to
+        be created. This can be either specified as a
+        :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema`
+        object or a single string  of the form
+        ``'field1:type1,field2:type2,field3:type3'`` that defines a comma
+        separated list of fields. Here ``'type'`` should specify the BigQuery
+        type of the field. Single string based schemas do not support nested
+        fields, repeated fields, or specifying a BigQuery mode for fields
+        (mode will always be set to ``'NULLABLE'``).
+      create_disposition (BigQueryDisposition): A string describing what
+        happens if the table does not exist. Possible values are:
+
+        * :attr:`BigQueryDisposition.CREATE_IF_NEEDED`: create if does not
+          exist.
+        * :attr:`BigQueryDisposition.CREATE_NEVER`: fail the write if does not
+          exist.
+
+      write_disposition (BigQueryDisposition): A string describing what happens
+        if the table has already some data. Possible values are:
+
+        * :attr:`BigQueryDisposition.WRITE_TRUNCATE`: delete existing rows.
+        * :attr:`BigQueryDisposition.WRITE_APPEND`: add to existing rows.
+        * :attr:`BigQueryDisposition.WRITE_EMPTY`: fail the write if table not
+          empty.
+
+        For streaming pipelines WriteTruncate can not be used.
+
+      batch_size (int): Number of rows to be written to BQ per streaming API
+        insert.
+      test_client: Override the default bigquery client used for testing.
+    """
+    self.table_reference = _parse_table_reference(table, dataset, project)
+    self.create_disposition = BigQueryDisposition.validate_create(
+        create_disposition)
+    self.write_disposition = BigQueryDisposition.validate_write(
+        write_disposition)
+    self.schema = schema
+    self.batch_size = batch_size
+    self.test_client = test_client
+
+  @staticmethod
+  def get_table_schema_from_string(schema):
+    """Transform the string table schema into a
+    :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` instance.
+
+    Args:
+      schema (str): The sting schema to be used if the BigQuery table to write
+        has to be created.
+
+    Returns:
+      ~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema:
+      The schema to be used if the BigQuery table to write has to be created
+      but in the :class:`~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema` format.
+    """
+    table_schema = bigquery.TableSchema()
+    schema_list = [s.strip() for s in schema.split(',')]
+    for field_and_type in schema_list:
+      field_name, field_type = field_and_type.split(':')
+      field_schema = bigquery.TableFieldSchema()
+      field_schema.name = field_name
+      field_schema.type = field_type
+      field_schema.mode = 'NULLABLE'
+      table_schema.fields.append(field_schema)
+    return table_schema
+
+  @staticmethod
+  def table_schema_to_dict(table_schema):
+    """Create a dictionary representation of table schema for serialization
+    """
+    def get_table_field(field):
+      """Create a dictionary representation of a table field
+      """
+      result = {}
+      result['name'] = field.name
+      result['type'] = field.type
+      result['mode'] = getattr(field, 'mode', 'NULLABLE')
+      if hasattr(field, 'description') and field.description is not None:
+        result['description'] = field.description
+      if hasattr(field, 'fields') and field.fields:
+        result['fields'] = [get_table_field(f) for f in field.fields]
+      return result
+
+    if not isinstance(table_schema, bigquery.TableSchema):
+      raise ValueError("Table schema must be of the type bigquery.TableSchema")
+    schema = {'fields': []}
+    for field in table_schema.fields:
+      schema['fields'].append(get_table_field(field))
+    return schema
+
+  @staticmethod
+  def get_dict_table_schema(schema):
+    """Transform the table schema into a dictionary instance.
+
+    Args:
+      schema (~apache_beam.io.gcp.internal.clients.bigquery.\
+bigquery_v2_messages.TableSchema):
+        The schema to be used if the BigQuery table to write has to be created.
+        This can either be a dict or string or in the TableSchema format.
+
+    Returns:
+      Dict[str, Any]: The schema to be used if the BigQuery table to write has
+      to be created but in the dictionary format.
+    """
+    if isinstance(schema, dict):
+      return schema
+    elif schema is None:
+      return schema
+    elif isinstance(schema, basestring):
+      table_schema = WriteToBigQuery.get_table_schema_from_string(schema)
+      return WriteToBigQuery.table_schema_to_dict(table_schema)
+    elif isinstance(schema, bigquery.TableSchema):
+      return WriteToBigQuery.table_schema_to_dict(schema)
+    else:
+      raise TypeError('Unexpected schema argument: %s.' % schema)
+
+  def expand(self, pcoll):
+    if self.table_reference.projectId is None:
+      self.table_reference.projectId = pcoll.pipeline.options.view_as(
+          GoogleCloudOptions).project
+    bigquery_write_fn = BigQueryWriteFn(
+        table_id=self.table_reference.tableId,
+        dataset_id=self.table_reference.datasetId,
+        project_id=self.table_reference.projectId,
+        batch_size=self.batch_size,
+        schema=self.get_dict_table_schema(self.schema),
+        create_disposition=self.create_disposition,
+        write_disposition=self.write_disposition,
+        client=self.test_client)
+    return pcoll | 'WriteToBigQuery' >> ParDo(bigquery_write_fn)
+
+  def display_data(self):
+    res = {}
+    if self.table_reference is not None:
+      tableSpec = '{}.{}'.format(self.table_reference.datasetId,
+                                 self.table_reference.tableId)
+      if self.table_reference.projectId is not None:
+        tableSpec = '{}:{}'.format(self.table_reference.projectId,
+                                   tableSpec)
+      res['table'] = DisplayDataItem(tableSpec, label='Table')
+    return res

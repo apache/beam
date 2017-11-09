@@ -20,9 +20,9 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.io;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
@@ -48,7 +48,7 @@ public class BoundedSourceWrapper<OutputT>
   /**
    * Keep the options so that we can initialize the readers.
    */
-  private final SerializedPipelineOptions serializedOptions;
+  private final SerializablePipelineOptions serializedOptions;
 
   /**
    * The split sources. We split them in the constructor to ensure that all parallel
@@ -74,7 +74,7 @@ public class BoundedSourceWrapper<OutputT>
       BoundedSource<OutputT> source,
       int parallelism) throws Exception {
     this.stepName = stepName;
-    this.serializedOptions = new SerializedPipelineOptions(pipelineOptions);
+    this.serializedOptions = new SerializablePipelineOptions(pipelineOptions);
 
     long desiredBundleSize = source.getEstimatedSizeBytes(pipelineOptions) / parallelism;
 
@@ -109,13 +109,13 @@ public class BoundedSourceWrapper<OutputT>
     ReaderInvocationUtil<OutputT, BoundedSource.BoundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(
             stepName,
-            serializedOptions.getPipelineOptions(),
+            serializedOptions.get(),
             metricContainer);
 
     readers = new ArrayList<>();
     // initialize readers from scratch
     for (BoundedSource<OutputT> source : localSources) {
-      readers.add(source.createReader(serializedOptions.getPipelineOptions()));
+      readers.add(source.createReader(serializedOptions.get()));
     }
 
    if (readers.size() == 1) {

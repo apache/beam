@@ -18,7 +18,6 @@
 """Tests for apache_beam.typehints.trivial_inference."""
 import unittest
 
-
 from apache_beam.typehints import trivial_inference
 from apache_beam.typehints import typehints
 
@@ -33,6 +32,11 @@ class TrivialInferenceTest(unittest.TestCase):
   def testIdentity(self):
     self.assertReturnType(int, lambda x: x, [int])
 
+  def testIndexing(self):
+    self.assertReturnType(int, lambda x: x[0], [typehints.Tuple[int, str]])
+    self.assertReturnType(str, lambda x: x[1], [typehints.Tuple[int, str]])
+    self.assertReturnType(str, lambda x: x[1], [typehints.List[str]])
+
   def testTuples(self):
     self.assertReturnType(
         typehints.Tuple[typehints.Tuple[()], int], lambda x: ((), x), [int])
@@ -40,7 +44,8 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.Tuple[str, int, float], lambda x: (x, 0, 1.0), [str])
 
   def testUnpack(self):
-    def reverse((a, b)):
+    def reverse(a_b):
+      (a, b) = a_b
       return b, a
     any_tuple = typehints.Tuple[typehints.Any, typehints.Any]
     self.assertReturnType(
@@ -59,6 +64,13 @@ class TrivialInferenceTest(unittest.TestCase):
                           reverse, [trivial_inference.Const((1.0, 1))])
     self.assertReturnType(any_tuple,
                           reverse, [trivial_inference.Const((1, 2, 3))])
+
+  def testNoneReturn(self):
+    def func(a):
+      if a == 5:
+        return a
+      return None
+    self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
   def testListComprehension(self):
     self.assertReturnType(

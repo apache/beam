@@ -19,10 +19,10 @@ package org.apache.beam.sdk.transforms.windowing;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Ordering;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -141,6 +141,7 @@ import org.joda.time.Duration;
  */
 @AutoValue
 public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T>>  {
+
   /**
    * Specifies the conditions under which a final pane will be created when a window is permanently
    * closed.
@@ -155,6 +156,24 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
      * Only fire the last pane if there is new data since the previous firing.
      *
      * <p>This is the default behavior.
+     */
+    FIRE_IF_NON_EMPTY
+
+  }
+
+  /**
+   * Specifies the conditions under which an on-time pane will be created when a window is closed.
+   */
+  public enum OnTimeBehavior {
+    /**
+     * Always fire the on-time pane. Even if there is no new data since the previous firing,
+     * an element will be produced.
+     *
+     * <p>This is the default behavior.
+     */
+    FIRE_ALWAYS,
+    /**
+     * Only fire the on-time pane if there is new data since the previous firing.
      */
     FIRE_IF_NON_EMPTY
 
@@ -193,6 +212,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   @Nullable abstract AccumulationMode getAccumulationMode();
   @Nullable abstract Duration getAllowedLateness();
   @Nullable abstract ClosingBehavior getClosingBehavior();
+  @Nullable abstract OnTimeBehavior getOnTimeBehavior();
   @Nullable abstract TimestampCombiner getTimestampCombiner();
 
   abstract Builder<T> toBuilder();
@@ -204,6 +224,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     abstract Builder<T> setAccumulationMode(AccumulationMode mode);
     abstract Builder<T> setAllowedLateness(Duration allowedLateness);
     abstract Builder<T> setClosingBehavior(ClosingBehavior closingBehavior);
+    abstract Builder<T> setOnTimeBehavior(OnTimeBehavior onTimeBehavior);
     abstract Builder<T> setTimestampCombiner(TimestampCombiner timestampCombiner);
 
     abstract Window<T> build();
@@ -297,6 +318,15 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   /**
+   * <b><i>(Experimental)</i></b> Override the default {@link OnTimeBehavior}, to control
+   * whether to output an empty on-time pane.
+   */
+  @Experimental(Kind.TRIGGER)
+  public Window<T> withOnTimeBehavior(OnTimeBehavior behavior) {
+    return toBuilder().setOnTimeBehavior(behavior).build();
+  }
+
+  /**
    * Get the output strategy of this {@link Window Window PTransform}. For internal use
    * only.
    */
@@ -313,10 +343,14 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       result = result.withMode(getAccumulationMode());
     }
     if (getAllowedLateness() != null) {
-      result = result.withAllowedLateness(getAllowedLateness());
+      result = result.withAllowedLateness(Ordering.natural().max(getAllowedLateness(),
+          inputStrategy.getAllowedLateness()));
     }
     if (getClosingBehavior() != null) {
       result = result.withClosingBehavior(getClosingBehavior());
+    }
+    if (getOnTimeBehavior() != null) {
+      result = result.withOnTimeBehavior(getOnTimeBehavior());
     }
     if (getTimestampCombiner() != null) {
       result = result.withTimestampCombiner(getTimestampCombiner());
@@ -366,6 +400,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
 
     WindowingStrategy<?, ?> outputStrategy =
         getOutputStrategyInternal(input.getWindowingStrategy());
+
     if (getWindowFn() == null) {
       // A new PCollection must be created in case input is reused in a different location as the
       // two PCollections will, in general, have a different windowing strategy.
@@ -417,11 +452,6 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
   }
 
   @Override
-  protected Coder<?> getDefaultOutputCoder(PCollection<T> input) {
-    return input.getCoder();
-  }
-
-  @Override
   protected String getKindString() {
     return "Window.Into()";
   }
@@ -448,7 +478,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
     @Override
     public PCollection<T> expand(PCollection<T> input) {
       return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(), updatedStrategy, input.isBounded());
+          input.getPipeline(), updatedStrategy, input.isBounded(), input.getCoder());
     }
 
     @Override
@@ -456,6 +486,7 @@ public abstract class Window<T> extends PTransform<PCollection<T>, PCollection<T
       original.populateDisplayData(builder);
     }
 
+    @Nullable
     public WindowFn<T, ?> getWindowFn() {
       return updatedStrategy.getWindowFn();
     }

@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.attemptedMetricsResult;
 import static org.apache.beam.sdk.metrics.MetricResultsMatchers.committedMetricsResult;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
@@ -28,20 +29,25 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.util.ArrayMap;
 import com.google.api.services.dataflow.Dataflow;
 import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricStructuredName;
 import com.google.api.services.dataflow.model.MetricUpdate;
+import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.math.BigDecimal;
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -93,6 +99,9 @@ public class DataflowMetricsTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
     when(job.getState()).thenReturn(State.RUNNING);
     job.jobId = JOB_ID;
 
@@ -113,6 +122,9 @@ public class DataflowMetricsTest {
     modelJob.setCurrentState(State.RUNNING.toString());
 
     DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
     when(job.getState()).thenReturn(State.DONE);
     job.jobId = JOB_ID;
 
@@ -129,11 +141,8 @@ public class DataflowMetricsTest {
     verify(dataflowClient, times(1)).getJobMetrics(JOB_ID);
   }
 
-  private MetricUpdate makeCounterMetricUpdate(String name, String namespace, String step,
-      long scalar, boolean tentative) {
-    MetricUpdate update = new MetricUpdate();
-    update.setScalar(new BigDecimal(scalar));
-
+  private MetricUpdate setStructuredName(MetricUpdate update, String name, String namespace,
+      String step, boolean tentative) {
     MetricStructuredName structuredName = new MetricStructuredName();
     structuredName.setName(name);
     structuredName.setOrigin("user");
@@ -148,12 +157,41 @@ public class DataflowMetricsTest {
     return update;
   }
 
+  private MetricUpdate makeDistributionMetricUpdate(String name, String namespace, String step,
+      Long sum, Long count, Long min, Long max, boolean tentative) {
+    MetricUpdate update = new MetricUpdate();
+    ArrayMap<String, BigDecimal> distribution = ArrayMap.create();
+    distribution.add("count", new BigDecimal(count));
+    distribution.add("mean", new BigDecimal(sum / count));
+    distribution.add("sum", new BigDecimal(sum));
+    distribution.add("min", new BigDecimal(min));
+    distribution.add("max", new BigDecimal(max));
+    update.setDistribution(distribution);
+    return setStructuredName(update, name, namespace, step, tentative);
+  }
+
+  private MetricUpdate makeCounterMetricUpdate(String name, String namespace, String step,
+      long scalar, boolean tentative) {
+    MetricUpdate update = new MetricUpdate();
+    update.setScalar(new BigDecimal(scalar));
+    return setStructuredName(update, name, namespace, step, tentative);
+
+  }
+
   @Test
   public void testSingleCounterUpdates() throws IOException {
     JobMetrics jobMetrics = new JobMetrics();
     DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
     when(job.getState()).thenReturn(State.RUNNING);
     job.jobId = JOB_ID;
+
+    AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
+    when(myStep.getFullName()).thenReturn("myStepName");
+    job.transformStepNames = HashBiMap.create();
+    job.transformStepNames.put(myStep, "s2");
 
     MetricUpdate update = new MetricUpdate();
     long stepValue = 1234L;
@@ -172,9 +210,9 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.counters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "s2", 1233L)));
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null)));
     assertThat(result.counters(), containsInAnyOrder(
-        committedMetricsResult("counterNamespace", "counterName", "s2", 1234L)));
+        committedMetricsResult("counterNamespace", "counterName", "myStepName", 1234L)));
   }
 
   @Test
@@ -183,23 +221,101 @@ public class DataflowMetricsTest {
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
     DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
     when(job.getState()).thenReturn(State.RUNNING);
     job.jobId = JOB_ID;
+
+    AppliedPTransform<?, ?, ?> myStep = mock(AppliedPTransform.class);
+    when(myStep.getFullName()).thenReturn("myStepName");
+    job.transformStepNames = HashBiMap.create();
+    job.transformStepNames.put(myStep, "s2");
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
     jobMetrics.setMetrics(ImmutableList.of(
         makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
-        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, true),
-        makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s3", 0L, false),
-        makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s3", 0L, true)));
+        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, true),
+        makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, false),
+        makeCounterMetricUpdate("otherCounter[MIN]", "otherNamespace", "s2", 0L, true)));
 
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.counters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "s2", 1234L)));
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null)));
     assertThat(result.counters(), containsInAnyOrder(
-        committedMetricsResult("counterNamespace", "counterName", "s2", 1233L)));
+        committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L)));
+  }
+
+  @Test
+  public void testDistributionUpdates() throws IOException {
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
+    when(job.getState()).thenReturn(State.RUNNING);
+    job.jobId = JOB_ID;
+
+    AppliedPTransform<?, ?, ?> myStep2 = mock(AppliedPTransform.class);
+    when(myStep2.getFullName()).thenReturn("myStepName");
+    job.transformStepNames = HashBiMap.create();
+    job.transformStepNames.put(myStep2, "s2");
+
+    // The parser relies on the fact that one tentative and one committed metric update exist in
+    // the job metrics results.
+    jobMetrics.setMetrics(ImmutableList.of(
+        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
+            18L, 2L, 2L, 16L, false),
+        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
+            18L, 2L, 2L, 16L, true)));
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    assertThat(result.distributions(), contains(
+        attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
+            (DistributionResult) null)));
+    assertThat(result.distributions(), contains(
+        committedMetricsResult("distributionNamespace", "distributionName", "myStepName",
+            DistributionResult.create(18, 2, 2, 16))));
+  }
+
+  @Test
+  public void testDistributionUpdatesStreaming() throws IOException {
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(true);
+    when(job.getDataflowOptions()).thenReturn(options);
+    when(job.getState()).thenReturn(State.RUNNING);
+    job.jobId = JOB_ID;
+
+    AppliedPTransform<?, ?, ?> myStep2 = mock(AppliedPTransform.class);
+    when(myStep2.getFullName()).thenReturn("myStepName");
+    job.transformStepNames = HashBiMap.create();
+    job.transformStepNames.put(myStep2, "s2");
+
+    // The parser relies on the fact that one tentative and one committed metric update exist in
+    // the job metrics results.
+    jobMetrics.setMetrics(ImmutableList.of(
+        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
+            18L, 2L, 2L, 16L, false),
+        makeDistributionMetricUpdate("distributionName", "distributionNamespace", "s2",
+            18L, 2L, 2L, 16L, true)));
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    assertThat(result.distributions(), contains(
+        committedMetricsResult("distributionNamespace", "distributionName", "myStepName",
+            (DistributionResult) null)));
+    assertThat(result.distributions(), contains(
+        attemptedMetricsResult("distributionNamespace", "distributionName", "myStepName",
+            DistributionResult.create(18, 2, 2, 16))));
   }
 
   @Test
@@ -208,8 +324,71 @@ public class DataflowMetricsTest {
     DataflowClient dataflowClient = mock(DataflowClient.class);
     when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
     DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(false);
+    when(job.getDataflowOptions()).thenReturn(options);
     when(job.getState()).thenReturn(State.RUNNING);
     job.jobId = JOB_ID;
+
+    AppliedPTransform<?, ?, ?> myStep2 = mock(AppliedPTransform.class);
+    when(myStep2.getFullName()).thenReturn("myStepName");
+    job.transformStepNames = HashBiMap.create();
+    job.transformStepNames.put(myStep2, "s2");
+    AppliedPTransform<?, ?, ?> myStep3 = mock(AppliedPTransform.class);
+    when(myStep3.getFullName()).thenReturn("myStepName3");
+    job.transformStepNames.put(myStep3, "s3");
+    AppliedPTransform<?, ?, ?> myStep4 = mock(AppliedPTransform.class);
+    when(myStep4.getFullName()).thenReturn("myStepName4");
+    job.transformStepNames.put(myStep4, "s4");
+
+
+    // The parser relies on the fact that one tentative and one committed metric update exist in
+    // the job metrics results.
+    jobMetrics.setMetrics(ImmutableList.of(
+        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1233L, false),
+        makeCounterMetricUpdate("counterName", "counterNamespace", "s2", 1234L, true),
+        makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, false),
+        makeCounterMetricUpdate("otherCounter", "otherNamespace", "s3", 12L, true),
+        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1200L, false),
+        makeCounterMetricUpdate("counterName", "otherNamespace", "s4", 1233L, true),
+        // The following counter can not have its name translated thus it won't appear.
+        makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, false),
+        makeCounterMetricUpdate("lostName", "otherNamespace", "s5", 1200L, true)));
+
+    DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
+    MetricQueryResults result = dataflowMetrics.queryMetrics(null);
+    assertThat(result.counters(), containsInAnyOrder(
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null),
+        attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", (Long) null),
+        attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", (Long) null)));
+    assertThat(result.counters(), containsInAnyOrder(
+        committedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
+        committedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
+        committedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
+  }
+
+  @Test
+  public void testMultipleCounterUpdatesStreaming() throws IOException {
+    JobMetrics jobMetrics = new JobMetrics();
+    DataflowClient dataflowClient = mock(DataflowClient.class);
+    when(dataflowClient.getJobMetrics(JOB_ID)).thenReturn(jobMetrics);
+    DataflowPipelineJob job = mock(DataflowPipelineJob.class);
+    DataflowPipelineOptions options = mock(DataflowPipelineOptions.class);
+    when(options.isStreaming()).thenReturn(true);
+    when(job.getDataflowOptions()).thenReturn(options);
+    when(job.getState()).thenReturn(State.RUNNING);
+    job.jobId = JOB_ID;
+
+    AppliedPTransform<?, ?, ?> myStep2 = mock(AppliedPTransform.class);
+    when(myStep2.getFullName()).thenReturn("myStepName");
+    job.transformStepNames = HashBiMap.create();
+    job.transformStepNames.put(myStep2, "s2");
+    AppliedPTransform<?, ?, ?> myStep3 = mock(AppliedPTransform.class);
+    when(myStep3.getFullName()).thenReturn("myStepName3");
+    job.transformStepNames.put(myStep3, "s3");
+    AppliedPTransform<?, ?, ?> myStep4 = mock(AppliedPTransform.class);
+    when(myStep4.getFullName()).thenReturn("myStepName4");
+    job.transformStepNames.put(myStep4, "s4");
 
     // The parser relies on the fact that one tentative and one committed metric update exist in
     // the job metrics results.
@@ -224,12 +403,12 @@ public class DataflowMetricsTest {
     DataflowMetrics dataflowMetrics = new DataflowMetrics(job, dataflowClient);
     MetricQueryResults result = dataflowMetrics.queryMetrics(null);
     assertThat(result.counters(), containsInAnyOrder(
-        attemptedMetricsResult("counterNamespace", "counterName", "s2", 1234L),
-        attemptedMetricsResult("otherNamespace", "otherCounter", "s3", 12L),
-        attemptedMetricsResult("otherNamespace", "counterName", "s4", 1233L)));
+        committedMetricsResult("counterNamespace", "counterName", "myStepName", (Long) null),
+        committedMetricsResult("otherNamespace", "otherCounter", "myStepName3", (Long) null),
+        committedMetricsResult("otherNamespace", "counterName", "myStepName4", (Long) null)));
     assertThat(result.counters(), containsInAnyOrder(
-        committedMetricsResult("counterNamespace", "counterName", "s2", 1233L),
-        committedMetricsResult("otherNamespace", "otherCounter", "s3", 12L),
-        committedMetricsResult("otherNamespace", "counterName", "s4", 1200L)));
+        attemptedMetricsResult("counterNamespace", "counterName", "myStepName", 1233L),
+        attemptedMetricsResult("otherNamespace", "otherCounter", "myStepName3", 12L),
+        attemptedMetricsResult("otherNamespace", "counterName", "myStepName4", 1200L)));
   }
 }

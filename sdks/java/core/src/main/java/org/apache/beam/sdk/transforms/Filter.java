@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 
@@ -229,19 +228,18 @@ public class Filter<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   @Override
   public PCollection<T> expand(PCollection<T> input) {
-    return input.apply(ParDo.of(new DoFn<T, T>() {
-      @ProcessElement
-      public void processElement(ProcessContext c) {
-        if (predicate.apply(c.element())) {
-          c.output(c.element());
-        }
-      }
-    }));
-  }
-
-  @Override
-  protected Coder<T> getDefaultOutputCoder(PCollection<T> input) {
-    return input.getCoder();
+    return input
+        .apply(
+            ParDo.of(
+                new DoFn<T, T>() {
+                  @ProcessElement
+                  public void processElement(ProcessContext c) {
+                    if (predicate.apply(c.element())) {
+                      c.output(c.element());
+                    }
+                  }
+                }))
+        .setCoder(input.getCoder());
   }
 
   @Override

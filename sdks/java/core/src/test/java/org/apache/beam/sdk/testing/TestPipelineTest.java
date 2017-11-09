@@ -21,6 +21,7 @@ package org.apache.beam.sdk.testing;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
@@ -37,8 +38,10 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.PCollection;
@@ -59,7 +62,8 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
   TestPipelineTest.TestPipelineCreationTest.class,
   TestPipelineTest.TestPipelineEnforcementsTest.WithRealPipelineRunner.class,
-  TestPipelineTest.TestPipelineEnforcementsTest.WithCrashingPipelineRunner.class
+  TestPipelineTest.TestPipelineEnforcementsTest.WithCrashingPipelineRunner.class,
+  TestPipelineTest.NewProviderTest.class
 })
 public class TestPipelineTest implements Serializable {
   private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
@@ -100,7 +104,7 @@ public class TestPipelineTest implements Serializable {
 
     @Test
     public void testCreationOfPipelineOptionsFromReallyVerboselyNamedTestCase() throws Exception {
-      PipelineOptions options = TestPipeline.testingPipelineOptions();
+      PipelineOptions options = pipeline.getOptions();
       assertThat(
           options.as(ApplicationNameOptions.class).getAppName(),
           startsWith(
@@ -112,23 +116,7 @@ public class TestPipelineTest implements Serializable {
     public void testToString() {
       assertEquals(
           "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToString",
-          TestPipeline.create().toString());
-    }
-
-    @Test
-    public void testToStringNestedMethod() {
-      TestPipeline p = nestedMethod();
-
-      assertEquals(
-          "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToStringNestedMethod",
-          p.toString());
-      assertEquals(
-          "TestPipelineTest$TestPipelineCreationTest-testToStringNestedMethod",
-          p.getOptions().as(ApplicationNameOptions.class).getAppName());
-    }
-
-    private TestPipeline nestedMethod() {
-      return TestPipeline.create();
+          pipeline.toString());
     }
 
     @Test
@@ -141,24 +129,6 @@ public class TestPipelineTest implements Serializable {
       assertThat(
           lst,
           containsInAnyOrder("--tempLocation=Test_Location", "--appName=TestPipelineCreationTest"));
-    }
-
-    @Test
-    public void testToStringNestedClassMethod() {
-      TestPipeline p = new NestedTester().p();
-
-      assertEquals(
-          "TestPipeline#TestPipelineTest$TestPipelineCreationTest-testToStringNestedClassMethod",
-          p.toString());
-      assertEquals(
-          "TestPipelineTest$TestPipelineCreationTest-testToStringNestedClassMethod",
-          p.getOptions().as(ApplicationNameOptions.class).getAppName());
-    }
-
-    private static class NestedTester {
-      public TestPipeline p() {
-        return TestPipeline.create();
-      }
     }
 
     @Test
@@ -369,6 +339,37 @@ public class TestPipelineTest implements Serializable {
         // (1) + (2) => we assume this pipeline was never meant to be run, so no exception is
         // thrown on account of the missing run / dangling nodes.
       }
+    }
+  }
+
+  /** Tests for {@link TestPipeline#newProvider}. */
+  @RunWith(JUnit4.class)
+  public static class NewProviderTest implements Serializable {
+    @Rule public transient TestPipeline pipeline = TestPipeline.create();
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testNewProvider() {
+      ValueProvider<String> foo = pipeline.newProvider("foo");
+      ValueProvider<String> foobar =
+          ValueProvider.NestedValueProvider.of(
+              foo,
+              new SerializableFunction<String, String>() {
+                @Override
+                public String apply(String input) {
+                  return input + "bar";
+                }
+              });
+
+      assertFalse(foo.isAccessible());
+      assertFalse(foobar.isAccessible());
+
+      PAssert.that(pipeline.apply("create foo", Create.ofProvider(foo, StringUtf8Coder.of())))
+          .containsInAnyOrder("foo");
+      PAssert.that(pipeline.apply("create foobar", Create.ofProvider(foobar, StringUtf8Coder.of())))
+          .containsInAnyOrder("foobar");
+
+      pipeline.run();
     }
   }
 }

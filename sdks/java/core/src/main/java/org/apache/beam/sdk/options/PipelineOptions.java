@@ -35,6 +35,7 @@ import org.apache.beam.sdk.options.ProxyInvocationHandler.Deserializer;
 import org.apache.beam.sdk.options.ProxyInvocationHandler.Serializer;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
+import org.apache.beam.sdk.util.ReleaseInfo;
 import org.joda.time.DateTimeUtils;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -176,7 +177,12 @@ import org.joda.time.format.DateTimeFormatter;
  *
  * <h2>Serialization Of PipelineOptions</h2>
  *
- * {@link PipelineRunner}s require support for options to be serialized. Each property
+ * {@link PipelineOptions} is intentionally <i>not</i> marked {@link java.io.Serializable}, in order
+ * to discourage pipeline authors from capturing {@link PipelineOptions} at pipeline construction
+ * time, because a pipeline may be saved as a template and run with a different set of options
+ * than the ones it was constructed with. See {@link Pipeline#run(PipelineOptions)}.
+ *
+ * <p>However, {@link PipelineRunner}s require support for options to be serialized. Each property
  * within {@link PipelineOptions} must be able to be serialized using Jackson's
  * {@link ObjectMapper} or the getter method for the property annotated with
  * {@link JsonIgnore @JsonIgnore}.
@@ -346,6 +352,41 @@ public interface PipelineOptions extends HasDisplayData {
     @Override
     public Long create(PipelineOptions options) {
       return NEXT_ID.getAndIncrement();
+    }
+  }
+
+  /**
+   * A user agent string as per RFC2616, describing the pipeline to external services.
+   *
+   * <p>https://www.ietf.org/rfc/rfc2616.txt
+   *
+   * <p>It should follow the BNF Form:
+   * <pre><code>
+   * user agent         = 1*(product | comment)
+   * product            = token ["/" product-version]
+   * product-version    = token
+   * </code></pre>
+   * Where a token is a series of characters without a separator.
+   *
+   * <p>The string defaults to {@code [name]/[version]} based on the properties of the Apache Beam
+   * release.
+   */
+  @Description("A user agent string describing the pipeline to external services."
+      + " The format should follow RFC2616. This option defaults to \"[name]/[version]\""
+      + " where name and version are properties of the Apache Beam release.")
+  @Default.InstanceFactory(UserAgentFactory.class)
+  String getUserAgent();
+  void setUserAgent(String userAgent);
+
+  /**
+   * Returns a user agent string constructed from {@link ReleaseInfo#getName()} and
+   * {@link ReleaseInfo#getVersion()}, in the format {@code [name]/[version]}.
+   */
+  class UserAgentFactory implements DefaultValueFactory<String> {
+    @Override
+    public String create(PipelineOptions options) {
+      ReleaseInfo info = ReleaseInfo.getReleaseInfo();
+      return String.format("%s/%s", info.getName(), info.getVersion()).replace(" ", "_");
     }
   }
 }

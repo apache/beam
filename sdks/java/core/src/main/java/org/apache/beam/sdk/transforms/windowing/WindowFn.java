@@ -114,8 +114,29 @@ public abstract class WindowFn<T, W extends BoundedWindow>
   /**
    * Returns whether this performs the same merging as the given
    * {@code WindowFn}.
+   *
+   * @deprecated please override verifyCompatibility to throw a useful error message;
+   *     we will remove isCompatible at version 3.0.0
    */
+  @Deprecated
   public abstract boolean isCompatible(WindowFn<?, ?> other);
+
+  /**
+   * Throw {@link IncompatibleWindowException} if this WindowFn does not perform the same merging as
+   * the given ${@code WindowFn}.
+   *
+   * @throws IncompatibleWindowException if compared WindowFns are not compatible.
+   */
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "%s is not compatible with %s",
+              this.getClass().getSimpleName(),
+              other.getClass().getSimpleName()));
+    }
+  }
 
   /**
    * Returns the {@link Coder} used for serializing the windows used
@@ -155,6 +176,17 @@ public abstract class WindowFn<T, W extends BoundedWindow>
    * Returns true if this {@code WindowFn} never needs to merge any windows.
    */
   public boolean isNonMerging() {
+    return false;
+  }
+
+  /**
+   * Returns true if this {@link WindowFn} always assigns an element to exactly one window.
+   *
+   * <p>If this varies per-element, or cannot be determined, conservatively return false.
+   *
+   * <p>By default, returns false.
+   */
+  public boolean assignsToOneWindow() {
     return false;
   }
 

@@ -40,6 +40,7 @@ import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -101,10 +102,13 @@ public class EvaluationContextTest {
     view = created.apply(View.<Integer>asIterable());
     unbounded = p.apply(GenerateSequence.from(0));
 
+    p.replaceAll(runner.defaultTransformOverrides());
+
     KeyedPValueTrackingVisitor keyedPValueTrackingVisitor = KeyedPValueTrackingVisitor.create();
     p.traverseTopologically(keyedPValueTrackingVisitor);
 
     BundleFactory bundleFactory = ImmutableListBundleFactory.create();
+    DirectGraphs.performDirectOverrides(p);
     graph = DirectGraphs.getGraph(p);
     context =
         EvaluationContext.create(
@@ -116,7 +120,7 @@ public class EvaluationContextTest {
 
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
-    viewProducer = graph.getProducer(view);
+    viewProducer = graph.getWriter(view);
     unboundedProducer = graph.getProducer(unbounded);
   }
 
@@ -124,8 +128,11 @@ public class EvaluationContextTest {
   public void writeToViewWriterThenReadReads() {
     PCollectionViewWriter<Integer, Iterable<Integer>> viewWriter =
         context.createPCollectionViewWriter(
-            PCollection.<Iterable<Integer>>createPrimitiveOutputInternal(
-                p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED),
+            PCollection.createPrimitiveOutputInternal(
+                p,
+                WindowingStrategy.globalDefault(),
+                IsBounded.BOUNDED,
+                IterableCoder.of(VarIntCoder.of())),
             view);
     BoundedWindow window = new TestBoundedWindow(new Instant(1024L));
     BoundedWindow second = new TestBoundedWindow(new Instant(899999L));
@@ -160,7 +167,7 @@ public class EvaluationContextTest {
 
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
-    DirectStepContext stepContext = fooContext.getOrCreateStepContext("s1", "s1");
+    DirectStepContext stepContext = fooContext.getStepContext("s1");
     stepContext.stateInternals().state(StateNamespaces.global(), intBag).add(1);
 
     context.handleResult(
@@ -177,7 +184,7 @@ public class EvaluationContextTest {
             StructuralKey.of("foo", StringUtf8Coder.of()));
     assertThat(
         secondFooContext
-            .getOrCreateStepContext("s1", "s1")
+            .getStepContext("s1")
             .stateInternals()
             .state(StateNamespaces.global(), intBag)
             .read(),
@@ -194,7 +201,7 @@ public class EvaluationContextTest {
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     fooContext
-        .getOrCreateStepContext("s1", "s1")
+        .getStepContext("s1")
         .stateInternals()
         .state(StateNamespaces.global(), intBag)
         .add(1);
@@ -205,7 +212,7 @@ public class EvaluationContextTest {
     assertThat(barContext, not(equalTo(fooContext)));
     assertThat(
         barContext
-            .getOrCreateStepContext("s1", "s1")
+            .getStepContext("s1")
             .stateInternals()
             .state(StateNamespaces.global(), intBag)
             .read(),
@@ -221,7 +228,7 @@ public class EvaluationContextTest {
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     fooContext
-        .getOrCreateStepContext("s1", "s1")
+        .getStepContext("s1")
         .stateInternals()
         .state(StateNamespaces.global(), intBag)
         .add(1);
@@ -230,7 +237,7 @@ public class EvaluationContextTest {
         context.getExecutionContext(downstreamProducer, myKey);
     assertThat(
         barContext
-            .getOrCreateStepContext("s1", "s1")
+            .getStepContext("s1")
             .stateInternals()
             .state(StateNamespaces.global(), intBag)
             .read(),
@@ -246,7 +253,7 @@ public class EvaluationContextTest {
     StateTag<BagState<Integer>> intBag = StateTags.bag("myBag", VarIntCoder.of());
 
     CopyOnAccessInMemoryStateInternals<?> state =
-        fooContext.getOrCreateStepContext("s1", "s1").stateInternals();
+        fooContext.getStepContext("s1").stateInternals();
     BagState<Integer> bag = state.state(StateNamespaces.global(), intBag);
     bag.add(1);
     bag.add(2);
@@ -266,7 +273,7 @@ public class EvaluationContextTest {
         context.getExecutionContext(downstreamProducer, myKey);
 
     CopyOnAccessInMemoryStateInternals<?> afterResultState =
-        afterResultContext.getOrCreateStepContext("s1", "s1").stateInternals();
+        afterResultContext.getStepContext("s1").stateInternals();
     assertThat(afterResultState.state(StateNamespaces.global(), intBag).read(), contains(1, 2, 4));
   }
 
@@ -411,7 +418,7 @@ public class EvaluationContextTest {
         StepTransformResult.withoutHold(unboundedProducer).build());
     assertThat(context.isDone(), is(false));
 
-    for (AppliedPTransform<?, ?, ?> consumers : graph.getPrimitiveConsumers(created)) {
+    for (AppliedPTransform<?, ?, ?> consumers : graph.getPerElementConsumers(created)) {
       context.handleResult(
           committedBundle,
           ImmutableList.<TimerData>of(),

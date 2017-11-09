@@ -48,6 +48,7 @@ import org.apache.beam.sdk.coders.TextualIntegerCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.TableDestinationCoderV2;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowJsonCoder;
 
 /**
@@ -97,6 +98,7 @@ public class DefaultCoderCloudObjectTranslatorRegistrar
           RandomAccessDataCoder.class,
           StringUtf8Coder.class,
           TableDestinationCoder.class,
+          TableDestinationCoderV2.class,
           TableRowJsonCoder.class,
           TextualIntegerCoder.class,
           VarIntCoder.class,

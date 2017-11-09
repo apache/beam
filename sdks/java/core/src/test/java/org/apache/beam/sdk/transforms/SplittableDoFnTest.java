@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.transforms;
 
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.testing.TestPipeline.testingPipelineOptions;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
+import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import com.google.common.collect.Ordering;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +33,9 @@ import java.util.List;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -37,7 +44,6 @@ import org.apache.beam.sdk.testing.UsesSplittableParDoWithWindowedSideInputs;
 import org.apache.beam.sdk.testing.UsesTestStream;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.DoFn.BoundedPerElement;
-import org.apache.beam.sdk.transforms.splittabledofn.OffsetRange;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
@@ -67,10 +73,16 @@ public class SplittableDoFnTest implements Serializable {
 
   static class PairStringWithIndexToLength extends DoFn<String, KV<String, Integer>> {
     @ProcessElement
-    public void process(ProcessContext c, OffsetRangeTracker tracker) {
-      for (long i = tracker.currentRestriction().getFrom(); tracker.tryClaim(i); ++i) {
+    public ProcessContinuation process(ProcessContext c, OffsetRangeTracker tracker) {
+      for (long i = tracker.currentRestriction().getFrom(), numIterations = 0;
+          tracker.tryClaim(i);
+          ++i, ++numIterations) {
         c.output(KV.of(c.element(), (int) i));
+        if (numIterations % 3 == 0) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -93,8 +105,25 @@ public class SplittableDoFnTest implements Serializable {
     }
   }
 
+  private static PipelineOptions streamingTestPipelineOptions() {
+    // Using testing options with streaming=true makes it possible to enable UsesSplittableParDo
+    // tests in Dataflow runner, because as of writing, it can run Splittable DoFn only in
+    // streaming mode.
+    // This is a no-op for other runners currently (Direct runner doesn't care, and other
+    // runners don't implement SDF at all yet).
+    //
+    // This is a workaround until https://issues.apache.org/jira/browse/BEAM-1620
+    // is properly implemented and supports marking tests as streaming-only.
+    //
+    // https://issues.apache.org/jira/browse/BEAM-2483 specifically tracks the removal of the
+    // current workaround.
+    PipelineOptions options = testingPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    return options;
+  }
+
   @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  public final transient TestPipeline p = TestPipeline.fromOptions(streamingTestPipelineOptions());
 
   @Test
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
@@ -182,6 +211,12 @@ public class SplittableDoFnTest implements Serializable {
   private static class SDFWithMultipleOutputsPerBlock extends DoFn<String, Integer> {
     private static final int MAX_INDEX = 98765;
 
+    private final int numClaimsPerCall;
+
+    private SDFWithMultipleOutputsPerBlock(int numClaimsPerCall) {
+      this.numClaimsPerCall = numClaimsPerCall;
+    }
+
     private static int snapToNextBlock(int index, int[] blockStarts) {
       for (int i = 1; i < blockStarts.length; ++i) {
         if (index > blockStarts[i - 1] && index <= blockStarts[i]) {
@@ -192,14 +227,20 @@ public class SplittableDoFnTest implements Serializable {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c, OffsetRangeTracker tracker) {
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
       int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
       int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
-      for (int i = trueStart; tracker.tryClaim(blockStarts[i]); ++i) {
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim(blockStarts[i]);
+          ++i, ++numIterations) {
         for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
           c.output(index);
         }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
       }
+      return stop();
     }
 
     @GetInitialRestriction
@@ -212,7 +253,7 @@ public class SplittableDoFnTest implements Serializable {
   @Category({ValidatesRunner.class, UsesSplittableParDo.class})
   public void testOutputAfterCheckpoint() throws Exception {
     PCollection<Integer> outputs = p.apply(Create.of("foo"))
-        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock()));
+        .apply(ParDo.of(new SDFWithMultipleOutputsPerBlock(3)));
     PAssert.thatSingleton(outputs.apply(Count.<Integer>globally()))
         .isEqualTo((long) SDFWithMultipleOutputsPerBlock.MAX_INDEX);
     p.run();
@@ -287,9 +328,105 @@ public class SplittableDoFnTest implements Serializable {
     PAssert.that(res).containsInAnyOrder("a:0", "a:1", "a:2", "a:3", "b:4", "b:5", "b:6", "b:7");
 
     p.run();
+  }
 
-    // TODO: also add test coverage when the SDF checkpoints - the resumed call should also
-    // properly access side inputs.
+  @BoundedPerElement
+  private static class SDFWithMultipleOutputsPerBlockAndSideInput
+      extends DoFn<Integer, KV<String, Integer>> {
+    private static final int MAX_INDEX = 98765;
+    private final PCollectionView<String> sideInput;
+    private final int numClaimsPerCall;
+
+    public SDFWithMultipleOutputsPerBlockAndSideInput(
+        PCollectionView<String> sideInput, int numClaimsPerCall) {
+      this.sideInput = sideInput;
+      this.numClaimsPerCall = numClaimsPerCall;
+    }
+
+    private static int snapToNextBlock(int index, int[] blockStarts) {
+      for (int i = 1; i < blockStarts.length; ++i) {
+        if (index > blockStarts[i - 1] && index <= blockStarts[i]) {
+          return i;
+        }
+      }
+      throw new IllegalStateException("Shouldn't get here");
+    }
+
+    @ProcessElement
+    public ProcessContinuation processElement(ProcessContext c, OffsetRangeTracker tracker) {
+      int[] blockStarts = {-1, 0, 12, 123, 1234, 12345, 34567, MAX_INDEX};
+      int trueStart = snapToNextBlock((int) tracker.currentRestriction().getFrom(), blockStarts);
+      for (int i = trueStart, numIterations = 1;
+          tracker.tryClaim(blockStarts[i]);
+          ++i, ++numIterations) {
+        for (int index = blockStarts[i]; index < blockStarts[i + 1]; ++index) {
+          c.output(KV.of(c.sideInput(sideInput) + ":" + c.element(), index));
+        }
+        if (numIterations == numClaimsPerCall) {
+          return resume();
+        }
+      }
+      return stop();
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(Integer element) {
+      return new OffsetRange(0, MAX_INDEX);
+    }
+  }
+
+  @Test
+  @Category({
+    ValidatesRunner.class,
+    UsesSplittableParDo.class,
+    UsesSplittableParDoWithWindowedSideInputs.class
+  })
+  public void testWindowedSideInputWithCheckpoints() throws Exception {
+    PCollection<Integer> mainInput =
+        p.apply("main",
+                Create.timestamped(
+                    TimestampedValue.of(0, new Instant(0)),
+                    TimestampedValue.of(1, new Instant(1)),
+                    TimestampedValue.of(2, new Instant(2)),
+                    TimestampedValue.of(3, new Instant(3))))
+            .apply("window 1", Window.<Integer>into(FixedWindows.of(Duration.millis(1))));
+
+    PCollectionView<String> sideInput =
+        p.apply("side",
+                Create.timestamped(
+                    TimestampedValue.of("a", new Instant(0)),
+                    TimestampedValue.of("b", new Instant(2))))
+            .apply("window 2", Window.<String>into(FixedWindows.of(Duration.millis(2))))
+            .apply("singleton", View.<String>asSingleton());
+
+    PCollection<KV<String, Integer>> res =
+        mainInput.apply(
+            ParDo.of(
+                    new SDFWithMultipleOutputsPerBlockAndSideInput(
+                        sideInput, 3 /* numClaimsPerCall */))
+                .withSideInputs(sideInput));
+    PCollection<KV<String, Iterable<Integer>>> grouped =
+        res.apply(GroupByKey.<String, Integer>create());
+
+    PAssert.that(grouped.apply(Keys.<String>create()))
+        .containsInAnyOrder("a:0", "a:1", "b:2", "b:3");
+    PAssert.that(grouped)
+        .satisfies(
+            new SerializableFunction<Iterable<KV<String, Iterable<Integer>>>, Void>() {
+              @Override
+              public Void apply(Iterable<KV<String, Iterable<Integer>>> input) {
+                List<Integer> expected = new ArrayList<>();
+                for (int i = 0; i < SDFWithMultipleOutputsPerBlockAndSideInput.MAX_INDEX; ++i) {
+                  expected.add(i);
+                }
+                for (KV<String, Iterable<Integer>> kv : input) {
+                  assertEquals(expected, Ordering.<Integer>natural().sortedCopy(kv.getValue()));
+                }
+                return null;
+              }
+            });
+    p.run();
+
     // TODO: also test coverage when some of the windows of the side input are not ready.
   }
 

@@ -19,20 +19,23 @@
 
 Only those coders listed in __all__ are part of the public API of this module.
 """
+from __future__ import absolute_import
 
 import base64
 import cPickle as pickle
+
 import google.protobuf
 
 from apache_beam.coders import coder_impl
-from apache_beam.utils import urns
+from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.utils import proto_utils
+from apache_beam.utils import urns
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
-  from stream import get_varint_size
+  from .stream import get_varint_size
 except ImportError:
-  from slow_stream import get_varint_size
+  from .slow_stream import get_varint_size
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 
@@ -201,27 +204,79 @@ class Coder(object):
             and self._dict_without_impl() == other._dict_without_impl())
     # pylint: enable=protected-access
 
-  def to_runner_api(self, context):
-    """For internal use only; no backwards-compatibility guarantees.
+  _known_urns = {}
+
+  @classmethod
+  def register_urn(cls, urn, parameter_type, fn=None):
+    """Registers a urn with a constructor.
+
+    For example, if 'beam:fn:foo' had parameter type FooPayload, one could
+    write `RunnerApiFn.register_urn('bean:fn:foo', FooPayload, foo_from_proto)`
+    where foo_from_proto took as arguments a FooPayload and a PipelineContext.
+    This function can also be used as a decorator rather than passing the
+    callable in as the final parameter.
+
+    A corresponding to_runner_api_parameter method would be expected that
+    returns the tuple ('beam:fn:foo', FooPayload)
     """
-    # TODO(BEAM-115): Use specialized URNs and components.
-    from apache_beam.runners.api import beam_runner_api_pb2
+    def register(fn):
+      cls._known_urns[urn] = parameter_type, fn
+      return staticmethod(fn)
+    if fn:
+      # Used as a statement.
+      register(fn)
+    else:
+      # Used as a decorator.
+      return register
+
+  def to_runner_api(self, context):
+    urn, typed_param, components = self.to_runner_api_parameter(context)
     return beam_runner_api_pb2.Coder(
         spec=beam_runner_api_pb2.SdkFunctionSpec(
             spec=beam_runner_api_pb2.FunctionSpec(
-                urn=urns.PICKLED_CODER,
-                parameter=proto_utils.pack_Any(
-                    google.protobuf.wrappers_pb2.BytesValue(
-                        value=serialize_coder(self))))))
+                urn=urn,
+                payload=typed_param.SerializeToString()
+                if typed_param is not None else None)),
+        component_coder_ids=[context.coders.get_id(c) for c in components])
+
+  @classmethod
+  def from_runner_api(cls, coder_proto, context):
+    """Converts from an SdkFunctionSpec to a Fn object.
+
+    Prefer registering a urn with its parameter type and constructor.
+    """
+    parameter_type, constructor = cls._known_urns[coder_proto.spec.spec.urn]
+    return constructor(
+        proto_utils.parse_Bytes(coder_proto.spec.spec.payload, parameter_type),
+        [context.coders.get_by_id(c) for c in coder_proto.component_coder_ids],
+        context)
+
+  def to_runner_api_parameter(self, context):
+    return (
+        urns.PICKLED_CODER,
+        google.protobuf.wrappers_pb2.BytesValue(value=serialize_coder(self)),
+        ())
 
   @staticmethod
-  def from_runner_api(proto, context):
-    """For internal use only; no backwards-compatibility guarantees.
+  def register_structured_urn(urn, cls):
+    """Register a coder that's completely defined by its urn and its
+    component(s), if any, which are passed to construct the instance.
     """
-    any_proto = proto.spec.spec.parameter
-    bytes_proto = google.protobuf.wrappers_pb2.BytesValue()
-    any_proto.Unpack(bytes_proto)
-    return deserialize_coder(bytes_proto.value)
+    cls.to_runner_api_parameter = (
+        lambda self, unused_context: (urn, None, self._get_component_coders()))
+
+    # pylint: disable=unused-variable
+    @Coder.register_urn(urn, None)
+    def from_runner_api_parameter(unused_payload, components, unused_context):
+      if components:
+        return cls(*components)
+      else:
+        return cls()
+
+
+@Coder.register_urn(urns.PICKLED_CODER, google.protobuf.wrappers_pb2.BytesValue)
+def _pickle_from_runner_api_parameter(payload, components, context):
+  return deserialize_coder(payload.value)
 
 
 class StrUtf8Coder(Coder):
@@ -286,11 +341,19 @@ class BytesCoder(FastCoder):
   def is_deterministic(self):
     return True
 
+  def as_cloud_object(self):
+    return {
+        '@type': 'kind:bytes',
+    }
+
   def __eq__(self, other):
     return type(self) == type(other)
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_structured_urn(urns.BYTES_CODER, BytesCoder)
 
 
 class VarIntCoder(FastCoder):
@@ -307,6 +370,9 @@ class VarIntCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_structured_urn(urns.VAR_INT_CODER, VarIntCoder)
 
 
 class FloatCoder(FastCoder):
@@ -365,7 +431,7 @@ def maybe_dill_dumps(o):
   # We need to use the dill pickler for objects of certain custom classes,
   # including, for example, ones that contain lambdas.
   try:
-    return pickle.dumps(o)
+    return pickle.dumps(o, pickle.HIGHEST_PROTOCOL)
   except Exception:  # pylint: disable=broad-except
     return dill.dumps(o)
 
@@ -426,7 +492,10 @@ class PickleCoder(_PickleCoderBase):
   """Coder using Python's pickle functionality."""
 
   def _create_impl(self):
-    return coder_impl.CallbackCoderImpl(pickle.dumps, pickle.loads)
+    dumps = pickle.dumps
+    HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
+    return coder_impl.CallbackCoderImpl(
+        lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
 
 
 class DillCoder(_PickleCoderBase):
@@ -515,7 +584,7 @@ class Base64PickleCoder(Coder):
   # than via a special Coder.
 
   def encode(self, value):
-    return base64.b64encode(pickle.dumps(value))
+    return base64.b64encode(pickle.dumps(value, pickle.HIGHEST_PROTOCOL))
 
   def decode(self, encoded):
     return pickle.loads(base64.b64decode(encoded))
@@ -639,6 +708,16 @@ class TupleCoder(FastCoder):
   def __hash__(self):
     return hash(self._coders)
 
+  def to_runner_api_parameter(self, context):
+    if self.is_kv_coder():
+      return urns.KV_CODER, None, self.coders()
+    else:
+      return super(TupleCoder, self).to_runner_api_parameter(context)
+
+  @Coder.register_urn(urns.KV_CODER, None)
+  def from_runner_api_parameter(unused_payload, components, unused_context):
+    return TupleCoder(components)
+
 
 class TupleSequenceCoder(FastCoder):
   """Coder of homogeneous tuple objects."""
@@ -710,6 +789,9 @@ class IterableCoder(FastCoder):
     return hash((type(self), self._elem_coder))
 
 
+Coder.register_structured_urn(urns.ITERABLE_CODER, IterableCoder)
+
+
 class GlobalWindowCoder(SingletonCoder):
   """Coder for global windows."""
 
@@ -721,6 +803,9 @@ class GlobalWindowCoder(SingletonCoder):
     return {
         '@type': 'kind:global_window',
     }
+
+
+Coder.register_structured_urn(urns.GLOBAL_WINDOW_CODER, GlobalWindowCoder)
 
 
 class IntervalWindowCoder(FastCoder):
@@ -742,6 +827,9 @@ class IntervalWindowCoder(FastCoder):
 
   def __hash__(self):
     return hash(type(self))
+
+
+Coder.register_structured_urn(urns.INTERVAL_WINDOW_CODER, IntervalWindowCoder)
 
 
 class WindowedValueCoder(FastCoder):
@@ -800,6 +888,9 @@ class WindowedValueCoder(FastCoder):
         (self.wrapped_value_coder, self.timestamp_coder, self.window_coder))
 
 
+Coder.register_structured_urn(urns.WINDOWED_VALUE_CODER, WindowedValueCoder)
+
+
 class LengthPrefixCoder(FastCoder):
   """For internal use only; no backwards-compatibility guarantees.
 
@@ -839,3 +930,6 @@ class LengthPrefixCoder(FastCoder):
 
   def __hash__(self):
     return hash((type(self), self._value_coder))
+
+
+Coder.register_structured_urn(urns.LENGTH_PREFIX_CODER, LengthPrefixCoder)

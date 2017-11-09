@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -33,50 +33,33 @@
   (sources and sinks) to consume and produce data from systems.</description>
 
   <properties>
-    <!--
-      This is the version of Hadoop used to compile the hadoop-common module.
-      This dependency is defined with a provided scope.
-      Users must supply their own Hadoop version at runtime.
-    -->
-    <hadoop.version>2.7.3</hadoop.version>
+    <!-- Necessary to make sure that integration with perfkit in io-it-suite works -->
+    <integrationTestPipelineOptions />
+    <pkbBeamRunnerProfile />
+    <pkbBeamRunnerOption />
   </properties>
 
-  <dependencyManagement>
-    <dependencies>
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-client</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-common</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-mapreduce-client-core</artifactId>
-        <version>${hadoop.version}</version>
-      </dependency>
-    </dependencies>
-  </dependencyManagement>
-
   <modules>
+    <module>amqp</module>
+    <module>cassandra</module>
     <module>common</module>
     <module>elasticsearch</module>
+    <module>elasticsearch-tests</module>
     <module>google-cloud-platform</module>
     <module>hadoop-common</module>
     <module>hadoop-file-system</module>
     <module>hadoop</module>
     <module>hbase</module>
+    <module>hcatalog</module>
     <module>jdbc</module>
     <module>jms</module>
     <module>kafka</module>
     <module>kinesis</module>
     <module>mongodb</module>
     <module>mqtt</module>
+    <module>redis</module>
+    <module>solr</module>
+    <module>tika</module>
     <module>xml</module>
   </modules>
 
@@ -109,10 +92,35 @@
               </execution>
             </executions>
           </plugin>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <version>${surefire-plugin.version}</version>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
         </plugins>
       </build>
       <properties>
         <skipITs>false</skipITs>
+      </properties>
+    </profile>
+
+    <!-- this profile is for use with io-it-suite -->
+    <profile>
+      <id>forceDirectRunner</id>
+      <activation>
+        <property>
+          <name>forceDirectRunner</name>
+        </property>
+      </activation>
+      <properties>
+        <!-- These intentionally have a hanging equals sign so that an empty
+             string is passed to pkb. Passing "" will cause e.g. -P"" to
+             get added to the mvn command line -->
+        <pkbBeamRunnerProfile>-beam_runner_profile=</pkbBeamRunnerProfile>
+        <pkbBeamRunnerOption>-beam_runner_option=</pkbBeamRunnerOption>
       </properties>
     </profile>
   </profiles>

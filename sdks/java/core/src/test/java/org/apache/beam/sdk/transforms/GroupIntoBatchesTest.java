@@ -56,7 +56,7 @@ public class GroupIntoBatchesTest implements Serializable {
   private static final int BATCH_SIZE = 5;
   private static final long NUM_ELEMENTS = 10;
   private static final int ALLOWED_LATENESS = 0;
-  private static final Logger LOGGER = LoggerFactory.getLogger(GroupIntoBatchesTest.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GroupIntoBatchesTest.class);
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
   private transient ArrayList<KV<String, String>> data = createTestData();
 
@@ -159,7 +159,7 @@ public class GroupIntoBatchesTest implements Serializable {
             new DoFn<KV<String, String>, Void>() {
               @ProcessElement
               public void processElement(ProcessContext c, BoundedWindow window) {
-                LOGGER.debug(
+                LOG.debug(
                     "*** ELEMENT: ({},{}) *** with timestamp %s in window %s",
                     c.element().getKey(),
                     c.element().getValue(),

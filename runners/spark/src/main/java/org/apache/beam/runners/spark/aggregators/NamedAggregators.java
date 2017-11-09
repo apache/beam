@@ -19,18 +19,11 @@
 package org.apache.beam.runners.spark.aggregators;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.TreeMap;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
-import org.apache.beam.sdk.coders.CannotProvideCoderException;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.Combine;
 
 /**
@@ -49,17 +42,6 @@ public class NamedAggregators implements Serializable {
    * Constructs a new NamedAggregators instance.
    */
   public NamedAggregators() {
-  }
-
-  /**
-   * Constructs a new named aggregators instance that contains a mapping from the specified
-   * `named` to the associated initial state.
-   *
-   * @param name  Name of aggregator.
-   * @param state Associated State.
-   */
-  public NamedAggregators(String name, State<?, ?, ?> state) {
-    this.mNamedAggregators.put(name, state);
   }
 
   /**
@@ -150,81 +132,6 @@ public class NamedAggregators implements Serializable {
     OutputT render();
 
     Combine.CombineFn<InputT, InterT, OutputT> getCombineFn();
-  }
-
-  /**
-   * @param <InputT> Input data type
-   * @param <InterT> Intermediate data type (useful for averages)
-   * @param <OutputT> Output data type
-   */
-  public static class CombineFunctionState<InputT, InterT, OutputT>
-      implements State<InputT, InterT, OutputT> {
-
-    private Combine.CombineFn<InputT, InterT, OutputT> combineFn;
-    private Coder<InputT> inCoder;
-    private SparkRuntimeContext ctxt;
-    private transient InterT state;
-
-    public CombineFunctionState(
-        Combine.CombineFn<InputT, InterT, OutputT> combineFn,
-        Coder<InputT> inCoder,
-        SparkRuntimeContext ctxt) {
-      this.combineFn = combineFn;
-      this.inCoder = inCoder;
-      this.ctxt = ctxt;
-      this.state = combineFn.createAccumulator();
-    }
-
-    @Override
-    public void update(InputT element) {
-      combineFn.addInput(state, element);
-    }
-
-    @Override
-    public State<InputT, InterT, OutputT> merge(State<InputT, InterT, OutputT> other) {
-      this.state = combineFn.mergeAccumulators(ImmutableList.of(current(), other.current()));
-      return this;
-    }
-
-    @Override
-    public InterT current() {
-      return state;
-    }
-
-    @Override
-    public OutputT render() {
-      return combineFn.extractOutput(state);
-    }
-
-    @Override
-    public Combine.CombineFn<InputT, InterT, OutputT> getCombineFn() {
-      return combineFn;
-    }
-
-    private void writeObject(ObjectOutputStream oos) throws IOException {
-      oos.writeObject(ctxt);
-      oos.writeObject(combineFn);
-      oos.writeObject(inCoder);
-      try {
-        combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-            .encode(state, oos);
-      } catch (CannotProvideCoderException e) {
-        throw new IllegalStateException("Could not determine coder for accumulator", e);
-      }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
-      ctxt = (SparkRuntimeContext) ois.readObject();
-      combineFn = (Combine.CombineFn<InputT, InterT, OutputT>) ois.readObject();
-      inCoder = (Coder<InputT>) ois.readObject();
-      try {
-        state = combineFn.getAccumulatorCoder(ctxt.getCoderRegistry(), inCoder)
-            .decode(ois);
-      } catch (CannotProvideCoderException e) {
-        throw new IllegalStateException("Could not determine coder for accumulator", e);
-      }
-    }
   }
 
 }

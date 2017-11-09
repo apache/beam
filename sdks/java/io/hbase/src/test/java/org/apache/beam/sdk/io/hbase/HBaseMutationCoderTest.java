@@ -28,9 +28,7 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for HBaseMutationCoder.
- */
+/** Tests for HBaseMutationCoder. */
 @RunWith(JUnit4.class)
 public class HBaseMutationCoderTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();

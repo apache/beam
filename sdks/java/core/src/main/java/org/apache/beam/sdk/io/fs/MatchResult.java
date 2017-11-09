@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
+import org.apache.beam.sdk.io.FileSystems;
 
 /**
  * The result of {@link org.apache.beam.sdk.io.FileSystem#match}.
@@ -78,7 +79,9 @@ public abstract class MatchResult {
   public abstract Status status();
 
   /**
-   * {@link Metadata} of matched files.
+   * {@link Metadata} of matched files. Note that if {@link #status()} is {@link Status#NOT_FOUND},
+   * this may either throw a {@link java.io.FileNotFoundException} or return an empty list,
+   * depending on the {@link EmptyMatchTreatment} used in the {@link FileSystems#match} call.
    */
   public abstract List<Metadata> metadata() throws IOException;
 

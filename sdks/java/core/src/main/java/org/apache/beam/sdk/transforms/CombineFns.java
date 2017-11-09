@@ -31,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -176,6 +177,7 @@ public class CombineFns {
      * <p>It is an error to request a non-exist tuple tag from the {@link CoCombineResult}.
      */
     @SuppressWarnings("unchecked")
+    @Nullable
     public <V> V get(TupleTag<V> tag) {
       checkArgument(
           valuesMap.keySet().contains(tag), "TupleTag " + tag + " is not in the CoCombineResult");

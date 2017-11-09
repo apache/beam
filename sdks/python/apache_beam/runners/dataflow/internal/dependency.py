@@ -1,5 +1,3 @@
-
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -61,26 +59,45 @@ import shutil
 import sys
 import tempfile
 
+import pkg_resources
+
 from apache_beam import version as beam_version
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.runners.dataflow.internal import names
-from apache_beam.utils import processes
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.dataflow.internal import names
+from apache_beam.utils import processes
 
+# All constants are for internal use only; no backwards-compatibility
+# guarantees.
 
+# In a released version BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION
+# should match each other, and should be in the same format as the SDK version
+# (i.e. MAJOR.MINOR.PATCH). For non-released (dev) versions, read below.
 # Update this version to the next version whenever there is a change that will
-# require changes to the execution environment.
-BEAM_CONTAINER_VERSION = '2.0.0'
+# require changes to legacy Dataflow worker execution environment.
+# This should be in the beam-[version]-[date] format, date is optional.
+BEAM_CONTAINER_VERSION = 'beam-2.2.0-20170928'
+# Update this version to the next version whenever there is a change that
+# requires changes to SDK harness container or SDK harness launcher.
+# This should be in the beam-[version]-[date] format, date is optional.
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-2.1.0-20170621'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
 REQUIREMENTS_FILE = 'requirements.txt'
 EXTRA_PACKAGES_FILE = 'extra_packages.txt'
 
+# Package names for different distributions
 GOOGLE_PACKAGE_NAME = 'google-cloud-dataflow'
 BEAM_PACKAGE_NAME = 'apache-beam'
+
+# SDK identifiers for different distributions
+GOOGLE_SDK_NAME = 'Google Cloud Dataflow SDK for Python'
+BEAM_SDK_NAME = 'Apache Beam SDK for Python'
+
+DATAFLOW_CONTAINER_IMAGE_REPOSITORY = 'dataflow.gcr.io/v1beta3'
 
 
 def _dependency_file_copy(from_path, to_path):
@@ -162,10 +179,11 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
   for package in extra_packages:
     if not (os.path.basename(package).endswith('.tar') or
             os.path.basename(package).endswith('.tar.gz') or
-            os.path.basename(package).endswith('.whl')):
+            os.path.basename(package).endswith('.whl') or
+            os.path.basename(package).endswith('.zip')):
       raise RuntimeError(
           'The --extra_package option expects a full path ending with '
-          '".tar" or ".tar.gz" instead of %s' % package)
+          '".tar", ".tar.gz", ".whl" or ".zip" instead of %s' % package)
     if os.path.basename(package).endswith('.whl'):
       logging.warning(
           'The .whl package "%s" is provided in --extra_package. '
@@ -180,7 +198,12 @@ def _stage_extra_packages(extra_packages, staging_location, temp_dir,
           staging_temp_dir = tempfile.mkdtemp(dir=temp_dir)
         logging.info('Downloading extra package: %s locally before staging',
                      package)
-        _dependency_file_copy(package, staging_temp_dir)
+        if os.path.isfile(staging_temp_dir):
+          local_file_path = staging_temp_dir
+        else:
+          _, last_component = FileSystems.split(package)
+          local_file_path = FileSystems.join(staging_temp_dir, last_component)
+        _dependency_file_copy(package, local_file_path)
       else:
         raise RuntimeError(
             'The file %s cannot be found. It was specified in the '
@@ -468,56 +491,106 @@ def _stage_beam_sdk_tarball(sdk_remote_location, staged_path, temp_dir):
         'type of location: %s' % sdk_remote_location)
 
 
-def get_required_container_version():
+def get_runner_harness_container_image():
   """For internal use only; no backwards-compatibility guarantees.
 
-  Returns the Google Cloud Dataflow container version for remote execution.
+   Returns:
+     str: Runner harness container image that shall be used by default
+       for current SDK version or None if the runner harness container image
+       bundled with the service shall be used.
+  """
+  try:
+    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
+    # Pin runner harness for Dataflow releases.
+    return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+            version)
+  except pkg_resources.DistributionNotFound:
+    # Pin runner harness for BEAM releases.
+    if 'dev' not in beam_version.__version__:
+      return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
+              beam_version.__version__)
+    # Don't pin runner harness for BEAM head so that we can notice
+    # potential incompatibility between runner and sdk harnesses.
+    return None
+
+
+def get_default_container_image_for_current_sdk(job_type):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Args:
+    job_type (str): BEAM job type.
+
+  Returns:
+    str: Google Cloud Dataflow container image for remote execution.
+  """
+  # TODO(tvalentyn): Use enumerated type instead of strings for job types.
+  if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+    image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
+  else:
+    image_name = 'dataflow.gcr.io/v1beta3/python'
+  image_tag = _get_required_container_version(job_type)
+  return image_name + ':' + image_tag
+
+
+def _get_required_container_version(job_type=None):
+  """For internal use only; no backwards-compatibility guarantees.
+
+  Args:
+    job_type (str, optional): BEAM job type. Defaults to None.
+
+  Returns:
+    str: The tag of worker container images in GCR that corresponds to
+      current version of the SDK.
   """
   # TODO(silviuc): Handle apache-beam versions when we have official releases.
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(GOOGLE_PACKAGE_NAME).version
+    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
     # We drop any pre/post parts of the version and we keep only the X.Y.Z
     # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
-    container_version = '%s.%s.%s' % pkg.parse_version(version)._version.release
+    container_version = (
+        '%s.%s.%s' % pkg_resources.parse_version(version)._version.release)
     # We do, however, keep the ".dev" suffix if it is present.
     if re.match(r'.*\.dev[0-9]*$', version):
       container_version += '.dev'
     return container_version
-  except pkg.DistributionNotFound:
+  except pkg_resources.DistributionNotFound:
     # This case covers Apache Beam end-to-end testing scenarios. All these tests
     # will run with a special container version.
-    return BEAM_CONTAINER_VERSION
+    if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
+      return BEAM_FNAPI_CONTAINER_VERSION
+    else:
+      return BEAM_CONTAINER_VERSION
 
 
 def get_sdk_name_and_version():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
-  # TODO(ccy): Make this check cleaner.
-  container_version = get_required_container_version()
-  if container_version == BEAM_CONTAINER_VERSION:
-    return ('Apache Beam SDK for Python', beam_version.__version__)
-  return ('Google Cloud Dataflow SDK for Python', container_version)
+  container_version = _get_required_container_version()
+  try:
+    pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME)
+    return (GOOGLE_SDK_NAME, container_version)
+  except pkg_resources.DistributionNotFound:
+    return (BEAM_SDK_NAME, beam_version.__version__)
 
 
 def get_sdk_package_name():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns the PyPI package name to be staged to Google Cloud Dataflow."""
-  container_version = get_required_container_version()
-  if container_version == BEAM_CONTAINER_VERSION:
+  sdk_name, _ = get_sdk_name_and_version()
+  if sdk_name == GOOGLE_SDK_NAME:
+    return GOOGLE_PACKAGE_NAME
+  else:
     return BEAM_PACKAGE_NAME
-  return GOOGLE_PACKAGE_NAME
 
 
 def _download_pypi_sdk_package(temp_dir):
   """Downloads SDK package from PyPI and returns path to local path."""
   package_name = get_sdk_package_name()
-  import pkg_resources as pkg
   try:
-    version = pkg.get_distribution(package_name).version
-  except pkg.DistributionNotFound:
+    version = pkg_resources.get_distribution(package_name).version
+  except pkg_resources.DistributionNotFound:
     raise RuntimeError('Please set --sdk_location command-line option '
                        'or install a valid {} distribution.'
                        .format(package_name))

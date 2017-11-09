@@ -34,7 +34,7 @@
   <url>http://beam.apache.org/</url>
   <inceptionYear>2016</inceptionYear>
 
-  <version>2.1.0-SNAPSHOT</version>
+  <version>2.3.0-SNAPSHOT</version>
 
   <licenses>
     <license>
@@ -101,53 +101,93 @@
     <beamSurefireArgline />
 
     <!-- If updating dependencies, please update any relevant javadoc offlineLinks -->
-    <apache.commons.lang.version>3.5</apache.commons.lang.version>
-    <apache.commons.compress.version>1.9</apache.commons.compress.version>
+    <apache.commons.compress.version>1.14</apache.commons.compress.version>
+    <apache.commons.lang.version>3.6</apache.commons.lang.version>
+    <apache.commons.text.version>1.1</apache.commons.text.version>
     <apex.kryo.version>2.24.0</apex.kryo.version>
-    <avro.version>1.8.1</avro.version>
-    <bigquery.version>v2-rev295-1.22.0</bigquery.version>
-    <bigtable.version>0.9.6.2</bigtable.version>
+    <api-common.version>1.0.0-rc2</api-common.version>
+    <args4j.version>2.33</args4j.version>
+    <avro.version>1.8.2</avro.version>
+    <bigquery.version>v2-rev355-1.22.0</bigquery.version>
+    <bigtable.version>1.0.0-pre3</bigtable.version>
     <cloudresourcemanager.version>v1-rev6-1.22.0</cloudresourcemanager.version>
-    <pubsubgrpc.version>0.1.0</pubsubgrpc.version>
+    <pubsubgrpc.version>0.1.18</pubsubgrpc.version>
     <clouddebugger.version>v2-rev8-1.22.0</clouddebugger.version>
-    <dataflow.version>v1b3-rev196-1.22.0</dataflow.version>
+    <dataflow.version>v1b3-rev218-1.22.0</dataflow.version>
     <dataflow.proto.version>0.5.160222</dataflow.proto.version>
     <datastore.client.version>1.4.0</datastore.client.version>
     <datastore.proto.version>1.3.0</datastore.proto.version>
+    <google-api-common.version>1.0.0-rc2</google-api-common.version>
     <google-auto-service.version>1.0-rc2</google-auto-service.version>
-    <google-auto-value.version>1.4.1</google-auto-value.version>
-    <google-auth.version>0.6.1</google-auth.version>
+    <google-auto-value.version>1.5.1</google-auto-value.version>
+    <google-auth.version>0.7.1</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
+    <google-cloud-core.version>1.0.2</google-cloud-core.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
     <guava.version>20.0</guava.version>
     <grpc.version>1.2.0</grpc.version>
-    <grpc-google-common-protos.version>0.1.0</grpc-google-common-protos.version>
+    <grpc-google-common-protos.version>0.1.9</grpc-google-common-protos.version>
+    <!--
+      This is the version of Hadoop used to compile the module that depend on Hadoop.
+      This dependency is defined with a provided scope.
+      Users must supply their own Hadoop version at runtime.
+    -->
+    <hadoop.version>2.7.3</hadoop.version>
     <hamcrest.version>1.3</hamcrest.version>
-    <jackson.version>2.8.8</jackson.version>
+    <jackson.version>2.8.9</jackson.version>
     <findbugs.version>3.0.1</findbugs.version>
+    <findbugs.annotations.version>1.3.9-1</findbugs.annotations.version>
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
     <netty.version>4.1.8.Final</netty.version>
     <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
-    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
-    <slf4j.version>1.7.14</slf4j.version>
-    <spark.version>1.6.2</spark.version>
+    <slf4j.version>1.7.25</slf4j.version>
+    <spanner.version>0.20.0-beta</spanner.version>
+    <spark.version>1.6.3</spark.version>
+    <spring.version>4.3.5.RELEASE</spring.version>
     <stax2.version>3.1.4</stax2.version>
     <storage.version>v1-rev71-1.22.0</storage.version>
     <woodstox.version>4.4.1</woodstox.version>
     <spring.version>4.3.5.RELEASE</spring.version>
+    <snappy-java.version>1.1.4</snappy-java.version>
+    <kafka.clients.version>0.11.0.1</kafka.clients.version>
+    <commons.csv.version>1.4</commons.csv.version>
+
+    <apache-rat-plugin.version>0.12</apache-rat-plugin.version>
+    <os-maven-plugin.version>1.5.0.Final</os-maven-plugin.version>
     <groovy-maven-plugin.version>2.0</groovy-maven-plugin.version>
     <surefire-plugin.version>2.20</surefire-plugin.version>
     <failsafe-plugin.version>2.20</failsafe-plugin.version>
+    <maven-compiler-plugin.version>3.6.2</maven-compiler-plugin.version>
+    <maven-dependency-plugin.version>3.0.1</maven-dependency-plugin.version>
+    <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
+    <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
+    <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
+    <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
+    <maven-license-plugin.version>1.13</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
-    
+    <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
+    <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
+
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
+    <gax-grpc.version>0.20.0</gax-grpc.version>
+
+    <!-- standard binary for kubectl -->
+    <kubectl>kubectl</kubectl>
+    <!-- the standard location for kubernete's config file -->
+    <kubeconfig>${user.home}/.kube/config</kubeconfig>
+
+    <!-- For container builds, override to push containers to any registry -->
+    <docker-repository-root>${user.name}-docker-apache.bintray.io/beam</docker-repository-root>
+
+    <!-- Default skipping -->
+    <rat.skip>true</rat.skip>
   </properties>
 
   <packaging>pom</packaging>
@@ -156,6 +196,7 @@
     <!-- sdks/java/build-tools has project-wide configuration. To make these available
       in all modules, link it directly to the parent pom.xml. -->
     <module>sdks/java/build-tools</module>
+    <module>model</module>
     <module>sdks</module>
     <module>runners</module>
     <module>examples</module>
@@ -164,8 +205,8 @@
   </modules>
 
   <profiles>
-    <!-- A global profile defined for all modules for release-level verification. 
-      Optional processes such as building source and javadoc should be limited 
+    <!-- A global profile defined for all modules for release-level verification.
+      Optional processes such as building source and javadoc should be limited
       to this profile. -->
     <profile>
       <id>release</id>
@@ -210,15 +251,11 @@
             <plugin>
               <groupId>org.apache.rat</groupId>
               <artifactId>apache-rat-plugin</artifactId>
-              <executions>
-                <execution>
-                  <phase>verify</phase>
-                  <goals>
-                    <goal>check</goal>
-                  </goals>
-                </execution>
-              </executions>
+              <configuration>
+                <skip>false</skip>
+              </configuration>
             </plugin>
+
             <plugin>
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-resources-plugin</artifactId>
@@ -241,6 +278,57 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-source-plugin</artifactId>
+          </plugin>
+
+          <plugin>
+            <groupId>io.github.zlika</groupId>
+            <artifactId>reproducible-build-maven-plugin</artifactId>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+
+    <profile>
+      <id>java8-enable-like-dependencies</id>
+      <activation>
+        <jdk>[1.8,)</jdk>
+      </activation>
+      <build>
+        <plugins>
+          <!-- Override Beam parent to allow Java8 dependencies -->
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-enforcer-plugin</artifactId>
+            <version>${maven-enforcer-plugin.version}</version>
+            <executions>
+              <execution>
+                <id>enforce</id>
+                <goals>
+                  <goal>enforce</goal>
+                </goals>
+                <configuration>
+                  <rules>
+                    <enforceBytecodeVersion>
+                      <maxJdkVersion>1.8</maxJdkVersion>
+                      <excludes>
+                        <!--
+                          Supplied by the user JDK and compiled with matching
+                          version. Is not shaded, so safe to ignore.
+                        -->
+                        <exclude>jdk.tools:jdk.tools</exclude>
+                      </excludes>
+                    </enforceBytecodeVersion>
+                    <requireJavaVersion>
+                      <version>[1.7,)</version>
+                    </requireJavaVersion>
+                    <requireMavenVersion>
+                      <!-- Keep aligned with preqrequisite section below. -->
+                      <version>[3.2,)</version>
+                    </requireMavenVersion>
+                  </rules>
+                </configuration>
+              </execution>
+            </executions>
           </plugin>
         </plugins>
       </build>
@@ -325,27 +413,60 @@
         </pluginManagement>
       </build>
     </profile>
+
+    <profile>
+      <id>build-containers</id>
+      <build>
+        <!-- TODO(BEAM-2878): enable container build for releases -->
+        <pluginManagement>
+          <plugins>
+            <plugin>
+              <groupId>com.spotify</groupId>
+              <artifactId>dockerfile-maven-plugin</artifactId>
+              <executions>
+                <execution>
+                  <id>default</id>
+                  <goals>
+                    <goal>build</goal>
+                  </goals>
+                  <configuration>
+                    <noCache>true</noCache>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+          </plugins>
+        </pluginManagement>
+      </build>
+    </profile>
+
   </profiles>
 
   <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-common-fn-api</artifactId>
+        <artifactId>beam-model-pipeline</artifactId>
         <version>${project.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-common-fn-api</artifactId>
+        <artifactId>beam-model-job-management</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-model-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-model-fn-execution</artifactId>
         <version>${project.version}</version>
         <type>test-jar</type>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.beam</groupId>
-        <artifactId>beam-sdks-common-runner-api</artifactId>
-        <version>${project.version}</version>
       </dependency>
 
       <dependency>
@@ -381,8 +502,27 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-extensions-sketching</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-extensions-sorter</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
       </dependency>
 
       <dependency>
@@ -406,8 +546,42 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-amqp</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-cassandra</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-elasticsearch</artifactId>
         <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-common</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+        <classifier>tests</classifier>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-2</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-elasticsearch-tests-5</artifactId>
+        <version>${project.version}</version>
+        <scope>test</scope>
       </dependency>
 
       <dependency>
@@ -438,6 +612,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hbase</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-hcatalog</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -477,12 +657,18 @@
         <version>${project.version}</version>
       </dependency>
 
-	  <dependency>
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-sdks-java-io-solr</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-sdks-java-io-hadoop-input-format</artifactId>
-	    <version>${project.version}</version>
+        <version>${project.version}</version>
       </dependency>
-	
+
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-construction-java</artifactId>
@@ -492,6 +678,25 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-core-java</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-core-java</artifactId>
+        <version>${project.version}</version>
+        <type>test-jar</type>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-reference-job-orchestrator</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -527,6 +732,12 @@
 
       <dependency>
         <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-gearpump</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
         <artifactId>beam-examples-java</artifactId>
         <version>${project.version}</version>
       </dependency>
@@ -547,6 +758,12 @@
         <groupId>org.apache.commons</groupId>
         <artifactId>commons-lang3</artifactId>
         <version>${apache.commons.lang.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-text</artifactId>
+        <version>${apache.commons.text.version}</version>
       </dependency>
 
       <dependency>
@@ -601,6 +818,18 @@
         <groupId>io.grpc</groupId>
         <artifactId>grpc-stub</artifactId>
         <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api</groupId>
+        <artifactId>api-common</artifactId>
+        <version>${google-api-common.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api</groupId>
+        <artifactId>gax-grpc</artifactId>
+        <version>${gax-grpc.version}</version>
       </dependency>
 
       <dependency>
@@ -720,13 +949,13 @@
         <artifactId>google-auth-library-credentials</artifactId>
         <version>${google-auth.version}</version>
       </dependency>
-  
+
       <dependency>
         <groupId>com.google.auth</groupId>
         <artifactId>google-auth-library-oauth2-http</artifactId>
         <version>${google-auth.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -773,7 +1002,7 @@
 
       <dependency>
         <groupId>com.google.api.grpc</groupId>
-        <artifactId>grpc-google-pubsub-v1</artifactId>
+        <artifactId>grpc-google-cloud-pubsub-v1</artifactId>
         <version>${pubsubgrpc.version}</version>
         <exclusions>
           <!-- Exclude an old version of guava that is being pulled in by a transitive
@@ -792,11 +1021,29 @@
       </dependency>
 
       <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-pubsub-v1</artifactId>
+        <version>${pubsubgrpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-cloud-spanner-admin-database-v1</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.api.grpc</groupId>
+        <artifactId>proto-google-common-protos</artifactId>
+        <version>${grpc-google-common-protos.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-storage</artifactId>
         <version>${storage.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -805,6 +1052,11 @@
         </exclusions>
       </dependency>
 
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-core-grpc</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
         <artifactId>bigtable-protos</artifactId>
@@ -855,9 +1107,27 @@
       </dependency>
 
       <dependency>
+        <groupId>com.github.stephenc.findbugs</groupId>
+        <artifactId>findbugs-annotations</artifactId>
+        <version>${findbugs.annotations.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>com.google.cloud.bigdataoss</groupId>
         <artifactId>gcsio</artifactId>
         <version>${google-cloud-bigdataoss.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-core</artifactId>
+        <version>${google-cloud-core.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-spanner</artifactId>
+        <version>${spanner.version}</version>
       </dependency>
 
       <dependency>
@@ -871,7 +1141,7 @@
         <artifactId>google-api-services-dataflow</artifactId>
         <version>${dataflow.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -885,7 +1155,7 @@
         <artifactId>google-api-services-clouddebugger</artifactId>
         <version>${clouddebugger.version}</version>
         <exclusions>
-          <!-- Exclude an old version of guava that is being pulled in by a transitive 
+          <!-- Exclude an old version of guava that is being pulled in by a transitive
             dependency of google-api-client -->
           <exclusion>
             <groupId>com.google.guava</groupId>
@@ -897,6 +1167,12 @@
       <dependency>
         <groupId>com.google.protobuf</groupId>
         <artifactId>protobuf-java</artifactId>
+        <version>${protobuf.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java-util</artifactId>
         <version>${protobuf.version}</version>
       </dependency>
 
@@ -976,6 +1252,12 @@
       </dependency>
 
       <dependency>
+        <groupId>args4j</groupId>
+        <artifactId>args4j</artifactId>
+        <version>${args4j.version}</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-api</artifactId>
         <version>${slf4j.version}</version>
@@ -986,11 +1268,65 @@
         <artifactId>byte-buddy</artifactId>
         <version>1.6.8</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.springframework</groupId>
         <artifactId>spring-expression</artifactId>
         <version>${spring.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.xerial.snappy</groupId>
+        <artifactId>snappy-java</artifactId>
+        <version>${snappy-java.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-client</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-mapreduce-client-core</artifactId>
+        <version>${hadoop.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-core_2.10</artifactId>
+        <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-streaming_2.10</artifactId>
+        <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-network-common_2.10</artifactId>
+        <version>${spark.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.kafka</groupId>
+        <artifactId>kafka-clients</artifactId>
+        <version>${kafka.clients.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-csv</artifactId>
+        <version>${commons.csv.version}</version>
       </dependency>
 
       <!-- Testing -->
@@ -1062,6 +1398,27 @@
         <scope>test</scope>
       </dependency>
 
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-minicluster</artifactId>
+        <version>${hadoop.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-hdfs</artifactId>
+        <version>${hadoop.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-hdfs</artifactId>
+        <version>${hadoop.version}</version>
+        <classifier>tests</classifier>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -1087,7 +1444,7 @@
           <artifactId>maven-antrun-plugin</artifactId>
           <version>1.8</version>
         </plugin>
-        
+
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-checkstyle-plugin</artifactId>
@@ -1131,7 +1488,7 @@
 
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.6.1</version>
+          <version>${maven-compiler-plugin.version}</version>
           <configuration>
             <source>1.7</source>
             <target>1.7</target>
@@ -1186,7 +1543,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-jar-plugin</artifactId>
-          <version>3.0.2</version>
+          <version>${maven-jar-plugin.version}</version>
           <executions>
             <execution>
               <id>default-jar</id>
@@ -1207,6 +1564,19 @@
         </plugin>
 
         <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>license-maven-plugin</artifactId>
+          <version>${maven-license-plugin.version}</version>
+          <configuration>
+            <licenseMerges>
+              <licenseMerge>The Apache Software License, version 2.0|Apache License, Version 2.0|Apache 2.0|Apache License 2.0|Apache|Apache-2.0|Apache License Version 2.0|Apache License Version 2|Apache Software License - Version 2.0|Apache 2.0 License|the Apache License, ASL Version 2.0|Apache v2|The Apache License, Version 2.0|http://www.apache.org/licenses/LICENSE-2.0.txt|ASL, version 2</licenseMerge>
+              <licenseMerge>MIT License|MIT|MIT License|The MIT License</licenseMerge>
+              <licenseMerge>CDDL 1.0|Common Development and Distribution License (CDDL) v1.0|COMMON DEVELOPMENT AND DISTRIBUTION LICENSE (CDDL) Version 1.0</licenseMerge>
+            </licenseMerges>
+          </configuration>
+        </plugin>
+
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-source-plugin</artifactId>
           <version>3.0.1</version>
@@ -1221,52 +1591,115 @@
                here, we leave things simple here. -->
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-javadoc-plugin</artifactId>
-          <version>2.10.4</version>
+          <version>${maven-javadoc-plugin.version}</version>
           <configuration>
+            <!-- exclude this auto-generated packages from javadoc -->
+            <excludePackageNames>org.apache.beam.sdk.extensions.sql.impl.parser.impl</excludePackageNames>
             <additionalparam>${beam.javadoc_opts}</additionalparam>
             <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
             <use>false</use>
             <quiet>true</quiet>
+            <notimestamp>true</notimestamp>
           </configuration>
         </plugin>
 
         <plugin>
           <groupId>org.apache.rat</groupId>
           <artifactId>apache-rat-plugin</artifactId>
-          <version>0.12</version>
+          <version>${apache-rat-plugin.version}</version>
+          <!-- Apache RAT checks all files in the project, only run once. -->
+          <inherited>false</inherited>
+          <executions>
+            <execution>
+              <phase>verify</phase>
+              <goals>
+                <goal>check</goal>
+              </goals>
+            </execution>
+          </executions>
           <configuration>
             <reportFile>${project.build.directory}/${project.build.finalName}.rat</reportFile>
             <excludeSubProjects>false</excludeSubProjects>
             <consoleOutput>true</consoleOutput>
             <useDefaultExcludes>true</useDefaultExcludes>
+
+            <!--
+              Keep excludes in sync with .gitignore, with consistent
+              order and sections for easy cross-checking.
+
+              Patterns are relative to $PWD, not the RAT ${basedir},
+              so each _must_ be prefixed with `**` or `${project.basedir}`.
+            -->
             <excludes>
-              <!-- Keep exclude sync with .gitignore -->
+              <!-- .gitignore: Ignore files generated by the Maven build process -->
               <exclude>**/target/**/*</exclude>
+              <exclude>**/bin/**/*</exclude>
               <exclude>**/dependency-reduced-pom.xml</exclude>
-              <exclude>**/hs_err_pid*.log</exclude>
-              <exclude>.github/**/*</exclude>
-              <exclude>**/*.iml</exclude>
-              <exclude>**/.idea/**/*</exclude>
+
+              <!-- .gitignore: Ignore files generated by the Python build process -->
+              <exclude>**/*.pyc</exclude>
+              <exclude>**/*.pyo</exclude>
+              <exclude>**/*.pyd</exclude>
               <exclude>**/*.egg-info/**/*</exclude>
+              <exclude>**/.eggs/**/*</exclude>
+              <exclude>**/nose-*.egg/**/*</exclude>
+              <exclude>**/.tox/**/*</exclude>
+              <exclude>**/build/**/*</exclude>
+              <exclude>**/dist/**/*</exclude>
+              <exclude>**/distribute-*/**/*</exclude>
+              <exclude>**/env/**/*</exclude>
+              <exclude>sdks/python/**/*.c</exclude>
+              <exclude>sdks/python/**/*.so</exclude>
+              <exclude>sdks/python/LICENSE</exclude>
+              <exclude>sdks/python/NOTICE</exclude>
+              <exclude>sdks/python/README.md</exclude>
+              <exclude>sdks/python/apache_beam/portability/api/*pb2*.*</exclude>
+
+              <!-- .gitignore: Ignore IntelliJ files. -->
+              <exclude>**/idea/**/*</exclude>
+              <exclude>**/*.iml</exclude>
+              <exclude>**/*.ipr</exclude>
+              <exclude>**/*.iws</exclude>
+
+              <!-- .gitignore: Ignore Eclipse files. -->
+              <exclude>**/.classpath</exclude>
+              <exclude>**/.project</exclude>
+              <exclude>**/.factorypath</exclude>
+              <exclude>**/.checkstyle</exclude>
+              <exclude>**/.fbExcludeFilterFile</exclude>
+              <exclude>**/.apt_generated/**/*</exclude>
+              <exclude>**/.settings/**/*</exclude>
+
+              <!-- .gitignore: Ignore Visual Studio Code files. -->
+              <exclude>**/.vscode/*/**</exclude>
+
+              <!-- .gitignore: Hotspot VM leaves this log in a non-target directory when java crashes -->
+              <exclude>**/hs_err_pid*.log</exclude>
+
+              <!-- .gitignore: Ignore files that end with '~', since they
+                   are most likely auto-save files produced by a text editor. -->
+              <exclude>**/*~</exclude>
+
+              <!-- .gitignore: Ignore MacOSX files. -->
+              <exclude>**/.DS_Store/**/*</exclude>
+
+              <!-- Ignore files we track but do not distribute -->
+              <exclude>.github/**/*</exclude>
+
               <exclude>**/package-list</exclude>
               <exclude>**/user.avsc</exclude>
               <exclude>**/test/resources/**/*.txt</exclude>
               <exclude>**/test/**/.placeholder</exclude>
-              <exclude>.repository/**/*</exclude>
-              <exclude>**/nose-*.egg/**/*</exclude>
-              <exclude>**/.eggs/**/*</exclude>
-              <exclude>**/.tox/**/*</exclude>
 
               <!-- Default eclipse excludes neglect subprojects -->
-              <exclude>**/.checkstyle</exclude>
-              <exclude>**/.classpath</exclude>
-              <exclude>**/.factorypath</exclude>
-              <exclude>**/.project</exclude>
-              <exclude>**/.settings/**/*</exclude>
 
               <!-- Proto/grpc generated wrappers -->
-              <exclude>**/sdks/python/apache_beam/runners/api/*.py</exclude>
+              <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
+              <exclude>**/go/pkg/beam/model/**/*.pb.go</exclude>
+
+              <!-- VCF test files -->
+              <exclude>**/apache_beam/testing/data/vcf/*</exclude>
             </excludes>
           </configuration>
         </plugin>
@@ -1358,7 +1791,7 @@
           </configuration>
         </plugin>
 
-        <!-- This plugin's configuration tells the m2e plugin how to import this 
+        <!-- This plugin's configuration tells the m2e plugin how to import this
           Maven project into the Eclipse environment. -->
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
@@ -1418,7 +1851,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-shade-plugin</artifactId>
-          <version>3.0.0</version>
+          <version>${maven-shade-plugin.version}</version>
           <executions>
             <execution>
               <id>bundle-and-repackage</id>
@@ -1590,6 +2023,36 @@
             </execution>
           </executions>
         </plugin>
+
+        <plugin>
+          <groupId>io.github.zlika</groupId>
+          <artifactId>reproducible-build-maven-plugin</artifactId>
+          <version>${reproducible-build-maven-plugin.version}</version>
+          <executions>
+            <execution>
+              <goals>
+                <goal>strip-jar</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+        <plugin>
+          <groupId>com.igormaznitsa</groupId>
+          <artifactId>mvn-golang-wrapper</artifactId>
+          <version>2.1.6</version>
+          <extensions>true</extensions>
+          <configuration>
+            <goVersion>1.9</goVersion>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>com.spotify</groupId>
+          <artifactId>dockerfile-maven-plugin</artifactId>
+          <version>1.3.5</version>
+          <!-- no executions by default. Use build-containers profile -->
+        </plugin>
       </plugins>
     </pluginManagement>
 
@@ -1597,7 +2060,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>
-        <version>3.0.0</version>
+        <version>${maven-dependency-plugin.version}</version>
         <executions>
           <execution>
             <goals><goal>analyze-only</goal></goals>
@@ -1605,6 +2068,11 @@
               <!-- Ignore runtime-only dependencies in analysis -->
               <ignoreNonCompile>true</ignoreNonCompile>
               <failOnWarning>true</failOnWarning>
+
+              <!-- ignore jsr305 for both "used but undeclared" and "declared but unused" -->
+              <ignoredDependencies>
+                <ignoredDependency>com.google.code.findbugs:jsr305</ignoredDependency>
+              </ignoredDependencies>
             </configuration>
           </execution>
         </executions>
@@ -1612,7 +2080,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-enforcer-plugin</artifactId>
-        <version>1.4.1</version>
+        <version>${maven-enforcer-plugin.version}</version>
         <executions>
           <execution>
             <id>enforce</id>
@@ -1629,6 +2097,7 @@
                       version. Is not shaded, so safe to ignore.
                     -->
                     <exclude>jdk.tools:jdk.tools</exclude>
+                    <exclude>com.google.auto.value:auto-value</exclude>
                   </excludes>
                 </enforceBytecodeVersion>
                 <requireJavaVersion>
@@ -1695,7 +2164,7 @@
             </goals>
             <configuration>
               <outputDirectory>${basedir}/sdks/python</outputDirectory>
-              <resources>          
+              <resources>
                 <resource>
                   <directory>${basedir}</directory>
                   <includes>
@@ -1704,8 +2173,8 @@
                     <include>README.md</include>
                   </includes>
                 </resource>
-              </resources>              
-            </configuration>            
+              </resources>
+            </configuration>
           </execution>
         </executions>
       </plugin>

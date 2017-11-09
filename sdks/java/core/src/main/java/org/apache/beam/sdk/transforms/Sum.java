@@ -151,6 +151,16 @@ public class Sum {
     public int identity() {
       return 0;
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return other != null && other.getClass().equals(this.getClass());
+    }
+
+    @Override
+    public int hashCode() {
+      return getClass().hashCode();
+    }
   }
 
   private static class SumLongFn extends Combine.BinaryCombineLongFn {
@@ -164,6 +174,16 @@ public class Sum {
     public long identity() {
       return 0;
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return other != null && other.getClass().equals(this.getClass());
+    }
+
+    @Override
+    public int hashCode() {
+      return getClass().hashCode();
+    }
   }
 
   private static class SumDoubleFn extends Combine.BinaryCombineDoubleFn {
@@ -176,6 +196,16 @@ public class Sum {
     @Override
     public double identity() {
       return 0;
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      return other != null && other.getClass().equals(this.getClass());
+    }
+
+    @Override
+    public int hashCode() {
+      return getClass().hashCode();
     }
   }
 }

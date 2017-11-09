@@ -20,14 +20,17 @@
 from __future__ import absolute_import
 
 import collections
+import itertools
 import logging
 import Queue
 import sys
 import threading
+import traceback
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.pipeline_options import DirectOptions
 
 
 class _ExecutorService(object):
@@ -55,6 +58,9 @@ class _ExecutorService(object):
       self._default_name = 'ExecutorServiceWorker-' + str(index)
       self._update_name()
       self.shutdown_requested = False
+
+      # Stop worker thread when main thread exits.
+      self.daemon = True
       self.start()
 
     def _update_name(self, task=None):
@@ -75,7 +81,6 @@ class _ExecutorService(object):
         return None
 
     def run(self):
-
       while not self.shutdown_requested:
         task = self._get_task_or_none()
         if task:
@@ -221,22 +226,30 @@ class _CompletionCallback(object):
   or for a source transform.
   """
 
-  def __init__(self, evaluation_context, all_updates, timers=None):
+  def __init__(self, evaluation_context, all_updates, timer_firings=None):
     self._evaluation_context = evaluation_context
     self._all_updates = all_updates
-    self._timers = timers
+    self._timer_firings = timer_firings or []
 
-  def handle_result(self, input_committed_bundle, transform_result):
+  def handle_result(self, transform_executor, input_committed_bundle,
+                    transform_result):
     output_committed_bundles = self._evaluation_context.handle_result(
-        input_committed_bundle, self._timers, transform_result)
+        input_committed_bundle, self._timer_firings, transform_result)
     for output_committed_bundle in output_committed_bundles:
       self._all_updates.offer(_ExecutorServiceParallelExecutor._ExecutorUpdate(
-          output_committed_bundle, None))
+          transform_executor,
+          committed_bundle=output_committed_bundle))
+    for unprocessed_bundle in transform_result.unprocessed_bundles:
+      self._all_updates.offer(
+          _ExecutorServiceParallelExecutor._ExecutorUpdate(
+              transform_executor,
+              unprocessed_bundle=unprocessed_bundle))
     return output_committed_bundles
 
-  def handle_exception(self, exception):
+  def handle_exception(self, transform_executor, exception):
     self._all_updates.offer(
-        _ExecutorServiceParallelExecutor._ExecutorUpdate(None, exception))
+        _ExecutorServiceParallelExecutor._ExecutorUpdate(
+            transform_executor, exception=exception))
 
 
 class TransformExecutor(_ExecutorService.CallableTask):
@@ -249,26 +262,37 @@ class TransformExecutor(_ExecutorService.CallableTask):
   completion callback.
   """
 
+  _MAX_RETRY_PER_BUNDLE = 4
+
   def __init__(self, transform_evaluator_registry, evaluation_context,
-               input_bundle, applied_transform, completion_callback,
-               transform_evaluation_state):
+               input_bundle, fired_timers, applied_ptransform,
+               completion_callback, transform_evaluation_state):
     self._transform_evaluator_registry = transform_evaluator_registry
     self._evaluation_context = evaluation_context
     self._input_bundle = input_bundle
-    self._applied_transform = applied_transform
+    self._fired_timers = fired_timers
+    self._applied_ptransform = applied_ptransform
     self._completion_callback = completion_callback
     self._transform_evaluation_state = transform_evaluation_state
     self._side_input_values = {}
     self.blocked = False
     self._call_count = 0
+    self._retry_count = 0
+    # Switch to turn on/off the retry of bundles.
+    pipeline_options = self._evaluation_context.pipeline_options
+    # TODO(mariagh): Remove once "bundle retry" is no longer experimental.
+    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
+      self._max_retries_per_bundle = 1
+    else:
+      self._max_retries_per_bundle = TransformExecutor._MAX_RETRY_PER_BUNDLE
 
   def call(self):
     self._call_count += 1
-    assert self._call_count <= (1 + len(self._applied_transform.side_inputs))
-    metrics_container = MetricsContainer(self._applied_transform.full_label)
+    assert self._call_count <= (1 + len(self._applied_ptransform.side_inputs))
+    metrics_container = MetricsContainer(self._applied_ptransform.full_label)
     scoped_metrics_container = ScopedMetricsContainer(metrics_container)
 
-    for side_input in self._applied_transform.side_inputs:
+    for side_input in self._applied_ptransform.side_inputs:
       if side_input not in self._side_input_values:
         has_result, value = (
             self._evaluation_context.get_value_or_schedule_after_output(
@@ -278,43 +302,67 @@ class TransformExecutor(_ExecutorService.CallableTask):
           # available.
           return
         self._side_input_values[side_input] = value
-
     side_input_values = [self._side_input_values[side_input]
-                         for side_input in self._applied_transform.side_inputs]
+                         for side_input in self._applied_ptransform.side_inputs]
 
-    try:
-      evaluator = self._transform_evaluator_registry.for_application(
-          self._applied_transform, self._input_bundle,
-          side_input_values, scoped_metrics_container)
+    while self._retry_count < self._max_retries_per_bundle:
+      try:
+        self.attempt_call(metrics_container,
+                          scoped_metrics_container,
+                          side_input_values)
+        break
+      except Exception as e:
+        self._retry_count += 1
+        logging.error(
+            'Exception at bundle %r, due to an exception.\n %s',
+            self._input_bundle, traceback.format_exc())
+        if self._retry_count == self._max_retries_per_bundle:
+          logging.error('Giving up after %s attempts.',
+                        self._max_retries_per_bundle)
+          if self._retry_count == 1:
+            logging.info(
+                'Use the experimental flag --direct_runner_bundle_retry'
+                ' to retry failed bundles (up to %d times).',
+                TransformExecutor._MAX_RETRY_PER_BUNDLE)
+          self._completion_callback.handle_exception(self, e)
 
-      if self._input_bundle:
-        for value in self._input_bundle.get_elements_iterable():
-          evaluator.process_element(value)
+    self._evaluation_context.metrics().commit_physical(
+        self._input_bundle,
+        metrics_container.get_cumulative())
+    self._transform_evaluation_state.complete(self)
 
-      with scoped_metrics_container:
-        result = evaluator.finish_bundle()
-        result.logical_metric_updates = metrics_container.get_cumulative()
+  def attempt_call(self, metrics_container,
+                   scoped_metrics_container,
+                   side_input_values):
+    evaluator = self._transform_evaluator_registry.get_evaluator(
+        self._applied_ptransform, self._input_bundle,
+        side_input_values, scoped_metrics_container)
 
-      if self._evaluation_context.has_cache:
-        for uncommitted_bundle in result.uncommitted_output_bundles:
+    if self._fired_timers:
+      for timer_firing in self._fired_timers:
+        evaluator.process_timer_wrapper(timer_firing)
+
+    if self._input_bundle:
+      for value in self._input_bundle.get_elements_iterable():
+        evaluator.process_element(value)
+
+    with scoped_metrics_container:
+      result = evaluator.finish_bundle()
+      result.logical_metric_updates = metrics_container.get_cumulative()
+
+    if self._evaluation_context.has_cache:
+      for uncommitted_bundle in result.uncommitted_output_bundles:
+        self._evaluation_context.append_to_cache(
+            self._applied_ptransform, uncommitted_bundle.tag,
+            uncommitted_bundle.get_elements_iterable())
+      undeclared_tag_values = result.undeclared_tag_values
+      if undeclared_tag_values:
+        for tag, value in undeclared_tag_values.iteritems():
           self._evaluation_context.append_to_cache(
-              self._applied_transform, uncommitted_bundle.tag,
-              uncommitted_bundle.get_elements_iterable())
-        undeclared_tag_values = result.undeclared_tag_values
-        if undeclared_tag_values:
-          for tag, value in undeclared_tag_values.iteritems():
-            self._evaluation_context.append_to_cache(
-                self._applied_transform, tag, value)
+              self._applied_ptransform, tag, value)
 
-      self._completion_callback.handle_result(self._input_bundle, result)
-      return result
-    except Exception as e:  # pylint: disable=broad-except
-      self._completion_callback.handle_exception(e)
-    finally:
-      self._evaluation_context.metrics().commit_physical(
-          self._input_bundle,
-          metrics_container.get_cumulative())
-      self._transform_evaluation_state.complete(self)
+    self._completion_callback.handle_result(self, self._input_bundle, result)
+    return result
 
 
 class Executor(object):
@@ -353,6 +401,15 @@ class _ExecutorServiceParallelExecutor(object):
 
   def start(self, roots):
     self.root_nodes = frozenset(roots)
+    self.all_nodes = frozenset(
+        itertools.chain(
+            roots,
+            *itertools.chain(self.value_to_consumers.values())))
+    self.node_to_pending_bundles = {}
+    for root_node in self.root_nodes:
+      provider = (self.transform_evaluator_registry
+                  .get_root_bundle_provider(root_node))
+      self.node_to_pending_bundles[root_node] = provider.get_root_bundles()
     self.executor_service.submit(
         _ExecutorServiceParallelExecutor._MonitorTask(self))
 
@@ -364,31 +421,36 @@ class _ExecutorServiceParallelExecutor(object):
         raise t, v, tb
     finally:
       self.executor_service.shutdown()
+      self.executor_service.await_completion()
 
   def schedule_consumers(self, committed_bundle):
     if committed_bundle.pcollection in self.value_to_consumers:
       consumers = self.value_to_consumers[committed_bundle.pcollection]
       for applied_ptransform in consumers:
-        self.schedule_consumption(applied_ptransform, committed_bundle,
+        self.schedule_consumption(applied_ptransform, committed_bundle, [],
                                   self.default_completion_callback)
 
-  def schedule_consumption(self, consumer_applied_transform, committed_bundle,
-                           on_complete):
+  def schedule_unprocessed_bundle(self, applied_ptransform,
+                                  unprocessed_bundle):
+    self.node_to_pending_bundles[applied_ptransform].append(unprocessed_bundle)
+
+  def schedule_consumption(self, consumer_applied_ptransform, committed_bundle,
+                           fired_timers, on_complete):
     """Schedules evaluation of the given bundle with the transform."""
-    assert all([consumer_applied_transform, on_complete])
-    assert committed_bundle or consumer_applied_transform in self.root_nodes
-    if (committed_bundle
-        and self.transform_evaluator_registry.should_execute_serially(
-            consumer_applied_transform)):
+    assert consumer_applied_ptransform
+    assert committed_bundle
+    assert on_complete
+    if self.transform_evaluator_registry.should_execute_serially(
+        consumer_applied_ptransform):
       transform_executor_service = self.transform_executor_services.serial(
-          consumer_applied_transform)
+          consumer_applied_ptransform)
     else:
       transform_executor_service = self.transform_executor_services.parallel()
 
     transform_executor = TransformExecutor(
         self.transform_evaluator_registry, self.evaluation_context,
-        committed_bundle, consumer_applied_transform, on_complete,
-        transform_executor_service)
+        committed_bundle, fired_timers, consumer_applied_ptransform,
+        on_complete, transform_executor_service)
     transform_executor_service.schedule(transform_executor)
 
   class _TypedUpdateQueue(object):
@@ -407,9 +469,17 @@ class _ExecutorServiceParallelExecutor(object):
         return None
 
     def take(self):
-      item = self._queue.get()
-      self._queue.task_done()
-      return item
+      # The implementation of Queue.Queue.get() does not propagate
+      # KeyboardInterrupts when a timeout is not used.  We therefore use a
+      # one-second timeout in the following loop to allow KeyboardInterrupts
+      # to be correctly propagated.
+      while True:
+        try:
+          item = self._queue.get(timeout=1)
+          self._queue.task_done()
+          return item
+        except Queue.Empty:
+          pass
 
     def offer(self, item):
       assert isinstance(item, self._item_type)
@@ -418,10 +488,16 @@ class _ExecutorServiceParallelExecutor(object):
   class _ExecutorUpdate(object):
     """An internal status update on the state of the executor."""
 
-    def __init__(self, produced_bundle=None, exception=None):
+    def __init__(self, transform_executor, committed_bundle=None,
+                 unprocessed_bundle=None, exception=None):
+      self.transform_executor = transform_executor
       # Exactly one of them should be not-None
-      assert bool(produced_bundle) != bool(exception)
-      self.committed_bundle = produced_bundle
+      assert sum([
+          bool(committed_bundle),
+          bool(unprocessed_bundle),
+          bool(exception)]) == 1
+      self.committed_bundle = committed_bundle
+      self.unprocessed_bundle = unprocessed_bundle
       self.exception = exception
       self.exc_info = sys.exc_info()
       if self.exc_info[1] is not exception:
@@ -456,9 +532,13 @@ class _ExecutorServiceParallelExecutor(object):
         while update:
           if update.committed_bundle:
             self._executor.schedule_consumers(update.committed_bundle)
+          elif update.unprocessed_bundle:
+            self._executor.schedule_unprocessed_bundle(
+                update.transform_executor._applied_ptransform,
+                update.unprocessed_bundle)
           else:
             assert update.exception
-            logging.warning('A task failed with exception.\n %s',
+            logging.warning('A task failed with exception: %s',
                             update.exception)
             self._executor.visible_updates.offer(
                 _ExecutorServiceParallelExecutor._VisibleExecutorUpdate(
@@ -517,19 +597,21 @@ class _ExecutorServiceParallelExecutor(object):
       Returns:
         True if timers fired.
       """
-      fired_timers = self._executor.evaluation_context.extract_fired_timers()
-      for applied_ptransform in fired_timers:
+      transform_fired_timers = (
+          self._executor.evaluation_context.extract_fired_timers())
+      for applied_ptransform, fired_timers in transform_fired_timers:
         # Use an empty committed bundle. just to trigger.
         empty_bundle = (
             self._executor.evaluation_context.create_empty_committed_bundle(
                 applied_ptransform.inputs[0]))
         timer_completion_callback = _CompletionCallback(
             self._executor.evaluation_context, self._executor.all_updates,
-            applied_ptransform)
+            timer_firings=fired_timers)
 
         self._executor.schedule_consumption(
-            applied_ptransform, empty_bundle, timer_completion_callback)
-      return bool(fired_timers)
+            applied_ptransform, empty_bundle, fired_timers,
+            timer_completion_callback)
+      return bool(transform_fired_timers)
 
     def _is_executing(self):
       """Returns True if there is at least one non-blocked TransformExecutor."""
@@ -564,10 +646,14 @@ class _ExecutorServiceParallelExecutor(object):
         # additional work.
         return
 
-      # All current TransformExecutors are blocked; add more work from the
-      # roots.
-      for applied_transform in self._executor.root_nodes:
-        if not self._executor.evaluation_context.is_done(applied_transform):
-          self._executor.schedule_consumption(
-              applied_transform, None,
-              self._executor.default_completion_callback)
+      # All current TransformExecutors are blocked; add more work from any
+      # pending bundles.
+      for applied_ptransform in self._executor.all_nodes:
+        if not self._executor.evaluation_context.is_done(applied_ptransform):
+          pending_bundles = self._executor.node_to_pending_bundles.get(
+              applied_ptransform, [])
+          for bundle in pending_bundles:
+            self._executor.schedule_consumption(
+                applied_ptransform, bundle, [],
+                self._executor.default_completion_callback)
+          self._executor.node_to_pending_bundles[applied_ptransform] = []

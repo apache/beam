@@ -25,6 +25,8 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.when;
 
+import com.google.common.base.Optional;
+import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -90,6 +92,7 @@ public class TransformExecutorTest {
     created = p.apply(Create.of("foo", "spam", "third"));
     PCollection<KV<Integer, String>> downstream = created.apply(WithKeys.<Integer, String>of(3));
 
+    DirectGraphs.performDirectOverrides(p);
     DirectGraph graph = DirectGraphs.getGraph(p);
     createdProducer = graph.getProducer(created);
     downstreamProducer = graph.getProducer(downstream);
@@ -414,8 +417,13 @@ public class TransformExecutorTest {
               ? Collections.emptyList()
               : result.getUnprocessedElements();
 
-      CommittedBundle<?> unprocessedBundle =
-          inputBundle == null ? null : inputBundle.withElements(unprocessedElements);
+      Optional<? extends CommittedBundle<?>> unprocessedBundle;
+      if (inputBundle == null || Iterables.isEmpty(unprocessedElements)) {
+        unprocessedBundle = Optional.absent();
+      } else {
+        unprocessedBundle =
+            Optional.<CommittedBundle<?>>of(inputBundle.withElements(unprocessedElements));
+      }
       return CommittedResult.create(
           result,
           unprocessedBundle,

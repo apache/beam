@@ -40,7 +40,6 @@ import org.apache.beam.runners.apex.ApexRunner;
 import org.apache.beam.runners.apex.translation.utils.ApexStateInternals.ApexStateBackend;
 import org.apache.beam.runners.apex.translation.utils.ApexStreamTuple;
 import org.apache.beam.runners.apex.translation.utils.NoOpStepContext;
-import org.apache.beam.runners.apex.translation.utils.SerializablePipelineOptions;
 import org.apache.beam.runners.apex.translation.utils.StateInternalsProxy;
 import org.apache.beam.runners.apex.translation.utils.ValueAndCoderKryoSerializable;
 import org.apache.beam.runners.core.DoFnRunner;
@@ -55,7 +54,7 @@ import org.apache.beam.runners.core.PushbackSideInputDoFnRunner;
 import org.apache.beam.runners.core.SideInputHandler;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.SimplePushbackSideInputDoFnRunner;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
@@ -64,6 +63,7 @@ import org.apache.beam.runners.core.StatefulDoFnRunner;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.TimerInternalsFactory;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -73,11 +73,14 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
+import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.util.WindowedValue.FullWindowedValueCoder;
 import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -133,7 +136,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       List<TupleTag<?>> additionalOutputTags,
       WindowingStrategy<?, ?> windowingStrategy,
       List<PCollectionView<?>> sideInputs,
-      Coder<WindowedValue<InputT>> inputCoder,
+      Coder<InputT> linputCoder,
       ApexStateBackend stateBackend
       ) {
     this.pipelineOptions = new SerializablePipelineOptions(pipelineOptions);
@@ -151,22 +154,33 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       throw new UnsupportedOperationException(msg);
     }
 
-    Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(inputCoder);
+    WindowedValueCoder<InputT> wvCoder =
+        FullWindowedValueCoder.of(
+            linputCoder, this.windowingStrategy.getWindowFn().windowCoder());
+    Coder<List<WindowedValue<InputT>>> listCoder = ListCoder.of(wvCoder);
     this.pushedBack = new ValueAndCoderKryoSerializable<>(new ArrayList<WindowedValue<InputT>>(),
         listCoder);
-    this.inputCoder = inputCoder;
+    this.inputCoder = wvCoder;
 
     TimerInternals.TimerDataCoder timerCoder =
         TimerInternals.TimerDataCoder.of(windowingStrategy.getWindowFn().windowCoder());
     this.currentKeyTimerInternals = new ApexTimerInternals<>(timerCoder);
 
-    if (doFn instanceof SplittableParDo.ProcessFn) {
+    if (doFn instanceof ProcessFn) {
       // we know that it is keyed on String
       Coder<?> keyCoder = StringUtf8Coder.of();
       this.currentKeyStateInternals = new StateInternalsProxy<>(
           stateBackend.newStateInternalsFactory(keyCoder));
+    } else {
+      DoFnSignature signature = DoFnSignatures.getSignature(doFn.getClass());
+      if (signature.usesState()) {
+        checkArgument(linputCoder instanceof KvCoder, "keyed input required for stateful DoFn");
+        @SuppressWarnings("rawtypes")
+        Coder<?> keyCoder = ((KvCoder) linputCoder).getKeyCoder();
+        this.currentKeyStateInternals = new StateInternalsProxy<>(
+            stateBackend.newStateInternalsFactory(keyCoder));
+      }
     }
-
   }
 
   @SuppressWarnings("unused") // for Kryo
@@ -359,10 +373,7 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
       }
     }
     if (sideInputs.isEmpty()) {
-      if (traceTuples) {
-        LOG.debug("\nemitting watermark {}\n", mark);
-      }
-      output.emit(mark);
+      outputWatermark(mark);
       return;
     }
 
@@ -370,16 +381,28 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
         Math.min(pushedBackWatermark.get(), currentInputWatermark);
     if (potentialOutputWatermark > currentOutputWatermark) {
       currentOutputWatermark = potentialOutputWatermark;
-      if (traceTuples) {
-        LOG.debug("\nemitting watermark {}\n", currentOutputWatermark);
+      outputWatermark(ApexStreamTuple.WatermarkTuple.of(currentOutputWatermark));
+    }
+  }
+
+  private void outputWatermark(ApexStreamTuple.WatermarkTuple<?> mark) {
+    if (traceTuples) {
+      LOG.debug("\nemitting {}\n", mark);
+    }
+    output.emit(mark);
+    if (!additionalOutputPortMapping.isEmpty()) {
+      for (DefaultOutputPort<ApexStreamTuple<?>> additionalOutput :
+          additionalOutputPortMapping.values()) {
+        additionalOutput.emit(mark);
       }
-      output.emit(ApexStreamTuple.WatermarkTuple.of(currentOutputWatermark));
     }
   }
 
   @Override
   public void setup(OperatorContext context) {
-    this.traceTuples = ApexStreamTuple.Logging.isDebugEnabled(pipelineOptions.get(), this);
+    this.traceTuples =
+        ApexStreamTuple.Logging.isDebugEnabled(
+            pipelineOptions.get().as(ApexPipelineOptions.class), this);
     SideInputReader sideInputReader = NullSideInputReader.of(sideInputs);
     if (!sideInputs.isEmpty()) {
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
@@ -445,15 +468,15 @@ public class ApexParDoOperator<InputT, OutputT> extends BaseOperator implements 
     pushbackDoFnRunner =
         SimplePushbackSideInputDoFnRunner.create(doFnRunner, sideInputs, sideInputHandler);
 
-    if (doFn instanceof SplittableParDo.ProcessFn) {
+    if (doFn instanceof ProcessFn) {
 
       @SuppressWarnings("unchecked")
       StateInternalsFactory<String> stateInternalsFactory =
           (StateInternalsFactory<String>) this.currentKeyStateInternals.getFactory();
 
       @SuppressWarnings({ "rawtypes", "unchecked" })
-      SplittableParDo.ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
-        splittableDoFn = (SplittableParDo.ProcessFn) doFn;
+      ProcessFn<InputT, OutputT, Object, RestrictionTracker<Object>>
+        splittableDoFn = (ProcessFn) doFn;
       splittableDoFn.setStateInternalsFactory(stateInternalsFactory);
       TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
          @Override

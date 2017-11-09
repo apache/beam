@@ -20,8 +20,10 @@ package org.apache.beam.runners.core.metrics;
 
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Gauge;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
 
 /**
  * Tracks the current value (and delta) for a {@link Gauge} metric.
@@ -39,10 +41,12 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   private final MetricName name;
 
   /**
-   * Package-visibility because all {@link GaugeCell GaugeCells} should be created by
-   * {@link MetricsContainerImpl#getGauge(MetricName)}.
+   * Generally, runners should construct instances using the methods in
+   * {@link MetricsContainerImpl}, unless they need to define their own version of
+   * {@link MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
-  GaugeCell(MetricName name) {
+  @Internal
+  public GaugeCell(MetricName name) {
     this.name = name;
   }
 
@@ -69,7 +73,6 @@ public class GaugeCell implements Gauge, MetricCell<GaugeData> {
   public GaugeData getCumulative() {
     return gaugeValue.get();
   }
-
 
   @Override
   public MetricName getName() {

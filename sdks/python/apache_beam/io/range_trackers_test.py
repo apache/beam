@@ -17,15 +17,49 @@
 
 """Unit tests for the range_trackers module."""
 
-import array
 import copy
 import logging
 import math
 import unittest
 
-
-from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io.range_trackers import OffsetRange
+
+
+class OffsetRangeTest(unittest.TestCase):
+
+  def test_create(self):
+    OffsetRange(0, 10)
+    OffsetRange(10, 100)
+
+    with self.assertRaises(ValueError):
+      OffsetRange(10, 9)
+
+  def test_split_respects_desired_num_splits(self):
+    range = OffsetRange(10, 100)
+    splits = list(range.split(desired_num_offsets_per_split=25))
+    self.assertEqual(4, len(splits))
+    self.assertIn(OffsetRange(10, 35), splits)
+    self.assertIn(OffsetRange(35, 60), splits)
+    self.assertIn(OffsetRange(60, 85), splits)
+    self.assertIn(OffsetRange(85, 100), splits)
+
+  def test_split_respects_min_num_splits(self):
+    range = OffsetRange(10, 100)
+    splits = list(range.split(desired_num_offsets_per_split=5,
+                              min_num_offsets_per_split=25))
+    self.assertEqual(3, len(splits))
+    self.assertIn(OffsetRange(10, 35), splits)
+    self.assertIn(OffsetRange(35, 60), splits)
+    self.assertIn(OffsetRange(60, 100), splits)
+
+  def test_split_no_small_split_at_end(self):
+    range = OffsetRange(10, 90)
+    splits = list(range.split(desired_num_offsets_per_split=25))
+    self.assertEqual(3, len(splits))
+    self.assertIn(OffsetRange(10, 35), splits)
+    self.assertIn(OffsetRange(35, 60), splits)
+    self.assertIn(OffsetRange(60, 90), splits)
 
 
 class OffsetRangeTrackerTest(unittest.TestCase):
@@ -187,189 +221,6 @@ class OffsetRangeTrackerTest(unittest.TestCase):
     self.assertFalse(tracker.try_claim(210))
     self.assertEqual(tracker.split_points(),
                      (3, 41))
-
-
-class GroupedShuffleRangeTrackerTest(unittest.TestCase):
-
-  def bytes_to_position(self, bytes_array):
-    return array.array('B', bytes_array).tostring()
-
-  def test_try_return_record_in_infinite_range(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker('', '')
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 3])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 5])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([3, 6, 8, 10])))
-
-  def test_try_return_record_finite_range(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([1, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 3])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 5])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([3, 6, 8, 10])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([4, 255, 255, 255])))
-    # Should fail for positions that are lexicographically equal to or larger
-    # than the defined stop position.
-    self.assertFalse(copy.copy(tracker).try_claim(
-        self.bytes_to_position([5, 0, 0])))
-    self.assertFalse(copy.copy(tracker).try_claim(
-        self.bytes_to_position([5, 0, 1])))
-    self.assertFalse(copy.copy(tracker).try_claim(
-        self.bytes_to_position([6, 0, 0])))
-
-  def test_try_return_record_with_non_split_point(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([1, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 3])))
-    tracker.set_current_position(self.bytes_to_position([1, 2, 3]))
-    tracker.set_current_position(self.bytes_to_position([1, 2, 3]))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 5])))
-    tracker.set_current_position(self.bytes_to_position([1, 2, 5]))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([3, 6, 8, 10])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([4, 255, 255, 255])))
-
-  def test_first_record_non_split_point(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([3, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    with self.assertRaises(ValueError):
-      tracker.set_current_position(self.bytes_to_position([3, 4, 5]))
-
-  def test_non_split_point_record_with_different_position(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([3, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([3, 4, 5])))
-    with self.assertRaises(ValueError):
-      tracker.set_current_position(self.bytes_to_position([3, 4, 6]))
-
-  def test_try_return_record_before_start(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([3, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    with self.assertRaises(ValueError):
-      tracker.try_claim(self.bytes_to_position([1, 2, 3]))
-
-  def test_try_return_non_monotonic(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([3, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([3, 4, 5])))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([3, 4, 6])))
-    with self.assertRaises(ValueError):
-      tracker.try_claim(self.bytes_to_position([3, 2, 1]))
-
-  def test_try_return_identical_positions(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([3, 0, 0]), self.bytes_to_position([5, 0, 0]))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([3, 4, 5])))
-    with self.assertRaises(ValueError):
-      tracker.try_claim(self.bytes_to_position([3, 4, 5]))
-
-  def test_try_split_at_position_infinite_range(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker('', '')
-    # Should fail before first record is returned.
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6])))
-
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 3])))
-
-    # Should now succeed.
-    self.assertIsNotNone(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6])))
-    # Should not split at same or larger position.
-    self.assertIsNone(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6])))
-    self.assertIsNone(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6, 7])))
-    self.assertIsNone(tracker.try_split(
-        self.bytes_to_position([4, 5, 6, 7])))
-
-    # Should split at smaller position.
-    self.assertIsNotNone(tracker.try_split(
-        self.bytes_to_position([3, 2, 1])))
-
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([2, 3, 4])))
-
-    # Should not split at a position we're already past.
-    self.assertIsNone(tracker.try_split(
-        self.bytes_to_position([2, 3, 4])))
-    self.assertIsNone(tracker.try_split(
-        self.bytes_to_position([2, 3, 3])))
-
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([3, 2, 0])))
-    self.assertFalse(tracker.try_claim(
-        self.bytes_to_position([3, 2, 1])))
-
-  def test_try_test_split_at_position_finite_range(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([0, 0, 0]),
-        self.bytes_to_position([10, 20, 30]))
-    # Should fail before first record is returned.
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([0, 0, 0])))
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6])))
-
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([1, 2, 3])))
-
-    # Should now succeed.
-    self.assertTrue(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6])))
-    # Should not split at same or larger position.
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6])))
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([3, 4, 5, 6, 7])))
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([4, 5, 6, 7])))
-
-    # Should split at smaller position.
-    self.assertTrue(tracker.try_split(
-        self.bytes_to_position([3, 2, 1])))
-    # But not at a position at or before last returned record.
-    self.assertFalse(tracker.try_split(
-        self.bytes_to_position([1, 2, 3])))
-
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([2, 3, 4])))
-    self.assertTrue(tracker.try_claim(
-        self.bytes_to_position([3, 2, 0])))
-    self.assertFalse(tracker.try_claim(
-        self.bytes_to_position([3, 2, 1])))
-
-  def test_split_points(self):
-    tracker = range_trackers.GroupedShuffleRangeTracker(
-        self.bytes_to_position([1, 0, 0]),
-        self.bytes_to_position([5, 0, 0]))
-    self.assertEqual(tracker.split_points(),
-                     (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([1, 2, 3])))
-    self.assertEqual(tracker.split_points(),
-                     (0, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([1, 2, 5])))
-    self.assertEqual(tracker.split_points(),
-                     (1, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([3, 6, 8])))
-    self.assertEqual(tracker.split_points(),
-                     (2, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
-    self.assertTrue(tracker.try_claim(self.bytes_to_position([4, 255, 255])))
-    self.assertEqual(tracker.split_points(),
-                     (3, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
-    self.assertFalse(tracker.try_claim(self.bytes_to_position([5, 1, 0])))
-    self.assertEqual(tracker.split_points(),
-                     (3, iobase.RangeTracker.SPLIT_POINTS_UNKNOWN))
 
 
 class OrderedPositionRangeTrackerTest(unittest.TestCase):

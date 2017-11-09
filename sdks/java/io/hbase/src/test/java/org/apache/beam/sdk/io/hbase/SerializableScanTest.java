@@ -28,14 +28,12 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests for SerializableScan.
- */
+/** Tests for SerializableScan. */
 @RunWith(JUnit4.class)
 public class SerializableScanTest {
   @Rule public final ExpectedException thrown = ExpectedException.none();
   private static final SerializableScan DEFAULT_SERIALIZABLE_SCAN =
-          new SerializableScan(new Scan());
+      new SerializableScan(new Scan());
 
   @Test
   public void testSerializationDeserialization() throws Exception {

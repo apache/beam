@@ -56,7 +56,13 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * @param <T> the type of values being encoded and decoded
  */
 public abstract class Coder<T> implements Serializable {
-  /** The context in which encoding or decoding is being done. */
+  /**
+   * The context in which encoding or decoding is being done.
+   *
+   * @deprecated to implement a coder, do not use any `Context`. Just implement only those abstract
+   * methods which do not accept a `Context` and leave the default implementations for methods
+   * accepting a `Context`.
+   */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)
   public static class Context {
@@ -127,6 +133,8 @@ public abstract class Coder<T> implements Serializable {
    * @throws IOException if writing to the {@code OutputStream} fails
    * for some reason
    * @throws CoderException if the value could not be encoded for some reason
+   *
+   * @deprecated only implement and call {@link #encode(Object value, OutputStream)}
    */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)
@@ -152,6 +160,8 @@ public abstract class Coder<T> implements Serializable {
    * @throws IOException if reading from the {@code InputStream} fails
    * for some reason
    * @throws CoderException if the value could not be decoded for some reason
+   *
+   * @deprecated only implement and call {@link #decode(InputStream)}
    */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)

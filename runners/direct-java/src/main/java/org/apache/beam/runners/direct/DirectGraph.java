@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.collect.ListMultimap;
 import java.util.Collection;
 import java.util.List;
@@ -24,9 +26,9 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 
 /**
@@ -34,49 +36,75 @@ import org.apache.beam.sdk.values.PValue;
  * executed with the {@link DirectRunner}.
  */
 class DirectGraph {
-  private final Map<POutput, AppliedPTransform<?, ?, ?>> producers;
-  private final ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers;
-  private final Set<PCollectionView<?>> views;
+  private final Map<PCollection<?>, AppliedPTransform<?, ?, ?>> producers;
+  private final Map<PCollectionView<?>, AppliedPTransform<?, ?, ?>> viewWriters;
+  private final ListMultimap<PInput, AppliedPTransform<?, ?, ?>> perElementConsumers;
+  private final ListMultimap<PValue, AppliedPTransform<?, ?, ?>> allConsumers;
 
   private final Set<AppliedPTransform<?, ?, ?>> rootTransforms;
   private final Map<AppliedPTransform<?, ?, ?>, String> stepNames;
 
   public static DirectGraph create(
-      Map<POutput, AppliedPTransform<?, ?, ?>> producers,
-      ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers,
-      Set<PCollectionView<?>> views,
+      Map<PCollection<?>, AppliedPTransform<?, ?, ?>> producers,
+      Map<PCollectionView<?>, AppliedPTransform<?, ?, ?>> viewWriters,
+      ListMultimap<PInput, AppliedPTransform<?, ?, ?>> perElementConsumers,
+      ListMultimap<PValue, AppliedPTransform<?, ?, ?>> allConsumers,
       Set<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames) {
-    return new DirectGraph(producers, primitiveConsumers, views, rootTransforms, stepNames);
+    return new DirectGraph(
+        producers, viewWriters, perElementConsumers, allConsumers, rootTransforms, stepNames);
   }
 
   private DirectGraph(
-      Map<POutput, AppliedPTransform<?, ?, ?>> producers,
-      ListMultimap<PInput, AppliedPTransform<?, ?, ?>> primitiveConsumers,
-      Set<PCollectionView<?>> views,
+      Map<PCollection<?>, AppliedPTransform<?, ?, ?>> producers,
+      Map<PCollectionView<?>, AppliedPTransform<?, ?, ?>> viewWriters,
+      ListMultimap<PInput, AppliedPTransform<?, ?, ?>> perElementConsumers,
+      ListMultimap<PValue, AppliedPTransform<?, ?, ?>> allConsumers,
       Set<AppliedPTransform<?, ?, ?>> rootTransforms,
       Map<AppliedPTransform<?, ?, ?>, String> stepNames) {
     this.producers = producers;
-    this.primitiveConsumers = primitiveConsumers;
-    this.views = views;
+    this.viewWriters = viewWriters;
+    this.perElementConsumers = perElementConsumers;
+    this.allConsumers = allConsumers;
     this.rootTransforms = rootTransforms;
     this.stepNames = stepNames;
+    for (AppliedPTransform<?, ?, ?> step : stepNames.keySet()) {
+      for (PValue input : step.getInputs().values()) {
+        checkArgument(
+            allConsumers.get(input).contains(step),
+            "Step %s lists value %s as input, but it is not in the graph of consumers",
+            step.getFullName(),
+            input);
+      }
+    }
   }
 
-  AppliedPTransform<?, ?, ?> getProducer(PValue produced) {
+  AppliedPTransform<?, ?, ?> getProducer(PCollection<?> produced) {
     return producers.get(produced);
   }
 
-  List<AppliedPTransform<?, ?, ?>> getPrimitiveConsumers(PValue consumed) {
-    return primitiveConsumers.get(consumed);
+  AppliedPTransform<?, ?, ?> getWriter(PCollectionView<?> view) {
+    return viewWriters.get(view);
+  }
+
+  List<AppliedPTransform<?, ?, ?>> getPerElementConsumers(PValue consumed) {
+    return perElementConsumers.get(consumed);
+  }
+
+  List<AppliedPTransform<?, ?, ?>> getAllConsumers(PValue consumed) {
+    return allConsumers.get(consumed);
   }
 
   Set<AppliedPTransform<?, ?, ?>> getRootTransforms() {
     return rootTransforms;
   }
 
+  Set<PCollection<?>> getPCollections() {
+    return producers.keySet();
+  }
+
   Set<PCollectionView<?>> getViews() {
-    return views;
+    return viewWriters.keySet();
   }
 
   String getStepName(AppliedPTransform<?, ?, ?> step) {

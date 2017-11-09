@@ -53,6 +53,9 @@ public interface DataflowPipelineWorkerPoolOptions extends PipelineOptions {
     /** Use numWorkers machines. Do not autoscale the worker pool. */
     NONE("AUTOSCALING_ALGORITHM_NONE"),
 
+    /**
+     * @deprecated use {@link #THROUGHPUT_BASED}.
+     */
     @Deprecated
     BASIC("AUTOSCALING_ALGORITHM_BASIC"),
 

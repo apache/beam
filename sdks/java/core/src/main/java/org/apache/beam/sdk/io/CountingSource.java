@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.DefaultCoder;
@@ -136,6 +137,16 @@ public class CountingSource {
     public Instant apply(Long input) {
       return Instant.now();
     }
+
+    @Override
+    public boolean equals(Object other) {
+      return other instanceof NowTimestampFn;
+    }
+
+    @Override
+    public int hashCode() {
+      return getClass().hashCode();
+    }
   }
 
   /**
@@ -177,8 +188,23 @@ public class CountingSource {
     }
 
     @Override
-    public Coder<Long> getDefaultOutputCoder() {
+    public Coder<Long> getOutputCoder() {
       return VarLongCoder.of();
+    }
+
+    @Override
+    public boolean equals(Object other) {
+      if (!(other instanceof BoundedCountingSource)) {
+        return false;
+      }
+      BoundedCountingSource that = (BoundedCountingSource) other;
+      return this.getStartOffset() == that.getStartOffset()
+          && this.getEndOffset() == that.getEndOffset();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(this.getStartOffset(), (int) this.getEndOffset());
     }
   }
 
@@ -335,11 +361,24 @@ public class CountingSource {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
-    public Coder<Long> getDefaultOutputCoder() {
+    public Coder<Long> getOutputCoder() {
       return VarLongCoder.of();
+    }
+
+    public boolean equals(Object other) {
+      if (!(other instanceof UnboundedCountingSource)) {
+        return false;
+      }
+      UnboundedCountingSource that = (UnboundedCountingSource) other;
+      return this.start == that.start
+          && this.stride == that.stride
+          && this.elementsPerPeriod == that.elementsPerPeriod
+          && Objects.equals(this.period, that.period)
+          && Objects.equals(this.timestampFn, that.timestampFn);
+    }
+
+    public int hashCode() {
+      return Objects.hash(start, stride, elementsPerPeriod, period, timestampFn);
     }
   }
 

@@ -21,9 +21,9 @@ For internal use only. No backwards compatibility guarantees.
 """
 
 import logging
-from multiprocessing.pool import ThreadPool
 import threading
 import weakref
+from multiprocessing.pool import ThreadPool
 
 
 class ArgumentPlaceholder(object):
@@ -100,10 +100,10 @@ def insert_values_in_args(args, kwargs, values):
   # Use a local iterator so that we don't modify values.
   v_iter = iter(values)
   new_args = [
-      v_iter.next() if isinstance(arg, ArgumentPlaceholder) else arg
+      next(v_iter) if isinstance(arg, ArgumentPlaceholder) else arg
       for arg in args]
   new_kwargs = dict(
-      (k, v_iter.next()) if isinstance(v, ArgumentPlaceholder) else (k, v)
+      (k, next(v_iter)) if isinstance(v, ArgumentPlaceholder) else (k, v)
       for k, v in sorted(kwargs.iteritems()))
   return (new_args, new_kwargs)
 

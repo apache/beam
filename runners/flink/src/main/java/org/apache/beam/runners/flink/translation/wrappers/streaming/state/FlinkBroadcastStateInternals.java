@@ -49,11 +49,11 @@ import org.apache.beam.sdk.util.CombineContextFactory;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.runtime.state.DefaultOperatorStateBackend;
+import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 
 /**
- * {@link StateInternals} that uses a Flink {@link DefaultOperatorStateBackend}
+ * {@link StateInternals} that uses a Flink {@link OperatorStateBackend}
  * to manage the broadcast state.
  * The state is the same on all parallel instances of the operator.
  * So we just need store state of operator-0 in OperatorStateBackend.
@@ -64,13 +64,12 @@ import org.apache.flink.runtime.state.OperatorStateBackend;
 public class FlinkBroadcastStateInternals<K> implements StateInternals {
 
   private int indexInSubtaskGroup;
-  private final DefaultOperatorStateBackend stateBackend;
+  private final OperatorStateBackend stateBackend;
   // stateName -> <namespace, state>
   private Map<String, Map<String, ?>> stateForNonZeroOperator;
 
   public FlinkBroadcastStateInternals(int indexInSubtaskGroup, OperatorStateBackend stateBackend) {
-    //TODO flink do not yet expose through public API
-    this.stateBackend = (DefaultOperatorStateBackend) stateBackend;
+    this.stateBackend = stateBackend;
     this.indexInSubtaskGroup = indexInSubtaskGroup;
     if (indexInSubtaskGroup != 0) {
       stateForNonZeroOperator = new HashMap<>();
@@ -178,10 +177,10 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private String name;
     private final StateNamespace namespace;
     private final ListStateDescriptor<Map<String, T>> flinkStateDescriptor;
-    private final DefaultOperatorStateBackend flinkStateBackend;
+    private final OperatorStateStore flinkStateBackend;
 
     AbstractBroadcastState(
-        DefaultOperatorStateBackend flinkStateBackend,
+        OperatorStateBackend flinkStateBackend,
         String name,
         StateNamespace namespace,
         Coder<T> coder) {
@@ -211,7 +210,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
           if (result != null) {
             stateForNonZeroOperator.put(name, result);
             // we don't need it anymore, must clear it.
-            flinkStateBackend.getBroadcastOperatorState(
+            flinkStateBackend.getUnionListState(
                 flinkStateDescriptor).clear();
           }
         }
@@ -220,7 +219,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     }
 
     Map<String, T> getMapFromBroadcastState() throws Exception {
-      ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
+      ListState<Map<String, T>> state = flinkStateBackend.getUnionListState(
           flinkStateDescriptor);
       Iterable<Map<String, T>> iterable = state.get();
       Map<String, T> ret = null;
@@ -239,7 +238,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
      */
     void updateMap(Map<String, T> map) throws Exception {
       if (indexInSubtaskGroup == 0) {
-        ListState<Map<String, T>> state = flinkStateBackend.getBroadcastOperatorState(
+        ListState<Map<String, T>> state = flinkStateBackend.getUnionListState(
             flinkStateDescriptor);
         state.clear();
         if (map.size() > 0) {
@@ -304,7 +303,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final StateTag<ValueState<T>> address;
 
     FlinkBroadcastValueState(
-        DefaultOperatorStateBackend flinkStateBackend,
+        OperatorStateBackend flinkStateBackend,
         StateTag<ValueState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
@@ -365,7 +364,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final StateTag<BagState<T>> address;
 
     FlinkBroadcastBagState(
-        DefaultOperatorStateBackend flinkStateBackend,
+        OperatorStateBackend flinkStateBackend,
         StateTag<BagState<T>> address,
         StateNamespace namespace,
         Coder<T> coder) {
@@ -454,7 +453,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final Combine.CombineFn<InputT, AccumT, OutputT> combineFn;
 
     FlinkCombiningState(
-        DefaultOperatorStateBackend flinkStateBackend,
+        OperatorStateBackend flinkStateBackend,
         StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -572,7 +571,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final FlinkBroadcastStateInternals<K> flinkStateInternals;
 
     FlinkKeyedCombiningState(
-        DefaultOperatorStateBackend flinkStateBackend,
+        OperatorStateBackend flinkStateBackend,
         StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         Combine.CombineFn<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
@@ -709,7 +708,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
     private final CombineWithContext.Context context;
 
     FlinkCombiningStateWithContext(
-        DefaultOperatorStateBackend flinkStateBackend,
+        OperatorStateBackend flinkStateBackend,
         StateTag<CombiningState<InputT, AccumT, OutputT>> address,
         CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
         StateNamespace namespace,
