@@ -259,6 +259,9 @@ class ElasticsearchIOTestCommon implements Serializable {
         }
       }
     }
+    // fnTester clones the writeFn in default cloning behavior (CLOSE_ONCE).
+    // Need to explicitly close the fnTester so that it closes the underlying cloned DoFn.
+    fnTester.close();
   }
 
   void testWriteWithMaxBatchSizeBytes() throws Exception {
@@ -304,5 +307,8 @@ class ElasticsearchIOTestCommon implements Serializable {
         }
       }
     }
+    // fnTester clones the writeFn in default cloning behavior (CLOSE_ONCE).
+    // Need to explicitly close the fnTester so that it closes the underlying cloned DoFn.
+    fnTester.close();
   }
 }
