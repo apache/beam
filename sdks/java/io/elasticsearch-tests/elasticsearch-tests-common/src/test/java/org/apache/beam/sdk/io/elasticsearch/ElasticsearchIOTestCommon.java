@@ -190,10 +190,6 @@ class ElasticsearchIOTestCommon implements Serializable {
         ElasticsearchIO.write()
             .withConnectionConfiguration(connectionConfiguration)
             .withMaxBatchSize(BATCH_SIZE);
-    // write bundles size is the runner decision, we cannot force a bundle size,
-    // so we test the Writer as a DoFn outside of a runner.
-    DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write));
-
     List<String> input =
         ElasticSearchIOTestUtils.createDocuments(
             numDocs, ElasticSearchIOTestUtils.InjectionMode.INJECT_SOME_INVALID_DOCS);
@@ -216,8 +212,12 @@ class ElasticsearchIOTestCommon implements Serializable {
                     + "Document id .+: failed to parse \\(.+\\).*Caused by: .+ \\(.+\\).*");
           }
         });
-    // inserts into Elasticsearch
-    fnTester.processBundle(input);
+    // write bundles size is the runner decision, we cannot force a bundle size,
+    // so we test the Writer as a DoFn outside of a runner.
+    try (DoFnTester<String, Void> fnTester = DoFnTester.of(new Write.WriteFn(write))) {
+      // inserts into Elasticsearch
+      fnTester.processBundle(input);
+    }
   }
 
   void testWriteWithMaxBatchSize() throws Exception {
@@ -260,7 +260,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
     // fnTester clones the writeFn in default cloning behavior (CLOSE_ONCE).
     // Need to explicitly close the fnTester so that it closes the underlying cloned DoFn.
-    fnTester.finishBundle();
     fnTester.close();
   }
 
@@ -308,7 +307,6 @@ class ElasticsearchIOTestCommon implements Serializable {
     }
     // fnTester clones the writeFn in default cloning behavior (CLOSE_ONCE).
     // Need to explicitly close the fnTester so that it closes the underlying cloned DoFn.
-    fnTester.finishBundle();
     fnTester.close();
   }
 }
