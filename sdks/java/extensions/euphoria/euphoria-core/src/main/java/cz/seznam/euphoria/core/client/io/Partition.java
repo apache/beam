@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Set;
@@ -24,6 +25,7 @@ import java.util.Set;
  *
  * @param <T> the type of elements this partition hosts, i.e. is able to provide
  */
+@Audience(Audience.Type.CLIENT)
 public interface Partition<T> extends Serializable {
 
   /**

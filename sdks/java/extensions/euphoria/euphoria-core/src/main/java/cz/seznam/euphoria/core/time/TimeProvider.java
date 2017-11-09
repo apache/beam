@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.time;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 import java.time.Duration;
 import java.util.Date;
@@ -23,6 +24,7 @@ import java.util.Date;
  * A provider of the "current" timestamp aiming to decouple
  * the "current" time consumers and their corresponding producers.
  */
+@Audience(Audience.Type.EXECUTOR)
 public interface TimeProvider extends Serializable {
 
   /**

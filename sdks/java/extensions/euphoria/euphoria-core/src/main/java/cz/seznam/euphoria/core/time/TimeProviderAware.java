@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.core.time;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
+@Audience(Audience.Type.INTERNAL)
 public interface TimeProviderAware {
 
   TimeProvider getTimeProvider();

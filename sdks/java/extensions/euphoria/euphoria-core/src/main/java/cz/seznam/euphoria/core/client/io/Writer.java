@@ -15,14 +15,16 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Closeable;
 import java.io.IOException;
 
 /**
  * Writer for data to a particular partition.
  *
- * @param <T> the type of elements being writting by this writer
+ * @param <T> the type of elements being writing by this writer
  */
+@Audience(Audience.Type.CLIENT)
 public interface Writer<T> extends Closeable {
 
   /**

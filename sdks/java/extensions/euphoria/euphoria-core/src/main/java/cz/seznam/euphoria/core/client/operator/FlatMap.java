@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -58,6 +60,7 @@ import java.util.Objects;
  * to invoke it multiple times or not at all to generate that many elements
  * to the output dataset.
  */
+@Audience(Audience.Type.CLIENT)
 @Basic(
     state = StateComplexity.ZERO,
     repartitions = 0

@@ -13,16 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.operator;
+package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface ExtractEventTime<I> extends Serializable {
 
-  /** 
+  /**
    * Extracts event time (in millis since epoch) of the given element.
-   * 
+   *
    * @param elem input element
    *
    * @return the extracted event time

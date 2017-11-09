@@ -15,9 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.accumulators;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Counter is a type of accumulator making a sum from integral numbers.
  */
+@Audience(Audience.Type.CLIENT)
 public interface Counter extends Accumulator {
 
   /**

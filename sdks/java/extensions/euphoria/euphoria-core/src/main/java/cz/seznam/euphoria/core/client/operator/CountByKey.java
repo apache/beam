@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -22,7 +23,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
@@ -31,6 +32,7 @@ import java.util.Objects;
 /**
  * Operator counting elements with same key.
  */
+@Audience(Audience.Type.CLIENT)
 @Derived(
     state = StateComplexity.CONSTANT,
     repartitions = 1
@@ -45,7 +47,7 @@ public class CountByKey<IN, KEY, W extends Window>
     OfBuilder(String name) {
       this.name = name;
     }
-    
+
     @Override
     public <IN> KeyByBuilder<IN> of(Dataset<IN> input) {
       return new KeyByBuilder<>(name, input);
@@ -55,18 +57,18 @@ public class CountByKey<IN, KEY, W extends Window>
   public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
     private final String name;
     private final Dataset<IN> input;
-    
+
     KeyByBuilder(String name, Dataset<IN> input) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
     }
-    
+
     @Override
     public <KEY> WindowingBuilder<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
       return new WindowingBuilder<>(name, input, keyExtractor);
     }
   }
-  
+
   public static class WindowingBuilder<IN, KEY>
           implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, Long>> {
     private final String name;
@@ -90,7 +92,7 @@ public class CountByKey<IN, KEY, W extends Window>
       return windowBy(null).output();
     }
   }
-  
+
   public static class OutputBuilder<IN, KEY, W extends Window>
           implements Builders.Output<Pair<KEY, Long>> {
 

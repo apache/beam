@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -25,7 +26,7 @@ import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
 
@@ -35,9 +36,10 @@ import javax.annotation.Nullable;
  * Reduces all elements in a window. The operator corresponds to
  * {@link ReduceByKey} with the same key for all elements, so the actual key
  * is defined only by window.<p>
- * 
+ *
  * Custom {@link Windowing} can be set, otherwise values from input operator are used.
  */
+@Audience(Audience.Type.CLIENT)
 @Derived(
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
     repartitions = 1
@@ -47,15 +49,15 @@ public class ReduceWindow<
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, Byte, OUT, W,
             ReduceWindow<IN, VALUE, OUT, W>> {
-  
+
   public static class OfBuilder implements Builders.Of {
-    
+
     final String name;
-    
+
     OfBuilder(String name) {
       this.name = name;
     }
-    
+
     @Override
     public <T> ValueBuilder<T> of(Dataset<T> input) {
       return new ValueBuilder<>(name, input);
@@ -82,7 +84,7 @@ public class ReduceWindow<
       return new OutputBuilder<>(name, input, e -> e, reducer);
     }
   }
-  
+
   public static class ReduceBuilder<T, VALUE> {
     final String name;
     final Dataset<T> input;
@@ -91,7 +93,7 @@ public class ReduceWindow<
         String name,
         Dataset<T> input,
         UnaryFunction<T, VALUE> valueExtractor) {
-      
+
       this.name = name;
       this.input = input;
       this.valueExtractor = valueExtractor;
@@ -116,7 +118,7 @@ public class ReduceWindow<
 
   public static class OutputBuilder<T, VALUE, OUT>
       implements Builders.WindowBy<T>, OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
-    
+
     private final String name;
     private final Dataset<T> input;
     private final UnaryFunction<T, VALUE> valueExtractor;
@@ -141,7 +143,7 @@ public class ReduceWindow<
         Dataset<T> input,
         UnaryFunction<T, VALUE> valueExtractor,
         ReduceFunctor<VALUE, OUT> reducer) {
-      
+
       this.name = name;
       this.input = input;
       this.valueExtractor = valueExtractor;
@@ -156,14 +158,14 @@ public class ReduceWindow<
       flow.add(operator);
       return operator.output();
     }
-    
+
     @Override
     public <W extends Window> OutputBuilder<T, VALUE, OUT>
     windowBy(Windowing<T, W> windowing) {
       this.windowing = windowing;
       return this;
     }
-    
+
   }
 
   /**
@@ -206,7 +208,7 @@ public class ReduceWindow<
           UnaryFunction<IN, VALUE> valueExtractor,
           @Nullable Windowing<IN, W> windowing,
           ReduceFunctor<VALUE, OUT> reducer) {
-    
+
     super(name, flow, input, e -> B_ZERO, windowing);
     this.reducer = reducer;
     this.valueExtractor = valueExtractor;

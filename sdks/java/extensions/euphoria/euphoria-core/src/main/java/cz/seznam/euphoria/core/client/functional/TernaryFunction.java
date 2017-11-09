@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
  * Function taking three arguments.
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface TernaryFunction<X, Y, Z, RET> extends Serializable {
 

@@ -15,9 +15,11 @@
  */
 package cz.seznam.euphoria.core.executor.storage;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Closeable;
 import java.io.Serializable;
 
+@Audience(Audience.Type.EXECUTOR)
 public interface SerializerFactory extends Serializable {
 
   interface Serializer {

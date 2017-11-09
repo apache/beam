@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -24,6 +25,7 @@ import java.util.Objects;
  * @param <K> the type of the first element of the pair
  * @param <V> the type of the second element of the pair
  */
+@Audience(Audience.Type.CLIENT)
 public final class Pair<K, V> {
 
   private static final Comparator<Pair> CMP_BY_FIRST =

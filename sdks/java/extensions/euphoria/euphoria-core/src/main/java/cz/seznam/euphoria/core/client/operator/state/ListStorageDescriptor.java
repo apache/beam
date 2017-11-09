@@ -15,12 +15,15 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 
 /**
  * Descriptor of list storage.
  */
+@Audience(Audience.Type.CLIENT)
 public class ListStorageDescriptor<T> extends StorageDescriptor {
-  
+
   public static <T> ListStorageDescriptor<T> of(String name, Class<T> elementCls) {
     return new ListStorageDescriptor<>(name, elementCls);
   }

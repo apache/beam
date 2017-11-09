@@ -15,8 +15,7 @@
  */
 package cz.seznam.euphoria.core.time;
 
-import java.lang.AssertionError;
-import java.lang.Override;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.time.Duration;
 import java.util.Calendar;
 import java.util.Date;
@@ -27,6 +26,7 @@ import java.util.TimeZone;
  * A set of pre-defined time provider implementations all based on utilities
  * provided by the underlying JDK.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class TimeProviders {
 
   // ~ prevent instantiation

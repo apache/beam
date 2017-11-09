@@ -15,8 +15,8 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.graph.Node;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;

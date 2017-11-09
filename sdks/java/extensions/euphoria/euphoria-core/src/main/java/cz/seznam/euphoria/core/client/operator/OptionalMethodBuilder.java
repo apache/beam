@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import java.util.Objects;
 
@@ -24,6 +25,7 @@ import java.util.Objects;
  *
  * @param <BUILDER> the class of the builder that extends this class
  */
+@Audience(Audience.Type.INTERNAL)
 public interface OptionalMethodBuilder<BUILDER> {
 
   @SuppressWarnings("unchecked")

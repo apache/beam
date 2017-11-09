@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.streaming;
 
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.ExecutorContext;
 import cz.seznam.euphoria.flink.FlinkOperator;

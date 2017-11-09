@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.graph;
+package cz.seznam.euphoria.core.executor.graph;
 
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
 import org.junit.Test;
@@ -89,7 +89,7 @@ public class DAGTest {
 
     // first test the subgraph of leaf 1
     DAG<Integer> oneSubgraph = dag.parentSubGraph(1);
-    
+
     assertEquals(1, oneSubgraph.size());
     Node<Integer> one = Iterables.getOnlyElement(oneSubgraph.getRoots());
     assertEquals(new Integer(1), one.get());

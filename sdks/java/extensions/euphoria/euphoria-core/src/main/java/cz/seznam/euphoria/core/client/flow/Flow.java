@@ -15,11 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.flow;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
-import cz.seznam.euphoria.core.client.operator.ExtractEventTime;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.util.Settings;
 import org.slf4j.Logger;
@@ -43,6 +44,7 @@ import java.util.Set;
 /**
  * A dependency graph of operators.
  */
+@Audience(Audience.Type.CLIENT)
 public class Flow implements Serializable {
 
   private static final Logger LOG = LoggerFactory.getLogger(Flow.class);

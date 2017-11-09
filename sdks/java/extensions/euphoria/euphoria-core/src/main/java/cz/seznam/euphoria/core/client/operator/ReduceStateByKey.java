@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Basic;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -77,6 +78,7 @@ import java.util.Objects;
  * @param <VALUE>  the type of the accumulated values (result type of {@code #valueBy})
  * @param <OUT>    the type of the output elements (result type of the accumulated state)
  */
+@Audience(Audience.Type.CLIENT)
 @Basic(
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
     repartitions = 1
