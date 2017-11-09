@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.nexmark;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
@@ -774,10 +775,6 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Send {@code events} to Kafka.
    */
   private void sinkEventsToKafka(PCollection<Event> events) {
-    if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
-      throw new RuntimeException("Missing --bootstrapServers");
-    }
-
     PTransform<PCollection<byte[]>, PDone> io = KafkaIO.<Long, byte[]>write()
             .withBootstrapServers(options.getBootstrapServers())
             .withTopic(options.getKafkaSinkTopic())
@@ -787,8 +784,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
   }
 
 
-  static final ParDo.SingleOutput<KV<Long, byte[]>, Event> BYTEARRAY_TO_EVENT =
-          ParDo.of(new DoFn<KV<Long, byte[]>, Event>() {
+  static final DoFn<KV<Long, byte[]>, Event> BYTEARRAY_TO_EVENT =
+          new DoFn<KV<Long, byte[]>, Event>() {
             @ProcessElement
             public void processElement(ProcessContext c) {
               byte[] encodedEvent = c.element().getValue();
@@ -799,7 +796,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
                 LOG.error("Error while decoding Event from Kafka message: serialization error");
               }
             }
-          });
+          };
 
   /**
    * Return source of events from Kafka.
@@ -819,7 +816,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
     return p
       .apply(queryName + ".ReadKafkaEvents", io.withoutMetadata())
-      .apply(queryName + ".KafkaToEvents", BYTEARRAY_TO_EVENT);
+      .apply(queryName + ".KafkaToEvents", ParDo.of(BYTEARRAY_TO_EVENT));
   }
 
   /**
@@ -872,9 +869,8 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Send {@code formattedResults} to Kafka.
    */
   private void sinkResultsToKafka(PCollection<String> formattedResults) {
-    if (Strings.isNullOrEmpty(options.getBootstrapServers())) {
-      throw new RuntimeException("Missing --bootstrapServers");
-    }
+    checkArgument(Strings.isNullOrEmpty(options.getBootstrapServers()),
+            "Missing --bootstrapServers");
 
     PTransform<PCollection<String>, PDone> io = KafkaIO.<Long, String>write()
             .withBootstrapServers(options.getBootstrapServers())

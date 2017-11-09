@@ -263,6 +263,12 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.auto.value</groupId>
+      <artifactId>auto-value</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-io-kafka</artifactId>
     </dependency>
