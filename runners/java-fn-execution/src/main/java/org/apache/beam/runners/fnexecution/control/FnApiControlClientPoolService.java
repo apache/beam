@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.fn;
+package org.apache.beam.runners.fnexecution.control;
 
 import io.grpc.stub.StreamObserver;
 import java.util.concurrent.BlockingQueue;
@@ -24,13 +24,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A Fn API control service which adds incoming SDK harness connections to a pool.
- *
- * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
- *     functionality.
- */
-@Deprecated
+/** A Fn API control service which adds incoming SDK harness connections to a pool. */
 public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 
