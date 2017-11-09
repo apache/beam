@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.runners.direct.DirectExecutionContext.DirectStepContext;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;

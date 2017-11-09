@@ -19,4 +19,4 @@
 /**
  * Utilities useful when executing a pipeline on a single machine.
  */
-package org.apache.beam.runners.core.local;
+package org.apache.beam.runners.local;
