@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
@@ -25,6 +26,7 @@ import java.io.Serializable;
  * Subclasses should implement {@code equals()}, {@code hashCode()} and {@code compareTo()} so that logically
  * same windows are treated the same.
  */
+@Audience(Audience.Type.CLIENT)
 public abstract class Window<T extends Window<T>> implements Serializable, Comparable<T> {
 
   @Override

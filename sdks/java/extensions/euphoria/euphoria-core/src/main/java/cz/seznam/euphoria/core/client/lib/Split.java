@@ -15,6 +15,9 @@
  */
 package cz.seznam.euphoria.core.client.lib;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.annotation.operator.Derived;
+import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.operator.Filter;
@@ -26,6 +29,11 @@ import java.util.Objects;
  * Composite operator using two {@link Filter} operators to split
  * a {@link Dataset} into two subsets using provided {@link UnaryPredicate}.
  */
+@Audience(Audience.Type.CLIENT)
+@Derived(
+    state = StateComplexity.ZERO,
+    repartitions = 0
+)
 public class Split<IN> {
 
   static final String DEFAULT_NAME = "Split";

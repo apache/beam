@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.accumulators;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.Settings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Placeholder implementation of {@link AccumulatorProvider} that
  * may be used in executors as a default.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class VoidAccumulatorProvider implements AccumulatorProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(VoidAccumulatorProvider.class);

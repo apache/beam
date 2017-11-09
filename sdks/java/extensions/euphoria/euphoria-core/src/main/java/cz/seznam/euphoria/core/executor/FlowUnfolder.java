@@ -15,11 +15,12 @@
  */
 package cz.seznam.euphoria.core.executor;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
-import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.graph.Node;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
@@ -38,6 +39,7 @@ import java.util.stream.Collectors;
 /**
  * Unfold {@code Flow} to contain only selected operators.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class FlowUnfolder {
 
   /**

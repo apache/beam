@@ -15,11 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * State storage storing lists.
  *
  * @param <T> the type of elements stored
  */
+@Audience(Audience.Type.CLIENT)
 public interface ListStorage<T> extends Storage<T> {
 
   /**

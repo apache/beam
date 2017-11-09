@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.triggers;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -23,6 +24,7 @@ import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
  * A context is given to {@link Trigger} methods to allow them to register
  * timer callbacks.
  */
+@Audience(Audience.Type.CLIENT)
 public interface TriggerContext extends StorageProvider {
 
   /**

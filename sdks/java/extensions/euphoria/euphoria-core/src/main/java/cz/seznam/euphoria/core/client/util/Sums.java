@@ -15,9 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 
 /** Provides commonly used function objects around computing sums. */
+@Audience(Audience.Type.CLIENT)
 public class Sums {
 
   private static final CombinableReduceFunction<Long> SUMS_OF_LONG =

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.triggers;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
 import cz.seznam.euphoria.core.client.operator.state.StorageDescriptor;
@@ -27,6 +28,7 @@ import java.io.Serializable;
  *
  * @param <W> the type of windows supported
  */
+@Audience(Audience.Type.CLIENT)
 public interface Trigger<W extends Window> extends Serializable {
 
   /**

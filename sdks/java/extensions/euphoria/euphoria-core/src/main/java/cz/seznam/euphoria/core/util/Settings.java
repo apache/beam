@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import javax.annotation.Nullable;
@@ -31,6 +32,7 @@ import static java.util.Objects.requireNonNull;
  * methods for primitives and frequently used types. Aims to help with presenting
  * a set of configuration/setting values.
  */
+@Audience(Audience.Type.CLIENT)
 public class Settings implements Serializable {
 
   @Nullable
@@ -129,7 +131,7 @@ public class Settings implements Serializable {
     String stringVal = getString(key, null);
     return stringVal == null ? def :  Boolean.parseBoolean(stringVal);
   }
-  
+
   public boolean getBoolean(String key) {
     String stringVal = getString(key);
     return Boolean.parseBoolean(stringVal);
@@ -139,27 +141,27 @@ public class Settings implements Serializable {
   public void setInt(String key, int value) {
     setString(key, String.valueOf(value));
   }
-  
+
   public int getInt(String key, int def) {
     String stringVal = getString(key, null);
     return stringVal == null ? def : Integer.parseInt(stringVal);
   }
-  
+
   public int getInt(String key) {
     String stringVal = getString(key);
     return Integer.parseInt(stringVal);
   }
-  
+
   // LONG --------------------------------------------------------------------------------
   public void setLong(String key, long value) {
     setString(key, String.valueOf(value));
   }
-  
+
   public long getLong(String key, long def) {
     String stringVal = getString(key, null);
     return stringVal == null ? def : Long.parseLong(stringVal);
   }
-  
+
   public long getLong(String key) {
     String stringVal = getString(key);
     return Long.parseLong(stringVal);
@@ -169,7 +171,7 @@ public class Settings implements Serializable {
   public void setURI(String key, URI uri) {
     setString(key, uri.toString());
   }
-  
+
   public URI getURI(String key, URI def) {
     String stringVal = getString(key, null);
     return stringVal == null ? def : URI.create(stringVal);

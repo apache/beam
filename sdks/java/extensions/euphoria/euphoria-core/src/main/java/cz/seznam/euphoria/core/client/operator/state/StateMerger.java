@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
@@ -28,6 +29,7 @@ import java.io.Serializable;
  * @param <OUT> the type of output elements of the states
  * @param <STATE> the type of states being merged
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface StateMerger<IN, OUT, STATE extends State<IN, OUT>>
         extends Serializable {

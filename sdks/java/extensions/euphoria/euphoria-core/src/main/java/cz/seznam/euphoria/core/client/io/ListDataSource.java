@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 
@@ -32,6 +33,7 @@ import java.util.WeakHashMap;
  *
  * @param <T> the type of elements this source provides
  */
+@Audience({ Audience.Type.CLIENT, Audience.Type.TESTS })
 public class ListDataSource<T> implements DataSource<T> {
 
   // global storage for all existing ListDataSources
@@ -52,7 +54,7 @@ public class ListDataSource<T> implements DataSource<T> {
   public static <T> ListDataSource<T> of(boolean bounded, List<T> ... partitions) {
     return of(bounded, Lists.newArrayList(partitions));
   }
-  
+
   public static <T> ListDataSource<T> of(boolean bounded, List<List<T>> partitions) {
     return new ListDataSource<>(bounded, partitions);
   }

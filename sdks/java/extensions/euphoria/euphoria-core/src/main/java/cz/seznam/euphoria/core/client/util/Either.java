@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import javax.annotation.Nullable;
 
 import static java.util.Objects.requireNonNull;
@@ -22,6 +23,7 @@ import static java.util.Objects.requireNonNull;
 /**
  * Either LEFT or RIGHT element.
  */
+@Audience(Audience.Type.INTERNAL)
 public final class Either<LEFT, RIGHT> {
 
   @Nullable
@@ -65,7 +67,7 @@ public final class Either<LEFT, RIGHT> {
   public RIGHT right() {
     return right;
   }
-  
+
   @Override
   public String toString() {
     return "Either{" +

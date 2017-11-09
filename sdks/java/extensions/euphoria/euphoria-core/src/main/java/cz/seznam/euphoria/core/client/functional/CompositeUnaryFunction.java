@@ -15,9 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * A function that is composition of two unary functions.
  */
+@Audience(Audience.Type.CLIENT)
 public class CompositeUnaryFunction<IN, OUT, X> implements UnaryFunction<IN, OUT> {
 
   private final UnaryFunction<IN, X> first;

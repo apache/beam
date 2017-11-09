@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 
 /**
@@ -22,6 +23,7 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
  *
  * @param <T> the type of value referred to through this descriptor
  */
+@Audience(Audience.Type.CLIENT)
 public class ValueStorageDescriptor<T> extends StorageDescriptor {
 
   public static final class MergingValueStorageDescriptor<T>
@@ -91,10 +93,10 @@ public class ValueStorageDescriptor<T> extends StorageDescriptor {
     super(name);
     this.cls = cls;
     this.defVal = defVal;
-  }  
-  
+  }
+
   public Class<T> getValueClass() { return cls; }
-  
+
   public T getDefaultValue() { return defVal; }
 
 

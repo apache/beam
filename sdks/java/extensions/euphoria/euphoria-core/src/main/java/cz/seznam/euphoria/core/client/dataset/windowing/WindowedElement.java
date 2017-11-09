@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
-import cz.seznam.euphoria.core.client.functional.TernaryFunction;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 /**
  * A single data element flowing in dataset. Every such element
@@ -24,11 +24,22 @@ import cz.seznam.euphoria.core.client.functional.TernaryFunction;
  * @param <W> type of the window
  * @param <T> type of the data element
  */
+@Audience(Audience.Type.CLIENT)
 public interface WindowedElement<W extends Window, T> {
 
+  /**
+   * @return window of element.
+   */
   W getWindow();
 
+  /**
+   * @return associated timestamp
+   */
   long getTimestamp();
 
+  /**
+   * @return the data element itself
+   */
   T getElement();
+
 }

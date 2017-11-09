@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 
@@ -24,6 +25,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
  * @param <IN> the type of elements processed
  * @param <W> the type of windows handled
  */
+@Audience(Audience.Type.INTERNAL)
 public interface WindowAware<IN, W extends Window> {
 
   Windowing<IN, W> getWindowing();

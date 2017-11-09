@@ -15,10 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Collection;
 
+@Audience(Audience.Type.CLIENT)
 public interface MergingWindowing<T, W extends Window<W>>
     extends Windowing<T, W>
 {

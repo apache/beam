@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -26,6 +27,7 @@ import java.util.Collection;
 /**
  * {@code PCollection} that is output of some operator.
  */
+@Audience(Audience.Type.EXECUTOR)
 class OutputDataset<T> implements Dataset<T> {
 
   private final Flow flow;
