@@ -192,9 +192,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @VisibleForTesting
   static final String PIPELINE_FILE_NAME = "pipeline.pb";
 
-  @VisibleForTesting
-  static final String STAGED_PIPELINE_METADATA_PROPERTY = "pipeline_url";
-
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
   /**
@@ -544,6 +541,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     maybeRegisterDebuggee(dataflowOptions, requestId);
 
+    // Set the location of the staged pipeline; this must happen before
+    // translation, because that is where the JSON pipeline options are set up
+    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
+
     JobSpecification jobSpecification =
         translator.translate(pipeline, this, packages);
     Job newJob = jobSpecification.getJob();
@@ -571,10 +572,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     String workerHarnessContainerImage = getContainerImageForJob(options);
     for (WorkerPool workerPool : newJob.getEnvironment().getWorkerPools()) {
       workerPool.setWorkerHarnessContainerImage(workerHarnessContainerImage);
-
-      // https://issues.apache.org/jira/browse/BEAM-3116
-      // workerPool.setMetadata(
-      //    ImmutableMap.of(STAGED_PIPELINE_METADATA_PROPERTY, stagedPipeline.getLocation()));
     }
 
     newJob.getEnvironment().setVersion(getEnvironmentVersion(options));
