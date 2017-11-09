@@ -32,20 +32,14 @@ except ImportError:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
 
+# Inherit good model test coverage from
+# maptask_executor_runner_test.MapTaskExecutorRunnerTest.
 class FnApiRunnerTest(
     maptask_executor_runner_test.MapTaskExecutorRunnerTest):
 
   def create_pipeline(self):
     return beam.Pipeline(
         runner=fn_api_runner.FnApiRunner(use_grpc=False))
-
-  def test_combine_per_key(self):
-    # TODO(BEAM-1348): Enable once Partial GBK is supported in fn API.
-    pass
-
-  def test_combine_per_key(self):
-    # TODO(BEAM-1348): Enable once Partial GBK is supported in fn API.
-    pass
 
   def test_pardo_side_inputs(self):
     def cross_product(elem, sides):
