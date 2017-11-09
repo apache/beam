@@ -124,6 +124,13 @@ public interface DataflowPipelineOptions
   void setLabels(Map<String, String> labels);
 
   /**
+   * The URL of the staged portable pipeline.
+   */
+  @Description("The URL of the staged portable pipeline")
+  String getPipelineUrl();
+  void setPipelineUrl(String urlString);
+
+  /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.
    */
   class StagingLocationFactory implements DefaultValueFactory<String> {
