@@ -138,7 +138,7 @@ public class PubsubJsonClientTest {
   }
 
   @Test
-  public void publishOneMessageNoExtraAttributes() throws IOException {
+  public void publishOneMessageWithOnlyTimestampAndIdAttributes() throws IOException {
     String expectedTopic = TOPIC.getPath();
     PubsubMessage expectedPubsubMessage = new PubsubMessage()
         .encodeData(DATA.getBytes())
@@ -157,6 +157,35 @@ public class PubsubJsonClientTest {
            .thenReturn(expectedResponse);
     OutgoingMessage actualMessage = new OutgoingMessage(
         DATA.getBytes(), ImmutableMap.<String, String>of(), MESSAGE_TIME, RECORD_ID);
+    int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
+    assertEquals(1, n);
+  }
+
+  @Test
+  public void publishOneMessageWithNoTimestampOrIdAttribute() throws IOException {
+    // For this test, create a new PubsubJsonClient without the timestamp attribute
+    // or id attribute set.
+    client = new PubsubJsonClient(null, null, mockPubsub);
+
+    String expectedTopic = TOPIC.getPath();
+    PubsubMessage expectedPubsubMessage = new PubsubMessage()
+        .encodeData(DATA.getBytes())
+        .setAttributes(
+            ImmutableMap.<String, String> builder()
+                    .put("k", "v").build());
+    PublishRequest expectedRequest = new PublishRequest()
+        .setMessages(ImmutableList.of(expectedPubsubMessage));
+    PublishResponse expectedResponse = new PublishResponse()
+        .setMessageIds(ImmutableList.of(MESSAGE_ID));
+    Mockito.when((Object) (mockPubsub.projects()
+                                .topics()
+                                .publish(expectedTopic, expectedRequest)
+                                .execute()))
+           .thenReturn(expectedResponse);
+    Map<String, String> attrs = new HashMap<>();
+    attrs.put("k", "v");
+    OutgoingMessage actualMessage = new OutgoingMessage(
+            DATA.getBytes(), attrs, MESSAGE_TIME, RECORD_ID);
     int n = client.publish(TOPIC, ImmutableList.of(actualMessage));
     assertEquals(1, n);
   }
