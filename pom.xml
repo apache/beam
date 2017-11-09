@@ -1657,7 +1657,7 @@
               <exclude>sdks/python/apache_beam/portability/api/*pb2*.*</exclude>
 
               <!-- .gitignore: Ignore IntelliJ files. -->
-              <exclude>**/idea/**/*</exclude>
+              <exclude>**/.idea/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/*.ipr</exclude>
               <exclude>**/*.iws</exclude>
