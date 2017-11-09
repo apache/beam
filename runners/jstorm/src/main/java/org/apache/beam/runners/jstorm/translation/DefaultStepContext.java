@@ -19,19 +19,14 @@ package org.apache.beam.runners.jstorm.translation;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.IOException;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.StateInternals;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.core.TimerInternals;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.TupleTag;
 
 /**
  * Default StepContext for running DoFn This does not allow accessing state or timer internals.
  */
-class DefaultStepContext implements ExecutionContext.StepContext {
+class DefaultStepContext implements StepContext {
 
   private TimerInternals timerInternals;
 
@@ -40,34 +35,6 @@ class DefaultStepContext implements ExecutionContext.StepContext {
   public DefaultStepContext(TimerInternals timerInternals, StateInternals stateInternals) {
     this.timerInternals = checkNotNull(timerInternals, "timerInternals");
     this.stateInternals = checkNotNull(stateInternals, "stateInternals");
-  }
-
-  @Override
-  public String getStepName() {
-    return null;
-  }
-
-  @Override
-  public String getTransformName() {
-    return null;
-  }
-
-  @Override
-  public void noteOutput(WindowedValue<?> windowedValue) {
-
-  }
-
-  @Override
-  public void noteOutput(TupleTag<?> tupleTag, WindowedValue<?> windowedValue) {
-
-  }
-
-  @Override
-  public <T, W extends BoundedWindow> void writePCollectionViewData(
-      TupleTag<?> tag, Iterable<WindowedValue<T>> data,
-      Coder<Iterable<WindowedValue<T>>> dataCoder, W window, Coder<W> windowCoder)
-      throws IOException {
-    throw new UnsupportedOperationException("Writing side-input data is not supported.");
   }
 
   @Override

@@ -121,7 +121,7 @@ public class JStormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults 
     @SuppressWarnings("unchecked")
     TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
 
-    context.getUserGraphContext().setCurrentTransform(node.toAppliedPTransform());
+    context.getUserGraphContext().setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     typedTranslator.translateNode(typedTransform, context);
 
     // Maintain PValue to TupleTag map for side inputs translation.
@@ -137,7 +137,7 @@ public class JStormPipelineTranslator extends Pipeline.PipelineVisitor.Defaults 
     @SuppressWarnings("unchecked")
     TransformTranslator<T> typedTranslator = (TransformTranslator<T>) translator;
 
-    context.getUserGraphContext().setCurrentTransform(node.toAppliedPTransform());
+    context.getUserGraphContext().setCurrentTransform(node.toAppliedPTransform(getPipeline()));
 
     return typedTranslator.canTranslate(typedTransform, context);
   }
