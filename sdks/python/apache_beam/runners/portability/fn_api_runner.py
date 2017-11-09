@@ -850,7 +850,7 @@ class FnApiRunner(runner.PipelineRunner):
       self.data_plane_handler = data_plane.InMemoryDataChannel()
       self.worker = sdk_worker.SdkWorker(
           self.state_handler, data_plane.InMemoryDataChannelFactory(
-              self.data_plane_handler.inverse()))
+              self.data_plane_handler.inverse()), {})
 
     def push(self, request):
       logging.debug('CONTROL REQUEST %s', request)

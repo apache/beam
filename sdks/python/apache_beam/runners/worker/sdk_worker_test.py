@@ -61,14 +61,14 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
 class SdkWorkerTest(unittest.TestCase):
   def _get_process_bundles(self, prefix, size):
-    return [
-      beam_fn_api_pb2.ProcessBundleDescriptor(
+    return [beam_fn_api_pb2.ProcessBundleDescriptor(
         id=str(str(prefix) + "-" + str(ix)),
         transforms={
-          str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))})
-      for ix in range(size)]
+            str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))})
+            for ix in range(size)]
 
-  def _check_fn_registeration_multi_request(self, request_count, process_bundles_per_request):
+  def _check_fn_registeration_multi_request(self, request_count,
+                                            process_bundles_per_request):
     requests = []
     process_bundle_descriptors = []
 
@@ -76,29 +76,36 @@ class SdkWorkerTest(unittest.TestCase):
       pbd = self._get_process_bundles(i, process_bundles_per_request)
       process_bundle_descriptors.extend(pbd)
       requests.append(
-        beam_fn_api_pb2.InstructionRequest(
-          instruction_id=str(i),
-          register=beam_fn_api_pb2.RegisterRequest(process_bundle_descriptor=process_bundle_descriptors)))
+          beam_fn_api_pb2.InstructionRequest(
+              instruction_id=str(i),
+              register=beam_fn_api_pb2.RegisterRequest(
+                  process_bundle_descriptor=process_bundle_descriptors)))
 
     test_controller = BeamFnControlServicer(requests)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
-      test_controller, server)
+        test_controller, server)
     test_port = server.add_insecure_port("[::]:0")
     server.start()
 
     harness = sdk_worker.SdkHarness("localhost:%s" % test_port)
     harness.run()
-    self.assertEqual(
-      harness.worker_wrapper.worker.fns,
-      {item.id: item for item in process_bundle_descriptors})
+
+    for worker_wrapper in harness.worker_wrappers:
+      self.assertEqual(
+          worker_wrapper.worker.fns,
+          {item.id: item for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
-    self._check_fn_registeration_multi_request(request_count=1, process_bundles_per_request=4)
+    self._check_fn_registeration_multi_request(
+        request_count=1,
+        process_bundles_per_request=4)
 
   def test_fn_registration_multiple_request(self):
-    self._check_fn_registeration_multi_request(request_count=4, process_bundles_per_request=4)
+    self._check_fn_registeration_multi_request(
+        request_count=4,
+        process_bundles_per_request=4)
 
 
 if __name__ == "__main__":
