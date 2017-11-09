@@ -16,15 +16,29 @@
  * limitations under the License.
  */
 
+// This file contains common build rules that are to be applied
+// to all projects and also a set of methods called applyXYZNature which
+// sets up common build rules for sub-projects with the same needs.
+//
+// The supported list of natures are:
+//  * Java   - Configures plugins commonly found in Java projects
+//  * Go     - Configures plugins commonly found in Go projects
+//  * Docker - Configures plugins commonly used to build Docker containers
+//  * Grpc   - Configures plugins commonly used to generate source from protos
+//  * Avro   - Configures plugins commonly used to generate source from Avro specifications
+//
+// For example, see applyJavaNature below.
+
+
 println "Applying build_rules.gradle to $project.name"
 
 /*************************************************************************************************/
-// Apply common properties/repositories and tasks to all builds.
+// Apply common properties/repositories and tasks to all projects.
 
 group = "org.apache.beam"
 version = "2.3.0-SNAPSHOT"
 
-// Define the default set of properties
+// Define the default set of repositories for all builds.
 repositories {
   mavenLocal()
   mavenCentral()
@@ -41,26 +55,76 @@ repositories {
 }
 
 // Provide code coverage
+// TODO: Should this only apply to Java projects?
 apply plugin: "jacoco"
 
-// Provies "htmlDependencyReport" task which spits out a nice page per subproject
-// showing all the dependencies per Gradle configuration.
+// Apply a plugin which provides tasks for dependency / property / task reports.
+// See https://docs.gradle.org/current/userguide/project_reports_plugin.html
+// for further details. This is typically very useful to look at the "htmlDependencyReport"
+// when attempting to resolve dependency issues.
 apply plugin: "project-report"
 
 // Apply a task dependency visualization plugin which creates a ".dot" file in the build directory
-// giving the task dependencies for that project
+// giving the task dependencies for the current build. Unfortunately this creates a ".dot" file
+// in each sub-projects report output directory.
+// See https://github.com/mmalohlava/gradle-visteg for further details.
 apply plugin: "cz.malohlava.visteg"
 
 /*************************************************************************************************/
 
-/** Used as configuration within the applyJavaNature closure. */
+
+// A class defining the set of configurable properties accepted by applyJavaNature
 class JavaNatureConfiguration {
-  double javaVersion = 1.7
-  boolean enableFindbugs = true
-  boolean enableShadow = true
+  double javaVersion = 1.7        // Controls the JDK source language and target compatibility
+  boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
+  boolean enableShadow = true     // Controls whether the shadow plugin is enabled and configured
 }
 
-/** Takes a map of parameters. See JavaNatureConfiguration for the set of parameters allowed. */
+// Configures a project with a default set of plugins that should apply to all Java projects.
+//
+// Users should invoke this method using Groovy map syntax. For example:
+// applyJavaNature(javaVersion: 1.8)
+//
+// See JavaNatureConfiguration for the set of accepted properties.
+//
+// The following plugins are enabled:
+//  * java
+//  * maven
+//  * net.ltgt.apt (plugin to configure annotation processing tool)
+//  * propdeps (provide optional and provided dependency configurations)
+//  * propdeps-maven (configure Maven pom generation to understand optional and provided dependency configurations)
+//  * checkstyle
+//  * findbugs
+//  * shadow
+//  * com.diffplug.gradle.spotless (code style plugin)
+//
+// Dependency Management for Java Projects
+// ---------------------------------------
+//
+// By default, the shadow plugin is enabled to perform shading of commonly found dependencies.
+// Because of this it is important that dependencies are added to the correct configuration.
+// Dependencies should fall into one of these four configurations:
+//  * compile     - Required during compilation or runtime of the main source set.
+//                  This configuration represents all dependencies that much also be shaded away
+//                  otherwise the generated Maven pom will be missing this dependency.
+//  * shadow      - Required during compilation or runtime of the main source set.
+//                  Will become a runtime dependency of the generated Maven pom.
+//  * testCompile - Required during compilation or runtime of the test source set.
+//                  This must be shaded away in the shaded test jar.
+//  * testShadow  - Required during compilation or runtime of the test source set.
+//                  TODO: Figure out whether this should be a test scope dependency
+//                  of the generated Maven pom.
+//
+// When creating a cross-project dependency between two Java projects, one should only rely on the shaded configurations.
+// This allows for compilation/test execution to occur against the final artifact that will be provided to users.
+// This is by done by referencing the "shadow" or "testShadow" configuration as so:
+//   dependencies {
+//     shadow project(path: "other:java:project1", configuration: "shadow")
+//     testShadow project(path: "other:java:project2", configuration: "testShadow")
+//   }
+// This will ensure the correct set of transitive dependencies from those projects are correctly added to the
+// main and test source set runtimes.
+
 ext.applyJavaNature = {
   println "applyJavaNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   // Use the implicit it parameter of the closure to handle zero argument or one argument map calls.
@@ -68,15 +132,18 @@ ext.applyJavaNature = {
   apply plugin: "maven"
   apply plugin: "java"
 
+  // Configure the Java compiler source language and target compatibility levels. Also ensure that
+  // we configure the Java compiler to use UTF-8.
   sourceCompatibility = configuration.javaVersion
   targetCompatibility = configuration.javaVersion
   tasks.withType(JavaCompile) {
     options.encoding = "UTF-8"
   }
 
+  // Configure the test tasks to always use JUnit and also configure the set of tests executed
+  // to match the equivalent set that is executed by the maven-surefire-plugin.
+  // See http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
   test {
-    // Configure the gradle include defaults to be equivalent to the maven-surefire-plugin
-    // http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
     include "**/Test*.class"
     include "**/*Test.class"
     include "**/*Tests.class"
@@ -84,10 +151,16 @@ ext.applyJavaNature = {
     useJUnit { }
   }
 
+  // Configures annotation processing for commonly used annotation processors
+  // across all Java projects.
   apply plugin: "net.ltgt.apt"
   dependencies {
+    // Note that these plugins specifically use the compileOnly and testCompileOnly
+    // configurations because they are never required to be shaded or become a
+    // dependency of the output.
     def auto_value = "com.google.auto.value:auto-value:1.5.1"
     def auto_service = "com.google.auto.service:auto-service:1.0-rc2"
+
     compileOnly auto_value
     apt auto_value
     testCompileOnly auto_value
@@ -99,12 +172,15 @@ ext.applyJavaNature = {
     testApt auto_service
   }
 
-  // Add the optional and provided scopes for dependencies
+  // Add the optional and provided configurations for dependencies
+  // TODO: Either remove these plugins and find another way to generate the Maven poms
+  // with the correct dependency scopes configured.
   apply plugin: 'propdeps'
   apply plugin: 'propdeps-maven'
 
+  // Configures a checkstyle plugin enforcing a set of rules and also allows for a set of
+  // suppressions.
   apply plugin: 'checkstyle'
-
   tasks.withType(Checkstyle) {
     configFile = project(":").file("sdks/java/build-tools/src/main/resources/beam/checkstyle.xml")
     configProperties = [ "checkstyle.suppressions.file": project(":").file("sdks/java/build-tools/src/main/resources/beam/suppressions.xml") ]
@@ -112,7 +188,9 @@ ext.applyJavaNature = {
     maxErrors = 0
   }
 
-  apply plugin: 'com.diffplug.gradle.spotless'
+  // Enables a plugin which can apply code formatting to source.
+  // TODO: Should this plugin be enabled for all projects?
+  apply plugin: "com.diffplug.gradle.spotless"
   spotless {
     java {
       target rootProject.fileTree(rootProject.rootDir) {
@@ -123,6 +201,8 @@ ext.applyJavaNature = {
     }
   }
 
+  // Enables a plugin which performs code analysis for common bugs.
+  // This plugin is configured to only analyze the "main" source set.
   if (configuration.enableFindbugs) {
     apply plugin: 'findbugs'
     findbugs {
@@ -131,6 +211,12 @@ ext.applyJavaNature = {
     }
   }
 
+  // Enables a plugin which can perform shading of classes. See the general comments
+  // above about dependency management for Java projects and how the shadow plugin
+  // is expected to be used for the different Gradle configurations.
+  //
+  // TODO: Enforce all relocations are always performed to:
+  // "org.apache.beam." + project.name.replace("-", ".") + ".repackaged."
   if (configuration.enableShadow) {
     apply plugin: 'com.github.johnrengelman.shadow'
 
@@ -163,9 +249,16 @@ ext.applyJavaNature = {
       }
       testCompile.extendsFrom shadowTest
     }
+
     // TODO: Figure out how to create ShadowJar task for testShadowJar here
     // that is extendable within each sub-project with any additional includes.
-    // Optimally, a single configuration would apply to both.
+    // This could mirror the "shadowJar" configuration block.
+    // Optionally, we could also copy the shading configuration from the main
+    // source set and apply it here.
+    //
+    // Shading the test jar has a lot less need but can still be beneficial for
+    // resolving class conflicts for tests during test execution or exposing
+    // test libraries for users.
   }
 
   // Ban these dependencies from all configurations
@@ -183,9 +276,12 @@ ext.applyJavaNature = {
     exclude group: "org.mockito", module: "mockito-all"
   }
 
-  // Force usage of the libraries defined within our common set
-  // instead of using Gradles default dependency resolution mechanism
+  // Force usage of the libraries defined within our common set found in the root
+  // build.gradle instead of using Gradles default dependency resolution mechanism
   // which chooses the latest version available.
+  //
+  // TODO: Figure out whether we should force all dependency conflict resolution
+  // to occur in the "shadow" and "testShadow" configurations.
   configurations.all {
     resolutionStrategy {
       force library.java.values()
@@ -193,6 +289,8 @@ ext.applyJavaNature = {
   }
 
 }
+
+/*************************************************************************************************/
 
 ext.applyGoNature = {
   println "applyGoNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
@@ -215,7 +313,6 @@ ext.applyGoNature = {
   if (!goProjects.contains(project.path)) {
     throw new GradleException(project.path + " has not been defined within the list of well known go projects within build_rules.gradle.")
   }
-
   int index = goProjects.indexOf(project.path)
   if (index != 0) {
     String previous = goProjects.get(index - 1)
@@ -230,6 +327,9 @@ ext.applyGoNature = {
   }
 }
 
+
+/*************************************************************************************************/
+
 ext.applyDockerNature = {
   println "applyDockerNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.palantir.docker"
@@ -237,6 +337,8 @@ ext.applyDockerNature = {
     noCache true
   }
 }
+
+/*************************************************************************************************/
 
 ext.applyGrpcNature = {
   println "applyGrpcNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
@@ -269,6 +371,10 @@ ext.applyGrpcNature = {
   }
 }
 
+/*************************************************************************************************/
+
+// TODO: Decide whether this should be inlined into the one project that relies on it
+// or be left here.
 ext.applyAvroNature = {
   println "applyAvroNature with " + (it ? "$it" : "default configuration") + " for project $project.name"
   apply plugin: "com.commercehub.gradle.plugin.avro"
