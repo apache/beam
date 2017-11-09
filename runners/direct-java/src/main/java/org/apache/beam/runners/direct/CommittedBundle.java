@@ -20,7 +20,8 @@ package org.apache.beam.runners.direct;
 
 import javax.annotation.Nullable;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.local.Bundle;
+import org.apache.beam.runners.local.Bundle;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.WindowedValue;
