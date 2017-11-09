@@ -17,7 +17,6 @@
 
 """A PipelineRunner using the SDK harness.
 """
-import base64
 import collections
 import copy
 import logging
@@ -43,7 +42,6 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners import runner
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
-from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sdk_worker
 from apache_beam.transforms import trigger
 from apache_beam.transforms.window import GlobalWindows
