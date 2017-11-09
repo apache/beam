@@ -55,7 +55,7 @@ INTERVAL_WINDOW_CODER = "urn:beam:coders:interval_window:0.1"
 ITERABLE_CODER = "urn:beam:coders:stream:0.1"
 KV_CODER = "urn:beam:coders:kv:0.1"
 LENGTH_PREFIX_CODER = "urn:beam:coders:length_prefix:0.1"
-GLOBAL_WINDOW_CODER = "urn:beam:coders:urn:beam:coders:global_window:0.1"
+GLOBAL_WINDOW_CODER = "urn:beam:coders:global_window:0.1"
 WINDOWED_VALUE_CODER = "urn:beam:coders:windowed_value:0.1"
 
 
