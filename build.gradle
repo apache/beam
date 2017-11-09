@@ -214,7 +214,7 @@ rat {
     "sdks/python/apache_beam/portability/api/*pb2*.*",
 
     // .gitignore: Ignore IntelliJ files.
-    "**/idea/**/*",
+    "**/.idea/**/*",
     "**/*.iml",
     "**/*.ipr",
     "**/*.iws",
