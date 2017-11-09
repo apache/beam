@@ -40,6 +40,7 @@ import com.google.common.collect.Multimap;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -59,7 +60,6 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.reflect.Nullable;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
-import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -81,10 +81,12 @@ import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Watch;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayDataEvaluator;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
@@ -102,17 +104,17 @@ import org.junit.runners.JUnit4;
 
 /** Tests for AvroIO Read and Write transforms. */
 @RunWith(JUnit4.class)
-public class AvroIOTest {
+public class AvroIOTest implements Serializable {
 
   @Rule
-  public TestPipeline writePipeline = TestPipeline.create();
+  public transient TestPipeline writePipeline = TestPipeline.create();
 
   @Rule
-  public TestPipeline readPipeline = TestPipeline.create();
+  public transient TestPipeline readPipeline = TestPipeline.create();
 
-  @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
+  @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule public transient ExpectedException expectedException = ExpectedException.none();
 
   @Test
   public void testAvroIOGetName() {
@@ -164,16 +166,141 @@ public class AvroIOTest {
     }
   }
 
+  private static final String SCHEMA_STRING =
+      "{\"namespace\": \"example.avro\",\n"
+          + " \"type\": \"record\",\n"
+          + " \"name\": \"AvroGeneratedUser\",\n"
+          + " \"fields\": [\n"
+          + "     {\"name\": \"name\", \"type\": \"string\"},\n"
+          + "     {\"name\": \"favorite_number\", \"type\": [\"int\", \"null\"]},\n"
+          + "     {\"name\": \"favorite_color\", \"type\": [\"string\", \"null\"]}\n"
+          + " ]\n"
+          + "}";
+
+  private static final Schema SCHEMA = new Schema.Parser().parse(SCHEMA_STRING);
+
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadAndParseASingleFile() throws Throwable {
+  public void testWriteThenReadJavaClass() throws Throwable {
+    List<GenericClass> values =
+        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    writePipeline
+        .apply(Create.of(values))
+        .apply(
+            AvroIO.write(GenericClass.class)
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
+    writePipeline.run();
+
+    PAssert.that(
+            readPipeline.apply(
+                "Read",
+                AvroIO.read(GenericClass.class)
+                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteThenReadCustomType() throws Throwable {
+    List<Long> values = Arrays.asList(0L, 1L, 2L);
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    writePipeline
+        .apply(Create.of(values))
+        .apply(
+            AvroIO.<Long, GenericClass>writeCustomType()
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withFormatFunction(new CreateGenericClass())
+                .withSchema(ReflectData.get().getSchema(GenericClass.class))
+                .withoutSharding());
+    writePipeline.run();
+
+    PAssert.that(
+            readPipeline
+                .apply(
+                    "Read",
+                    AvroIO.read(GenericClass.class)
+                        .from(readPipeline.newProvider(outputFile.getAbsolutePath())))
+                .apply(
+                    MapElements.via(
+                        new SimpleFunction<GenericClass, Long>() {
+                          @Override
+                          public Long apply(GenericClass input) {
+                            return (long) input.intField;
+                          }
+                        })))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  private <T extends GenericRecord> void testWriteThenReadGeneratedClass(
+      AvroIO.Write<T> writeTransform,
+      AvroIO.Read<T> readTransform
+  ) throws Exception {
+    File outputFile = tmpFolder.newFile("output.avro");
+
+    List<T> values =
+        ImmutableList.of(
+            (T) new AvroGeneratedUser("Bob", 256, null),
+            (T) new AvroGeneratedUser("Alice", 128, null),
+            (T) new AvroGeneratedUser("Ted", null, "white"));
+
+    writePipeline
+        .apply(Create.<T>of(values))
+        .apply(
+            writeTransform
+                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
+                .withoutSharding());
+    writePipeline.run();
+
+    PAssert.that(
+        readPipeline.apply(
+            "Read",
+            readTransform
+                .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
+        .containsInAnyOrder(values);
+
+    readPipeline.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteThenReadGeneratedClassWithClass() throws Throwable {
+    testWriteThenReadGeneratedClass(
+        AvroIO.write(AvroGeneratedUser.class), AvroIO.read(AvroGeneratedUser.class));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteThenReadGeneratedClassWithSchema() throws Throwable {
+    testWriteThenReadGeneratedClass(
+        AvroIO.writeGenericRecords(SCHEMA), AvroIO.readGenericRecords(SCHEMA));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteThenReadGeneratedClassWithSchemaString() throws Throwable {
+    testWriteThenReadGeneratedClass(
+        AvroIO.writeGenericRecords(SCHEMA.toString()),
+        AvroIO.readGenericRecords(SCHEMA.toString()));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteSingleFileThenReadUsingAllMethods() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     writePipeline.apply(Create.of(values))
         .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
-    writePipeline.run().waitUntilFinish();
+    writePipeline.run();
 
     // Test the same data using all versions of read().
     PCollection<String> path =
@@ -221,32 +348,7 @@ public class AvroIOTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadViaValueProvider() throws Throwable {
-    List<GenericClass> values =
-        ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
-    File outputFile = tmpFolder.newFile("output.avro");
-
-    writePipeline
-        .apply(Create.of(values))
-        .apply(
-            AvroIO.write(GenericClass.class)
-                .to(writePipeline.newProvider(outputFile.getAbsolutePath()))
-                .withoutSharding());
-    writePipeline.run().waitUntilFinish();
-
-    PAssert.that(
-            readPipeline.apply(
-                "Read",
-                AvroIO.read(GenericClass.class)
-                    .from(readPipeline.newProvider(outputFile.getAbsolutePath()))))
-        .containsInAnyOrder(values);
-
-    readPipeline.run();
-  }
-
-  @Test
-  @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadMultipleFilepatterns() throws Throwable {
+  public void testWriteThenReadMultipleFilepatterns() throws Throwable {
     List<GenericClass> firstValues = Lists.newArrayList();
     List<GenericClass> secondValues = Lists.newArrayList();
     for (int i = 0; i < 10; ++i) {
@@ -267,7 +369,7 @@ public class AvroIOTest {
             AvroIO.write(GenericClass.class)
                 .to(tmpFolder.getRoot().getAbsolutePath() + "/second")
                 .withNumShards(3));
-    writePipeline.run().waitUntilFinish();
+    writePipeline.run();
 
     // Test readAll() and parseAllGenericRecords().
     PCollection<String> paths =
@@ -300,32 +402,39 @@ public class AvroIOTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOContinuouslyWriteAndReadMultipleFilepatterns() throws Throwable {
+  public void testContinuouslyWriteAndReadMultipleFilepatterns() throws Throwable {
     SimpleFunction<Long, GenericClass> mapFn = new CreateGenericClass();
     List<GenericClass> firstValues = Lists.newArrayList();
     List<GenericClass> secondValues = Lists.newArrayList();
     for (int i = 0; i < 7; ++i) {
       (i < 3 ? firstValues : secondValues).add(mapFn.apply((long) i));
     }
-    writePipeline.apply(
+    // Configure windowing of the input so that it fires every time a new element is generated,
+    // so that files are written continuously.
+    Window<Long> window = Window.<Long>into(FixedWindows.of(Duration.millis(100)))
+        .withAllowedLateness(Duration.ZERO)
+        .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+        .discardingFiredPanes();
+    readPipeline.apply(
             "Sequence first",
             GenerateSequence.from(0).to(3).withRate(1, Duration.millis(300)))
+        .apply("Window first", window)
         .apply("Map first", MapElements.via(mapFn))
         .apply(
             "Write first",
             AvroIO.write(GenericClass.class)
                 .to(tmpFolder.getRoot().getAbsolutePath() + "/first")
-                .withNumShards(2));
-    writePipeline.apply(
+                .withNumShards(2).withWindowedWrites());
+    readPipeline.apply(
             "Sequence second",
             GenerateSequence.from(3).to(7).withRate(1, Duration.millis(300)))
+        .apply("Window second", window)
         .apply("Map second", MapElements.via(mapFn))
         .apply(
             "Write second",
             AvroIO.write(GenericClass.class)
                 .to(tmpFolder.getRoot().getAbsolutePath() + "/second")
-                .withNumShards(3));
-    PipelineResult writeRes = writePipeline.run();
+                .withNumShards(3).withWindowedWrites());
 
     // Test read(), readAll(), parse(), and parseAllGenericRecords() with watchForNewFiles().
     PAssert.that(
@@ -372,15 +481,13 @@ public class AvroIOTest {
                         Watch.Growth.<String>afterTimeSinceNewOutput(Duration.standardSeconds(3)))
                     .withDesiredBundleSizeBytes(10)))
         .containsInAnyOrder(Iterables.concat(firstValues, secondValues));
-
     readPipeline.run();
-    writeRes.waitUntilFinish();
   }
 
   @Test
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
-  public void testAvroIOCompressedWriteAndReadASingleFile() throws Throwable {
+  public void testCompressedWriteAndReadASingleFile() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -391,22 +498,23 @@ public class AvroIOTest {
                 .to(outputFile.getAbsolutePath())
                 .withoutSharding()
                 .withCodec(CodecFactory.deflateCodec(9)));
-    writePipeline.run().waitUntilFinish();
+    writePipeline.run();
 
-    PCollection<GenericClass> input =
-        readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
-
-    PAssert.that(input).containsInAnyOrder(values);
+    PAssert.that(
+            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+        .containsInAnyOrder(values);
     readPipeline.run();
-    DataFileStream dataFileStream =
-        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader());
-    assertEquals("deflate", dataFileStream.getMetaString("avro.codec"));
+
+    try (DataFileStream dataFileStream =
+        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader())) {
+      assertEquals("deflate", dataFileStream.getMetaString("avro.codec"));
+    }
   }
 
   @Test
   @SuppressWarnings("unchecked")
   @Category(NeedsRunner.class)
-  public void testAvroIONullCodecWriteAndReadASingleFile() throws Throwable {
+  public void testWriteThenReadASingleFileWithNullCodec() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
@@ -417,16 +525,17 @@ public class AvroIOTest {
                 .to(outputFile.getAbsolutePath())
                 .withoutSharding()
                 .withCodec(CodecFactory.nullCodec()));
-    writePipeline.run().waitUntilFinish();
+    writePipeline.run();
 
-    PCollection<GenericClass> input =
-        readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath()));
-
-    PAssert.that(input).containsInAnyOrder(values);
+    PAssert.that(
+            readPipeline.apply(AvroIO.read(GenericClass.class).from(outputFile.getAbsolutePath())))
+        .containsInAnyOrder(values);
     readPipeline.run();
-    DataFileStream dataFileStream =
-        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader());
-    assertEquals("null", dataFileStream.getMetaString("avro.codec"));
+
+    try (DataFileStream dataFileStream =
+        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader())) {
+      assertEquals("null", dataFileStream.getMetaString("avro.codec"));
+    }
   }
 
   @DefaultCoder(AvroCoder.class)
@@ -478,22 +587,22 @@ public class AvroIOTest {
    */
   @Test
   @Category(NeedsRunner.class)
-  public void testAvroIOWriteAndReadSchemaUpgrade() throws Throwable {
+  public void testWriteThenReadSchemaUpgrade() throws Throwable {
     List<GenericClass> values =
         ImmutableList.of(new GenericClass(3, "hi"), new GenericClass(5, "bar"));
     File outputFile = tmpFolder.newFile("output.avro");
 
     writePipeline.apply(Create.of(values))
         .apply(AvroIO.write(GenericClass.class).to(outputFile.getAbsolutePath()).withoutSharding());
-    writePipeline.run().waitUntilFinish();
+    writePipeline.run();
 
     List<GenericClassV2> expected =
         ImmutableList.of(new GenericClassV2(3, "hi", null), new GenericClassV2(5, "bar", null));
 
-    PCollection<GenericClassV2> input =
-        readPipeline.apply(AvroIO.read(GenericClassV2.class).from(outputFile.getAbsolutePath()));
-
-    PAssert.that(input).containsInAnyOrder(expected);
+    PAssert.that(
+            readPipeline.apply(
+                AvroIO.read(GenericClassV2.class).from(outputFile.getAbsolutePath())))
+        .containsInAnyOrder(expected);
     readPipeline.run();
   }
 
@@ -543,11 +652,11 @@ public class AvroIOTest {
     }
   }
 
-  @Rule public TestPipeline windowedAvroWritePipeline = TestPipeline.create();
+  @Rule public transient TestPipeline windowedAvroWritePipeline = TestPipeline.create();
 
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
-  public void testWindowedAvroIOWrite() throws Throwable {
+  public void testWriteWindowed() throws Throwable {
     Path baseDir = Files.createTempDirectory(tmpFolder.getRoot().toPath(), "testwrite");
     String baseFilename = baseDir.resolve("prefix").toString();
 
@@ -873,11 +982,12 @@ public class AvroIOTest {
                         "bytesValue".getBytes())));
     writePipeline.run();
 
-    DataFileStream dataFileStream =
-        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader());
-    assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
-    assertEquals(100L, dataFileStream.getMetaLong("longKey"));
-    assertArrayEquals("bytesValue".getBytes(), dataFileStream.getMeta("bytesKey"));
+    try (DataFileStream dataFileStream =
+        new DataFileStream(new FileInputStream(outputFile), new GenericDatumReader())) {
+      assertEquals("stringValue", dataFileStream.getMetaString("stringKey"));
+      assertEquals(100L, dataFileStream.getMetaLong("longKey"));
+      assertArrayEquals("bytesValue".getBytes(), dataFileStream.getMeta("bytesKey"));
+    }
   }
 
   @SuppressWarnings("deprecation") // using AvroCoder#createDatumReader for tests.

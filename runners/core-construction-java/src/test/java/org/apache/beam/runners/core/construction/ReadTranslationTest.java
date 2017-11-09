@@ -29,13 +29,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.ReadPayload;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.Read;
@@ -75,7 +75,7 @@ public class ReadTranslationTest {
     BoundedSource<?> boundedSource = (BoundedSource<?>) this.source;
     Read.Bounded<?> boundedRead = Read.from(boundedSource);
     ReadPayload payload = ReadTranslation.toProto(boundedRead);
-    assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.BOUNDED));
+    assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.BOUNDED));
     BoundedSource<?> deserializedSource = ReadTranslation.boundedSourceFromProto(payload);
     assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
   }
@@ -86,7 +86,7 @@ public class ReadTranslationTest {
     UnboundedSource<?, ?> unboundedSource = (UnboundedSource<?, ?>) this.source;
     Read.Unbounded<?> unboundedRead = Read.from(unboundedSource);
     ReadPayload payload = ReadTranslation.toProto(unboundedRead);
-    assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.UNBOUNDED));
+    assertThat(payload.getIsBounded(), equalTo(RunnerApi.IsBounded.Enum.UNBOUNDED));
     UnboundedSource<?, ?> deserializedSource = ReadTranslation.unboundedSourceFromProto(payload);
     assertThat(deserializedSource, Matchers.<Source<?>>equalTo(source));
   }
@@ -109,9 +109,6 @@ public class ReadTranslationTest {
     }
 
     @Override
-    public void validate() {}
-
-    @Override
     public Coder<String> getOutputCoder() {
       return StringUtf8Coder.of();
     }
@@ -128,9 +125,6 @@ public class ReadTranslationTest {
   }
 
   private static class TestUnboundedSource extends UnboundedSource<byte[], CheckpointMark> {
-    @Override
-    public void validate() {}
-
     @Override
     public Coder<byte[]> getOutputCoder() {
       return ByteArrayCoder.of();

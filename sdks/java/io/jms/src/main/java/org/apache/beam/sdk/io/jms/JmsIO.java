@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jms;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -165,8 +164,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withConnectionFactory(ConnectionFactory connectionFactory) {
-      checkArgument(connectionFactory != null, "withConnectionFactory(connectionFactory) called"
-          + " with null connectionFactory");
+      checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder().setConnectionFactory(connectionFactory).build();
     }
 
@@ -189,7 +187,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withQueue(String queue) {
-      checkArgument(queue != null, "withQueue(queue) called with null queue");
+      checkArgument(queue != null, "queue can not be null");
       return builder().setQueue(queue).build();
     }
 
@@ -212,7 +210,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withTopic(String topic) {
-      checkArgument(topic != null, "withTopic(topic) called with null topic");
+      checkArgument(topic != null, "topic can not be null");
       return builder().setTopic(topic).build();
     }
 
@@ -220,8 +218,7 @@ public class JmsIO {
      * Define the username to connect to the JMS broker (authenticated).
      */
     public Read withUsername(String username) {
-      checkArgument(username != null, "JmsIO.read().withUsername(username) called with null "
-          + "username");
+      checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
@@ -229,8 +226,7 @@ public class JmsIO {
      * Define the password to connect to the JMS broker (authenticated).
      */
     public Read withPassword(String password) {
-      checkArgument(password != null, "JmsIO.read().withPassword(password) called with null "
-          + "password");
+      checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
@@ -251,8 +247,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withMaxNumRecords(long maxNumRecords) {
-      checkArgument(maxNumRecords >= 0, "withMaxNumRecords(maxNumRecords) called with invalid "
-          + "maxNumRecords");
+      checkArgument(maxNumRecords >= 0, "maxNumRecords must be > 0, but was: %d", maxNumRecords);
       return builder().setMaxNumRecords(maxNumRecords).build();
     }
 
@@ -273,13 +268,20 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Read withMaxReadTime(Duration maxReadTime) {
-      checkArgument(maxReadTime != null, "withMaxReadTime(maxReadTime) called with null "
-          + "maxReadTime");
+      checkArgument(maxReadTime != null, "maxReadTime can not be null");
       return builder().setMaxReadTime(maxReadTime).build();
     }
 
     @Override
     public PCollection<JmsRecord> expand(PBegin input) {
+      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getQueue() != null || getTopic() != null,
+          "Either withQueue() or withTopic() is required");
+      checkArgument(
+          getQueue() == null || getTopic() == null,
+          "withQueue() and withTopic() are exclusive");
+
       // handles unbounded source to bounded conversion if maxNumRecords is set.
       Unbounded<JmsRecord> unbounded = org.apache.beam.sdk.io.Read.from(createSource());
 
@@ -292,15 +294,6 @@ public class JmsIO {
       }
 
       return input.getPipeline().apply(transform);
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkState(getConnectionFactory() != null, "JmsIO.read() requires a JMS connection "
-          + "factory to be set via withConnectionFactory(connectionFactory)");
-      checkState((getQueue() != null || getTopic() != null), "JmsIO.read() requires a JMS "
-          + "destination (queue or topic) to be set via withQueue(queueName) or withTopic"
-          + "(topicName)");
     }
 
     @Override
@@ -360,11 +353,6 @@ public class JmsIO {
     public UnboundedJmsReader createReader(PipelineOptions options,
                                            JmsCheckpointMark checkpointMark) {
       return new UnboundedJmsReader(this, checkpointMark);
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
     }
 
     @Override
@@ -579,8 +567,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Write withConnectionFactory(ConnectionFactory connectionFactory) {
-      checkArgument(connectionFactory != null, "withConnectionFactory(connectionFactory) called"
-          + " with null connectionFactory");
+      checkArgument(connectionFactory != null, "connectionFactory can not be null");
       return builder().setConnectionFactory(connectionFactory).build();
     }
 
@@ -603,7 +590,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Write withQueue(String queue) {
-      checkArgument(queue != null, "withQueue(queue) called with null queue");
+      checkArgument(queue != null, "queue can not be null");
       return builder().setQueue(queue).build();
     }
 
@@ -626,7 +613,7 @@ public class JmsIO {
      * @return The corresponding {@link JmsIO.Read}.
      */
     public Write withTopic(String topic) {
-      checkArgument(topic != null, "withTopic(topic) called with null topic");
+      checkArgument(topic != null, "topic can not be null");
       return builder().setTopic(topic).build();
     }
 
@@ -634,8 +621,7 @@ public class JmsIO {
      * Define the username to connect to the JMS broker (authenticated).
      */
     public Write withUsername(String username) {
-      checkArgument(username != null,  "JmsIO.write().withUsername(username) called with null "
-          + "username");
+      checkArgument(username != null,  "username can not be null");
       return builder().setUsername(username).build();
     }
 
@@ -643,23 +629,22 @@ public class JmsIO {
      * Define the password to connect to the JMS broker (authenticated).
      */
     public Write withPassword(String password) {
-      checkArgument(password != null, "JmsIO.write().withPassword(password) called with null "
-          + "password");
+      checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
     @Override
     public PDone expand(PCollection<String> input) {
+      checkArgument(getConnectionFactory() != null, "withConnectionFactory() is required");
+      checkArgument(
+          getQueue() != null || getTopic() != null,
+          "Either withQueue(queue) or withTopic(topic) is required");
+      checkArgument(
+          getQueue() == null || getTopic() == null,
+          "withQueue(queue) and withTopic(topic) are exclusive");
+
       input.apply(ParDo.of(new WriterFn(this)));
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkState(getConnectionFactory() != null, "JmsIO.write() requires a JMS connection "
-          + "factory to be set via withConnectionFactory(connectionFactory)");
-      checkState((getQueue() != null || getTopic() != null), "JmsIO.write() requires a JMS "
-          + "destination (queue or topic) to be set via withQueue(queue) or withTopic(topic)");
     }
 
     private static class WriterFn extends DoFn<String, Void> {

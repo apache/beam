@@ -24,8 +24,8 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import java.util.Objects;
 import javax.annotation.Nullable;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.sdk.io.DynamicFileDestinations;
 import org.apache.beam.sdk.io.FileBasedSink;
 import org.apache.beam.sdk.io.FileBasedSink.FilenamePolicy;
@@ -76,7 +76,8 @@ public class WriteFilesTranslationTest {
 
     @Test
     public void testEncodedProto() throws Exception {
-      RunnerApi.WriteFilesPayload payload = WriteFilesTranslation.toProto(writeFiles);
+      RunnerApi.WriteFilesPayload payload =
+          WriteFilesTranslation.payloadForWriteFiles(writeFiles, SdkComponents.create());
 
       assertThat(
           payload.getRunnerDeterminedSharding(),

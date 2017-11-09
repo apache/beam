@@ -194,7 +194,7 @@ public class BigtableIOTest {
 
     thrown.expect(IllegalArgumentException.class);
 
-    write.validate(null);
+    write.expand(null);
   }
 
   @Test
@@ -203,7 +203,7 @@ public class BigtableIOTest {
 
     thrown.expect(IllegalArgumentException.class);
 
-    write.validate(null);
+    write.expand(null);
   }
 
   /** Helper function to make a single row mutation to be written. */
@@ -587,6 +587,32 @@ public class BigtableIOTest {
         displayData, Matchers.hasItem(hasDisplayItem("tableId")));
     assertThat("BigtableIO.Read should include the row filter, if it exists, in its primitive "
         + "display data", displayData, Matchers.hasItem(hasDisplayItem("rowFilter")));
+  }
+
+  @Test
+  public void testReadWithoutValidate() {
+    final String table = "fooTable";
+    BigtableIO.Read read = BigtableIO.read()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId(table)
+        .withBigtableService(service)
+        .withoutValidation();
+
+    // validate() will throw if withoutValidation() isn't working
+    read.validate(TestPipeline.testingPipelineOptions());
+  }
+
+  @Test
+  public void testWriteWithoutValidate() {
+    final String table = "fooTable";
+    BigtableIO.Write write = BigtableIO.write()
+        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withTableId(table)
+        .withBigtableService(service)
+        .withoutValidation();
+
+    // validate() will throw if withoutValidation() isn't working
+    write.validate(TestPipeline.testingPipelineOptions());
   }
 
   /** Tests that a record gets written to the service and messages are logged. */

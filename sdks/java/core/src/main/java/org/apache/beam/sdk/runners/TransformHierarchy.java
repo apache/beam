@@ -309,11 +309,13 @@ public class TransformHierarchy {
    * for initialization and ordered visitation.
    */
   public class Node {
-    private final Node enclosingNode;
+    // null for the root node, otherwise the enclosing node
+    @Nullable private final Node enclosingNode;
+
     // The PTransform for this node, which may be a composite PTransform.
     // The root of a TransformHierarchy is represented as a Node
     // with a null transform field.
-    private final PTransform<?, ?> transform;
+    @Nullable private final PTransform<?, ?> transform;
 
     private final String fullName;
 
@@ -324,21 +326,22 @@ public class TransformHierarchy {
     private final Map<TupleTag<?>, PValue> inputs;
 
     // TODO: track which outputs need to be exported to parent.
-    // Output of the transform, in expanded form.
-    private Map<TupleTag<?>, PValue> outputs;
+    // Output of the transform, in expanded form. Null if not yet set.
+    @Nullable private Map<TupleTag<?>, PValue> outputs;
 
     @VisibleForTesting
     boolean finishedSpecifying = false;
 
     /**
      * Creates the root-level node. The root level node has a null enclosing node, a null transform,
-     * an empty map of inputs, and a name equal to the empty string.
+     * an empty map of inputs, an empty map of outputs, and a name equal to the empty string.
      */
     private Node() {
       this.enclosingNode = null;
       this.transform = null;
       this.fullName = "";
       this.inputs = Collections.emptyMap();
+      this.outputs = Collections.emptyMap();
     }
 
     /**
@@ -391,7 +394,11 @@ public class TransformHierarchy {
 
     /**
      * Returns the transform associated with this transform node.
+     *
+     * @return {@code null} if and only if this is the root node of the graph, which has no
+     * associated transform
      */
+    @Nullable
     public PTransform<?, ?> getTransform() {
       return transform;
     }
@@ -469,7 +476,7 @@ public class TransformHierarchy {
 
     /** Returns the transform input, in fully expanded form. */
     public Map<TupleTag<?>, PValue> getInputs() {
-      return inputs == null ? Collections.<TupleTag<?>, PValue>emptyMap() : inputs;
+      return inputs;
     }
 
     /**

@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -26,12 +25,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -40,10 +37,8 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
-import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -174,6 +169,7 @@ public class JdbcIO {
    * An interface used by {@link JdbcIO.Read} for converting each row of the {@link ResultSet} into
    * an element of the resulting {@link PCollection}.
    */
+  @FunctionalInterface
   public interface RowMapper<T> extends Serializable {
     T mapRow(ResultSet resultSet) throws Exception;
   }
@@ -205,20 +201,16 @@ public class JdbcIO {
     }
 
     public static DataSourceConfiguration create(DataSource dataSource) {
-      checkArgument(dataSource != null, "DataSourceConfiguration.create(dataSource) called with "
-          + "null data source");
-      checkArgument(dataSource instanceof Serializable,
-          "DataSourceConfiguration.create(dataSource) called with a dataSource not Serializable");
+      checkArgument(dataSource != null, "dataSource can not be null");
+      checkArgument(dataSource instanceof Serializable, "dataSource must be Serializable");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDataSource(dataSource)
           .build();
     }
 
     public static DataSourceConfiguration create(String driverClassName, String url) {
-      checkArgument(driverClassName != null,
-          "DataSourceConfiguration.create(driverClassName, url) called with null driverClassName");
-      checkArgument(url != null,
-          "DataSourceConfiguration.create(driverClassName, url) called with null url");
+      checkArgument(driverClassName != null, "driverClassName can not be null");
+      checkArgument(url != null, "url can not be null");
       return new AutoValue_JdbcIO_DataSourceConfiguration.Builder()
           .setDriverClassName(driverClassName)
           .setUrl(url)
@@ -241,9 +233,7 @@ public class JdbcIO {
      * {@link #withPassword(String)}, so they do not need to be included here.
      */
     public DataSourceConfiguration withConnectionProperties(String connectionProperties) {
-      checkArgument(connectionProperties != null, "DataSourceConfiguration.create(driver, url)"
-          + ".withConnectionProperties(connectionProperties) "
-          + "called with null connectionProperties");
+      checkArgument(connectionProperties != null, "connectionProperties can not be null");
       return builder().setConnectionProperties(connectionProperties).build();
     }
 
@@ -279,6 +269,7 @@ public class JdbcIO {
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
+  @FunctionalInterface
   public interface StatementPreparator extends Serializable {
     void setParameters(PreparedStatement preparedStatement) throws Exception;
   }
@@ -305,41 +296,43 @@ public class JdbcIO {
     }
 
     public Read<T> withDataSourceConfiguration(DataSourceConfiguration configuration) {
-      checkArgument(configuration != null, "JdbcIO.read().withDataSourceConfiguration"
-          + "(configuration) called with null configuration");
+      checkArgument(configuration != null, "configuration can not be null");
       return toBuilder().setDataSourceConfiguration(configuration).build();
     }
 
     public Read<T> withQuery(String query) {
-      checkArgument(query != null, "JdbcIO.read().withQuery(query) called with null query");
+      checkArgument(query != null, "query can not be null");
       return withQuery(ValueProvider.StaticValueProvider.of(query));
     }
 
     public Read<T> withQuery(ValueProvider<String> query) {
-      checkArgument(query != null, "JdbcIO.read().withQuery(query) called with null query");
+      checkArgument(query != null, "query can not be null");
       return toBuilder().setQuery(query).build();
     }
 
     public Read<T> withStatementPreparator(StatementPreparator statementPreparator) {
-      checkArgument(statementPreparator != null,
-          "JdbcIO.read().withStatementPreparator(statementPreparator) called "
-              + "with null statementPreparator");
+      checkArgument(statementPreparator != null, "statementPreparator can not be null");
       return toBuilder().setStatementPreparator(statementPreparator).build();
     }
 
     public Read<T> withRowMapper(RowMapper<T> rowMapper) {
-      checkArgument(rowMapper != null,
-          "JdbcIO.read().withRowMapper(rowMapper) called with null rowMapper");
+      checkArgument(rowMapper != null, "rowMapper can not be null");
       return toBuilder().setRowMapper(rowMapper).build();
     }
 
     public Read<T> withCoder(Coder<T> coder) {
-      checkArgument(coder != null, "JdbcIO.read().withCoder(coder) called with null coder");
+      checkArgument(coder != null, "coder can not be null");
       return toBuilder().setCoder(coder).build();
     }
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      checkArgument(getQuery() != null, "withQuery() is required");
+      checkArgument(getRowMapper() != null, "withRowMapper() is required");
+      checkArgument(getCoder() != null, "withCoder() is required");
+      checkArgument(
+          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+
       return input
           .apply(Create.of((Void) null))
           .apply(
@@ -358,19 +351,6 @@ public class JdbcIO {
                           }
                         }
                       }));
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkState(getQuery() != null,
-          "JdbcIO.read() requires a query to be set via withQuery(query)");
-      checkState(getRowMapper() != null,
-          "JdbcIO.read() requires a rowMapper to be set via withRowMapper(rowMapper)");
-      checkState(getCoder() != null,
-          "JdbcIO.read() requires a coder to be set via withCoder(coder)");
-      checkState(getDataSourceConfiguration() != null,
-          "JdbcIO.read() requires a DataSource configuration to be set via "
-              + "withDataSourceConfiguration(dataSourceConfiguration)");
     }
 
     @Override
@@ -460,19 +440,6 @@ public class JdbcIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
-      checkState(getQuery() != null,
-          "JdbcIO.read() requires a query to be set via withQuery(query)");
-      checkState(getRowMapper() != null,
-          "JdbcIO.read() requires a rowMapper to be set via withRowMapper(rowMapper)");
-      checkState(getCoder() != null,
-          "JdbcIO.read() requires a coder to be set via withCoder(coder)");
-      checkState(getDataSourceConfiguration() != null,
-          "JdbcIO.read() requires a DataSource configuration to be set via "
-              + "withDataSourceConfiguration(dataSourceConfiguration)");
-    }
-
-    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("query", getQuery()));
@@ -534,6 +501,7 @@ public class JdbcIO {
    * An interface used by the JdbcIO Write to set the parameters of the {@link PreparedStatement}
    * used to setParameters into the database.
    */
+  @FunctionalInterface
   public interface PreparedStatementSetter<T> extends Serializable {
     void setParameters(T element, PreparedStatement preparedStatement) throws Exception;
   }
@@ -568,20 +536,14 @@ public class JdbcIO {
 
     @Override
     public PDone expand(PCollection<T> input) {
+      checkArgument(
+          getDataSourceConfiguration() != null, "withDataSourceConfiguration() is required");
+      checkArgument(getStatement() != null, "withStatement() is required");
+      checkArgument(
+          getPreparedStatementSetter() != null, "withPreparedStatementSetter() is required");
+
       input.apply(ParDo.of(new WriteFn<T>(this)));
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    public void validate(PipelineOptions options) {
-      checkArgument(getDataSourceConfiguration() != null,
-          "JdbcIO.write() requires a configuration to be set via "
-              + ".withDataSourceConfiguration(configuration)");
-      checkArgument(getStatement() != null,
-          "JdbcIO.write() requires a statement to be set via .withStatement(statement)");
-      checkArgument(getPreparedStatementSetter() != null,
-          "JdbcIO.write() requires a preparedStatementSetter to be set via "
-              + ".withPreparedStatementSetter(preparedStatementSetter)");
     }
 
     private static class WriteFn<T> extends DoFn<T, Void> {
@@ -685,26 +647,7 @@ public class JdbcIO {
                         }
                       })
                   .withSideInputs(empty));
-      return materialized
-          .apply(
-              "Pair with random key",
-              ParDo.of(
-                  new DoFn<T, KV<Integer, T>>() {
-                    private int shard;
-
-                    @Setup
-                    public void setup() {
-                      shard = ThreadLocalRandom.current().nextInt();
-                    }
-
-                    @ProcessElement
-                    public void processElement(ProcessContext context) {
-                      context.output(KV.of(++shard, context.element()));
-                    }
-                  }))
-          .apply(Reshuffle.<Integer, T>of())
-          .apply(Values.<T>create());
-
+      return materialized.apply(Reshuffle.<T>viaRandomKey());
     }
   }
 }

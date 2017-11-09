@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-sdks-java-parent</artifactId>
-    <version>2.2.0-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -227,6 +227,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.github.stephenc.findbugs</groupId>
+      <artifactId>findbugs-annotations</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-core</artifactId>
     </dependency>
@@ -302,14 +307,18 @@
     <!-- test dependencies -->
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <artifactId>beam-model-fn-execution</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
         <!-- We only rely on the standard_coders.yaml -->
         <exclusion>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-sdks-common-runner-api</artifactId>
+          <artifactId>beam-model-pipeline</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.beam</groupId>
+          <artifactId>beam-model-construction</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

@@ -127,9 +127,8 @@ public class CassandraIO {
      * Specify the hosts of the Apache Cassandra instances.
      */
     public Read<T> withHosts(List<String> hosts) {
-      checkArgument(hosts != null, "CassandraIO.read().withHosts(hosts) called with null hosts");
-      checkArgument(!hosts.isEmpty(), "CassandraIO.read().withHosts(hosts) called with empty "
-          + "hosts list");
+      checkArgument(hosts != null, "hosts can not be null");
+      checkArgument(!hosts.isEmpty(), "hosts can not be empty");
       return builder().setHosts(hosts).build();
     }
 
@@ -137,8 +136,7 @@ public class CassandraIO {
      * Specify the port number of the Apache Cassandra instances.
      */
     public Read<T> withPort(int port) {
-      checkArgument(port > 0, "CassandraIO.read().withPort(port) called with invalid port "
-          + "number (%d)", port);
+      checkArgument(port > 0, "port must be > 0, but was: %d", port);
       return builder().setPort(port).build();
     }
 
@@ -146,8 +144,7 @@ public class CassandraIO {
      * Specify the Cassandra keyspace where to read data.
      */
     public Read<T> withKeyspace(String keyspace) {
-      checkArgument(keyspace != null, "CassandraIO.read().withKeyspace(keyspace) called with "
-          + "null keyspace");
+      checkArgument(keyspace != null, "keyspace can not be null");
       return builder().setKeyspace(keyspace).build();
     }
 
@@ -155,7 +152,7 @@ public class CassandraIO {
      * Specify the Cassandra table where to read data.
      */
     public Read<T> withTable(String table) {
-      checkArgument(table != null, "CassandraIO.read().withTable(table) called with null table");
+      checkArgument(table != null, "table can not be null");
       return builder().setTable(table).build();
     }
 
@@ -165,8 +162,7 @@ public class CassandraIO {
      * contains entity elements.
      */
     public Read<T> withEntity(Class<T> entity) {
-      checkArgument(entity != null, "CassandraIO.read().withEntity(entity) called with null "
-          + "entity");
+      checkArgument(entity != null, "entity can not be null");
       return builder().setEntity(entity).build();
     }
 
@@ -174,7 +170,7 @@ public class CassandraIO {
      * Specify the {@link Coder} used to serialize the entity in the {@link PCollection}.
      */
     public Read<T> withCoder(Coder<T> coder) {
-      checkArgument(coder != null, "CassandraIO.read().withCoder(coder) called with null coder");
+      checkArgument(coder != null, "coder can not be null");
       return builder().setCoder(coder).build();
     }
 
@@ -182,8 +178,7 @@ public class CassandraIO {
      * Specify the username for authentication.
      */
     public Read<T> withUsername(String username) {
-      checkArgument(username != null, "CassandraIO.read().withUsername(username) called with "
-          + "null username");
+      checkArgument(username != null, "username can not be null");
       return builder().setUsername(username).build();
     }
 
@@ -191,8 +186,7 @@ public class CassandraIO {
      * Specify the password for authentication.
      */
     public Read<T> withPassword(String password) {
-      checkArgument(password != null, "CassandraIO.read().withPassword(password) called with "
-          + "null password");
+      checkArgument(password != null, "password can not be null");
       return builder().setPassword(password).build();
     }
 
@@ -200,14 +194,12 @@ public class CassandraIO {
      * Specify the local DC used for the load balancing.
      */
     public Read<T> withLocalDc(String localDc) {
-      checkArgument(localDc != null, "CassandraIO.read().withLocalDc(localDc) called with null "
-          + "localDc");
+      checkArgument(localDc != null, "localDc can not be null");
       return builder().setLocalDc(localDc).build();
     }
 
     public Read<T> withConsistencyLevel(String consistencyLevel) {
-      checkArgument(consistencyLevel != null, "CassandraIO.read().withConsistencyLevel"
-          + "(consistencyLevel) called with null consistencyLevel");
+      checkArgument(consistencyLevel != null, "consistencyLevel can not be null");
       return builder().setConsistencyLevel(consistencyLevel).build();
     }
 
@@ -216,33 +208,22 @@ public class CassandraIO {
      * database.
      */
     public Read<T> withCassandraService(CassandraService<T> cassandraService) {
-      checkArgument(cassandraService != null, "CassandraIO.read().withCassandraService(service)"
-          + " called with null service");
+      checkArgument(cassandraService != null, "cassandraService can not be null");
       return builder().setCassandraService(cassandraService).build();
     }
 
     @Override
     public PCollection<T> expand(PBegin input) {
+      checkArgument(
+          (hosts() != null && port() != null) || cassandraService() != null,
+          "Either withHosts() and withPort(), or withCassandraService() is required");
+      checkArgument(keyspace() != null, "withKeyspace() is required");
+      checkArgument(table() != null, "withTable() is required");
+      checkArgument(entity() != null, "withEntity() is required");
+      checkArgument(coder() != null, "withCoder() is required");
+
       return input.apply(org.apache.beam.sdk.io.Read.from(
           new CassandraSource<T>(this, null)));
-    }
-
-    @Override
-    public void validate(PipelineOptions pipelineOptions) {
-      checkState(hosts() != null || cassandraService() != null,
-          "CassandraIO.read() requires a list of hosts to be set via withHosts(hosts) or a "
-              + "Cassandra service to be set via withCassandraService(service)");
-      checkState(port() != null || cassandraService() != null, "CassandraIO.read() requires a "
-          + "valid port number to be set via withPort(port) or a Cassandra service to be set via "
-          + "withCassandraService(service)");
-      checkState(keyspace() != null, "CassandraIO.read() requires a keyspace to be set via "
-          + "withKeyspace(keyspace)");
-      checkState(table() != null, "CassandraIO.read() requires a table to be set via "
-          + "withTable(table)");
-      checkState(entity() != null, "CassandraIO.read() requires an entity to be set via "
-          + "withEntity(entity)");
-      checkState(coder() != null, "CassandraIO.read() requires a coder to be set via "
-          + "withCoder(coder)");
     }
 
     @AutoValue.Builder
@@ -291,11 +272,6 @@ public class CassandraIO {
     @Override
     public Coder<T> getOutputCoder() {
       return spec.coder();
-    }
-
-    @Override
-    public void validate() {
-      spec.validate(null);
     }
 
     @Override

@@ -151,21 +151,21 @@ public class HBaseIOTest {
   public void testWriteValidationFailsMissingTable() {
     HBaseIO.Write write = HBaseIO.write().withConfiguration(conf);
     thrown.expect(IllegalArgumentException.class);
-    write.validate(null /* input */);
+    write.expand(null /* input */);
   }
 
   @Test
   public void testWriteValidationFailsMissingConfiguration() {
     HBaseIO.Write write = HBaseIO.write().withTableId("table");
     thrown.expect(IllegalArgumentException.class);
-    write.validate(null /* input */);
+    write.expand(null /* input */);
   }
 
   /** Tests that when reading from a non-existent table, the read fails. */
   @Test
   public void testReadingFailsTableDoesNotExist() throws Exception {
     final String table = "TEST-TABLE-INVALID";
-    // Exception will be thrown by read.validate() when read is applied.
+    // Exception will be thrown by read.expand() when read is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
     runReadTest(HBaseIO.read().withConfiguration(conf).withTableId(table), new ArrayList<Result>());
@@ -355,13 +355,11 @@ public class HBaseIOTest {
   public void testWritingFailsTableDoesNotExist() throws Exception {
     final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
-    p.apply(Create.empty(HBaseMutationCoder.of()))
-        .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
-
-    // Exception will be thrown by write.validate() when write is applied.
+    // Exception will be thrown by write.expand() when write is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
-    p.run();
+    p.apply(Create.empty(HBaseMutationCoder.of()))
+        .apply("write", HBaseIO.write().withConfiguration(conf).withTableId(table));
   }
 
   /** Tests that when writing an element fails, the write fails. */

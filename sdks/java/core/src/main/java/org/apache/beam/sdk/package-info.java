@@ -31,4 +31,8 @@
  * where and how it should run after pipeline construction is complete.
  *
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.options;
 
+import java.util.Map;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -114,6 +115,20 @@ public interface DataflowPipelineOptions
   @Default.String("us-central1")
   String getRegion();
   void setRegion(String region);
+
+  /**
+   * Labels that will be applied to the billing records for this job.
+   */
+  @Description("Labels that will be applied to the billing records for this job.")
+  Map<String, String> getLabels();
+  void setLabels(Map<String, String> labels);
+
+  /**
+   * The URL of the staged portable pipeline.
+   */
+  @Description("The URL of the staged portable pipeline")
+  String getPipelineUrl();
+  void setPipelineUrl(String urlString);
 
   /**
    * Returns a default staging location under {@link GcpOptions#getGcpTempLocation}.

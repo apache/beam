@@ -84,8 +84,9 @@ public class KinesisReaderIT {
 
     PCollection<String> result = p.
         apply(KinesisIO.read()
-            .from(options.getAwsKinesisStream(), Instant.now())
-            .withClientProvider(options.getAwsAccessKey(), options.getAwsSecretKey(),
+            .withStreamName(options.getAwsKinesisStream())
+            .withInitialTimestampInStream(Instant.now())
+            .withAWSClientsProvider(options.getAwsAccessKey(), options.getAwsSecretKey(),
                 Regions.fromName(options.getAwsKinesisRegion()))
             .withMaxReadTime(Duration.standardMinutes(3))
         ).

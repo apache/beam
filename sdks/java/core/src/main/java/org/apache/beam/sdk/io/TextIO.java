@@ -269,11 +269,19 @@ public class TextIO {
   /** Implementation of {@link #read}. */
   @AutoValue
   public abstract static class Read extends PTransform<PBegin, PCollection<String>> {
-    @Nullable abstract ValueProvider<String> getFilepattern();
+    @Nullable
+    abstract ValueProvider<String> getFilepattern();
+
     abstract MatchConfiguration getMatchConfiguration();
+
     abstract boolean getHintMatchesManyFiles();
+
     abstract Compression getCompression();
-    @Nullable abstract byte[] getDelimiter();
+
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    @Nullable
+    abstract byte[] getDelimiter();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -301,13 +309,13 @@ public class TextIO {
      * of thousands), use {@link #withHintMatchesManyFiles} for better performance and scalability.
      */
     public Read from(String filepattern) {
-      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      checkArgument(filepattern != null, "filepattern can not be null");
       return from(StaticValueProvider.of(filepattern));
     }
 
     /** Same as {@code from(filepattern)}, but accepting a {@link ValueProvider}. */
     public Read from(ValueProvider<String> filepattern) {
-      checkNotNull(filepattern, "Filepattern cannot be empty.");
+      checkArgument(filepattern != null, "filepattern can not be null");
       return toBuilder().setFilepattern(filepattern).build();
     }
 
@@ -430,8 +438,12 @@ public class TextIO {
   public abstract static class ReadAll
       extends PTransform<PCollection<String>, PCollection<String>> {
     abstract MatchConfiguration getMatchConfiguration();
+
     abstract Compression getCompression();
-    @Nullable abstract byte[] getDelimiter();
+
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    @Nullable
+    abstract byte[] getDelimiter();
 
     abstract Builder toBuilder();
 
@@ -512,7 +524,11 @@ public class TextIO {
   public abstract static class ReadFiles
       extends PTransform<PCollection<FileIO.ReadableFile>, PCollection<String>> {
     abstract long getDesiredBundleSizeBytes();
-    @Nullable abstract byte[] getDelimiter();
+
+    @SuppressWarnings("mutable") // this returns an array that can be mutated by the caller
+    @Nullable
+    abstract byte[] getDelimiter();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder

@@ -25,9 +25,9 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -88,7 +88,7 @@ public class CreatePCollectionViewTranslation {
    */
   @Deprecated
   static class CreatePCollectionViewTranslator
-      implements TransformPayloadTranslator<View.CreatePCollectionView<?, ?>> {
+      extends TransformPayloadTranslator.WithDefaultRehydration<View.CreatePCollectionView<?, ?>> {
     @Override
     public String getUrn(View.CreatePCollectionView<?, ?> transform) {
       return PTransformTranslation.CREATE_VIEW_TRANSFORM_URN;
@@ -121,6 +121,11 @@ public class CreatePCollectionViewTranslation {
         getTransformPayloadTranslators() {
       return Collections.singletonMap(
           View.CreatePCollectionView.class, new CreatePCollectionViewTranslator());
+    }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 }

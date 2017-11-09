@@ -55,8 +55,13 @@ INTERVAL_WINDOW_CODER = "urn:beam:coders:interval_window:0.1"
 ITERABLE_CODER = "urn:beam:coders:stream:0.1"
 KV_CODER = "urn:beam:coders:kv:0.1"
 LENGTH_PREFIX_CODER = "urn:beam:coders:length_prefix:0.1"
-GLOBAL_WINDOW_CODER = "urn:beam:coders:urn:beam:coders:global_window:0.1"
+GLOBAL_WINDOW_CODER = "urn:beam:coders:global_window:0.1"
 WINDOWED_VALUE_CODER = "urn:beam:coders:windowed_value:0.1"
+
+ITERABLE_ACCESS = "urn:beam:sideinput:iterable"
+MULTIMAP_ACCESS = "urn:beam:sideinput:multimap"
+PICKLED_PYTHON_VIEWFN = "beam:view_fn:pickled_python_data:v0.1"
+PICKLED_WINDOW_MAPPING_FN = "beam:window_mapping_fn:pickled_python:v0.1"
 
 
 class RunnerApiFn(object):
@@ -128,7 +133,6 @@ class RunnerApiFn(object):
     return beam_runner_api_pb2.SdkFunctionSpec(
         spec=beam_runner_api_pb2.FunctionSpec(
             urn=urn,
-            any_param=proto_utils.pack_Any(typed_param),
             payload=typed_param.SerializeToString()
             if typed_param is not None else None))
 

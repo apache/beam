@@ -21,9 +21,9 @@ package org.apache.beam.runners.core.construction;
 import com.google.auto.service.AutoService;
 import java.util.Collections;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.runners.core.construction.PTransformTranslation.TransformPayloadTranslator;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.FunctionSpec;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -34,7 +34,8 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 public class GroupByKeyTranslation {
 
-  static class GroupByKeyTranslator implements TransformPayloadTranslator<GroupByKey<?, ?>> {
+  static class GroupByKeyTranslator
+      extends TransformPayloadTranslator.WithDefaultRehydration<GroupByKey<?, ?>> {
     @Override
     public String getUrn(GroupByKey<?, ?> transform) {
       return PTransformTranslation.GROUP_BY_KEY_TRANSFORM_URN;
@@ -43,12 +44,9 @@ public class GroupByKeyTranslation {
     @Override
     public FunctionSpec translate(
         AppliedPTransform<?, ?, GroupByKey<?, ?>> transform, SdkComponents components) {
-      return FunctionSpec.newBuilder()
-          .setUrn(getUrn(transform.getTransform()))
-          .build();
+      return FunctionSpec.newBuilder().setUrn(getUrn(transform.getTransform())).build();
     }
   }
-
 
   /** Registers {@link GroupByKeyTranslator}. */
   @AutoService(TransformPayloadTranslatorRegistrar.class)
@@ -57,6 +55,11 @@ public class GroupByKeyTranslation {
     public Map<? extends Class<? extends PTransform>, ? extends TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.singletonMap(GroupByKey.class, new GroupByKeyTranslator());
+    }
+
+    @Override
+    public Map<String, TransformPayloadTranslator> getTransformRehydrators() {
+      return Collections.emptyMap();
     }
   }
 }

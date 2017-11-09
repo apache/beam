@@ -42,5 +42,5 @@ mavenJob('beam_PostCommit_Java_MavenInstall_Windows') {
           'Run Java Windows PostCommit')
 
   // Maven goals for this job.
-  goals('-B -e -Prelease,direct-runner -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install coveralls:report')
+  goals('-B -e -Prelease,direct-runner -DrepoToken=$COVERALLS_REPO_TOKEN -DpullRequest=$ghprbPullId help:effective-settings clean install')
 }

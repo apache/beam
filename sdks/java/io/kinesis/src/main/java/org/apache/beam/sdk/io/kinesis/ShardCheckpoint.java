@@ -85,8 +85,7 @@ class ShardCheckpoint implements Serializable {
     }
     if (shardIteratorType == AT_TIMESTAMP) {
       checkNotNull(timestamp,
-          "You must provide timestamp for AT_SEQUENCE_NUMBER"
-              + " or AFTER_SEQUENCE_NUMBER");
+          "You must provide timestamp for AT_TIMESTAMP");
     } else {
       checkArgument(timestamp == null,
           "Timestamp must be null for an iterator type other than AT_TIMESTAMP");
@@ -129,11 +128,6 @@ class ShardCheckpoint implements Serializable {
     return String.format("Checkpoint %s for stream %s, shard %s: %s", shardIteratorType,
         streamName, shardId,
         sequenceNumber);
-  }
-
-  public ShardRecordsIterator getShardRecordsIterator(SimplifiedKinesisClient kinesis)
-      throws TransientKinesisException {
-    return new ShardRecordsIterator(this, kinesis);
   }
 
   public String getShardIterator(SimplifiedKinesisClient kinesisClient)

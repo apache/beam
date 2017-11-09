@@ -32,9 +32,10 @@ class GetKinesisRecordsResult {
 
   private final List<KinesisRecord> records;
   private final String nextShardIterator;
+  private final long millisBehindLatest;
 
   public GetKinesisRecordsResult(List<UserRecord> records, String nextShardIterator,
-      final String streamName, final String shardId) {
+      long millisBehindLatest, final String streamName, final String shardId) {
     this.records = transform(records, new Function<UserRecord, KinesisRecord>() {
 
       @Nullable
@@ -45,6 +46,7 @@ class GetKinesisRecordsResult {
       }
     });
     this.nextShardIterator = nextShardIterator;
+    this.millisBehindLatest = millisBehindLatest;
   }
 
   public List<KinesisRecord> getRecords() {
@@ -53,5 +55,9 @@ class GetKinesisRecordsResult {
 
   public String getNextShardIterator() {
     return nextShardIterator;
+  }
+
+  public long getMillisBehindLatest() {
+    return millisBehindLatest;
   }
 }

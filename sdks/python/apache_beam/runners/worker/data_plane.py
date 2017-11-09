@@ -25,12 +25,14 @@ import abc
 import collections
 import logging
 import Queue as queue
+import sys
 import threading
 
 import grpc
 
 from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -145,9 +147,12 @@ class _GrpcDataChannel(DataChannel):
     self._received = collections.defaultdict(queue.Queue)
     self._receive_lock = threading.Lock()
     self._reads_finished = threading.Event()
+    self._closed = False
+    self._exc_info = None
 
   def close(self):
     self._to_send.put(self._WRITES_FINISHED)
+    self._closed = True
 
   def wait(self, timeout=None):
     self._reads_finished.wait(timeout)
@@ -160,12 +165,17 @@ class _GrpcDataChannel(DataChannel):
     received = self._receiving_queue(instruction_id)
     done_targets = []
     while len(done_targets) < len(expected_targets):
-      data = received.get()
-      if not data.data and data.target in expected_targets:
-        done_targets.append(data.target)
+      try:
+        data = received.get(timeout=1)
+      except queue.Empty:
+        if self._exc_info:
+          raise exc_info[0], exc_info[1], exc_info[2]
       else:
-        assert data.target not in done_targets
-        yield data
+        if not data.data and data.target in expected_targets:
+          done_targets.append(data.target)
+        else:
+          assert data.target not in done_targets
+          yield data
 
   def output_stream(self, instruction_id, target):
     # TODO: Return an output stream that sends data
@@ -209,9 +219,11 @@ class _GrpcDataChannel(DataChannel):
       for elements in elements_iterator:
         for data in elements.data:
           self._receiving_queue(data.instruction_reference).put(data)
-    except:  # pylint: disable=broad-except
-      logging.exception('Failed to read inputs in the data plane')
-      raise
+    except:  # pylint: disable=bare-except
+      if not self._closed:
+        logging.exception('Failed to read inputs in the data plane')
+        self._exc_info = sys.exc_info()
+        raise
     finally:
       self._reads_finished.set()
 
@@ -232,7 +244,7 @@ class GrpcClientDataChannel(_GrpcDataChannel):
 
 
 class GrpcServerDataChannel(
-    beam_fn_api_pb2.BeamFnDataServicer, _GrpcDataChannel):
+    beam_fn_api_pb2_grpc.BeamFnDataServicer, _GrpcDataChannel):
   """A DataChannel wrapping the server side of a BeamFnData connection."""
 
   def Data(self, elements_iterator, context):
@@ -278,7 +290,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
           options=[("grpc.max_receive_message_length", -1),
                    ("grpc.max_send_message_length", -1)])
       self._data_channel_cache[url] = GrpcClientDataChannel(
-          beam_fn_api_pb2.BeamFnDataStub(grpc_channel))
+          beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
     return self._data_channel_cache[url]
 
   def close(self):

@@ -100,6 +100,10 @@ public class AfterWatermarkStateMachine {
 
     @Override
     public void onElement(OnElementContext c) throws Exception {
+      if (!endOfWindowReached(c)) {
+        c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      }
+
       if (!c.trigger().isMerging()) {
         // If merges can never happen, we just run the unfinished subtrigger
         c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
@@ -270,7 +274,9 @@ public class AfterWatermarkStateMachine {
       // We're interested in knowing when the input watermark passes the end of the window.
       // (It is possible this has already happened, in which case the timer will be fired
       // almost immediately).
-      c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      if (!endOfWindowReached(c)) {
+        c.setTimer(c.window().maxTimestamp(), TimeDomain.EVENT_TIME);
+      }
     }
 
     @Override

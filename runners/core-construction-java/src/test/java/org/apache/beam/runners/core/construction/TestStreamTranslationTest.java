@@ -23,13 +23,13 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
+import org.apache.beam.model.pipeline.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.runners.core.construction.TestStreamTranslationTest.TestStreamPayloadTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.ParDoPayload;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.TestStreamPayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -81,7 +81,7 @@ public class TestStreamTranslationTest {
     public void testEncodedProto() throws Exception {
       SdkComponents components = SdkComponents.create();
       RunnerApi.TestStreamPayload payload =
-          TestStreamTranslation.testStreamToPayload(testStream, components);
+          TestStreamTranslation.payloadForTestStream(testStream, components);
 
       verifyTestStreamEncoding(
           testStream, payload, RehydratedComponents.forComponents(components.toComponents()));
@@ -122,7 +122,7 @@ public class TestStreamTranslationTest {
 
       for (int i = 0; i < payload.getEventsList().size(); ++i) {
         assertThat(
-            TestStreamTranslation.fromProto(payload.getEvents(i), testStream.getValueCoder()),
+            TestStreamTranslation.eventFromProto(payload.getEvents(i), testStream.getValueCoder()),
             equalTo(testStream.getEvents().get(i)));
       }
     }

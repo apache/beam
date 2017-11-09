@@ -34,11 +34,12 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
-import org.apache.beam.fn.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
@@ -49,7 +50,7 @@ import org.slf4j.LoggerFactory;
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data
  * to all consumers in the specified output map.
  *
- * <p>Can be re-used serially across {@link org.apache.beam.fn.v1.BeamFnApi.ProcessBundleRequest}s.
+ * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  * For each request, call {@link #registerInputLocation()} to start and call
  * {@link #blockTillReadFinishes()} to finish.
  */
@@ -113,7 +114,7 @@ public class BeamFnDataReadRunner<OutputT> {
     }
   }
 
-  private final BeamFnApi.ApiServiceDescriptor apiServiceDescriptor;
+  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClientFactory;

@@ -96,7 +96,7 @@ class PythonRPCDirectPipelineResult(PipelineResult):
       if message.HasField('stateResponse'):
         logging.info(
             'Current state of job: %s',
-            beam_job_api_pb2.JobState.JobStateType.Name(
+            beam_job_api_pb2.JobState.Enum.Name(
                 message.stateResponse.state))
       else:
         logging.info('Message %s', message.messageResponse)

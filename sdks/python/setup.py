@@ -104,7 +104,12 @@ REQUIRED_PACKAGES = [
     'oauth2client>=2.0.1,<4.0.0',
     'protobuf>=3.2.0,<=3.3.0',
     'pyyaml>=3.12,<4.0.0',
+    'pyvcf>=0.6.8,<0.7.0',
+    # Six 1.11.0 incompatible with apitools.
+    # TODO(BEAM-2964): Remove the upper bound.
+    'six>=1.9,<1.11',
     'typing>=3.6.0,<3.7.0',
+    'futures>=3.1.1,<4.0.0',
     ]
 
 REQUIRED_SETUP_PACKAGES = [
@@ -114,7 +119,9 @@ REQUIRED_SETUP_PACKAGES = [
 REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
     # Six required by nose plugins management.
-    'six>=1.9',
+    # Six 1.11.0 incompatible with apitools.
+    # TODO(BEAM-2964): Remove the upper bound.
+    'six>=1.9,<1.11',
     ]
 
 GCP_REQUIREMENTS = [
@@ -154,7 +161,7 @@ setuptools.setup(
     author_email=PACKAGE_EMAIL,
     packages=setuptools.find_packages(),
     package_data={'apache_beam': [
-        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*']},
+        '*/*.pyx', '*/*/*.pyx', '*/*.pxd', '*/*/*.pxd', 'testing/data/*.yaml']},
     ext_modules=cythonize([
         'apache_beam/**/*.pyx',
         'apache_beam/coders/coder_impl.py',
@@ -169,6 +176,7 @@ setuptools.setup(
     ]),
     setup_requires=REQUIRED_SETUP_PACKAGES,
     install_requires=REQUIRED_PACKAGES,
+    python_requires='>=2.7,<3.0',
     test_suite='nose.collector',
     tests_require=REQUIRED_TEST_PACKAGES,
     extras_require={

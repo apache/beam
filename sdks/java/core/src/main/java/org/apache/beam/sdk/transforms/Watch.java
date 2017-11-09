@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.transforms.Contextful.Fn.Context.wrapProcessContext;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.resume;
 import static org.apache.beam.sdk.transforms.DoFn.ProcessContinuation.stop;
 
@@ -117,11 +118,23 @@ public class Watch {
 
   /** Watches the growth of the given poll function. See class documentation for more details. */
   public static <InputT, OutputT> Growth<InputT, OutputT> growthOf(
-      Growth.PollFn<InputT, OutputT> pollFn) {
+      Contextful<Growth.PollFn<InputT, OutputT>> pollFn) {
     return new AutoValue_Watch_Growth.Builder<InputT, OutputT>()
         .setTerminationPerInput(Watch.Growth.<InputT>never())
         .setPollFn(pollFn)
         .build();
+  }
+
+  /** Watches the growth of the given poll function. See class documentation for more details. */
+  public static <InputT, OutputT> Growth<InputT, OutputT> growthOf(
+      Growth.PollFn<InputT, OutputT> pollFn, Requirements requirements) {
+    return growthOf(Contextful.of(pollFn, requirements));
+  }
+
+  /** Watches the growth of the given poll function. See class documentation for more details. */
+  public static <InputT, OutputT> Growth<InputT, OutputT> growthOf(
+      Growth.PollFn<InputT, OutputT> pollFn) {
+    return growthOf(pollFn, Requirements.empty());
   }
 
   /** Implementation of {@link #growthOf}. */
@@ -202,12 +215,11 @@ public class Watch {
     }
 
     /**
-     * A function that computes the current set of outputs for the given input (given as a {@link
-     * TimestampedValue}), in the form of a {@link PollResult}.
+     * A function that computes the current set of outputs for the given input, in the form of a
+     * {@link PollResult}.
      */
-    public interface PollFn<InputT, OutputT> extends Serializable {
-      PollResult<OutputT> apply(InputT input, Instant timestamp) throws Exception;
-    }
+    public abstract static class PollFn<InputT, OutputT>
+        implements Contextful.Fn<InputT, PollResult<OutputT>> {}
 
     /**
      * A strategy for determining whether it is time to stop polling the current input regardless of
@@ -235,7 +247,7 @@ public class Watch {
        * Called by the {@link Watch} transform to create a new independent termination state for a
        * newly arrived {@code InputT}.
        */
-      StateT forNewInput(Instant now, InputT input);
+      StateT forNewInput(Instant now, @Nullable InputT input);
 
       /**
        * Called by the {@link Watch} transform to compute a new termination state, in case after
@@ -536,7 +548,7 @@ public class Watch {
       }
     }
 
-    abstract PollFn<InputT, OutputT> getPollFn();
+    abstract Contextful<PollFn<InputT, OutputT>> getPollFn();
 
     @Nullable
     abstract Duration getPollInterval();
@@ -551,7 +563,7 @@ public class Watch {
 
     @AutoValue.Builder
     abstract static class Builder<InputT, OutputT> {
-      abstract Builder<InputT, OutputT> setPollFn(PollFn<InputT, OutputT> pollFn);
+      abstract Builder<InputT, OutputT> setPollFn(Contextful<PollFn<InputT, OutputT>> pollFn);
 
       abstract Builder<InputT, OutputT> setTerminationPerInput(
           TerminationCondition<InputT, ?> terminationPerInput);
@@ -599,7 +611,7 @@ public class Watch {
         // of the PollFn.
         TypeDescriptor<OutputT> outputT =
             TypeDescriptors.extractFromTypeParameters(
-                getPollFn(),
+                getPollFn().getClosure(),
                 PollFn.class,
                 new TypeVariableExtractor<PollFn<InputT, OutputT>, OutputT>() {});
         try {
@@ -617,7 +629,8 @@ public class Watch {
       }
 
       return input
-          .apply(ParDo.of(new WatchGrowthFn<>(this, outputCoder)))
+          .apply(ParDo.of(new WatchGrowthFn<>(this, outputCoder))
+          .withSideInputs(getPollFn().getRequirements().getSideInputs()))
           .setCoder(KvCoder.of(input.getCoder(), outputCoder));
     }
   }
@@ -638,7 +651,8 @@ public class Watch {
         throws Exception {
       if (!tracker.hasPending() && !tracker.currentRestriction().isOutputComplete) {
         LOG.debug("{} - polling input", c.element());
-        Growth.PollResult<OutputT> res = spec.getPollFn().apply(c.element(), c.timestamp());
+        Growth.PollResult<OutputT> res =
+            spec.getPollFn().getClosure().apply(c.element(), wrapProcessContext(c));
         // TODO (https://issues.apache.org/jira/browse/BEAM-2680):
         // Consider truncating the pending outputs if there are too many, to avoid blowing
         // up the state. In that case, we'd rely on the next poll cycle to provide more outputs.
@@ -785,7 +799,7 @@ public class Watch {
     // Outputs that have been claimed in the current ProcessElement call. A prefix of "pending".
     private List<TimestampedValue<OutputT>> claimed = Lists.newArrayList();
     private boolean isOutputComplete;
-    private TerminationStateT terminationState;
+    @Nullable private TerminationStateT terminationState;
     @Nullable private Instant pollWatermark;
     private boolean shouldStop = false;
 

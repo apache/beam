@@ -94,6 +94,12 @@ public @interface Experimental {
     CORE_RUNNERS_ONLY,
 
     /** Experimental feature related to making the encoded element type available from a Coder. */
-    CODER_TYPE_ENCODING
+    CODER_TYPE_ENCODING,
+
+    /**
+     * Experimental APIs related to <a href="https://s.apache.org/context-fn">contextful
+     * closures</a>.
+     */
+    CONTEXTFUL,
   }
 }

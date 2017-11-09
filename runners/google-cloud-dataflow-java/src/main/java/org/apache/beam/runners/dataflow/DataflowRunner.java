@@ -58,11 +58,13 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
 import org.apache.beam.runners.core.construction.EmptyFlattenAsCreateFactory;
 import org.apache.beam.runners.core.construction.PTransformMatchers;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.runners.core.construction.SingleInputOutputOverrideFactory;
@@ -89,7 +91,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
 import org.apache.beam.sdk.extensions.gcp.storage.PathValidator;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSink;
@@ -132,7 +133,6 @@ import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.InstanceBuilder;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.ReleaseInfo;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -188,6 +188,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   @VisibleForTesting
   static final int GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT = 1024 * 1024;
+
+  @VisibleForTesting
+  static final String PIPELINE_FILE_NAME = "pipeline.pb";
 
   private final Set<PCollection<?>> pcollectionsRequiringIndexedFormat;
 
@@ -298,6 +301,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       dataflowOptions.setGcsUploadBufferSizeBytes(GCS_UPLOAD_BUFFER_SIZE_BYTES_DEFAULT);
     }
 
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String userAgent = String
+        .format("%s/%s", dataflowRunnerInfo.getName(), dataflowRunnerInfo.getVersion())
+        .replace(" ", "_");
+    dataflowOptions.setUserAgent(userAgent);
+
     return new DataflowRunner(dataflowOptions);
   }
 
@@ -379,11 +388,11 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoMulti(),
-                  BatchStatefulParDoOverrides.multiOutputOverrideFactory()))
+                  BatchStatefulParDoOverrides.multiOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
-                  BatchStatefulParDoOverrides.singleOutputOverrideFactory()))
+                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.createViewWithViewFn(PCollectionViews.MapViewFn.class),
@@ -509,8 +518,12 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     LOG.info("Executing pipeline on the Dataflow Service, which will have billing implications "
         + "related to Google Compute Engine usage and other Google Cloud Services.");
 
-    List<DataflowPackage> packages = options.getStager().stageFiles();
+    List<DataflowPackage> packages = options.getStager().stageDefaultFiles();
 
+    byte[] serializedProtoPipeline = PipelineTranslation.toProto(pipeline).toByteArray();
+    LOG.info("Staging pipeline description to {}", options.getStagingLocation());
+    DataflowPackage stagedPipeline =
+        options.getStager().stageToFile(serializedProtoPipeline, PIPELINE_FILE_NAME);
 
     // Set a unique client_request_id in the CreateJob request.
     // This is used to ensure idempotence of job creation across retried
@@ -528,19 +541,23 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
     maybeRegisterDebuggee(dataflowOptions, requestId);
 
+    // Set the location of the staged pipeline; this must happen before
+    // translation, because that is where the JSON pipeline options are set up
+    dataflowOptions.setPipelineUrl(stagedPipeline.getLocation());
+
     JobSpecification jobSpecification =
         translator.translate(pipeline, this, packages);
     Job newJob = jobSpecification.getJob();
     newJob.setClientRequestId(requestId);
 
-    ReleaseInfo releaseInfo = ReleaseInfo.getReleaseInfo();
-    String version = releaseInfo.getVersion();
+    DataflowRunnerInfo dataflowRunnerInfo = DataflowRunnerInfo.getDataflowRunnerInfo();
+    String version = dataflowRunnerInfo.getVersion();
     checkState(
         !version.equals("${pom.version}"),
         "Unable to submit a job to the Dataflow service with unset version ${pom.version}");
     System.out.println("Dataflow SDK version: " + version);
 
-    newJob.getEnvironment().setUserAgent((Map) releaseInfo.getProperties());
+    newJob.getEnvironment().setUserAgent((Map) dataflowRunnerInfo.getProperties());
     // The Dataflow Service may write to the temporary directory directly, so
     // must be verified.
     if (!isNullOrEmpty(options.getGcpTempLocation())) {

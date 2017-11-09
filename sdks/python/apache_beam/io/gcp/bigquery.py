@@ -1412,6 +1412,9 @@ bigquery_v2_messages.TableSchema):
       raise TypeError('Unexpected schema argument: %s.' % schema)
 
   def expand(self, pcoll):
+    if self.table_reference.projectId is None:
+      self.table_reference.projectId = pcoll.pipeline.options.view_as(
+          GoogleCloudOptions).project
     bigquery_write_fn = BigQueryWriteFn(
         table_id=self.table_reference.tableId,
         dataset_id=self.table_reference.datasetId,

@@ -18,8 +18,8 @@
 package org.apache.beam.fn.harness.state;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnApi.StateResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 
 /**
  * The {@link BeamFnStateClient} is able to forward state requests to a handler which returns

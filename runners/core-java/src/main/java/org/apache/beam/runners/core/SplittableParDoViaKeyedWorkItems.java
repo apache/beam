@@ -21,6 +21,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.PTransformReplacements;
 import org.apache.beam.runners.core.construction.PTransformTranslation.RawPTransform;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
@@ -86,6 +87,12 @@ public class SplittableParDoViaKeyedWorkItems {
     @Override
     public String getUrn() {
       return SplittableParDo.SPLITTABLE_GBKIKWI_URN;
+    }
+
+    @Override
+    public RunnerApi.FunctionSpec getSpec() {
+      throw new UnsupportedOperationException(
+          String.format("%s should never be serialized to proto", getClass().getSimpleName()));
     }
   }
 

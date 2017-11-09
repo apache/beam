@@ -83,18 +83,6 @@ public class FileSystemsTest {
   }
 
   @Test
-  public void testDeleteThrowsNoSuchFileException() throws Exception {
-    Path existingPath = temporaryFolder.newFile().toPath();
-    Path nonExistentPath = existingPath.resolveSibling("non-existent");
-
-    createFileWithContent(existingPath, "content1");
-
-    thrown.expect(NoSuchFileException.class);
-    FileSystems.delete(
-        toResourceIds(ImmutableList.of(existingPath, nonExistentPath), false /* isDirectory */));
-  }
-
-  @Test
   public void testDeleteIgnoreMissingFiles() throws Exception {
     Path existingPath = temporaryFolder.newFile().toPath();
     Path nonExistentPath = existingPath.resolveSibling("non-existent");
@@ -102,8 +90,7 @@ public class FileSystemsTest {
     createFileWithContent(existingPath, "content1");
 
     FileSystems.delete(
-        toResourceIds(ImmutableList.of(existingPath, nonExistentPath), false /* isDirectory */),
-        MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+        toResourceIds(ImmutableList.of(existingPath, nonExistentPath), false /* isDirectory */));
   }
 
   @Test

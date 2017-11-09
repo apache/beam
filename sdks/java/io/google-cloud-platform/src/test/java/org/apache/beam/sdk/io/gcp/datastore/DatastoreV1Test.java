@@ -40,6 +40,7 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
@@ -188,22 +189,6 @@ public class DatastoreV1Test {
   }
 
   @Test
-  public void testReadValidationFailsProject() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read().withQuery(QUERY);
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    read.validate(null);
-  }
-
-  @Test
-  public void testReadValidationFailsQuery() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read().withProjectId(PROJECT_ID);
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("Either query or gql query ValueProvider should be provided");
-    read.validate(null);
-  }
-
-  @Test
   public void testReadValidationFailsQueryAndGqlQuery() throws Exception {
     DatastoreV1.Read read = DatastoreIO.v1().read()
         .withProjectId(PROJECT_ID)
@@ -212,8 +197,8 @@ public class DatastoreV1Test {
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "Only one of query or gql query ValueProvider should be provided");
-    read.validate(null);
+        "withQuery() and withLiteralGqlQuery() are exclusive");
+    read.expand(null);
   }
 
   @Test
@@ -232,13 +217,6 @@ public class DatastoreV1Test {
     thrown.expectMessage("Invalid query limit -5: must be positive");
 
     DatastoreIO.v1().read().withQuery(invalidLimit);
-  }
-
-  @Test
-  public void testReadValidationSucceedsNamespace() throws Exception {
-    DatastoreV1.Read read = DatastoreIO.v1().read().withProjectId(PROJECT_ID).withQuery(QUERY);
-    /* Should succeed, as a null namespace is fine. */
-    read.validate(null);
   }
 
   @Test
@@ -288,42 +266,6 @@ public class DatastoreV1Test {
   }
 
   @Test
-  public void testWriteDoesNotAllowNullProject() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    DatastoreIO.v1().write().withProjectId((String) null);
-  }
-
-  @Test
-  public void testWriteDoesNotAllowNullProjectValueProvider() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
-    DatastoreIO.v1().write().withProjectId((ValueProvider<String>) null);
-  }
-
-  @Test
-  public void testWriteValidationFailsWithNoProject() throws Exception {
-    Write write = DatastoreIO.v1().write();
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
-    write.validate(null);
-  }
-
-  @Test
-  public void testWriteValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
-    Write write = DatastoreIO.v1().write().withProjectId(StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    write.validate(null);
-  }
-
-  @Test
-  public void testWriteValidationSucceedsWithProject() throws Exception {
-    Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
-    write.validate(null);
-  }
-
-  @Test
   public void testWriteDisplayData() {
     Write write = DatastoreIO.v1().write().withProjectId(PROJECT_ID);
 
@@ -333,86 +275,12 @@ public class DatastoreV1Test {
   }
 
   @Test
-  public void testDeleteEntityDoesNotAllowNullProject() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    DatastoreIO.v1().deleteEntity().withProjectId((String) null);
-  }
-
-  @Test
-  public void testDeleteEntityDoesNotAllowNullProjectValueProvider() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
-    DatastoreIO.v1().deleteEntity().withProjectId((ValueProvider<String>) null);
-  }
-
-  @Test
-  public void testDeleteEntityValidationFailsWithNoProject() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity();
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
-    deleteEntity.validate(null);
-  }
-
-  @Test
-  public void testDeleteEntityValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity()
-        .withProjectId(StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    deleteEntity.validate(null);
-  }
-
-  @Test
-  public void testDeleteEntityValidationSucceedsWithProject() throws Exception {
-    DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
-    deleteEntity.validate(null);
-  }
-
-  @Test
   public void testDeleteEntityDisplayData() {
     DeleteEntity deleteEntity = DatastoreIO.v1().deleteEntity().withProjectId(PROJECT_ID);
 
     DisplayData displayData = DisplayData.from(deleteEntity);
 
     assertThat(displayData, hasDisplayItem("projectId", PROJECT_ID));
-  }
-
-  @Test
-  public void testDeleteKeyDoesNotAllowNullProject() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    DatastoreIO.v1().deleteKey().withProjectId((String) null);
-  }
-
-  @Test
-  public void testDeleteKeyDoesNotAllowNullProjectValueProvider() throws Exception {
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
-    DatastoreIO.v1().deleteKey().withProjectId((ValueProvider<String>) null);
-  }
-
-  @Test
-  public void testDeleteKeyValidationFailsWithNoProject() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1().deleteKey();
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId ValueProvider");
-    deleteKey.validate(null);
-  }
-
-  @Test
-  public void testDeleteKeyValidationFailsWithNoProjectInStaticValueProvider() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(
-        StaticValueProvider.<String>of(null));
-    thrown.expect(NullPointerException.class);
-    thrown.expectMessage("projectId");
-    deleteKey.validate(null);
-  }
-
-  @Test
-  public void testDeleteKeyValidationSucceedsWithProject() throws Exception {
-    DeleteKey deleteKey = DatastoreIO.v1().deleteKey().withProjectId(PROJECT_ID);
-    deleteKey.validate(null);
   }
 
   @Test
@@ -744,7 +612,7 @@ public class DatastoreV1Test {
         .thenReturn(splitQuery(QUERY, numSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     /**
      * Although Datastore client is marked transient in {@link SplitQueryFn}, when injected through
      * mock factory using a when clause for unit testing purposes, it is not serializable
@@ -752,10 +620,15 @@ public class DatastoreV1Test {
      * doFn from being serialized.
      */
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+    List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), numSplits);
-    verifyUniqueKeys(queries);
+
+    // Confirms that sub-queries are not equal to original when there is more than one split.
+    for (Query subQuery : queries) {
+      assertNotEquals(subQuery, QUERY);
+    }
+
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(numSplits), any(Datastore.class));
     verifyZeroInteractions(mockDatastore);
@@ -790,12 +663,11 @@ public class DatastoreV1Test {
         .thenReturn(splitQuery(QUERY, expectedNumSplits));
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, numSplits, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(QUERY);
+    List<Query> queries = doFnTester.processBundle(QUERY);
 
     assertEquals(queries.size(), expectedNumSplits);
-    verifyUniqueKeys(queries);
     verify(mockQuerySplitter, times(1)).getSplits(
         eq(QUERY), any(PartitionId.class), eq(expectedNumSplits), any(Datastore.class));
     verify(mockDatastore, times(1)).runQuery(latestTimestampRequest);
@@ -812,12 +684,11 @@ public class DatastoreV1Test {
         .build();
 
     SplitQueryFn splitQueryFn = new SplitQueryFn(V_1_OPTIONS, 10, mockDatastoreFactory);
-    DoFnTester<Query, KV<Integer, Query>> doFnTester = DoFnTester.of(splitQueryFn);
+    DoFnTester<Query, Query> doFnTester = DoFnTester.of(splitQueryFn);
     doFnTester.setCloningBehavior(CloningBehavior.DO_NOT_CLONE);
-    List<KV<Integer, Query>> queries = doFnTester.processBundle(queryWithLimit);
+    List<Query> queries = doFnTester.processBundle(queryWithLimit);
 
     assertEquals(queries.size(), 1);
-    verifyUniqueKeys(queries);
     verifyNoMoreInteractions(mockDatastore);
     verifyNoMoreInteractions(mockQuerySplitter);
   }
@@ -1127,8 +998,14 @@ public class DatastoreV1Test {
   /** Generate dummy query splits. */
   private List<Query> splitQuery(Query query, int numSplits) {
     List<Query> queries = new LinkedList<>();
+    int offsetOfOriginal = query.getOffset();
     for (int i = 0; i < numSplits; i++) {
-      queries.add(query.toBuilder().build());
+      Query.Builder q = Query.newBuilder();
+      q.addKindBuilder().setName(KIND);
+      // Making sub-queries unique (and not equal to the original query) by setting different
+      // offsets.
+      q.setOffset(++offsetOfOriginal);
+      queries.add(q.build());
     }
     return queries;
   }

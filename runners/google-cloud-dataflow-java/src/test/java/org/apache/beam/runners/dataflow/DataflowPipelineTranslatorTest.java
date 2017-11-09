@@ -71,7 +71,6 @@ import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.CloudObjects;
-import org.apache.beam.runners.dataflow.util.DoFnInfo;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
@@ -103,6 +102,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.GcsUtil;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
@@ -748,7 +748,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   /**
    * Test that in translation the name for a collection (in this case just a Create output) is
-   * overriden to be what the Dataflow service expects.
+   * overridden to be what the Dataflow service expects.
    */
   @Test
   public void testNamesOverridden() throws Exception {

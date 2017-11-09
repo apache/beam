@@ -41,44 +41,13 @@ from apache_beam.io.textio import _TextSource as TextSource
 from apache_beam.io.textio import ReadFromText
 from apache_beam.io.textio import WriteToText
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.test_utils import TempDir
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms.core import Create
 
 
-# TODO: Refactor code so all io tests are using same library
-# TestCaseWithTempDirCleanup class.
-class _TestCaseWithTempDirCleanUp(unittest.TestCase):
-  """Base class for TestCases that deals with TempDir clean-up.
-
-  Inherited test cases will call self._new_tempdir() to start a temporary dir
-  which will be deleted at the end of the tests (when tearDown() is called).
-  """
-
-  def setUp(self):
-    self._tempdirs = []
-
-  def tearDown(self):
-    for path in self._tempdirs:
-      if os.path.exists(path):
-        shutil.rmtree(path)
-    self._tempdirs = []
-
-  def _new_tempdir(self):
-    result = tempfile.mkdtemp()
-    self._tempdirs.append(result)
-    return result
-
-  def _create_temp_file(self, name='', suffix=''):
-    if not name:
-      name = tempfile.template
-    file_name = tempfile.NamedTemporaryFile(
-        delete=False, prefix=name,
-        dir=self._new_tempdir(), suffix=suffix).name
-    return file_name
-
-
-class TextSourceTest(_TestCaseWithTempDirCleanUp):
+class TextSourceTest(unittest.TestCase):
 
   # Number of records that will be written by most tests.
   DEFAULT_NUM_RECORDS = 100
@@ -92,7 +61,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     source = TextSource(file_or_pattern, 0, compression,
                         True, coders.StrUtf8Coder(), buffer_size)
     range_tracker = source.get_range_tracker(None, None)
-    read_data = [record for record in source.read(range_tracker)]
+    read_data = list(source.read(range_tracker))
     self.assertItemsEqual(expected_data, read_data)
 
   def test_read_single_file(self):
@@ -214,7 +183,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
                         False, coders.StrUtf8Coder())
 
     range_tracker = source.get_range_tracker(None, None)
-    read_data = [record for record in source.read(range_tracker)]
+    read_data = list(source.read(range_tracker))
     self.assertItemsEqual([line + '\n' for line in written_data], read_data)
 
   def test_read_single_file_without_striping_eol_crlf(self):
@@ -225,7 +194,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
                         False, coders.StrUtf8Coder())
 
     range_tracker = source.get_range_tracker(None, None)
-    read_data = [record for record in source.read(range_tracker)]
+    read_data = list(source.read(range_tracker))
     self.assertItemsEqual([line + '\r\n' for line in written_data], read_data)
 
   def test_read_file_pattern_with_empty_files(self):
@@ -246,7 +215,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert len(expected_data) == 10
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=33)]
+    splits = list(source.split(desired_bundle_size=33))
 
     reference_source_info = (source, None, None)
     sources_info = ([
@@ -255,12 +224,37 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     source_test_utils.assert_sources_equal_reference_source(
         reference_source_info, sources_info)
 
+  def test_header_processing(self):
+    file_name, expected_data = write_data(10)
+    assert len(expected_data) == 10
+
+    def header_matcher(line):
+      return line in expected_data[:5]
+
+    header_lines = []
+
+    def store_header(lines):
+      for line in lines:
+        header_lines.append(line)
+
+    source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
+                        coders.StrUtf8Coder(),
+                        header_processor_fns=(header_matcher, store_header))
+    splits = list(source.split(desired_bundle_size=100000))
+    assert len(splits) == 1
+    range_tracker = splits[0].source.get_range_tracker(
+        splits[0].start_position, splits[0].stop_position)
+    read_data = list(source.read_records(file_name, range_tracker))
+
+    self.assertItemsEqual(expected_data[:5], header_lines)
+    self.assertItemsEqual(expected_data[5:], read_data)
+
   def test_progress(self):
     file_name, expected_data = write_data(10)
     assert len(expected_data) == 10
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=100000)]
+    splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     fraction_consumed_report = []
     split_points_report = []
@@ -295,7 +289,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert len(expected_data) == 10
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=100000)]
+    splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_reentrant_reads_succeed(
         (splits[0].source, splits[0].start_position, splits[0].stop_position))
@@ -305,7 +299,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert len(expected_data) == 5
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=100000)]
+    splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position)
@@ -315,7 +309,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert len(expected_data) == 15
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=100000)]
+    splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position,
@@ -326,7 +320,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     assert len(expected_data) == 5
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=100000)]
+    splits = list(source.split(desired_bundle_size=100000))
     assert len(splits) == 1
     source_test_utils.assert_split_at_fraction_exhaustive(
         splits[0].source, splits[0].start_position, splits[0].stop_position,
@@ -438,226 +432,241 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
 
   def test_read_auto_bzip2(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file(suffix='.bz2')
-    with bz2.BZ2File(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file(suffix='.bz2')
+      with bz2.BZ2File(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(file_name)
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(file_name)
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
 
   def test_read_auto_gzip(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file(suffix='.gz')
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file(suffix='.gz')
 
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(file_name)
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(file_name)
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
 
   def test_read_bzip2(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file()
-    with bz2.BZ2File(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with bz2.BZ2File(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name,
-        compression_type=CompressionTypes.BZIP2)
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          compression_type=CompressionTypes.BZIP2)
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
 
   def test_read_corrupted_bzip2_fails(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file()
-    with bz2.BZ2File(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with bz2.BZ2File(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    with open(file_name, 'wb') as f:
-      f.write('corrupt')
+      with open(file_name, 'wb') as f:
+        f.write('corrupt')
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name,
-        compression_type=CompressionTypes.BZIP2)
-    assert_that(pcoll, equal_to(lines))
-    with self.assertRaises(Exception):
-      pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          compression_type=CompressionTypes.BZIP2)
+      assert_that(pcoll, equal_to(lines))
+      with self.assertRaises(Exception):
+        pipeline.run()
 
   def test_read_bzip2_concat(self):
-    bzip2_file_name1 = self._create_temp_file()
-    lines = ['a', 'b', 'c']
-    with bz2.BZ2File(bzip2_file_name1, 'wb') as dst:
-      data = '\n'.join(lines) + '\n'
-      dst.write(data)
+    with TempDir() as tempdir:
+      bzip2_file_name1 = tempdir.create_temp_file()
+      lines = ['a', 'b', 'c']
+      with bz2.BZ2File(bzip2_file_name1, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(data)
 
-    bzip2_file_name2 = self._create_temp_file()
-    lines = ['p', 'q', 'r']
-    with bz2.BZ2File(bzip2_file_name2, 'wb') as dst:
-      data = '\n'.join(lines) + '\n'
-      dst.write(data)
+      bzip2_file_name2 = tempdir.create_temp_file()
+      lines = ['p', 'q', 'r']
+      with bz2.BZ2File(bzip2_file_name2, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(data)
 
-    bzip2_file_name3 = self._create_temp_file()
-    lines = ['x', 'y', 'z']
-    with bz2.BZ2File(bzip2_file_name3, 'wb') as dst:
-      data = '\n'.join(lines) + '\n'
-      dst.write(data)
+      bzip2_file_name3 = tempdir.create_temp_file()
+      lines = ['x', 'y', 'z']
+      with bz2.BZ2File(bzip2_file_name3, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(data)
 
-    final_bzip2_file = self._create_temp_file()
-    with open(bzip2_file_name1, 'rb') as src, open(
-        final_bzip2_file, 'wb') as dst:
-      dst.writelines(src.readlines())
+      final_bzip2_file = tempdir.create_temp_file()
+      with open(bzip2_file_name1, 'rb') as src, open(
+          final_bzip2_file, 'wb') as dst:
+        dst.writelines(src.readlines())
 
-    with open(bzip2_file_name2, 'rb') as src, open(
-        final_bzip2_file, 'ab') as dst:
-      dst.writelines(src.readlines())
+      with open(bzip2_file_name2, 'rb') as src, open(
+          final_bzip2_file, 'ab') as dst:
+        dst.writelines(src.readlines())
 
-    with open(bzip2_file_name3, 'rb') as src, open(
-        final_bzip2_file, 'ab') as dst:
-      dst.writelines(src.readlines())
+      with open(bzip2_file_name3, 'rb') as src, open(
+          final_bzip2_file, 'ab') as dst:
+        dst.writelines(src.readlines())
 
-    pipeline = TestPipeline()
-    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
-        final_bzip2_file,
-        compression_type=beam.io.filesystem.CompressionTypes.BZIP2)
+      pipeline = TestPipeline()
+      lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+          final_bzip2_file,
+          compression_type=beam.io.filesystem.CompressionTypes.BZIP2)
 
-    expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
-    assert_that(lines, equal_to(expected))
-    pipeline.run()
+      expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+      assert_that(lines, equal_to(expected))
+      pipeline.run()
 
   def test_read_gzip(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file()
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name,
-        0, CompressionTypes.GZIP,
-        True, coders.StrUtf8Coder())
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          0, CompressionTypes.GZIP,
+          True, coders.StrUtf8Coder())
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
 
   def test_read_corrupted_gzip_fails(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file()
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    with open(file_name, 'wb') as f:
-      f.write('corrupt')
+      with open(file_name, 'wb') as f:
+        f.write('corrupt')
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name,
-        0, CompressionTypes.GZIP,
-        True, coders.StrUtf8Coder())
-    assert_that(pcoll, equal_to(lines))
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          0, CompressionTypes.GZIP,
+          True, coders.StrUtf8Coder())
+      assert_that(pcoll, equal_to(lines))
 
-    with self.assertRaises(Exception):
-      pipeline.run()
+      with self.assertRaises(Exception):
+        pipeline.run()
 
   def test_read_gzip_concat(self):
-    gzip_file_name1 = self._create_temp_file()
-    lines = ['a', 'b', 'c']
-    with gzip.open(gzip_file_name1, 'wb') as dst:
-      data = '\n'.join(lines) + '\n'
-      dst.write(data)
+    with TempDir() as tempdir:
+      gzip_file_name1 = tempdir.create_temp_file()
+      lines = ['a', 'b', 'c']
+      with gzip.open(gzip_file_name1, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(data)
 
-    gzip_file_name2 = self._create_temp_file()
-    lines = ['p', 'q', 'r']
-    with gzip.open(gzip_file_name2, 'wb') as dst:
-      data = '\n'.join(lines) + '\n'
-      dst.write(data)
+      gzip_file_name2 = tempdir.create_temp_file()
+      lines = ['p', 'q', 'r']
+      with gzip.open(gzip_file_name2, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(data)
 
-    gzip_file_name3 = self._create_temp_file()
-    lines = ['x', 'y', 'z']
-    with gzip.open(gzip_file_name3, 'wb') as dst:
-      data = '\n'.join(lines) + '\n'
-      dst.write(data)
+      gzip_file_name3 = tempdir.create_temp_file()
+      lines = ['x', 'y', 'z']
+      with gzip.open(gzip_file_name3, 'wb') as dst:
+        data = '\n'.join(lines) + '\n'
+        dst.write(data)
 
-    final_gzip_file = self._create_temp_file()
-    with open(gzip_file_name1, 'rb') as src, open(final_gzip_file, 'wb') as dst:
-      dst.writelines(src.readlines())
+      final_gzip_file = tempdir.create_temp_file()
+      with open(gzip_file_name1, 'rb') as src, \
+           open(final_gzip_file, 'wb') as dst:
+        dst.writelines(src.readlines())
 
-    with open(gzip_file_name2, 'rb') as src, open(final_gzip_file, 'ab') as dst:
-      dst.writelines(src.readlines())
+      with open(gzip_file_name2, 'rb') as src, \
+           open(final_gzip_file, 'ab') as dst:
+        dst.writelines(src.readlines())
 
-    with open(gzip_file_name3, 'rb') as src, open(final_gzip_file, 'ab') as dst:
-      dst.writelines(src.readlines())
+      with open(gzip_file_name3, 'rb') as src, \
+           open(final_gzip_file, 'ab') as dst:
+        dst.writelines(src.readlines())
 
-    pipeline = TestPipeline()
-    lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
-        final_gzip_file,
-        compression_type=beam.io.filesystem.CompressionTypes.GZIP)
+      pipeline = TestPipeline()
+      lines = pipeline | 'ReadFromText' >> beam.io.ReadFromText(
+          final_gzip_file,
+          compression_type=beam.io.filesystem.CompressionTypes.GZIP)
 
-    expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
-    assert_that(lines, equal_to(expected))
+      expected = ['a', 'b', 'c', 'p', 'q', 'r', 'x', 'y', 'z']
+      assert_that(lines, equal_to(expected))
 
   def test_read_all_gzip(self):
     _, lines = write_data(100)
-    file_name = self._create_temp_file()
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
-    pipeline = TestPipeline()
-    pcoll = (pipeline
-             | Create([file_name])
-             | 'ReadAll' >> ReadAllFromText(
-                 compression_type=CompressionTypes.GZIP))
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
+      pipeline = TestPipeline()
+      pcoll = (pipeline
+               | Create([file_name])
+               | 'ReadAll' >> ReadAllFromText(
+                   compression_type=CompressionTypes.GZIP))
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
 
   def test_read_gzip_large(self):
     _, lines = write_data(10000)
-    file_name = self._create_temp_file()
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
 
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name,
-        0, CompressionTypes.GZIP,
-        True, coders.StrUtf8Coder())
-    assert_that(pcoll, equal_to(lines))
-    pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          0, CompressionTypes.GZIP,
+          True, coders.StrUtf8Coder())
+      assert_that(pcoll, equal_to(lines))
+      pipeline.run()
 
   def test_read_gzip_large_after_splitting(self):
     _, lines = write_data(10000)
-    file_name = self._create_temp_file()
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    source = TextSource(file_name, 0, CompressionTypes.GZIP, True,
-                        coders.StrUtf8Coder())
-    splits = [split for split in source.split(desired_bundle_size=1000)]
+      source = TextSource(file_name, 0, CompressionTypes.GZIP, True,
+                          coders.StrUtf8Coder())
+      splits = list(source.split(desired_bundle_size=1000))
 
-    if len(splits) > 1:
-      raise ValueError('FileBasedSource generated more than one initial split '
-                       'for a compressed file.')
+      if len(splits) > 1:
+        raise ValueError('FileBasedSource generated more than one initial '
+                         'split for a compressed file.')
 
-    reference_source_info = (source, None, None)
-    sources_info = ([
-        (split.source, split.start_position, split.stop_position) for
-        split in splits])
-    source_test_utils.assert_sources_equal_reference_source(
-        reference_source_info, sources_info)
+      reference_source_info = (source, None, None)
+      sources_info = ([
+          (split.source, split.start_position, split.stop_position) for
+          split in splits])
+      source_test_utils.assert_sources_equal_reference_source(
+          reference_source_info, sources_info)
 
   def test_read_gzip_empty_file(self):
-    file_name = self._create_temp_file()
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name,
-        0, CompressionTypes.GZIP,
-        True, coders.StrUtf8Coder())
-    assert_that(pcoll, equal_to([]))
-    pipeline.run()
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name,
+          0, CompressionTypes.GZIP,
+          True, coders.StrUtf8Coder())
+      assert_that(pcoll, equal_to([]))
+      pipeline.run()
 
   def _remove_lines(self, lines, sublist_lengths, num_to_remove):
     """Utility function to remove num_to_remove lines from each sublist.
@@ -690,7 +699,7 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
         skip_header_lines=skip_header_lines)
 
     range_tracker = source.get_range_tracker(None, None)
-    return [record for record in source.read(range_tracker)]
+    return list(source.read(range_tracker))
 
   def test_read_skip_header_single(self):
     file_name, expected_data = write_data(TextSourceTest.DEFAULT_NUM_RECORDS)
@@ -735,23 +744,24 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
 
   def test_read_gzip_with_skip_lines(self):
     _, lines = write_data(15)
-    file_name = self._create_temp_file()
-    with gzip.GzipFile(file_name, 'wb') as f:
-      f.write('\n'.join(lines))
+    with TempDir() as tempdir:
+      file_name = tempdir.create_temp_file()
+      with gzip.GzipFile(file_name, 'wb') as f:
+        f.write('\n'.join(lines))
 
-    pipeline = TestPipeline()
-    pcoll = pipeline | 'Read' >> ReadFromText(
-        file_name, 0, CompressionTypes.GZIP,
-        True, coders.StrUtf8Coder(), skip_header_lines=2)
-    assert_that(pcoll, equal_to(lines[2:]))
-    pipeline.run()
+      pipeline = TestPipeline()
+      pcoll = pipeline | 'Read' >> ReadFromText(
+          file_name, 0, CompressionTypes.GZIP,
+          True, coders.StrUtf8Coder(), skip_header_lines=2)
+      assert_that(pcoll, equal_to(lines[2:]))
+      pipeline.run()
 
   def test_read_after_splitting_skip_header(self):
     file_name, expected_data = write_data(100)
     assert len(expected_data) == 100
     source = TextSource(file_name, 0, CompressionTypes.UNCOMPRESSED, True,
                         coders.StrUtf8Coder(), skip_header_lines=2)
-    splits = [split for split in source.split(desired_bundle_size=33)]
+    splits = list(source.split(desired_bundle_size=33))
 
     reference_source_info = (source, None, None)
     sources_info = ([
@@ -767,12 +777,25 @@ class TextSourceTest(_TestCaseWithTempDirCleanUp):
     self.assertEqual(reference_lines, split_lines)
 
 
-class TextSinkTest(_TestCaseWithTempDirCleanUp):
+class TextSinkTest(unittest.TestCase):
 
   def setUp(self):
     super(TextSinkTest, self).setUp()
     self.lines = ['Line %d' % d for d in range(100)]
+    self.tempdir = tempfile.mkdtemp()
     self.path = self._create_temp_file()
+
+  def tearDown(self):
+    if os.path.exists(self.tempdir):
+      shutil.rmtree(self.tempdir)
+
+  def _create_temp_file(self, name='', suffix=''):
+    if not name:
+      name = tempfile.template
+    file_name = tempfile.NamedTemporaryFile(
+        delete=False, prefix=name,
+        dir=self.tempdir, suffix=suffix).name
+    return file_name
 
   def _write_lines(self, sink, lines):
     f = sink.open(self.path)

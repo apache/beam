@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.transforms.Contextful.fn;
+import static org.apache.beam.sdk.transforms.Requirements.requiresSideInputs;
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
+import static org.apache.beam.sdk.values.TypeDescriptors.integers;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
@@ -30,9 +33,11 @@ import java.util.Set;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.Contextful.Fn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,6 +78,32 @@ public class FlatMapElementsTest implements Serializable {
         }));
 
     PAssert.that(output).containsInAnyOrder(1, -2, -1, -3, 2, 3);
+    pipeline.run();
+  }
+
+  /**
+   * Basic test of {@link FlatMapElements} with a {@link Fn} and a side input.
+   */
+  @Test
+  @Category(NeedsRunner.class)
+  public void testFlatMapBasicWithSideInput() throws Exception {
+    final PCollectionView<Integer> view =
+        pipeline.apply("Create base", Create.of(40)).apply(View.<Integer>asSingleton());
+    PCollection<Integer> output =
+        pipeline
+            .apply(Create.of(0, 1, 2))
+            .apply(
+                FlatMapElements.into(integers()).via(fn(
+                    new Fn<Integer, Iterable<Integer>>() {
+                      @Override
+                      public List<Integer> apply(Integer input, Context c) {
+                        return ImmutableList.of(
+                            c.sideInput(view) - input, c.sideInput(view) + input);
+                      }
+                    },
+                    requiresSideInputs(view))));
+
+    PAssert.that(output).containsInAnyOrder(38, 39, 40, 40, 41, 42);
     pipeline.run();
   }
 
@@ -144,7 +175,7 @@ public class FlatMapElementsTest implements Serializable {
     };
 
     FlatMapElements<?, ?> simpleMap = FlatMapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleMap), hasDisplayItem("class", simpleFn.getClass()));
   }
 
   @Test
@@ -162,7 +193,7 @@ public class FlatMapElementsTest implements Serializable {
     };
 
     FlatMapElements<?, ?> simpleFlatMap = FlatMapElements.via(simpleFn);
-    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("flatMapFn", simpleFn.getClass()));
+    assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("class", simpleFn.getClass()));
     assertThat(DisplayData.from(simpleFlatMap), hasDisplayItem("foo", "baz"));
   }
 

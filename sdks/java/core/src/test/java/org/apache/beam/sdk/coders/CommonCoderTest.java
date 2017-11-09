@@ -71,7 +71,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class CommonCoderTest {
   private static final String STANDARD_CODERS_YAML_PATH =
-      "/org/apache/beam/fn/v1/standard_coders.yaml";
+      "/org/apache/beam/model/fnexecution/v1/standard_coders.yaml";
 
   private static final Map<String, Class<?>> coders = ImmutableMap.<String, Class<?>>builder()
       .put("urn:beam:coders:bytes:0.1", ByteCoder.class)
@@ -130,7 +130,7 @@ public class CommonCoderTest {
   private static List<OneCoderTestSpec> loadStandardCodersSuite() throws IOException {
     InputStream stream = CommonCoderTest.class.getResourceAsStream(STANDARD_CODERS_YAML_PATH);
     if (stream == null) {
-      fail("null stream");
+      fail("Could not load standard coder specs as resource:" + STANDARD_CODERS_YAML_PATH);
     }
 
     // Would like to use the InputStream directly with Jackson, but Jackson does not seem to

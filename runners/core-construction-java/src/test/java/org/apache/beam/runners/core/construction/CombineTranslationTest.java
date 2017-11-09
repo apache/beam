@@ -23,12 +23,12 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.common.collect.ImmutableList;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.CombinePayload;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VoidCoder;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi;
-import org.apache.beam.sdk.common.runner.v1.RunnerApi.CombinePayload;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -52,15 +52,11 @@ import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
-/**
- * Tests for {@link CombineTranslation}.
- */
+/** Tests for {@link CombineTranslation}. */
 @RunWith(Enclosed.class)
 public class CombineTranslationTest {
 
-  /**
-   * Tests that simple {@link CombineFn CombineFns} can be translated to and from proto.
-   */
+  /** Tests that simple {@link CombineFn CombineFns} can be translated to and from proto. */
   @RunWith(Parameterized.class)
   public static class TranslateSimpleCombinesTest {
     @Parameters(name = "{index}: {0}")
@@ -111,14 +107,10 @@ public class CombineTranslationTest {
     }
   }
 
-
-  /**
-   * Tests that a {@link CombineFnWithContext} can be translated.
-   */
+  /** Tests that a {@link CombineFnWithContext} can be translated. */
   @RunWith(JUnit4.class)
   public static class ValidateCombineWithContextTest {
-    @Rule
-    public TestPipeline pipeline = TestPipeline.create();
+    @Rule public TestPipeline pipeline = TestPipeline.create();
 
     @Test
     public void testToFromProtoWithSideInputs() throws Exception {

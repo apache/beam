@@ -55,7 +55,6 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
-import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.joda.time.Duration;
 
@@ -253,10 +252,10 @@ import org.joda.time.Duration;
  *   }
  * }
  * PCollection<UserEvents> events = ...;
- * PCollectionView<Integer, String> schemaMap = events.apply(
- *     "ComputeSchemas", new ComputePerUserSchemas());
+ * PCollectionView<Map<Integer, String>> userToSchemaMap = events.apply(
+ *     "ComputePerUserSchemas", new ComputePerUserSchemas());
  * events.apply("WriteAvros", AvroIO.<Integer>writeCustomTypeToGenericRecords()
- *     .to(new UserDynamicAvros()));
+ *     .to(new UserDynamicAvroDestinations(userToSchemaMap)));
  * }</pre>
  */
 public class AvroIO {
@@ -724,14 +723,12 @@ public class AvroIO {
         return explicitCoder;
       }
       // If a coder was not specified explicitly, infer it from parse fn.
-      TypeDescriptor<T> descriptor = TypeDescriptors.outputOf(parseFn);
-      String message =
-          "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().";
-      checkArgument(descriptor != null, message);
       try {
-        return coderRegistry.getCoder(descriptor);
+        return coderRegistry.getCoder(TypeDescriptors.outputOf(parseFn));
       } catch (CannotProvideCoderException e) {
-        throw new IllegalArgumentException(message, e);
+        throw new IllegalArgumentException(
+            "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().",
+            e);
       }
     }
 
@@ -1159,6 +1156,9 @@ public class AvroIO {
             getFormatFunction() == null,
             "A format function should not be specified "
                 + "with DynamicDestinations. Use DynamicDestinations.formatRecord instead");
+      } else {
+        checkArgument(
+            getSchema() != null, "Unless using DynamicDestinations, .withSchema() is required.");
       }
 
       ValueProvider<ResourceId> tempDirectory = getTempDirectory();
@@ -1238,12 +1238,12 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#to(DynamicAvroDestinations)}. */
-    public Write to(DynamicAvroDestinations<T, ?, T> dynamicDestinations) {
+    public Write<T> to(DynamicAvroDestinations<T, ?, T> dynamicDestinations) {
       return new Write<>(inner.to(dynamicDestinations).withFormatFunction(null));
     }
 
     /** See {@link TypedWrite#withSchema}. */
-    public Write withSchema(Schema schema) {
+    public Write<T> withSchema(Schema schema) {
       return new Write<>(inner.withSchema(schema));
     }
     /** See {@link TypedWrite#withTempDirectory(ValueProvider)}. */
@@ -1278,8 +1278,8 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#withWindowedWrites}. */
-    public Write withWindowedWrites() {
-      return new Write<T>(inner.withWindowedWrites());
+    public Write<T> withWindowedWrites() {
+      return new Write<>(inner.withWindowedWrites());
     }
 
     /** See {@link TypedWrite#withCodec}. */
@@ -1302,7 +1302,7 @@ public class AvroIO {
     }
 
     /** See {@link TypedWrite#withMetadata} . */
-    public Write withMetadata(Map<String, Object> metadata) {
+    public Write<T> withMetadata(Map<String, Object> metadata) {
       return new Write<>(inner.withMetadata(metadata));
     }
 

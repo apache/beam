@@ -61,6 +61,8 @@ import logging
 
 import apache_beam as beam
 from apache_beam.metrics.metric import Metrics
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class ParseGameEventFn(beam.DoFn):
@@ -137,12 +139,21 @@ def run(argv=None):
 
   args, pipeline_args = parser.parse_known_args(argv)
 
+  options = PipelineOptions(pipeline_args)
+
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
+  options.view_as(SetupOptions).save_main_session = True
+
   with beam.Pipeline(argv=pipeline_args) as p:
+    def format_user_score_sums(user_score):
+      (user, score) = user_score
+      return 'user: %s, total_score: %s' % (user, score)
+
     (p  # pylint: disable=expression-not-assigned
      | 'ReadInputText' >> beam.io.ReadFromText(args.input)
      | 'UserScore' >> UserScore()
-     | 'FormatUserScoreSums' >> beam.Map(
-         lambda (user, score): 'user: %s, total_score: %s' % (user, score))
+     | 'FormatUserScoreSums' >> beam.Map(format_user_score_sums)
      | 'WriteUserScoreSums' >> beam.io.WriteToText(args.output))
 # [END main]
 

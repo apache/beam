@@ -438,7 +438,7 @@ class Pipeline(object):
     if type_options is not None and type_options.pipeline_type_check:
       transform.type_check_outputs(pvalueish_result)
 
-    for result in ptransform.GetPValues().visit(pvalueish_result):
+    for result in ptransform.get_nested_pvalues(pvalueish_result):
       assert isinstance(result, (pvalue.PValue, pvalue.DoOutputsTuple))
 
       # Make sure we set the producer only for a leaf node in the transform DAG.
@@ -506,9 +506,6 @@ class Pipeline(object):
         self.visit_transform(transform_node)
 
       def visit_transform(self, transform_node):
-        if transform_node.side_inputs:
-          # No side inputs (yet).
-          Visitor.ok = False
         try:
           # Transforms must be picklable.
           pickler.loads(pickler.dumps(transform_node.transform,
@@ -730,8 +727,12 @@ class AppliedPTransform(object):
 
   def named_inputs(self):
     # TODO(BEAM-1833): Push names up into the sdk construction.
-    return {str(ix): input for ix, input in enumerate(self.inputs)
-            if isinstance(input, pvalue.PCollection)}
+    main_inputs = {str(ix): input
+                   for ix, input in enumerate(self.inputs)
+                   if isinstance(input, pvalue.PCollection)}
+    side_inputs = {'side%s' % ix: si.pvalue
+                   for ix, si in enumerate(self.side_inputs)}
+    return dict(main_inputs, **side_inputs)
 
   def named_outputs(self):
     return {str(tag): output for tag, output in self.outputs.items()
@@ -750,7 +751,6 @@ class AppliedPTransform(object):
         spec=transform_to_runner_api(self.transform, context),
         subtransforms=[context.transforms.get_id(part, label=part.full_label)
                        for part in self.parts],
-        # TODO(BEAM-115): Side inputs.
         inputs={tag: context.pcollections.get_id(pc)
                 for tag, pc in self.named_inputs().items()},
         outputs={str(tag): context.pcollections.get_id(out)
@@ -760,12 +760,26 @@ class AppliedPTransform(object):
 
   @staticmethod
   def from_runner_api(proto, context):
+    def is_side_input(tag):
+      # As per named_inputs() above.
+      return tag.startswith('side')
+    main_inputs = [context.pcollections.get_by_id(id)
+                   for tag, id in proto.inputs.items()
+                   if not is_side_input(tag)]
+    # Ordering is important here.
+    indexed_side_inputs = [(int(tag[4:]), context.pcollections.get_by_id(id))
+                           for tag, id in proto.inputs.items()
+                           if is_side_input(tag)]
+    side_inputs = [si for _, si in sorted(indexed_side_inputs)]
     result = AppliedPTransform(
         parent=None,
         transform=ptransform.PTransform.from_runner_api(proto.spec, context),
         full_label=proto.unique_name,
-        inputs=[
-            context.pcollections.get_by_id(id) for id in proto.inputs.values()])
+        inputs=main_inputs)
+    if result.transform and result.transform.side_inputs:
+      for si, pcoll in zip(result.transform.side_inputs, side_inputs):
+        si.pvalue = pcoll
+      result.side_inputs = tuple(result.transform.side_inputs)
     result.parts = [
         context.transforms.get_by_id(id) for id in proto.subtransforms]
     result.outputs = {

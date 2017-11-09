@@ -28,11 +28,13 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.io.ByteStreams;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
@@ -86,8 +88,28 @@ public class HadoopFileSystemTest {
 
   @Test
   public void testCreateAndReadFile() throws Exception {
-    create("testFile", "testData".getBytes());
-    assertArrayEquals("testData".getBytes(), read("testFile"));
+    byte[] bytes = "testData".getBytes();
+    create("testFile", bytes);
+    assertArrayEquals(bytes, read("testFile", 0));
+  }
+
+  @Test
+  public void testCreateAndReadFileWithShift() throws Exception {
+    byte[] bytes = "testData".getBytes();
+    create("testFile", bytes);
+    int bytesToSkip = 3;
+    byte[] expected = Arrays.copyOfRange(bytes, bytesToSkip, bytes.length);
+    byte[] actual = read("testFile", bytesToSkip);
+    assertArrayEquals(expected, actual);
+  }
+
+  @Test
+  public void testCreateAndReadFileWithShiftToEnd() throws Exception {
+    byte[] bytes = "testData".getBytes();
+    create("testFile", bytes);
+    int bytesToSkip = bytes.length;
+    byte[] expected = Arrays.copyOfRange(bytes, bytesToSkip, bytes.length);
+    assertArrayEquals(expected, read("testFile", bytesToSkip));
   }
 
   @Test
@@ -101,10 +123,10 @@ public class HadoopFileSystemTest {
         ImmutableList.of(
             testPath("copyTestFileA"),
             testPath("copyTestFileB")));
-    assertArrayEquals("testDataA".getBytes(), read("testFileA"));
-    assertArrayEquals("testDataB".getBytes(), read("testFileB"));
-    assertArrayEquals("testDataA".getBytes(), read("copyTestFileA"));
-    assertArrayEquals("testDataB".getBytes(), read("copyTestFileB"));
+    assertArrayEquals("testDataA".getBytes(), read("testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(), read("testFileB", 0));
+    assertArrayEquals("testDataA".getBytes(), read("copyTestFileA", 0));
+    assertArrayEquals("testDataB".getBytes(), read("copyTestFileB", 0));
   }
 
   @Test
@@ -114,9 +136,9 @@ public class HadoopFileSystemTest {
     create("testFileC", "testDataC".getBytes());
 
     // ensure files exist
-    assertArrayEquals("testDataA".getBytes(), read("testFileA"));
-    assertArrayEquals("testDataB".getBytes(), read("testFileB"));
-    assertArrayEquals("testDataC".getBytes(), read("testFileC"));
+    assertArrayEquals("testDataA".getBytes(), read("testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(), read("testFileB", 0));
+    assertArrayEquals("testDataC".getBytes(), read("testFileC", 0));
 
     fileSystem.delete(ImmutableList.of(
         testPath("testFileA"),
@@ -139,9 +161,9 @@ public class HadoopFileSystemTest {
     create("testFileB", "testDataB".getBytes());
 
     // ensure files exist
-    assertArrayEquals("testDataAA".getBytes(), read("testFileAA"));
-    assertArrayEquals("testDataA".getBytes(), read("testFileA"));
-    assertArrayEquals("testDataB".getBytes(), read("testFileB"));
+    assertArrayEquals("testDataAA".getBytes(), read("testFileAA", 0));
+    assertArrayEquals("testDataA".getBytes(), read("testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(), read("testFileB", 0));
 
     List<MatchResult> results =
         fileSystem.match(ImmutableList.of(testPath("testFileA*").toString()));
@@ -165,8 +187,8 @@ public class HadoopFileSystemTest {
     create("testFileBB", "testDataBB".getBytes());
 
     // ensure files exist
-    assertArrayEquals("testDataAA".getBytes(), read("testFileAA"));
-    assertArrayEquals("testDataBB".getBytes(), read("testFileBB"));
+    assertArrayEquals("testDataAA".getBytes(), read("testFileAA", 0));
+    assertArrayEquals("testDataBB".getBytes(), read("testFileBB", 0));
 
     List<MatchResult> matchResults = fileSystem.match(ImmutableList.of(
         testPath("testFileAA").toString(),
@@ -196,8 +218,8 @@ public class HadoopFileSystemTest {
     create("testFileB", "testDataB".getBytes());
 
     // ensure files exist
-    assertArrayEquals("testDataA".getBytes(), read("testFileA"));
-    assertArrayEquals("testDataB".getBytes(), read("testFileB"));
+    assertArrayEquals("testDataA".getBytes(), read("testFileA", 0));
+    assertArrayEquals("testDataB".getBytes(), read("testFileB", 0));
 
     fileSystem.rename(
         ImmutableList.of(
@@ -221,8 +243,8 @@ public class HadoopFileSystemTest {
             .build()));
 
     // ensure files exist
-    assertArrayEquals("testDataA".getBytes(), read("renameFileA"));
-    assertArrayEquals("testDataB".getBytes(), read("renameFileB"));
+    assertArrayEquals("testDataA".getBytes(), read("renameFileA", 0));
+    assertArrayEquals("testDataB".getBytes(), read("renameFileB", 0));
   }
 
   @Test
@@ -267,9 +289,13 @@ public class HadoopFileSystemTest {
     }
   }
 
-  private byte[] read(String relativePath) throws Exception {
+  private byte[] read(String relativePath, long bytesToSkip) throws Exception {
     try (ReadableByteChannel channel = fileSystem.open(testPath(relativePath))) {
-      return ByteStreams.toByteArray(Channels.newInputStream(channel));
+      InputStream inputStream = Channels.newInputStream(channel);
+      if (bytesToSkip > 0) {
+        ByteStreams.skipFully(inputStream, bytesToSkip);
+      }
+      return ByteStreams.toByteArray(inputStream);
     }
   }
 

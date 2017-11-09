@@ -39,6 +39,7 @@ from apache_beam.runners import pipeline_context
 from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
+from apache_beam.transforms import sideinputs
 from apache_beam.utils import counters
 from apache_beam.utils import proto_utils
 from apache_beam.utils import urns
@@ -58,12 +59,8 @@ IDENTITY_DOFN_URN = 'urn:org.apache.beam:dofn:identity:0.1'
 PYTHON_ITERABLE_VIEWFN_URN = 'urn:org.apache.beam:viewfn:iterable:python:0.1'
 PYTHON_CODER_URN = 'urn:org.apache.beam:coder:python:0.1'
 # TODO(vikasrk): Fix this once runner sends appropriate python urns.
-PYTHON_DOFN_URN = 'urn:org.apache.beam:dofn:java:0.1'
-PYTHON_SOURCE_URN = 'urn:org.apache.beam:source:java:0.1'
-
-
-def side_input_tag(transform_id, tag):
-  return str("%d[%s][%s]" % (len(transform_id), transform_id, tag))
+OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN = 'urn:beam:dofn:javasdk:0.1'
+OLD_DATAFLOW_RUNNER_HARNESS_READ_URN = 'urn:org.apache.beam:source:java:0.1'
 
 
 class RunnerIOOperation(operations.Operation):
@@ -112,7 +109,7 @@ class DataInputOperation(RunnerIOOperation):
     # We must do this manually as we don't have a spec or spec.output_coders.
     self.receivers = [
         operations.ConsumerSet(self.counter_factory, self.step_name, 0,
-                               consumers.itervalues().next(),
+                               next(consumers.itervalues()),
                                self.windowed_coder)]
 
   def process(self, windowed_value):
@@ -162,6 +159,44 @@ class SideInputSource(native_iobase.NativeSource,
       yield self._coder.get_impl().decode_from_stream(input_stream, True)
 
 
+class StateBackedSideInputMap(object):
+  def __init__(self, state_handler, transform_id, tag, side_input_data):
+    self._state_handler = state_handler
+    self._transform_id = transform_id
+    self._tag = tag
+    self._side_input_data = side_input_data
+    self._element_coder = side_input_data.coder.wrapped_value_coder
+    self._target_window_coder = side_input_data.coder.window_coder
+    # TODO(robertwb): Limit the cache size.
+    # TODO(robertwb): Cross-bundle caching respecting cache tokens.
+    self._cache = {}
+
+  def __getitem__(self, window):
+    target_window = self._side_input_data.window_mapping_fn(window)
+    if target_window not in self._cache:
+      state_key = beam_fn_api_pb2.StateKey(
+          multimap_side_input=beam_fn_api_pb2.StateKey.MultimapSideInput(
+              ptransform_id=self._transform_id,
+              side_input_id=self._tag,
+              window=self._target_window_coder.encode(target_window)))
+      element_coder_impl = self._element_coder.get_impl()
+      state_handler = self._state_handler
+
+      class AllElements(object):
+        def __iter__(self):
+          # TODO(robertwb): Support pagination.
+          input_stream = coder_impl.create_InputStream(
+              state_handler.blocking_get(state_key, None))
+          while input_stream.size() > 0:
+            yield element_coder_impl.decode_from_stream(input_stream, True)
+      self._cache[target_window] = self._side_input_data.view_fn(AllElements())
+    return self._cache[target_window]
+
+  def is_globally_windowed(self):
+    return (self._side_input_data.window_mapping_fn
+            == sideinputs._global_window_mapping_fn)
+
+
 def memoize(func):
   cache = {}
   missing = object()
@@ -187,22 +222,31 @@ class BundleProcessor(object):
     self.process_bundle_descriptor = process_bundle_descriptor
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
-
-  def create_execution_tree(self, descriptor):
     # TODO(robertwb): Figure out the correct prefix to use for output counters
     # from StateSampler.
-    counter_factory = counters.CounterFactory()
-    state_sampler = statesampler.StateSampler(
-        'fnapi-step%s-' % descriptor.id, counter_factory)
+    self.counter_factory = counters.CounterFactory()
+    self.state_sampler = statesampler.StateSampler(
+        'fnapi-step-%s' % self.process_bundle_descriptor.id,
+        self.counter_factory)
+    self.ops = self.create_execution_tree(self.process_bundle_descriptor)
+
+  def create_execution_tree(self, descriptor):
 
     transform_factory = BeamTransformFactory(
-        descriptor, self.data_channel_factory, counter_factory, state_sampler,
-        self.state_handler)
+        descriptor, self.data_channel_factory, self.counter_factory,
+        self.state_sampler, self.state_handler)
+
+    def is_side_input(transform_proto, tag):
+      if transform_proto.spec.urn == urns.PARDO_TRANSFORM:
+        return tag in proto_utils.parse_Bytes(
+            transform_proto.spec.payload,
+            beam_runner_api_pb2.ParDoPayload).side_inputs
 
     pcoll_consumers = collections.defaultdict(list)
     for transform_id, transform_proto in descriptor.transforms.items():
-      for pcoll_id in transform_proto.inputs.values():
-        pcoll_consumers[pcoll_id].append(transform_id)
+      for tag, pcoll_id in transform_proto.inputs.items():
+        if not is_side_input(transform_proto, tag):
+          pcoll_consumers[pcoll_id].append(transform_id)
 
     @memoize
     def get_operation(transform_id):
@@ -223,15 +267,15 @@ class BundleProcessor(object):
            for pcoll in descriptor.transforms[transform_id].outputs.values()
            for consumer in pcoll_consumers[pcoll]])
 
-    return [get_operation(transform_id)
-            for transform_id in sorted(
-                descriptor.transforms, key=topological_height, reverse=True)]
+    return collections.OrderedDict([
+        (transform_id, get_operation(transform_id))
+        for transform_id in sorted(
+            descriptor.transforms, key=topological_height, reverse=True)])
 
   def process_bundle(self, instruction_id):
-    ops = self.create_execution_tree(self.process_bundle_descriptor)
 
     expected_inputs = []
-    for op in ops:
+    for op in self.ops.values():
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
@@ -241,22 +285,54 @@ class BundleProcessor(object):
         # We must wait until we receive "end of stream" for each of these ops.
         expected_inputs.append(op)
 
-    # Start all operations.
-    for op in reversed(ops):
-      logging.info('start %s', op)
-      op.start()
+    try:
+      self.state_sampler.start()
+      # Start all operations.
+      for op in reversed(self.ops.values()):
+        logging.info('start %s', op)
+        op.start()
 
-    # Inject inputs from data plane.
-    for input_op in expected_inputs:
-      for data in input_op.data_channel.input_elements(
-          instruction_id, [input_op.target]):
-        # ignores input name
-        input_op.process_encoded(data.data)
+      # Inject inputs from data plane.
+      for input_op in expected_inputs:
+        for data in input_op.data_channel.input_elements(
+            instruction_id, [input_op.target]):
+          # ignores input name
+          input_op.process_encoded(data.data)
 
-    # Finish all operations.
-    for op in ops:
-      logging.info('finish %s', op)
-      op.finish()
+      # Finish all operations.
+      for op in self.ops.values():
+        logging.info('finish %s', op)
+        op.finish()
+    finally:
+      self.state_sampler.stop_if_still_running()
+
+  def metrics(self):
+    return beam_fn_api_pb2.Metrics(
+        # TODO(robertwb): Rename to progress?
+        ptransforms=
+        {transform_id:
+         self._fix_output_tags(transform_id, op.progress_metrics())
+         for transform_id, op in self.ops.items()})
+
+  def _fix_output_tags(self, transform_id, metrics):
+    # Outputs are still referred to by index, not by name, in many Operations.
+    # However, if there is exactly one output, we can fix up the name here.
+    def fix_only_output_tag(actual_output_tag, mapping):
+      if len(mapping) == 1:
+        fake_output_tag, count = only_element(mapping.items())
+        if fake_output_tag != actual_output_tag:
+          del mapping[fake_output_tag]
+          mapping[actual_output_tag] = count
+    actual_output_tags = list(
+        self.process_bundle_descriptor.transforms[transform_id].outputs.keys())
+    if len(actual_output_tags) == 1:
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.processed_elements.measured.output_element_counts)
+      fix_only_output_tag(
+          actual_output_tags[0],
+          metrics.active_elements.measured.output_element_counts)
+    return metrics
 
 
 class BeamTransformFactory(object):
@@ -358,7 +434,7 @@ def create(factory, transform_id, transform_proto, grpc_port, consumers):
       data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
 
 
-@BeamTransformFactory.register_urn(PYTHON_SOURCE_URN, None)
+@BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_READ_URN, None)
 def create(factory, transform_id, transform_proto, parameter, consumers):
   # The Dataflow runner harness strips the base64 encoding.
   source = pickler.loads(base64.b64encode(parameter))
@@ -378,7 +454,6 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 @BeamTransformFactory.register_urn(
     urns.READ_TRANSFORM, beam_runner_api_pb2.ReadPayload)
 def create(factory, transform_id, transform_proto, parameter, consumers):
-  # The Dataflow runner harness strips the base64 encoding.
   source = iobase.SourceBase.from_runner_api(parameter.source, factory.context)
   spec = operation_specs.WorkerRead(
       iobase.SourceBundle(1.0, source, None, None),
@@ -393,18 +468,10 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
       consumers)
 
 
-@BeamTransformFactory.register_urn(PYTHON_DOFN_URN, None)
-def create(factory, transform_id, transform_proto, parameter, consumers):
-  dofn_data = pickler.loads(parameter)
-  if len(dofn_data) == 2:
-    # Has side input data.
-    serialized_fn, side_input_data = dofn_data
-  else:
-    # No side input data.
-    serialized_fn, side_input_data = parameter.value, []
+@BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_PARDO_URN, None)
+def create(factory, transform_id, transform_proto, serialized_fn, consumers):
   return _create_pardo_operation(
-      factory, transform_id, transform_proto, consumers,
-      serialized_fn, side_input_data)
+      factory, transform_id, transform_proto, consumers, serialized_fn)
 
 
 @BeamTransformFactory.register_urn(
@@ -412,31 +479,26 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
 def create(factory, transform_id, transform_proto, parameter, consumers):
   assert parameter.do_fn.spec.urn == urns.PICKLED_DO_FN_INFO
   serialized_fn = parameter.do_fn.spec.payload
-  dofn_data = pickler.loads(serialized_fn)
-  if len(dofn_data) == 2:
-    # Has side input data.
-    serialized_fn, side_input_data = dofn_data
-  else:
-    # No side input data.
-    side_input_data = []
   return _create_pardo_operation(
       factory, transform_id, transform_proto, consumers,
-      serialized_fn, side_input_data)
+      serialized_fn, parameter.side_inputs)
 
 
 def _create_pardo_operation(
     factory, transform_id, transform_proto, consumers,
-    serialized_fn, side_input_data):
-  def create_side_input(tag, coder):
-    # TODO(robertwb): Extract windows (and keys) out of element data.
-    # TODO(robertwb): Extract state key from ParDoPayload.
-    return operation_specs.WorkerSideInputSource(
-        tag=tag,
-        source=SideInputSource(
-            factory.state_handler,
-            beam_fn_api_pb2.StateKey.MultimapSideInput(
-                key=side_input_tag(transform_id, tag)),
-            coder=coder))
+    serialized_fn, side_inputs_proto=None):
+
+  if side_inputs_proto:
+    tagged_side_inputs = [
+        (tag, beam.pvalue.SideInputData.from_runner_api(si, factory.context))
+        for tag, si in side_inputs_proto.items()]
+    tagged_side_inputs.sort(key=lambda tag_si: int(tag_si[0][4:]))
+    side_input_maps = [
+        StateBackedSideInputMap(factory.state_handler, transform_id, tag, si)
+        for tag, si in tagged_side_inputs]
+  else:
+    side_input_maps = []
+
   output_tags = list(transform_proto.outputs.keys())
 
   # Hack to match out prefix injected by dataflow runner.
@@ -448,27 +510,31 @@ def _create_pardo_operation(
         return 'out_' + tag
     else:
       return tag
+
   dofn_data = pickler.loads(serialized_fn)
   if not dofn_data[-1]:
     # Windowing not set.
-    pcoll_id, = transform_proto.inputs.values()
+    side_input_tags = side_inputs_proto or ()
+    pcoll_id, = [pcoll for tag, pcoll in transform_proto.inputs.items()
+                 if tag not in side_input_tags]
     windowing = factory.context.windowing_strategies.get_by_id(
         factory.descriptor.pcollections[pcoll_id].windowing_strategy_id)
     serialized_fn = pickler.dumps(dofn_data[:-1] + (windowing,))
+
   output_coders = factory.get_output_coders(transform_proto)
   spec = operation_specs.WorkerDoFn(
       serialized_fn=serialized_fn,
       output_tags=[mutate_tag(tag) for tag in output_tags],
       input=None,
-      side_inputs=[
-          create_side_input(tag, coder) for tag, coder in side_input_data],
+      side_inputs=[],  # Obsoleted by side_input_maps.
       output_coders=[output_coders[tag] for tag in output_tags])
   return factory.augment_oldstyle_op(
       operations.DoOperation(
           transform_proto.unique_name,
           spec,
           factory.counter_factory,
-          factory.state_sampler),
+          factory.state_sampler,
+          side_input_maps),
       transform_proto.unique_name,
       consumers,
       output_tags)
@@ -477,10 +543,8 @@ def _create_pardo_operation(
 def _create_simple_pardo_operation(
     factory, transform_id, transform_proto, consumers, dofn):
   serialized_fn = pickler.dumps((dofn, (), {}, [], None))
-  side_input_data = []
   return _create_pardo_operation(
-      factory, transform_id, transform_proto, consumers,
-      serialized_fn, side_input_data)
+      factory, transform_id, transform_proto, consumers, serialized_fn)
 
 
 @BeamTransformFactory.register_urn(
