@@ -15,8 +15,10 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.util.List;
 
+@Audience(Audience.Type.INTERNAL)
 public interface HintAware<HINT extends Hint> {
 
   /**

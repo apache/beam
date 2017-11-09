@@ -16,8 +16,8 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.graph.Node;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;

@@ -16,6 +16,7 @@
 
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
@@ -23,7 +24,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
@@ -37,14 +38,14 @@ import javax.annotation.Nullable;
 import static java.util.Objects.requireNonNull;
 
 /**
- * Emits top element for defined keys and windows. The elements are compared by comparable 
+ * Emits top element for defined keys and windows. The elements are compared by comparable
  * objects extracted by user defined function applied on input elements.
- * 
+ *
  * Custom {@link Windowing} can be set, otherwise values from
  * input operator are used.<p>
- * 
+ *
  * Example:
- * 
+ *
  * <pre>{@code
  *  TopPerKey.of(elements)
  *       .keyBy(e -> (byte) 0)
@@ -52,9 +53,10 @@ import static java.util.Objects.requireNonNull;
  *       .scoreBy(Pair::getSecond)
  *       .output();
  * }</pre>
- * 
+ *
  * The examples above finds global maximum of all elements.
  */
+@Audience(Audience.Type.CLIENT)
 @Derived(
     state = StateComplexity.CONSTANT,
     repartitions = 1
@@ -64,7 +66,7 @@ public class TopPerKey<
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, W,
     TopPerKey<IN, KEY, VALUE, SCORE, W>> {
-  
+
   private static final class MaxScored<V, C extends Comparable<C>>
       implements State<Pair<V, C>, Pair<V, C>>, StateSupport.MergeFrom<MaxScored<V, C>> {
 
@@ -291,7 +293,7 @@ public class TopPerKey<
             UnaryFunction<IN, SCORE> scoreFn,
             @Nullable Windowing<IN, W> windowing) {
     super(name, flow, input, keyFn, windowing);
-    
+
     this.valueFn = valueFn;
     this.scoreFn = scoreFn;
   }

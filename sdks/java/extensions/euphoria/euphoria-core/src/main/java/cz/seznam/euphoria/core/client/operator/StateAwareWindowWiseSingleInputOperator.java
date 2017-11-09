@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -28,6 +29,7 @@ import java.util.Collections;
 /**
  * Operator operating on window level with state information.
  */
+@Audience(Audience.Type.INTERNAL)
 public class StateAwareWindowWiseSingleInputOperator<
     IN, WIN, KIN, KEY, OUT, W extends Window,
     OP extends StateAwareWindowWiseSingleInputOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
@@ -41,7 +43,7 @@ public class StateAwareWindowWiseSingleInputOperator<
           Flow flow, Dataset<IN> input,
           UnaryFunction<KIN, KEY> extractor,
           @Nullable Windowing<WIN, W> windowing) {
-    
+
     super(name, flow, windowing, extractor);
     this.input = input;
     this.output = createOutput(input);

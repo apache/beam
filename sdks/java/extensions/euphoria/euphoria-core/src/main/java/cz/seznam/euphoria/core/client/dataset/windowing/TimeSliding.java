@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -27,6 +28,7 @@ import java.util.Iterator;
 /**
  * Time sliding windowing.
  */
+@Audience(Audience.Type.CLIENT)
 public final class TimeSliding<T>
     implements Windowing<T, TimeInterval> {
 

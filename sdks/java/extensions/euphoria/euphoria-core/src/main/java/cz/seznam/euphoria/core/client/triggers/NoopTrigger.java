@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.triggers;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 /**
  * A trigger implementation which actually never fires any of the observed windows.
  */
+@Audience(Audience.Type.CLIENT)
 public final class NoopTrigger<W extends Window> implements Trigger<W> {
 
   private static final NoopTrigger INSTANCE = new NoopTrigger();

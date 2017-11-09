@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 import java.io.Serializable;
 
@@ -23,6 +24,7 @@ import java.io.Serializable;
  * Functor can produce zero or more elements in return to a call, for which it
  * uses a collector.
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface UnaryFunctor<IN, OUT> extends Serializable {
 

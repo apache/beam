@@ -18,8 +18,6 @@ package cz.seznam.euphoria.core.client.operator;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
 
-import java.io.Serializable;
-
 /** Private helper class to provide utilities around state handling. */
 class StateSupport {
 

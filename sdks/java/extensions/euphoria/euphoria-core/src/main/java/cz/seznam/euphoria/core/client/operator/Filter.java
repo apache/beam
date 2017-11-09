@@ -15,18 +15,20 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 
 import java.util.Objects;
 
 /**
  * Operator performing a filter operation.
  */
+@Audience(Audience.Type.CLIENT)
 @Derived(
     state = StateComplexity.ZERO,
     repartitions = 0
@@ -58,8 +60,8 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
     /**
      * Specifies the function that is capable of input elements filtering.
-     * 
-     * @param predicate the function that filters out elements if the return value 
+     *
+     * @param predicate the function that filters out elements if the return value
      *        for the element is false
      * @return the next builder to complete the setup of the operator
      */

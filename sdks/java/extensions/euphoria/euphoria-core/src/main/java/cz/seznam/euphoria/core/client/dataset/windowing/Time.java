@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
@@ -31,6 +32,7 @@ import static java.util.Collections.singleton;
 /**
  * Time based tumbling windowing. Windows can't overlap.
  */
+@Audience(Audience.Type.CLIENT)
 public class Time<T> implements Windowing<T, TimeInterval> {
 
   private final long durationMillis;

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.triggers;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -23,6 +24,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
  * A {@link Trigger} that is periodically fired based on given time interval.
  * Used to implement "early triggering" functionality.
  */
+@Audience(Audience.Type.CLIENT)
 public class PeriodicTimeTrigger implements Trigger<TimeInterval> {
 
   /** Next fire stamp (when merging the lowest timestamp is taken) */

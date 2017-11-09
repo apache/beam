@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.accumulators;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.Settings;
 
 import java.io.Serializable;
@@ -23,6 +24,7 @@ import java.io.Serializable;
  * Provides access to an accumulator backend service. It is intended to be
  * implemented by third party to support different type of services.
  */
+@Audience(Audience.Type.EXECUTOR)
 public interface AccumulatorProvider {
 
   /**

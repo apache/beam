@@ -16,6 +16,7 @@
 
 package cz.seznam.euphoria.core.executor.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
@@ -29,6 +30,7 @@ import cz.seznam.euphoria.core.client.io.Context;
  * This context will free the value as soon as {@code getAndResetValue()}
  * is called.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class SingleValueContext<T> implements Context, Collector<T> {
 
   T value;

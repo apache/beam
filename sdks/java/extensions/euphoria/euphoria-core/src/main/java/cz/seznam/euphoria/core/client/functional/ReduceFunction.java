@@ -20,10 +20,13 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Reduce function reducing iterable of elements into single element (of
  * possibly different type).
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface ReduceFunction<IN, OUT> extends UnaryFunction<Iterable<IN>, OUT> {
 

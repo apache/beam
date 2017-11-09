@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.graph;
+package cz.seznam.euphoria.core.executor.graph;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ import java.util.stream.Stream;
  *
  * @param <T> the type of values in the graph
  */
+@Audience(Audience.Type.EXECUTOR)
 public class DAG<T> {
 
   final List<Node<T>> roots = new ArrayList<>();
@@ -204,7 +206,7 @@ public class DAG<T> {
 
     return ret;
   }
-  
+
 
   /** @return the number of nodes in this DAG */
   public int size() {

@@ -15,10 +15,11 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.Datasets;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 
 import java.io.Serializable;
 import java.util.Collection;
@@ -26,8 +27,9 @@ import java.util.Collection;
 /**
  * An operator base class. All operators inherit his class.
  */
+@Audience(Audience.Type.INTERNAL)
 public abstract class Operator<IN, OUT> implements Serializable {
-  
+
   /** Name of the operator. */
   private final String name;
   /** Associated Flow. */

@@ -15,9 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Function of two arguments of the same type.
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface CombinableBinaryFunction<T>
     extends SameArgsBinaryFunction<T, T> {

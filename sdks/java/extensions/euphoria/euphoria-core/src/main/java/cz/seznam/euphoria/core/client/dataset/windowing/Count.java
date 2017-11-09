@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
@@ -23,6 +24,7 @@ import static java.util.Collections.singleton;
 /**
  * Count tumbling windowing.
  */
+@Audience(Audience.Type.CLIENT)
 public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
 
   private final int maxCount;
@@ -44,5 +46,5 @@ public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
   public static <T> Count<T> of(int count) {
     return new Count<>(count);
   }
-  
+
 }

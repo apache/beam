@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.IOException;
 import java.io.PrintStream;
 
@@ -23,6 +24,7 @@ import java.io.PrintStream;
  * {@link java.lang.System#out}) using the produce element's
  * {@link Object#toString()} implementation.
  */
+@Audience(Audience.Type.CLIENT)
 public class StdoutSink<T> implements DataSink<T> {
 
   static final long START_SYSTEM_NANO_TIME = System.nanoTime();
