@@ -19,34 +19,35 @@ package org.apache.beam.sdk.io.text;
 
 import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Map;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
-import org.apache.beam.sdk.io.common.TestTextLine;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Values;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
 
 /**
  * An integration test for {@link org.apache.beam.sdk.io.TextIO}.
@@ -54,14 +55,16 @@ import org.junit.runners.JUnit4;
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
  *  mvn -e -Pio-it verify -pl sdks/java/io/text -DintegrationTestPipelineOptions='[
- *  "--numberOfRecords=100000" ]'
+ *  "--numberOfRecords=100000",
+ *  "--filenamePrefix=TEXTIOIT"
+ *  ]'
  * </pre>
  * */
 @RunWith(JUnit4.class)
 public class TextIOIT {
 
   private static String filenamePrefix;
-  private static Long linesOfTextCount;
+  private static Long numberOfTextLines;
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
@@ -72,45 +75,72 @@ public class TextIOIT {
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
-    linesOfTextCount = options.getNumberOfRecords();
-    filenamePrefix = generateFileBasename();
+    numberOfTextLines = options.getNumberOfRecords();
+    filenamePrefix = appendTimestamp(options.getFilenamePrefix());
   }
 
-  @After
-  public void tearDown() throws Exception {
-    MatchResult match = Iterables.getOnlyElement(
-        FileSystems.match(Collections.singletonList(String.format("%s*", filenamePrefix))));
-    FileSystems.delete(toResourceIds(match));
-  }
-
-  private Collection<ResourceId> toResourceIds(MatchResult match) throws IOException {
-    return FluentIterable.from(match.metadata())
-        .transform(new Function<MatchResult.Metadata, ResourceId>() {
-          @Override
-          public ResourceId apply(MatchResult.Metadata metadata) {
-            return metadata.resourceId();
-          }
-        }).toList();
-  }
-
-  private static String generateFileBasename() {
-    return String.format("TEXTIOIT_%s", new Date().getTime());
+  private static String appendTimestamp(String filenamePrefix) {
+    return String.format("%s_%s", filenamePrefix, new Date().getTime());
   }
 
   @Test
   public void writeThenReadAll() {
-    PCollection<String> consolidatedHashcode = pipeline
-        .apply("Generate sequence", GenerateSequence.from(0).to(linesOfTextCount))
-        .apply("Produce text lines",
-            ParDo.of(new TestTextLine.DeterministicallyConstructTestTextLineFn()))
+    PCollection<String> testFilenames = pipeline
+        .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
+        .apply("Produce text lines", ParDo.of(new DeterministicallyConstructTestTextLineFn()))
         .apply("Write content to files", TextIO.write().to(filenamePrefix).withOutputFilenames())
-        .getPerDestinationOutputFilenames().apply(Values.<String>create())
+        .getPerDestinationOutputFilenames().apply(Values.<String>create());
+
+    PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", TextIO.readAll())
         .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
-    String expectedHash = TestTextLine.getExpectedHashForLineCount(linesOfTextCount);
+    String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
+    testFilenames.apply("Delete test files", ParDo.of(new DeleteFileFn())
+        .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
+
     pipeline.run().waitUntilFinish();
+  }
+
+  private static String getExpectedHashForLineCount(Long lineCount) {
+    Map<Long, String> expectedHashes = ImmutableMap.of(
+        100_000L, "4c8bb3b99dcc59459b20fefba400d446",
+        1_000_000L, "9796db06e7a7960f974d5a91164afff1"
+    );
+
+    String hash = expectedHashes.get(lineCount);
+    if (hash == null) {
+      throw new UnsupportedOperationException(
+          String.format("No hash for that line count: %s", lineCount));
+    }
+    return hash;
+  }
+
+  private static class DeterministicallyConstructTestTextLineFn extends DoFn<Long, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(String.format("IO IT Test line of text. Line seed: %s", c.element()));
+    }
+  }
+
+  private static class DeleteFileFn extends DoFn<String, Void> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws IOException {
+      MatchResult match = Iterables
+          .getOnlyElement(FileSystems.match(Collections.singletonList(c.element())));
+      FileSystems.delete(toResourceIds(match));
+    }
+
+    private Collection<ResourceId> toResourceIds(MatchResult match) throws IOException {
+      return FluentIterable.from(match.metadata())
+          .transform(new Function<MatchResult.Metadata, ResourceId>() {
+            @Override
+            public ResourceId apply(MatchResult.Metadata metadata) {
+              return metadata.resourceId();
+            }
+          }).toList();
+    }
   }
 }
