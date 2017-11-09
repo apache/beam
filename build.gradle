@@ -16,8 +16,16 @@
  * limitations under the License.
  */
 
+// See build_rules.gradle for documentation on default build tasks
+// and properties that are enabled in addition to natures
+// that can be applied to configure a project for certain common
+// tasks.
+
 apply from: project(":").file("build_rules.gradle")
 
+// These versions are defined here because they represent
+// a dependency version which should match across multiple
+// Maven artifacts.
 def google_cloud_bigdataoss_version = "1.4.5"
 def bigtable_version = "1.0.0-pre3"
 def google_clients_version = "1.22.0"
@@ -35,6 +43,10 @@ def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
 
+// A map of maps containing common libraries used per language. To use:
+// dependencies {
+//   shadow library.java.slf4j_api
+// }
 ext.library = [
   java: [
     activemq_amqp: "org.apache.activemq:activemq-amqp:5.13.1",
@@ -134,6 +146,8 @@ ext.library = [
   ],
 ]
 
+// Define the set of repositories and dependencies required to
+// fetch and enable plugins.
 buildscript {
   repositories {
     mavenLocal()
@@ -143,16 +157,16 @@ buildscript {
     maven { url "http://repo.spring.io/plugins-release" }
   }
   dependencies {
-    classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"
-    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"
-    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"
-    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"
-    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"
-    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"
-    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"
-    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"
-    classpath "cz.malohlava:visteg:1.0.3"
-    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"
+    classpath "net.ltgt.gradle:gradle-apt-plugin:0.12"                         // Enable a Java annotation processor
+    classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.1"               // Enable proto code generation
+    classpath "io.spring.gradle:propdeps-plugin:0.0.9.RELEASE"                 // Enable provided and optional configurations
+    classpath "gradle.plugin.org.nosphere.apache:creadur-rat-gradle:0.3.1"     // Enable Apache license enforcement
+    classpath "com.commercehub.gradle.plugin:gradle-avro-plugin:0.11.0"        // Enable Avro code generation
+    classpath "com.diffplug.spotless:spotless-plugin-gradle:3.6.0"             // Enable a code formatting plugin
+    classpath "gradle.plugin.com.github.blindpirate:gogradle:0.7.0"            // Enable Go code compilation
+    classpath "gradle.plugin.com.palantir.gradle.docker:gradle-docker:0.13.0"  // Enable building Docker containers
+    classpath "cz.malohlava:visteg:1.0.3"                                      // Enable generating Gradle task dependencies as ".dot" files
+    classpath "com.github.jengelman.gradle.plugins:shadow:2.0.1"               // Enable shading Java dependencies
   }
 }
 
@@ -161,7 +175,7 @@ buildscript {
 
 apply plugin: "base"
 
-// Apply one top level rat plugin to perform any required analysis
+// Apply one top level rat plugin to perform any required license enforcement analysis
 apply plugin: "org.nosphere.apache.rat"
 rat {
   plainOutput = true
