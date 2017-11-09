@@ -61,6 +61,7 @@
                     <include>org.apache.beam:beam-model-pipeline</include>
                     <include>org.apache.beam:beam-runners-core-construction-java</include>
                     <include>org.apache.beam:beam-runners-core-java</include>
+                    <include>org.apache.beam:beam-runners-core-local-java</include>
                     <include>com.google.code.findbugs:jsr305</include>
                   </includes>
                 </artifactSet>

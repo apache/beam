@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.core.local;
+package org.apache.beam.runners.local;
 
 import org.apache.beam.sdk.util.WindowedValue;
 import org.joda.time.Instant;
