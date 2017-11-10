@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.transforms;
 
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
@@ -43,7 +44,7 @@ public class Materializations {
    * use the {@link Materializations#MULTIMAP_MATERIALIZATION_URN multimap materialization}.
    */
   public interface MultimapView<K, V> {
-    Iterable<V> get(K k);
+    Iterable<V> get(@Nullable K k);
   }
 
   /**
