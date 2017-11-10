@@ -54,8 +54,6 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.Materialization;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
@@ -67,7 +65,6 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -376,9 +373,8 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void createViewWithViewFn() {
     PCollection<Integer> input = p.apply(Create.of(1));
-    PCollectionView<Iterable<Integer>> view =
-        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-    ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn = view.getViewFn();
+    PCollectionView<Iterable<Integer>> view = input.apply(View.<Integer>asIterable());
+    ViewFn<?, ?> viewFn = view.getViewFn();
     CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
 
     PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());
@@ -388,23 +384,10 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void createViewWithViewFnDifferentViewFn() {
     PCollection<Integer> input = p.apply(Create.of(1));
-    PCollectionView<Iterable<Integer>> view =
-        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-    ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>> viewFn =
-        new ViewFn<Iterable<WindowedValue<?>>, Iterable<Integer>>() {
-          @Override
-          public Materialization<Iterable<WindowedValue<?>>> getMaterialization() {
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            Materialization<Iterable<WindowedValue<?>>> materialization =
-                (Materialization) Materializations.iterable();
-            return materialization;
-          }
+    PCollectionView<Iterable<Integer>> view = input.apply(View.<Integer>asIterable());
 
-          @Override
-          public Iterable<Integer> apply(Iterable<WindowedValue<?>> contents) {
-            return Collections.emptyList();
-          }
-        };
+    // Purposely create a subclass to get a different class then what was expected.
+    ViewFn<?, ?> viewFn = new PCollectionViews.IterableViewFn() {};
     CreatePCollectionView<?, ?> createView = CreatePCollectionView.of(view);
 
     PTransformMatcher matcher = PTransformMatchers.createViewWithViewFn(viewFn.getClass());
@@ -414,9 +397,7 @@ public class PTransformMatchersTest implements Serializable {
   @Test
   public void createViewWithViewFnNotCreatePCollectionView() {
     PCollection<Integer> input = p.apply(Create.of(1));
-    PCollectionView<Iterable<Integer>> view =
-        PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-
+    PCollectionView<Iterable<Integer>> view = input.apply(View.<Integer>asIterable());
     PTransformMatcher matcher =
         PTransformMatchers.createViewWithViewFn(view.getViewFn().getClass());
     assertThat(matcher.matches(getAppliedTransform(View.asIterable())), is(false));

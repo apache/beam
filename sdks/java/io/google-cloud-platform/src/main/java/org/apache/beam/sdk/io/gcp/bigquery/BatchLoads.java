@@ -209,7 +209,7 @@ class BatchLoads<DestinationT>
     checkArgument(numFileShards > 0);
     Pipeline p = input.getPipeline();
     final PCollectionView<String> jobIdTokenView = createJobIdView(p);
-    final PCollectionView<String> tempFilePrefixView = createTempFilePrefixView(jobIdTokenView);
+    final PCollectionView<String> tempFilePrefixView = createTempFilePrefixView(p, jobIdTokenView);
     // The user-supplied triggeringDuration is often chosen to to control how many BigQuery load
     // jobs are generated, to prevent going over BigQuery's daily quota for load jobs. If this
     // is set to a large value, currently we have to buffer all the data unti the trigger fires.
@@ -295,7 +295,7 @@ class BatchLoads<DestinationT>
   public WriteResult expandUntriggered(PCollection<KV<DestinationT, TableRow>> input) {
     Pipeline p = input.getPipeline();
     final PCollectionView<String> jobIdTokenView = createJobIdView(p);
-    final PCollectionView<String> tempFilePrefixView = createTempFilePrefixView(jobIdTokenView);
+    final PCollectionView<String> tempFilePrefixView = createTempFilePrefixView(p, jobIdTokenView);
     PCollection<KV<DestinationT, TableRow>> inputInGlobalWindow =
         input.apply(
             "rewindowIntoGlobal",
@@ -364,8 +364,10 @@ class BatchLoads<DestinationT>
   }
 
   // Generate the temporary-file prefix.
-  private PCollectionView<String> createTempFilePrefixView(PCollectionView<String> jobIdView) {
-    return ((PCollection<String>) jobIdView.getPCollection())
+  private PCollectionView<String> createTempFilePrefixView(
+      Pipeline p, final PCollectionView<String> jobIdView) {
+    return p
+        .apply(Create.of(""))
         .apply(
             "GetTempFilePrefix",
             ParDo.of(
@@ -382,13 +384,13 @@ class BatchLoads<DestinationT>
                         resolveTempLocation(
                             tempLocationRoot,
                             "BigQueryWriteTemp",
-                            c.element());
+                            c.sideInput(jobIdView));
                     LOG.info(
                         "Writing BigQuery temporary files to {} before loading them.",
                         tempLocation);
                     c.output(tempLocation);
                   }
-                }))
+                }).withSideInputs(jobIdView))
         .apply("TempFilePrefixView", View.<String>asSingleton());
   }
 
