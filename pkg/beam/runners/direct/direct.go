@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package local
+package direct
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 )
 
 func init() {
-	beam.RegisterRunner("local", Execute)
+	beam.RegisterRunner("direct", Execute)
 }
 
 // Execute runs the pipeline in-process.
@@ -41,7 +41,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	return ExecuteInternal(ctx, nil, "", list)
 }
 
-// TODO(herohde) 4/29/2017: Cleaner separation of local (vs other runners) and core exec.
+// TODO(herohde) 4/29/2017: Cleaner separation of direct (vs other runners) and core exec.
 // How to bind in data manager (and state later).
 
 // ExecuteInternal executes the instructions using the supplied contexts and manager. It's exported to

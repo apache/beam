@@ -32,7 +32,7 @@
 //   4. Writing data to text files
 //
 // No arguments are required to run this pipeline. It will be executed with
-// the local runner. You can see the results in the output file named
+// the direct runner. You can see the results in the output file named
 // "wordcounts.txt" in your current working directory.
 package main
 
@@ -45,7 +45,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/gcs"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/local"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	"github.com/apache/beam/sdks/go/pkg/beam/transforms/stats"
 )
 
@@ -95,6 +95,6 @@ func main() {
 	// formatted strings) to a text file.
 	textio.Write(p, "wordcounts.txt", formatted)
 
-	// Run the pipeline on the local runner.
-	local.Execute(context.Background(), p)
+	// Run the pipeline on the direct runner.
+	direct.Execute(context.Background(), p)
 }

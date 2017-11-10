@@ -30,7 +30,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	"google.golang.org/grpc"
 )
 
@@ -171,7 +171,7 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 			return fail(id, "Build failed: %v", err)
 		}
 
-		if err := local.ExecuteInternal(ctx, c.data, id, edges); err != nil {
+		if err := direct.ExecuteInternal(ctx, c.data, id, edges); err != nil {
 			return fail(id, "Execute failed: %v", err)
 		}
 

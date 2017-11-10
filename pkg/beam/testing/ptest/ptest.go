@@ -19,7 +19,7 @@ import (
 	"context"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/runners/local"
+	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 )
 
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
@@ -51,5 +51,5 @@ func CreateList2(a, b interface{}) (*beam.Pipeline, beam.PCollection, beam.PColl
 // Run runs a pipeline for testing. The semantics of the pipeline is expected
 // to be verified through passert.
 func Run(p *beam.Pipeline) error {
-	return local.Execute(context.Background(), p)
+	return direct.Execute(context.Background(), p)
 }

@@ -25,14 +25,14 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/gcs"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/local"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dataflow"
+	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/dot"
-	_ "github.com/apache/beam/sdks/go/pkg/beam/runners/local"
 )
 
-var runner = flag.String("runner", "local", "Pipeline runner.")
+var runner = flag.String("runner", "direct", "Pipeline runner.")
 
 // Run invokes beam.Run with the runner supplied by the flag "runner". It
-// defaults to the local runner, but all beam-distributed runners and textio
+// defaults to the direct runner, but all beam-distributed runners and textio
 // filesystems are implicitly registered.
 func Run(ctx context.Context, p *beam.Pipeline) error {
 	return beam.Run(ctx, *runner, p)
