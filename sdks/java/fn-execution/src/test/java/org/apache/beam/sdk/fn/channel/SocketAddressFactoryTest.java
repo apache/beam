@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.harness.channel;
+package org.apache.beam.sdk.fn.channel;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
