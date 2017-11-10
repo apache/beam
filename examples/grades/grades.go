@@ -80,7 +80,7 @@ func main() {
 		return g.Name[:1], g
 	}, students)
 	keyedBest := top.LargestPerKey(p, keyed, 1, less)
-	unkeyed := beam.Flatten(p, beam.DropKey(p, keyedBest))
+	unkeyed := beam.Explode(p, beam.DropKey(p, keyedBest))
 
 	altBest := top.Smallest(p, unkeyed, 30, alphabetically)
 	beam.ParDo0(p, printTopFn, altBest)
