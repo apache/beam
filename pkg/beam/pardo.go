@@ -18,29 +18,18 @@ package beam
 import (
 	"fmt"
 
-	"reflect"
-
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 // TryParDo attempts to insert a ParDo transform into the pipeline. It may fail
 // for multiple reasons, notably that the dofn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
 func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([]PCollection, error) {
-	if !col.IsValid() {
-		return nil, fmt.Errorf("invalid main pcollection")
-	}
-	side, defs := parseOpts(opts)
-	for i, in := range side {
-		if !in.Input.IsValid() {
-			return nil, fmt.Errorf("invalid side pcollection: index %v", i)
-		}
-	}
-	typedefs, err := makeTypedefs(defs)
+	side, typedefs, err := validate(col, opts)
 	if err != nil {
 		return nil, err
 	}
+
 	fn, err := graph.NewDoFn(dofn)
 	if err != nil {
 		return nil, fmt.Errorf("invalid DoFn: %v", err)
@@ -62,20 +51,6 @@ func TryParDo(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) ([
 		ret = append(ret, c)
 	}
 	return ret, nil
-}
-
-func makeTypedefs(list []TypeDefinition) (map[string]reflect.Type, error) {
-	typedefs := make(map[string]reflect.Type)
-	for _, v := range list {
-		if !typex.IsUniversal(v.Var) {
-			return nil, fmt.Errorf("type var %s must be a universal type", v.Var)
-		}
-		if !typex.IsConcrete(v.T) {
-			return nil, fmt.Errorf("type value %s must be a concrete type", v.T)
-		}
-		typedefs[v.Var.Name()] = v.T
-	}
-	return typedefs, nil
 }
 
 // ParDoN inserts a ParDo with any number of outputs into the pipeline.

@@ -20,36 +20,34 @@ package stats
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
 )
 
-func maxSwitch(p *beam.Pipeline, t reflect.Type, col beam.PCollection) beam.PCollection {
+func findMaxFn(t reflect.Type) interface{} {
 	switch t.String() {
 	case "int":
-		return beam.Combine(p, maxIntFn, col)
+		return maxIntFn
 	case "int8":
-		return beam.Combine(p, maxInt8Fn, col)
+		return maxInt8Fn
 	case "int16":
-		return beam.Combine(p, maxInt16Fn, col)
+		return maxInt16Fn
 	case "int32":
-		return beam.Combine(p, maxInt32Fn, col)
+		return maxInt32Fn
 	case "int64":
-		return beam.Combine(p, maxInt64Fn, col)
+		return maxInt64Fn
 	case "uint":
-		return beam.Combine(p, maxUintFn, col)
+		return maxUintFn
 	case "uint8":
-		return beam.Combine(p, maxUint8Fn, col)
+		return maxUint8Fn
 	case "uint16":
-		return beam.Combine(p, maxUint16Fn, col)
+		return maxUint16Fn
 	case "uint32":
-		return beam.Combine(p, maxUint32Fn, col)
+		return maxUint32Fn
 	case "uint64":
-		return beam.Combine(p, maxUint64Fn, col)
+		return maxUint64Fn
 	case "float32":
-		return beam.Combine(p, maxFloat32Fn, col)
+		return maxFloat32Fn
 	case "float64":
-		return beam.Combine(p, maxFloat64Fn, col)
+		return maxFloat64Fn
 	default:
 		panic(fmt.Sprintf("Unexpected number type: %v", t))
 	}

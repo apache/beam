@@ -16,18 +16,14 @@
 package stats
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 //go:generate specialize --input=sum_switch.tmpl --x=integers,floats
 
-// Sum returns the sum of the elements -- per key, if keyed -- in a collection.
-// It expects a PCollection<A> or PCollection<KV<A,B>> as input and returns
-// a singleton PCollection<A> or a PCollection<KV<A,B>>, respectively. It
-// can only be used for numbers, such as int, uint16, float32, etc.
+// Sum returns the sum of the elements in a PCollection<A> as a singleton
+// PCollection<A>. It can only be used for numbers, such as int, uint16,
+// float32, etc.
 //
 // For example:
 //
@@ -36,13 +32,13 @@ import (
 //
 func Sum(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Scope("stats.Sum")
+	return combine(p, findSumFn, col)
+}
 
-	t := beam.FindCombineType(col)
-	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
-		panic(fmt.Sprintf("Sum requires a non-complex number: %v", t))
-	}
-
-	// Do a pipeline-construction-time type switch to select the right
-	// runtime operation.
-	return sumSwitch(p, t, col)
+// SumPerKey returns the sum of the values per key in a PCollection<KV<A,B>> as
+// a PCollection<KV<A,B>>. It can only be used for value numbers, such as int,
+// uint16, float32, etc.
+func SumPerKey(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
+	p = p.Scope("stats.SumPerKey")
+	return combinePerKey(p, findSumFn, col)
 }

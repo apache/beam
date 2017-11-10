@@ -110,7 +110,7 @@ func TestMinKeyed(t *testing.T) {
 	for _, test := range tests {
 		p, in, exp := ptest.CreateList2(test.in, test.exp)
 		kv := beam.ParDo(p, studentToKV, in)
-		min := Min(p, kv)
+		min := MinPerKey(p, kv)
 		minStudent := beam.ParDo(p, kvToStudent, min)
 		passert.Equals(p, minStudent, exp)
 

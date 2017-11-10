@@ -123,7 +123,7 @@ func TestMaxKeyed(t *testing.T) {
 	for _, test := range tests {
 		p, in, exp := ptest.CreateList2(test.in, test.exp)
 		kv := beam.ParDo(p, studentToKV, in)
-		max := Max(p, kv)
+		max := MaxPerKey(p, kv)
 		maxStudent := beam.ParDo(p, kvToStudent, max)
 		passert.Equals(p, maxStudent, exp)
 

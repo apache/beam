@@ -20,36 +20,34 @@ package stats
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
 )
 
-func sumSwitch(p *beam.Pipeline, t reflect.Type, col beam.PCollection) beam.PCollection {
+func findSumFn(t reflect.Type) interface{} {
 	switch t.String() {
 	case "int":
-		return beam.Combine(p, sumIntFn, col)
+		return sumIntFn
 	case "int8":
-		return beam.Combine(p, sumInt8Fn, col)
+		return sumInt8Fn
 	case "int16":
-		return beam.Combine(p, sumInt16Fn, col)
+		return sumInt16Fn
 	case "int32":
-		return beam.Combine(p, sumInt32Fn, col)
+		return sumInt32Fn
 	case "int64":
-		return beam.Combine(p, sumInt64Fn, col)
+		return sumInt64Fn
 	case "uint":
-		return beam.Combine(p, sumUintFn, col)
+		return sumUintFn
 	case "uint8":
-		return beam.Combine(p, sumUint8Fn, col)
+		return sumUint8Fn
 	case "uint16":
-		return beam.Combine(p, sumUint16Fn, col)
+		return sumUint16Fn
 	case "uint32":
-		return beam.Combine(p, sumUint32Fn, col)
+		return sumUint32Fn
 	case "uint64":
-		return beam.Combine(p, sumUint64Fn, col)
+		return sumUint64Fn
 	case "float32":
-		return beam.Combine(p, sumFloat32Fn, col)
+		return sumFloat32Fn
 	case "float64":
-		return beam.Combine(p, sumFloat64Fn, col)
+		return sumFloat64Fn
 	default:
 		panic(fmt.Sprintf("Unexpected number type: %v", t))
 	}

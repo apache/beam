@@ -17,38 +17,54 @@ package beam
 
 import (
 	"fmt"
-	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
-// TryCombine attempts to insert a Combine transform into the pipeline. It may fail
+// Combine inserts a global Combine transform into the pipeline. It
+// expects a PCollection<T> as input where T is a concrete type.
+func Combine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+	return Must(TryCombine(p, combinefn, col, opts...))
+}
+
+// CombinePerKey inserts a GBK and per-key Combine transform into the pipeline. It
+// expects a PCollection<KV<K,T>>. The CombineFn may optionally take a key parameter.
+func CombinePerKey(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+	return Must(TryCombinePerKey(p, combinefn, col, opts...))
+}
+
+// TryCombine attempts to insert a global Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
 func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
-	if !col.IsValid() {
-		return PCollection{}, fmt.Errorf("invalid main pcollection")
+	side, _, err := validate(col, opts)
+	if err != nil {
+		return PCollection{}, err
 	}
-	side, _ := parseOpts(opts)
-	for i, in := range side {
-		if !in.Input.IsValid() {
-			return PCollection{}, fmt.Errorf("invalid side pcollection: index %v", i)
-		}
-	}
+	ValidateNonCompositeType(col)
+	return combine(p, combinefn, col, side)
+}
 
+// TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
+// for multiple reasons, notably that the combinefn is not valid or cannot be bound
+// -- due to type mismatch, say -- to the incoming PCollections.
+func TryCombinePerKey(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
+	side, _, err := validate(col, opts)
+	if err != nil {
+		return PCollection{}, err
+	}
+	ValidateKVType(col)
+	col, err = TryGroupByKey(p, col)
+	if err != nil {
+		return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
+	}
+	return combine(p, combinefn, col, side)
+}
+
+func combine(p *Pipeline, combinefn interface{}, col PCollection, side []SideInput) (PCollection, error) {
 	fn, err := graph.NewCombineFn(combinefn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)
-	}
-
-	if typex.IsWKV(col.Type()) {
-		// If KV, we need to first insert a GBK.
-
-		col, err = TryGroupByKey(p, col)
-		if err != nil {
-			return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
-		}
 	}
 
 	in := []*graph.Node{col.n}
@@ -62,32 +78,4 @@ func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Opt
 	ret := PCollection{edge.Output[0].To}
 	ret.SetCoder(NewCoder(ret.Type()))
 	return ret, nil
-}
-
-// Combine inserts a Combine transform into the pipeline. The Combine is either
-// global or per-key, depending on the input:
-//
-//    PCollection<T>        : global combine
-//    PCollection<KV<K,T>>  : per-key combine (and a GBK is inserted)
-//    PCollection<GBK<K,T>> : per-key combine
-//
-// For a per-key combine, the Combine may optionally take a key parameter.
-func Combine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
-	return Must(TryCombine(p, combinefn, col, opts...))
-}
-
-// FindCombineType returns the value type, A, of a global or per-key combine from
-// an incoming PCollection<A>, PCollection<KV<K,A>> or PCollection<GBK<K,A>>. The
-// value type is expected to be a concrete type.
-func FindCombineType(col PCollection) reflect.Type {
-	switch {
-	case typex.IsWKV(col.Type()):
-		return typex.SkipW(col.Type()).Components()[1].Type()
-
-	case typex.IsWGBK(col.Type()):
-		return typex.SkipW(col.Type()).Components()[1].Type()
-
-	default:
-		return typex.SkipW(col.Type()).Type()
-	}
 }

@@ -54,7 +54,7 @@ func PlaysForWords(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
 	p = p.Scope("PlaysForWords")
 
 	words := beam.ParDo(p, &extractFn{MinLength: *minLength}, rows)
-	keyed := beam.Combine(p, concatFn, words)
+	keyed := beam.CombinePerKey(p, concatFn, words)
 	return beam.ParDo(p, formatFn, keyed)
 }
 

@@ -16,18 +16,15 @@
 package stats
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// Mean returns the arithmetic mean (or average)-- per key, if keyed -- of the
-// elements in a collection. It expects a PCollection<A> or PCollection<KV<A,B>>
-// as input and returns a singleton PCollection<float64> or a
-// PCollection<KV<A,float64>>, respectively. It can only be used for numbers,
-// such as int, uint16, float32, etc.
+// Mean returns the arithmetic mean (or average) of the elements in a collection.
+// It expects a PCollection<A> as input and returns a singleton PCollection<float64>.
+// It can only be used for numbers, such as int, uint16, float32, etc.
 //
 // For example:
 //
@@ -37,12 +34,23 @@ import (
 func Mean(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Scope("stats.Mean")
 
-	t := beam.FindCombineType(col)
-	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
-		panic(fmt.Sprintf("Mean requires a non-complex number: %v", t))
-	}
+	t := beam.ValidateNonCompositeType(col)
+	validateNonComplexNumber(t.Type())
 
 	return beam.Combine(p, &meanFn{}, col)
+}
+
+// MeanPerKey returns the arithmetic mean (or average) for each key of the elements
+// in a collection. It expects a PCollection<KV<A,B>> as input and returns a
+// PCollection<KV<A,float64>>. It can only be used for numbers, such as int,
+// uint16, float32, etc.
+func MeanPerKey(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
+	p = p.Scope("stats.MeanPerKey")
+
+	_, t := beam.ValidateKVType(col)
+	validateNonComplexNumber(t.Type())
+
+	return beam.CombinePerKey(p, &meanFn{}, col)
 }
 
 // TODO(herohde) 7/7/2017: the accumulator should be serializable with a Coder.
