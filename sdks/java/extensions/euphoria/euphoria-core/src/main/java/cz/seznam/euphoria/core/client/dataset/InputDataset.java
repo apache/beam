@@ -59,11 +59,6 @@ class InputDataset<T> implements Dataset<T> {
   }
 
   @Override
-  public void checkpoint(DataSink<T> sink) {
-    throw new UnsupportedOperationException("Do not checkpoint inputs.");
-  }
-
-  @Override
   public Flow getFlow() {
     return flow;
   }
