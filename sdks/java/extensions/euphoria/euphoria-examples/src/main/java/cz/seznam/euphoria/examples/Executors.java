@@ -18,7 +18,7 @@ package cz.seznam.euphoria.examples;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.flink.FlinkExecutor;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.inmem.InMemExecutor;
+import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.spark.SparkExecutor;
 import cz.seznam.euphoria.spark.TestSparkExecutor;
 import org.apache.spark.SparkConf;
@@ -35,10 +35,10 @@ public class Executors {
     Executor create() throws IOException;
   }
 
-  private static class InMemFactory implements Factory {
+  private static class LocalFactory implements Factory {
     @Override
     public Executor create() throws IOException {
-      return new InMemExecutor();
+      return new LocalExecutor();
     }
   }
 
@@ -79,7 +79,7 @@ public class Executors {
    * Supported names are:
    *
    * <ul>
-   *   <li>inmem - the in memory executor (suitable for unit tests)</li>
+   *   <li>local - the local executor (suitable for unit tests)</li>
    *   <li>flink-test - a flink executor for running on the local machine
    *        (suitable for unit tests)</li>
    *   <li>flink - a flink executor capable of running in a distributed fashion</li>
@@ -100,8 +100,8 @@ public class Executors {
     // this avoids for example loading spark dependencies in a flink environment
     final Factory f;
     switch (executorName) {
-      case "inmem":
-        f = new InMemFactory();
+      case "local":
+        f = new LocalFactory();
         break;
       case "flink-test":
         f = new FlinkFactory(true);
