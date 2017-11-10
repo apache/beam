@@ -51,7 +51,8 @@ import org.joda.time.Instant;
 public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PCollection<T>> {
   private final UnboundedSource<T, ?> source;
   private final long maxNumRecords;
-  private final Duration maxReadTime;
+  private final @Nullable Duration maxReadTime;
+
   private final BoundedSource<ValueWithRecordId<T>> adaptedSource;
   private static final FluentBackoff BACKOFF_FACTORY =
       FluentBackoff.DEFAULT
@@ -80,7 +81,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
   }
 
   BoundedReadFromUnboundedSource(
-      UnboundedSource<T, ?> source, long maxNumRecords, Duration maxReadTime) {
+      UnboundedSource<T, ?> source, long maxNumRecords, @Nullable Duration maxReadTime) {
     this.source = source;
     this.maxNumRecords = maxNumRecords;
     this.maxReadTime = maxReadTime;
@@ -153,7 +154,7 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
     abstract static class Builder<T> {
       abstract Builder<T> setSource(UnboundedSource<T, ?> source);
       abstract Builder<T> setMaxNumRecords(long maxNumRecords);
-      abstract Builder<T> setMaxReadTime(Duration maxReadTime);
+      abstract Builder<T> setMaxReadTime(@Nullable Duration maxReadTime);
       abstract UnboundedToBoundedSourceAdapter<T> build();
     }
 
@@ -229,7 +230,9 @@ public class BoundedReadFromUnboundedSource<T> extends PTransform<PBegin, PColle
 
     private class Reader extends BoundedReader<ValueWithRecordId<T>> {
       private long recordsRead = 0L;
-      private Instant endTime = Instant.now().plus(getMaxReadTime());
+
+      @Nullable private Instant endTime;
+
       private UnboundedSource.UnboundedReader<T> reader;
 
       private Reader(UnboundedSource.UnboundedReader<T> reader) {

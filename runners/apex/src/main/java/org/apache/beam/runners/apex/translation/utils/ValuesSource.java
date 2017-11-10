@@ -18,6 +18,8 @@
 
 package org.apache.beam.runners.apex.translation.utils;
 
+import static org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NOOP_CHECKPOINT_MARK;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -132,7 +134,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return null;
+      return NOOP_CHECKPOINT_MARK;
     }
 
     @Override

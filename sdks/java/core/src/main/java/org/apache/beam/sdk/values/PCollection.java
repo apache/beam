@@ -80,7 +80,8 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   private CoderOrFailure<T> coderOrFailure =
       new CoderOrFailure<>(null, "No Coder was specified, and Coder Inference did not occur");
-  private TypeDescriptor<T> typeDescriptor;
+
+  @Nullable private TypeDescriptor<T> typeDescriptor;
 
   @Override
   public void finishSpecifyingOutput(
@@ -113,6 +114,7 @@ public class PCollection<T> extends PValueBase implements PValue {
    * is available. Subclasses may override this to enable better
    * {@code Coder} inference.
    */
+  @Nullable
   public TypeDescriptor<T> getTypeDescriptor() {
     return typeDescriptor;
   }
@@ -326,8 +328,10 @@ public class PCollection<T> extends PValueBase implements PValue {
    */
   private final TupleTag<?> tag = new TupleTag<>();
 
-  private PCollection(Pipeline p) {
+  private PCollection(Pipeline p, WindowingStrategy<?, ?> windowingStrategy, IsBounded isBounded) {
     super(p);
+    this.windowingStrategy = windowingStrategy;
+    this.isBounded = isBounded;
   }
 
   /**
@@ -368,9 +372,7 @@ public class PCollection<T> extends PValueBase implements PValue {
       WindowingStrategy<?, ?> windowingStrategy,
       IsBounded isBounded,
       @Nullable Coder<T> coder) {
-    PCollection<T> res = new PCollection<T>(pipeline)
-        .setWindowingStrategyInternal(windowingStrategy)
-        .setIsBoundedInternal(isBounded);
+    PCollection<T> res = new PCollection<T>(pipeline, windowingStrategy, isBounded);
     if (coder != null) {
       res.setCoder(coder);
     }
