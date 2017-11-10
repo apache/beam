@@ -132,6 +132,8 @@ class PrefetchingSourceSetIterable(object):
         if element is READER_THREAD_IS_DONE_SENTINEL:
           num_readers_finished += 1
           if num_readers_finished == self.num_reader_threads:
+            if self.has_errored:
+              raise self.reader_exceptions.get()
             return
         elif self.has_errored:
           raise self.reader_exceptions.get()
