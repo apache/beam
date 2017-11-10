@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.core.executor;
 
-import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -37,7 +36,6 @@ import java.util.stream.Collectors;
 /**
  * Validate invariants. Throw exceptions if any invariant is violated.
  */
-@Audience(Audience.Type.EXECUTOR)
 class FlowValidator {
 
   /**
@@ -52,7 +50,7 @@ class FlowValidator {
    *          that require explicit windowing strategies to make meaningful
    *          executions
    */
-  static DAG<Operator<?, ?>> preTranslateValidate(DAG<Operator<?, ?>> dag) {
+  static DAG<Operator<?, ?>> preTranslate(DAG<Operator<?, ?>> dag) {
     checkJoinWindowing(dag);
     return dag;
   }
@@ -62,7 +60,7 @@ class FlowValidator {
    *
    * @return the input dag if the validation succeeds
    */
-  static DAG<Operator<?, ?>> postTranslateValidate(DAG<Operator<?, ?>> dag) {
+  static DAG<Operator<?, ?>> postTranslate(DAG<Operator<?, ?>> dag) {
     checkSinks(dag);
     return dag;
   }
@@ -143,4 +141,5 @@ class FlowValidator {
       sinkDatasets.put(p.getSecond(), p.getFirst());
     });
   }
+
 }

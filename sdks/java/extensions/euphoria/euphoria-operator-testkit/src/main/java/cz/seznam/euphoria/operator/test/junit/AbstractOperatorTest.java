@@ -93,6 +93,16 @@ public abstract class AbstractOperatorTest implements Serializable {
 
     /** @return test specific settings to be applied to the test flow. */
     default Settings getSettings() { return new Settings(); }
+
+    /**
+     * Apply additional parameters to output sink.
+     * @param sink the original sink to be modified
+     * @return modified sink (with extra parameters applied).
+     */
+    default ListDataSink<T> modifySink(ListDataSink<T> sink) {
+      return sink;
+    }
+
   }
 
   /**
@@ -196,7 +206,7 @@ public abstract class AbstractOperatorTest implements Serializable {
         Flow flow = Flow.create(tc.toString(), tc.getSettings());
         Dataset output = tc.getOutput(flow, proc == Type.BOUNDED);
         // skip if output is not supported for the processing type
-        output.persist(sink);
+        output.persist(tc.modifySink(sink));
         try {
           executor.submit(flow).get();
         } catch (InterruptedException | ExecutionException e) {
