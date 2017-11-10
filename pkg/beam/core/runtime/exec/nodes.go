@@ -228,10 +228,10 @@ func (n *ParDo) invoke(ctx context.Context, fn *funcx.Fn, hasMainInput bool, val
 			args[index] = reflect.ValueOf(value.Timestamp)
 		}
 
-		args[in[i]] = Convert(value.Elm, fn.Param[i].T)
+		args[in[i]] = Convert(value.Elm, fn.Param[in[i]].T)
 		i++
 		if typex.IsWKV(n.Edge.Input[0].From.Type()) {
-			args[in[i]] = Convert(value.Elm2, fn.Param[i].T)
+			args[in[i]] = Convert(value.Elm2, fn.Param[in[i]].T)
 			i++
 		}
 
