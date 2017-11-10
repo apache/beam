@@ -77,13 +77,6 @@ public interface Dataset<T> extends Serializable {
   void persist(DataSink<T> sink);
 
   /**
-   * Checkpoint this dataset.
-   *
-   * @param sink the sink to use to checkpoint this data set's data to
-   */
-  void checkpoint(DataSink<T> sink);
-
-  /**
    * Retrieve output sink for this dataset.
    *
    * @return {@code null} if there is no explicitly set sink this
@@ -95,14 +88,4 @@ public interface Dataset<T> extends Serializable {
     return null;
   }
 
-  /**
-   * Retrieve checkpoint sink for this dataset.
-   *
-   * @return {@code null} if no checkpoint sink has been defined,
-   *          otherwise the sink provided through {@link #checkpoint(DataSink)}
-   */
-  @Nullable
-  default DataSink<T> getCheckpointSink() {
-    return null;
-  }
 }
