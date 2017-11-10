@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.harness.test;
+package org.apache.beam.sdk.fn.test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
@@ -26,7 +26,7 @@ import static org.junit.Assert.fail;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.harness.test.TestExecutors.TestExecutorService;
+import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

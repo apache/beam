@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import static org.hamcrest.collection.IsEmptyCollection.empty;
 import static org.junit.Assert.assertFalse;
@@ -34,10 +34,15 @@ import org.junit.runners.JUnit4;
 public class AdvancingPhaserTest {
   @Test
   public void testAdvancement() throws Exception {
-    AdvancingPhaser phaser = new AdvancingPhaser(1);
+    final AdvancingPhaser phaser = new AdvancingPhaser(1);
     int currentPhase = phaser.getPhase();
     ExecutorService service = Executors.newSingleThreadExecutor();
-    service.submit(phaser::arrive);
+    service.submit(new Runnable() {
+      @Override
+      public void run() {
+        phaser.arrive();
+      }
+    });
     phaser.awaitAdvance(currentPhase);
     assertFalse(phaser.isTerminated());
     service.shutdown();

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.harness.test;
+package org.apache.beam.sdk.fn.test;
 
 /**
  * A fork of the Java 8 Supplier interface, to enable migrations.
