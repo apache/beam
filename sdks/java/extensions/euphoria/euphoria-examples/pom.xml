@@ -80,7 +80,7 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>euphoria-inmem</artifactId>
+      <artifactId>euphoria-local</artifactId>
     </dependency>
 
     <dependency>

@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.inmem.InMemExecutor;
+import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
 import org.junit.Test;
 
@@ -60,7 +60,7 @@ public class FluentTest {
         // ~ strip the needless key
         .mapElements(Pair::getSecond)
         .persist(out)
-        .execute(new InMemExecutor());
+        .execute(new LocalExecutor());
   }
 
 }
