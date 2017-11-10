@@ -64,6 +64,25 @@ func swapKVFn(x X, y Y) (Y, X) {
 	return y, x
 }
 
+// Explode is a PTransform that takes a single PCollection<[]A> and returns a
+// PCollection<A> containing all the elements for each incoming slice.
+//
+// Example of use:
+//
+//    d := top.Top(p, merged, 5, ...)    // PCollection<[]A>
+//    top5 := beam.Explode(p, d)
+//
+func Explode(p *Pipeline, col PCollection) PCollection {
+	p = p.Scope("beam.Explode")
+	return ParDo(p, explodeFn, col)
+}
+
+func explodeFn(list []T, emit func(T)) {
+	for _, elm := range list {
+		emit(elm)
+	}
+}
+
 // The MustX functions are convenience helpers to create error-less functions.
 
 // MustN returns the input, but panics if err != nil.
