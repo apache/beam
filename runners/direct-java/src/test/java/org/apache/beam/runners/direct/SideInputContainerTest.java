@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
@@ -34,8 +35,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
-import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.Mean;
@@ -49,9 +48,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.TypeDescriptor;
-import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -134,13 +131,22 @@ public class SideInputContainerTest {
 
   @Test
   public void getAfterWriteReturnsPaneInWindow() throws Exception {
-    WindowedValue<KV<String, Integer>> one =
-        WindowedValue.of(
-            KV.of("one", 1), new Instant(1L), FIRST_WINDOW, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<KV<String, Integer>> two =
-        WindowedValue.of(
-            KV.of("two", 2), new Instant(20L), FIRST_WINDOW, PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    container.write(mapView, ImmutableList.<WindowedValue<?>>of(one, two));
+    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("one", 1))) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(1L),
+          FIRST_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("two", 2))) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(20L),
+          FIRST_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(mapView, valuesBuilder.build());
 
     Map<String, Integer> viewContents =
         container
@@ -153,19 +159,22 @@ public class SideInputContainerTest {
 
   @Test
   public void getReturnsLatestPaneInWindow() throws Exception {
-    WindowedValue<KV<String, Integer>> one =
-        WindowedValue.of(
-            KV.of("one", 1),
-            new Instant(1L),
-            SECOND_WINDOW,
-            PaneInfo.createPane(true, false, Timing.EARLY));
-    WindowedValue<KV<String, Integer>> two =
-        WindowedValue.of(
-            KV.of("two", 2),
-            new Instant(20L),
-            SECOND_WINDOW,
-            PaneInfo.createPane(true, false, Timing.EARLY));
-    container.write(mapView, ImmutableList.<WindowedValue<?>>of(one, two));
+    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("one", 1))) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(1L),
+          SECOND_WINDOW,
+          PaneInfo.createPane(true, false, Timing.EARLY)));
+    }
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("two", 2))) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(20L),
+          SECOND_WINDOW,
+          PaneInfo.createPane(true, false, Timing.EARLY)));
+    }
+    container.write(mapView, valuesBuilder.build());
 
     Map<String, Integer> viewContents =
         container
@@ -175,13 +184,15 @@ public class SideInputContainerTest {
     assertThat(viewContents, hasEntry("two", 2));
     assertThat(viewContents.size(), is(2));
 
-    WindowedValue<KV<String, Integer>> three =
-        WindowedValue.of(
-            KV.of("three", 3),
-            new Instant(300L),
-            SECOND_WINDOW,
-            PaneInfo.createPane(false, false, Timing.EARLY, 1, -1));
-    container.write(mapView, ImmutableList.<WindowedValue<?>>of(three));
+    ImmutableList.Builder<WindowedValue<?>> overwriteValuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("three", 3))) {
+      overwriteValuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(300L),
+          SECOND_WINDOW,
+          PaneInfo.createPane(false, false, Timing.EARLY, 1, -1)));
+    }
+    container.write(mapView, overwriteValuesBuilder.build());
 
     Map<String, Integer> overwrittenViewContents =
         container
@@ -209,10 +220,7 @@ public class SideInputContainerTest {
     PCollection<KV<String, String>> input =
         pipeline.apply(Create.empty(new TypeDescriptor<KV<String, String>>() {}));
     PCollectionView<Map<String, Iterable<String>>> newView =
-        PCollectionViews.multimapView(
-            input,
-            WindowingStrategy.globalDefault(),
-            KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
+        input.apply(View.<String, String>asMultimap());
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("unknown views");
@@ -232,19 +240,22 @@ public class SideInputContainerTest {
 
   @Test
   public void writeForMultipleElementsInDifferentWindowsSucceeds() throws Exception {
-    WindowedValue<Double> firstWindowedValue =
-        WindowedValue.of(
-            2.875,
-            FIRST_WINDOW.maxTimestamp().minus(200L),
-            FIRST_WINDOW,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<Double> secondWindowedValue =
-        WindowedValue.of(
-            4.125,
-            SECOND_WINDOW.maxTimestamp().minus(2_000_000L),
-            SECOND_WINDOW,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    container.write(singletonView, ImmutableList.of(firstWindowedValue, secondWindowedValue));
+    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asSingleton(), 2.875)) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          FIRST_WINDOW.maxTimestamp().minus(200L),
+          FIRST_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    for (Object materializedValue : materializeValuesFor(View.asSingleton(), 4.125)) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          SECOND_WINDOW.maxTimestamp().minus(2_000_000L),
+          SECOND_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(singletonView, valuesBuilder.build());
     assertThat(
         container
             .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
@@ -259,20 +270,15 @@ public class SideInputContainerTest {
 
   @Test
   public void writeForMultipleIdenticalElementsInSameWindowSucceeds() throws Exception {
-    WindowedValue<Integer> firstValue =
-        WindowedValue.of(
-            44,
-            FIRST_WINDOW.maxTimestamp().minus(200L),
-            FIRST_WINDOW,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    WindowedValue<Integer> secondValue =
-        WindowedValue.of(
-            44,
-            FIRST_WINDOW.maxTimestamp().minus(200L),
-            FIRST_WINDOW,
-            PaneInfo.ON_TIME_AND_ONLY_FIRING);
-
-    container.write(iterableView, ImmutableList.of(firstValue, secondValue));
+    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asIterable(), 44, 44)) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          FIRST_WINDOW.maxTimestamp().minus(200L),
+          FIRST_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(iterableView, valuesBuilder.build());
 
     assertThat(
         container
@@ -283,13 +289,15 @@ public class SideInputContainerTest {
 
   @Test
   public void writeForElementInMultipleWindowsSucceeds() throws Exception {
-    WindowedValue<Double> multiWindowedValue =
-        WindowedValue.of(
-            2.875,
-            FIRST_WINDOW.maxTimestamp().minus(200L),
-            ImmutableList.of(FIRST_WINDOW, SECOND_WINDOW),
-            PaneInfo.ON_TIME_AND_ONLY_FIRING);
-    container.write(singletonView, ImmutableList.of(multiWindowedValue));
+    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asSingleton(), 2.875)) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          FIRST_WINDOW.maxTimestamp().minus(200L),
+          ImmutableList.of(FIRST_WINDOW, SECOND_WINDOW),
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(singletonView, valuesBuilder.build());
     assertThat(
         container
             .createReaderForViews(ImmutableList.<PCollectionView<?>>of(singletonView))
@@ -304,19 +312,22 @@ public class SideInputContainerTest {
 
   @Test
   public void finishDoesNotOverwriteWrittenElements() throws Exception {
-    WindowedValue<KV<String, Integer>> one =
-        WindowedValue.of(
-            KV.of("one", 1),
-            new Instant(1L),
-            SECOND_WINDOW,
-            PaneInfo.createPane(true, false, Timing.EARLY));
-    WindowedValue<KV<String, Integer>> two =
-        WindowedValue.of(
-            KV.of("two", 2),
-            new Instant(20L),
-            SECOND_WINDOW,
-            PaneInfo.createPane(true, false, Timing.EARLY));
-    container.write(mapView, ImmutableList.<WindowedValue<?>>of(one, two));
+    ImmutableList.Builder<WindowedValue<?>> valuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("one", 1))) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(1L),
+          SECOND_WINDOW,
+          PaneInfo.createPane(true, false, Timing.EARLY)));
+    }
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("two", 2))) {
+      valuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          new Instant(20L),
+          SECOND_WINDOW,
+          PaneInfo.createPane(true, false, Timing.EARLY)));
+    }
+    container.write(mapView, valuesBuilder.build());
 
     immediatelyInvokeCallback(mapView, SECOND_WINDOW);
 
@@ -362,14 +373,15 @@ public class SideInputContainerTest {
    */
   @Test
   public void isReadyForSomeNotReadyViewsFalseUntilElements() {
-    container.write(
-        mapView,
-        ImmutableList.of(
-            WindowedValue.of(
-                KV.of("one", 1),
-                SECOND_WINDOW.maxTimestamp().minus(100L),
-                SECOND_WINDOW,
-                PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+    ImmutableList.Builder<WindowedValue<?>> mapValuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("one", 1))) {
+      mapValuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          SECOND_WINDOW.maxTimestamp().minus(100L),
+          SECOND_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(mapView, mapValuesBuilder.build());
 
     ReadyCheckingSideInputReader reader =
         container.createReaderForViews(ImmutableList.of(mapView, singletonView));
@@ -378,25 +390,27 @@ public class SideInputContainerTest {
 
     assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(false));
 
-    container.write(
-        mapView,
-        ImmutableList.of(
-            WindowedValue.of(
-                KV.of("too", 2),
-                FIRST_WINDOW.maxTimestamp().minus(100L),
-                FIRST_WINDOW,
-                PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+    ImmutableList.Builder<WindowedValue<?>> newMapValuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asMap(), KV.of("too", 2))) {
+      newMapValuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          FIRST_WINDOW.maxTimestamp().minus(100L),
+          FIRST_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(mapView, newMapValuesBuilder.build());
     // Cached value is false
     assertThat(reader.isReady(mapView, FIRST_WINDOW), is(false));
 
-    container.write(
-        singletonView,
-        ImmutableList.of(
-            WindowedValue.of(
-                1.25,
-                SECOND_WINDOW.maxTimestamp().minus(100L),
-                SECOND_WINDOW,
-                PaneInfo.ON_TIME_AND_ONLY_FIRING)));
+    ImmutableList.Builder<WindowedValue<?>> singletonValuesBuilder = ImmutableList.builder();
+    for (Object materializedValue : materializeValuesFor(View.asSingleton(), 1.25)) {
+      singletonValuesBuilder.add(WindowedValue.of(
+          materializedValue,
+          SECOND_WINDOW.maxTimestamp().minus(100L),
+          SECOND_WINDOW,
+          PaneInfo.ON_TIME_AND_ONLY_FIRING));
+    }
+    container.write(singletonView, singletonValuesBuilder.build());
     assertThat(reader.isReady(mapView, SECOND_WINDOW), is(true));
     assertThat(reader.isReady(singletonView, SECOND_WINDOW), is(false));
 

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
-import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * A {@link PCollectionView PCollectionView&lt;T&gt;} is an immutable view of a {@link PCollection}
@@ -72,7 +71,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   @Internal
-  TupleTag<Iterable<WindowedValue<?>>> getTagInternal();
+  TupleTag<?> getTagInternal();
 
   /**
    * <b>For internal use only.</b>
@@ -83,7 +82,7 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   @Internal
-  ViewFn<Iterable<WindowedValue<?>>, T> getViewFn();
+  ViewFn<?, T> getViewFn();
 
   /**
    * <b>For internal use only.</b>
@@ -116,5 +115,5 @@ public interface PCollectionView<T> extends PValue, Serializable {
    */
   @Deprecated
   @Internal
-  Coder<Iterable<WindowedValue<?>>> getCoderInternal();
+  Coder<?> getCoderInternal();
 }
