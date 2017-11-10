@@ -45,6 +45,7 @@ import java.util.stream.Stream;
 
 import static java.util.Arrays.asList;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 
@@ -161,6 +162,42 @@ public class BasicOperatorTest {
         Pair.of("one", 3L),
         Pair.of("three", 1L),
         Pair.of("two", 2L));
+  }
+
+  @Test
+  public void testMapWithOutputGroupping() throws InterruptedException, ExecutionException {
+    ListDataSource<String> input =
+        ListDataSource.unbounded(asList(
+            "one two three four four two two",
+            "one one one two two three"));
+
+    Flow flow = Flow.create("Test");
+    Dataset<String> lines = flow.createInput(input);
+
+    // expand it to words
+    Dataset<Pair<String, Long>> words = FlatMap.of(lines)
+        .using(toWordCountPair())
+        .output();
+
+    ListDataSink<Pair<String, Long>> sink = ListDataSink.get();
+    // apply wordcount transform in output sink
+    words.persist(
+        sink.withOnAdded(d ->
+          ReduceByKey.of(d)
+              .keyBy(Pair::getFirst)
+              .valueBy(Pair::getSecond)
+              .combineBy(Sums.ofLongs())
+              .output()
+              .persist(sink)));
+
+    executor.submit(flow).get();
+
+    DatasetAssert.unorderedEquals(
+        sink.getOutputs(),
+        Pair.of("one", 4L),
+        Pair.of("two", 5L),
+        Pair.of("three", 2L),
+        Pair.of("four", 2L));
   }
 
   private <F, S> long assertOutput0(

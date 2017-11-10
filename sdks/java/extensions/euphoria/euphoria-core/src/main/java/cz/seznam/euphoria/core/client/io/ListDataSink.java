@@ -17,6 +17,8 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.functional.Consumer;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 /**
  * A data sink that stores data in list.
@@ -71,6 +74,9 @@ public class ListDataSink<T> implements DataSink<T> {
   private final int sinkId = System.identityHashCode(this);
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
+  @Nullable
+  private Consumer<Dataset<T>> onAdded = null;
+
   @SuppressWarnings("unchecked")
   protected ListDataSink() {
     // save outputs to static storage
@@ -96,6 +102,27 @@ public class ListDataSink<T> implements DataSink<T> {
   @Override
   public void rollback() {
     // nop
+  }
+
+  @Override
+  public boolean onAdded(Dataset<T> output) {
+    if (onAdded != null) {
+      onAdded.accept(output);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Add function to be applied on {@code Dataset} being output.
+   * This function can apply additional operators to the dataset
+   * and has to persist the final dataset to (same or different) sink.
+   * @param onAdded the function to be applied
+   * @return this
+   */
+  public ListDataSink<T> withOnAdded(Consumer<Dataset<T>> onAdded) {
+    this.onAdded = onAdded;
+    return this;
   }
 
   @SuppressWarnings("unchecked")
