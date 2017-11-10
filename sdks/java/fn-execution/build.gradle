@@ -21,17 +21,10 @@ applyJavaNature()
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 
-configurations.all {
-  // Fn Execution contains shared utilities for Runners and Harnesses which use
-  // the Portability framework. Runner-side interactions must not require a
-  // dependency on any particular SDK, so this library must not introduce such an
-  // edge.
-  exclude group: "org.apache.beam", module: "beam-sdks-java-core"
-}
-
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.grpc_netty
@@ -39,6 +32,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
+  testCompile library.java.mockito_core
 }
 
 task packageTests(type: Jar) {

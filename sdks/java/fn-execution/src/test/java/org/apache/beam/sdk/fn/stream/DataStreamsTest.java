@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -25,6 +25,7 @@ import static org.junit.Assume.assumeTrue;
 import com.google.common.collect.Iterators;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.CountingOutputStream;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -34,12 +35,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.SynchronousQueue;
-import org.apache.beam.fn.harness.stream.DataStreams.BlockingQueueIterator;
-import org.apache.beam.fn.harness.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.stream.DataStreams.BlockingQueueIterator;
+import org.apache.beam.sdk.fn.stream.DataStreams.DataStreamDecoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.junit.Rule;
 import org.junit.Test;
@@ -83,7 +83,7 @@ public class DataStreamsTest {
     @Test(timeout = 10_000)
     public void testBlockingQueueIteratorWithoutBlocking() throws Exception {
       BlockingQueueIterator<String> iterator =
-          new BlockingQueueIterator<>(new ArrayBlockingQueue<>(3));
+          new BlockingQueueIterator<>(new ArrayBlockingQueue<String>(3));
 
       iterator.accept("A");
       iterator.accept("B");
@@ -98,12 +98,12 @@ public class DataStreamsTest {
       // The synchronous queue only allows for one element to transfer at a time and blocks
       // the sending/receiving parties until both parties are there.
       final BlockingQueueIterator<String> iterator =
-          new BlockingQueueIterator<>(new SynchronousQueue<>());
-      final CompletableFuture<List<String>> valuesFuture = new CompletableFuture<>();
+          new BlockingQueueIterator<>(new SynchronousQueue<String>());
+      final SettableFuture<List<String>> valuesFuture = SettableFuture.create();
       Thread appender = new Thread() {
         @Override
         public void run() {
-          valuesFuture.complete(Arrays.asList(Iterators.toArray(iterator, String.class)));
+          valuesFuture.set(Arrays.asList(Iterators.toArray(iterator, String.class)));
         }
       };
       appender.start();
