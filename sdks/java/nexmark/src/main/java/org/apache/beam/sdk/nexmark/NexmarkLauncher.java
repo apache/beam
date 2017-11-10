@@ -869,7 +869,7 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
    * Send {@code formattedResults} to Kafka.
    */
   private void sinkResultsToKafka(PCollection<String> formattedResults) {
-    checkArgument(Strings.isNullOrEmpty(options.getBootstrapServers()),
+    checkArgument(!Strings.isNullOrEmpty(options.getBootstrapServers()),
             "Missing --bootstrapServers");
 
     PTransform<PCollection<String>, PDone> io = KafkaIO.<Long, String>write()
