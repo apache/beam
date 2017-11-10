@@ -84,7 +84,7 @@
     <module>benchmarks</module>
     <module>euphoria-core</module>
     <module>euphoria-fluent</module>
-    <module>euphoria-inmem</module>
+    <module>euphoria-local</module>
     <module>euphoria-kafka</module>
     <module>euphoria-hadoop</module>
     <module>euphoria-operator-testkit</module>
@@ -488,7 +488,7 @@
 
       <dependency>
         <groupId>cz.seznam.euphoria</groupId>
-        <artifactId>euphoria-inmem</artifactId>
+        <artifactId>euphoria-local</artifactId>
         <version>${project.version}</version>
       </dependency>
 

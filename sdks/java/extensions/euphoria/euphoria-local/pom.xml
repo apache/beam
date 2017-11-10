@@ -24,19 +24,26 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>euphoria-hadoop</artifactId>
+  <artifactId>euphoria-local</artifactId>
   <packaging>jar</packaging>
 
   <name>${project.groupId}:${project.artifactId}</name>
   <description>
-    DataSource and DataSink implementations based on HadoopInput/OutputFormats
+    A local running executor suitable
+    for executing flows in unit tests
+    and not fault tolarent local applications.
   </description>
 
   <dependencies>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>euphoria-core</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>euphoria-core</artifactId>
+      <type>test-jar</type>
     </dependency>
 
     <dependency>
@@ -49,31 +56,11 @@
       <artifactId>jsr305</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-mapreduce-client-core</artifactId>
-      <version>${hadoop.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>com.esotericsoftware.kryo</groupId>
-      <artifactId>kryo</artifactId>
-    </dependency>
+    <!-- test -->
 
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>euphoria-local</artifactId>
+      <artifactId>euphoria-operator-testkit</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -84,22 +71,11 @@
     </dependency>
 
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-all</artifactId>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
       <scope>test</scope>
+      <version>1.7.25</version>
     </dependency>
-
-    <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-client</artifactId>
-      <version>${hadoop.version}</version>
-      <scope>test</scope>
-    </dependency>
-
   </dependencies>
-
-  <properties>
-    <hadoop.version>2.6.0</hadoop.version>
-  </properties>
 
 </project>

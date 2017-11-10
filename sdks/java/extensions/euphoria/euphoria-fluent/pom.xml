@@ -42,7 +42,7 @@
 
     <dependency>
       <groupId>cz.seznam.euphoria</groupId>
-      <artifactId>euphoria-inmem</artifactId>
+      <artifactId>euphoria-local</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
