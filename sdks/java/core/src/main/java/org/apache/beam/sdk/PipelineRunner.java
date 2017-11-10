@@ -22,7 +22,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsValidator;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.InstanceBuilder;
+import org.apache.beam.sdk.values.PBegin;
 
 /**
  * A {@link PipelineRunner} runs a {@link Pipeline}.
@@ -58,4 +60,13 @@ public abstract class PipelineRunner<ResultT extends PipelineResult> {
    * type of result.
    */
   public abstract ResultT run(Pipeline pipeline);
+
+  /**
+   * Creates a {@link Pipeline} out of a single {@link PTransform} step, and executes it.
+   */
+  public ResultT run(PTransform<PBegin, ?> pTransform) {
+    Pipeline p = Pipeline.create();
+    p.apply(pTransform);
+    return run(p);
+  }
 }
