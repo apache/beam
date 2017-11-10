@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
 import org.apache.beam.sdk.transforms.CombineWithContext.Context;
 import org.apache.beam.sdk.transforms.CombineWithContext.RequiresContextInternal;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.View.VoidKeyToMultimapMaterialization;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.DisplayData.Builder;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -1274,14 +1275,16 @@ public class Combine {
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
-      PCollectionView<OutputT> view =
-          PCollectionViews.singletonView(
-              combined,
+      PCollection<KV<Void, OutputT>> materializationInput =
+          combined.apply(new VoidKeyToMultimapMaterialization<OutputT>());
+      PCollectionView<OutputT> view = PCollectionViews.singletonView(
+          materializationInput,
               input.getWindowingStrategy(),
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
-              combined.getCoder());
-      combined.apply(CreatePCollectionView.<OutputT, OutputT>of(view));
+          combined.getCoder());
+      materializationInput.apply(
+          CreatePCollectionView.<KV<Void, OutputT>, OutputT>of(view));
       return view;
     }
 

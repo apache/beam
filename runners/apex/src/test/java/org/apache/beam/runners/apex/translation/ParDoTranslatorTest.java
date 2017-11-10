@@ -18,6 +18,7 @@
 
 package org.apache.beam.runners.apex.translation;
 
+import static org.apache.beam.sdk.testing.PCollectionViewTesting.materializeValuesFor;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -219,7 +220,7 @@ public class ParDoTranslatorTest {
     operator.beginWindow(0);
     WindowedValue<Integer> wv1 = WindowedValue.valueInGlobalWindow(1);
     WindowedValue<Iterable<?>> sideInput = WindowedValue.<Iterable<?>>valueInGlobalWindow(
-        Lists.<Integer>newArrayList(22));
+        materializeValuesFor(View.asSingleton(), 22));
     operator.input.process(ApexStreamTuple.DataTuple.of(wv1)); // pushed back input
 
     final List<Object> results = Lists.newArrayList();

@@ -24,6 +24,8 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.KV;
@@ -258,9 +260,13 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollectionView<List<T>> view =
-          PCollectionViews.listView(input, input.getWindowingStrategy(), input.getCoder());
-      input.apply(CreatePCollectionView.<T, List<T>>of(view));
+      PCollection<KV<Void, T>> materializationInput =
+          input.apply(new VoidKeyToMultimapMaterialization<T>());
+      PCollectionView<List<T>> view = PCollectionViews.listView(
+          materializationInput,
+          materializationInput.getWindowingStrategy());
+      materializationInput.apply(
+          CreatePCollectionView.<KV<Void, T>, List<T>>of(view));
       return view;
     }
   }
@@ -285,9 +291,13 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollectionView<Iterable<T>> view =
-          PCollectionViews.iterableView(input, input.getWindowingStrategy(), input.getCoder());
-      input.apply(CreatePCollectionView.<T, Iterable<T>>of(view));
+      PCollection<KV<Void, T>> materializationInput =
+          input.apply(new VoidKeyToMultimapMaterialization<T>());
+      PCollectionView<Iterable<T>> view = PCollectionViews.iterableView(
+          materializationInput,
+          materializationInput.getWindowingStrategy());
+      materializationInput.apply(
+          CreatePCollectionView.<KV<Void, T>, Iterable<T>>of(view));
       return view;
     }
   }
@@ -428,9 +438,13 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollectionView<Map<K, Iterable<V>>> view =
-          PCollectionViews.multimapView(input, input.getWindowingStrategy(), input.getCoder());
-      input.apply(CreatePCollectionView.<KV<K, V>, Map<K, Iterable<V>>>of(view));
+      PCollection<KV<Void, KV<K, V>>> materializationInput =
+          input.apply(new VoidKeyToMultimapMaterialization<KV<K, V>>());
+      PCollectionView<Map<K, Iterable<V>>> view = PCollectionViews.multimapView(
+          materializationInput,
+          materializationInput.getWindowingStrategy());
+      materializationInput.apply(
+          CreatePCollectionView.<KV<Void, KV<K, V>>, Map<K, Iterable<V>>>of(view));
       return view;
     }
   }
@@ -463,15 +477,44 @@ public class View {
         throw new IllegalStateException("Unable to create a side-input view from input", e);
       }
 
-      PCollectionView<Map<K, V>> view =
-          PCollectionViews.mapView(input, input.getWindowingStrategy(), input.getCoder());
-      input.apply(CreatePCollectionView.<KV<K, V>, Map<K, V>>of(view));
+      PCollection<KV<Void, KV<K, V>>> materializationInput =
+          input.apply(new VoidKeyToMultimapMaterialization<KV<K, V>>());
+      PCollectionView<Map<K, V>> view = PCollectionViews.mapView(
+          materializationInput,
+          materializationInput.getWindowingStrategy());
+      materializationInput.apply(
+          CreatePCollectionView.<KV<Void, KV<K, V>>, Map<K, V>>of(view));
       return view;
     }
   }
 
   ////////////////////////////////////////////////////////////////////////////
   // Internal details below
+
+  /**
+   * A {@link PTransform} which converts all values into {@link KV}s with {@link Void} keys.
+   *
+   * <p>TODO: Replace this materialization with specializations that optimize the various SDK
+   * requested views.
+   */
+  @Internal
+  static class VoidKeyToMultimapMaterialization<T>
+      extends PTransform<PCollection<T>, PCollection<KV<Void, T>>> {
+
+    private static class VoidKeyToMultimapMaterializationDoFn<T> extends DoFn<T, KV<Void, T>> {
+      @ProcessElement
+      public void processElement(ProcessContext ctxt) {
+        ctxt.output(KV.of((Void) null, ctxt.element()));
+      }
+    }
+
+    @Override
+    public PCollection<KV<Void, T>> expand(PCollection<T> input) {
+      PCollection output = input.apply(ParDo.of(new VoidKeyToMultimapMaterializationDoFn<>()));
+      output.setCoder(KvCoder.of(VoidCoder.of(), input.getCoder()));
+      return output;
+    }
+  }
 
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
