@@ -16,11 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.harness.test;
-
 /**
- * A fork of the Java 8 consumer interface. This exists to enable migration for existing consumers.
+ * gRPC stream management.
  */
-public interface Consumer<T> {
-  void accept(T item);
-}
+package org.apache.beam.sdk.fn.stream;

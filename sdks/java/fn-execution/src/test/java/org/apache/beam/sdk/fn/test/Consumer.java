@@ -16,21 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
-
-import java.util.concurrent.Phaser;
+package org.apache.beam.sdk.fn.test;
 
 /**
- * A {@link Phaser} which never terminates. The default {@link Phaser} implementation terminates
- * after the first advancement.
+ * A fork of the Java 8 consumer interface. This exists to enable migration for existing consumers.
  */
-public final class AdvancingPhaser extends Phaser {
-  public AdvancingPhaser(int numParties) {
-    super(numParties);
-  }
-
-  @Override
-  protected boolean onAdvance(int phase, int registeredParties) {
-    return false;
-  }
+public interface Consumer<T> {
+  void accept(T item);
 }
