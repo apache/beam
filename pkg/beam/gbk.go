@@ -43,8 +43,8 @@ import (
 // Example of use:
 //
 //    urlDocPairs := ...
-//    urlToDocs := beam.GroupByKey(p, urlDocPairs)
-//    results := beam.ParDo(p, func (key string, values func(*Doc) bool) {
+//    urlToDocs := beam.GroupByKey(s, urlDocPairs)
+//    results := beam.ParDo(s, func (key string, values func(*Doc) bool) {
 //          // ... process all docs having that url ...
 //    }, urlToDocs)
 //
@@ -54,8 +54,8 @@ import (
 //
 // See CoGroupByKey for a way to group multiple input PCollections by a common
 // key at once.
-func GroupByKey(p *Pipeline, a PCollection) PCollection {
-	return Must(TryGroupByKey(p, a))
+func GroupByKey(s *Scope, a PCollection) PCollection {
+	return Must(TryGroupByKey(s, a))
 }
 
 // TODO(herohde) 5/30/2017: add windowing aspects to above documentation.
@@ -63,11 +63,11 @@ func GroupByKey(p *Pipeline, a PCollection) PCollection {
 
 // TryGroupByKey inserts a GBK transform into the pipeline. Returns
 // an error on failure.
-func TryGroupByKey(p *Pipeline, a PCollection) (PCollection, error) {
+func TryGroupByKey(s *Scope, a PCollection) (PCollection, error) {
 	if !a.IsValid() {
 		return PCollection{}, fmt.Errorf("invalid pcollection to GBK")
 	}
-	edge, err := graph.NewGBK(p.real, p.parent, a.n)
+	edge, err := graph.NewGBK(s.real, s.scope, a.n)
 	if err != nil {
 		return PCollection{}, err
 	}
@@ -77,12 +77,12 @@ func TryGroupByKey(p *Pipeline, a PCollection) (PCollection, error) {
 }
 
 // CoGroupByKey inserts a CoGBK transform into the pipeline.
-func CoGroupByKey(p *Pipeline, cols ...PCollection) PCollection {
-	return Must(TryCoGroupByKey(p, cols...))
+func CoGroupByKey(s *Scope, cols ...PCollection) PCollection {
+	return Must(TryCoGroupByKey(s, cols...))
 }
 
 // TryCoGroupByKey inserts a CoGBK transform into the pipeline. Returns
 // an error on failure.
-func TryCoGroupByKey(p *Pipeline, cols ...PCollection) (PCollection, error) {
+func TryCoGroupByKey(s *Scope, cols ...PCollection) (PCollection, error) {
 	panic("NYI")
 }

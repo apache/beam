@@ -15,7 +15,31 @@
 
 package beam
 
-import "github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+import (
+	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+)
+
+// Scope is a hierarchical grouping for composite transforms. Scopes can be
+// enclosed in other scopes and for a tree structure. For pipeline updates,
+// the scope chain form a unique name. The scope chain can also be used for
+// monitoring and visualization purposes.
+type Scope struct {
+	// parent is the scoped insertion point for composite transforms.
+	scope *graph.Scope
+	// real is the enclosing graph.
+	real *graph.Graph
+}
+
+// Scope returns a sub-scope with the given name. The name provided may
+// be augmented to ensure uniqueness.
+func (s *Scope) Scope(name string) *Scope {
+	scope := s.real.NewScope(s.scope, name)
+	return &Scope{scope: scope, real: s.real}
+}
+
+func (s *Scope) String() string {
+	return s.scope.String()
+}
 
 // Pipeline manages a directed acyclic graph of primitive PTransforms, and the
 // PCollections that the PTransforms consume and produce. Each Pipeline is
@@ -23,25 +47,22 @@ import "github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 // PCollections and PTransforms and they can by used by that Pipeline only.
 // Pipelines can safely be executed concurrently.
 type Pipeline struct {
-	// parent is the scoped insertion point for composite transforms.
-	parent *graph.Scope
 	// real is the deferred execution Graph as it is being constructed.
 	real *graph.Graph
 }
 
 // NewPipeline creates a new empty pipeline.
 func NewPipeline() *Pipeline {
-	real := graph.New()
-	return &Pipeline{real.Root(), real}
+	return &Pipeline{real: graph.New()}
 }
 
-// Scope returns a Pipeline scoped as a composite transform. The underlying
-// deferred execution Graph is the same. The scope is purely cosmetic and used
-// by monitoring tools.
-func (p *Pipeline) Scope(name string) *Pipeline {
-	scope := p.real.NewScope(p.parent, name)
-	return &Pipeline{scope, p.real}
+// Root returns the root scope of the pipeline.
+func (p *Pipeline) Root() *Scope {
+	return &Scope{scope: p.real.Root(), real: p.real}
 }
+
+// TODO(herohde) 11/13/2017: consider making Build return the model Pipeline proto
+// instead.
 
 // Build validates the Pipeline and returns a lower-level representation for
 // execution. It is called by runners only.

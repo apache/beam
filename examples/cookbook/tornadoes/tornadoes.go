@@ -71,15 +71,15 @@ type TornadoRow struct {
 
 // CountTornadoes computes the number of tornadoes pr month. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<TornadoRow>.
-func CountTornadoes(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
-	p = p.Scope("CountTornadoes")
+func CountTornadoes(s *beam.Scope, rows beam.PCollection) beam.PCollection {
+	s = s.Scope("CountTornadoes")
 
 	// row... => month...
-	months := beam.ParDo(p, extractFn, rows)
+	months := beam.ParDo(s, extractFn, rows)
 	// month... => <month,count>...
-	counted := stats.Count(p, months)
+	counted := stats.Count(s, months)
 	// <month,count>... => row...
-	return beam.ParDo(p, formatFn, counted)
+	return beam.ParDo(s, formatFn, counted)
 }
 
 // extractFn outputs the month iff a tornado happened.
@@ -108,9 +108,10 @@ func main() {
 	log.Info(ctx, "Running tornadoes")
 
 	p := beam.NewPipeline()
-	rows := bigqueryio.Read(p, project, *input, reflect.TypeOf(WeatherDataRow{}))
-	out := CountTornadoes(p, rows)
-	bigqueryio.Write(p, project, *output, out)
+	s := p.Root()
+	rows := bigqueryio.Read(s, project, *input, reflect.TypeOf(WeatherDataRow{}))
+	out := CountTornadoes(s, rows)
+	bigqueryio.Write(s, project, *output, out)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

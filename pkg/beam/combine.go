@@ -23,45 +23,45 @@ import (
 
 // Combine inserts a global Combine transform into the pipeline. It
 // expects a PCollection<T> as input where T is a concrete type.
-func Combine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
-	return Must(TryCombine(p, combinefn, col, opts...))
+func Combine(s *Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+	return Must(TryCombine(s, combinefn, col, opts...))
 }
 
 // CombinePerKey inserts a GBK and per-key Combine transform into the pipeline. It
 // expects a PCollection<KV<K,T>>. The CombineFn may optionally take a key parameter.
-func CombinePerKey(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) PCollection {
-	return Must(TryCombinePerKey(p, combinefn, col, opts...))
+func CombinePerKey(s *Scope, combinefn interface{}, col PCollection, opts ...Option) PCollection {
+	return Must(TryCombinePerKey(s, combinefn, col, opts...))
 }
 
 // TryCombine attempts to insert a global Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
-func TryCombine(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
+func TryCombine(s *Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	side, _, err := validate(col, opts)
 	if err != nil {
 		return PCollection{}, err
 	}
 	ValidateNonCompositeType(col)
-	return combine(p, combinefn, col, side)
+	return combine(s, combinefn, col, side)
 }
 
 // TryCombinePerKey attempts to insert a per-key Combine transform into the pipeline. It may fail
 // for multiple reasons, notably that the combinefn is not valid or cannot be bound
 // -- due to type mismatch, say -- to the incoming PCollections.
-func TryCombinePerKey(p *Pipeline, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
+func TryCombinePerKey(s *Scope, combinefn interface{}, col PCollection, opts ...Option) (PCollection, error) {
 	side, _, err := validate(col, opts)
 	if err != nil {
 		return PCollection{}, err
 	}
 	ValidateKVType(col)
-	col, err = TryGroupByKey(p, col)
+	col, err = TryGroupByKey(s, col)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("failed to group by key: %v", err)
 	}
-	return combine(p, combinefn, col, side)
+	return combine(s, combinefn, col, side)
 }
 
-func combine(p *Pipeline, combinefn interface{}, col PCollection, side []SideInput) (PCollection, error) {
+func combine(s *Scope, combinefn interface{}, col PCollection, side []SideInput) (PCollection, error) {
 	fn, err := graph.NewCombineFn(combinefn)
 	if err != nil {
 		return PCollection{}, fmt.Errorf("invalid CombineFn: %v", err)
@@ -71,7 +71,7 @@ func combine(p *Pipeline, combinefn interface{}, col PCollection, side []SideInp
 	for _, s := range side {
 		in = append(in, s.Input.n)
 	}
-	edge, err := graph.NewCombine(p.real, p.parent, fn, in)
+	edge, err := graph.NewCombine(s.real, s.scope, fn, in)
 	if err != nil {
 		return PCollection{}, err
 	}

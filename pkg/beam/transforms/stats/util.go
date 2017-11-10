@@ -23,22 +23,22 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-func combine(p *beam.Pipeline, makeCombineFn func(reflect.Type) interface{}, col beam.PCollection) beam.PCollection {
+func combine(s *beam.Scope, makeCombineFn func(reflect.Type) interface{}, col beam.PCollection) beam.PCollection {
 	t := beam.ValidateNonCompositeType(col)
 	validateNonComplexNumber(t.Type())
 
 	// Do a pipeline-construction-time type switch to select the right
 	// runtime operation.
-	return beam.Combine(p, makeCombineFn(t.Type()), col)
+	return beam.Combine(s, makeCombineFn(t.Type()), col)
 }
 
-func combinePerKey(p *beam.Pipeline, makeCombineFn func(reflect.Type) interface{}, col beam.PCollection) beam.PCollection {
+func combinePerKey(s *beam.Scope, makeCombineFn func(reflect.Type) interface{}, col beam.PCollection) beam.PCollection {
 	_, t := beam.ValidateKVType(col)
 	validateNonComplexNumber(t.Type())
 
 	// Do a pipeline-construction-time type switch to select the right
 	// runtime operation.
-	return beam.CombinePerKey(p, makeCombineFn(t.Type()), col)
+	return beam.CombinePerKey(s, makeCombineFn(t.Type()), col)
 }
 
 func validateNonComplexNumber(t reflect.Type) {

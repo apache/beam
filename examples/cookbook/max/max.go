@@ -47,12 +47,12 @@ type MaxMeanTempRow struct {
 
 // MaxMeanTemp finds the max mean_temp for each month. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<MaxMeanTempRow>.
-func MaxMeanTemp(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
-	p = p.Scope("MaxMeanTemp")
+func MaxMeanTemp(s *beam.Scope, rows beam.PCollection) beam.PCollection {
+	s = s.Scope("MaxMeanTemp")
 
-	keyed := beam.ParDo(p, extractFn, rows)
-	maxTemps := stats.MaxPerKey(p, keyed)
-	return beam.ParDo(p, formatFn, maxTemps)
+	keyed := beam.ParDo(s, extractFn, rows)
+	maxTemps := stats.MaxPerKey(s, keyed)
+	return beam.ParDo(s, formatFn, maxTemps)
 }
 
 func extractFn(row WeatherDataRow) (int, float64) {
@@ -77,9 +77,10 @@ func main() {
 	log.Info(ctx, "Running max")
 
 	p := beam.NewPipeline()
-	rows := bigqueryio.Read(p, project, *input, reflect.TypeOf(WeatherDataRow{}))
-	out := MaxMeanTemp(p, rows)
-	bigqueryio.Write(p, project, *output, out)
+	s := p.Root()
+	rows := bigqueryio.Read(s, project, *input, reflect.TypeOf(WeatherDataRow{}))
+	out := MaxMeanTemp(s, rows)
+	bigqueryio.Write(s, project, *output, out)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

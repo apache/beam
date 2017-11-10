@@ -53,20 +53,21 @@ func main() {
 
 	// Construct an I/O-free, linear pipeline.
 	p := beam.NewPipeline()
+	s := p.Root()
 
-	lines, err := textio.Immediate(p, *input) // Embedded data. Go flags as parameters.
+	lines, err := textio.Immediate(s, *input) // Embedded data. Go flags as parameters.
 	if err != nil {
 		log.Exitf(ctx, "Failed to read %v: %v", *input, err)
 	}
-	words := beam.ParDo(p, extractFn, lines)     // Named function.
-	cap := beam.ParDo(p, strings.ToUpper, words) // Library function.
+	words := beam.ParDo(s, extractFn, lines)     // Named function.
+	cap := beam.ParDo(s, strings.ToUpper, words) // Library function.
 	if *short {
 		// Conditional pipeline construction. Function literals.
-		cap = filter.Include(p, cap, func(s string) bool {
+		cap = filter.Include(s, cap, func(s string) bool {
 			return len(s) < 5
 		})
 	}
-	debug.Print(p, cap) // Debug helper.
+	debug.Print(s, cap) // Debug helper.
 
 	if err := beamx.Run(context.Background(), p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

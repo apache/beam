@@ -36,9 +36,9 @@ var (
 
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
-func stitch(p *beam.Pipeline, words beam.PCollection) (beam.PCollection, beam.PCollection) {
-	ping := p.Scope("ping")
-	pong := ping // p.Composite("pong")
+func stitch(s *beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
+	ping := s.Scope("ping")
+	pong := ping // s.Scope("pong")
 
 	// NOTE(herohde) 2/23/2017: Dataflow does not allow cyclic composite structures.
 
@@ -74,8 +74,8 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 	return nil
 }
 
-func subset(p *beam.Pipeline, a, b beam.PCollection) {
-	beam.ParDo0(p, subsetFn, beam.Impulse(p), beam.SideInput{Input: a}, beam.SideInput{Input: b})
+func subset(s *beam.Scope, a, b beam.PCollection) {
+	beam.ParDo0(s, subsetFn, beam.Impulse(s), beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
 func subsetFn(_ []byte, a, b func(*string) bool) error {
@@ -110,19 +110,20 @@ func main() {
 
 	// PingPong constructs a convoluted pipeline with two "cyclic" composites.
 	p := beam.NewPipeline()
+	s := p.Root()
 
-	lines := textio.Read(p, *input)
-	words := beam.ParDo(p, extractFn, lines)
+	lines := textio.Read(s, *input)
+	words := beam.ParDo(s, extractFn, lines)
 
 	// Run baseline and stitch; then compare them.
-	small, big := beam.ParDo2(p, multiFn, words, beam.SideInput{Input: words})
-	small2, big2 := stitch(p, words)
+	small, big := beam.ParDo2(s, multiFn, words, beam.SideInput{Input: words})
+	small2, big2 := stitch(s, words)
 
-	subset(p, small, small2)
-	subset(p, big2, big)
+	subset(s, small, small2)
+	subset(s, big2, big)
 
-	textio.Write(p, *output+"small.txt", small2)
-	textio.Write(p, *output+"big.txt", big2)
+	textio.Write(s, *output+"small.txt", small2)
+	textio.Write(s, *output+"big.txt", big2)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

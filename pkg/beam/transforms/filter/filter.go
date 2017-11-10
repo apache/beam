@@ -38,19 +38,19 @@ func init() {
 // the filter function returns false. It returns a PCollection of the same type
 // as the input. For example:
 //
-//    words := beam.Create(p, "a", "b", "long", "alsolong")
-//    short := filter.Include(p, words, func(s string) bool {
+//    words := beam.Create(s, "a", "b", "long", "alsolong")
+//    short := filter.Include(s, words, func(s string) bool {
 //        return len(s) < 3
 //    })
 //
 // Here, "short" will contain "a" and "b" at runtime.
-func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	p = p.Scope("filter.Include")
+func Include(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+	s = s.Scope("filter.Include")
 
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
 
-	return beam.ParDo(p, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: true}, col)
+	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: true}, col)
 }
 
 // Exclude filters the elements of a PCollection<A> based on the given function,
@@ -58,19 +58,19 @@ func Include(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PColle
 // the filter function returns true. It returns a PCollection of the same type
 // as the input. For example:
 //
-//    words := beam.Create(p, "a", "b", "long", "alsolong")
-//    long := filter.Exclude(p, words, func(s string) bool {
+//    words := beam.Create(s, "a", "b", "long", "alsolong")
+//    long := filter.Exclude(s, words, func(s string) bool {
 //        return len(s) < 3
 //    })
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
-func Exclude(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	p = p.Scope("filter.Exclude")
+func Exclude(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+	s = s.Scope("filter.Exclude")
 
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
 
-	return beam.ParDo(p, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: false}, col)
+	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: false}, col)
 }
 
 type filterFn struct {

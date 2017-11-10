@@ -122,10 +122,10 @@ func formatFn(w string, c int) string {
 // CountWords is a composite transform that counts the words of an PCollection
 // of lines. It expects a PCollection of type string and returns a PCollection
 // of type KV<string,int>.
-func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
-	p = p.Scope("CountWords")
-	col := beam.ParDo(p, extractFn, lines)
-	return stats.Count(p, col)
+func CountWords(s *beam.Scope, lines beam.PCollection) beam.PCollection {
+	s = s.Scope("CountWords")
+	col := beam.ParDo(s, extractFn, lines)
+	return stats.Count(s, col)
 }
 
 func main() {
@@ -143,18 +143,19 @@ func main() {
 	}
 
 	p := beam.NewPipeline()
+	s := p.Root()
 
-	lines := textio.Read(p, *input)
-	counted := CountWords(p, lines)
-	filtered := beam.ParDo(p, &filterFn{Filter: *filter}, counted)
-	formatted := beam.ParDo(p, formatFn, filtered)
+	lines := textio.Read(s, *input)
+	counted := CountWords(s, lines)
+	filtered := beam.ParDo(s, &filterFn{Filter: *filter}, counted)
+	formatted := beam.ParDo(s, formatFn, filtered)
 
 	// Concept #3: passert is a set of convenient PTransforms that can be used
 	// when writing Pipeline level tests to validate the contents of
 	// PCollections. passert is best used in unit tests with small data sets
 	// but is demonstrated here as a teaching tool.
 
-	passert.Equals(p, formatted, "Flourish: 3", "stomach: 1")
+	passert.Equals(s, formatted, "Flourish: 3", "stomach: 1")
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

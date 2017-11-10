@@ -30,22 +30,22 @@ func init() {
 // be of the same type 'A' and the returned PCollection is of type W<A>.
 // For example:
 //
-//    foo := beam.Create(p, "a", "b", "c")  // foo : W<string>
-//    bar := beam.Create(p, 1, 2, 3)        // bar : W<int>
+//    foo := beam.Create(s, "a", "b", "c")  // foo : W<string>
+//    bar := beam.Create(s, 1, 2, 3)        // bar : W<int>
 //
 // The returned PCollections can be used as any other PCollections. The values
 // are JSON-coded. Each runner may place limits on the sizes of the values and
 // Create should generally only be used for small collections.
-func Create(p *Pipeline, values ...interface{}) PCollection {
-	return Must(TryCreate(p, values...))
+func Create(s *Scope, values ...interface{}) PCollection {
+	return Must(TryCreate(s, values...))
 }
 
 // CreateList inserts a fixed set of values into the pipeline from a slice or
 // array. It is a convenience wrapper over Create. For example:
 //
 //    list := []string{"a", "b", "c"}
-//    foo := beam.CreateList(p, list)  // foo : W<string>
-func CreateList(p *Pipeline, list interface{}) PCollection {
+//    foo := beam.CreateList(s, list)  // foo : W<string>
+func CreateList(s *Scope, list interface{}) PCollection {
 	var ret []interface{}
 	val := reflect.ValueOf(list)
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
@@ -54,12 +54,12 @@ func CreateList(p *Pipeline, list interface{}) PCollection {
 	for i := 0; i < val.Len(); i++ {
 		ret = append(ret, val.Index(i).Interface())
 	}
-	return Must(TryCreate(p, ret...))
+	return Must(TryCreate(s, ret...))
 }
 
 // TryCreate inserts a fixed set of values into the pipeline. The values must
 // be of the same type.
-func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
+func TryCreate(s *Scope, values ...interface{}) (PCollection, error) {
 	if len(values) == 0 {
 		return PCollection{}, fmt.Errorf("create has no values")
 	}
@@ -73,9 +73,9 @@ func TryCreate(p *Pipeline, values ...interface{}) (PCollection, error) {
 		fn.Values = append(fn.Values, value)
 	}
 
-	imp := Impulse(p)
+	imp := Impulse(s)
 
-	ret, err := TryParDo(p, fn, imp, TypeDefinition{Var: TType, T: t})
+	ret, err := TryParDo(s, fn, imp, TypeDefinition{Var: TType, T: t})
 	if err != nil || len(ret) != 1 {
 		panic(fmt.Sprintf("internal error: %v", err))
 	}

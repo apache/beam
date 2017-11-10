@@ -29,14 +29,14 @@ func init() {
 
 // Head returns the first "n" elements it sees, it doesn't enforce any logic
 // as to what elements they will be.
-func Head(p *beam.Pipeline, col beam.PCollection, n int) beam.PCollection {
-	p = p.Scope("debug.Head")
+func Head(s *beam.Scope, col beam.PCollection, n int) beam.PCollection {
+	s = s.Scope("debug.Head")
 
 	switch {
 	case typex.IsWKV(col.Type()):
-		return beam.ParDo(p, &headKVFn{N: n}, beam.Impulse(p), beam.SideInput{Input: col})
+		return beam.ParDo(s, &headKVFn{N: n}, beam.Impulse(s), beam.SideInput{Input: col})
 	default:
-		return beam.ParDo(p, &headFn{N: n}, beam.Impulse(p), beam.SideInput{Input: col})
+		return beam.ParDo(s, &headFn{N: n}, beam.Impulse(s), beam.SideInput{Input: col})
 	}
 }
 

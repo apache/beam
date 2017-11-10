@@ -26,16 +26,16 @@ import (
 //
 // The purpose of Impulse is to trigger another transform, such as
 // ones that take all information as side inputs.
-func Impulse(p *Pipeline) PCollection {
-	return ImpulseValue(p, []byte{})
+func Impulse(s *Scope) PCollection {
+	return ImpulseValue(s, []byte{})
 }
 
 // ImpulseValue emits the supplied byte slice into the global window. The resulting
 // PCollection is a singleton of type []byte. For example:
 //
-//   foo := beam.ImpulseValue(p, []byte{})  // foo : W<[]byte>
+//   foo := beam.ImpulseValue(s, []byte{})  // foo : W<[]byte>
 //
-func ImpulseValue(p *Pipeline, value []byte) PCollection {
-	edge := graph.NewImpulse(p.real, p.parent, value)
+func ImpulseValue(s *Scope, value []byte) PCollection {
+	edge := graph.NewImpulse(s.real, s.scope, value)
 	return PCollection{edge.Output[0].To}
 }

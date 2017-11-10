@@ -34,8 +34,8 @@ var (
 // Partition takes a PCollection<T> and a PartitionFn, uses the PartitionFn to
 // split the elements of the input PCollection into N partitions, and returns
 // a []PCollection<T> that bundles N PCollection<T>s containing the split elements.
-func Partition(p *Pipeline, n int, fn interface{}, col PCollection) []PCollection {
-	p = p.Scope(fmt.Sprintf("Partition(%v)", n))
+func Partition(s *Scope, n int, fn interface{}, col PCollection) []PCollection {
+	s = s.Scope(fmt.Sprintf("Partition(%v)", n))
 
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
@@ -59,7 +59,7 @@ func Partition(p *Pipeline, n int, fn interface{}, col PCollection) []PCollectio
 		panic(fmt.Sprintf("failed to encode partition function: %v", err))
 	}
 
-	return ParDoN(p, &graph.DynFn{Name: "beam.partitionFn", Data: data, T: fnT, Gen: makePartitionFn}, col)
+	return ParDoN(s, &graph.DynFn{Name: "beam.partitionFn", Data: data, T: fnT, Gen: makePartitionFn}, col)
 }
 
 // partitionData contains the data needed for the partition DoFn generator.

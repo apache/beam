@@ -52,8 +52,9 @@ import (
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
 func main() {
-	// Create the Pipeline object.
+	// Create the Pipeline object and root scope.
 	p := beam.NewPipeline()
+	s := p.Root()
 
 	// Apply the pipeline's transforms.
 
@@ -64,14 +65,14 @@ func main() {
 
 	// This example reads a public data set consisting of the complete works
 	// of Shakespeare.
-	lines := textio.Read(p, "gs://apache-beam-samples/shakespeare/*")
+	lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/*")
 
 	// Concept #2: Invoke a ParDo transform on our PCollection of text lines.
 	// This ParDo invokes a DoFn (defined in-line) on each element that
 	// tokenizes the text line into individual words. The ParDo returns a
 	// PCollection of type string, where each element is an individual word in
 	// Shakespeare's collected texts.
-	words := beam.ParDo(p, func(line string, emit func(string)) {
+	words := beam.ParDo(s, func(line string, emit func(string)) {
 		for _, word := range wordRE.FindAllString(line, -1) {
 			emit(word)
 		}
@@ -81,19 +82,19 @@ func main() {
 	// individual words. The Count transform returns a new PCollection of
 	// key/value pairs, where each key represents a unique word in the text.
 	// The associated value is the occurrence count for that word.
-	counted := stats.Count(p, words)
+	counted := stats.Count(s, words)
 
 	// Use a ParDo to format our PCollection of word counts into a printable
 	// string, suitable for writing to an output file. When each element
 	// produces exactly one element, the DoFn can simply return it.
-	formatted := beam.ParDo(p, func(w string, c int) string {
+	formatted := beam.ParDo(s, func(w string, c int) string {
 		return fmt.Sprintf("%s: %v", w, c)
 	}, counted)
 
 	// Concept #4: Invoke textio.Write at the end of the pipeline to write
 	// the contents of a PCollection (in this case, our PCollection of
 	// formatted strings) to a text file.
-	textio.Write(p, "wordcounts.txt", formatted)
+	textio.Write(s, "wordcounts.txt", formatted)
 
 	// Run the pipeline on the direct runner.
 	direct.Execute(context.Background(), p)

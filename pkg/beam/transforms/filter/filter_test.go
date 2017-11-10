@@ -47,8 +47,8 @@ func TestInclude(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, filter.Include(p, in, test.fn), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, filter.Include(s, in, test.fn), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Include(%v) != %v: %v", test.in, test.exp, err)
@@ -80,8 +80,8 @@ func TestExclude(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, filter.Exclude(p, in, test.fn), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, filter.Exclude(s, in, test.fn), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Exclude(%v) != %v: %v", test.in, test.exp, err)

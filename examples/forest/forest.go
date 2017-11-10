@@ -42,21 +42,21 @@ var (
 	depth = flag.Int("depth", 3, "Depth of each tree")
 )
 
-func tree(p *beam.Pipeline, depth int) beam.PCollection {
+func tree(s *beam.Scope, depth int) beam.PCollection {
 	if depth <= 0 {
-		return leaf(p)
+		return leaf(s)
 	}
-	a := tree(p, depth-1)
-	b := tree(p, depth-1)
-	c := tree(p, depth-2)
-	return beam.Flatten(p, a, b, c)
+	a := tree(s, depth-1)
+	b := tree(s, depth-1)
+	c := tree(s, depth-2)
+	return beam.Flatten(s, a, b, c)
 }
 
 var count = 0
 
-func leaf(p *beam.Pipeline) beam.PCollection {
+func leaf(s *beam.Scope) beam.PCollection {
 	count++
-	return beam.Create(p, count) // singleton PCollection<int>
+	return beam.Create(s, count) // singleton PCollection<int>
 }
 
 func main() {
@@ -69,9 +69,10 @@ func main() {
 
 	// Build a forest of processing nodes with flatten "branches".
 	p := beam.NewPipeline()
+	s := p.Root()
 	for i := 0; i < *n; i++ {
-		t := tree(p, *depth)
-		debug.Print(p, t)
+		t := tree(s, *depth)
+		debug.Print(s, t)
 	}
 
 	if err := beamx.Run(ctx, p); err != nil {

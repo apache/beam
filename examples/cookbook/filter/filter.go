@@ -45,20 +45,20 @@ type WeatherDataRow struct {
 
 // BelowGlobalMean computes the rows for the given month below the global mean. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<WeatherDataRow>.
-func BelowGlobalMean(p *beam.Pipeline, m int, rows beam.PCollection) beam.PCollection {
-	p = p.Scope("BelowGlobalMean")
+func BelowGlobalMean(s *beam.Scope, m int, rows beam.PCollection) beam.PCollection {
+	s = s.Scope("BelowGlobalMean")
 
 	// Find the global mean of all the mean_temp readings in the weather data.
-	globalMeanTemp := stats.Mean(p, beam.ParDo(p, extractMeanTempFn, rows))
+	globalMeanTemp := stats.Mean(s, beam.ParDo(s, extractMeanTempFn, rows))
 
 	// Rows filtered to remove all but a single month
-	filtered := beam.ParDo(p, &filterMonthFn{Month: m}, rows)
+	filtered := beam.ParDo(s, &filterMonthFn{Month: m}, rows)
 
 	// Then, use the global mean as a side input, to further filter the weather data.
 	// By using a side input to pass in the filtering criteria, we can use a value
 	// that is computed earlier in pipeline execution. We'll only output readings with
 	// temperatures below this mean.
-	return beam.ParDo(p, filterBelowMeanFn, filtered, beam.SideInput{Input: globalMeanTemp})
+	return beam.ParDo(s, filterBelowMeanFn, filtered, beam.SideInput{Input: globalMeanTemp})
 }
 
 type filterMonthFn struct {
@@ -95,9 +95,10 @@ func main() {
 	log.Info(ctx, "Running filter")
 
 	p := beam.NewPipeline()
-	rows := bigqueryio.Read(p, project, *input, reflect.TypeOf(WeatherDataRow{}))
-	out := BelowGlobalMean(p, *month, rows)
-	bigqueryio.Write(p, project, *output, out)
+	s := p.Root()
+	rows := bigqueryio.Read(s, project, *input, reflect.TypeOf(WeatherDataRow{}))
+	out := BelowGlobalMean(s, *month, rows)
+	bigqueryio.Write(s, project, *output, out)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

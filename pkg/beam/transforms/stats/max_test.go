@@ -61,8 +61,8 @@ func TestMaxInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Max(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Max(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Max(%v) != %v: %v", test.in, test.exp, err)
@@ -91,8 +91,8 @@ func TestMaxFloat(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Max(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Max(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Max(%v) != %v: %v", test.in, test.exp, err)
@@ -121,11 +121,11 @@ func TestMaxKeyed(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		kv := beam.ParDo(p, studentToKV, in)
-		max := MaxPerKey(p, kv)
-		maxStudent := beam.ParDo(p, kvToStudent, max)
-		passert.Equals(p, maxStudent, exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		kv := beam.ParDo(s, studentToKV, in)
+		max := MaxPerKey(s, kv)
+		maxStudent := beam.ParDo(s, kvToStudent, max)
+		passert.Equals(s, maxStudent, exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Max(%v) != %v: %v", test.in, test.exp, err)

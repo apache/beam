@@ -50,12 +50,12 @@ type PlaysRow struct {
 // PlaysForWords generates a string containing the list of play names
 // in which that word appears. It takes a PCollection<WordRow> and
 // returns a PCollection<PlaysRow>.
-func PlaysForWords(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
-	p = p.Scope("PlaysForWords")
+func PlaysForWords(s *beam.Scope, rows beam.PCollection) beam.PCollection {
+	s = s.Scope("PlaysForWords")
 
-	words := beam.ParDo(p, &extractFn{MinLength: *minLength}, rows)
-	keyed := beam.CombinePerKey(p, concatFn, words)
-	return beam.ParDo(p, formatFn, keyed)
+	words := beam.ParDo(s, &extractFn{MinLength: *minLength}, rows)
+	keyed := beam.CombinePerKey(s, concatFn, words)
+	return beam.ParDo(s, formatFn, keyed)
 }
 
 // extractFn outputs (word, play) iff the word is longer than the minimum length.
@@ -95,9 +95,10 @@ func main() {
 	log.Info(ctx, "Running combine")
 
 	p := beam.NewPipeline()
-	rows := bigqueryio.Read(p, project, *input, reflect.TypeOf(WordRow{}))
-	out := PlaysForWords(p, rows)
-	bigqueryio.Write(p, project, *output, out)
+	s := p.Root()
+	rows := bigqueryio.Read(s, project, *input, reflect.TypeOf(WordRow{}))
+	out := PlaysForWords(s, rows)
+	bigqueryio.Write(s, project, *output, out)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

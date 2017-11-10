@@ -48,8 +48,8 @@ func TestMinInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Min(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Min(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Min(%v) != %v: %v", test.in, test.exp, err)
@@ -78,8 +78,8 @@ func TestMinFloat(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Min(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Min(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Min(%v) != %v: %v", test.in, test.exp, err)
@@ -108,11 +108,11 @@ func TestMinKeyed(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		kv := beam.ParDo(p, studentToKV, in)
-		min := MinPerKey(p, kv)
-		minStudent := beam.ParDo(p, kvToStudent, min)
-		passert.Equals(p, minStudent, exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		kv := beam.ParDo(s, studentToKV, in)
+		min := MinPerKey(s, kv)
+		minStudent := beam.ParDo(s, kvToStudent, min)
+		passert.Equals(s, minStudent, exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Min(%v) != %v: %v", test.in, test.exp, err)

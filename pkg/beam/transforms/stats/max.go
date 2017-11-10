@@ -27,18 +27,18 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    max := stats.Max(p, col)   // PCollection<int> with 11 as the only element.
+//    col := beam.Create(s, 1, 11, 7, 5, 10)
+//    max := stats.Max(s, col)   // PCollection<int> with 11 as the only element.
 //
-func Max(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("stats.Max")
-	return combine(p, findMaxFn, col)
+func Max(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.Max")
+	return combine(s, findMaxFn, col)
 }
 
 // MaxPerKey returns the maximal element per key in a PCollection<KV<A,B>> as
 // a PCollection<KV<A,B>>. It can only be used for numbers, such as int,
 // uint16, float32, etc.
-func MaxPerKey(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("stats.MaxPerKey")
-	return combinePerKey(p, findMaxFn, col)
+func MaxPerKey(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.MaxPerKey")
+	return combinePerKey(s, findMaxFn, col)
 }

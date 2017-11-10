@@ -26,18 +26,18 @@ package beam
 
 // Seq is a convenience helper to chain single-input/single-output ParDos together
 // in a sequence.
-func Seq(p *Pipeline, col PCollection, dofns ...interface{}) PCollection {
+func Seq(s *Scope, col PCollection, dofns ...interface{}) PCollection {
 	cur := col
 	for _, dofn := range dofns {
-		cur = ParDo(p, dofn, cur)
+		cur = ParDo(s, dofn, cur)
 	}
 	return cur
 }
 
 // DropKey drops the key for an input PCollection<KV<A,B>>. It returns
 // a PCollection<B>.
-func DropKey(p *Pipeline, col PCollection) PCollection {
-	return ParDo(p, dropKeyFn, col)
+func DropKey(s *Scope, col PCollection) PCollection {
+	return ParDo(s, dropKeyFn, col)
 }
 
 func dropKeyFn(_ X, y Y) Y {
@@ -46,8 +46,8 @@ func dropKeyFn(_ X, y Y) Y {
 
 // DropValue drops the value for an input PCollection<KV<A,B>>. It returns
 // a PCollection<A>.
-func DropValue(p *Pipeline, col PCollection) PCollection {
-	return ParDo(p, dropValueFn, col)
+func DropValue(s *Scope, col PCollection) PCollection {
+	return ParDo(s, dropValueFn, col)
 }
 
 func dropValueFn(x X, _ Y) X {
@@ -56,8 +56,8 @@ func dropValueFn(x X, _ Y) X {
 
 // SwapKV swaps the key and value for an input PCollection<KV<A,B>>. It returns
 // a PCollection<KV<B,A>>.
-func SwapKV(p *Pipeline, col PCollection) PCollection {
-	return ParDo(p, swapKVFn, col)
+func SwapKV(s *Scope, col PCollection) PCollection {
+	return ParDo(s, swapKVFn, col)
 }
 
 func swapKVFn(x X, y Y) (Y, X) {
@@ -69,12 +69,12 @@ func swapKVFn(x X, y Y) (Y, X) {
 //
 // Example of use:
 //
-//    d := top.Top(p, merged, 5, ...)    // PCollection<[]A>
-//    top5 := beam.Explode(p, d)
+//    d := top.Top(s, merged, 5, ...)    // PCollection<[]A>
+//    top5 := beam.Explode(s, d)
 //
-func Explode(p *Pipeline, col PCollection) PCollection {
-	p = p.Scope("beam.Explode")
-	return ParDo(p, explodeFn, col)
+func Explode(s *Scope, col PCollection) PCollection {
+	s = s.Scope("beam.Explode")
+	return ParDo(s, explodeFn, col)
 }
 
 func explodeFn(list []T, emit func(T)) {

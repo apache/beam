@@ -29,14 +29,14 @@ import (
 // spec provided to implement the behavior of the operation. Transform
 // libraries should expose an API that captures the user's intent and serialize
 // the payload as a byte slice that the runner will deserialize.
-func External(p *Pipeline, spec string, payload []byte, in []PCollection, out []reflect.Type) []PCollection {
-	return MustN(TryExternal(p, spec, payload, in, out))
+func External(s *Scope, spec string, payload []byte, in []PCollection, out []reflect.Type) []PCollection {
+	return MustN(TryExternal(s, spec, payload, in, out))
 }
 
 // TryExternal attempts to perform the work of External, returning an error indicating why the operation
 // failed. Failure reasons include the use of side inputs, or an external transform that has both inputs
 // and outputs.
-func TryExternal(p *Pipeline, spec string, payload []byte, in []PCollection, out []reflect.Type) ([]PCollection, error) {
+func TryExternal(s *Scope, spec string, payload []byte, in []PCollection, out []reflect.Type) ([]PCollection, error) {
 	switch {
 	case len(in) == 0 && len(out) == 0:
 		return []PCollection{}, fmt.Errorf("External node not well-formed: out and in both empty")
@@ -47,9 +47,9 @@ func TryExternal(p *Pipeline, spec string, payload []byte, in []PCollection, out
 	case len(out) > 1:
 		return []PCollection{}, fmt.Errorf("External operations with side outputs are not currently supported")
 	case len(out) == 1:
-		return tryExternalSource(p, spec, payload, out[0])
+		return tryExternalSource(s, spec, payload, out[0])
 	case len(in) == 1:
-		return tryExternalSink(p, in[0], spec, payload)
+		return tryExternalSink(s, in[0], spec, payload)
 	}
 
 	panic(fmt.Errorf("Impossible case: len[in]=%d, len[out]=%d", len(in), len(out)))
@@ -61,7 +61,7 @@ func TryExternal(p *Pipeline, spec string, payload []byte, in []PCollection, out
 // primitive. Runners depending on this coding do so AT THEIR OWN RISK and will be broken when we convert
 // this implementation to its final internal representation.
 
-func tryExternalSource(p *Pipeline, spec string, payload []byte, out reflect.Type) ([]PCollection, error) {
+func tryExternalSource(s *Scope, spec string, payload []byte, out reflect.Type) ([]PCollection, error) {
 	emit := reflect.FuncOf([]reflect.Type{out}, nil, false)
 	fnT := reflect.FuncOf([]reflect.Type{emit}, []reflect.Type{reflectx.Error}, false)
 
@@ -72,7 +72,7 @@ func tryExternalSource(p *Pipeline, spec string, payload []byte, out reflect.Typ
 	if err != nil {
 		return []PCollection{}, err
 	}
-	edge, err := graph.NewSource(p.real, p.parent, fn, nil)
+	edge, err := graph.NewSource(s.real, s.scope, fn, nil)
 	if err != nil {
 		return []PCollection{}, err
 	}
@@ -81,7 +81,7 @@ func tryExternalSource(p *Pipeline, spec string, payload []byte, out reflect.Typ
 	return []PCollection{ret}, nil
 }
 
-func tryExternalSink(p *Pipeline, in PCollection, spec string, payload []byte) ([]PCollection, error) {
+func tryExternalSink(s *Scope, in PCollection, spec string, payload []byte) ([]PCollection, error) {
 	if !in.IsValid() {
 		return []PCollection{}, fmt.Errorf("invalid main pcollection")
 	}
@@ -94,7 +94,7 @@ func tryExternalSink(p *Pipeline, in PCollection, spec string, payload []byte) (
 	if err != nil {
 		return []PCollection{}, err
 	}
-	_, err = graph.NewSink(p.real, p.parent, fn, in.n)
+	_, err = graph.NewSink(s.real, s.scope, fn, in.n)
 	if err != nil {
 		return []PCollection{}, err
 	}

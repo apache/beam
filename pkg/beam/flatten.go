@@ -28,21 +28,21 @@ import (
 //
 // Example of use:
 //
-//    a := textio.Read(p, "...")
-//    b := textio.Read(p, "...")
-//    c := textio.Read(p, "...")
-//    merged := beam.Flatten(p, a, b, c)
+//    a := textio.Read(s, "...")
+//    b := textio.Read(s, "...")
+//    c := textio.Read(s, "...")
+//    merged := beam.Flatten(s, a, b, c)
 //
 // By default, the Coder of the output PCollection is the same as the Coder
 // of the first PCollection.
-func Flatten(p *Pipeline, cols ...PCollection) PCollection {
-	return Must(TryFlatten(p, cols...))
+func Flatten(s *Scope, cols ...PCollection) PCollection {
+	return Must(TryFlatten(s, cols...))
 }
 
 // TryFlatten merges incoming PCollections of type 'A' to a single PCollection
 // of type 'A'. Returns an error indicating the set of PCollections that could
 // not be flattened.
-func TryFlatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
+func TryFlatten(s *Scope, cols ...PCollection) (PCollection, error) {
 	for i, in := range cols {
 		if !in.IsValid() {
 			return PCollection{}, fmt.Errorf("invalid pcollection to flatten: index %v", i)
@@ -59,7 +59,7 @@ func TryFlatten(p *Pipeline, cols ...PCollection) (PCollection, error) {
 	for _, s := range cols {
 		in = append(in, s.n)
 	}
-	edge, err := graph.NewFlatten(p.real, p.parent, in)
+	edge, err := graph.NewFlatten(s.real, s.scope, in)
 	if err != nil {
 		return PCollection{}, err
 	}
