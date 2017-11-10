@@ -16,6 +16,7 @@
 package funcx
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
@@ -270,7 +271,9 @@ func New(dofn interface{}) (*Fn, error) {
 
 	u := &Fn{Fn: fn, Name: name, Param: param, Ret: ret}
 
-	// TODO(herohde): validate parameter order, restrictions
+	if err := validateOrder(u); err != nil {
+		return nil, err
+	}
 	return u, nil
 }
 
@@ -292,4 +295,142 @@ func SubReturns(list []ReturnParam, indices ...int) []ReturnParam {
 		ret = append(ret, list[index])
 	}
 	return ret
+}
+
+// The order of present parameters and return values must be as follows:
+// func(FnContext?, FnEventTime?, FnType?, (FnValue, SideInput*)?, FnEmit*) (RetEventTime?, RetEventTime?, RetError?)
+//     where ? indicates 0 or 1, and * indicates any number.
+//     and  a SideInput is one of FnValue or FnIter or FnReIter
+// Note: Fns with inputs must have at least one FnValue as the main input.
+func validateOrder(u *Fn) error {
+	paramState := psStart
+	var err error
+	// Validate the parameter ordering.
+	for i, p := range u.Param {
+		if paramState, err = nextParamState(paramState, p.Kind); err != nil {
+			return fmt.Errorf("%s at parameter %d for %s", err.Error(), i, u.Name)
+		}
+	}
+	// Validate the return value ordering.
+	retState := rsStart
+	for i, r := range u.Ret {
+		if retState, err = nextRetState(retState, r.Kind); err != nil {
+			return fmt.Errorf("%s for return value %d for %s", err.Error(), i, u.Name)
+		}
+	}
+	return nil
+}
+
+var (
+	errContextParam             = errors.New("may only have a single context.Context parameter and it must be the first parameter")
+	errEventTimeParamPrecedence = errors.New("may only have a single beam.EventTime parameter and it must preceed the main input parameter")
+	errReflectTypePrecedence    = errors.New("may only have a single reflect.Type parameter and it must preceed the main input parameter")
+	errSideInputPrecedence      = errors.New("side input parameters must follow main input parameter")
+	errInputPrecedence          = errors.New("inputs parameters must preceed emit function parameters")
+)
+
+type paramState int
+
+const (
+	psStart paramState = iota
+	psContext
+	psEventTime
+	psType
+	psInput
+	psOutput
+)
+
+func nextParamState(cur paramState, transition FnParamKind) (paramState, error) {
+	switch cur {
+	case psStart:
+		switch transition {
+		case FnContext:
+			return psContext, nil
+		case FnEventTime:
+			return psEventTime, nil
+		case FnType:
+			return psType, nil
+		}
+	case psContext:
+		switch transition {
+		case FnEventTime:
+			return psEventTime, nil
+		case FnType:
+			return psType, nil
+		}
+	case psEventTime:
+		switch transition {
+		case FnType:
+			return psType, nil
+		}
+	case psType:
+		// Completely handled by the default clause
+	case psInput:
+		switch transition {
+		case FnIter, FnReIter:
+			return psInput, nil
+		}
+	case psOutput:
+		switch transition {
+		case FnValue, FnIter, FnReIter:
+			return -1, errInputPrecedence
+		}
+	}
+	// Default transition cases to reduce duplication above
+	switch transition {
+	case FnContext:
+		return -1, errContextParam
+	case FnEventTime:
+		return -1, errEventTimeParamPrecedence
+	case FnType:
+		return -1, errReflectTypePrecedence
+	case FnValue:
+		return psInput, nil
+	case FnIter, FnReIter:
+		return -1, errSideInputPrecedence
+	case FnEmit:
+		return psOutput, nil
+	default:
+		panic(fmt.Sprintf("library error, unknown ParamKind: %v", transition))
+	}
+}
+
+var (
+	errEventTimeRetPrecedence = errors.New("beam.EventTime must be first return parameter")
+	errErrorPrecedence        = errors.New("error must be the final return parameter")
+)
+
+type retState int
+
+const (
+	rsStart retState = iota
+	rsEventTime
+	rsOutput
+	rsError
+)
+
+func nextRetState(cur retState, transition ReturnKind) (retState, error) {
+	switch cur {
+	case rsStart:
+		switch transition {
+		case RetEventTime:
+			return rsEventTime, nil
+		}
+	case rsEventTime, rsOutput:
+		// Identical to the default cases.
+	case rsError:
+		// This is a terminal state. No valid transitions. error must be the final return value.
+		return -1, errErrorPrecedence
+	}
+	// The default cases to avoid repetition.
+	switch transition {
+	case RetEventTime:
+		return -1, errEventTimeRetPrecedence
+	case RetValue:
+		return rsOutput, nil
+	case RetError:
+		return rsError, nil
+	default:
+		panic(fmt.Sprintf("library error, unknown ReturnKind: %v", transition))
+	}
 }

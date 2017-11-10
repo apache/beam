@@ -18,6 +18,7 @@ package funcx
 import (
 	"context"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -33,51 +34,175 @@ func (m foo) Do(context.Context, int, string) (string, int, error) {
 
 func TestNew(t *testing.T) {
 	tests := []struct {
+		Name  string
 		Fn    interface{}
 		Param []FnParamKind
 		Ret   []ReturnKind
+		Err   error
 	}{
 		{
-			Fn: func() {},
+			Name: "niladic",
+			Fn:   func() {},
 		},
 		{
-			Fn:    func(context.Context, int, string) (string, int, error) { return "", 0, nil },
+			Name: "good1",
+			Fn: func(context.Context, int, string) (typex.EventTime, string, int, error) {
+				return typex.EventTime{}, "", 0, nil
+			},
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
-			Ret:   []ReturnKind{RetValue, RetValue, RetError},
+			Ret:   []ReturnKind{RetEventTime, RetValue, RetValue, RetError},
 		},
 		{
-			Fn:    func(func(*int) bool, func(*int, *string) bool) {},
-			Param: []FnParamKind{FnIter, FnIter},
+			Name:  "good2",
+			Fn:    func(int, func(*int) bool, func(*int, *string) bool) {},
+			Param: []FnParamKind{FnValue, FnIter, FnIter},
 		},
 		{
-			Fn:    func(func(int, int), func(typex.EventTime, int, int), func(string), func(typex.EventTime, string)) {},
+			Name: "good3",
+			Fn: func(func(int, int), func(typex.EventTime, int, int), func(string), func(typex.EventTime, string)) {
+			},
 			Param: []FnParamKind{FnEmit, FnEmit, FnEmit, FnEmit},
 		},
 		{
-			Fn:    func(reflect.Type, typex.EventTime, []byte) {},
-			Param: []FnParamKind{FnType, FnEventTime, FnValue},
+			Name:  "good4",
+			Fn:    func(typex.EventTime, reflect.Type, []byte) {},
+			Param: []FnParamKind{FnEventTime, FnType, FnValue},
 		},
 		{
+			Name:  "good-method",
 			Fn:    foo{1}.Do,
 			Param: []FnParamKind{FnContext, FnValue, FnValue},
 			Ret:   []ReturnKind{RetValue, RetValue, RetError},
 		},
+		{
+			Name:  "no inputs, no RetOutput",
+			Fn:    func(context.Context, typex.EventTime, reflect.Type, func(int)) error { return nil },
+			Param: []FnParamKind{FnContext, FnEventTime, FnType, FnEmit},
+			Ret:   []ReturnKind{RetError},
+		},
+		{
+			Name: "errContextParam: after input",
+			Fn:   func(string, context.Context) {},
+			Err:  errContextParam,
+		},
+		{
+			Name: "errContextParam: after output",
+			Fn:   func(string, func(string), context.Context) {},
+			Err:  errContextParam,
+		},
+		{
+			Name: "errContextParam: after EventTime",
+			Fn:   func(typex.EventTime, context.Context, int) {},
+			Err:  errContextParam,
+		},
+		{
+			Name: "errContextParam: after reflect.Type",
+			Fn:   func(reflect.Type, context.Context, int) {},
+			Err:  errContextParam,
+		},
+		{
+			Name: "errContextParam: multiple context",
+			Fn:   func(context.Context, context.Context, int) {},
+			Err:  errContextParam,
+		},
+		{
+			Name: "errEventTimeParamPrecedence: after value",
+			Fn: func(int, typex.EventTime) {
+			},
+			Err: errEventTimeParamPrecedence,
+		},
+		{
+			Name: "errEventTimeParamPrecedence: after reflect type",
+			Fn: func(reflect.Type, typex.EventTime, int) {
+			},
+			Err: errEventTimeParamPrecedence,
+		},
+		{
+			Name: "errReflectTypePrecedence: after value",
+			Fn: func(int, reflect.Type) {
+			},
+			Err: errReflectTypePrecedence,
+		},
+		{
+			Name: "errReflectTypePrecedence: after reflect type",
+			Fn: func(reflect.Type, reflect.Type, int) {
+			},
+			Err: errReflectTypePrecedence,
+		},
+		{
+			Name: "errSideInputPrecedence- Iter before main input",
+			Fn:   func(func(*int) bool, func(*int, *string) bool, int) {},
+			Err:  errSideInputPrecedence,
+		},
+		{
+			Name: "errSideInputPrecedence- ReIter before main input",
+			Fn:   func(func() func(*int) bool, int) {},
+			Err:  errSideInputPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- Iter before after output",
+			Fn:   func(int, func(int), func(*int) bool, func(*int, *string) bool) {},
+			Err:  errInputPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- ReIter before after output",
+			Fn:   func(int, func(int), func() func(*int) bool) {},
+			Err:  errInputPrecedence,
+		},
+		{
+			Name: "errInputPrecedence- input after output",
+			Fn:   func(int, func(int), int) {},
+			Err:  errInputPrecedence,
+		},
+		{
+			Name: "errErrorPrecedence - first",
+			Fn: func() (error, string) {
+				return nil, ""
+			},
+			Err: errErrorPrecedence,
+		},
+		{
+			Name: "errErrorPrecedence - second",
+			Fn: func() (typex.EventTime, error, string) {
+				return typex.EventTime{}, nil, ""
+			},
+			Err: errErrorPrecedence,
+		},
+		{
+			Name: "errEventTimeRetPrecedence",
+			Fn: func() (string, typex.EventTime) {
+				return "", typex.EventTime{}
+			},
+			Err: errEventTimeRetPrecedence,
+		},
 	}
 
 	for _, test := range tests {
-		u, err := New(test.Fn)
-		if err != nil {
-			t.Fatalf("New(%v) failed: %v", test.Fn, err)
-		}
+		test := test
+		t.Run(test.Name, func(t *testing.T) {
+			u, err := New(test.Fn)
+			if err != nil {
+				if test.Err == nil {
+					t.Fatalf("Expected test.Err to be set; got: New(%v) failed: %v", test.Fn, err)
+				}
+				if u != nil {
+					t.Errorf("New(%v) failed, and returned non nil: %v, %v", test.Fn, u, err)
+				}
+				if strings.Contains(err.Error(), test.Err.Error()) {
+					return // Received the expected error.
+				}
+				t.Fatalf("New(%v) failed: %v;\n\twant err to contain: \"%v\"", test.Fn, err, test.Err)
+			}
 
-		param := projectParamKind(u)
-		if !reflect.DeepEqual(param, test.Param) {
-			t.Errorf("New(%v).Param = %v, want %v", test.Fn, param, test.Param)
-		}
-		ret := projectReturnKind(u)
-		if !reflect.DeepEqual(ret, test.Ret) {
-			t.Errorf("New(%v).Ret = %v, want %v", test.Fn, ret, test.Ret)
-		}
+			param := projectParamKind(u)
+			if !reflect.DeepEqual(param, test.Param) {
+				t.Errorf("New(%v).Param = %v, want %v", test.Fn, param, test.Param)
+			}
+			ret := projectReturnKind(u)
+			if !reflect.DeepEqual(ret, test.Ret) {
+				t.Errorf("New(%v).Ret = %v, want %v", test.Fn, ret, test.Ret)
+			}
+		})
 	}
 }
 
