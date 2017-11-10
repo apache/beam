@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.accumulators;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
@@ -22,6 +23,7 @@ import java.util.concurrent.TimeUnit;
  * Timer provides convenience API very similar to {@link Histogram}
  * but extended by time unit support.
  */
+@Audience(Audience.Type.CLIENT)
 public interface Timer extends Accumulator {
 
   /**

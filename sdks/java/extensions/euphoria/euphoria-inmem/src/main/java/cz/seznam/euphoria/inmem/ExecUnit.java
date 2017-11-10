@@ -16,9 +16,9 @@
 package cz.seznam.euphoria.inmem;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.graph.DAG;
-import cz.seznam.euphoria.core.client.graph.Node;
 import cz.seznam.euphoria.core.client.operator.Operator;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -79,7 +79,7 @@ class ExecUnit {
   public Collection<Dataset<?>> getOutputs() {
     return outputs;
   }
-  
+
 
   /** @return exec paths for this unit */
   public Collection<ExecPath> getPaths() {

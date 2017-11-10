@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
 
 /**
@@ -24,6 +25,7 @@ import java.io.Serializable;
  * @param <RIGHT> the type of the right operand
  * @param <OUT> the type of the result of the function application
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface BinaryFunction<LEFT, RIGHT, OUT> extends Serializable {
 

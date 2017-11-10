@@ -16,10 +16,13 @@
 
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Reduce function reducing iterable of elements into multiple elements (of
  * possibly different type).
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface ReduceFunctor<IN, OUT> extends UnaryFunctor<Iterable<IN>, OUT> {
 

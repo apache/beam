@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.triggers;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
@@ -22,6 +23,7 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 /**
  * A {@link Trigger} that fires once the count of elements reaches given count.
  */
+@Audience(Audience.Type.CLIENT)
 public class CountTrigger<W extends Window> implements Trigger<W> {
 
   private static final ValueStorageDescriptor<Long> COUNT_DESCR =

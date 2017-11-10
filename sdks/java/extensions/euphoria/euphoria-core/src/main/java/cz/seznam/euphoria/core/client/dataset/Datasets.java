@@ -16,6 +16,7 @@
 
 package cz.seznam.euphoria.core.client.dataset;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -23,6 +24,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 /**
  * Various dataset related utils.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class Datasets {
 
   /**
@@ -56,7 +58,7 @@ public class Datasets {
    */
   public static <T> Dataset<T> createInputFromSource(
       Flow flow, DataSource<T> source) {
-    
+
     return new InputDataset<>(flow, source, source.isBounded());
   }
 }

@@ -16,6 +16,7 @@
 
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 /**
  * A data sink that stores data in list.
  */
+@Audience({ Audience.Type.CLIENT, Audience.Type.TESTS })
 public class ListDataSink<T> implements DataSink<T> {
 
   // global storage for all existing ListDataSinks

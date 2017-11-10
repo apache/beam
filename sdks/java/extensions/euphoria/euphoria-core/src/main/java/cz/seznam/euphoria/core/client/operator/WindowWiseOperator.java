@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -24,6 +25,7 @@ import javax.annotation.Nullable;
 /**
  * Operator working on some context.
  */
+@Audience(Audience.Type.INTERNAL)
 public abstract class WindowWiseOperator<
     IN, WIN, OUT, W extends Window>
     extends Operator<IN, OUT> implements WindowAware<WIN, W> {

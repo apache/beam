@@ -15,10 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Thrown by executors at flow submission time when an invalid flow set up is detected,
  * requiring the user to explicitly provide a windowing strategy to a certain operator.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class WindowingRequiredException extends IllegalStateException {
   public WindowingRequiredException(String message) {
     super(message);

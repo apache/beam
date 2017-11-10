@@ -15,12 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 import java.io.Serializable;
 
 /**
  * Functor of two arguments.
  */
+@Audience(Audience.Type.CLIENT)
 @FunctionalInterface
 public interface BinaryFunctor<LEFT, RIGHT, OUT> extends Serializable {
 

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor.greduce;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
@@ -53,6 +54,7 @@ import java.util.Objects;
  * of already grouped (by a specific key) and windowed elements where
  * no late-comers are tolerated.
  */
+@Audience(Audience.Type.EXECUTOR)
 public class GroupReducer<WID extends Window, KEY, I> {
 
   // ~ a think facade around an executor dependent implementation

@@ -15,12 +15,15 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Extends {@link Environment} with write capability. Used in
  * user defined functors.
  *
  * @param <T> the type of elements collected through this context
  */
+@Audience(Audience.Type.CLIENT)
 public interface Collector<T> extends Environment {
 
   /**

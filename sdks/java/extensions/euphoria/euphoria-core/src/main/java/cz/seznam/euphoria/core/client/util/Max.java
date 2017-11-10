@@ -15,12 +15,14 @@
  */
 package cz.seznam.euphoria.core.client.util;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.CombinableReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
 /**
  * Calculate maximum.
  */
+@Audience(Audience.Type.CLIENT)
 public class Max {
 
   /**
@@ -36,7 +38,7 @@ public class Max {
    */
   public static <IN, X extends Comparable<X>> CombinableReduceFunction<IN> of(
       UnaryFunction<IN, X> extract) {
-    
+
     return values -> {
       IN max = null;
       X maxValue = null;

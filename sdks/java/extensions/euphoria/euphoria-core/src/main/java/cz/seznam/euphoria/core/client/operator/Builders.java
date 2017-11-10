@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -26,6 +27,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
  *
  * For internal usage only.
  */
+@Audience(Audience.Type.INTERNAL)
 public class Builders {
 
   interface Of {
@@ -74,7 +76,7 @@ public class Builders {
      */
     <W extends Window> Object windowBy(Windowing<IN, W> windowing);
   }
-  
+
   public interface Output<T> {
 
     /**

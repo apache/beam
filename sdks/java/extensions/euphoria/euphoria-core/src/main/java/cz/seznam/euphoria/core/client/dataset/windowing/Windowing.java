@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.dataset.windowing;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.io.Serializable;
@@ -23,6 +24,7 @@ import java.io.Serializable;
 /**
  * A windowing policy of a dataset.
  */
+@Audience(Audience.Type.CLIENT)
 public interface Windowing<T, W extends Window> extends Serializable {
 
   /**

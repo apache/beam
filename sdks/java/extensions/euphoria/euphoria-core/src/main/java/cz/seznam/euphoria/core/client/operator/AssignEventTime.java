@@ -15,11 +15,13 @@
  */
 package cz.seznam.euphoria.core.client.operator;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.annotation.operator.Derived;
 import cz.seznam.euphoria.core.annotation.operator.StateComplexity;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 
 import java.util.Objects;
 
@@ -33,6 +35,7 @@ import java.util.Objects;
  *      .output();
  * }</pre>
  */
+@Audience(Audience.Type.CLIENT)
 @Derived(
     state = StateComplexity.ZERO,
     repartitions = 0

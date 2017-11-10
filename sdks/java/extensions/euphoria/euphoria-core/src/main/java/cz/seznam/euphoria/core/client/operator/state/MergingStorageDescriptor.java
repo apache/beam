@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.operator.state;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 
 /**
@@ -22,6 +23,7 @@ import cz.seznam.euphoria.core.client.functional.BinaryFunction;
  *
  * @param <T> the type of elements referred to through this descriptor
  */
+@Audience(Audience.Type.CLIENT)
 public interface MergingStorageDescriptor<T> {
 
   /**

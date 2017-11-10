@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.client.graph;
+package cz.seznam.euphoria.core.executor.graph;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +25,7 @@ import java.util.Objects;
 /**
  * A single Node in DAG.
  */
+@Audience(Audience.Type.EXECUTOR)
 public final class Node<T> {
 
   final List<Node<T>> children = new ArrayList<>();

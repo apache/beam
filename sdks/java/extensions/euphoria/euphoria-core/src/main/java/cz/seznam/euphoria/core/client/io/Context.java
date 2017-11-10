@@ -15,9 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+
 /**
  * Used in user defined functions to access environment methods.
  */
+@Audience(Audience.Type.CLIENT)
 public interface Context extends Environment {
 
 }
