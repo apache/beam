@@ -171,11 +171,9 @@ public class FlowUnfolder {
         // we have to link the original output dataset with given replaced operator
         datasetProducents.put(n.get().output(), Optional.of(leaf));
 
-        // and propagate output and checkpoint sinks
+        // and propagate output sinks
         if (n.get().output().getOutputSink() != null) {
           leaf.output().persist((DataSink) n.get().output().getOutputSink());
-        } else if (n.get().output().getCheckpointSink() != null) {
-          leaf.output().checkpoint((DataSink) n.get().output().getCheckpointSink());
         }
       }
 
