@@ -116,6 +116,7 @@ class PrefetchingSourceSetIterable(object):
       self.element_queue.put(READER_THREAD_IS_DONE_SENTINEL)
 
   def __iter__(self):
+    # pylint: disable=too-many-nested-blocks
     if self.already_iterated:
       raise RuntimeError(
           'Can only iterate once over PrefetchingSourceSetIterable instance.')
