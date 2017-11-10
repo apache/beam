@@ -56,10 +56,10 @@
 //
 // Applying a transform adds it to the pipeline, rather than executing it
 // immediately.  Once the whole pipeline of transforms is constructed, the
-// pipeline can be executed by a PipelineRunner.  The local runner executes the
+// pipeline can be executed by a PipelineRunner.  The direct runner executes the
 // transforms directly, sequentially, in this one process, which is useful for
 // unit tests and simple experiments:
-//    if err := local.Run(context.Background(), p); err != nil {
+//    if err := direct.Run(context.Background(), p); err != nil {
 //        log.Fatalf("Pipeline failed: %v", err)
 //    }
 //

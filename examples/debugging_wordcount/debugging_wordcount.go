@@ -69,7 +69,7 @@ var (
 // available at runtime.
 
 func init() {
-	// To be correctly serialized on non-local runners, struct form DoFns must be
+	// To be correctly serialized on non-direct runners, struct form DoFns must be
 	// registered during initialization.
 	beam.RegisterType(reflect.TypeOf((*filterFn)(nil)).Elem())
 }

@@ -46,7 +46,7 @@
 //     --runner=YOUR_SELECTED_RUNNER
 //
 // To execute this pipeline, specify a local output file (if using the
-// 'local' runner) or a remote file on a supported distributed file system.
+// 'direct' runner) or a remote file on a supported distributed file system.
 //
 //   --output=[YOUR_LOCAL_FILE | YOUR_REMOTE_FILE]
 //

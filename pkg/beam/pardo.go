@@ -88,7 +88,7 @@ func ParDo0(p *Pipeline, dofn interface{}, col PCollection, opts ...Option) {
 // Conceptually, when a ParDo transform is executed, the elements of the input
 // PCollection are first divided up into some number of "bundles". These are
 // farmed off to distributed worker machines (or run locally, if using the
-// local runner). For each bundle of input elements processing proceeds as
+// direct runner). For each bundle of input elements processing proceeds as
 // follows:
 //
 //  * If a struct, a fresh instance of the argument DoFn is created on a
