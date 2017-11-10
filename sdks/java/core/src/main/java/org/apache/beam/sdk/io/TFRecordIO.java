@@ -222,7 +222,7 @@ public class TFRecordIO {
 
       abstract Builder setShardTemplate(String shardTemplate);
 
-      abstract Builder setFilenameSuffix(String filenameSuffix);
+      abstract Builder setFilenameSuffix(@Nullable String filenameSuffix);
 
       abstract Builder setNumShards(int numShards);
 
@@ -448,9 +448,9 @@ public class TFRecordIO {
       private long startOfRecord;
       private volatile long startOfNextRecord;
       private volatile boolean elementIsPresent;
-      private byte[] currentValue;
-      private ReadableByteChannel inChannel;
-      private TFRecordCodec codec;
+      private @Nullable byte[] currentValue;
+      private @Nullable ReadableByteChannel inChannel;
+      private @Nullable TFRecordCodec codec;
 
       private TFRecordReader(TFRecordSource source) {
         super(source);
@@ -536,8 +536,8 @@ public class TFRecordIO {
 
     /** A {@link Writer Writer} for TFRecord files. */
     private static class TFRecordWriter extends Writer<Void, byte[]> {
-      private WritableByteChannel outChannel;
-      private TFRecordCodec codec;
+      private @Nullable WritableByteChannel outChannel;
+      private @Nullable TFRecordCodec codec;
 
       private TFRecordWriter(WriteOperation<Void, byte[]> writeOperation) {
         super(writeOperation, MimeTypes.BINARY);
@@ -586,7 +586,7 @@ public class TFRecordIO {
       return HEADER_LEN + data.length + FOOTER_LEN;
     }
 
-    public byte[] read(ReadableByteChannel inChannel) throws IOException {
+    public @Nullable byte[] read(ReadableByteChannel inChannel) throws IOException {
       header.clear();
       int headerBytes = inChannel.read(header);
       if (headerBytes <= 0) {

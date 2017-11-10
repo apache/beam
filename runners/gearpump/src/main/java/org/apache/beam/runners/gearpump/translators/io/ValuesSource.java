@@ -146,7 +146,7 @@ public class ValuesSource<T> extends UnboundedSource<T, UnboundedSource.Checkpoi
 
     @Override
     public CheckpointMark getCheckpointMark() {
-      return null;
+      return CheckpointMark.NOOP_CHECKPOINT_MARK;
     }
 
     @Override

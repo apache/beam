@@ -50,16 +50,19 @@ public class DynamicFileDestinations {
     }
 
     @Override
+    @Nullable
     public Void getDestination(UserT element) {
       return (Void) null;
     }
 
     @Override
+    @Nullable
     public Coder<Void> getDestinationCoder() {
       return null;
     }
 
     @Override
+    @Nullable
     public Void getDefaultDestination() {
       return (Void) null;
     }

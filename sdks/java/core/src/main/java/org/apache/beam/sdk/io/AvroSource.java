@@ -498,8 +498,8 @@ public class AvroSource<T> extends BlockBasedSource<T> {
     // The number of records in the block.
     private final long numRecords;
 
-    // The current record in the block.
-    private T currentRecord;
+    // The current record in the block. Initialized in readNextRecord.
+    @Nullable private T currentRecord;
 
     // The index of the current record in the block.
     private long currentRecordIndex = 0;
@@ -601,10 +601,12 @@ public class AvroSource<T> extends BlockBasedSource<T> {
    */
   @Experimental(Experimental.Kind.SOURCE_SINK)
   public static class AvroReader<T> extends BlockBasedReader<T> {
-    private AvroMetadata metadata;
+    // Initialized in startReading.
+    @Nullable private AvroMetadata metadata;
 
     // The current block.
-    private AvroBlock<T> currentBlock;
+    // Initialized in readNextRecord.
+    @Nullable private AvroBlock<T> currentBlock;
 
     // A lock used to synchronize block offsets for getRemainingParallelism
     private final Object progressLock = new Object();
@@ -619,13 +621,17 @@ public class AvroSource<T> extends BlockBasedSource<T> {
 
     // Stream used to read from the underlying file.
     // A pushback stream is used to restore bytes buffered during seeking.
-    private PushbackInputStream stream;
+    // Initialized in startReading.
+    @Nullable private PushbackInputStream stream;
+
     // Counts the number of bytes read. Used only to tell how many bytes are taken up in
     // a block's variable-length header.
-    private CountingInputStream countStream;
+    // Initialized in startReading.
+    @Nullable private CountingInputStream countStream;
 
     // Caches the Avro DirectBinaryDecoder used to decode binary-encoded values from the buffer.
-    private BinaryDecoder decoder;
+    // Initialized in readNextBlock.
+    @Nullable private BinaryDecoder decoder;
 
     /**
      * Reads Avro records of type {@code T} from the specified source.
