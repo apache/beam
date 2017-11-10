@@ -18,15 +18,13 @@ package stats
 import (
     "fmt"
     "reflect"
-
-    "github.com/apache/beam/sdks/go/pkg/beam"
 )
 
-func sumSwitch(p *beam.Pipeline, t reflect.Type, col beam.PCollection) beam.PCollection {
+func findSumFn(t reflect.Type) interface{} {
     switch t.String() {
 {{- range .X}}
     case "{{.Type}}":
-		return beam.Combine(p, sum{{.Name}}Fn, col)
+		return sum{{.Name}}Fn
 {{- end}}
 	default:
 		panic(fmt.Sprintf("Unexpected number type: %v", t))

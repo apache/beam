@@ -79,7 +79,7 @@ func main() {
 	keyed := beam.ParDo(p, func(g Grade) (string, Grade) {
 		return g.Name[:1], g
 	}, students)
-	keyedBest := top.Largest(p, keyed, 1, less)
+	keyedBest := top.LargestPerKey(p, keyed, 1, less)
 	unkeyed := beam.Flatten(p, beam.DropKey(p, keyedBest))
 
 	altBest := top.Smallest(p, unkeyed, 30, alphabetically)

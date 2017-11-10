@@ -106,7 +106,7 @@ func TestSumKeyed(t *testing.T) {
 	for _, test := range tests {
 		p, in, exp := ptest.CreateList2(test.in, test.exp)
 		kv := beam.ParDo(p, studentToKV, in)
-		sum := Sum(p, kv)
+		sum := SumPerKey(p, kv)
 		sumStudent := beam.ParDo(p, kvToStudent, sum)
 		passert.Equals(p, sumStudent, exp)
 

@@ -25,6 +25,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 var (
@@ -35,16 +36,9 @@ func init() {
 	beam.RegisterType(reflect.TypeOf((*combineFn)(nil)).Elem())
 }
 
-// Largest returns the largest N elements either globally or per-key of the
-// incoming PCollection, depending on its type:
-//
-//    PCollection<T>        : globally
-//    PCollection<KV<K,T>>  : per-key
-//    PCollection<GBK<K,T>> : per-key
-//
-// The order is defined by the comparator, less : T x T -> bool. It returns
-// a single-element PCollection<[]T> or PCollection<K,[]T> with a slice of the
-// N largest elements either globally or per key.
+// Largest returns the largest N elements of a PCollection<T>. The order is
+// defined by the comparator, less : T x T -> bool. It returns a single-element
+// PCollection<[]T> with a slice of the N largest elements.
 //
 // Example use:
 //
@@ -54,25 +48,28 @@ func init() {
 func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	p = p.Scope(fmt.Sprintf("top.Largest(%v)", n))
 
-	if n < 1 {
-		panic(fmt.Sprintf("n must be > 0"))
-	}
-	t := beam.FindCombineType(col)
-	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t))
+	t := beam.ValidateNonCompositeType(col)
+	validate(t, n, less)
 
 	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
 
-// Smallest returns the smallest N elements either globally or per-key of the
-// incoming PCollection, depending on its type:
-//
-//    PCollection<T>        : globally
-//    PCollection<KV<K,T>>  : per-key
-//    PCollection<GBK<K,T>> : per-key
-//
-// The order is defined by the comparator, less : T x T -> bool. It returns
-// a single-element PCollection<[]T> or PCollection<K,[]T> with a slice of the
-// N smallest elements either globally or per key.
+// LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
+// The order is defined by the comparator, less : T x T -> bool. It returns a
+// single-element PCollection<KV<K,[]T>> with a slice of the N largest elements for
+// each key.
+func LargestPerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	p = p.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
+
+	_, t := beam.ValidateKVType(col)
+	validate(t, n, less)
+
+	return beam.CombinePerKey(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
+}
+
+// Smallest returns the smallest N elements of a PCollection<T>. The order is
+// defined by the comparator, less : T x T -> bool. It returns a single-element
+// PCollection<[]T> with a slice of the N smallest elements.
 //
 // Example use:
 //
@@ -82,13 +79,30 @@ func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) be
 func Smallest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	p = p.Scope(fmt.Sprintf("top.Smallest(%v)", n))
 
+	t := beam.ValidateNonCompositeType(col)
+	validate(t, n, less)
+
+	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+}
+
+// SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
+// The order is defined by the comparator, less : T x T -> bool. It returns a
+// single-element PCollection<KV<K,[]T>> with a slice of the N smallest elements for
+// each key.
+func SmallestPerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	p = p.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
+
+	_, t := beam.ValidateKVType(col)
+	validate(t, n, less)
+
+	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+}
+
+func validate(t typex.FullType, n int, less interface{}) {
 	if n < 1 {
 		panic(fmt.Sprintf("n must be > 0"))
 	}
-	t := beam.FindCombineType(col)
-	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t))
-
-	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+	funcx.MustSatisfy(less, funcx.Replace(sig, beam.TType, t.Type()))
 }
 
 // TODO(herohde) 5/25/2017: the accumulator should be serializable with a Coder.

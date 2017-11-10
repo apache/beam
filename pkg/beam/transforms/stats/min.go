@@ -16,18 +16,14 @@
 package stats
 
 import (
-	"fmt"
-
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 //go:generate specialize --input=min_switch.tmpl --x=integers,floats
 
-// Min returns the minimal element -- per key, if keyed -- in a collection.
-// It expects a PCollection<A> or PCollection<KV<A,B>> as input and returns
-// a singleton PCollection<A> or a PCollection<KV<A,B>>, respectively. It
-// can only be used for numbers, such as int, uint16, float32, etc.
+// Min returns the minimal element in a PCollection<A> as a singleton
+// PCollection<A>. It can only be used for numbers, such as int, uint16,
+// float32, etc.
 //
 // For example:
 //
@@ -36,13 +32,13 @@ import (
 //
 func Min(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Scope("stats.Min")
+	return combine(p, findMinFn, col)
+}
 
-	t := beam.FindCombineType(col)
-	if !reflectx.IsNumber(t) || reflectx.IsComplex(t) {
-		panic(fmt.Sprintf("Min requires a non-complex number: %v", t))
-	}
-
-	// Do a pipeline-construction-time type switch to select the right
-	// runtime operation.
-	return minSwitch(p, t, col)
+// MinPerKey returns the minimal element per key in a PCollection<KV<A,B>> as
+// a PCollection<KV<A,B>>. It can only be used for numbers, such as int,
+// uint16, float32, etc.
+func MinPerKey(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
+	p = p.Scope("stats.MinPerKey")
+	return combinePerKey(p, findMinFn, col)
 }

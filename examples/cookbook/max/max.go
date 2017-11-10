@@ -51,7 +51,7 @@ func MaxMeanTemp(p *beam.Pipeline, rows beam.PCollection) beam.PCollection {
 	p = p.Scope("MaxMeanTemp")
 
 	keyed := beam.ParDo(p, extractFn, rows)
-	maxTemps := stats.Max(p, keyed)
+	maxTemps := stats.MaxPerKey(p, keyed)
 	return beam.ParDo(p, formatFn, maxTemps)
 }
 

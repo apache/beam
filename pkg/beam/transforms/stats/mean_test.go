@@ -110,7 +110,7 @@ func TestMeanKeyed(t *testing.T) {
 	for _, test := range tests {
 		p, in, exp := ptest.CreateList2(test.in, test.exp)
 		kv := beam.ParDo(p, studentToKV, in)
-		mean := Mean(p, kv)
+		mean := MeanPerKey(p, kv)
 		meanStudent := beam.ParDo(p, kvToStudent, mean)
 		passert.Equals(p, meanStudent, exp)
 

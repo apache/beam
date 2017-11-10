@@ -26,7 +26,7 @@ func Count(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
 	p = p.Scope("stats.Count")
 
 	pre := beam.ParDo(p, mapFn, col)
-	return Sum(p, pre)
+	return SumPerKey(p, pre)
 }
 
 func mapFn(elm beam.T) (beam.T, int) {

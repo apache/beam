@@ -20,36 +20,34 @@ package stats
 import (
 	"fmt"
 	"reflect"
-
-	"github.com/apache/beam/sdks/go/pkg/beam"
 )
 
-func minSwitch(p *beam.Pipeline, t reflect.Type, col beam.PCollection) beam.PCollection {
+func findMinFn(t reflect.Type) interface{} {
 	switch t.String() {
 	case "int":
-		return beam.Combine(p, minIntFn, col)
+		return minIntFn
 	case "int8":
-		return beam.Combine(p, minInt8Fn, col)
+		return minInt8Fn
 	case "int16":
-		return beam.Combine(p, minInt16Fn, col)
+		return minInt16Fn
 	case "int32":
-		return beam.Combine(p, minInt32Fn, col)
+		return minInt32Fn
 	case "int64":
-		return beam.Combine(p, minInt64Fn, col)
+		return minInt64Fn
 	case "uint":
-		return beam.Combine(p, minUintFn, col)
+		return minUintFn
 	case "uint8":
-		return beam.Combine(p, minUint8Fn, col)
+		return minUint8Fn
 	case "uint16":
-		return beam.Combine(p, minUint16Fn, col)
+		return minUint16Fn
 	case "uint32":
-		return beam.Combine(p, minUint32Fn, col)
+		return minUint32Fn
 	case "uint64":
-		return beam.Combine(p, minUint64Fn, col)
+		return minUint64Fn
 	case "float32":
-		return beam.Combine(p, minFloat32Fn, col)
+		return minFloat32Fn
 	case "float64":
-		return beam.Combine(p, minFloat64Fn, col)
+		return minFloat64Fn
 	default:
 		panic(fmt.Sprintf("Unexpected number type: %v", t))
 	}
