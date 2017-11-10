@@ -42,29 +42,29 @@ func init() {
 //
 // Example use:
 //
-//    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    top2 := stats.Largest(p, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
+//    col := beam.Create(s, 1, 11, 7, 5, 10)
+//    top2 := stats.Largest(s, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
 //
-func Largest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Scope(fmt.Sprintf("top.Largest(%v)", n))
+func Largest(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	s = s.Scope(fmt.Sprintf("top.Largest(%v)", n))
 
 	t := beam.ValidateNonCompositeType(col)
 	validate(t, n, less)
 
-	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
+	return beam.Combine(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
 
 // LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
 // single-element PCollection<KV<K,[]T>> with a slice of the N largest elements for
 // each key.
-func LargestPerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
+func LargestPerKey(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	s = s.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.CombinePerKey(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
+	return beam.CombinePerKey(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
 }
 
 // Smallest returns the smallest N elements of a PCollection<T>. The order is
@@ -73,29 +73,29 @@ func LargestPerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface
 //
 // Example use:
 //
-//    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    bottom2 := stats.Smallest(p, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
+//    col := beam.Create(s, 1, 11, 7, 5, 10)
+//    bottom2 := stats.Smallest(s, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
 //
-func Smallest(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Scope(fmt.Sprintf("top.Smallest(%v)", n))
+func Smallest(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	s = s.Scope(fmt.Sprintf("top.Smallest(%v)", n))
 
 	t := beam.ValidateNonCompositeType(col)
 	validate(t, n, less)
 
-	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+	return beam.Combine(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
 }
 
 // SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
 // single-element PCollection<KV<K,[]T>> with a slice of the N smallest elements for
 // each key.
-func SmallestPerKey(p *beam.Pipeline, col beam.PCollection, n int, less interface{}) beam.PCollection {
-	p = p.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
+func SmallestPerKey(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+	s = s.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.Combine(p, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+	return beam.Combine(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
 }
 
 func validate(t typex.FullType, n int, less interface{}) {

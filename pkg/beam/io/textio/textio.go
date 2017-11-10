@@ -34,11 +34,11 @@ func init() {
 
 // Read reads a set of file and returns the lines as a PCollection<string>. The
 // newlines are not part of the lines.
-func Read(p *beam.Pipeline, glob string) beam.PCollection {
-	p = p.Scope("textio.Read")
+func Read(s *beam.Scope, glob string) beam.PCollection {
+	s = s.Scope("textio.Read")
 
 	validateScheme(glob)
-	return read(p, beam.Create(p, glob))
+	return read(s, beam.Create(s, glob))
 }
 
 func validateScheme(glob string) {
@@ -70,15 +70,15 @@ func newFileSystem(ctx context.Context, glob string) (FileSystem, error) {
 // ReadAll expands and reads the filename given as globs by the incoming
 // PCollection<string>. It returns the lines of all files as a single
 // PCollection<string>. The newlines are not part of the lines.
-func ReadAll(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("textio.ReadAll")
+func ReadAll(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("textio.ReadAll")
 
-	return read(p, col)
+	return read(s, col)
 }
 
-func read(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	files := beam.ParDo(p, expandFn, col)
-	return beam.ParDo(p, readFn, files)
+func read(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	files := beam.ParDo(s, expandFn, col)
+	return beam.ParDo(s, readFn, files)
 }
 
 func expandFn(ctx context.Context, glob string, emit func(string)) error {
@@ -129,11 +129,11 @@ func readFn(ctx context.Context, filename string, emit func(string)) error {
 
 // Write writes a PCollection<string> to a file as separate lines. The
 // writer add a newline after each element.
-func Write(p *beam.Pipeline, filename string, col beam.PCollection) {
-	p = p.Scope("textio.Write")
+func Write(s *beam.Scope, filename string, col beam.PCollection) {
+	s = s.Scope("textio.Write")
 
 	validateScheme(filename)
-	beam.ParDo0(p, &writeFileFn{Filename: filename}, col)
+	beam.ParDo0(s, &writeFileFn{Filename: filename}, col)
 }
 
 type writeFileFn struct {
@@ -182,8 +182,8 @@ func (w *writeFileFn) Teardown() error {
 
 // Immediate reads a local file at pipeline construction-time and embeds the
 // data into a I/O-free pipeline source. Should be used for small files only.
-func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
-	p = p.Scope("textio.Immediate")
+func Immediate(s *beam.Scope, filename string) (beam.PCollection, error) {
+	s = s.Scope("textio.Immediate")
 
 	var data []interface{}
 
@@ -200,5 +200,5 @@ func Immediate(p *beam.Pipeline, filename string) (beam.PCollection, error) {
 	if err := scanner.Err(); err != nil {
 		return beam.PCollection{}, err
 	}
-	return beam.Create(p, data...), nil
+	return beam.Create(s, data...), nil
 }

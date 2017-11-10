@@ -19,7 +19,7 @@
 //
 // In order to start creating the pipeline for execution, a Pipeline object is needed.
 //
-// 	 p := beam.NewPipeline()
+// 	 p, s := beam.NewPipeline()
 //
 // The pipeline object encapsulates all the data and steps in your processing task.
 // It is the basis for creating the pipeline's data sets as PCollections and its operations
@@ -32,27 +32,27 @@
 // PCollection.
 //
 //   // Start by reading text from an input files.
-//   lines := textio.Read(p, "protocol://path/file*.txt")
+//   lines := textio.Read(s, "protocol://path/file*.txt")
 //
 // Transforms are added to the pipeline so they are part of the work to be
 // executed.  Since this transform has no PCollection as an input, it is
 // considered a 'root transform'
 //
 //    // A pipeline can have multiple root transforms
-//    moreLines :=  textio.Read(p, "protocol://other/path/file*.txt")
+//    moreLines :=  textio.Read(s, "protocol://other/path/file*.txt")
 //
 // Further transforms can be applied, creating an arbitrary, acyclic graph.
 // Subsequent transforms (and the intermediate PCollections they produce) are
 // attached to the same pipeline.
-//    all := beam.Flatten(p, lines, moreLines)
+//    all := beam.Flatten(s, lines, moreLines)
 //    wordRegexp := regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
-//    words := beam.ParDo(p, func (line string, emit func(string))) {
+//    words := beam.ParDo(s, func (line string, emit func(string))) {
 //         for _, word := range wordRegexp.FindAllString(line, -1) {
 //             emit(word)
 //         }
 //    }, all)
-//    formatted := beam.ParDo(p, string.ToUpper, words)
-//    textio.Write(p, "protocol://output/path", formatted)
+//    formatted := beam.ParDo(s, string.ToUpper, words)
+//    textio.Write(s, "protocol://output/path", formatted)
 //
 // Applying a transform adds it to the pipeline, rather than executing it
 // immediately.  Once the whole pipeline of transforms is constructed, the

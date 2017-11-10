@@ -27,18 +27,18 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    min := stats.Min(p, col)   // PCollection<int> with 1 as the only element.
+//    col := beam.Create(s, 1, 11, 7, 5, 10)
+//    min := stats.Min(s, col)   // PCollection<int> with 1 as the only element.
 //
-func Min(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("stats.Min")
-	return combine(p, findMinFn, col)
+func Min(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.Min")
+	return combine(s, findMinFn, col)
 }
 
 // MinPerKey returns the minimal element per key in a PCollection<KV<A,B>> as
 // a PCollection<KV<A,B>>. It can only be used for numbers, such as int,
 // uint16, float32, etc.
-func MinPerKey(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("stats.MinPerKey")
-	return combinePerKey(p, findMinFn, col)
+func MinPerKey(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.MinPerKey")
+	return combinePerKey(s, findMinFn, col)
 }

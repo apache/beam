@@ -40,23 +40,23 @@ func init() {
 // Equals verifies the given collection has the same values as the given
 // values, under coder equality. The values can be provided as single
 // PCollection.
-func Equals(p *beam.Pipeline, col beam.PCollection, values ...interface{}) beam.PCollection {
+func Equals(s *beam.Scope, col beam.PCollection, values ...interface{}) beam.PCollection {
 	if len(values) == 0 {
-		return Empty(p, col)
+		return Empty(s, col)
 	}
 	if other, ok := values[0].(beam.PCollection); ok && len(values) == 1 {
-		return equals(p, col, other)
+		return equals(s, col, other)
 	}
 
-	other := beam.Create(p, values...)
-	return equals(p, col, other)
+	other := beam.Create(s, values...)
+	return equals(s, col, other)
 }
 
 // equals verifies that the actual values match the expected ones.
-func equals(p *beam.Pipeline, actual, expected beam.PCollection) beam.PCollection {
-	bad, _, bad2 := Diff(p, actual, expected)
-	fail(p, bad, "value %v present, but not expected")
-	fail(p, bad2, "value %v expected, but not present")
+func equals(s *beam.Scope, actual, expected beam.PCollection) beam.PCollection {
+	bad, _, bad2 := Diff(s, actual, expected)
+	fail(s, bad, "value %v present, but not expected")
+	fail(s, bad2, "value %v expected, but not present")
 	return actual
 }
 
@@ -64,9 +64,9 @@ func equals(p *beam.Pipeline, actual, expected beam.PCollection) beam.PCollectio
 // preserved, so a value may appear multiple times and in multiple collections. Coder
 // equality is used to determine equality. Should only be used for small collections,
 // because all values are held in memory at the same time.
-func Diff(p *beam.Pipeline, a, b beam.PCollection) (left, both, right beam.PCollection) {
-	imp := beam.Impulse(p)
-	return beam.ParDo3(p, &diffFn{Coder: beam.EncodedCoder{Coder: a.Coder()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
+func Diff(s *beam.Scope, a, b beam.PCollection) (left, both, right beam.PCollection) {
+	imp := beam.Impulse(s)
+	return beam.ParDo3(s, &diffFn{Coder: beam.EncodedCoder{Coder: a.Coder()}}, imp, beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
 // TODO(herohde) 7/11/2017: should there be a first-class way to obtain the coder,
@@ -163,33 +163,33 @@ func encode(c *coder.Coder, value interface{}) (string, error) {
 }
 
 // True asserts that all elements satisfy the given predicate.
-func True(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	fail(p, filter.Exclude(p, col, fn), "predicate(%v) = false, want true")
+func True(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+	fail(s, filter.Exclude(s, col, fn), "predicate(%v) = false, want true")
 	return col
 }
 
 // False asserts that the given predicate does not satisfy any element in the condition.
-func False(p *beam.Pipeline, col beam.PCollection, fn interface{}) beam.PCollection {
-	fail(p, filter.Include(p, col, fn), "predicate(%v) = true, want false")
+func False(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+	fail(s, filter.Include(s, col, fn), "predicate(%v) = true, want false")
 	return col
 }
 
 // Empty asserts that col is empty.
-func Empty(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	fail(p, col, "PCollection contains %v, want empty collection")
+func Empty(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	fail(s, col, "PCollection contains %v, want empty collection")
 	return col
 }
 
-func fail(p *beam.Pipeline, col beam.PCollection, format string) {
+func fail(s *beam.Scope, col beam.PCollection, format string) {
 	switch {
 	case typex.IsWKV(col.Type()):
-		beam.ParDo0(p, &failKVFn{Format: format}, col)
+		beam.ParDo0(s, &failKVFn{Format: format}, col)
 
 	case typex.IsWGBK(col.Type()):
-		beam.ParDo0(p, &failGBKFn{Format: format}, col)
+		beam.ParDo0(s, &failGBKFn{Format: format}, col)
 
 	default:
-		beam.ParDo0(p, &failFn{Format: format}, col)
+		beam.ParDo0(s, &failFn{Format: format}, col)
 	}
 }
 

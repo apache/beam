@@ -44,8 +44,8 @@ func TestSumInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Sum(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Sum(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Sum(%v) != %v: %v", test.in, test.exp, err)
@@ -74,8 +74,8 @@ func TestSumFloat(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Sum(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Sum(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Sum(%v) != %v: %v", test.in, test.exp, err)
@@ -104,11 +104,11 @@ func TestSumKeyed(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		kv := beam.ParDo(p, studentToKV, in)
-		sum := SumPerKey(p, kv)
-		sumStudent := beam.ParDo(p, kvToStudent, sum)
-		passert.Equals(p, sumStudent, exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		kv := beam.ParDo(s, studentToKV, in)
+		sum := SumPerKey(s, kv)
+		sumStudent := beam.ParDo(s, kvToStudent, sum)
+		passert.Equals(s, sumStudent, exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Sum(%v) != %v: %v", test.in, test.exp, err)

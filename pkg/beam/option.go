@@ -24,9 +24,9 @@ import (
 // construction time. The primary use case is providing side inputs. For
 // example:
 //
-//     words := textio.Read(p, "...")
-//     sample := textio.Read(p, "...")
-//     smallWords := beam.ParDo(p, analyzeFn, words, beam.SideInput{Input: sample})
+//     words := textio.Read(s, "...")
+//     sample := textio.Read(s, "...")
+//     smallWords := beam.ParDo(s, analyzeFn, words, beam.SideInput{Input: sample})
 type Option interface {
 	private()
 }

@@ -45,7 +45,7 @@ func RegisterRunner(name string, fn func(ctx context.Context, p *Pipeline) error
 func Run(ctx context.Context, runner string, p *Pipeline) error {
 	fn, ok := runners[runner]
 	if !ok {
-		log.Exitf(ctx, "Runner %v not registed. Forgot to _ import it?", runner)
+		log.Exitf(ctx, "Runner %v not registered. Forgot to _ import it?", runner)
 	}
 	return fn(ctx, p)
 }

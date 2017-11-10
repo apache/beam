@@ -60,8 +60,8 @@ func TestDedup(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.Create2(test.dups, test.exp)
-		passert.Equals(p, filter.Distinct(p, in), exp)
+		p, s, in, exp := ptest.Create2(test.dups, test.exp)
+		passert.Equals(s, filter.Distinct(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Distinct(%v) failed: %v", test.dups, err)

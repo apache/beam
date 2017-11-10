@@ -57,10 +57,10 @@ func TestCountInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		count := Count(p, in)
-		formatted := beam.ParDo(p, kvToCount, count)
-		passert.Equals(p, formatted, exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		count := Count(s, in)
+		formatted := beam.ParDo(s, kvToCount, count)
+		passert.Equals(s, formatted, exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Count(%v) != %v: %v", test.in, test.exp, err)

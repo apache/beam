@@ -42,12 +42,12 @@ func init() {
 }
 
 // FilterWords returns PCollection<KV<word,count>> with (up to) 10 matching words.
-func FilterWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
-	p = p.Scope("FilterWords")
-	words := beam.ParDo(p, extractFn, lines)
-	filtered := beam.ParDo(p, &includeFn{Search: *search}, words)
-	counted := stats.Count(p, filtered)
-	return debug.Head(p, counted, 10)
+func FilterWords(s *beam.Scope, lines beam.PCollection) beam.PCollection {
+	s = s.Scope("FilterWords")
+	words := beam.ParDo(s, extractFn, lines)
+	filtered := beam.ParDo(s, &includeFn{Search: *search}, words)
+	counted := stats.Count(s, filtered)
+	return debug.Head(s, counted, 10)
 }
 
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
@@ -87,10 +87,11 @@ func main() {
 
 	// Construct a pipeline that only keeps 10 words that contain the provided search string.
 	p := beam.NewPipeline()
-	lines := textio.Read(p, *input)
-	filtered := FilterWords(p, lines)
-	formatted := beam.ParDo(p, formatFn, filtered)
-	debug.Print(p, formatted)
+	s := p.Root()
+	lines := textio.Read(s, *input)
+	filtered := FilterWords(s, lines)
+	formatted := beam.ParDo(s, formatFn, filtered)
+	debug.Print(s, formatted)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

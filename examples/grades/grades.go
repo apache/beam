@@ -67,36 +67,37 @@ func main() {
 	log.Info(ctx, "Running grades")
 
 	p := beam.NewPipeline()
-	students := beam.CreateList(p, data)
+	s := p.Root()
+	students := beam.CreateList(s, data)
 
 	// (1) Print top 3 students overall by GPA
 
-	best := top.Largest(p, students, 3, less)
-	beam.ParDo0(p, printTopFn, best)
+	best := top.Largest(s, students, 3, less)
+	beam.ParDo0(s, printTopFn, best)
 
 	// (2) Print top student per initial (then ordered by name)
 
-	keyed := beam.ParDo(p, func(g Grade) (string, Grade) {
+	keyed := beam.ParDo(s, func(g Grade) (string, Grade) {
 		return g.Name[:1], g
 	}, students)
-	keyedBest := top.LargestPerKey(p, keyed, 1, less)
-	unkeyed := beam.Explode(p, beam.DropKey(p, keyedBest))
+	keyedBest := top.LargestPerKey(s, keyed, 1, less)
+	unkeyed := beam.Explode(s, beam.DropKey(s, keyedBest))
 
-	altBest := top.Smallest(p, unkeyed, 30, alphabetically)
-	beam.ParDo0(p, printTopFn, altBest)
+	altBest := top.Smallest(s, unkeyed, 30, alphabetically)
+	beam.ParDo0(s, printTopFn, altBest)
 
 	// (3) Print Chad
 
-	chad := top.Smallest(p, students, 1, less)
-	beam.ParDo0(p, printTopFn, chad)
+	chad := top.Smallest(s, students, 1, less)
+	beam.ParDo0(s, printTopFn, chad)
 
 	// (4) Print min/max/sum/mean grades
 
-	grades := beam.ParDo(p, func(g Grade) float32 { return g.GPA }, students)
-	debug.Printf(p, "Min: %v", stats.Min(p, grades))
-	debug.Printf(p, "Max: %v", stats.Max(p, grades))
-	debug.Printf(p, "Sum: %v", stats.Sum(p, grades))
-	debug.Printf(p, "Mean: %v", stats.Mean(p, grades))
+	grades := beam.ParDo(s, func(g Grade) float32 { return g.GPA }, students)
+	debug.Printf(s, "Min: %v", stats.Min(s, grades))
+	debug.Printf(s, "Max: %v", stats.Max(s, grades))
+	debug.Printf(s, "Sum: %v", stats.Sum(s, grades))
+	debug.Printf(s, "Mean: %v", stats.Mean(s, grades))
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

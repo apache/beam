@@ -25,27 +25,31 @@ import (
 // TODO(herohde) 7/10/2017: add hooks to verify counters, logs, etc.
 
 // Create creates a pipeline and a PCollection with the given values.
-func Create(values []interface{}) (*beam.Pipeline, beam.PCollection) {
+func Create(values []interface{}) (*beam.Pipeline, *beam.Scope, beam.PCollection) {
 	p := beam.NewPipeline()
-	return p, beam.Create(p, values...)
+	s := p.Root()
+	return p, s, beam.Create(s, values...)
 }
 
 // CreateList creates a pipeline and a PCollection with the given values.
-func CreateList(values interface{}) (*beam.Pipeline, beam.PCollection) {
+func CreateList(values interface{}) (*beam.Pipeline, *beam.Scope, beam.PCollection) {
 	p := beam.NewPipeline()
-	return p, beam.CreateList(p, values)
+	s := p.Root()
+	return p, s, beam.CreateList(s, values)
 }
 
 // Create2 creates a pipeline and 2 PCollections with the given values.
-func Create2(a, b []interface{}) (*beam.Pipeline, beam.PCollection, beam.PCollection) {
+func Create2(a, b []interface{}) (*beam.Pipeline, *beam.Scope, beam.PCollection, beam.PCollection) {
 	p := beam.NewPipeline()
-	return p, beam.Create(p, a...), beam.Create(p, b...)
+	s := p.Root()
+	return p, s, beam.Create(s, a...), beam.Create(s, b...)
 }
 
 // CreateList2 creates a pipeline and 2 PCollections with the given values.
-func CreateList2(a, b interface{}) (*beam.Pipeline, beam.PCollection, beam.PCollection) {
+func CreateList2(a, b interface{}) (*beam.Pipeline, *beam.Scope, beam.PCollection, beam.PCollection) {
 	p := beam.NewPipeline()
-	return p, beam.CreateList(p, a), beam.CreateList(p, b)
+	s := p.Root()
+	return p, s, beam.CreateList(s, a), beam.CreateList(s, b)
 }
 
 // Run runs a pipeline for testing. The semantics of the pipeline is expected

@@ -53,16 +53,17 @@ func main() {
 	log.Info(ctx, "Running autocomplete")
 
 	p := beam.NewPipeline()
-	lines, err := textio.Immediate(p, *input)
+	s := p.Root()
+	lines, err := textio.Immediate(s, *input)
 	if err != nil {
 		log.Exitf(ctx, "Failed to read %v: %v", *input, err)
 	}
-	words := beam.ParDo(p, extractFn, lines)
+	words := beam.ParDo(s, extractFn, lines)
 
-	hits := top.Largest(p, words, *n, func(a, b string) bool {
+	hits := top.Largest(s, words, *n, func(a, b string) bool {
 		return len(a) < len(b)
 	})
-	debug.Print(p, hits)
+	debug.Print(s, hits)
 
 	if err := beamx.Run(ctx, p); err != nil {
 		log.Exitf(ctx, "Failed to execute job: %v", err)

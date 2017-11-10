@@ -71,28 +71,28 @@ func NewQualifiedTableName(s string) (QualifiedTableName, error) {
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
-func Read(p *beam.Pipeline, project, table string, t reflect.Type) beam.PCollection {
+func Read(s *beam.Scope, project, table string, t reflect.Type) beam.PCollection {
 	mustParseTable(table)
 
-	p = p.Scope("bigquery.Read")
+	s = s.Scope("bigquery.Read")
 
 	// TODO(herohde) 7/13/2017: using * is probably too inefficient. We could infer
 	// a focused query from the type.
-	return query(p, project, fmt.Sprintf("SELECT * from [%v]", table), t)
+	return query(s, project, fmt.Sprintf("SELECT * from [%v]", table), t)
 }
 
 // Query executes a query. The output must have a schema compatible with the given
 // type, t. It returns a PCollection<t>.
-func Query(p *beam.Pipeline, project, q string, t reflect.Type) beam.PCollection {
-	p = p.Scope("bigquery.Query")
-	return query(p, project, q, t)
+func Query(s *beam.Scope, project, q string, t reflect.Type) beam.PCollection {
+	s = s.Scope("bigquery.Query")
+	return query(s, project, q, t)
 }
 
-func query(p *beam.Pipeline, project, query string, t reflect.Type) beam.PCollection {
+func query(s *beam.Scope, project, query string, t reflect.Type) beam.PCollection {
 	mustInferSchema(t)
 
-	imp := beam.Impulse(p)
-	return beam.ParDo(p, &queryFn{Project: project, Query: query, Type: beam.EncodedType{T: t}}, imp, beam.TypeDefinition{Var: beam.XType, T: t})
+	imp := beam.Impulse(s)
+	return beam.ParDo(s, &queryFn{Project: project, Query: query, Type: beam.EncodedType{T: t}}, imp, beam.TypeDefinition{Var: beam.XType, T: t})
 }
 
 type queryFn struct {
@@ -155,15 +155,15 @@ func mustParseTable(table string) QualifiedTableName {
 
 // Write writes the elements of the given PCollection<T> to bigquery. T is required
 // to be the schema type.
-func Write(p *beam.Pipeline, project, table string, col beam.PCollection) {
+func Write(s *beam.Scope, project, table string, col beam.PCollection) {
 	t := typex.SkipW(col.Type()).Type()
 	mustInferSchema(t)
 	qn := mustParseTable(table)
 
-	p = p.Scope("bigquery.Write")
+	s = s.Scope("bigquery.Write")
 
-	imp := beam.Impulse(p)
-	beam.ParDo0(p, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}}, imp, beam.SideInput{Input: col})
+	imp := beam.Impulse(s)
+	beam.ParDo0(s, &writeFn{Project: project, Table: qn, Type: beam.EncodedType{T: t}}, imp, beam.SideInput{Input: col})
 }
 
 type writeFn struct {

@@ -28,29 +28,29 @@ import (
 //
 // For example:
 //
-//    col := beam.Create(p, 1, 11, 7, 5, 10)
-//    mean := stats.Mean(p, col)   // PCollection<float64> with 6.8 as the only element.
+//    col := beam.Create(s, 1, 11, 7, 5, 10)
+//    mean := stats.Mean(s, col)   // PCollection<float64> with 6.8 as the only element.
 //
-func Mean(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("stats.Mean")
+func Mean(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.Mean")
 
 	t := beam.ValidateNonCompositeType(col)
 	validateNonComplexNumber(t.Type())
 
-	return beam.Combine(p, &meanFn{}, col)
+	return beam.Combine(s, &meanFn{}, col)
 }
 
 // MeanPerKey returns the arithmetic mean (or average) for each key of the elements
 // in a collection. It expects a PCollection<KV<A,B>> as input and returns a
 // PCollection<KV<A,float64>>. It can only be used for numbers, such as int,
 // uint16, float32, etc.
-func MeanPerKey(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	p = p.Scope("stats.MeanPerKey")
+func MeanPerKey(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	s = s.Scope("stats.MeanPerKey")
 
 	_, t := beam.ValidateKVType(col)
 	validateNonComplexNumber(t.Type())
 
-	return beam.CombinePerKey(p, &meanFn{}, col)
+	return beam.CombinePerKey(s, &meanFn{}, col)
 }
 
 // TODO(herohde) 7/7/2017: the accumulator should be serializable with a Coder.

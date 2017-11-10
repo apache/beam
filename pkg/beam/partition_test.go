@@ -77,9 +77,9 @@ func TestPartition(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.out0)
-		out := beam.Partition(p, test.n, test.fn, in)
-		passert.Equals(p, out[0], exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.out0)
+		out := beam.Partition(s, test.n, test.fn, in)
+		passert.Equals(s, out[0], exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Partition(%v)[0] != %v: %v", test.in, test.out0, err)
@@ -111,8 +111,8 @@ func TestPartitionFailures(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in := ptest.CreateList(test.in)
-		beam.Partition(p, test.n, test.fn, in)
+		p, s, in := ptest.CreateList(test.in)
+		beam.Partition(s, test.n, test.fn, in)
 
 		wrap(t, p, test.in)
 	}
@@ -153,9 +153,9 @@ func TestPartitionFlattenIdentity(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in := ptest.CreateList(test.in)
-		out := beam.Partition(p, test.n, test.fn, in)
-		passert.Equals(p, beam.Flatten(p, out...), in)
+		p, s, in := ptest.CreateList(test.in)
+		out := beam.Partition(s, test.n, test.fn, in)
+		passert.Equals(s, beam.Flatten(s, out...), in)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Flatten(Partition(%v)) != %v: %v", test.in, test.in, err)

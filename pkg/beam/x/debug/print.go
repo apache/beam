@@ -16,10 +16,9 @@
 package debug
 
 import (
+	"context"
 	"fmt"
 	"reflect"
-
-	"context"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -33,22 +32,22 @@ func init() {
 }
 
 // Print prints out all data. Use with care.
-func Print(p *beam.Pipeline, col beam.PCollection) beam.PCollection {
-	return Printf(p, "Elm: %v", col)
+func Print(s *beam.Scope, col beam.PCollection) beam.PCollection {
+	return Printf(s, "Elm: %v", col)
 }
 
 // Printf prints out all data with custom formatting. The given format string
 // is used as log.Printf(format, elm) for each element. Use with care.
-func Printf(p *beam.Pipeline, format string, col beam.PCollection) beam.PCollection {
-	p = p.Scope("debug.Print")
+func Printf(s *beam.Scope, format string, col beam.PCollection) beam.PCollection {
+	s = s.Scope("debug.Print")
 
 	switch {
 	case typex.IsWKV(col.Type()):
-		return beam.ParDo(p, &printKVFn{Format: format}, col)
+		return beam.ParDo(s, &printKVFn{Format: format}, col)
 	case typex.IsWGBK(col.Type()):
-		return beam.ParDo(p, &printGBKFn{Format: format}, col)
+		return beam.ParDo(s, &printGBKFn{Format: format}, col)
 	default:
-		return beam.ParDo(p, &printFn{Format: format}, col)
+		return beam.ParDo(s, &printFn{Format: format}, col)
 	}
 }
 
@@ -85,9 +84,9 @@ func (f *printGBKFn) ProcessElement(ctx context.Context, x beam.X, iter func(*be
 }
 
 // Discard is a sink that discards all data.
-func Discard(p *beam.Pipeline, col beam.PCollection) {
-	p = p.Scope("debug.Discard")
-	beam.ParDo0(p, discardFn, col)
+func Discard(s *beam.Scope, col beam.PCollection) {
+	s = s.Scope("debug.Discard")
+	beam.ParDo0(s, discardFn, col)
 }
 
 func discardFn(t beam.T) {

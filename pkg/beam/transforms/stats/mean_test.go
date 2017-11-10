@@ -48,8 +48,8 @@ func TestMeanInt(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Mean(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Mean(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Mean(%v) != %v: %v", test.in, test.exp, err)
@@ -78,8 +78,8 @@ func TestMeanFloat(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		passert.Equals(p, Mean(p, in), exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		passert.Equals(s, Mean(s, in), exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Mean(%v) != %v: %v", test.in, test.exp, err)
@@ -108,11 +108,11 @@ func TestMeanKeyed(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p, in, exp := ptest.CreateList2(test.in, test.exp)
-		kv := beam.ParDo(p, studentToKV, in)
-		mean := MeanPerKey(p, kv)
-		meanStudent := beam.ParDo(p, kvToStudent, mean)
-		passert.Equals(p, meanStudent, exp)
+		p, s, in, exp := ptest.CreateList2(test.in, test.exp)
+		kv := beam.ParDo(s, studentToKV, in)
+		mean := MeanPerKey(s, kv)
+		meanStudent := beam.ParDo(s, kvToStudent, mean)
+		passert.Equals(s, meanStudent, exp)
 
 		if err := ptest.Run(p); err != nil {
 			t.Errorf("Mean(%v) != %v: %v", test.in, test.exp, err)

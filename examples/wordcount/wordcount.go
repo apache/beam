@@ -129,14 +129,14 @@ func formatFn(w string, c int) string {
 // of lines. It expects a PCollection of type string and returns a PCollection
 // of type KV<string,int>. The Beam type checker enforces these constraints
 // during pipeline construction.
-func CountWords(p *beam.Pipeline, lines beam.PCollection) beam.PCollection {
-	p = p.Scope("CountWords")
+func CountWords(s *beam.Scope, lines beam.PCollection) beam.PCollection {
+	s = s.Scope("CountWords")
 
 	// Convert lines of text into individual words.
-	col := beam.ParDo(p, extractFn, lines)
+	col := beam.ParDo(s, extractFn, lines)
 
 	// Count the number of times each word occurs.
-	return stats.Count(p, col)
+	return stats.Count(s, col)
 }
 
 func main() {
@@ -153,11 +153,12 @@ func main() {
 
 	// Concepts #3 and #4: The pipeline uses the named transform and DoFn.
 	p := beam.NewPipeline()
+	s := p.Root()
 
-	lines := textio.Read(p, *input)
-	counted := CountWords(p, lines)
-	formatted := beam.ParDo(p, formatFn, counted)
-	textio.Write(p, *output, formatted)
+	lines := textio.Read(s, *input)
+	counted := CountWords(s, lines)
+	formatted := beam.ParDo(s, formatFn, counted)
+	textio.Write(s, *output, formatted)
 
 	// Concept #1: The beamx.Run convenience wrapper allows a number of
 	// pre-defined runners to be used via the --runner flag.
