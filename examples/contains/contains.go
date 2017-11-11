@@ -80,7 +80,7 @@ func main() {
 	ctx := context.Background()
 
 	if *search == "" {
-		log.Exit(ctx, "No search string provided")
+		log.Exit(ctx, "No search string provided. Use --search=foo")
 	}
 
 	log.Info(ctx, "Running contains")
