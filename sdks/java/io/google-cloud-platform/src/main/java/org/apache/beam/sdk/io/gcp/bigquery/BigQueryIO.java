@@ -539,6 +539,7 @@ public class BigQueryIO {
       abstract Builder<T> setParseFn(
           SerializableFunction<SchemaAndRecord, T> parseFn);
       abstract Builder<T> setCoder(Coder<T> coder);
+      abstract Builder<T> setPriorty(String priority);
     }
 
     @Nullable abstract ValueProvider<String> getJsonTableRef();
@@ -554,6 +555,8 @@ public class BigQueryIO {
     abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
     @Nullable abstract Coder<T> getCoder();
+
+    @Nullable abstract String getPriority();
 
     @VisibleForTesting
     Coder<T> inferCoder(CoderRegistry coderRegistry) {
@@ -588,7 +591,8 @@ public class BigQueryIO {
                 getUseLegacySql(),
                 getBigQueryServices(),
                 coder,
-                getParseFn());
+                getParseFn(),
+                getPriority());
       }
       return source;
     }
