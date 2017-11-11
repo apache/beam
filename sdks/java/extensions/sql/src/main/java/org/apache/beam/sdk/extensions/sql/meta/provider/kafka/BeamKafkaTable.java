@@ -34,6 +34,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 
@@ -45,6 +46,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
 public abstract class BeamKafkaTable extends BaseBeamTable implements Serializable {
   private String bootstrapServers;
   private List<String> topics;
+  private List<TopicPartition> topicPartitions;
   private Map<String, Object> configUpdates;
 
   protected BeamKafkaTable(BeamRecordSqlType beamSqlRowType) {
@@ -56,6 +58,13 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
     super(beamSqlRowType);
     this.bootstrapServers = bootstrapServers;
     this.topics = topics;
+  }
+
+  public BeamKafkaTable(BeamRecordSqlType beamSqlRowType,
+      List<TopicPartition> topicPartitions, String bootstrapServers) {
+    super(beamSqlRowType);
+    this.bootstrapServers = bootstrapServers;
+    this.topicPartitions = topicPartitions;
   }
 
   public BeamKafkaTable updateConsumerProperties(Map<String, Object> configUpdates) {
@@ -76,15 +85,27 @@ public abstract class BeamKafkaTable extends BaseBeamTable implements Serializab
 
   @Override
   public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
-    return PBegin.in(pipeline).apply("read",
-            KafkaIO.<byte[], byte[]>read()
-                .withBootstrapServers(bootstrapServers)
-                .withTopics(topics)
-                .updateConsumerProperties(configUpdates)
-                .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-                .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
-                .withoutMetadata())
-            .apply("in_format", getPTransformForInput());
+    KafkaIO.Read<byte[], byte[]> kafkaRead = null;
+    if (topics != null) {
+      kafkaRead = KafkaIO.<byte[], byte[]>read()
+      .withBootstrapServers(bootstrapServers)
+      .withTopics(topics)
+      .updateConsumerProperties(configUpdates)
+      .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+      .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
+    } else if (topicPartitions != null) {
+      kafkaRead = KafkaIO.<byte[], byte[]>read()
+          .withBootstrapServers(bootstrapServers)
+          .withTopicPartitions(topicPartitions)
+          .updateConsumerProperties(configUpdates)
+          .withKeyDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of())
+          .withValueDeserializerAndCoder(ByteArrayDeserializer.class, ByteArrayCoder.of());
+    } else {
+      throw new IllegalArgumentException("One of topics and topicPartitions must be configurated.");
+    }
+
+    return PBegin.in(pipeline).apply("read", kafkaRead.withoutMetadata())
+.apply("in_format", getPTransformForInput());
   }
 
   @Override
