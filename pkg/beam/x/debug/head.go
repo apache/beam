@@ -25,8 +25,6 @@ import (
 func init() {
 	beam.RegisterType(reflect.TypeOf((*headFn)(nil)))
 	beam.RegisterType(reflect.TypeOf((*headKVFn)(nil)))
-	beam.RegisterType(reflect.TypeOf((*headGBKFn)(nil)))
-
 }
 
 // Head returns the first "n" elements it sees, it doesn't enforce any logic
@@ -36,46 +34,35 @@ func Head(p *beam.Pipeline, col beam.PCollection, n int) beam.PCollection {
 
 	switch {
 	case typex.IsWKV(col.Type()):
-		return beam.ParDo(p, &headKVFn{N: n}, col)
-	case typex.IsWGBK(col.Type()):
-		return beam.ParDo(p, &headGBKFn{N: n}, col)
+		return beam.ParDo(p, &headKVFn{N: n}, beam.Impulse(p), beam.SideInput{Input: col})
 	default:
-		return beam.ParDo(p, &headFn{N: n}, col)
+		return beam.ParDo(p, &headFn{N: n}, beam.Impulse(p), beam.SideInput{Input: col})
 	}
 }
 
 type headFn struct {
-	N       int `json:"n"`
-	Current int `json:"current"`
+	N int `json:"n"`
 }
 
-func (h *headFn) ProcessElement(t beam.T, emit func(beam.T)) {
-	if h.Current < h.N {
-		h.Current++
-		emit(t)
+func (h *headFn) ProcessElement(_ []byte, iter func(*beam.T) bool, emit func(beam.T)) {
+	i := 0
+	var val beam.T
+	for iter(&val) && i < h.N {
+		emit(val)
+		i++
 	}
 }
 
 type headKVFn struct {
-	N       int `json:"n"`
-	Current int `json:"current"`
+	N int `json:"n"`
 }
 
-func (h *headKVFn) ProcessElement(x beam.X, y beam.Y, emit func(beam.X, beam.Y)) {
-	if h.Current < h.N {
-		h.Current++
+func (h *headKVFn) ProcessElement(_ []byte, iter func(*beam.X, *beam.Y) bool, emit func(beam.X, beam.Y)) {
+	i := 0
+	var x beam.X
+	var y beam.Y
+	for iter(&x, &y) && i < h.N {
 		emit(x, y)
-	}
-}
-
-type headGBKFn struct {
-	N       int `json:"n"`
-	Current int `json:"current"`
-}
-
-func (h *headGBKFn) ProcessElement(x beam.X, iter func(*beam.Y) bool, emit func(beam.X, func(*beam.Y) bool)) {
-	if h.Current < h.N {
-		h.Current++
-		emit(x, iter)
+		i++
 	}
 }

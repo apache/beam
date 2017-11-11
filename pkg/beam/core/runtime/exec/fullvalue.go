@@ -25,11 +25,9 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// TODO: require that FullValue Elm/Elm2 are typed as underlying types? Or just
-// drop Universals on call.
-
 // FullValue represents the full runtime value for a data element, incl. the
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
+// The consumer is responsible for converting the values to the correct type.
 type FullValue struct {
 	Elm  reflect.Value // Elm or KV key.
 	Elm2 reflect.Value // KV value, if not invalid
