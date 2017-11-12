@@ -75,7 +75,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
   private final Boolean flattenResults;
   private final Boolean useLegacySql;
   private transient AtomicReference<JobStatistics> dryRunJobStats;
-  private String priority; 
+  private String priority;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -91,7 +91,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.dryRunJobStats = new AtomicReference<>();
-    this.priority = checkNotNull(priorty, "BATCH");
+    this.priority = checkNotNull(priority, "priority");
   }
 
   @Override

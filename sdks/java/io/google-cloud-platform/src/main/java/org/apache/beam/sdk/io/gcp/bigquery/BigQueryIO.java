@@ -367,6 +367,7 @@ public class BigQueryIO {
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
+        .setPriority("INTERACTIVE")
         .build();
   }
 
@@ -534,12 +535,12 @@ public class BigQueryIO {
       abstract Builder<T> setUseLegacySql(Boolean useLegacySql);
       abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setPriority(String priority);
       abstract TypedRead<T> build();
 
       abstract Builder<T> setParseFn(
           SerializableFunction<SchemaAndRecord, T> parseFn);
       abstract Builder<T> setCoder(Coder<T> coder);
-      abstract Builder<T> setPriorty(String priority);
     }
 
     @Nullable abstract ValueProvider<String> getJsonTableRef();

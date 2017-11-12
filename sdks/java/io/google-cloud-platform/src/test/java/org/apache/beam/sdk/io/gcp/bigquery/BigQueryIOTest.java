@@ -1836,7 +1836,8 @@ public class BigQueryIOTest implements Serializable {
         true /* useLegacySql */,
         fakeBqServices,
         TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE);
+        BigQueryIO.TableRowParser.INSTANCE,
+        "BATCH");
     options.setTempLocation(baseDir.toString());
 
     TableReference queryTable = new TableReference()
@@ -1925,7 +1926,8 @@ public class BigQueryIOTest implements Serializable {
         true /* useLegacySql */,
         fakeBqServices,
         TableRowJsonCoder.of(),
-        BigQueryIO.TableRowParser.INSTANCE);
+        BigQueryIO.TableRowParser.INSTANCE,
+        "BATCH");
 
     options.setTempLocation(baseDir.toString());
 
