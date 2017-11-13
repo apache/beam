@@ -240,21 +240,24 @@ public class TestStreamTest implements Serializable {
   @Category({NeedsRunner.class, UsesTestStream.class})
   public void testElementsAtAlmostPositiveInfinity() {
     Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
-    TestStream<String> stream = TestStream.create(StringUtf8Coder.of())
-        .addElements(TimestampedValue.of("foo", endOfGlobalWindow),
-            TimestampedValue.of("bar", endOfGlobalWindow))
-        .advanceWatermarkToInfinity();
+    TestStream<String> stream =
+        TestStream.create(StringUtf8Coder.of())
+            .addElements(
+                TimestampedValue.of("foo", endOfGlobalWindow),
+                TimestampedValue.of("bar", endOfGlobalWindow))
+            .advanceWatermarkToInfinity();
 
     FixedWindows windows = FixedWindows.of(Duration.standardHours(6));
-    PCollection<String> windowedValues = p.apply(stream)
-        .apply(Window.<String>into(windows))
-        .apply(WithKeys.<Integer, String>of(1))
-        .apply(GroupByKey.<Integer, String>create())
-        .apply(Values.<Iterable<String>>create())
-        .apply(Flatten.<String>iterables());
+    PCollection<String> windowedValues =
+        p.apply(stream)
+            .apply(Window.<String>into(windows))
+            .apply(WithKeys.<Integer, String>of(1))
+            .apply(GroupByKey.<Integer, String>create())
+            .apply(Values.<Iterable<String>>create())
+            .apply(Flatten.<String>iterables());
 
     PAssert.that(windowedValues)
-        .inWindow(windows.assignWindow(GlobalWindow.INSTANCE.maxTimestamp()))
+        .inWindow(windows.assignWindow(endOfGlobalWindow))
         .containsInAnyOrder("foo", "bar");
     p.run();
   }
