@@ -87,6 +87,50 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
+def ProxyInfoFromEnvironmentVar(proxy_env_var):
+  """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
+  Args:
+    proxy_env_var: Environment variable string to read, such as http_proxy or
+       https_proxy.
+  Returns:
+    httplib2.ProxyInfo constructed from the environment string.
+  """
+  proxy_url = os.environ.get(proxy_env_var)
+  if not proxy_url or not proxy_env_var.lower().startswith('http'):
+    return httplib2.ProxyInfo(httplib2.socks.PROXY_TYPE_HTTP, None, 0)
+  proxy_protocol = proxy_env_var.lower().split('_')[0]
+  if not proxy_url.lower().startswith('http'):
+    # proxy_info_from_url requires a protocol, which is always http or https.
+    proxy_url = proxy_protocol + '://' + proxy_url
+  return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
+
+def GetNewHttp(http_class=httplib2.Http, **kwargs):
+  """Creates and returns a new httplib2.Http instance.
+  Args:
+    http_class: Optional custom Http class to use.
+    **kwargs: Arguments to pass to http_class constructor.
+  Returns:
+    An initialized httplib2.Http instance.
+  """
+  proxy_info = httplib2.ProxyInfo(
+    proxy_type=3,
+    proxy_host=None,
+    proxy_port=None,
+    proxy_user=None,
+    proxy_pass=None,
+    proxy_rdns=None
+  )
+
+  for proxy_env_var in ['http_proxy', 'https_proxy', 'HTTPS_PROXY']:
+    if proxy_env_var in os.environ and os.environ[proxy_env_var]:
+      proxy_info = ProxyInfoFromEnvironmentVar(proxy_env_var)
+      break
+
+  # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
+  kwargs['timeout'] = DEFAULT_HTTP_TIMEOUT_SECONDS
+  http = http_class(proxy_info=proxy_info, **kwargs)
+  return http
+
 def parse_gcs_path(gcs_path):
   """Return the bucket and object names of the given gs:// path."""
   match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
@@ -118,7 +162,7 @@ class GcsIO(object):
         storage_client = storage.StorageV1(
             credentials=credentials,
             get_credentials=False,
-            http=httplib2.Http(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS))
+            http=GetNewHttp())
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))
         local_state.gcsio_instance.client = storage_client
