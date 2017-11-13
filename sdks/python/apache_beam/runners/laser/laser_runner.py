@@ -296,6 +296,20 @@ class FusedStage(Stage, CompositeWatermarkNode):
   def __repr__(self):
     return 'FusedStage(steps: %s)' % self.steps
 
+  def initialize(self):
+    print 'INIT'
+
+
+class Executor(object):
+  def __init__(self, execution_graph):
+    self.execution_graph = execution_graph
+
+  def run(self):
+    print 'EXECUTOR RUN'
+    print 'execution graph', self.execution_graph
+    for fused_stage in self.execution_graph.stages:
+      fused_stage.initialize()
+
 
 
 def generate_execution_graph(step_graph):
@@ -340,8 +354,6 @@ def generate_execution_graph(step_graph):
     execution_graph.add_stage(fused_stage)
 
   return execution_graph
-
-
 
 
 class LaserRunner(PipelineRunner):
@@ -442,6 +454,8 @@ class LaserRunner(PipelineRunner):
     execution_graph = generate_execution_graph(self.step_graph)
     print 'EXECUTION GRAPH', execution_graph
     print execution_graph.stages
+    executor = Executor(execution_graph)
+    executor.run()
 
 
 
