@@ -25,6 +25,7 @@ import math
 import random
 
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterName
 
 # This module is experimental. No backwards-compatibility guarantees.
 
@@ -40,6 +41,58 @@ class SumAccumulator(object):
 
   def value(self):
     return self._value
+
+
+class TransformIoCounter(object):
+
+  def add_bytes_read(self, n):
+    pass
+
+  def __enter__(self):
+    self.enter()
+
+  def __exit__(self, unused_exc_type, unused_exc_value, unused_traceback):
+    self.exit()
+
+  def enter(self):
+    pass
+
+  def exit(self):
+    pass
+
+  def check_step(self):
+    pass
+
+
+class SideInputReadCounter(TransformIoCounter):
+
+  def __init__(self, counter_factory, state_sampler, io_target):
+    self._counter_factory = counter_factory
+    self._state_sampler = state_sampler
+    self._bytes_read_cache = 0
+    self.io_target = io_target
+    self.check_step()
+
+  def check_step(self):
+    current_state = self._state_sampler.current_state()
+    operation_name = current_state.name.step_name
+    self.scoped_state = self._state_sampler.scoped_state(
+        operation_name, 'read-sideinput', io_target=self.io_target)
+    self.bytes_read_counter = self._counter_factory.get_counter(
+        CounterName('bytes-read',
+                    step_name=operation_name,
+                    io_target=self.io_target),
+        Counter.SUM)
+
+  def add_bytes_read(self, n):
+    if n > 0:
+      self.bytes_read_counter.update(n)
+
+  def enter(self):
+    self.scoped_state.__enter__()
+
+  def exit(self):
+    self.scoped_state.__exit__(None, None, None)
 
 
 class OperationCounters(object):
