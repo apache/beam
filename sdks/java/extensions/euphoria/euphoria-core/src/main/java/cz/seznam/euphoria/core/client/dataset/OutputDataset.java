@@ -35,7 +35,6 @@ class OutputDataset<T> implements Dataset<T> {
   private final boolean bounded;
 
   private DataSink<T> outputSink = null;
-  private DataSink<T> checkpointSink = null;
 
   public OutputDataset(Flow flow, Operator<?, T> producer, boolean bounded) {
     this.flow = flow;
@@ -60,21 +59,10 @@ class OutputDataset<T> implements Dataset<T> {
     outputSink = sink;
   }
 
-  @Override
-  public void checkpoint(DataSink<T> sink) {
-    checkpointSink = sink;
-  }
-
   @Nullable
   @Override
   public DataSink<T> getOutputSink() {
     return outputSink;
-  }
-
-  @Nullable
-  @Override
-  public DataSink<T> getCheckpointSink() {
-    return checkpointSink;
   }
 
   @Override
