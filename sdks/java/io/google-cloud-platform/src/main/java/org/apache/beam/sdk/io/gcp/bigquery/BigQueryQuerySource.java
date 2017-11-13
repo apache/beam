@@ -91,7 +91,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.dryRunJobStats = new AtomicReference<>();
-    this.priority = checkNotNull(priority, "priority");
+    this.priority = priority == null ? "BATCH" : priority;
   }
 
   @Override

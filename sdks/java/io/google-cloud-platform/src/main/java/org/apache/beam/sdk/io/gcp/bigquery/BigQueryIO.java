@@ -367,7 +367,6 @@ public class BigQueryIO {
         .setWithTemplateCompatibility(false)
         .setBigQueryServices(new BigQueryServicesImpl())
         .setParseFn(parseFn)
-        .setPriority("INTERACTIVE")
         .build();
   }
 
