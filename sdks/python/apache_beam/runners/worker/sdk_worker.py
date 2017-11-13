@@ -66,7 +66,8 @@ class SdkHarness(object):
     for work_request in control_stub.Control(get_responses()):
       logging.info('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
-      if request_type == ['process_bundle_progress']:
+      # WhichOneOf returns the name of the set field as a single string
+      if request_type in ['process_bundle_progress']:
         thread_pool = self._progress_thread_pool
       else:
         thread_pool = self._default_work_thread_pool
