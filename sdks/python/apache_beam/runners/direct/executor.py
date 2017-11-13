@@ -30,7 +30,6 @@ from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
-from apache_beam.options.pipeline_options import DirectOptions
 
 
 class _ExecutorService(object):
@@ -278,13 +277,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0
-    # Switch to turn on/off the retry of bundles.
-    pipeline_options = self._evaluation_context.pipeline_options
-    # TODO(mariagh): Remove once "bundle retry" is no longer experimental.
-    if not pipeline_options.view_as(DirectOptions).direct_runner_bundle_retry:
-      self._max_retries_per_bundle = 1
-    else:
-      self._max_retries_per_bundle = TransformExecutor._MAX_RETRY_PER_BUNDLE
+    self._max_retries_per_bundle = TransformExecutor._MAX_RETRY_PER_BUNDLE
 
   def call(self):
     self._call_count += 1
@@ -319,11 +312,6 @@ class TransformExecutor(_ExecutorService.CallableTask):
         if self._retry_count == self._max_retries_per_bundle:
           logging.error('Giving up after %s attempts.',
                         self._max_retries_per_bundle)
-          if self._retry_count == 1:
-            logging.info(
-                'Use the experimental flag --direct_runner_bundle_retry'
-                ' to retry failed bundles (up to %d times).',
-                TransformExecutor._MAX_RETRY_PER_BUNDLE)
           self._completion_callback.handle_exception(self, e)
 
     self._evaluation_context.metrics().commit_physical(
