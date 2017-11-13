@@ -39,6 +39,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.Status;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.JobService;
@@ -84,6 +85,7 @@ class WriteTables<DestinationT>
   private final PCollectionView<String> jobIdToken;
   private final WriteDisposition firstPaneWriteDisposition;
   private final CreateDisposition firstPaneCreateDisposition;
+  private final List<SchemaUpdateOption> schemaUpdateOptions;
   private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final List<PCollectionView<?>> sideInputs;
   private final TupleTag<KV<TableDestination, String>> mainOutputTag;
@@ -148,7 +150,8 @@ class WriteTables<DestinationT>
           partitionFiles,
           writeDisposition,
           createDisposition,
-          tableDestination.getTableDescription());
+          tableDestination.getTableDescription(),
+          schemaUpdateOptions);
       c.output(
           mainOutputTag, KV.of(tableDestination, BigQueryHelpers.toJsonString(tableReference)));
       for (String file : partitionFiles) {
@@ -171,7 +174,8 @@ class WriteTables<DestinationT>
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
       List<PCollectionView<?>> sideInputs,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
+      List<SchemaUpdateOption> schemaUpdateOptions) {
     this.singlePartition = singlePartition;
     this.bqServices = bqServices;
     this.jobIdToken = jobIdToken;
@@ -181,6 +185,7 @@ class WriteTables<DestinationT>
     this.dynamicDestinations = dynamicDestinations;
     this.mainOutputTag = new TupleTag<>("WriteTablesMainOutput");
     this.temporaryFilesTag = new TupleTag<>("TemporaryFiles");
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   @Override
@@ -223,7 +228,8 @@ class WriteTables<DestinationT>
       List<String> gcsUris,
       WriteDisposition writeDisposition,
       CreateDisposition createDisposition,
-      @Nullable String tableDescription)
+      @Nullable String tableDescription,
+      @Nullable List<SchemaUpdateOption> schemaUpdateOptions)
       throws InterruptedException, IOException {
     JobConfigurationLoad loadConfig =
         new JobConfigurationLoad()
@@ -233,6 +239,13 @@ class WriteTables<DestinationT>
             .setWriteDisposition(writeDisposition.name())
             .setCreateDisposition(createDisposition.name())
             .setSourceFormat("NEWLINE_DELIMITED_JSON");
+    if (schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty()) {
+      List<String> schemaUpdateOptionStrings = Lists.newArrayList();
+      for (SchemaUpdateOption schemaUpdateOption : schemaUpdateOptions) {
+        schemaUpdateOptionStrings.add(schemaUpdateOption.name());
+      }
+      loadConfig.setSchemaUpdateOptions(schemaUpdateOptionStrings);
+    }
     if (timePartitioning != null) {
       loadConfig.setTimePartitioning(timePartitioning);
     }

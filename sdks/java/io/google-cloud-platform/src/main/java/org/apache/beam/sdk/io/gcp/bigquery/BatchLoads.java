@@ -38,6 +38,7 @@ import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.SchemaUpdateOption;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -129,12 +130,14 @@ class BatchLoads<DestinationT>
   private int numFileShards;
   private Duration triggeringFrequency;
   private ValueProvider<String> customGcsTempLocation;
+  private final List<SchemaUpdateOption> schemaUpdateOptions;
 
   BatchLoads(WriteDisposition writeDisposition, CreateDisposition createDisposition,
              boolean singletonTable,
              DynamicDestinations<?, DestinationT> dynamicDestinations,
              Coder<DestinationT> destinationCoder,
-             ValueProvider<String> customGcsTempLocation) {
+             ValueProvider<String> customGcsTempLocation,
+             List<SchemaUpdateOption> schemaUpdateOptions) {
     bigQueryServices = new BigQueryServicesImpl();
     this.writeDisposition = writeDisposition;
     this.createDisposition = createDisposition;
@@ -146,6 +149,7 @@ class BatchLoads<DestinationT>
     this.numFileShards = DEFAULT_NUM_FILE_SHARDS;
     this.triggeringFrequency = null;
     this.customGcsTempLocation = customGcsTempLocation;
+    this.schemaUpdateOptions = schemaUpdateOptions;
   }
 
   void setTestServices(BigQueryServices bigQueryServices) {
@@ -505,7 +509,8 @@ class BatchLoads<DestinationT>
                         WriteDisposition.WRITE_EMPTY,
                         CreateDisposition.CREATE_IF_NEEDED,
                         sideInputs,
-                        dynamicDestinations));
+                        dynamicDestinations,
+                        schemaUpdateOptions));
   }
 
   // In the case where the files fit into a single load job, there's no need to write temporary
@@ -534,7 +539,8 @@ class BatchLoads<DestinationT>
                         writeDisposition,
                         createDisposition,
                         sideInputs,
-                        dynamicDestinations));
+                        dynamicDestinations,
+                        schemaUpdateOptions));
   }
 
   private WriteResult writeResult(Pipeline p) {
