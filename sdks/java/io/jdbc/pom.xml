@@ -156,7 +156,7 @@
     </profile>
 
     <!--
-      io-it-suite overrides part of io-it-suite, allowing users to run tests
+      io-it-suite-local overrides part of io-it-suite, allowing users to run tests
       when they are on a separate network from the kubernetes cluster by
       creating a LoadBalancer service.
     -->
