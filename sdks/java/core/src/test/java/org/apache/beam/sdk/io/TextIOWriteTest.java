@@ -38,12 +38,8 @@ import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.io.IOException;
-import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -68,50 +64,28 @@ import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 
 /** Tests for {@link TextIO.Write}. */
 public class TextIOWriteTest {
   private static final String MY_HEADER = "myHeader";
   private static final String MY_FOOTER = "myFooter";
 
-  private static Path tempFolder;
+  @Rule public transient TemporaryFolder tempFolder = new TemporaryFolder();
 
-  @Rule public TestPipeline p = TestPipeline.create();
+  @Rule public transient TestPipeline p = TestPipeline.create();
 
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-
-  @BeforeClass
-  public static void setupClass() throws IOException {
-    tempFolder = Files.createTempDirectory("TextIOTest");
-  }
-
-  @AfterClass
-  public static void teardownClass() throws IOException {
-    Files.walkFileTree(
-        tempFolder,
-        new SimpleFileVisitor<Path>() {
-          @Override
-          public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
-              throws IOException {
-            Files.delete(file);
-            return FileVisitResult.CONTINUE;
-          }
-
-          @Override
-          public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-            Files.delete(dir);
-            return FileVisitResult.CONTINUE;
-          }
-        });
-  }
+  @Rule public transient ExpectedException expectedException = ExpectedException.none();
 
   static class TestDynamicDestinations
       extends FileBasedSink.DynamicDestinations<String, String, String> {
@@ -174,7 +148,9 @@ public class TextIOWriteTest {
   public void testDynamicDestinations() throws Exception {
     ResourceId baseDir =
         FileSystems.matchNewResource(
-            Files.createTempDirectory(tempFolder, "testDynamicDestinations").toString(), true);
+            Files.createTempDirectory(tempFolder.getRoot().toPath(), "testDynamicDestinations")
+                .toString(),
+            true);
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
     PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
@@ -262,7 +238,9 @@ public class TextIOWriteTest {
   public void testDynamicDefaultFilenamePolicy() throws Exception {
     ResourceId baseDir =
         FileSystems.matchNewResource(
-            Files.createTempDirectory(tempFolder, "testDynamicDestinations").toString(), true);
+            Files.createTempDirectory(tempFolder.getRoot().toPath(), "testDynamicDestinations")
+                .toString(),
+            true);
 
     List<UserWriteType> elements =
         Lists.newArrayList(
@@ -371,7 +349,7 @@ public class TextIOWriteTest {
   private void runTestWrite(String[] elems, String header, String footer, int numShards)
       throws Exception {
     String outputName = "file.txt";
-    Path baseDir = Files.createTempDirectory(tempFolder, "testwrite");
+    Path baseDir = Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite");
     ResourceId baseFilename =
         FileBasedSink.convertToFileResourceIfPossible(baseDir.resolve(outputName).toString());
 
@@ -544,7 +522,7 @@ public class TextIOWriteTest {
     String outputName = "file.txt";
     ResourceId baseDir =
         FileSystems.matchNewResource(
-            Files.createTempDirectory(tempFolder, "testwrite").toString(), true);
+            Files.createTempDirectory(tempFolder.getRoot().toPath(), "testwrite").toString(), true);
 
     PCollection<String> input = p.apply(Create.of(Arrays.asList(LINES2_ARRAY)).withCoder(coder));
 
@@ -639,5 +617,35 @@ public class TextIOWriteTest {
     RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
 
     p.apply(Create.of("")).apply(TextIO.write().to(options.getOutput()));
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWindowedWritesWithOnceTrigger() throws Throwable {
+    // Tests for https://issues.apache.org/jira/browse/BEAM-3169
+    PCollection<String> data =
+        p.apply(Create.of("0", "1", "2"))
+            .apply(
+                Window.<String>into(FixedWindows.of(Duration.standardSeconds(1)))
+                    // According to this trigger, all data should be written.
+                    // However, the continuation of this trigger is elementCountAtLeast(1),
+                    // so with a buggy implementation that used a GBK before renaming files,
+                    // only 1 file would be renamed.
+                    .triggering(AfterPane.elementCountAtLeast(3))
+                    .withAllowedLateness(Duration.standardMinutes(1))
+                    .discardingFiredPanes());
+    PCollection<String> filenames =
+        data.apply(
+                TextIO.write()
+                    .to(new File(tempFolder.getRoot(), "windowed-writes").getAbsolutePath())
+                    .withNumShards(2)
+                    .withWindowedWrites()
+                    .<Void>withOutputFilenames())
+            .getPerDestinationOutputFilenames()
+            .apply(Values.<String>create());
+
+    PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
+
+    p.run();
   }
 }
