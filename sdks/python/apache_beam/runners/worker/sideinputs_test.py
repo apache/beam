@@ -121,6 +121,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     def perpetual_generator(value):
       while True:
         yield value
+        time.sleep(0.1)
 
     sources = [
         FakeSource(perpetual_generator(1)),
