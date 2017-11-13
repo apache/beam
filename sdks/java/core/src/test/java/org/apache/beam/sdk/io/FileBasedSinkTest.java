@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io;
 
+import static org.apache.beam.sdk.io.WriteFiles.UNKNOWN_SHARDNUM;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -25,6 +27,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -41,9 +44,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -52,6 +54,7 @@ import org.apache.beam.sdk.io.FileBasedSink.WriteOperation;
 import org.apache.beam.sdk.io.FileBasedSink.Writer;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.values.KV;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorInputStream;
 import org.junit.Rule;
@@ -97,7 +100,7 @@ public class FileBasedSinkTest {
     expected.addAll(values);
     expected.add(SimpleSink.SimpleWriter.FOOTER);
 
-    SimpleSink.SimpleWriter writer =
+    SimpleSink.SimpleWriter<Void> writer =
         buildWriteOperationWithTempDir(getBaseTempDirectory()).createWriter();
     writer.openUnwindowed(testUid, -1, null);
     for (String value : values) {
@@ -186,7 +189,7 @@ public class FileBasedSinkTest {
   }
 
   /** Finalize and verify that files are copied and temporary files are optionally removed. */
-  private void runFinalize(SimpleSink.SimpleWriteOperation writeOp, List<File> temporaryFiles)
+  private void runFinalize(SimpleSink.SimpleWriteOperation<Void> writeOp, List<File> temporaryFiles)
       throws Exception {
     int numFiles = temporaryFiles.size();
 
@@ -196,13 +199,21 @@ public class FileBasedSinkTest {
       fileResults.add(
           new FileResult<Void>(
               LocalResources.fromFile(temporaryFiles.get(i), false),
-              WriteFiles.UNKNOWN_SHARDNUM,
+              UNKNOWN_SHARDNUM,
               null,
               null,
               null));
     }
 
-    writeOp.removeTemporaryFiles(writeOp.finalize(fileResults).keySet());
+    // TODO: test with null first argument?
+    List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames =
+        writeOp.buildOutputFilenames(null, null, null, fileResults);
+    Set<ResourceId> tempFiles = Sets.newHashSet();
+    for (KV<FileResult<Void>, ResourceId> res : resultsToFinalFilenames) {
+      tempFiles.add(res.getKey().getTempFilename());
+    }
+    writeOp.copyToOutputFiles(resultsToFinalFilenames);
+    writeOp.removeTemporaryFiles(tempFiles);
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename =
@@ -263,14 +274,14 @@ public class FileBasedSinkTest {
   /** Output files are copied to the destination location with the correct names and contents. */
   @Test
   public void testCopyToOutputFiles() throws Exception {
-    SimpleSink.SimpleWriteOperation writeOp = buildWriteOperation();
+    SimpleSink.SimpleWriteOperation<Void> writeOp = buildWriteOperation();
     List<String> inputFilenames = Arrays.asList("input-1", "input-2", "input-3");
     List<String> inputContents = Arrays.asList("1", "2", "3");
     List<String> expectedOutputFilenames =
         Arrays.asList("file-00-of-03.test", "file-01-of-03.test", "file-02-of-03.test");
 
-    Map<ResourceId, ResourceId> inputFilePaths = new HashMap<>();
-    List<ResourceId> expectedOutputPaths = new ArrayList<>();
+    List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames = Lists.newArrayList();
+    List<ResourceId> expectedOutputPaths = Lists.newArrayList();
 
     for (int i = 0; i < inputFilenames.size(); i++) {
       // Generate output paths.
@@ -282,17 +293,20 @@ public class FileBasedSinkTest {
       File inputTmpFile = tmpFolder.newFile(inputFilenames.get(i));
       List<String> lines = Collections.singletonList(inputContents.get(i));
       writeFile(lines, inputTmpFile);
-      inputFilePaths.put(
-          LocalResources.fromFile(inputTmpFile, false),
-          writeOp
-              .getSink()
-              .getDynamicDestinations()
-              .getFilenamePolicy(null)
-              .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED));
+      ResourceId finalFilename = writeOp
+          .getSink()
+          .getDynamicDestinations()
+          .getFilenamePolicy(null)
+          .unwindowedFilename(i, inputFilenames.size(), CompressionType.UNCOMPRESSED);
+      resultsToFinalFilenames.add(
+          KV.of(
+              new FileResult<Void>(
+                  LocalResources.fromFile(inputTmpFile, false), UNKNOWN_SHARDNUM, null, null, null),
+              finalFilename));
     }
 
     // Copy input files to output files.
-    writeOp.copyToOutputFiles(inputFilePaths);
+    writeOp.copyToOutputFiles(resultsToFinalFilenames);
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {
@@ -302,7 +316,7 @@ public class FileBasedSinkTest {
   }
 
   public List<ResourceId> generateDestinationFilenames(
-      ResourceId outputDirectory, FilenamePolicy policy, int numFiles) {
+      FilenamePolicy policy, int numFiles) {
     List<ResourceId> filenames = new ArrayList<>();
     for (int i = 0; i < numFiles; i++) {
       filenames.add(policy.unwindowedFilename(i, numFiles, CompressionType.UNCOMPRESSED));
@@ -327,17 +341,17 @@ public class FileBasedSinkTest {
             root.resolve("file.00000.of.00003.test", StandardResolveOptions.RESOLVE_FILE),
             root.resolve("file.00001.of.00003.test", StandardResolveOptions.RESOLVE_FILE),
             root.resolve("file.00002.of.00003.test", StandardResolveOptions.RESOLVE_FILE));
-    actual = generateDestinationFilenames(root, policy, 3);
+    actual = generateDestinationFilenames(policy, 3);
     assertEquals(expected, actual);
 
     expected =
         Collections.singletonList(
             root.resolve("file.00000.of.00001.test", StandardResolveOptions.RESOLVE_FILE));
-    actual = generateDestinationFilenames(root, policy, 1);
+    actual = generateDestinationFilenames(policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = generateDestinationFilenames(root, policy, 0);
+    actual = generateDestinationFilenames(policy, 0);
     assertEquals(expected, actual);
   }
 
@@ -352,18 +366,19 @@ public class FileBasedSinkTest {
     ResourceId temp1 = root.resolve("temp1", StandardResolveOptions.RESOLVE_FILE);
     ResourceId temp2 = root.resolve("temp2", StandardResolveOptions.RESOLVE_FILE);
     ResourceId temp3 = root.resolve("temp3", StandardResolveOptions.RESOLVE_FILE);
-    ResourceId output = root.resolve("file-03.test", StandardResolveOptions.RESOLVE_FILE);
     // More than one shard does.
     try {
       Iterable<FileResult<Void>> results =
           Lists.newArrayList(
-              new FileResult<Void>(temp1, 1, null, null, null),
-              new FileResult<Void>(temp2, 1, null, null, null),
-              new FileResult<Void>(temp3, 1, null, null, null));
-      writeOp.buildOutputFilenames(results);
+              new FileResult<Void>(temp1, 1 /* shard */, null, null, null),
+              new FileResult<Void>(temp2, 1 /* shard */, null, null, null),
+              new FileResult<Void>(temp3, 1 /* shard */, null, null, null));
+      writeOp.buildOutputFilenames(null, null, 5 /* numShards */, results);
       fail("Should have failed.");
-    } catch (IllegalStateException exn) {
-      assertEquals("Only generated 1 distinct file names for 3 files.", exn.getMessage());
+    } catch (IllegalArgumentException exn) {
+      assertThat(exn.getMessage(), containsString("generated the same name"));
+      assertThat(exn.getMessage(), containsString("temp1"));
+      assertThat(exn.getMessage(), containsString("temp2"));
     }
   }
 
@@ -383,17 +398,17 @@ public class FileBasedSinkTest {
             root.resolve("file-00000-of-00003", StandardResolveOptions.RESOLVE_FILE),
             root.resolve("file-00001-of-00003", StandardResolveOptions.RESOLVE_FILE),
             root.resolve("file-00002-of-00003", StandardResolveOptions.RESOLVE_FILE));
-    actual = generateDestinationFilenames(root, policy, 3);
+    actual = generateDestinationFilenames(policy, 3);
     assertEquals(expected, actual);
 
     expected =
         Collections.singletonList(
             root.resolve("file-00000-of-00001", StandardResolveOptions.RESOLVE_FILE));
-    actual = generateDestinationFilenames(root, policy, 1);
+    actual = generateDestinationFilenames(policy, 1);
     assertEquals(expected, actual);
 
     expected = new ArrayList<>();
-    actual = generateDestinationFilenames(root, policy, 0);
+    actual = generateDestinationFilenames(policy, 0);
     assertEquals(expected, actual);
   }
 

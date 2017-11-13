@@ -47,7 +47,7 @@ import org.junit.rules.TemporaryFolder;
 public class AvroPipelineTest {
 
   private File inputFile;
-  private File outputDir;
+  private File outputFile;
 
   @Rule
   public final TemporaryFolder tmpDir = new TemporaryFolder();
@@ -58,8 +58,7 @@ public class AvroPipelineTest {
   @Before
   public void setUp() throws IOException {
     inputFile = tmpDir.newFile("test.avro");
-    outputDir = tmpDir.newFolder("out");
-    outputDir.delete();
+    outputFile = new File(tmpDir.getRoot(), "out.avro");
   }
 
   @Test
@@ -73,7 +72,10 @@ public class AvroPipelineTest {
 
     PCollection<GenericRecord> input = pipeline.apply(
         AvroIO.readGenericRecords(schema).from(inputFile.getAbsolutePath()));
-    input.apply(AvroIO.writeGenericRecords(schema).to(outputDir.getAbsolutePath()));
+    input.apply(
+        AvroIO.writeGenericRecords(schema)
+            .to(outputFile.getAbsolutePath())
+            .withoutSharding());
     pipeline.run();
 
     List<GenericRecord> records = readGenericFile();
@@ -98,7 +100,7 @@ public class AvroPipelineTest {
     List<GenericRecord> records = Lists.newArrayList();
     GenericDatumReader<GenericRecord> genericDatumReader = new GenericDatumReader<>();
     try (DataFileReader<GenericRecord> dataFileReader =
-             new DataFileReader<>(new File(outputDir + "-00000-of-00001"), genericDatumReader)) {
+        new DataFileReader<>(outputFile, genericDatumReader)) {
       for (GenericRecord record : dataFileReader) {
         records.add(record);
       }
