@@ -129,17 +129,17 @@ class PrefetchingSourceSetIterable(object):
     num_readers_finished = 0
     try:
       while True:
-        element = self.element_queue.get()
-        if element is READER_THREAD_IS_DONE_SENTINEL:
-          num_readers_finished += 1
-          if num_readers_finished == self.num_reader_threads:
-            if self.has_errored:
-              raise self.reader_exceptions.get()
-            return
-        elif self.has_errored:
-          raise self.reader_exceptions.get()
-        else:
-          yield element
+        try:
+          element = self.element_queue.get()
+          if element is READER_THREAD_IS_DONE_SENTINEL:
+            num_readers_finished += 1
+            if num_readers_finished == self.num_reader_threads:
+              return
+          else:
+            yield element
+        finally:
+          if self.has_errored:
+            raise self.reader_exceptions.get()
     except GeneratorExit:
       self.has_errored = True
       raise
