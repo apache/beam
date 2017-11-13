@@ -347,6 +347,12 @@
 
   <span class="n">args</span><span class="p">,</span> <span class="n">pipeline_args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_known_args</span><span class="p">(</span><span class="n">argv</span><span class="p">)</span>
 
+  <span class="n">options</span> <span class="o">=</span> <span class="n">PipelineOptions</span><span class="p">(</span><span class="n">pipeline_args</span><span class="p">)</span>
+
+  <span class="c"># We use the save_main_session option because one or more DoFn's in this</span>
+  <span class="c"># workflow rely on global context (e.g., a module imported at module level).</span>
+  <span class="n">options</span><span class="o">.</span><span class="n">view_as</span><span class="p">(</span><span class="n">SetupOptions</span><span class="p">)</span><span class="o">.</span><span class="n">save_main_session</span> <span class="o">=</span> <span class="bp">True</span>
+
   <span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="n">argv</span><span class="o">=</span><span class="n">pipeline_args</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
     <span class="k">def</span> <span class="nf">format_user_score_sums</span><span class="p">(</span><span class="n">user_score</span><span class="p">):</span>
       <span class="p">(</span><span class="n">user</span><span class="p">,</span> <span class="n">score</span><span class="p">)</span> <span class="o">=</span> <span class="n">user_score</span>
