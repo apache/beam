@@ -58,6 +58,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.DeduplicatedFlattenFactory;
@@ -124,6 +125,7 @@ import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -139,7 +141,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.PValue;
@@ -395,28 +396,28 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.createViewWithViewFn(PCollectionViews.MapViewFn.class),
-                  new ReflectiveOneToOneOverrideFactory(
+                  PTransformMatchers.classEqualTo(View.AsMap.class),
+                  new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsMap.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.createViewWithViewFn(PCollectionViews.MultimapViewFn.class),
-                  new ReflectiveOneToOneOverrideFactory(
+                  PTransformMatchers.classEqualTo(View.AsMultimap.class),
+                  new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsMultimap.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.createViewWithViewFn(PCollectionViews.SingletonViewFn.class),
-                  new ReflectiveOneToOneOverrideFactory(
+                  PTransformMatchers.classEqualTo(View.AsSingleton.class),
+                  new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsSingleton.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.createViewWithViewFn(PCollectionViews.ListViewFn.class),
-                  new ReflectiveOneToOneOverrideFactory(
+                  PTransformMatchers.classEqualTo(View.AsList.class),
+                  new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsList.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.createViewWithViewFn(PCollectionViews.IterableViewFn.class),
-                  new ReflectiveOneToOneOverrideFactory(
+                  PTransformMatchers.classEqualTo(View.AsIterable.class),
+                  new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsIterable.class, this)));
     }
     overridesBuilder
@@ -433,6 +434,81 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                 PTransformMatchers.classEqualTo(ParDo.SingleOutput.class),
                 new PrimitiveParDoSingleFactory()));
     return overridesBuilder.build();
+  }
+
+  /**
+   * Replace the View.AsYYY transform with specialized view overrides for Dataflow. It is required that the
+   * new replacement transform uses the supplied PCollectionView and does not create another instance.
+   */
+  private static class ReflectiveViewOverrideFactory<InputT, ViewT>
+      implements PTransformOverrideFactory<PCollection<InputT>,
+      PValue, PTransform<PCollection<InputT>, PValue>> {
+
+    private final Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement;
+    private final DataflowRunner runner;
+
+    private ReflectiveViewOverrideFactory(
+        Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement,
+        DataflowRunner runner) {
+      this.replacement = replacement;
+      this.runner = runner;
+    }
+
+    @Override
+    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
+         final AppliedPTransform<PCollection<InputT>,
+             PValue,
+             PTransform<PCollection<InputT>, PValue>> transform) {
+
+      final AtomicReference<CreatePCollectionView> viewTransformRef = new AtomicReference<>();
+      transform.getPipeline().traverseTopologically(new PipelineVisitor.Defaults() {
+        // Stores whether we have entered the expected composite view transform.
+        private boolean tracking = false;
+
+        @Override
+        public CompositeBehavior enterCompositeTransform(Node node) {
+          if (transform.getTransform() == node.getTransform()) {
+            tracking = true;
+          }
+          return super.enterCompositeTransform(node);
+        }
+
+        @Override
+        public void visitPrimitiveTransform(Node node) {
+          if (tracking && node.getTransform() instanceof CreatePCollectionView) {
+            checkState(
+                viewTransformRef.compareAndSet(null, (CreatePCollectionView) node.getTransform()),
+                "Found more then one instance of a CreatePCollectionView when "
+                    + "attempting to replace %s, found [%s, %s]",
+                replacement, viewTransformRef.get(), node.getTransform());
+          }
+        }
+
+        @Override
+        public void leaveCompositeTransform(Node node) {
+          if (transform.getTransform() == node.getTransform()) {
+            tracking = false;
+          }
+        }
+      });
+
+      checkState(viewTransformRef.get() != null,
+          "Expected to find CreatePCollectionView contained within %s",
+          transform.getTransform());
+      PTransform<PCollection<InputT>, PCollectionView<ViewT>> rep =
+          InstanceBuilder.ofType(replacement)
+              .withArg(DataflowRunner.class, runner)
+              .withArg(CreatePCollectionView.class, viewTransformRef.get())
+              .build();
+      return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform), (PTransform) rep);
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, PValue newOutput) {
+      // We do not replace any of the outputs because we expect that the new PTransform will re-use the original
+      // PCollectionView that was returned.
+      return ImmutableMap.of();
+    }
   }
 
   private static class ReflectiveOneToOneOverrideFactory<
@@ -1258,19 +1334,21 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
    */
   private static class Deduplicate<T>
       extends PTransform<PCollection<ValueWithRecordId<T>>, PCollection<T>> {
+
     // Use a finite set of keys to improve bundling.  Without this, the key space
     // will be the space of ids which is potentially very large, which results in much
     // more per-key overhead.
     private static final int NUM_RESHARD_KEYS = 10000;
+
     @Override
     public PCollection<T> expand(PCollection<ValueWithRecordId<T>> input) {
       return input
           .apply(WithKeys.of(new SerializableFunction<ValueWithRecordId<T>, Integer>() {
-                    @Override
-                    public Integer apply(ValueWithRecordId<T> value) {
-                      return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
-                    }
-                  }))
+            @Override
+            public Integer apply(ValueWithRecordId<T> value) {
+              return Arrays.hashCode(value.getId()) % NUM_RESHARD_KEYS;
+            }
+          }))
           // Reshuffle will dedup based on ids in ValueWithRecordId by passing the data through
           // WindmillSink.
           .apply(Reshuffle.<Integer, ValueWithRecordId<T>>of())
