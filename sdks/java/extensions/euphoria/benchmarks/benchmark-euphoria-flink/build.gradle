@@ -1,0 +1,8 @@
+dependencies {
+  compile project(':benchmarks:benchmark-euphoria-common')
+  compile project(':euphoria-flink')
+  compile "org.apache.flink:flink-java:${flinkVersion}"
+  compile "org.apache.flink:flink-clients_${scalaVersion}:${flinkVersion}"
+  compile "org.apache.flink:flink-streaming-java_${scalaVersion}:${flinkVersion}"
+  compile "org.apache.flink:flink-statebackend-rocksdb_${scalaVersion}:${flinkVersion}"
+}

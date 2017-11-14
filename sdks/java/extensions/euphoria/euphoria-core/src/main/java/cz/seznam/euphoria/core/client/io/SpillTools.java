@@ -17,7 +17,7 @@ package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.IOUtils;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
