@@ -548,10 +548,10 @@ def _get_required_container_version(job_type=None):
     # We drop any pre/post parts of the version and we keep only the X.Y.Z
     # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
     parsed_version = pkg_resources.parse_version(version)
-    if "_version" in parsed_version:
+    try:
       container_version = (
         '%s.%s.%s' % parsed_version._version.release)
-    else:
+    except:
       container_version = ('%s.%s.%s' % parsed_version)
     # We do, however, keep the ".dev" suffix if it is present.
     if re.match(r'.*\.dev[0-9]*$', version):
