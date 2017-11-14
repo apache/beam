@@ -75,7 +75,7 @@ public class ListDataSink<T> implements DataSink<T> {
   private final List<ListWriter> writers = Collections.synchronizedList(new ArrayList<>());
 
   @Nullable
-  private Consumer<Dataset<T>> onAdded = null;
+  private Consumer<Dataset<T>> prepareDataset = null;
 
   @SuppressWarnings("unchecked")
   protected ListDataSink() {
@@ -105,9 +105,9 @@ public class ListDataSink<T> implements DataSink<T> {
   }
 
   @Override
-  public boolean onAdded(Dataset<T> output) {
-    if (onAdded != null) {
-      onAdded.accept(output);
+  public boolean prepareDataset(Dataset<T> output) {
+    if (prepareDataset != null) {
+      prepareDataset.accept(output);
       return true;
     }
     return false;
@@ -117,11 +117,11 @@ public class ListDataSink<T> implements DataSink<T> {
    * Add function to be applied on {@code Dataset} being output.
    * This function can apply additional operators to the dataset
    * and has to persist the final dataset to (same or different) sink.
-   * @param onAdded the function to be applied
+   * @param prepareDataset the function to be applied
    * @return this
    */
-  public ListDataSink<T> withOnAdded(Consumer<Dataset<T>> onAdded) {
-    this.onAdded = onAdded;
+  public ListDataSink<T> withPrepareDataset(Consumer<Dataset<T>> prepareDataset) {
+    this.prepareDataset = prepareDataset;
     return this;
   }
 

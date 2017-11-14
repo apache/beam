@@ -55,7 +55,7 @@ public class SinkTest extends AbstractOperatorTest {
       public ListDataSink<Pair<Integer, Long>> modifySink(
           ListDataSink<Pair<Integer, Long>> sink) {
 
-        return sink.withOnAdded(d -> {
+        return sink.withPrepareDataset(d -> {
           ReduceByKey.of(d)
               .keyBy(p -> p.getFirst() % 2)
               .valueBy(Pair::getSecond)
