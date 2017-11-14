@@ -16,6 +16,9 @@ include ':euphoria-spark'
 // ~ extras
 include ':euphoria-fluent'
 
+// ~ examples
+include ':euphoria-examples'
+
 // ~ benchmarks
 include ':benchmarks:benchmark-model'
 include ':benchmarks:benchmark-euphoria-common'
