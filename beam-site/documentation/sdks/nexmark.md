@@ -1,7 +1,7 @@
 ---
 layout: section
 title: "Nexmark benchmark suite"
-section_menu: section-menu/documentation.html
+section_menu: section-menu/sdks.html
 permalink: /documentation/sdks/nexmark/
 ---
 # Nexmark benchmark suite
