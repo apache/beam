@@ -91,6 +91,24 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
         sources, max_reader_threads=1)
     assert list(strip_windows(iterator_fn())) == range(11)
 
+  def test_source_iterator_single_source_exception(self):
+    class MyException(Exception):
+      pass
+
+    def exception_generator():
+      yield 0
+      raise MyException('I am an exception!')
+
+    sources = [
+        FakeSource(exception_generator()),
+    ]
+    iterator_fn = sideinputs.get_iterator_fn_for_sources(sources)
+    seen = set()
+    with self.assertRaises(MyException):
+      for value in iterator_fn():
+        seen.add(value.value)
+    self.assertEqual(sorted(seen), [0])
+
   def test_source_iterator_fn_exception(self):
     class MyException(Exception):
       pass
@@ -103,6 +121,7 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     def perpetual_generator(value):
       while True:
         yield value
+        time.sleep(0.1)
 
     sources = [
         FakeSource(perpetual_generator(1)),
