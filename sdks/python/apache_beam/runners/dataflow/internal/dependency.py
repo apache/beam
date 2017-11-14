@@ -547,8 +547,12 @@ def _get_required_container_version(job_type=None):
     version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
     # We drop any pre/post parts of the version and we keep only the X.Y.Z
     # format.  For instance the 0.3.0rc2 SDK version translates into 0.3.0.
-    container_version = (
-        '%s.%s.%s' % pkg_resources.parse_version(version)._version.release)
+    parsed_version = pkg_resources.parse_version(version)
+    if "_version" in parsed_version:
+      container_version = (
+        '%s.%s.%s' % parsed_version._version.release)
+    else:
+      container_version = ('%s.%s.%s' % parsed_version)
     # We do, however, keep the ".dev" suffix if it is present.
     if re.match(r'.*\.dev[0-9]*$', version):
       container_version += '.dev'
