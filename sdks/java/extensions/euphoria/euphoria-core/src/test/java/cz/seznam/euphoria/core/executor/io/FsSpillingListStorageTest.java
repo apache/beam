@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.core.executor.io;
 
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;

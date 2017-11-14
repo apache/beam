@@ -1,0 +1,8 @@
+dependencies {
+  compile project(':benchmarks:benchmark-model')
+  compile "org.apache.beam:beam-runners-flink_${beamScalaVersion}:${beamVersion}"
+  compile "org.apache.beam:beam-sdks-java-core:${beamVersion}"
+  compile "org.apache.beam:beam-sdks-java-io-hdfs:${beamVersion}"
+  compileOnly "com.google.code.findbugs:annotations:${beamFindbugsVersion}"
+  compileOnly "org.projectlombok:lombok:${lombokVersion}"
+}
