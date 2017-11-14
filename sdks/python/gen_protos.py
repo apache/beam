@@ -112,11 +112,12 @@ def generate_proto_files(force=False):
             '%s' % ret_code)
 
 
-    ret_code = subprocess.call(
+    if sys.version_info[0] >= 3:
+      ret_code = subprocess.call(
         ["futurize", "-0", "-wv", "--no-diff", out_dir])
 
-    if ret_code:
-      raise RuntimeError(
+      if ret_code:
+        raise RuntimeError(
           'Error applying futurize to generated protobuf python files.')
 
 
