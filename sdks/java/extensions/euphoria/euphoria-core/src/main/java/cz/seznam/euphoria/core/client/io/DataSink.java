@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.dataset.Dataset;
 import java.io.IOException;
 import java.io.Serializable;
 
@@ -57,4 +58,21 @@ public interface DataSink<T> extends Serializable {
    * @throws IOException if rolling back written out data fails for some reason
    */
   void rollback() throws IOException;
+
+
+  /**
+   * Called when adding output sink to the resulting DAG for processing.
+   * Purpose of this method is to enable sink to add arbitrary transformations
+   * to the dataset, before it gets persisted via this sink.
+   *
+   * @param output the dataset being written by this sink
+   * @return true if the flow was modified, i.e. if any transformation was
+   * applied on the output. Note that, in that case you have to call
+   * {@link Dataset#persist} manually on the resulting dataset.
+   */
+  default boolean prepareDataset(Dataset<T> output) {
+    // by default do nothing
+    return false;
+  }
+
 }
