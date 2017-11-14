@@ -42,6 +42,7 @@ import time
 # from google.protobuf import wrappers_pb2
 
 import apache_beam as beam
+from apache_beam.internal import pickler
 # from apache_beam import typehints
 # from apache_beam.metrics.execution import MetricsEnvironment
 # from apache_beam.options.pipeline_options import DirectOptions
@@ -59,6 +60,7 @@ from apache_beam.runners.runner import PipelineRunner
 
 # __all__ = ['LaserRunner']
 
+from apache_beam.runners.dataflow.internal.names import PropertyNames
 
 from apache_beam.runners.laser.channels import ChannelConfig
 from apache_beam.runners.laser.channels import LinkMode
@@ -70,11 +72,19 @@ from apache_beam.runners.laser.channels import get_channel_manager
 from apache_beam.runners.laser.channels import remote_method
 from apache_beam.runners.dataflow import DataflowRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
+from apache_beam.runners.worker import operation_specs
+from apache_beam.runners.worker import operations
 from apache_beam.io import iobase
+from apache_beam.io import ReadFromText
 from apache_beam import pvalue
 from apache_beam.pvalue import PBegin
 from apache_beam.runners.worker import operation_specs
 # from apache_beam.runners.worker import operations
+from apache_beam.utils.counters import CounterFactory
+try:
+  from apache_beam.runners.worker import statesampler
+except ImportError:
+  from apache_beam.runners.worker import statesampler_fake as statesampler
 
 
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
@@ -179,7 +189,7 @@ class WatermarkNode(object):
   def set_watermark_hold(self, hold_time=None):
     # TODO: do we need some synchronization?
     if hold_time is None:
-      self.watermark_hold = MAX_TIMESTAMP
+      hold_time = MAX_TIMESTAMP
     self.watermark_hold = hold_time
     self._refresh_output_watermark()
 
@@ -236,6 +246,9 @@ class ReadStep(Step):
   def copy(self):
     return ReadStep(self.name, self.original_source_bundle, self.element_coder)
 
+  def as_operation(self, unused_step_index):
+    return operation_specs.WorkerRead(self.original_source_bundle, output_coders=[self.element_coder])
+
 
 class ParDoFnData(object):
   def __init__(self, fn, args, kwargs, si_tags_and_types, windowing):
@@ -250,15 +263,29 @@ class ParDoFnData(object):
         self.fn, self.args, self.kwargs, self.si_tags_and_types, self.windowing
       )
 
+  def as_serialized_fn(self):
+    return pickler.dumps((self.fn, self.args, self.kwargs, self.si_tags_and_types, self.windowing))
+
 
 class ParDoStep(Step):
-  def __init__(self, name, pardo_fn_data, element_coder):
+  def __init__(self, name, pardo_fn_data, element_coder, output_tags):
     super(ParDoStep, self).__init__(name)
     self.pardo_fn_data = pardo_fn_data
     self.element_coder = element_coder
+    self.output_tags = output_tags
 
   def copy(self):
-    return ParDoStep(self.name, self.pardo_fn_data, self.element_coder)
+    return ParDoStep(self.name, self.pardo_fn_data, self.element_coder, self.output_tags)
+
+  def as_operation(self, step_index):
+    assert len(self.inputs) == 1
+    return operation_specs.WorkerDoFn(
+        serialized_fn=self.pardo_fn_data.as_serialized_fn(),
+        output_tags=[PropertyNames.OUT] + ['%s_%s' % (PropertyNames.OUT, tag)
+                                           for tag in self.output_tags],
+        output_coders=[self.element_coder] * (len(self.output_tags) + 1),
+        input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
+        side_inputs=[])
 
 class GroupByKeyStep(Step):
   def __init__(self, name, element_coder):
@@ -319,7 +346,7 @@ class WatermarkManager(object):
   def start(self):
     for node in self.root_nodes:
       node._refresh_input_watermark()
-      
+
 
 
 
@@ -343,12 +370,18 @@ class Stage(object):
 
 class FusedStage(Stage, CompositeWatermarkNode):
 
-  def __init__(self):
+  def __init__(self, name):
     super(FusedStage, self).__init__()
+    self.name = name
+
     self.step_to_original_step = {}
     self.original_step_to_step = {}
     self.read_step = None
+
+    # Topologically sorted steps.
     self.steps = []
+    # Step to index in self.steps.
+    self.step_index = {}
 
     # Hold watermark on all steps until execution progress is made.
     self.input_watermark_node.set_watermark_hold(MIN_TIMESTAMP)
@@ -376,16 +409,37 @@ class FusedStage(Stage, CompositeWatermarkNode):
         input_pcoll.add_consumer(step)
         input_step.add_dependent(step)
     self.steps.append(step)
+    self.step_index[step] = len(self.steps) - 1
 
-  def finalize(self):
+  def finalize_steps(self):
     for step in self.steps:
+      # TODO: we actually only need to add the ones that don't have children
       step.add_dependent(self.output_watermark_node)
 
+
   def __repr__(self):
-    return 'FusedStage(steps: %s)' % self.steps
+    return 'FusedStage(name: %s, steps: %s)' % (self.name, self.steps)
 
   def input_watermark_advanced(self, new_watermark):
     print 'FUSEDSTAGE input watermark ADVANCED', new_watermark
+    if new_watermark == MAX_TIMESTAMP:
+      self.start()  # TODO: reconcile all the run / start method names.
+
+  def start(self):
+    print 'STARTING FUSED STAGE', self
+
+    print 'MAPTASK GENERATION!!'
+    all_operations = list(step.as_operation(self.step_index) for step in self.steps)
+    step_names = list('s%s' % ix for ix in range(len(self.steps)))
+    system_names = step_names
+    original_names = list(step.name for step in self.steps)
+    map_task = operation_specs.MapTask(all_operations, self.name, system_names, step_names, original_names)
+    print 'MAPTASK', map_task
+    counter_factory = CounterFactory()
+    state_sampler = statesampler.StateSampler(self.name, counter_factory)
+    map_executor = operations.SimpleMapTaskExecutor(map_task, counter_factory, state_sampler)
+    map_executor.execute()
+    # self.input_watermark_node.set_watermark_hold(None)
 
   def initialize(self):
     print 'INIT'
@@ -423,7 +477,8 @@ def generate_execution_graph(step_graph):
     original_step = to_process.get()
     if isinstance(original_step, ReadStep):
       assert not original_step.inputs
-      fused_stage = FusedStage()
+      stage_name = 'S%02d' % len(steps_to_fused_stages)
+      fused_stage = FusedStage(stage_name)
       fused_stage.add_step(original_step)
       print 'fused_stage', original_step, fused_stage
       steps_to_fused_stages[original_step] = fused_stage
@@ -445,10 +500,11 @@ def generate_execution_graph(step_graph):
 
   # Add fused stages to graph.
   for fused_stage in set(steps_to_fused_stages.values()):
-    fused_stage.finalize()
+    fused_stage.finalize_steps()
     execution_graph.add_stage(fused_stage)
 
   return execution_graph
+
 
 
 class LaserRunner(PipelineRunner):
@@ -467,7 +523,7 @@ class LaserRunner(PipelineRunner):
     else:
       source_bundle = source_input
     print 'source', source_bundle
-    print 'split off', list(source_bundle.source.split(1))
+    print 'split off', list(source_bundle.source.split(1024))
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
     
@@ -535,7 +591,8 @@ class LaserRunner(PipelineRunner):
     print 'pardo_fn_data', pardo_fn_data
     print 'node', transform_node
     print 'input node', transform_node.inputs[0]
-    step = ParDoStep(transform_node.full_label, pardo_fn_data, element_coder)
+    print 'OUTPUT TAGS', transform.output_tags
+    step = ParDoStep(transform_node.full_label, pardo_fn_data, element_coder, transform.output_tags)
     print 'PARDO STEP', step
 
     self.step_graph.add_step(transform_node, step)
@@ -762,8 +819,11 @@ if __name__ == '__main__':
   #   print input
   p | Create([1, 2, 3]) | beam.Map(lambda x: (x, '1')) | beam.GroupByKey()
   a = p | 'yo' >> Create(['a', 'b', 'c'])
-  a | beam.Map(lambda x: (x, '2'))
-  a | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey()
+  def _print(x):
+    print 'PRRRINT:', x
+  a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
+  # a | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
+  # a | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(_print)
   # | beam.Map(fn)
   p.run()
 
