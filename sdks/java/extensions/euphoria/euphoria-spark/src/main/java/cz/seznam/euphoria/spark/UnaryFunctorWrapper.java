@@ -18,7 +18,7 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterators;
+import com.google.common.collect.Iterators;
 import org.apache.spark.api.java.function.FlatMapFunction;
 
 import java.util.Iterator;

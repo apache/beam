@@ -1,0 +1,6 @@
+dependencies {
+  compile project(':benchmarks:benchmark-beam-common')
+  compile "org.apache.beam:beam-runners-spark:${beamVersion}"
+  compile "org.apache.spark:spark-core_${beamScalaVersion}:${beamSparkVersion}"
+  compile "org.apache.spark:spark-streaming_${beamScalaVersion}:${beamSparkVersion}"
+}

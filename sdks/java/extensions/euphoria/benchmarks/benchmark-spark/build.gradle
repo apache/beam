@@ -1,0 +1,6 @@
+dependencies {
+  compile project(":benchmarks:benchmark-model")
+  compile "com.typesafe:config:${configVersion}"
+  compileOnly "org.apache.spark:spark-core_${scalaVersion}:${sparkVersion}"
+  compileOnly "org.projectlombok:lombok:${lombokVersion}"
+}

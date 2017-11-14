@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
+import com.google.common.collect.Sets;
 
 import java.io.IOException;
 import java.util.ArrayList;

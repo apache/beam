@@ -44,7 +44,7 @@ import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 import org.junit.Test;
 
 import java.time.Duration;

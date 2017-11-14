@@ -20,7 +20,7 @@ import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.flink.batch.BatchElement;
-import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
