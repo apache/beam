@@ -41,6 +41,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -835,10 +837,24 @@ public class ElasticsearchIO {
       @ProcessElement
       public void processElement(ProcessContext context) throws Exception {
         String document = context.element();
-        batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
+        String _id;
+
+        // TODO(Philip): Massive hack to parse incoming ES doc ID to use as the ID in bulk request.
+        Pattern pattern = Pattern.compile("\"id\":(\\d+),");
+        Matcher matcher = pattern.matcher(document);
+        if (matcher.find()) {
+          _id = matcher.group(1);
+          String s = String.format("{ \"index\" : {\"_id\":\"%s\"} }%n%s%n", _id, document);
+          System.out.print(s);
+          batch.add(s);
+        }
+        else {
+          System.out.print("_id not found.%n");
+          batch.add(String.format("{ \"index\" : {} }%n%s%n", document));
+        }
         currentBatchSizeBytes += document.getBytes(StandardCharsets.UTF_8).length;
         if (batch.size() >= spec.getMaxBatchSize()
-            || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
+                || currentBatchSizeBytes >= spec.getMaxBatchSizeBytes()) {
           flushBatch();
         }
       }
