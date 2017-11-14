@@ -13,32 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.core.executor.storage;
+package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Closeable;
-import java.io.Serializable;
 
+/**
+ * An {@code Iterable} that is externalized to external storage
+ * (i.e. spilled to disk).
+ */
 @Audience(Audience.Type.EXECUTOR)
-public interface SerializerFactory extends Serializable {
+public interface ExternalIterable<T> extends Iterable<T>, Closeable {
 
-  interface Serializer {
 
-    interface OutputStream extends Closeable {
-      void writeObject(Object o);
-      void flush();
-      void close();
-    }
-
-    interface InputStream extends Closeable {
-      Object readObject();
-      boolean eof();
-      void close();
-    }
-
-    OutputStream newOutputStream(java.io.OutputStream out);
-    InputStream newInputStream(java.io.InputStream in);
-  }
-
-  Serializer newSerializer();
 }

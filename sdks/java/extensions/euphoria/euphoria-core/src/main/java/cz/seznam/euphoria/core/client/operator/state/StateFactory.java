@@ -32,13 +32,13 @@ public interface StateFactory<IN, OUT, STATE extends State<IN, OUT>> extends Ser
   /**
    * Factory method to create new state instances.
    *
-   * @param storageProvider the provider for physical storage accessors
+   * @param stateContext context provided by the executor
    * @param context a context allowing the newly created state for the
    *                duration of its existence to emit output elements
    *
    * @return a newly created state
    */
-  STATE createState(StorageProvider storageProvider,
+  STATE createState(StateContext stateContext,
                     @Experimental("https://github.com/seznam/euphoria/issues/118")
                     @Nullable Collector<OUT> context);
 
