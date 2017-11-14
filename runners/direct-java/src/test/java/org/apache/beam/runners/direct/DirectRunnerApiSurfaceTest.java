@@ -42,7 +42,10 @@ public class DirectRunnerApiSurfaceTest {
     // The DirectRunner can expose the Core SDK, anything exposed by the Core SDK, and itself
     @SuppressWarnings("unchecked")
     final Set<String> allowed =
-        ImmutableSet.of("org.apache.beam.sdk", "org.apache.beam.runners.direct", "org.joda.time");
+        ImmutableSet.of(
+            "org.apache.beam.sdk",
+            "org.apache.beam.runners.direct",
+            "org.joda.time");
 
     final Package thisPackage = getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
