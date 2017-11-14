@@ -1,0 +1,8 @@
+dependencies {
+  compile project(':benchmarks:benchmark-model')
+  compile project(':euphoria-core')
+  compile project(':euphoria-hadoop')
+  compile project(':euphoria-kafka')
+  compile "com.typesafe:config:${configVersion}"
+  compileOnly "org.projectlombok:lombok:${lombokVersion}"
+}

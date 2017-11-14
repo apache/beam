@@ -1,0 +1,6 @@
+dependencies {
+  compile project(':euphoria-core')
+  compile "org.apache.hadoop:hadoop-common:${hadoopVersion}"
+  compile "org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}"
+  compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
+}
