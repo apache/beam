@@ -132,6 +132,7 @@ class StepGraph(object):
 
 class PCollectionNode(object):
   def __init__(self, step, tag):
+    super(PCollectionNode, self).__init__()
     self.step = step
     self.tag = tag
     self.consumers = []
@@ -143,14 +144,69 @@ class PCollectionNode(object):
     return 'PCollectionNode[%s.%s]' % (self.step.name, self.tag)
 
 
+class WatermarkNode(object):
+  def __init__(self):
+    super(WatermarkNode, self).__init__()
+    self.input_watermark = MIN_TIMESTAMP
+    self.watermark_hold = MAX_TIMESTAMP
+    self.output_watermark = MIN_TIMESTAMP
+    self.watermark_parents = []
+    self.watermark_children = []
+
+  def add_dependent(self, dependent):
+    self.watermark_children.append(dependent)
+    dependent.watermark_parents.append(self)
+
+  def _refresh_input_watermark(self):
+    print '_refresh_input_watermark OLD', self, self.input_watermark
+    new_input_watermark = MAX_TIMESTAMP
+    if self.watermark_parents:
+      new_input_watermark = min(parent.output_watermark for parent in self.watermark_parents)
+    print '_refresh_input_watermark NEW', self, new_input_watermark
+    if new_input_watermark > self.input_watermark:
+      self._advance_input_watermark(new_input_watermark)
+
+  def _refresh_output_watermark(self):
+    new_output_watermark = min(self.input_watermark, self.watermark_hold)
+    if new_output_watermark > self.output_watermark:
+      print 'OUTPUT watermark advanced', self, new_output_watermark
+      self.output_watermark = new_output_watermark
+      for dependent in self.watermark_children:
+        dependent._refresh_input_watermark()
+    else:
+      print 'OUTPUT watermark unchanged', self
+
+  def set_watermark_hold(self, hold_time=None):
+    # TODO: do we need some synchronization?
+    if hold_time is None:
+      self.watermark_hold = MAX_TIMESTAMP
+    self.watermark_hold = hold_time
+    self._refresh_output_watermark()
+
+  def _advance_input_watermark(self, new_watermark):
+    if new_watermark <= self.input_watermark:
+      print 'not advancing input watermark', self
+      return
+    self.input_watermark = new_watermark
+    print 'advancing input watermark', self
+    self.input_watermark_advanced(new_watermark)
+    self._refresh_output_watermark()
+
+
+
+  def input_watermark_advanced(self, new_watermark):
+    pass
+
+
 
 # class StepInfo(object):
 #   def __init__(self, input_pcollection, output_pcollections):
 #     self.input_pcollection = input_pcollection
 #     self.output_pcollections = output_pcollections
 
-class Step(object):
+class Step(WatermarkNode):
   def __init__(self, name):
+    super(Step, self).__init__()
     self.name = name
     self.inputs = []  # Should have one element except in case of Combine
     # self.side_input_steps
@@ -212,42 +268,61 @@ class GroupByKeyStep(Step):
   def copy(self):
     return GroupByKeyStep(self.element_coder)
 
-
-class WatermarkNode(object):
-  def __init__(self):
-    self.input_watermark = MIN_TIMESTAMP
-    self.watermark_hold = MAX_TIMESTAMP
-    self.output_watermark = MIN_TIMESTAMP
-    self.dependents = []
-
-  def set_watermark_hold(self, hold_time=None):
-    # TODO: do we need some synchronization?
-    if hold_time is None:
-      self.watermark_hold = MAX_TIMESTAMP
-    self.watermark_hold = hold_time
-
-  def watermark_advanced(self, new_watermark):
-    pass
-
 class CompositeWatermarkNode(WatermarkNode):
   class InputWatermarkNode(WatermarkNode):
     def __init__(self, composite_node):
       super(CompositeWatermarkNode.InputWatermarkNode, self).__init__()
       self.composite_node = composite_node
 
-    def watermark_advanced(self, new_watermark):
-      self.composite_node.watermark_advanced
+    def input_watermark_advanced(self, new_watermark):
+      self.composite_node.input_watermark_advanced(new_watermark)
 
   class OutputWatermarkNode(WatermarkNode):
-    pass
+    def __init__(self, composite_node):
+      super(CompositeWatermarkNode.OutputWatermarkNode, self).__init__()
 
   def __init__(self):
     super(CompositeWatermarkNode, self).__init__()
     self.input_watermark_node = CompositeWatermarkNode.InputWatermarkNode(self)
     self.output_watermark_node = CompositeWatermarkNode.OutputWatermarkNode(self)
 
-  def set_watermark_hold(self, hold_time=None):
-    self.output_watermark_node.set_watermark_hold(hold_time=hold_time)
+  # def set_watermark_hold(self, hold_time=None):  # TODO: should we remove this so it is more explicit?
+  #   self.input_watermark_node.set_watermark_hold(hold_time=hold_time)
+
+
+class WatermarkManager(object):
+  def __init__(self):
+    self.tracked_nodes = set()
+    self.root_nodes = set()
+
+  def track_nodes(self, watermark_node):
+    start_node = watermark_node
+    if isinstance(watermark_node, CompositeWatermarkNode):
+      print 'track_nodes GOT COMPOSITE NODE', watermark_node
+      start_node = watermark_node.input_watermark_node
+    if start_node in self.tracked_nodes:
+      return
+    self.tracked_nodes.add(start_node)
+    self.root_nodes.add(start_node)
+    queue = Queue()
+    queue.put(start_node)
+    while not queue.empty():
+      current = queue.get()
+      print 'TRACK NODE', current
+      for dependent in current.watermark_children:
+        if dependent in self.tracked_nodes:
+          self.root_nodes.discard(dependent)
+        else:
+          self.tracked_nodes.add(dependent)
+          queue.put(dependent)
+
+  def start(self):
+    for node in self.root_nodes:
+      node._refresh_input_watermark()
+      
+
+
+
 
 
 class ExecutionGraph(object):
@@ -260,7 +335,10 @@ class ExecutionGraph(object):
 
 class Stage(object):
   def __init__(self):
-    pass
+    super(Stage, self).__init__()
+
+
+
 
 
 class FusedStage(Stage, CompositeWatermarkNode):
@@ -271,6 +349,9 @@ class FusedStage(Stage, CompositeWatermarkNode):
     self.original_step_to_step = {}
     self.read_step = None
     self.steps = []
+
+    # Hold watermark on all steps until execution progress is made.
+    self.input_watermark_node.set_watermark_hold(MIN_TIMESTAMP)
 
   def add_step(self, original_step):
     # when a FusedStage adds a step, the step is copied.
@@ -285,30 +366,43 @@ class FusedStage(Stage, CompositeWatermarkNode):
       assert not original_step.inputs
       assert not self.read_step
       self.read_step = step
+      self.input_watermark_node.add_dependent(step)
     else:
       # Copy inputs.
       for original_input_pcoll in original_step.inputs:
-        input_pcoll = self.original_step_to_step[original_input_pcoll.step].outputs[tag]
+        input_step = self.original_step_to_step[original_input_pcoll.step]
+        input_pcoll = input_step.outputs[tag]
         step.inputs.append(input_pcoll)
         input_pcoll.add_consumer(step)
+        input_step.add_dependent(step)
     self.steps.append(step)
+
+  def finalize(self):
+    for step in self.steps:
+      step.add_dependent(self.output_watermark_node)
 
   def __repr__(self):
     return 'FusedStage(steps: %s)' % self.steps
+
+  def input_watermark_advanced(self, new_watermark):
+    print 'FUSEDSTAGE input watermark ADVANCED', new_watermark
 
   def initialize(self):
     print 'INIT'
 
 
 class Executor(object):
-  def __init__(self, execution_graph):
+  def __init__(self, execution_graph, watermark_manager):
     self.execution_graph = execution_graph
+    self.watermark_manager = watermark_manager
 
   def run(self):
     print 'EXECUTOR RUN'
     print 'execution graph', self.execution_graph
     for fused_stage in self.execution_graph.stages:
       fused_stage.initialize()
+
+    self.watermark_manager.start()
 
 
 
@@ -351,6 +445,7 @@ def generate_execution_graph(step_graph):
 
   # Add fused stages to graph.
   for fused_stage in set(steps_to_fused_stages.values()):
+    fused_stage.finalize()
     execution_graph.add_stage(fused_stage)
 
   return execution_graph
@@ -454,7 +549,11 @@ class LaserRunner(PipelineRunner):
     execution_graph = generate_execution_graph(self.step_graph)
     print 'EXECUTION GRAPH', execution_graph
     print execution_graph.stages
-    executor = Executor(execution_graph)
+    watermark_manager = WatermarkManager()
+    for stage in execution_graph.stages:
+      watermark_manager.track_nodes(stage)
+    print 'ROOT NODES', watermark_manager.root_nodes
+    executor = Executor(execution_graph, watermark_manager)
     executor.run()
 
 
@@ -662,7 +761,9 @@ if __name__ == '__main__':
   # def fn(input):
   #   print input
   p | Create([1, 2, 3]) | beam.Map(lambda x: (x, '1')) | beam.GroupByKey()
-  p | 'yo' >> Create(['a', 'b', 'c']) | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey()
+  a = p | 'yo' >> Create(['a', 'b', 'c'])
+  a | beam.Map(lambda x: (x, '2'))
+  a | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey()
   # | beam.Map(fn)
   p.run()
 
