@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.executor.local;
 
+import com.google.common.collect.Iterables;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
@@ -22,16 +23,14 @@ import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.executor.graph.DAG;
-import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.Partition;
 import cz.seznam.euphoria.core.client.io.Reader;
 import cz.seznam.euphoria.core.client.io.Writer;
-import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
@@ -41,11 +40,13 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.Settings;
-import com.google.common.collect.Iterables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -56,7 +57,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -620,7 +620,7 @@ public class LocalExecutor implements Executor {
     final Windowing windowing = reduceStateByKey.getWindowing();
 
     List<BlockingQueue<Datum>> repartitioned = repartitionSuppliers(
-        suppliers, keyExtractor, Optional.ofNullable(windowing));
+        suppliers, keyExtractor, windowing);
 
     InputProvider outputSuppliers = new InputProvider();
     TriggerScheduler triggerScheduler = triggerSchedulerSupplier.get();
@@ -657,11 +657,10 @@ public class LocalExecutor implements Executor {
   private List<BlockingQueue<Datum>> repartitionSuppliers(
       InputProvider suppliers,
       final UnaryFunction keyExtractor,
-      final Optional<Windowing> windowing) {
+      @Nullable final Windowing windowing) {
 
-    int numPartitions = suppliers.size();
-    final boolean isMergingWindowing = windowing.isPresent()
-        && windowing.get() instanceof MergingWindowing;
+    final int numPartitions = suppliers.size();
+    final boolean isMergingWindowing = windowing instanceof MergingWindowing;
 
     final List<BlockingQueue<Datum>> ret = new ArrayList<>(numPartitions);
     for (int i = 0; i < numPartitions; i++) {
@@ -669,9 +668,9 @@ public class LocalExecutor implements Executor {
     }
 
     // count running partition readers
-    CountDownLatch workers = new CountDownLatch(numPartitions);
+    final CountDownLatch workers = new CountDownLatch(numPartitions);
     // vector clocks associated with each output partition
-    List<VectorClock> clocks = new ArrayList<>(numPartitions);
+    final List<VectorClock> clocks = new ArrayList<>(numPartitions);
     for (int i = 0; i < numPartitions; i++) {
       // each vector clock has as many
       clocks.add(new VectorClock(numPartitions));
@@ -681,10 +680,13 @@ public class LocalExecutor implements Executor {
     // associated with each input partition - this strategy then emits
     // watermarks to downstream partitions based on elements flowing
     // through the partition
-    WatermarkEmitStrategy[] emitStrategies = new WatermarkEmitStrategy[numPartitions];
+    final WatermarkEmitStrategy[] emitStrategies = new WatermarkEmitStrategy[numPartitions];
     for (int i = 0; i < emitStrategies.length; i++) {
       emitStrategies[i] = watermarkEmitStrategySupplier.get();
     }
+
+    final Random random = new Random();
+    final Map<Integer, Integer> shifts = new HashMap<>();
 
     int i = 0;
     for (Supplier s : suppliers) {
@@ -692,12 +694,8 @@ public class LocalExecutor implements Executor {
       // each input partition maintains maximum element's timestamp that
       // passed through it
       final AtomicLong maxElementTimestamp = new AtomicLong();
-      Runnable emitWatermark = () -> {
-        handleMetaData(
-            Datum.watermark(maxElementTimestamp.get()),
-            ret, readerId, clocks);
-      };
-      emitStrategies[readerId].schedule(emitWatermark);
+      emitStrategies[readerId].schedule(() -> handleMetaData(
+          Datum.watermark(maxElementTimestamp.get()), ret, readerId, clocks));
       executor.execute(() -> {
         try {
           for (;;) {
@@ -719,17 +717,19 @@ public class LocalExecutor implements Executor {
               final Iterable<Window> targetWindows;
               int windowShift = 0;
               if (allowWindowBasedShuffling) {
-                if (windowing.isPresent()) {
+                if (windowing != null) {
                   // FIXME: the time function inside windowing
                   // must be part of the operator itself
-                  targetWindows = windowing.get().assignWindowsToElement(datum);
+                  targetWindows = windowing.assignWindowsToElement(datum);
                 } else {
                   targetWindows = Collections.singleton(datum.getWindow());
                 }
 
                 if (!isMergingWindowing && Iterables.size(targetWindows) == 1) {
-                  windowShift = new Random(
-                      Iterables.getOnlyElement(targetWindows).hashCode()).nextInt();
+                  final int windowHash = Iterables.getOnlyElement(targetWindows).hashCode();
+                  synchronized (random) {
+                    windowShift = shifts.computeIfAbsent(windowHash, (ignore) -> random.nextInt());
+                  }
                 }
               }
               int partition
@@ -775,11 +775,10 @@ public class LocalExecutor implements Executor {
   @SuppressWarnings("unchecked")
   private InputProvider execUnion(
       Node<Union> union, ExecutionContext context) {
-
-    InputProvider ret = new InputProvider();
+    final InputProvider ret = new InputProvider();
     union.getParents().stream()
         .flatMap(p -> context.get(p.get(), union.get()).stream())
-        .forEach(s -> ret.add((Supplier) s));
+        .forEach(ret::add);
     return ret;
   }
 

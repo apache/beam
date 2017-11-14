@@ -46,9 +46,7 @@ subprojects {
   }
 
   tasks.withType(SpotBugsTask) {
-    // ~ TODO: do not ignore failures and decrease report level
     effort = 'max'
-    ignoreFailures = true
     reportLevel = 'high'
     reports {
       xml.enabled = false

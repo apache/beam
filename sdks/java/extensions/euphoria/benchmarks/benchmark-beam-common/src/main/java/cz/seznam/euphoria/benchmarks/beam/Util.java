@@ -48,7 +48,6 @@ public class Util {
 
   static PCollection<Tuple2<Long, String>> createInput(Pipeline ppl, Parameters params) {
     boolean local = params.getBatch().getSourceHdfsUri() == null;
-    boolean batch = true;
 
     if (local) {
       List<Tuple2<Long, String>> localInput = Benchmarks.testInput(Tuple2::of);
@@ -64,9 +63,8 @@ public class Util {
           }))
           .setCoder(
               new FlinkCoder<>(new TypeHint<Tuple2<Long, String>>() {}.getTypeInfo(), new ExecutionConfig()));
-    } else if (batch) {
+    } else {
       String inputUri = params.getBatch().getSourceHdfsUri().toString();
-      Configuration conf = new Configuration();
       return ppl.apply(Read.from(HDFSFileSource.fromText(inputUri)))
           .apply("MapSource", ParDo.of(new DoFn<String, Tuple2<Long, String>>() {
             SearchEventsParser parser = new SearchEventsParser();
@@ -84,8 +82,6 @@ public class Util {
           }))
           .setCoder(
               new FlinkCoder<>(new TypeHint<Tuple2<Long, String>>() {}.getTypeInfo(), new ExecutionConfig()));
-    } else {
-      throw new UnsupportedOperationException();
     }
   }
 
@@ -94,14 +90,8 @@ public class Util {
     boolean batch = true;
     String path = createOutputPath(params, runner);
     SerializableFunction outputConverter =
-        new SerializableFunction() {
-          @Override
-          public Object apply(Object input) {
-            return KV.of(NullWritable.get(), new Text(input.toString()));
-          }
-        };
-    if (batch) {
-      HDFSFileSink sink = HDFSFileSink.builder()
+        (SerializableFunction) input -> KV.of(NullWritable.get(), new Text(input.toString()));
+    HDFSFileSink sink = HDFSFileSink.builder()
         .setPath(path)
         .setFormatClass(TextOutputFormat.class)
         .setKeyClass(NullWritable.class)
@@ -111,16 +101,7 @@ public class Util {
         .setUsername(null)
         .setValidate(true)
         .build();
-      max.apply(Write.to(sink));
-    } else {
-      // print result
-      max.apply(ParDo.of(new DoFn<KV<Long, Tuple2<String, Double>>, Void>() {
-        @ProcessElement
-        public void processElements(ProcessContext c) {
-          System.out.println(c.element());
-        }
-      }));
-    }
+    max.apply(Write.to(sink));
   }
 
   private static String createOutputPath(Parameters params, String runner) {

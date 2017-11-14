@@ -848,7 +848,7 @@ class ReduceStateByKeyReducer implements Runnable {
     scheduler.updateStamp(Long.MAX_VALUE);
     // ~ stop triggers - there actually should be none left
     scheduler.close();
-    // close all states
+    // ~ close all states
     processing.flushAndCloseAllWindows();
     processing.closeOutput();
     output.put(eos);
