@@ -116,7 +116,7 @@ class BatchViewOverrides {
    * a warning to users to specify a deterministic key coder.
    */
   static class BatchViewAsMap<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, V>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<?>> {
 
     /**
      * A {@link DoFn} which groups elements by window boundaries. For each group,
@@ -193,11 +193,11 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollectionView<Map<K, V>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<?> expand(PCollection<KV<K, V>> input) {
       return this.<BoundedWindow>applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, V>>
+    private <W extends BoundedWindow> PCollection<?>
     applyInternal(PCollection<KV<K, V>> input) {
       try {
         return BatchViewAsMultimap.applyForMapLike(runner, input, view, true /* unique keys */);
@@ -216,7 +216,7 @@ class BatchViewOverrides {
     }
 
     /** Transforms the input {@link PCollection} into a singleton {@link Map} per window. */
-    private <W extends BoundedWindow> PCollectionView<Map<K, V>>
+    private <W extends BoundedWindow> PCollection<?>
     applyForSingletonFallback(PCollection<KV<K, V>> input) {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>)
@@ -280,7 +280,7 @@ class BatchViewOverrides {
    * a warning to users to specify a deterministic key coder.
    */
   static class BatchViewAsMultimap<K, V>
-      extends PTransform<PCollection<KV<K, V>>, PCollectionView<Map<K, Iterable<V>>>> {
+      extends PTransform<PCollection<KV<K, V>>, PCollection<?>> {
     /**
      * A {@link PTransform} that groups elements by the hash of window's byte representation
      * if the input {@link PCollection} is not within the global window. Otherwise by the hash
@@ -672,11 +672,11 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollectionView<Map<K, Iterable<V>>> expand(PCollection<KV<K, V>> input) {
+    public PCollection<?> expand(PCollection<KV<K, V>> input) {
       return this.<BoundedWindow>applyInternal(input);
     }
 
-    private <W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>>
+    private <W extends BoundedWindow> PCollection<?>
     applyInternal(PCollection<KV<K, V>> input) {
       try {
         return applyForMapLike(runner, input, view, false /* unique keys not expected */);
@@ -690,7 +690,7 @@ class BatchViewOverrides {
     }
 
     /** Transforms the input {@link PCollection} into a singleton {@link Map} per window. */
-    private <W extends BoundedWindow> PCollectionView<Map<K, Iterable<V>>>
+    private <W extends BoundedWindow> PCollection<?>
     applyForSingletonFallback(PCollection<KV<K, V>> input) {
       @SuppressWarnings("unchecked")
       Coder<W> windowCoder = (Coder<W>)
@@ -727,7 +727,7 @@ class BatchViewOverrides {
                   view);
     }
 
-    private static <K, V, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForMapLike(
+    private static <K, V, W extends BoundedWindow, ViewT> PCollection<?> applyForMapLike(
         DataflowRunner runner,
         PCollection<KV<K, V>> input,
         PCollectionView<ViewT> view,
@@ -804,9 +804,10 @@ class BatchViewOverrides {
           PCollectionList.of(ImmutableList.of(
               perHashWithReifiedWindows, windowMapSizeMetadata, windowMapKeysMetadata));
 
-      Pipeline.applyTransform(outputs, Flatten.<IsmRecord<WindowedValue<V>>>pCollections())
-          .apply(CreateDataflowView.<IsmRecord<WindowedValue<V>>, ViewT>of(view));
-      return view;
+      PCollection<IsmRecord<WindowedValue<V>>> flattenedOutputs =
+          Pipeline.applyTransform(outputs, Flatten.<IsmRecord<WindowedValue<V>>>pCollections());
+      flattenedOutputs.apply(CreateDataflowView.<IsmRecord<WindowedValue<V>>, ViewT>forBatch(view));
+      return flattenedOutputs;
     }
 
     @Override
@@ -843,7 +844,7 @@ class BatchViewOverrides {
    * </ul>
    */
   static class BatchViewAsSingleton<T>
-      extends PTransform<PCollection<T>, PCollectionView<T>> {
+      extends PTransform<PCollection<T>, PCollection<?>> {
 
     /**
      * A {@link DoFn} that outputs {@link IsmRecord}s. These records are structured as follows:
@@ -900,7 +901,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollectionView<T> expand(PCollection<T> input) {
+    public PCollection<?> expand(PCollection<T> input) {
       @SuppressWarnings("unchecked")
       Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>)
           input.getWindowingStrategy().getWindowFn().windowCoder();
@@ -913,7 +914,7 @@ class BatchViewOverrides {
           view);
     }
 
-    static <T, FinalT, ViewT, W extends BoundedWindow> PCollectionView<ViewT>
+    static <T, FinalT, ViewT, W extends BoundedWindow> PCollection<?>
     applyForSingleton(
         DataflowRunner runner,
         PCollection<T> input,
@@ -936,8 +937,8 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       reifiedPerWindowAndSorted.apply(
-          CreateDataflowView.<IsmRecord<WindowedValue<FinalT>>, ViewT>of(view));
-      return view;
+          CreateDataflowView.<IsmRecord<WindowedValue<FinalT>>, ViewT>forBatch(view));
+      return reifiedPerWindowAndSorted;
     }
 
     @Override
@@ -969,7 +970,7 @@ class BatchViewOverrides {
    * </ul>
    */
   static class BatchViewAsList<T>
-      extends PTransform<PCollection<T>, PCollectionView<List<T>>> {
+      extends PTransform<PCollection<T>, PCollection<?>> {
     /**
      * A {@link DoFn} which creates {@link IsmRecord}s assuming that each element is within the
      * global window. Each {@link IsmRecord} has
@@ -1054,11 +1055,11 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollectionView<List<T>> expand(PCollection<T> input) {
+    public PCollection<?> expand(PCollection<T> input) {
       return applyForIterableLike(runner, input, view);
     }
 
-    static <T, W extends BoundedWindow, ViewT> PCollectionView<ViewT> applyForIterableLike(
+    static <T, W extends BoundedWindow, ViewT> PCollection<?> applyForIterableLike(
         DataflowRunner runner,
         PCollection<T> input,
         PCollectionView<ViewT> view) {
@@ -1081,8 +1082,8 @@ class BatchViewOverrides {
 
         runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
         reifiedPerWindowAndSorted.apply(
-            CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
-        return view;
+            CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>forBatch(view));
+        return reifiedPerWindowAndSorted;
       }
 
       PCollection<IsmRecord<WindowedValue<T>>> reifiedPerWindowAndSorted = input
@@ -1092,8 +1093,8 @@ class BatchViewOverrides {
 
       runner.addPCollectionRequiringIndexedFormat(reifiedPerWindowAndSorted);
       reifiedPerWindowAndSorted.apply(
-          CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>of(view));
-      return view;
+          CreateDataflowView.<IsmRecord<WindowedValue<T>>, ViewT>forBatch(view));
+      return reifiedPerWindowAndSorted;
     }
 
     @Override
@@ -1127,7 +1128,7 @@ class BatchViewOverrides {
    * </ul>
    */
   static class BatchViewAsIterable<T>
-      extends PTransform<PCollection<T>, PCollectionView<Iterable<T>>> {
+      extends PTransform<PCollection<T>, PCollection<?>> {
 
     private final DataflowRunner runner;
     private final PCollectionView<Iterable<T>> view;
@@ -1140,7 +1141,7 @@ class BatchViewOverrides {
     }
 
     @Override
-    public PCollectionView<Iterable<T>> expand(PCollection<T> input) {
+    public PCollection<?> expand(PCollection<T> input) {
       return BatchViewAsList.applyForIterableLike(runner, input, view);
     }
   }
