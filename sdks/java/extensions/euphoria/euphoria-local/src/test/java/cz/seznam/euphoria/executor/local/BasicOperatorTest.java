@@ -54,7 +54,7 @@ import static org.junit.Assert.*;
  */
 public class BasicOperatorTest {
 
-  LocalExecutor executor = new LocalExecutor();
+  private LocalExecutor executor = new LocalExecutor();
 
   private static UnaryFunctor<String, Pair<String, Long>> toWordCountPair() {
     return toWords(w -> Pair.of(w, 1L));
@@ -200,26 +200,6 @@ public class BasicOperatorTest {
         Pair.of("four", 2L));
   }
 
-  private <F, S> long assertOutput0(
-      List<Triple<TimeInterval, F, S>> window,
-      long expectedIntervalMillis, String ... expectedFirstAndSecond)
-  {
-    assertEquals(
-        asList(expectedFirstAndSecond),
-        window.stream()
-            .map(p -> p.getSecond() + "-" + p.getThird())
-            .sorted()
-            .collect(toList()));
-    // ~ assert the windowing label (all elements of the window are expected to have
-    // the same window label)
-    long[] starts = window.stream().mapToLong(p -> {
-      assertEquals(expectedIntervalMillis, p.getFirst().getDurationMillis());
-      return p.getFirst().getStartMillis();
-    }).distinct().toArray();
-    assertEquals(1, starts.length);
-    return starts[0];
-  }
-
   @Test
   public void testWordCountStreamEarlyTriggered() throws Exception {
     ListDataSource<Pair<String, Integer>> input =
@@ -344,12 +324,6 @@ public class BasicOperatorTest {
     //  ~ second (final) window
     results.containsAll(asList("one-4", "three-2", "two-5"));
 
-  }
-
-
-  private List<String> sublist(
-      List<? extends Pair<String, Long>> xs, int start, int len) {
-    return sublist(xs, start, len, true);
   }
 
   private List<String> sublist(
@@ -484,23 +458,6 @@ public class BasicOperatorTest {
         out.getOutputs(),
         "four", "one", "three", "two",
         "one", "three", "two");
-  }
-
-  private <S> long assertOutput1(
-      List<Pair<TimeInterval, S>> window,
-      long expectedIntervalMillis, String ... expectedFirstAndSecond)
-  {
-    assertEquals(
-        asList(expectedFirstAndSecond),
-        window.stream().map(Pair::getSecond).sorted().collect(toList()));
-    // ~ assert the windowing label (all elements of the window are expected to have
-    // the same window label)
-    long[] starts = window.stream().mapToLong(p -> {
-      assertEquals(expectedIntervalMillis, p.getFirst().getDurationMillis());
-      return p.getFirst().getStartMillis();
-    }).distinct().toArray();
-    assertEquals(1, starts.length);
-    return starts[0];
   }
 
   @Test
