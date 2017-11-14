@@ -66,9 +66,11 @@ public interface DataSink<T> extends Serializable {
    * to the dataset, before it gets persisted via this sink.
    *
    * @param output the dataset being written by this sink
-   * @return true if the flow was modified
+   * @return true if the flow was modified, i.e. if any transformation was
+   * applied on the output. Note that, in that case you have to call
+   * {@link Dataset#persist} manually on the resulting dataset.
    */
-  default boolean onAdded(Dataset<T> output) {
+  default boolean prepareDataset(Dataset<T> output) {
     // by default do nothing
     return false;
   }

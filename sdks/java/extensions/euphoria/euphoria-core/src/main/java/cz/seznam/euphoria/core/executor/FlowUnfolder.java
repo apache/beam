@@ -274,7 +274,7 @@ public class FlowUnfolder {
         .collect(Collectors.toList());
 
     outputs.forEach(d -> {
-      if (d.getOutputSink().onAdded((Dataset) d)) {
+      if (d.getOutputSink().prepareDataset((Dataset) d)) {
         // remove the old output sink
         d.persist(null);
       }

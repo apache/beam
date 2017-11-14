@@ -182,7 +182,7 @@ public class BasicOperatorTest {
     ListDataSink<Pair<String, Long>> sink = ListDataSink.get();
     // apply wordcount transform in output sink
     words.persist(
-        sink.withOnAdded(d ->
+        sink.withPrepareDataset(d ->
           ReduceByKey.of(d)
               .keyBy(Pair::getFirst)
               .valueBy(Pair::getSecond)
