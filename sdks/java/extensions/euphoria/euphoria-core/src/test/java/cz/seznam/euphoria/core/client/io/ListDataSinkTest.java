@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

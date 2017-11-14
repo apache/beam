@@ -25,7 +25,7 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.operator.test.accumulators.SingleJvmAccumulatorProvider;
 import cz.seznam.euphoria.operator.test.accumulators.SnapshotProvider;
 import cz.seznam.euphoria.operator.test.junit.Processing.Type;
-import cz.seznam.euphoria.shaded.guava.com.google.common.base.Preconditions;
+import com.google.common.base.Preconditions;
 
 import java.io.Serializable;
 import java.util.ArrayList;

@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Triple;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.time.Duration;

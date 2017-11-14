@@ -1,0 +1,4 @@
+dependencies {
+  compile project(':euphoria-core')
+  testCompile project(':euphoria-local')
+}

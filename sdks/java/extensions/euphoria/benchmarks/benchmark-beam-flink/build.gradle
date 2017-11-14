@@ -1,0 +1,6 @@
+dependencies {
+  compile project(':benchmarks:benchmark-beam-common')
+  compile "org.apache.flink:flink-java:${beamFlinkVersion}"
+  compile "org.apache.flink:flink-clients_${beamScalaVersion}:${beamFlinkVersion}"
+  compile "org.apache.flink:flink-streaming-java_${beamScalaVersion}:${beamFlinkVersion}"
+}

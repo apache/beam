@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
 import cz.seznam.euphoria.hadoop.utils.Cloner;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.AbstractIterator;
+import com.google.common.collect.AbstractIterator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;

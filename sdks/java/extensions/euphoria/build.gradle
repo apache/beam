@@ -1,0 +1,93 @@
+import com.github.spotbugs.SpotBugsTask
+
+plugins {
+  id "com.github.hierynomus.license" version "0.14.0" apply false
+  id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
+  id "com.google.protobuf" version "0.8.3" apply false
+  id "com.github.spotbugs" version "1.6.0" apply false
+}
+
+allprojects {
+  apply plugin: 'idea'
+  group = 'cz.seznam.euphoria'
+  version = '0.8-SNAPSHOT'
+}
+
+subprojects {
+
+  apply plugin: 'java'
+  apply plugin: 'com.github.hierynomus.license'
+  apply plugin: 'com.github.spotbugs'
+  apply from: "${rootProject.projectDir}/gradle/versions.gradle"
+
+  license {
+    // ~ TODO: support for other file formats
+    include '**/*.java'
+    header = rootProject.file('HEADER')
+    strictCheck = true
+    ext.year = "2016-${Calendar.getInstance().get(Calendar.YEAR)}"
+    ext.name = 'Seznam.cz, a.s.'
+  }
+
+  repositories {
+    mavenCentral()
+  }
+
+  dependencies {
+    testCompile "junit:junit:${junitVersion}"
+    testCompile "org.mockito:mockito-core:${mockitoVersion}"
+    testCompile "org.slf4j:slf4j-simple:${slf4jVersion}"
+  }
+
+  test {
+    testLogging {
+      events 'skipped', 'failed'
+    }
+  }
+
+  tasks.withType(SpotBugsTask) {
+    // ~ TODO: do not ignore failures and decrease report level
+    effort = 'max'
+    ignoreFailures = true
+    reportLevel = 'high'
+    reports {
+      xml.enabled = false
+      html.enabled = true
+    }
+  }
+
+  gradle.projectsEvaluated {
+    tasks.withType(JavaCompile) {
+      options.compilerArgs << "-Xlint:unchecked" << "-Xlint:deprecation"
+    }
+  }
+}
+
+// ~ configure euphoria sub-projects (exluding benchmarks)
+
+configure(subprojects.findAll { !it.name.startsWith('benchmark') }) {
+
+  apply plugin: 'maven-publish'
+
+  // ~ build & publish sources and javadoc jar
+
+  task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+  }
+
+  task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+  }
+
+  publishing {
+    publications {
+      mavenJava(MavenPublication) {
+        from components.java
+        artifact sourcesJar
+        artifact javadocJar
+      }
+    }
+  }
+}

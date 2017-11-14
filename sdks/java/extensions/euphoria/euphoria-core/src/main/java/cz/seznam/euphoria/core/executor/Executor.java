@@ -23,7 +23,7 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
+import com.google.common.collect.Sets;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;

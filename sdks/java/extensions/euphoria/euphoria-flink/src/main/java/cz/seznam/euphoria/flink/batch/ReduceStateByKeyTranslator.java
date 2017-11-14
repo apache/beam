@@ -30,7 +30,7 @@ import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.Utils;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Iterables;
+import com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.RichGroupReduceFunction;
 import org.apache.flink.api.common.operators.Order;
 import org.apache.flink.api.common.typeinfo.TypeInformation;

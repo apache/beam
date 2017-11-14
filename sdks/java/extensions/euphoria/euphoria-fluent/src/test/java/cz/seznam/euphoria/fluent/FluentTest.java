@@ -23,7 +23,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
-import cz.seznam.euphoria.shaded.guava.com.google.common.collect.Sets;
+import com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
