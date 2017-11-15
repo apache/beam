@@ -135,23 +135,7 @@ class PubsubJsonClient extends PubsubClient {
     List<PubsubMessage> pubsubMessages = new ArrayList<>(outgoingMessages.size());
     for (OutgoingMessage outgoingMessage : outgoingMessages) {
       PubsubMessage pubsubMessage = new PubsubMessage().encodeData(outgoingMessage.elementBytes);
-
-      Map<String, String> attributes = outgoingMessage.attributes;
-      if ((timestampAttribute != null || idAttribute != null) && attributes == null) {
-        attributes = new TreeMap<>();
-      }
-      if (attributes != null) {
-        pubsubMessage.setAttributes(attributes);
-      }
-
-      if (timestampAttribute != null) {
-        attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
-      }
-
-      if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
-        attributes.put(idAttribute, outgoingMessage.recordId);
-      }
-
+      pubsubMessage.setAttributes(getMessageAttributes(outgoingMessage));
       pubsubMessages.add(pubsubMessage);
     }
     PublishRequest request = new PublishRequest().setMessages(pubsubMessages);
@@ -160,6 +144,22 @@ class PubsubJsonClient extends PubsubClient {
                                      .publish(topic.getPath(), request)
                                      .execute();
     return response.getMessageIds().size();
+  }
+
+  private Map<String, String> getMessageAttributes(OutgoingMessage outgoingMessage) {
+    Map<String, String> attributes = null;
+    if (outgoingMessage.attributes == null) {
+      attributes = new TreeMap<>();
+    } else {
+      attributes = new TreeMap<>(outgoingMessage.attributes);
+    }
+    if (timestampAttribute != null) {
+      attributes.put(timestampAttribute, String.valueOf(outgoingMessage.timestampMsSinceEpoch));
+    }
+    if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId)) {
+      attributes.put(idAttribute, outgoingMessage.recordId);
+    }
+    return attributes;
   }
 
   @Override
