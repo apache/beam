@@ -87,14 +87,6 @@ public class WindowedWordCountIT {
   }
 
   @Test
-  public void testWindowedWordCountInBatchDynamicSharding() throws Exception {
-    WindowedWordCountITOptions options = batchOptions();
-    // This is the default value, but make it explicit
-    options.setNumShards(null);
-    testWindowedWordCountPipeline(options);
-  }
-
-  @Test
   public void testWindowedWordCountInBatchStaticSharding() throws Exception {
     WindowedWordCountITOptions options = batchOptions();
     options.setNumShards(3);
