@@ -55,6 +55,8 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
@@ -893,15 +895,23 @@ class BatchViewOverrides {
 
     private final DataflowRunner runner;
     private final PCollectionView<T> view;
-    /** Builds an instance of this class from the overridden transform. */
-    @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
-    public BatchViewAsSingleton(DataflowRunner runner, CreatePCollectionView<T, T> transform) {
+    private final CombineFn<T, ?, T> combineFn;
+    private final int fanout;
+
+    public BatchViewAsSingleton(
+        DataflowRunner runner,
+        CreatePCollectionView<T, T> transform,
+        CombineFn<T, ?, T> combineFn,
+        int fanout) {
       this.runner = runner;
       this.view = transform.getView();
+      this.combineFn = combineFn;
+      this.fanout = fanout;
     }
 
     @Override
     public PCollection<?> expand(PCollection<T> input) {
+      input = input.apply(Combine.globally(combineFn).withoutDefaults().withFanout(fanout));
       @SuppressWarnings("unchecked")
       Coder<BoundedWindow> windowCoder = (Coder<BoundedWindow>)
           input.getWindowingStrategy().getWindowFn().windowCoder();

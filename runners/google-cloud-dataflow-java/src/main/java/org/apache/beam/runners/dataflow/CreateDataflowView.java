@@ -25,11 +25,13 @@ import org.apache.beam.sdk.values.PCollectionView;
 /** A {@link DataflowRunner} marker class for creating a {@link PCollectionView}. */
 public class CreateDataflowView<ElemT, ViewT>
     extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
-  public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> forBatch(PCollectionView<ViewT> view) {
+  public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> forBatch(
+      PCollectionView<ViewT> view) {
     return new CreateDataflowView<>(view, false);
   }
 
-  public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> forStreaming(PCollectionView<ViewT> view) {
+  public static <ElemT, ViewT> CreateDataflowView<ElemT, ViewT> forStreaming(
+      PCollectionView<ViewT> view) {
     return new CreateDataflowView<>(view, true);
   }
 
