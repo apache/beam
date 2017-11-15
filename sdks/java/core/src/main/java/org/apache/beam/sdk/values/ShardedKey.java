@@ -20,10 +20,12 @@ package org.apache.beam.sdk.values;
 
 import java.io.Serializable;
 import java.util.Objects;
+import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.sdk.coders.ShardedKeyCoder;
 
 /** A key and a shard number. */
+@DefaultCoder(ShardedKeyCoder.class)
 public class ShardedKey<K> implements Serializable {
-  private static final long serialVersionUID = 1L;
   private final K key;
   private final int shardNumber;
 

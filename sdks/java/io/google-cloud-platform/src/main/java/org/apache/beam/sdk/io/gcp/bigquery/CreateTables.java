@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -42,12 +41,12 @@ import org.apache.beam.sdk.values.PCollectionView;
  * Creates any tables needed before performing streaming writes to the tables. This is a side-effect
  * {@link DoFn}, and returns the original collection unchanged.
  */
-public class CreateTables<DestinationT>
+public class CreateTables<T, DestinationT>
     extends PTransform<
-        PCollection<KV<DestinationT, TableRow>>, PCollection<KV<TableDestination, TableRow>>> {
+        PCollection<KV<DestinationT, T>>, PCollection<KV<String, T>>> {
   private final CreateDisposition createDisposition;
   private final BigQueryServices bqServices;
-  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
+  private final DynamicDestinations<T, DestinationT> dynamicDestinations;
 
   /**
    * The list of tables created so far, so we don't try the creation each time.
@@ -59,38 +58,38 @@ public class CreateTables<DestinationT>
 
   public CreateTables(
       CreateDisposition createDisposition,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<T, DestinationT> dynamicDestinations) {
     this(createDisposition, new BigQueryServicesImpl(), dynamicDestinations);
   }
 
   private CreateTables(
       CreateDisposition createDisposition,
       BigQueryServices bqServices,
-      DynamicDestinations<?, DestinationT> dynamicDestinations) {
+      DynamicDestinations<T, DestinationT> dynamicDestinations) {
     this.createDisposition = createDisposition;
     this.bqServices = bqServices;
     this.dynamicDestinations = dynamicDestinations;
   }
 
-  CreateTables<DestinationT> withTestServices(BigQueryServices bqServices) {
+  CreateTables<T, DestinationT> withTestServices(BigQueryServices bqServices) {
     return new CreateTables<>(createDisposition, bqServices, dynamicDestinations);
   }
 
   @Override
-  public PCollection<KV<TableDestination, TableRow>> expand(
-      PCollection<KV<DestinationT, TableRow>> input) {
+  public PCollection<KV<String, T>> expand(
+      PCollection<KV<DestinationT, T>> input) {
     List<PCollectionView<?>> sideInputs = Lists.newArrayList();
     sideInputs.addAll(dynamicDestinations.getSideInputs());
 
     return input.apply(
         ParDo.of(
-                new DoFn<KV<DestinationT, TableRow>, KV<TableDestination, TableRow>>() {
+                new DoFn<KV<DestinationT, T>, KV<String, T>>() {
                   @ProcessElement
                   public void processElement(ProcessContext context)
                       throws InterruptedException, IOException {
                     dynamicDestinations.setSideInputAccessorFromProcessContext(context);
-                    TableDestination tableDestination =
-                        dynamicDestinations.getTable(context.element().getKey());
+                    DestinationT destination = context.element().getKey();
+                    TableDestination tableDestination = dynamicDestinations.getTable(destination);
                     TableReference tableReference = tableDestination.getTableReference();
                     if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
                       tableReference.setProjectId(
@@ -99,19 +98,18 @@ public class CreateTables<DestinationT>
                           new TableDestination(
                               tableReference, tableDestination.getTableDescription());
                     }
-                    TableSchema tableSchema =
-                        dynamicDestinations.getSchema(context.element().getKey());
                     BigQueryOptions options =
                         context.getPipelineOptions().as(BigQueryOptions.class);
-                    possibleCreateTable(options, tableDestination, tableSchema);
-                    context.output(KV.of(tableDestination, context.element().getValue()));
+                    possibleCreateTable(destination, options, tableDestination);
+                    context.output(
+                        KV.of(tableDestination.getTableSpec(), context.element().getValue()));
                   }
                 })
             .withSideInputs(sideInputs));
   }
 
   private void possibleCreateTable(
-      BigQueryOptions options, TableDestination tableDestination, TableSchema tableSchema)
+      DestinationT destination, BigQueryOptions options, TableDestination tableDestination)
       throws InterruptedException, IOException {
     String tableSpec = BigQueryHelpers.stripPartitionDecorator(tableDestination.getTableSpec());
     if (createDisposition != createDisposition.CREATE_NEVER && !createdTables.contains(tableSpec)) {
@@ -121,6 +119,7 @@ public class CreateTables<DestinationT>
         // every thread from attempting a create and overwhelming our BigQuery quota.
         DatasetService datasetService = bqServices.getDatasetService(options);
         if (!createdTables.contains(tableSpec)) {
+          TableSchema tableSchema = dynamicDestinations.getSchema(destination);
           TableReference tableReference = tableDestination.getTableReference();
           String tableDescription = tableDestination.getTableDescription();
           tableReference.setTableId(

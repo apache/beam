@@ -29,9 +29,6 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import javax.annotation.Nullable;
@@ -61,8 +58,8 @@ public class BigQueryHelpers {
     UNKNOWN,
   }
 
-  @Nullable
   /** Return a displayable string representation for a {@link TableReference}. */
+  @Nullable
   static ValueProvider<String> displayTable(@Nullable ValueProvider<TableReference> table) {
     if (table == null) {
       return null;
@@ -80,15 +77,6 @@ public class BigQueryHelpers {
 
     sb.append(ref.getDatasetId()).append('.').append(ref.getTableId());
     return sb.toString();
-  }
-
-  static <K, V> List<V> getOrCreateMapListValue(Map<K, List<V>> map, K key) {
-    List<V> value = map.get(key);
-    if (value == null) {
-      value = new ArrayList<>();
-      map.put(key, value);
-    }
-    return value;
   }
 
   /**

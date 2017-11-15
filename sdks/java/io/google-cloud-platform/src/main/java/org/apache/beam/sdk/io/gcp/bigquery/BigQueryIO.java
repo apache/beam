@@ -1470,7 +1470,7 @@ public class BigQueryIO {
 
     private <DestinationT> WriteResult expandTyped(
         PCollection<T> input, DynamicDestinations<T, DestinationT> dynamicDestinations) {
-      Coder<DestinationT> destinationCoder = null;
+      Coder<DestinationT> destinationCoder;
       try {
         destinationCoder = dynamicDestinations.getDestinationCoderWithDefault(
             input.getPipeline().getCoderRegistry());
@@ -1478,10 +1478,10 @@ public class BigQueryIO {
           throw new RuntimeException(e);
       }
 
-      PCollection<KV<DestinationT, TableRow>> rowsWithDestination =
+      PCollection<KV<DestinationT, T>> rowsWithDestination =
           input
-              .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations, getFormatFunction()))
-              .setCoder(KvCoder.of(destinationCoder, TableRowJsonCoder.of()));
+              .apply("PrepareWrite", new PrepareWrite<>(dynamicDestinations))
+              .setCoder(KvCoder.of(destinationCoder, input.getCoder()));
 
       Method method = resolveMethod(input);
 
@@ -1493,8 +1493,12 @@ public class BigQueryIO {
         InsertRetryPolicy retryPolicy = MoreObjects.firstNonNull(
             getFailedInsertRetryPolicy(), InsertRetryPolicy.alwaysRetry());
 
-        StreamingInserts<DestinationT> streamingInserts =
-            new StreamingInserts<>(getCreateDisposition(), dynamicDestinations)
+        StreamingInserts<T, DestinationT> streamingInserts =
+            new StreamingInserts<>(
+                    getCreateDisposition(),
+                    dynamicDestinations,
+                    input.getCoder(),
+                    getFormatFunction())
                 .withInsertRetryPolicy(retryPolicy)
                 .withTestServices((getBigQueryServices()));
         return rowsWithDestination.apply(streamingInserts);
@@ -1502,12 +1506,14 @@ public class BigQueryIO {
         checkArgument(getFailedInsertRetryPolicy() == null,
             "Record-insert retry policies are not supported when using BigQuery load jobs.");
 
-        BatchLoads<DestinationT> batchLoads = new BatchLoads<>(
+        BatchLoads<T, DestinationT> batchLoads = new BatchLoads<>(
             getWriteDisposition(),
             getCreateDisposition(),
             getJsonTableRef() != null,
             dynamicDestinations,
+            input.getCoder(),
             destinationCoder,
+            getFormatFunction(),
             getCustomGcsTempLocation());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {

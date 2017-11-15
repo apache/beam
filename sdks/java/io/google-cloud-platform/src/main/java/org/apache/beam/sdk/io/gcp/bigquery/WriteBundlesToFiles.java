@@ -39,6 +39,7 @@ import org.apache.beam.sdk.coders.StructuredCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -55,8 +56,8 @@ import org.slf4j.LoggerFactory;
  * case, the element will be spilled into the output, and the {@link WriteGroupedRecordsToFiles}
  * transform will take care of writing it to a file.
  */
-class WriteBundlesToFiles<DestinationT>
-    extends DoFn<KV<DestinationT, TableRow>, Result<DestinationT>> {
+class WriteBundlesToFiles<T, DestinationT>
+    extends DoFn<KV<DestinationT, T>, Result<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteBundlesToFiles.class);
 
   // When we spill records, shard the output keys to prevent hotspots. Experiments running up to
@@ -66,8 +67,9 @@ class WriteBundlesToFiles<DestinationT>
   // Map from tablespec to a writer for that table.
   private transient Map<DestinationT, TableRowWriter> writers;
   private transient Map<DestinationT, BoundedWindow> writerWindows;
+  private final SerializableFunction<T, TableRow> formatFunction;
   private final PCollectionView<String> tempFilePrefixView;
-  private final TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecordsTag;
+  private final TupleTag<KV<ShardedKey<DestinationT>, T>> unwrittenRecordsTag;
   private int maxNumWritersPerBundle;
   private long maxFileSize;
   private int spilledShardNumber;
@@ -159,10 +161,12 @@ class WriteBundlesToFiles<DestinationT>
   }
 
   WriteBundlesToFiles(
+      SerializableFunction<T, TableRow> formatFunction,
       PCollectionView<String> tempFilePrefixView,
-      TupleTag<KV<ShardedKey<DestinationT>, TableRow>> unwrittenRecordsTag,
+      TupleTag<KV<ShardedKey<DestinationT>, T>> unwrittenRecordsTag,
       int maxNumWritersPerBundle,
       long maxFileSize) {
+    this.formatFunction = formatFunction;
     this.tempFilePrefixView = tempFilePrefixView;
     this.unwrittenRecordsTag = unwrittenRecordsTag;
     this.maxNumWritersPerBundle = maxNumWritersPerBundle;
@@ -220,7 +224,7 @@ class WriteBundlesToFiles<DestinationT>
     }
 
     try {
-      writer.write(c.element().getValue());
+      writer.write(formatFunction.apply(c.element().getValue()));
     } catch (Exception e) {
       // Discard write result and close the write.
       try {

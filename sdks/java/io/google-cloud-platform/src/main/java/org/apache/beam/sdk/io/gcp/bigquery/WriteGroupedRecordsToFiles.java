@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import com.google.api.services.bigquery.model.TableRow;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.ShardedKey;
@@ -31,15 +32,20 @@ import org.slf4j.LoggerFactory;
  * Since all the elements in the {@link Iterable} are destined to the same table, they are all
  * written to the same file. Ensures that only one {@link TableRowWriter} is active per bundle.
  */
-class WriteGroupedRecordsToFiles<DestinationT>
-    extends DoFn<KV<ShardedKey<DestinationT>, Iterable<TableRow>>,
+class WriteGroupedRecordsToFiles<T, DestinationT>
+    extends DoFn<KV<ShardedKey<DestinationT>, Iterable<T>>,
     WriteBundlesToFiles.Result<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteGroupedRecordsToFiles.class);
 
+  private final SerializableFunction<T, TableRow> formatFunction;
   private final PCollectionView<String> tempFilePrefix;
   private final long maxFileSize;
 
-  WriteGroupedRecordsToFiles(PCollectionView<String> tempFilePrefix, long maxFileSize) {
+  WriteGroupedRecordsToFiles(
+      SerializableFunction<T, TableRow> formatFunction,
+      PCollectionView<String> tempFilePrefix,
+      long maxFileSize) {
+    this.formatFunction = formatFunction;
     this.tempFilePrefix = tempFilePrefix;
     this.maxFileSize = maxFileSize;
   }
@@ -49,7 +55,7 @@ class WriteGroupedRecordsToFiles<DestinationT>
     String tempFilePrefix = c.sideInput(this.tempFilePrefix);
     TableRowWriter writer = new TableRowWriter(tempFilePrefix);
     try {
-      for (TableRow tableRow : c.element().getValue()) {
+      for (T value : c.element().getValue()) {
         if (writer.getByteSize() > maxFileSize) {
           writer.close();
           writer = new TableRowWriter(tempFilePrefix);
@@ -57,7 +63,7 @@ class WriteGroupedRecordsToFiles<DestinationT>
           c.output(new WriteBundlesToFiles.Result<>(
               result.resourceId.toString(), result.byteSize, c.element().getKey().getKey()));
         }
-        writer.write(tableRow);
+        writer.write(formatFunction.apply(value));
       }
     } finally {
       writer.close();

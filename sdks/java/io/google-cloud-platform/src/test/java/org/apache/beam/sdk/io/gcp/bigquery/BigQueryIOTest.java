@@ -84,6 +84,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -2183,7 +2184,12 @@ public class BigQueryIOTest implements Serializable {
     }
 
     PCollection<KV<ShardedKey<String>, List<String>>> writeTablesInput =
-        p.apply(Create.of(partitions));
+        p.apply(
+            Create.of(partitions)
+                .withCoder(
+                    KvCoder.of(
+                        ShardedKeyCoder.of(StringUtf8Coder.of()),
+                        ListCoder.of(StringUtf8Coder.of()))));
     PCollectionView<String> jobIdTokenView = p
         .apply("CreateJobId", Create.of("jobId"))
         .apply(View.<String>asSingleton());

@@ -32,6 +32,9 @@ public class ShardedKeyCoder<KeyT> extends StructuredCoder<ShardedKey<KeyT>> {
   public static <KeyT> ShardedKeyCoder<KeyT> of(Coder<KeyT> keyCoder) {
     return new ShardedKeyCoder<>(keyCoder);
   }
+  public static <KeyT> ShardedKeyCoder<KeyT> of(List<Coder<?>> arguments) {
+    return new ShardedKeyCoder<>(((Coder<KeyT>) arguments.get(0)));
+  }
 
   private final Coder<KeyT> keyCoder;
   private final VarIntCoder shardNumberCoder;
@@ -62,5 +65,9 @@ public class ShardedKeyCoder<KeyT> extends StructuredCoder<ShardedKey<KeyT>> {
   @Override
   public void verifyDeterministic() throws NonDeterministicException {
     keyCoder.verifyDeterministic();
+  }
+
+  public static CoderProvider getCoderProvider() {
+    return CoderProviders.fromStaticMethods(ShardedKey.class, ShardedKeyCoder.class);
   }
 }
