@@ -387,9 +387,9 @@ categories:
             l2: not implemented
             l3: Spark supports per-key state with <tt>mapWithState()</tt> so support should be straightforward.
           - class: apex
-            l1: 'No'
-            l2: not implemented
-            l3: Apex supports per-key state, so adding support for this should be easy.
+            l1: 'Partially'
+            l2: non-merging windows
+            l3: State is supported for non-merging windows. SetState and MapState are not yet supported.
           - class: gearpump
             l1: 'No'
             l2: not implemented
