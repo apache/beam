@@ -116,6 +116,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.Combine.GroupedValues;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -406,9 +407,8 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                       BatchViewOverrides.BatchViewAsMultimap.class, this)))
           .add(
               PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.AsSingleton.class),
-                  new ReflectiveViewOverrideFactory(
-                      BatchViewOverrides.BatchViewAsSingleton.class, this)))
+                  PTransformMatchers.classEqualTo(Combine.GloballyAsSingletonView.class),
+                  new CombineGloballyAsSingletonViewOverrideFactory(this)))
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(View.AsList.class),
@@ -437,29 +437,58 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   /**
-   * Replace the View.AsYYY transform with specialized view overrides for Dataflow. It is required that the
-   * new replacement transform uses the supplied PCollectionView and does not create another instance.
+   * Replace the {@link Combine.GloballyAsSingletonView} transform with a specialization which
+   * re-applies the {@link CombineFn} and adds a specialization specific to the Dataflow runner.
+   */
+  private static class CombineGloballyAsSingletonViewOverrideFactory<InputT, ViewT>
+      extends ReflectiveViewOverrideFactory<InputT, ViewT> {
+
+    private CombineGloballyAsSingletonViewOverrideFactory(DataflowRunner runner) {
+      super((Class) BatchViewOverrides.BatchViewAsSingleton.class, runner);
+    }
+
+    @Override
+    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
+        AppliedPTransform<
+            PCollection<InputT>,
+            PValue,
+            PTransform<PCollection<InputT>, PValue>> transform) {
+      Combine.GloballyAsSingletonView<?, ?> combineTransform =
+          (Combine.GloballyAsSingletonView) transform.getTransform();
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform),
+          new BatchViewOverrides.BatchViewAsSingleton(
+              runner,
+              findCreatePCollectionView(transform),
+              (CombineFn) combineTransform.getCombineFn(),
+              combineTransform.getFanout()));
+    }
+  }
+
+  /**
+   * Replace the View.AsYYY transform with specialized view overrides for Dataflow. It is required
+   * that the new replacement transform uses the supplied PCollectionView and does not create
+   * another instance.
    */
   private static class ReflectiveViewOverrideFactory<InputT, ViewT>
       implements PTransformOverrideFactory<PCollection<InputT>,
       PValue, PTransform<PCollection<InputT>, PValue>> {
 
-    private final Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement;
-    private final DataflowRunner runner;
+    final Class<PTransform<PCollection<InputT>, PValue>> replacement;
+    final DataflowRunner runner;
 
     private ReflectiveViewOverrideFactory(
-        Class<PTransform<PCollection<InputT>, PCollectionView<ViewT>>> replacement,
+        Class<PTransform<PCollection<InputT>, PValue>> replacement,
         DataflowRunner runner) {
       this.replacement = replacement;
       this.runner = runner;
     }
 
-    @Override
-    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
-         final AppliedPTransform<PCollection<InputT>,
-             PValue,
-             PTransform<PCollection<InputT>, PValue>> transform) {
-
+    CreatePCollectionView<ViewT, ViewT> findCreatePCollectionView(
+        final AppliedPTransform<
+            PCollection<InputT>,
+            PValue,
+            PTransform<PCollection<InputT>, PValue>> transform) {
       final AtomicReference<CreatePCollectionView> viewTransformRef = new AtomicReference<>();
       transform.getPipeline().traverseTopologically(new PipelineVisitor.Defaults() {
         // Stores whether we have entered the expected composite view transform.
@@ -495,18 +524,29 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       checkState(viewTransformRef.get() != null,
           "Expected to find CreatePCollectionView contained within %s",
           transform.getTransform());
-      PTransform<PCollection<InputT>, PCollectionView<ViewT>> rep =
-          InstanceBuilder.ofType(replacement)
-              .withArg(DataflowRunner.class, runner)
-              .withArg(CreatePCollectionView.class, viewTransformRef.get())
-              .build();
-      return PTransformReplacement.of(PTransformReplacements.getSingletonMainInput(transform), (PTransform) rep);
+      return viewTransformRef.get();
     }
 
     @Override
-    public Map<PValue, ReplacementOutput> mapOutputs(Map<TupleTag<?>, PValue> outputs, PValue newOutput) {
-      // We do not replace any of the outputs because we expect that the new PTransform will re-use the original
-      // PCollectionView that was returned.
+    public PTransformReplacement<PCollection<InputT>, PValue> getReplacementTransform(
+         final AppliedPTransform<PCollection<InputT>,
+             PValue,
+             PTransform<PCollection<InputT>, PValue>> transform) {
+
+      PTransform<PCollection<InputT>, PValue> rep =
+          InstanceBuilder.ofType(replacement)
+              .withArg(DataflowRunner.class, runner)
+              .withArg(CreatePCollectionView.class, findCreatePCollectionView(transform))
+              .build();
+      return PTransformReplacement.of(
+          PTransformReplacements.getSingletonMainInput(transform), (PTransform) rep);
+    }
+
+    @Override
+    public Map<PValue, ReplacementOutput> mapOutputs(
+        Map<TupleTag<?>, PValue> outputs, PValue newOutput) {
+      // We do not replace any of the outputs because we expect that the new PTransform will
+      // re-use the original PCollectionView that was returned.
       return ImmutableMap.of();
     }
   }
