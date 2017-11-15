@@ -506,6 +506,11 @@ def generate_execution_graph(step_graph):
   return execution_graph
 
 
+class WorkManager(object):
+  def __init__(self, node_manager):
+    self.node_manager = node_manager
+
+
 
 class LaserRunner(PipelineRunner):
   """Executes a pipeline using multiple processes on the local machine."""
