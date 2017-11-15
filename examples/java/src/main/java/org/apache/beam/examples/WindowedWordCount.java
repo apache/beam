@@ -161,9 +161,10 @@ public class WindowedWordCount {
     Long getMaxTimestampMillis();
     void setMaxTimestampMillis(Long value);
 
-    @Description("Fixed number of shards to produce per window, or null for runner-chosen sharding")
-    Integer getNumShards();
-    void setNumShards(Integer numShards);
+    @Description("Fixed number of shards to produce per window")
+    @Default.Integer(3)
+    int getNumShards();
+    void setNumShards(int numShards);
   }
 
   public static void main(String[] args) throws IOException {
