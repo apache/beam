@@ -303,7 +303,21 @@ importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.
 
-#### How to run NeedsRunner tests
+#### How to run Python unit tests
+
+Python tests are written using the standard Python unittest library.
+To run all unit tests, execute the following command in the ``sdks/python``
+subdirectory
+
+```
+python setup.py test [-s apache_beam.package.module.TestClass.test_method]
+```
+
+We also provide a [tox](https://tox.readthedocs.io/en/latest/) configuration
+in that same directory to run all the tests, including lint, cleanly in all
+desired configurations.
+
+#### How to run Java NeedsRunner tests
 
 NeedsRunner is a category of tests that require a Beam runner. A subset of these
 tests cannot be executed while building their corresponding modules because all
@@ -453,7 +467,13 @@ PAssert.that(pCollection).containsInAnyOrder(WHATEVER);
 ```
 
 ```py
-# Unsupported in Beam's Python SDK.
+# The suggested pattern of using pipelines as targets of with statements
+# eliminates the possibility for this kind of error or a framework
+# to catch it.
+
+with beam.Pipeline(...) as p:
+    [...arbitrary construction...]
+    # p.run() is automatically called on successfully exiting the context
 ```
 
 The `PAssert` at the end of this test method will not be executed, since
@@ -490,7 +510,7 @@ public void testReadingFailsTableDoesNotExist() throws Exception {
 ```
 
 ```py
-# Unsupported in Beam's Python SDK.
+# Unneeded in Beam's Python SDK.
 ```  
 
 The application of the `read` transform throws an exception, which is then
