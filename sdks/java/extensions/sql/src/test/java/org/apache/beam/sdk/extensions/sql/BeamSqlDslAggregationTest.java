@@ -141,7 +141,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + "sum(f_float) as sum4, avg(f_float) as avg4, max(f_float) as max4, min(f_float) as min4, "
         + "sum(f_double) as sum5, avg(f_double) as avg5, "
         + "max(f_double) as max5, min(f_double) as min5, "
-        + "max(f_timestamp) as max6, min(f_timestamp) as min6, "
+        + "max(f_date) as max6, min(f_date) as min6, "
         + "var_pop(f_double) as varpop1, var_samp(f_double) as varsamp1, "
         + "var_pop(f_int) as varpop2, var_samp(f_int) as varsamp2 "
         + "FROM TABLE_A group by f_int2";
@@ -151,15 +151,17 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         .apply("testAggregationFunctions", BeamSql.queryMulti(sql));
 
     BeamRecordSqlType resultType = BeamRecordSqlType.create(
-        Arrays.asList("f_int2", "size", "sum1", "avg1", "max1", "min1", "sum2", "avg2", "max2",
-            "min2", "sum3", "avg3", "max3", "min3", "sum4", "avg4", "max4", "min4", "sum5", "avg5",
-            "max5", "min5", "max6", "min6",
-            "varpop1", "varsamp1", "varpop2", "varsamp2"),
+        Arrays.asList("f_int2", "size", "sum1", "avg1", "max1",
+                          "min1", "sum2", "avg2", "max2", "min2",
+                          "sum3", "avg3", "max3", "min3", "sum4",
+                          "avg4", "max4", "min4", "sum5", "avg5",
+                          "max5", "min5", "max6", "min6",
+                          "varpop1", "varsamp1", "varpop2", "varsamp2"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.BIGINT, Types.BIGINT, Types.BIGINT,
             Types.BIGINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT,
-            Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.FLOAT, Types.FLOAT,
-            Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE, Types.DOUBLE,
-            Types.TIMESTAMP, Types.TIMESTAMP,
+            Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.FLOAT,
+            Types.FLOAT, Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE,
+            Types.DOUBLE, Types.DOUBLE, Types.DATE, Types.DATE,
             Types.DOUBLE, Types.DOUBLE, Types.INTEGER, Types.INTEGER));
 
     BeamRecord record = new BeamRecord(resultType
@@ -273,9 +275,9 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   private void runTumbleWindow(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-        + " TUMBLE_START(f_timestamp, INTERVAL '1' HOUR) AS `window_start`"
+        + " TUMBLE_START(f_date, INTERVAL '1' HOUR) AS `window_start`"
         + " FROM TABLE_A"
-        + " GROUP BY f_int2, TUMBLE(f_timestamp, INTERVAL '1' HOUR)";
+        + " GROUP BY f_int2, TUMBLE(f_date, INTERVAL '1' HOUR)";
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testTumbleWindow", BeamSql.queryMulti(sql));
@@ -310,9 +312,9 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   private void runHopWindow(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-        + " HOP_START(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE) AS `window_start`"
+        + " HOP_START(f_date, INTERVAL '1' HOUR, INTERVAL '30' MINUTE) AS `window_start`"
         + " FROM PCOLLECTION"
-        + " GROUP BY f_int2, HOP(f_timestamp, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
+        + " GROUP BY f_int2, HOP(f_date, INTERVAL '1' HOUR, INTERVAL '30' MINUTE)";
     PCollection<BeamRecord> result =
         input.apply("testHopWindow", BeamSql.query(sql));
 
@@ -348,9 +350,9 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
 
   private void runSessionWindow(PCollection<BeamRecord> input) throws Exception {
     String sql = "SELECT f_int2, COUNT(*) AS `getFieldCount`,"
-        + " SESSION_START(f_timestamp, INTERVAL '5' MINUTE) AS `window_start`"
+        + " SESSION_START(f_date, INTERVAL '5' MINUTE) AS `window_start`"
         + " FROM TABLE_A"
-        + " GROUP BY f_int2, SESSION(f_timestamp, INTERVAL '5' MINUTE)";
+        + " GROUP BY f_int2, SESSION(f_date, INTERVAL '5' MINUTE)";
     PCollection<BeamRecord> result =
         PCollectionTuple.of(new TupleTag<BeamRecord>("TABLE_A"), input)
         .apply("testSessionWindow", BeamSql.queryMulti(sql));

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -65,10 +66,12 @@ public class BeamSqlDslBase {
   @BeforeClass
   public static void prepareClass() throws ParseException {
     rowTypeInTableA = BeamRecordSqlType.create(
-        Arrays.asList("f_int", "f_long", "f_short", "f_byte", "f_float", "f_double", "f_string",
-            "f_timestamp", "f_int2", "f_decimal"),
-        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT, Types.FLOAT,
-            Types.DOUBLE, Types.VARCHAR, Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
+        Arrays.asList("f_int", "f_long", "f_short", "f_byte",
+                          "f_float", "f_double", "f_string", "f_date",
+                          "f_timestamp", "f_int2", "f_decimal"),
+        Arrays.asList(Types.INTEGER, Types.BIGINT, Types.SMALLINT, Types.TINYINT,
+                      Types.FLOAT, Types.DOUBLE, Types.VARCHAR, Types.DATE,
+                      Types.TIMESTAMP, Types.INTEGER, Types.DECIMAL));
 
     recordsInTableA = prepareInputRowsInTableA();
   }
@@ -90,7 +93,7 @@ public class BeamSqlDslBase {
         .create(rowTypeInTableA.getRecordCoder());
 
     for (BeamRecord row : recordsInTableA) {
-      values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+      values = values.advanceWatermarkTo(new Instant(row.getDate("f_date")));
       values = values.addElements(row);
     }
 
@@ -102,7 +105,7 @@ public class BeamSqlDslBase {
         .create(rowTypeInTableA.getRecordCoder());
 
     BeamRecord row = recordsInTableA.get(0);
-    values = values.advanceWatermarkTo(new Instant(row.getDate("f_timestamp")));
+    values = values.advanceWatermarkTo(new Instant(row.getDate("f_date")));
     values = values.addElements(row);
 
     return PBegin.in(pipeline).apply("unboundedInput2", values.advanceWatermarkToInfinity());
@@ -113,22 +116,30 @@ public class BeamSqlDslBase {
 
     BeamRecord row1 = new BeamRecord(rowTypeInTableA
         , 1, 1000L, Short.valueOf("1"), Byte.valueOf("1"), 1.0f, 1.0, "string_row1"
-        , FORMAT.parse("2017-01-01 01:01:03"), 0, new BigDecimal(1));
+        , FORMAT.parse("2017-01-01 01:01:03")
+        , new Timestamp(FORMAT.parse("2017-01-01 01:01:03").getTime())
+        , 0, new BigDecimal(1));
     rows.add(row1);
 
     BeamRecord row2 = new BeamRecord(rowTypeInTableA
         , 2, 2000L, Short.valueOf("2"), Byte.valueOf("2"), 2.0f, 2.0, "string_row2"
-        , FORMAT.parse("2017-01-01 01:02:03"), 0, new BigDecimal(2));
+        , FORMAT.parse("2017-01-01 01:02:03")
+        , new Timestamp(FORMAT.parse("2017-01-01 01:02:03").getTime())
+        , 0, new BigDecimal(2));
     rows.add(row2);
 
     BeamRecord row3 = new BeamRecord(rowTypeInTableA
         , 3, 3000L, Short.valueOf("3"), Byte.valueOf("3"), 3.0f, 3.0, "string_row3"
-        , FORMAT.parse("2017-01-01 01:06:03"), 0, new BigDecimal(3));
+        , FORMAT.parse("2017-01-01 01:06:03")
+        , new Timestamp(FORMAT.parse("2017-01-01 01:06:03").getTime())
+        , 0, new BigDecimal(3));
     rows.add(row3);
 
     BeamRecord row4 = new BeamRecord(rowTypeInTableA
         , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "string_row4"
-        , FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4));
+        , FORMAT.parse("2017-01-01 02:04:03")
+        , new Timestamp(FORMAT.parse("2017-01-01 02:04:03").getTime())
+        , 0, new BigDecimal(4));
     rows.add(row4);
 
     return rows;
