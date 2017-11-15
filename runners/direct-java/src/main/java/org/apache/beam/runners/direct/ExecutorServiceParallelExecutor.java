@@ -93,7 +93,6 @@ final class ExecutorServiceParallelExecutor
 
   private final AtomicReference<ExecutorState> state =
       new AtomicReference<>(ExecutorState.QUIESCENT);
-
   /**
    * Measures the number of {@link TransformExecutor TransformExecutors} that have been
    * scheduled but not yet completed.
@@ -233,7 +232,6 @@ final class ExecutorServiceParallelExecutor
 
     TransformExecutor callable =
         executorFactory.create(bundle, transform, onComplete, transformExecutor);
-    outstandingWork.incrementAndGet();
     if (!pipelineState.get().isTerminal()) {
       transformExecutor.schedule(callable);
     }
@@ -517,6 +515,7 @@ final class ExecutorServiceParallelExecutor
                 && noWorkOutstanding)) {
           CommittedBundle<?> bundle = update.getBundle().get();
           for (AppliedPTransform<?, ?, ?> consumer : update.getConsumers()) {
+            outstandingWork.incrementAndGet();
             bundleExecutor.execute(bundle, consumer, defaultCompletionCallback);
           }
         } else {
@@ -549,6 +548,7 @@ final class ExecutorServiceParallelExecutor
                               transformTimers.getTransform().getInputs().values()))
                   .add(WindowedValue.valueInGlobalWindow(work))
                   .commit(evaluationContext.now());
+          outstandingWork.incrementAndGet();
           bundleExecutor.execute(
               bundle,
               transformTimers.getTransform(),
@@ -592,6 +592,7 @@ final class ExecutorServiceParallelExecutor
             bundles.add(bundle);
           }
           for (CommittedBundle<?> bundle : bundles) {
+            outstandingWork.incrementAndGet();
             bundleExecutor.execute(bundle, pendingRootEntry.getKey(), defaultCompletionCallback);
             state.set(ExecutorState.ACTIVE);
           }
