@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -75,6 +76,17 @@ public class DoFnSignaturesTest {
     assertThat(sig.processElement().extraParameters().size(), equalTo(1));
     assertThat(
         sig.processElement().extraParameters().get(0), instanceOf(ProcessContextParameter.class));
+  }
+
+  @Test
+  public void testRequiresStableInputProcessElement() throws Exception {
+    DoFnSignature sig = DoFnSignatures.getSignature(new DoFn<String, String>() {
+      @ProcessElement
+      @RequiresStableInput
+      public void process(ProcessContext c) {}
+    }.getClass());
+
+    assertThat(sig.processElement().requiresStableInput(), is(true));
   }
 
   @Test
