@@ -23,7 +23,17 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
+import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.POutput;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -38,5 +48,37 @@ public class PipelineRunnerTest {
     options.setRunner(CrashingRunner.class);
     PipelineRunner<?> runner = PipelineRunner.fromOptions(options);
     assertTrue(runner instanceof CrashingRunner);
+  }
+
+  private static class ScaleFn<T extends Number>
+      extends SimpleFunction<T, Double> {
+
+    private final double scalar;
+
+    public ScaleFn(double scalar) {
+      this.scalar = scalar;
+    }
+
+    @Override
+    public Double apply(T input) {
+      return scalar * input.doubleValue();
+    }
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testRunPTransform() {
+    PipelineRunner pipelineRunner = PipelineRunner.create();
+    PTransform<PBegin, POutput> scaleByTwo = new PTransform<PBegin, POutput>() {
+      @Override
+      public POutput expand(PBegin input) {
+        PCollection<Double> output = input
+            .apply(Create.<Integer>of(1, 2, 3, 4))
+            .apply("ScaleByTwo", MapElements.via(new ScaleFn<Integer>(2.0)));
+        PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
+        return output;
+      }
+    };
+    pipelineRunner.run(scaleByTwo);
   }
 }

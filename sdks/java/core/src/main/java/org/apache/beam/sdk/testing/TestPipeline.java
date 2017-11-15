@@ -43,7 +43,6 @@ import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
@@ -478,11 +477,6 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  public PipelineRunner toPipelineRunner() {
-    PipelineOptions updatedOptions =
-        MAPPER.convertValue(MAPPER.valueToTree(options), PipelineOptions.class);
-    return PipelineRunner.fromOptions(updatedOptions);
-  }
 
   public static String[] convertToArgs(PipelineOptions options) {
     try {
