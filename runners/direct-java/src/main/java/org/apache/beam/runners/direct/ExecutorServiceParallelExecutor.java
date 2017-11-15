@@ -63,10 +63,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link PipelineExecutor} that uses an underlying {@link ExecutorService} and
- * {@link EvaluationContext} to execute a {@link Pipeline}.
+ * An {@link PipelineExecutor} that uses an underlying {@link ExecutorService} and {@link
+ * EvaluationContext} to execute a {@link Pipeline}.
  */
-final class ExecutorServiceParallelExecutor implements PipelineExecutor {
+final class ExecutorServiceParallelExecutor
+    implements PipelineExecutor, BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final int targetParallelism;
@@ -199,14 +200,15 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       pendingRootBundles.put(root, pending);
     }
     evaluationContext.initialize(pendingRootBundles);
-    Runnable monitorRunnable = new MonitorRunnable();
+    Runnable monitorRunnable = new MonitorRunnable(this);
     executorService.submit(monitorRunnable);
   }
 
   @SuppressWarnings("unchecked")
-  private void scheduleConsumption(
-      AppliedPTransform<?, ?, ?> consumer,
+  @Override
+  public void execute(
       CommittedBundle<?> bundle,
+      AppliedPTransform<?, ?, ?> consumer,
       CompletionCallback onComplete) {
     evaluateBundle(consumer, bundle, onComplete);
   }
@@ -239,13 +241,6 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
 
   private boolean isKeyed(PValue pvalue) {
     return evaluationContext.isKeyed(pvalue);
-  }
-
-  private void scheduleConsumers(ExecutorUpdate update) {
-    CommittedBundle<?> bundle = update.getBundle().get();
-    for (AppliedPTransform<?, ?, ?> consumer : update.getConsumers()) {
-      scheduleConsumption(consumer, bundle, defaultCompletionCallback);
-    }
   }
 
   @Override
@@ -453,8 +448,14 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     private final String runnableName = String.format("%s$%s-monitor",
         evaluationContext.getPipelineOptions().getAppName(),
         ExecutorServiceParallelExecutor.class.getSimpleName());
+    private final BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleExecutor;
 
     private boolean exceptionThrown = false;
+
+    private MonitorRunnable(
+        BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleExecutor) {
+      this.bundleExecutor = bundleExecutor;
+    }
 
     @Override
     public void run() {
@@ -514,7 +515,10 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
         if (ExecutorState.ACTIVE == startingState
             || (ExecutorState.PROCESSING == startingState
                 && noWorkOutstanding)) {
-          scheduleConsumers(update);
+          CommittedBundle<?> bundle = update.getBundle().get();
+          for (AppliedPTransform<?, ?, ?> consumer : update.getConsumers()) {
+            bundleExecutor.execute(bundle, consumer, defaultCompletionCallback);
+          }
         } else {
           allUpdates.offer(update);
         }
@@ -545,9 +549,9 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
                               transformTimers.getTransform().getInputs().values()))
                   .add(WindowedValue.valueInGlobalWindow(work))
                   .commit(evaluationContext.now());
-          scheduleConsumption(
-              transformTimers.getTransform(),
+          bundleExecutor.execute(
               bundle,
+              transformTimers.getTransform(),
               new TimerIterableCompletionCallback(delivery));
           state.set(ExecutorState.ACTIVE);
         }
@@ -588,7 +592,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
             bundles.add(bundle);
           }
           for (CommittedBundle<?> bundle : bundles) {
-            scheduleConsumption(pendingRootEntry.getKey(), bundle, defaultCompletionCallback);
+            bundleExecutor.execute(bundle, pendingRootEntry.getKey(), defaultCompletionCallback);
             state.set(ExecutorState.ACTIVE);
           }
         }
