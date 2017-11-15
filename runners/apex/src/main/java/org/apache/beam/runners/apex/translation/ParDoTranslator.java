@@ -213,7 +213,7 @@ class ParDoTranslator<InputT, OutputT>
             sideInputCollection.getWindowingStrategy());
       }
       if (!sideInputCollection.getCoder().equals(firstSideInput.getCoder())) {
-        String msg = "Multiple side inputs with different coders.";
+        String msg = context.getFullName() + ": Multiple side inputs with different coders.";
         throw new UnsupportedOperationException(msg);
       }
       sourceCollections.add(context.<PCollection<Object>>getViewInput(sideInput));
