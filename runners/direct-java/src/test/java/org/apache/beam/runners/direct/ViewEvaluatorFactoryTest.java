@@ -32,11 +32,11 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.Values;
-import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,10 +56,7 @@ public class ViewEvaluatorFactoryTest {
   @Test
   public void testInMemoryEvaluator() throws Exception {
     PCollection<String> input = p.apply(Create.of("foo", "bar"));
-    CreatePCollectionView<String, Iterable<String>> createView =
-        CreatePCollectionView.of(
-            PCollectionViews.iterableView(
-                input, input.getWindowingStrategy(), StringUtf8Coder.of()));
+    PCollectionView<Iterable<String>> pCollectionView = input.apply(View.<String>asIterable());
     PCollection<Iterable<String>> concat =
         input.apply(WithKeys.<Void, String>of((Void) null))
             .setCoder(KvCoder.of(VoidCoder.of(), StringUtf8Coder.of()))
@@ -67,11 +64,11 @@ public class ViewEvaluatorFactoryTest {
             .apply(Values.<Iterable<String>>create());
     PCollection<Iterable<String>> view =
         concat.apply(
-            new ViewOverrideFactory.WriteView<String, Iterable<String>>(createView.getView()));
+            new ViewOverrideFactory.WriteView<String, Iterable<String>>(pCollectionView));
 
     EvaluationContext context = mock(EvaluationContext.class);
     TestViewWriter<String, Iterable<String>> viewWriter = new TestViewWriter<>();
-    when(context.createPCollectionViewWriter(concat, createView.getView())).thenReturn(viewWriter);
+    when(context.createPCollectionViewWriter(concat, pCollectionView)).thenReturn(viewWriter);
 
     CommittedBundle<String> inputBundle = bundleFactory.createBundle(input).commit(Instant.now());
     AppliedPTransform<?, ?, ?> producer = DirectGraphs.getProducer(view);

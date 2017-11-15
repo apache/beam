@@ -40,6 +40,7 @@ import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Combine;
@@ -527,7 +528,11 @@ public final class TransformTranslator {
         Iterable<? extends WindowedValue<?>> iter =
             context.getWindowedValues(context.getInput(transform));
         PCollectionView<WriteT> output = transform.getView();
-        Coder<Iterable<WindowedValue<?>>> coderInternal = output.getCoderInternal();
+        Coder<Iterable<WindowedValue<?>>> coderInternal =
+            (Coder) IterableCoder.of(
+                WindowedValue.getFullCoder(
+                    output.getCoderInternal(),
+                    output.getWindowingStrategyInternal().getWindowFn().windowCoder()));
 
         @SuppressWarnings("unchecked")
         Iterable<WindowedValue<?>> iterCast =  (Iterable<WindowedValue<?>>) iter;

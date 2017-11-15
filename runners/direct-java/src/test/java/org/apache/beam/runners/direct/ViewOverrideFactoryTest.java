@@ -34,13 +34,13 @@ import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
-import org.apache.beam.sdk.values.PCollectionViews;
-import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.sdk.values.TupleTag;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,8 +59,7 @@ public class ViewOverrideFactoryTest implements Serializable {
   @Test
   public void replacementGetViewReturnsOriginal() {
     final PCollection<Integer> ints = p.apply("CreateContents", Create.of(1, 2, 3));
-    final PCollectionView<List<Integer>> view =
-        PCollectionViews.listView(ints, WindowingStrategy.globalDefault(), ints.getCoder());
+    final PCollectionView<List<Integer>> view = ints.apply(View.<Integer>asList());
     PTransformReplacement<PCollection<Integer>, PCollection<Integer>> replacement =
         factory.getReplacementTransform(
             AppliedPTransform
@@ -89,7 +88,7 @@ public class ViewOverrideFactoryTest implements Serializable {
               // so not asserted one way or the other
               assertThat(
                   replacementView.getTagInternal(),
-                  equalTo(view.getTagInternal()));
+                  equalTo((TupleTag) view.getTagInternal()));
               assertThat(
                   replacementView.getViewFn(),
                   Matchers.<ViewFn<?, ?>>equalTo(view.getViewFn()));
