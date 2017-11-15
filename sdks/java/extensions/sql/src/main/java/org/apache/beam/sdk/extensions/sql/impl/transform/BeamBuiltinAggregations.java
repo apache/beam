@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.util.Date;
 import java.util.Iterator;
 import javax.annotation.Nullable;
@@ -62,8 +63,10 @@ class BeamBuiltinAggregations {
         return new CustMax<Float>();
       case DOUBLE:
         return Max.ofDoubles();
-      case TIMESTAMP:
+      case DATE:
         return new CustMax<Date>();
+      case TIMESTAMP:
+        return new TimestampMax();
       case DECIMAL:
         return new CustMax<BigDecimal>();
       default:
@@ -89,8 +92,10 @@ class BeamBuiltinAggregations {
         return new CustMin<Float>();
       case DOUBLE:
         return Min.ofDoubles();
-      case TIMESTAMP:
+      case DATE:
         return new CustMin<Date>();
+      case TIMESTAMP:
+        return new TimestampMin();
       case DECIMAL:
         return new CustMin<BigDecimal>();
       default:
@@ -182,6 +187,21 @@ class BeamBuiltinAggregations {
 
   static class CustMin<T extends Comparable<T>> extends Combine.BinaryCombineFn<T> {
     public T apply(T left, T right) {
+      return (left == null || left.compareTo(right) < 0) ? left : right;
+    }
+  }
+
+  /*
+  * Timestamp implement Comparable<Date> thus it doesn't fit CustMin/Max
+  */
+  static class TimestampMax extends Combine.BinaryCombineFn<Timestamp> {
+    public Timestamp apply(Timestamp left, Timestamp right) {
+      return (right == null || right.compareTo(right) < 0) ? left : right;
+    }
+  }
+
+  static class TimestampMin extends Combine.BinaryCombineFn<Timestamp> {
+    public Timestamp apply(Timestamp left, Timestamp right) {
       return (left == null || left.compareTo(right) < 0) ? left : right;
     }
   }

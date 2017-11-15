@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -142,6 +143,7 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         + "sum(f_double) as sum5, avg(f_double) as avg5, "
         + "max(f_double) as max5, min(f_double) as min5, "
         + "max(f_date) as max6, min(f_date) as min6, "
+        + "max(f_timestamp) as max7, min(f_timestamp) as min7, "
         + "var_pop(f_double) as varpop1, var_samp(f_double) as varsamp1, "
         + "var_pop(f_int) as varpop2, var_samp(f_int) as varsamp2 "
         + "FROM TABLE_A group by f_int2";
@@ -156,12 +158,14 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
                           "sum3", "avg3", "max3", "min3", "sum4",
                           "avg4", "max4", "min4", "sum5", "avg5",
                           "max5", "min5", "max6", "min6",
+                          "max7", "min7",
                           "varpop1", "varsamp1", "varpop2", "varsamp2"),
         Arrays.asList(Types.INTEGER, Types.BIGINT, Types.BIGINT, Types.BIGINT, Types.BIGINT,
             Types.BIGINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT, Types.SMALLINT,
             Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.TINYINT, Types.FLOAT,
             Types.FLOAT, Types.FLOAT, Types.FLOAT, Types.DOUBLE, Types.DOUBLE,
             Types.DOUBLE, Types.DOUBLE, Types.DATE, Types.DATE,
+            Types.TIMESTAMP, Types.TIMESTAMP,
             Types.DOUBLE, Types.DOUBLE, Types.INTEGER, Types.INTEGER));
 
     BeamRecord record = new BeamRecord(resultType
@@ -172,6 +176,8 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         , 10.0F, 2.5F, 4.0F, 1.0F
         , 10.0, 2.5, 4.0, 1.0
         , FORMAT.parse("2017-01-01 02:04:03"), FORMAT.parse("2017-01-01 01:01:03")
+        , new Timestamp(FORMAT.parse("2017-01-01 02:04:03").getTime())
+        , new Timestamp(FORMAT.parse("2017-01-01 01:01:03").getTime())
         , 1.25, 1.666666667, 1, 1);
 
     PAssert.that(result).containsInAnyOrder(record);
