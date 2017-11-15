@@ -23,6 +23,7 @@ from __future__ import print_function
 import functools
 import logging
 import Queue as queue
+import re
 import sys
 import threading
 import traceback
@@ -39,18 +40,25 @@ from apache_beam.runners.worker import data_plane
 class SdkHarness(object):
 
   def __init__(self, control_address, pipeline_options=None):
-    # TODO: angoenka make worker_count an experimental parameter
-    if pipeline_options and pipeline_options.has_key(
-        'experiments') and pipeline_options.get('experiments').has_key(
-            'worker_threads'):
-      self._worker_count = int(
-          pipeline_options.get('experiments').get('worker_threads'))
-    else:
-      self._worker_count = 1
 
-    logging.info('Initializing SDKHarness with %i workers.', self._worker_count)
+    def _get_worker_count(pipeline_options):
+      experiments = pipeline_options.get(
+          'experiments'
+      ) if pipeline_options and pipeline_options.has_key('experiments') else []
+
+      experiments = experiments if experiments else []
+
+      for experiment in experiments:
+        # There should only be 1 match so returning from the loop
+        s = re.findall('^(worker_threads=[0-9]+)', experiment)
+        if len(s) > 0:
+          return int(s.pop()[len('worker_threads='):])
+
+      return 1
+
+    self._worker_count = _get_worker_count(pipeline_options)
+    logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
     self._worker_index = 0
-    self._lock = threading.Lock()
     self._control_channel = grpc.insecure_channel(control_address)
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     self.worker_wrappers = []

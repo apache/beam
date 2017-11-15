@@ -119,7 +119,7 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_work_count_custom_value(self):
     harness = self._check_fn_registration_multi_request(
-        1, 1, json.loads('{"experiments":{"worker_threads":4}}'))
+        1, 1, json.loads('{"experiments":["worker_threads=4"]}'))
     self.assertEquals(len(harness.worker_wrappers), 4)
 
 
