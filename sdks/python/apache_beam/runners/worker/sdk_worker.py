@@ -38,9 +38,17 @@ from apache_beam.runners.worker import data_plane
 
 class SdkHarness(object):
 
-  def __init__(self, control_address):
+  def __init__(self, control_address, pipeline_options=None):
     # TODO: angoenka make worker_count an experimental parameter
-    self._worker_count = 2
+    if pipeline_options and pipeline_options.has_key(
+        'experiments') and pipeline_options.get('experiments').has_key(
+            'worker_threads'):
+      self._worker_count = int(
+          pipeline_options.get('experiments').get('worker_threads'))
+    else:
+      self._worker_count = 1
+
+    logging.info('Initializing SDKHarness with %i workers.', self._worker_count)
     self._worker_index = 0
     self._lock = threading.Lock()
     self._control_channel = grpc.insecure_channel(control_address)

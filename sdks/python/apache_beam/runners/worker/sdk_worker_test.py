@@ -14,13 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """Tests for apache_beam.runners.worker.sdk_worker."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import logging
 import unittest
 from concurrent import futures
@@ -34,6 +34,7 @@ from apache_beam.runners.worker import sdk_worker
 
 
 class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
+
   def __init__(self, requests, raise_errors=True):
     self.requests = requests
     self.instruction_ids = set(r.instruction_id for r in requests)
@@ -60,15 +61,20 @@ class BeamFnControlServicer(beam_fn_api_pb2_grpc.BeamFnControlServicer):
 
 
 class SdkWorkerTest(unittest.TestCase):
-  def _get_process_bundles(self, prefix, size):
-    return [beam_fn_api_pb2.ProcessBundleDescriptor(
-        id=str(str(prefix) + "-" + str(ix)),
-        transforms={
-            str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))})
-            for ix in range(size)]
 
-  def _check_fn_registeration_multi_request(self, request_count,
-                                            process_bundles_per_request):
+  def _get_process_bundles(self, prefix, size):
+    return [
+        beam_fn_api_pb2.ProcessBundleDescriptor(
+            id=str(str(prefix) + "-" + str(ix)),
+            transforms={
+                str(ix): beam_runner_api_pb2.PTransform(unique_name=str(ix))
+            }) for ix in range(size)
+    ]
+
+  def _check_fn_registration_multi_request(self,
+                                           request_count,
+                                           process_bundles_per_request,
+                                           pipeline_options=None):
     requests = []
     process_bundle_descriptors = []
 
@@ -89,23 +95,32 @@ class SdkWorkerTest(unittest.TestCase):
     test_port = server.add_insecure_port("[::]:0")
     server.start()
 
-    harness = sdk_worker.SdkHarness("localhost:%s" % test_port)
+    harness = sdk_worker.SdkHarness(
+        "localhost:%s" % test_port, pipeline_options=pipeline_options)
     harness.run()
 
     for worker_wrapper in harness.worker_wrappers:
-      self.assertEqual(
-          worker_wrapper.worker.fns,
-          {item.id: item for item in process_bundle_descriptors})
+      self.assertEqual(worker_wrapper.worker.fns,
+                       {item.id: item
+                        for item in process_bundle_descriptors})
+    return harness
 
   def test_fn_registration(self):
-    self._check_fn_registeration_multi_request(
-        request_count=1,
-        process_bundles_per_request=4)
+    self._check_fn_registration_multi_request(
+        request_count=1, process_bundles_per_request=4)
 
   def test_fn_registration_multiple_request(self):
-    self._check_fn_registeration_multi_request(
-        request_count=4,
-        process_bundles_per_request=4)
+    self._check_fn_registration_multi_request(
+        request_count=4, process_bundles_per_request=4)
+
+  def test_work_count_default_value(self):
+    harness = self._check_fn_registration_multi_request(1, 1, {})
+    self.assertEquals(len(harness.worker_wrappers), 1)
+
+  def test_work_count_custom_value(self):
+    harness = self._check_fn_registration_multi_request(
+        1, 1, json.loads('{"experiments":{"worker_threads":4}}'))
+    self.assertEquals(len(harness.worker_wrappers), 4)
 
 
 if __name__ == "__main__":
