@@ -464,21 +464,6 @@ public class PipelineTest {
         Max.integersGlobally().getClass());
   }
 
-  @Test
-  @Category(ValidatesRunner.class)
-  public void testRunPTransform() {
-    PipelineRunner pipelineRunner = pipeline.toPipelineRunner();
-    PTransform<PBegin, POutput> identity = new PTransform<PBegin, POutput>() {
-      @Override
-      public POutput expand(PBegin input) {
-        return input
-            .apply(Create.<Integer>of(1, 2, 3, 4))
-            .apply("IdentityTransform", new IdentityTransform<PCollection<Integer>>());
-      }
-    };
-    pipelineRunner.run(identity);
-  }
-
   static class GenerateSequenceToCreateOverride
       implements PTransformOverrideFactory<PBegin, PCollection<Long>, GenerateSequence> {
     @Override
