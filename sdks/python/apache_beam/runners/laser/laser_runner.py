@@ -506,11 +506,6 @@ def generate_execution_graph(step_graph):
   return execution_graph
 
 
-class WorkManager(object):
-  def __init__(self, node_manager):
-    self.node_manager = node_manager
-
-
 
 class LaserRunner(PipelineRunner):
   """Executes a pipeline using multiple processes on the local machine."""
@@ -621,130 +616,153 @@ class LaserRunner(PipelineRunner):
 
 
 
-class CoordinatorInterface(Interface):
+# class CoordinatorInterface(Interface):
 
-  @remote_method(int, str)
-  def register_worker(host_id, worker_id):
-    raise NotImplementedError()
+#   @remote_method(int, str)
+#   def register_worker(host_id, worker_id):
+#     raise NotImplementedError()
 
-  @remote_method(str, returns=str)
-  def ping(self, body):
-    raise NotImplementedError()
+#   @remote_method(str, returns=str)
+#   def ping(self, body):
+#     raise NotImplementedError()
 
-class LaserCoordinator(threading.Thread, CoordinatorInterface):
+# class LaserCoordinator(threading.Thread, CoordinatorInterface):
 
-  def __init__(self):
-    self.channel_manager = get_channel_manager()
-    self.worker_channels = {}
-    super(LaserCoordinator, self).__init__()
+#   def __init__(self):
+#     self.channel_manager = get_channel_manager()
+#     self.worker_channels = {}
+#     super(LaserCoordinator, self).__init__()
 
-  def run(self):
-    print 'RUN'
-    while True:
-      for worker_id in self.worker_channels:
-        start_time = time.time()
-        for i in range(100):
-          self.worker_channels[worker_id].ping()
-        end_time = time.time()
-        print 'WORKER PING', worker_id, (end_time - start_time) / 100
-      time.sleep(1)
-
-
-  def register_worker(self, host_id, worker_id):
-    print 'REGISTERED', host_id, worker_id
-    # self.worker_channels[worker_id] = self.channel_manager.get_interface(HostDescriptor(host_id), 'worker', WorkerInterface)
+#   def run(self):
+#     print 'RUN'
+#     while True:
+#       for worker_id in self.worker_channels:
+#         start_time = time.time()
+#         for i in range(100):
+#           self.worker_channels[worker_id].ping()
+#         end_time = time.time()
+#         print 'WORKER PING', worker_id, (end_time - start_time) / 100
+#       time.sleep(1)
 
 
-  def ping(self, body):
-    # print 'LaserCoordinator PINGED', body
-    return 'PINGED_%r' % body
-
-class WorkerInterface(Interface):
-
-  @remote_method(returns=str)
-  def ping(self):
-    raise NotImplementedError()
+#   def register_worker(self, host_id, worker_id):
+#     print 'REGISTERED', host_id, worker_id
+#     # self.worker_channels[worker_id] = self.channel_manager.get_interface(HostDescriptor(host_id), 'worker', WorkerInterface)
 
 
-class LaserWorker(WorkerInterface):
-  def __init__(self, options):
-    self.options = options
+#   def ping(self, body):
+#     # print 'LaserCoordinator PINGED', body
+#     return 'PINGED_%r' % body
 
-  def ping(self):
-    return 'OK'
+# class WorkerInterface(Interface):
 
-  def run(self):
-    worker_id = self.options['id']
-    set_channel_config(ChannelConfig.from_dict(self.options['channel_config']))
-    manager = get_channel_manager()
-    manager.register_interface('%s/worker' % worker_id, self)
+#   @remote_method(returns=str)
+#   def ping(self):
+#     raise NotImplementedError()
 
-    coordinator = manager.get_interface('master/coordinator', CoordinatorInterface)
-    while True:
-      try:
-        print 'START REGISTER'
-        coordinator.register_worker(self.options['id'], worker_id)
-        print 'REGISTER OK'
-        break
-      except Exception as e:
-        print 'e', e
-        time.sleep(2)
 
-    while True:
-      print 'RESUTLED!!!', coordinator.ping('wtf')
-      time.sleep(2)
-    sys.exit(1)
+# class LaserWorker(WorkerInterface):
+#   def __init__(self, options):
+#     self.options = options
+
+#   def ping(self):
+#     return 'OK'
+
+#   def run(self):
+#     worker_id = self.options['id']
+#     set_channel_config(ChannelConfig.from_dict(self.options['channel_config']))
+#     manager = get_channel_manager()
+#     manager.register_interface('%s/worker' % worker_id, self)
+
+#     coordinator = manager.get_interface('master/coordinator', CoordinatorInterface)
+#     while True:
+#       try:
+#         print 'START REGISTER'
+#         coordinator.register_worker(self.options['id'], worker_id)
+#         print 'REGISTER OK'
+#         break
+#       except Exception as e:
+#         print 'e', e
+#         time.sleep(2)
+
+#     while True:
+#       print 'RESUTLED!!!', coordinator.ping('wtf')
+#       time.sleep(2)
+#     sys.exit(1)
+
+
+class WorkExecutionManager(object):
+  def __init__(self, worker_manager):
+    self.worker_manager = worker_manager
+
+class WorkerManager(object):
+  def __init__(self, node_manager):
+    self.node_manager = node_manager
+    
 
 
 class ComputeNodeManagerInterface(Interface):
   pass
 
 class ComputeNodeManager(ComputeNodeManagerInterface):
-  def supports_scaling(self):
-    return False
+  # def supports_scaling(self):
+  #   return False
 
   def _check_started(self):
     if not self.started:
       raise Exception('Node manager not started.')
+  @remote_method(str, returns=str)
+  def report_node_started(self, node_name):
+    raise NotImplementedError()
 
-class ComputeNodeHandle(object):
-  def __init__(self, manager, name, core_count):
-    self.manager = manager
-    self.name = name
-    self.core_count = core_count
+# class ComputeNodeHandle(object):
+#   def __init__(self, manager, name, core_count):
+#     self.manager = manager
+#     self.name = name
+#     self.core_count = core_count
 
-  def get_node_interface(self):
-    pass
+#   def get_node_interface(self):
+#     pass
 
 
-class ComputeNodeInterface(Interface):
+class ComputeNodeStubInterface(Interface):
   pass
 
-class ComputeNode(ComputeNodeInterface):
+class ComputeNodeStub(ComputeNodeStubInterface):
   def __init__(self, node_config):
     # TODO: node_config should be a class or something, not just a dict
     #self.config = node_config
     # TODO: id?
     self.name = node_config['name']
     self.channel_manager = get_channel_manager()
-    self.node_manager_interface = self.channel_manager.get_interface()
+
+    self.node_manager = self.channel_manager.get_interface('master/node_manager', ComputeNodeManagerInterface)
 
 
   def start(self):
-    self.node_manager_interface.report_node_started(self.name)
+    time.sleep(0.1)  # TODO: wait for node manager / link to be ready.
+    self.node_manager.report_node_started(self.name)
 
 
 class InProcessComputeNodeManager(ComputeNodeManager):
 
-  def __init__(self, num_nodes=1):
+  def __init__(self, num_nodes=2):
     self.num_nodes = num_nodes
     self.started = False
+    self.channel_manager = get_channel_manager()
+    self.channel_manager.register_interface('master/node_manager', self)
 
 
   def start(self):
     for i in range(self.num_nodes):
-      pass
+      worker_name = 'worker%d' % i
+      node_stub = ComputeNodeStub({'name': worker_name})
+      threading.Thread(target=node_stub.start).start()
     self.started = True
+
+  def report_node_started(self, node_name):
+    print 'NODE STARTED', node_name
+    return 'HI[%s]' % node_name
 
 
   def get_nodes(self):
@@ -815,6 +833,10 @@ def run(argv):
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
+  set_channel_config(ChannelConfig(
+    node_addresses=['master']))
+  InProcessComputeNodeManager().start()
+  raise ''
   # run(sys.argv)
   from apache_beam import Pipeline
   from apache_beam import Create
@@ -826,9 +848,9 @@ if __name__ == '__main__':
   a = p | 'yo' >> Create(['a', 'b', 'c'])
   def _print(x):
     print 'PRRRINT:', x
-  a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
+  # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
   # a | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
-  # a | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(_print)
+  p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
   # | beam.Map(fn)
   p.run()
 
