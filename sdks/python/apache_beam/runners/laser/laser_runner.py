@@ -360,7 +360,7 @@ class ExecutionGraph(object):
     self.stages.append(stage)
 
 
-class Stage(object):
+class Stage(object):  # TODO: rename to ExecutionStage
   def __init__(self):
     super(Stage, self).__init__()
 
@@ -370,9 +370,10 @@ class Stage(object):
 
 class FusedStage(Stage, CompositeWatermarkNode):
 
-  def __init__(self, name):
+  def __init__(self, name, execution_context):
     super(FusedStage, self).__init__()
     self.name = name
+    self.execution_context = execution_context
 
     self.step_to_original_step = {}
     self.original_step_to_step = {}
@@ -383,6 +384,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Step to index in self.steps.
     self.step_index = {}
 
+    self.pending_work_item_ids = set()
     # Hold watermark on all steps until execution progress is made.
     self.input_watermark_node.set_watermark_hold(MIN_TIMESTAMP)
 
@@ -435,32 +437,50 @@ class FusedStage(Stage, CompositeWatermarkNode):
     original_names = list(step.name for step in self.steps)
     map_task = operation_specs.MapTask(all_operations, self.name, system_names, step_names, original_names)
     print 'MAPTASK', map_task
-    counter_factory = CounterFactory()
-    state_sampler = statesampler.StateSampler(self.name, counter_factory)
-    map_executor = operations.SimpleMapTaskExecutor(map_task, counter_factory, state_sampler)
-    map_executor.execute()
+    # counter_factory = CounterFactory()
+    # state_sampler = statesampler.StateSampler(self.name, counter_factory)
+    # map_executor = operations.SimpleMapTaskExecutor(map_task, counter_factory, state_sampler)
+    # map_executor.execute()
+    print 'SCHEDULING WORK...'
+    work_item_id = self.execution_context.work_manager.schedule_map_task(self, map_task)
+    self.pending_work_item_ids.add(work_item_id)
+    print 'DONE SCHEDULING WORK!'
     # self.input_watermark_node.set_watermark_hold(None)
+
+  def report_work_completion(self, work_item_id):
+    self.pending_work_item_ids.remove(work_item_id)
+    print 'COMPLETION', self, work_item_id, self.pending_work_item_ids
+    if not self.pending_work_item_ids:
+      # Stage completed!  Let's release the watermark.
+      self.input_watermark_node.set_watermark_hold(None)
 
   def initialize(self):
     print 'INIT'
 
 
 class Executor(object):
-  def __init__(self, execution_graph, watermark_manager):
+  def __init__(self, execution_graph, execution_context):
     self.execution_graph = execution_graph
-    self.watermark_manager = watermark_manager
+    self.execution_context = execution_context
 
   def run(self):
     print 'EXECUTOR RUN'
     print 'execution graph', self.execution_graph
+    self.execution_context.work_manager.start()
     for fused_stage in self.execution_graph.stages:
       fused_stage.initialize()
 
-    self.watermark_manager.start()
+    self.execution_context.watermark_manager.start()
 
 
 
-def generate_execution_graph(step_graph):
+class ExecutionContext(object):
+  def __init__(self, work_manager, watermark_manager):
+    self.work_manager = work_manager
+    self.watermark_manager = watermark_manager
+
+
+def generate_execution_graph(step_graph, execution_context):
   # TODO: if we ever support interactive pipelines or incremental execution,
   # we want to implement idempotent application of a step graph into updating
   # the execution graph.
@@ -478,7 +498,7 @@ def generate_execution_graph(step_graph):
     if isinstance(original_step, ReadStep):
       assert not original_step.inputs
       stage_name = 'S%02d' % len(steps_to_fused_stages)
-      fused_stage = FusedStage(stage_name)
+      fused_stage = FusedStage(stage_name, execution_context)
       fused_stage.add_step(original_step)
       print 'fused_stage', original_step, fused_stage
       steps_to_fused_stages[original_step] = fused_stage
@@ -600,17 +620,25 @@ class LaserRunner(PipelineRunner):
   def run(self, pipeline):
     # Visit the pipeline and build up the step graph.
     super(LaserRunner, self).run(pipeline)
+
     print 'COMPLETEd step graph', self.step_graph
     for step in self.step_graph.steps:
       print step.inputs, step.outputs
-    execution_graph = generate_execution_graph(self.step_graph)
+
+    node_manager = InProcessComputeNodeManager()
+    node_manager.start()
+    work_manager = WorkManager(node_manager)
+    watermark_manager = WatermarkManager()
+    execution_context = ExecutionContext(work_manager, watermark_manager)
+    print 'GENERATING EXECUTION GRAPH'
+    execution_graph = generate_execution_graph(self.step_graph, execution_context)
+
     print 'EXECUTION GRAPH', execution_graph
     print execution_graph.stages
-    watermark_manager = WatermarkManager()
     for stage in execution_graph.stages:
-      watermark_manager.track_nodes(stage)
-    print 'ROOT NODES', watermark_manager.root_nodes
-    executor = Executor(execution_graph, watermark_manager)
+      execution_context.watermark_manager.track_nodes(stage)
+    print 'ROOT NODES', execution_context.watermark_manager.root_nodes
+    executor = Executor(execution_graph, execution_context)
     executor.run()
 
 
@@ -654,51 +682,188 @@ class LaserRunner(PipelineRunner):
 #     # print 'LaserCoordinator PINGED', body
 #     return 'PINGED_%r' % body
 
-# class WorkerInterface(Interface):
+class WorkerInterface(Interface):
 
-#   @remote_method(returns=str)
-#   def ping(self):
-#     raise NotImplementedError()
+  @remote_method(returns=str)
+  def ping(self):
+    raise NotImplementedError()
 
-
-# class LaserWorker(WorkerInterface):
-#   def __init__(self, options):
-#     self.options = options
-
-#   def ping(self):
-#     return 'OK'
-
-#   def run(self):
-#     worker_id = self.options['id']
-#     set_channel_config(ChannelConfig.from_dict(self.options['channel_config']))
-#     manager = get_channel_manager()
-#     manager.register_interface('%s/worker' % worker_id, self)
-
-#     coordinator = manager.get_interface('master/coordinator', CoordinatorInterface)
-#     while True:
-#       try:
-#         print 'START REGISTER'
-#         coordinator.register_worker(self.options['id'], worker_id)
-#         print 'REGISTER OK'
-#         break
-#       except Exception as e:
-#         print 'e', e
-#         time.sleep(2)
-
-#     while True:
-#       print 'RESUTLED!!!', coordinator.ping('wtf')
-#       time.sleep(2)
-#     sys.exit(1)
+  @remote_method(object)
+  def schedule_work_item(self, work_item):
+    raise NotImplementedError()
 
 
-class WorkExecutionManager(object):
-  def __init__(self, worker_manager):
-    self.worker_manager = worker_manager
+class LaserWorker(WorkerInterface, threading.Thread):
+  def __init__(self, config):
+    super(LaserWorker, self).__init__()
+    self.config = config
+    self.worker_id = config['name']
 
-class WorkerManager(object):
+    self.channel_manager = get_channel_manager()
+    self.work_manager = self.channel_manager.get_interface('master/work_manager', WorkManagerInterface)
+
+    self.lock = threading.Lock()
+    self.current_work_item = None
+    self.new_work_condition = threading.Condition(self.lock)
+
+  def ping(self):
+    return 'OK'
+
+  def run(self):
+    self.channel_manager.register_interface('%s/worker' % self.worker_id, self)
+    self.work_manager.register_worker(self.worker_id)
+    while True:
+      with self.lock:
+        while not self.current_work_item:
+          self.new_work_condition.wait()
+        work_item = self.current_work_item
+      counter_factory = CounterFactory()
+      state_sampler = statesampler.StateSampler(work_item.stage_name, counter_factory)
+      map_executor = operations.SimpleMapTaskExecutor(work_item.map_task, counter_factory, state_sampler)
+      status = WorkItemStatus.COMPLETED
+      try:
+        print '>>>>>>>>> WORKER', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
+        map_executor.execute()
+        print '<<<<<<<<< WORKER DONE', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
+      except Exception as e:
+        print 'Exception while processing work:', e
+        status = WorkItemStatus.FAILED
+      with self.lock:
+        self.current_work_item = None
+      self.work_manager.report_work_status(self.worker_id, work_item.id, status)
+
+
+
+  # REMOTE METHOD
+  def schedule_work_item(self, work_item):
+    with self.lock:
+      if self.current_work_item:
+        raise Exception('Currently executing work item: %s' % self.current_work_item)
+      self.current_work_item = work_item
+      self.new_work_condition.notify()
+
+
+
+
+
+
+class WorkItem(object):
+  def __init__(self, id, stage_name, map_task):
+    self.id = id
+    self.stage_name = stage_name
+    self.map_task = map_task
+    # TODO: attempt number
+
+
+class WorkItemStatus(object):
+  NOT_STARTED = 0
+  RUNNING = 1
+  COMPLETED = 2
+  FAILED = 3
+
+
+# TODO: some work item progress / execution info
+
+class WorkManagerInterface(Interface):
+  @remote_method(int, int)
+  def report_work_status(self, work_item_id, new_status):
+    raise NotImplementedError()
+
+  @remote_method(str)
+  def register_worker(self, worker_id):
+    pass
+
+
+class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a separate worker pool manager?
   def __init__(self, node_manager):
+    super(WorkManager, self).__init__()
+    self.channel_manager = get_channel_manager()
+
     self.node_manager = node_manager
-    
+    self.work_items = {}
+    self.unscheduled_work = Queue()  # TODO: should this just be a set?
+
+    self.work_status = {}
+    self.work_stage = {}
+    self.lock = threading.Lock()
+
+    self.all_workers = set()
+    self.idle_workers = set()
+    self.active_workers = set()
+
+  def schedule_map_task(self, stage, map_task):  # TODO: should we track origin?  (yes)
+    with self.lock:
+      work_item_id = len(self.work_items)
+      print 'SCHEDULE_MAP_TASK', stage, map_task, work_item_id
+      work_item = WorkItem(work_item_id, stage.name, map_task)
+      self.work_items[work_item_id] = work_item
+      self.work_status[work_item] = WorkItemStatus.NOT_STARTED
+      self.work_stage[work_item] = stage
+      self.unscheduled_work.put(work_item)
+    return work_item_id
+
+  def run(self):
+    print 'WORK MANAGER STARTING'
+    self.channel_manager.register_interface('master/work_manager', self)
+    print 'STARTING COMPUTE NODES'
+    for node_stub in self.node_manager.get_nodes():
+      node_stub.start_worker()
+    while True:
+      print 'WORK MANAGER POLL', self.unscheduled_work, self.idle_workers
+      keep_scheduling = True
+      to_execute = []
+      while keep_scheduling:
+        with self.lock:
+          work_item = None
+          worker = None
+          if not self.unscheduled_work.empty() and self.idle_workers:
+            work_item = self.unscheduled_work.get()
+            worker = self.idle_workers.pop()
+            to_execute.append((worker, work_item))
+            self.work_status[work_item] = WorkItemStatus.RUNNING  # TODO: do we want more granular status?
+          else:
+            keep_scheduling = False
+      print 'SCHEDULING', to_execute
+      for worker, work_item in to_execute:
+        worker.schedule_work_item(work_item)
+
+      # TODO: respond to events instead of polling
+      time.sleep(0.5)
+
+  # REMOTE METHOD
+  def register_worker(self, worker_id):
+    print '********************REGISTER WORKER', worker_id
+    with self.lock:
+      # TODO: get a better worker wrapper class.
+      worker = self.channel_manager.get_interface('%s/worker' % worker_id, WorkerInterface)
+      self.all_workers.add(worker)
+      self.idle_workers.add(worker)
+
+  # REMOTE METHOD
+  def report_work_status(self, worker_id, work_item_id, new_status):
+    # TODO: generation id / attempt number
+    with self.lock:
+      # TODO: some validation
+      work_item = self.work_items[work_item_id]
+      assert self.work_status[work_item] == WorkItemStatus.RUNNING
+      if new_status == WorkItemStatus.COMPLETED:
+        self.work_status[work_item] = WorkItemStatus.COMPLETED
+      elif new_status == WorkItemStatus.FAILED:
+        self.work_status[work_item] = WorkItemStatus.FAILED
+      else:
+        raise ValueError('Invalid WorkItemStatus: %d' % new_status)
+    if new_status == WorkItemStatus.COMPLETED:
+      self.work_stage[work_item].report_work_completion(work_item_id)
+    elif new_status == WorkItemStatus.FAILED:
+      # TODO: retry, failure count
+      with self.lock:
+        self.work_status[work_item] = WorkItemStatus.NOT_STARTED
+        self.unscheduled_work.put(work_item)
+    # worker = self.active_workers[worker_id]
+    # del self.active_workers[worker_id]
+
+
+
 
 
 class ComputeNodeManagerInterface(Interface):
@@ -726,22 +891,36 @@ class ComputeNodeManager(ComputeNodeManagerInterface):
 
 
 class ComputeNodeStubInterface(Interface):
-  pass
+  
+  @remote_method(str)
+  def confirm(self, message):
+    raise NotImplementedError
 
 class ComputeNodeStub(ComputeNodeStubInterface):
   def __init__(self, node_config):
     # TODO: node_config should be a class or something, not just a dict
-    #self.config = node_config
+    self.config = node_config
     # TODO: id?
     self.name = node_config['name']
     self.channel_manager = get_channel_manager()
-
+    self.channel_manager.register_interface('%s/stub' % self.name, self)
     self.node_manager = self.channel_manager.get_interface('master/node_manager', ComputeNodeManagerInterface)
+    self.worker = None
 
 
   def start(self):
     time.sleep(0.1)  # TODO: wait for node manager / link to be ready.
     self.node_manager.report_node_started(self.name)
+
+  # REMOTE METHOD
+  def start_worker(self):
+    # TODO: maybe in the future this will be another process
+    self.worker = LaserWorker(self.config)
+    self.worker.start()
+
+
+  def confirm(self, message):
+    print 'CONFIRMed', self.name, message
 
 
 class InProcessComputeNodeManager(ComputeNodeManager):
@@ -752,22 +931,30 @@ class InProcessComputeNodeManager(ComputeNodeManager):
     self.channel_manager = get_channel_manager()
     self.channel_manager.register_interface('master/node_manager', self)
 
+    self.node_stubs = {}
+
 
   def start(self):
     for i in range(self.num_nodes):
       worker_name = 'worker%d' % i
+      self.channel_manager.register_node_address(worker_name)
       node_stub = ComputeNodeStub({'name': worker_name})
       threading.Thread(target=node_stub.start).start()
+      self.node_stubs[worker_name] = node_stub
     self.started = True
 
   def report_node_started(self, node_name):
+    # TODO: assert node name is correct
+    # TODO: what happens if node restarts?
     print 'NODE STARTED', node_name
+    node_stub = self.channel_manager.get_interface('%s/stub' % node_name, ComputeNodeStubInterface)
+    node_stub.confirm('yay' + str(self))
     return 'HI[%s]' % node_name
 
 
   def get_nodes(self):
     self._check_started()
-    return []
+    return list(self.node_stubs.values())
 
 
 
@@ -835,8 +1022,8 @@ if __name__ == '__main__':
   logging.getLogger().setLevel(logging.DEBUG)
   set_channel_config(ChannelConfig(
     node_addresses=['master']))
-  InProcessComputeNodeManager().start()
-  raise ''
+  # InProcessComputeNodeManager().start()
+  # raise ''
   # run(sys.argv)
   from apache_beam import Pipeline
   from apache_beam import Create
@@ -848,9 +1035,9 @@ if __name__ == '__main__':
   a = p | 'yo' >> Create(['a', 'b', 'c'])
   def _print(x):
     print 'PRRRINT:', x
-  # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
-  # a | beam.Map(lambda x: (x, '1')) |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
-  p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+  a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
+  a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
+  # p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
   # | beam.Map(fn)
   p.run()
 
