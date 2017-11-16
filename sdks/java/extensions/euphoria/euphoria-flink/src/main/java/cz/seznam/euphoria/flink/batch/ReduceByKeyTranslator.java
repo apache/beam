@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.flink.batch;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -91,9 +90,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
             Iterable<Window> assigned = windowing.assignWindowsToElement(wel);
             for (Window wid : assigned) {
               Object el = wel.getElement();
-              long stamp = (wid instanceof TimedWindow)
-                  ? ((TimedWindow) wid).maxTimestamp()
-                  : wel.getTimestamp();
+              long stamp = wid.maxTimestamp() - 1;
               c.collect(new BatchElement<>(
                       wid, stamp, Pair.of(udfKey.apply(el), udfValue.apply(el))));
             }

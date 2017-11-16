@@ -18,6 +18,7 @@ package cz.seznam.euphoria.operator.test;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 class IntWindow extends Window<IntWindow> {
+  
   private int val;
 
   IntWindow(int val) {
