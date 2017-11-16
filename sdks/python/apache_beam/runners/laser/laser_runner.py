@@ -799,6 +799,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
     self.work_status = {}
     self.work_stage = {}
     self.lock = threading.Lock()
+    self.event_condition = threading.Condition(self.lock)
 
     self.worker_interfaces = {}
     self.all_workers = set()
@@ -843,8 +844,11 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       for worker_interface, work_item in to_execute:
         worker_interface.schedule_work_item(work_item)
 
-      # TODO: respond to events instead of polling
-      time.sleep(0.5)
+      with self.lock:
+        if not self.unscheduled_work.empty() and self.idle_workers:
+          continue
+        else:
+          self.event_condition.wait()
 
   # REMOTE METHOD
   def register_worker(self, worker_id):
@@ -855,6 +859,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       self.worker_interfaces[worker_id] = worker_interface
       self.all_workers.add(worker_id)
       self.idle_workers.add(worker_id)
+      self.event_condition.notify()
 
   # REMOTE METHOD
   def report_work_status(self, worker_id, work_item_id, new_status):
@@ -876,8 +881,10 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       with self.lock:
         self.work_status[work_item] = WorkItemStatus.NOT_STARTED
         self.unscheduled_work.put(work_item)
-    self.active_workers.remove(worker_id)
-    self.idle_workers.add(worker_id)
+    with self.lock:
+      self.active_workers.remove(worker_id)
+      self.idle_workers.add(worker_id)
+      self.event_condition.notify()
     # worker = self.active_workers[worker_id]
     # del self.active_workers[worker_id]
 
