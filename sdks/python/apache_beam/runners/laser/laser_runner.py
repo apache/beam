@@ -432,18 +432,30 @@ class FusedStage(Stage, CompositeWatermarkNode):
 
     print 'MAPTASK GENERATION!!'
     all_operations = list(step.as_operation(self.step_index) for step in self.steps)
-    step_names = list('s%s' % ix for ix in range(len(self.steps)))
-    system_names = step_names
-    original_names = list(step.name for step in self.steps)
-    map_task = operation_specs.MapTask(all_operations, self.name, system_names, step_names, original_names)
-    print 'MAPTASK', map_task
-    # counter_factory = CounterFactory()
-    # state_sampler = statesampler.StateSampler(self.name, counter_factory)
-    # map_executor = operations.SimpleMapTaskExecutor(map_task, counter_factory, state_sampler)
-    # map_executor.execute()
-    print 'SCHEDULING WORK...'
-    work_item_id = self.execution_context.work_manager.schedule_map_task(self, map_task)
-    self.pending_work_item_ids.add(work_item_id)
+
+    # Perform initial source splitting.
+    read_op = all_operations[0]
+    assert isinstance(read_op, operation_specs.WorkerRead)
+    split_source_bundles = list(read_op.source.source.split(1024))
+    split_read_ops = []
+    for source_bundle in split_source_bundles:
+      new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
+      split_read_ops.append(new_read_op)
+
+    for removeme_i, split_read_op in enumerate(split_read_ops):
+      ops = [split_read_op] + all_operations[1:]
+      step_names = list('s%s' % ix for ix in range(len(self.steps)))
+      system_names = step_names
+      original_names = list(step.name for step in self.steps)
+      map_task = operation_specs.MapTask(ops, self.name, system_names, step_names, original_names)
+      print 'MAPTASK', map_task
+      # counter_factory = CounterFactory()
+      # state_sampler = statesampler.StateSampler(self.name, counter_factory)
+      # map_executor = operations.SimpleMapTaskExecutor(map_task, counter_factory, state_sampler)
+      # map_executor.execute()
+      print 'SCHEDULING WORK (%d / %d)...' % (removeme_i + 1, len(split_read_ops))
+      work_item_id = self.execution_context.work_manager.schedule_map_task(self, map_task)
+      self.pending_work_item_ids.add(work_item_id)
     print 'DONE SCHEDULING WORK!'
     # self.input_watermark_node.set_watermark_hold(None)
 
@@ -543,7 +555,7 @@ class LaserRunner(PipelineRunner):
     else:
       source_bundle = source_input
     print 'source', source_bundle
-    print 'split off', list(source_bundle.source.split(1024))
+    # print 'split off', list(source_bundle.source.split(1024))
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
     
@@ -1032,6 +1044,7 @@ if __name__ == '__main__':
   # def fn(input):
   #   print input
   p | Create([1, 2, 3]) | beam.Map(lambda x: (x, '1')) | beam.GroupByKey()
+  p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
   a = p | 'yo' >> Create(['a', 'b', 'c'])
   def _print(x):
     print 'PRRRINT:', x
