@@ -296,6 +296,8 @@ public class FlinkExecutor implements Executor {
   /**
    * Retrieve parallelism (in case of local runner).
    * Distributed runner returns always -1.
+   *
+   * @return explicit parallelism of the runner or -1 if default
    */
   protected int getParallelism() {
     return -1;

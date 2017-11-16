@@ -21,7 +21,6 @@ import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -53,6 +52,7 @@ import java.util.Objects;
  * An implementation of a RSBK group reducer of an ordered stream
  * of already grouped (by a specific key) and windowed elements where
  * no late-comers are tolerated.
+ * Use this class only in batch mode!
  */
 @Audience(Audience.Type.EXECUTOR)
 public class GroupReducer<WID extends Window, KEY, I> {
@@ -73,16 +73,6 @@ public class GroupReducer<WID extends Window, KEY, I> {
   public interface WindowedElementFactory<W extends Window, T> {
     WindowedElement<W, T> create(W window, long timestamp, T element);
   }
-
-  /**
-   * Determines whether the group-reduce should allow early emitting
-   * of output values through states, by supplying them with the output
-   * context upon their creation;
-   * note: early emitting may break watermarking in downstream consumers
-   * (e.g. for time-sliding) and may produce elements with the wrong
-   * window when used together with a merging windowing strategy.
-   */
-  private final boolean allowEarlyEmitting;
 
   private final StateFactory<I, ?, State<I, ?>> stateFactory;
   private final StateMerger<I, ?, State<I, ?>> stateCombiner;
@@ -106,8 +96,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
                       Windowing windowing,
                       Trigger trigger,
                       Collector<WindowedElement<?, Pair<KEY, ?>>> collector,
-                      AccumulatorProvider accumulators,
-                      boolean allowEarlyEmitting) {
+                      AccumulatorProvider accumulators) {
     this.stateFactory = Objects.requireNonNull(stateFactory);
     this.elementFactory = Objects.requireNonNull(elementFactory);
     this.stateCombiner = Objects.requireNonNull(stateCombiner);
@@ -116,7 +105,6 @@ public class GroupReducer<WID extends Window, KEY, I> {
     this.windowing = Objects.requireNonNull(windowing);
     this.trigger = Objects.requireNonNull(trigger);
     this.accumulators = Objects.requireNonNull(accumulators);
-    this.allowEarlyEmitting = allowEarlyEmitting;
 
     this.triggerStorage = new TriggerStorage(stateContext.getStorageProvider());
   }
@@ -155,10 +143,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
   @SuppressWarnings("unchecked")
   private State getStateForUpdate(WID window) {
     return states.computeIfAbsent(window, w -> {
-      ElementCollector col = allowEarlyEmitting
-          ? new ElementCollector(collector, w)
-          : null;
-      return stateFactory.createState(stateContext, col);
+      return stateFactory.createState(stateContext, null);
     });
   }
 
@@ -280,9 +265,11 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
   }
 
-  class ElementCollector<T> implements Context, cz.seznam.euphoria.core.client.io.Collector<T> {
+  class ElementCollector<T>
+      implements Context, cz.seznam.euphoria.core.client.io.Collector<T> {
+
     final Collector<WindowedElement<WID, Pair<KEY, T>>> out;
-    WID window;
+    final WID window;
 
     ElementCollector(Collector<WindowedElement<WID, Pair<KEY, T>>> out, WID window) {
       this.out = out;
@@ -292,10 +279,9 @@ public class GroupReducer<WID extends Window, KEY, I> {
     @Override
     @SuppressWarnings("unchecked")
     public void collect(T elem) {
-      long stamp = (window instanceof TimedWindow)
-          ? ((TimedWindow) window).maxTimestamp()
-          : clock.getStamp();
-      out.collect((WindowedElement) elementFactory.create(window, stamp, Pair.of(key, elem)));
+      out.collect((WindowedElement) elementFactory.create(
+          window, window.maxTimestamp() - 1,
+          Pair.of(key, elem)));
     }
 
     @Override
