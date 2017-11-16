@@ -28,10 +28,12 @@ import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParamete
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -39,6 +41,7 @@ import java.io.Serializable;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -46,6 +49,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
@@ -72,6 +76,7 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.MimeTypes;
@@ -103,10 +108,9 @@ import org.slf4j.LoggerFactory;
  *
  * <p>In order to ensure fault-tolerance, a bundle may be executed multiple times (e.g., in the
  * event of failure/retry or for redundancy). However, exactly one of these executions will have its
- * result passed to the finalize method. Each call to {@link Writer#open} or {@link
- * Writer#openUnwindowed} is passed a unique <i>bundle id</i> when it is called by the WriteFiles
- * transform, so even redundant or retried bundles will have a unique way of identifying their
- * output.
+ * result passed to the finalize method. Each call to {@link Writer#open} is passed a unique
+ * <i>bundle id</i> when it is called by the WriteFiles transform, so even redundant or retried
+ * bundles will have a unique way of identifying their output.
  *
  * <p>The bundle id should be used to guarantee that a bundle's output is unique. This uniqueness
  * guarantee is important; if a bundle is to be output to a file, for example, the name of the file
@@ -447,7 +451,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    * written,
    *
    * <ol>
-   *   <li>{@link WriteOperation#finalize} is given a list of the temporary files containing the
+   *   <li>{@link WriteOperation#finalizeDestination} is given a list of the temporary files containing the
    *       output bundles.
    *   <li>During finalize, these temporary files are copied to final output locations and named
    *       according to a file naming template.
@@ -577,17 +581,22 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      * not be cleaned up. Note that {@link WriteFiles} does attempt clean up files if exceptions
      * are thrown, however there are still some scenarios where temporary files might be left.
      */
-    public void removeTemporaryFiles(Set<ResourceId> filenames) throws IOException {
+    public void removeTemporaryFiles(Collection<ResourceId> filenames) throws IOException {
       removeTemporaryFiles(filenames, !windowedWrites);
     }
 
     @Experimental(Kind.FILESYSTEM)
-    protected final List<KV<FileResult<DestinationT>, ResourceId>> buildOutputFilenames(
+    protected final List<KV<FileResult<DestinationT>, ResourceId>> finalizeDestination(
         @Nullable DestinationT dest,
         @Nullable BoundedWindow window,
         @Nullable Integer numShards,
-        Iterable<FileResult<DestinationT>> writerResults) {
-      for (FileResult<DestinationT> res : writerResults) {
+        Collection<FileResult<DestinationT>> existingResults) throws Exception {
+      Collection<FileResult<DestinationT>> completeResults =
+          windowedWrites
+              ? existingResults
+              : createMissingEmptyShards(dest, numShards, existingResults);
+
+      for (FileResult<DestinationT> res : completeResults) {
         checkArgument(
             Objects.equals(dest, res.getDestination()),
             "File result has wrong destination: expected %s, got %s",
@@ -602,7 +611,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       final int effectiveNumShards;
       if (numShards != null) {
         effectiveNumShards = numShards;
-        for (FileResult<DestinationT> res : writerResults) {
+        for (FileResult<DestinationT> res : completeResults) {
           checkArgument(
               res.getShard() != UNKNOWN_SHARDNUM,
               "Fixed sharding into %s shards was specified, "
@@ -611,8 +620,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
               res);
         }
       } else {
-        effectiveNumShards = Iterables.size(writerResults);
-        for (FileResult<DestinationT> res : writerResults) {
+        effectiveNumShards = Iterables.size(completeResults);
+        for (FileResult<DestinationT> res : completeResults) {
           checkArgument(
               res.getShard() == UNKNOWN_SHARDNUM,
               "Runner-chosen sharding was specified, "
@@ -623,7 +632,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
       List<FileResult<DestinationT>> resultsWithShardNumbers = Lists.newArrayList();
       if (numShards != null) {
-        resultsWithShardNumbers = Lists.newArrayList(writerResults);
+        resultsWithShardNumbers = Lists.newArrayList(completeResults);
       } else {
         checkState(
             !windowedWrites,
@@ -644,7 +653,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
                         return firstFilename.compareTo(secondFilename);
                       }
                     })
-                .sortedCopy(writerResults);
+                .sortedCopy(completeResults);
         for (int i = 0; i < sortedByTempFilename.size(); i++) {
           resultsWithShardNumbers.add(sortedByTempFilename.get(i).withShard(i));
         }
@@ -672,10 +681,71 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return outputFilenames;
     }
 
+    private Collection<FileResult<DestinationT>> createMissingEmptyShards(
+        @Nullable DestinationT dest,
+        @Nullable Integer numShards,
+        Collection<FileResult<DestinationT>> existingResults)
+        throws Exception {
+      Collection<FileResult<DestinationT>> completeResults;
+      LOG.info("Finalizing for destination {} num shards {}.", dest, existingResults.size());
+      if (numShards != null) {
+        checkArgument(
+            existingResults.size() <= numShards,
+            "Fixed sharding into %s shards was specified, but got %s file results",
+            numShards,
+            existingResults.size());
+      }
+      // We must always output at least 1 shard, and honor user-specified numShards
+      // if set.
+      Set<Integer> missingShardNums;
+      if (numShards == null) {
+        missingShardNums = ImmutableSet.of(UNKNOWN_SHARDNUM);
+      } else {
+        missingShardNums = Sets.newHashSet();
+        for (int i = 0; i < numShards; ++i) {
+          missingShardNums.add(i);
+        }
+        for (FileResult<DestinationT> res : existingResults) {
+          checkArgument(
+              res.getShard() != UNKNOWN_SHARDNUM,
+              "Fixed sharding into %s shards was specified, "
+                  + "but file result %s does not specify a shard",
+              numShards,
+              res);
+          missingShardNums.remove(res.getShard());
+        }
+      }
+      completeResults = Lists.newArrayList(existingResults);
+      if (!missingShardNums.isEmpty()) {
+        LOG.info(
+            "Creating {} empty output shards in addition to {} written for destination {}.",
+            missingShardNums.size(),
+            existingResults.size(),
+            dest);
+        for (int shard : missingShardNums) {
+          String uuid = UUID.randomUUID().toString();
+          LOG.info("Opening empty writer {} for destination {}", uuid, dest);
+          Writer<DestinationT, ?> writer = createWriter();
+          // Currently this code path is only called in the unwindowed case.
+          writer.open(uuid, dest);
+          writer.close();
+          completeResults.add(
+              new FileResult<>(
+                  writer.getOutputFile(),
+                  shard,
+                  GlobalWindow.INSTANCE,
+                  PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                  dest));
+        }
+        LOG.debug("Done creating extra shards for {}.", dest);
+      }
+      return completeResults;
+    }
+
     /**
      * Copy temporary files to final output filenames using the file naming template.
      *
-     * <p>Can be called from subclasses that override {@link WriteOperation#finalize}.
+     * <p>Can be called from subclasses that override {@link WriteOperation#finalizeDestination}.
      *
      * <p>Files will be named according to the {@link FilenamePolicy}. The order of the output files
      * will be the same as the sorted order of the input filenames. In other words (when using
@@ -686,40 +756,38 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
      */
     @VisibleForTesting
     @Experimental(Kind.FILESYSTEM)
-    final void copyToOutputFiles(
+    final void moveToOutputFiles(
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
       int numFiles = resultsToFinalFilenames.size();
-      if (numFiles > 0) {
-        LOG.debug("Copying {} files.", numFiles);
-        List<ResourceId> srcFiles = new ArrayList<>(resultsToFinalFilenames.size());
-        List<ResourceId> dstFiles = new ArrayList<>(resultsToFinalFilenames.size());
-        for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
-          srcFiles.add(entry.getKey().getTempFilename());
-          dstFiles.add(entry.getValue());
-          LOG.info(
-              "Will copy temporary file {} to final location {}",
-              entry.getKey().getTempFilename(),
-              entry.getValue());
-        }
-        // During a failure case, files may have been deleted in an earlier step. Thus
-        // we ignore missing files here.
-        FileSystems.copy(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
-      } else {
-        LOG.info("No output files to write.");
+      LOG.debug("Copying {} files.", numFiles);
+      List<ResourceId> srcFiles = new ArrayList<>(resultsToFinalFilenames.size());
+      List<ResourceId> dstFiles = new ArrayList<>(resultsToFinalFilenames.size());
+      for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
+        srcFiles.add(entry.getKey().getTempFilename());
+        dstFiles.add(entry.getValue());
+        LOG.info(
+            "Will copy temporary file {} to final location {}",
+            entry.getKey().getTempFilename(),
+            entry.getValue());
       }
+      // During a failure case, files may have been deleted in an earlier step. Thus
+      // we ignore missing files here.
+      FileSystems.copy(srcFiles, dstFiles, StandardMoveOptions.IGNORE_MISSING_FILES);
+      removeTemporaryFiles(srcFiles);
     }
 
     /**
      * Removes temporary output files. Uses the temporary directory to find files to remove.
      *
-     * <p>Can be called from subclasses that override {@link WriteOperation#finalize}.
+     * <p>Can be called from subclasses that override {@link WriteOperation#finalizeDestination}.
      * <b>Note:</b>If finalize is overridden and does <b>not</b> rename or otherwise finalize
      * temporary files, this method will remove them.
      */
     @VisibleForTesting
     @Experimental(Kind.FILESYSTEM)
     final void removeTemporaryFiles(
-        Set<ResourceId> knownFiles, boolean shouldRemoveTemporaryDirectory) throws IOException {
+        Collection<ResourceId> knownFiles, boolean shouldRemoveTemporaryDirectory)
+        throws IOException {
       ResourceId tempDir = tempDirectory.get();
       LOG.debug("Removing temporary bundle output files in {}.", tempDir);
 
