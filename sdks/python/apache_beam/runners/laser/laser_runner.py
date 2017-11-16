@@ -436,7 +436,8 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Perform initial source splitting.
     read_op = all_operations[0]
     assert isinstance(read_op, operation_specs.WorkerRead)
-    split_source_bundles = list(read_op.source.source.split(1024))
+    split_source_bundles = list(read_op.source.source.split(1))
+    print '!!! SPLIT OFF', split_source_bundles
     split_read_ops = []
     for source_bundle in split_source_bundles:
       new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
@@ -555,7 +556,7 @@ class LaserRunner(PipelineRunner):
     else:
       source_bundle = source_input
     print 'source', source_bundle
-    # print 'split off', list(source_bundle.source.split(1024))
+    # print 'split off', list(source_bundle.source.split(1))
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
     
@@ -799,6 +800,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
     self.work_stage = {}
     self.lock = threading.Lock()
 
+    self.worker_interfaces = {}
     self.all_workers = set()
     self.idle_workers = set()
     self.active_workers = set()
@@ -827,17 +829,19 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       while keep_scheduling:
         with self.lock:
           work_item = None
-          worker = None
+          worker_interface = None
           if not self.unscheduled_work.empty() and self.idle_workers:
             work_item = self.unscheduled_work.get()
-            worker = self.idle_workers.pop()
-            to_execute.append((worker, work_item))
+            worker_id = self.idle_workers.pop()
+            self.active_workers.add(worker_id)
+            worker_interface = self.worker_interfaces[worker_id]
+            to_execute.append((worker_interface, work_item))
             self.work_status[work_item] = WorkItemStatus.RUNNING  # TODO: do we want more granular status?
           else:
             keep_scheduling = False
       print 'SCHEDULING', to_execute
-      for worker, work_item in to_execute:
-        worker.schedule_work_item(work_item)
+      for worker_interface, work_item in to_execute:
+        worker_interface.schedule_work_item(work_item)
 
       # TODO: respond to events instead of polling
       time.sleep(0.5)
@@ -847,9 +851,10 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
     print '********************REGISTER WORKER', worker_id
     with self.lock:
       # TODO: get a better worker wrapper class.
-      worker = self.channel_manager.get_interface('%s/worker' % worker_id, WorkerInterface)
-      self.all_workers.add(worker)
-      self.idle_workers.add(worker)
+      worker_interface = self.channel_manager.get_interface('%s/worker' % worker_id, WorkerInterface)
+      self.worker_interfaces[worker_id] = worker_interface
+      self.all_workers.add(worker_id)
+      self.idle_workers.add(worker_id)
 
   # REMOTE METHOD
   def report_work_status(self, worker_id, work_item_id, new_status):
@@ -871,6 +876,8 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       with self.lock:
         self.work_status[work_item] = WorkItemStatus.NOT_STARTED
         self.unscheduled_work.put(work_item)
+    self.active_workers.remove(worker_id)
+    self.idle_workers.add(worker_id)
     # worker = self.active_workers[worker_id]
     # del self.active_workers[worker_id]
 
