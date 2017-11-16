@@ -477,7 +477,6 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-
   public static String[] convertToArgs(PipelineOptions options) {
     try {
       byte[] opts = MAPPER.writeValueAsBytes(options);
