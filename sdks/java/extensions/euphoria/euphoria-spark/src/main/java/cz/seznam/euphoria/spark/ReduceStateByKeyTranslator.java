@@ -205,8 +205,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
                 windowing,
                 trigger,
                 el -> context.collect((SparkElement) el),
-                accumulators,
-                false);
+                accumulators);
 
             activeReducers.put(kw.key(), reducer);
           }

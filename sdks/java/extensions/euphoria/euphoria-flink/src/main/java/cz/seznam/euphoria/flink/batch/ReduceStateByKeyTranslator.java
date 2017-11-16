@@ -161,8 +161,7 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
                   windowing,
                   trigger,
                   elem -> out.collect((BatchElement) elem),
-                  accumulatorFactory.create(settings, getRuntimeContext()),
-                  false);
+                  accumulatorFactory.create(settings, getRuntimeContext()));
           activeReducers.put(key, reducer);
         }
 

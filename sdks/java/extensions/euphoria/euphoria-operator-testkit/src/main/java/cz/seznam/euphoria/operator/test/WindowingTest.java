@@ -29,6 +29,7 @@ import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
@@ -66,10 +67,13 @@ public class WindowingTest extends AbstractOperatorTest {
 
   @Test
   public void consecutiveWindowingTest_ReduceByKey() {
-    execute(new AbstractTestCase<Triple<Instant, Type, String>, Triple<Instant, Type, Long>>() {
+    execute(new AbstractTestCase<
+        Triple<Instant, Type, String>, Triple<Instant, Type, Long>>() {
 
       @Override
-      protected Dataset<Triple<Instant, Type, Long>> getOutput(Dataset<Triple<Instant, Type, String>> input) {
+      protected Dataset<Triple<Instant, Type, Long>> getOutput(
+          Dataset<Triple<Instant, Type, String>> input) {
+
         input = AssignEventTime.of(input).using(t -> t.getFirst().toEpochMilli()).output();
         Dataset<ComparablePair<Type, String>> distinct =
                 Distinct.of(input)
@@ -84,13 +88,14 @@ public class WindowingTest extends AbstractOperatorTest {
                 .windowBy(Time.of(Duration.ofHours(1)))
                 .output();
 
-        // extract window timestamp
-        return FlatMap.of(reduced)
-                .using((Pair<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
-                  long windowEnd = ((TimeInterval) ctx.getWindow()).getEndMillis();
-                  ctx.collect(Triple.of(Instant.ofEpochMilli(windowEnd), p.getFirst(), p.getSecond()));
-                })
-                .output();
+        // extract window end timestamp
+        return FlatMap
+            .of(reduced)
+            .using((Pair<Type, Long> p, Collector<Triple<Instant, Type, Long>> ctx) -> {
+              long windowEnd = ((TimeInterval) ctx.getWindow()).getEndMillis();
+              ctx.collect(Triple.of(Instant.ofEpochMilli(windowEnd), p.getFirst(), p.getSecond()));
+            })
+            .output();
       }
 
       @Override
@@ -412,4 +417,44 @@ public class WindowingTest extends AbstractOperatorTest {
     });
     assertEquals(true, ON_CLEAR_VALIDATED.get());
   }
+
+  @Test
+  public void testTimeWindowingElementsAtBoundaries() {
+    execute(new AbstractTestCase<Integer, Pair<TimeInterval, Integer>>() {
+
+      @Override
+      protected Dataset<Pair<TimeInterval, Integer>> getOutput(Dataset<Integer> input) {
+        // interpret each input element as time and just count number of
+        // elements inside each window
+        Dataset<Integer> timed = AssignEventTime.of(input)
+            .using(e -> e * 1000L)
+            .output();
+        Dataset<Integer> counts = ReduceWindow.of(timed)
+            .valueBy(e -> 1)
+            .combineBy(Sums.ofInts())
+            .windowBy(Time.of(Duration.ofHours(1)))
+            .output();
+
+        return Util.extractWindow(counts);
+
+      }
+
+      @Override
+      protected List<Integer> getInput() {
+        return Arrays.asList(
+            0, 1, 3599, 3599, 3600, 3600, 7199
+        );
+      }
+
+      @SuppressWarnings("unchecked")
+      @Override
+      public List<Pair<TimeInterval, Integer>> getUnorderedOutput() {
+        return Arrays.asList(
+            Pair.of(new TimeInterval(0, 3600000), 4),
+            Pair.of(new TimeInterval(3600000, 7200000), 3)
+        );
+      }
+    });
+  }
+
 }

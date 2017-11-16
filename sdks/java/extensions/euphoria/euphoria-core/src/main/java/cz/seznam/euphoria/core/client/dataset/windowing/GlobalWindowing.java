@@ -57,6 +57,11 @@ public final class GlobalWindowing<T>
     public int compareTo(GlobalWindowing.Window o) {
       return 0;
     }
+
+    @Override
+    public long maxTimestamp() {
+      return Long.MAX_VALUE;
+    }
   } // ~ end of Label
 
   private final static GlobalWindowing<?> INSTANCE = new GlobalWindowing<>();

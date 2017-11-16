@@ -29,6 +29,15 @@ import java.io.Serializable;
 @Audience(Audience.Type.CLIENT)
 public abstract class Window<T extends Window<T>> implements Serializable, Comparable<T> {
 
+  /**
+   * Return lowest timestamp greater than any element that can be present in
+   * this window.
+   * @return window fire and purge timestamp
+   */
+  public long maxTimestamp() {
+    return Long.MAX_VALUE;
+  }
+
   @Override
   public abstract int hashCode();
 
