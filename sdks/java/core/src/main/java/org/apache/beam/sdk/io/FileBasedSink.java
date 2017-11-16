@@ -655,6 +655,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         checkArgument(
             result.getShard() != UNKNOWN_SHARDNUM, "Should have set shard number on %s", result);
         ResourceId finalFilename = result.getDestinationFile(
+            windowedWrites,
             getSink().getDynamicDestinations(),
             effectiveNumShards,
             getSink().getWritableByteChannelFactory());
@@ -984,7 +985,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
   public static final class FileResult<DestinationT> {
     private final ResourceId tempFilename;
     private final int shard;
-    private final @Nullable BoundedWindow window;
+    private final BoundedWindow window;
     private final PaneInfo paneInfo;
     private final DestinationT destination;
 
@@ -992,9 +993,11 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     public FileResult(
         ResourceId tempFilename,
         int shard,
-        @Nullable BoundedWindow window,
+        BoundedWindow window,
         PaneInfo paneInfo,
         DestinationT destination) {
+      checkArgument(window != null);
+      checkArgument(paneInfo != null);
       this.tempFilename = tempFilename;
       this.shard = shard;
       this.window = window;
@@ -1029,13 +1032,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     @Experimental(Kind.FILESYSTEM)
     public ResourceId getDestinationFile(
+        boolean windowedWrites,
         DynamicDestinations<?, DestinationT, ?> dynamicDestinations,
         int numShards,
         OutputFileHints outputFileHints) {
       checkArgument(getShard() != UNKNOWN_SHARDNUM);
       checkArgument(numShards > 0);
       FilenamePolicy policy = dynamicDestinations.getFilenamePolicy(destination);
-      if (getWindow() != null) {
+      if (windowedWrites) {
         return policy.windowedFilename(
             getShard(), numShards, getWindow(), getPaneInfo(), outputFileHints);
       } else {

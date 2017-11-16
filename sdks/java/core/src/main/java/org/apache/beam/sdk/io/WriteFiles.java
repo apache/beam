@@ -71,6 +71,7 @@ import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
@@ -387,7 +388,6 @@ public class WriteFiles<UserT, DestinationT, OutputT>
   private class WriteBundles extends DoFn<UserT, FileResult<DestinationT>> {
     private final TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag;
     private final Coder<DestinationT> destinationCoder;
-    private final boolean windowedWrites;
 
     // Initialized in startBundle()
     private @Nullable Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers;
@@ -395,10 +395,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
     private int spilledShardNum = UNKNOWN_SHARDNUM;
 
     WriteBundles(
-        boolean windowedWrites,
         TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag,
         Coder<DestinationT> destinationCoder) {
-      this.windowedWrites = windowedWrites;
       this.unwrittenRecordsTag = unwrittenRecordsTag;
       this.destinationCoder = destinationCoder;
     }
@@ -466,13 +464,11 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           throw e;
         }
         BoundedWindow window = key.window;
-        FileResult<DestinationT> res =
-            windowedWrites
-                ? new FileResult<>(
-                    writer.getOutputFile(), UNKNOWN_SHARDNUM, window, key.paneInfo, key.destination)
-                : new FileResult<>(
-                    writer.getOutputFile(), UNKNOWN_SHARDNUM, null, null, key.destination);
-        c.output(res, window.maxTimestamp(), window);
+        c.output(
+            new FileResult<>(
+                writer.getOutputFile(), UNKNOWN_SHARDNUM, window, key.paneInfo, key.destination),
+            window.maxTimestamp(),
+            window);
       }
     }
 
@@ -535,14 +531,9 @@ public class WriteFiles<UserT, DestinationT, OutputT>
             shardNumberAssignment == ShardAssignment.ASSIGN_WHEN_WRITING
                 ? c.element().getKey().getShardNumber()
                 : UNKNOWN_SHARDNUM;
-        if (windowedWrites) {
-          c.output(
-              new FileResult<>(
-                  writer.getOutputFile(), shardNumber, window, c.pane(), entry.getKey()));
-        } else {
-          c.output(
-              new FileResult<>(writer.getOutputFile(), shardNumber, null, null, entry.getKey()));
-        }
+        c.output(
+            new FileResult<>(
+                writer.getOutputFile(), shardNumber, window, c.pane(), entry.getKey()));
       }
     }
 
@@ -706,7 +697,7 @@ public class WriteFiles<UserT, DestinationT, OutputT>
       PCollectionTuple writeTuple =
           input.apply(
               writeName,
-              ParDo.of(new WriteBundles(windowedWrites, unwrittedRecordsTag, destinationCoder))
+              ParDo.of(new WriteBundles(unwrittedRecordsTag, destinationCoder))
                   .withSideInputs(sideInputs)
                   .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittedRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
@@ -1011,14 +1002,19 @@ public class WriteFiles<UserT, DestinationT, OutputT>
           writer.open(uuid, destination);
           writer.close();
           completeResults.add(
-              new FileResult<>(writer.getOutputFile(), shard, null, null, destination));
+              new FileResult<>(
+                  writer.getOutputFile(),
+                  shard,
+                  GlobalWindow.INSTANCE,
+                  PaneInfo.ON_TIME_AND_ONLY_FIRING,
+                  destination));
         }
         LOG.debug("Done creating extra shards for {}.", destination);
       }
       return
           writeOperation.buildOutputFilenames(
               destination,
-              null,
+              GlobalWindow.INSTANCE,
               (fixedNumShards == null) ? null : completeResults.size(),
               completeResults);
     }
