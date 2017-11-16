@@ -36,6 +36,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -58,6 +59,7 @@ import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.RestoreSystemProperties;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.junit.Rule;
 import org.junit.Test;
@@ -120,6 +122,19 @@ public class PipelineOptionsFactoryTest {
     TestPipelineOptions options = PipelineOptionsFactory.as(TestPipelineOptions.class);
     assertEquals(PipelineOptionsFactoryTest.class.getSimpleName(),
         options.as(ApplicationNameOptions.class).getAppName());
+  }
+
+  @Test
+  public void testOptionsIdIsSet() throws Exception {
+    ObjectMapper mapper = new ObjectMapper().registerModules(
+        ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
+    PipelineOptions options = PipelineOptionsFactory.create();
+    // We purposely serialize/deserialize to get another instance. This allows to test if the
+    // default has been set or not.
+    PipelineOptions clone =
+        mapper.readValue(mapper.writeValueAsString(options), PipelineOptions.class);
+    // It is important that we don't call getOptionsId() before we have created the clone.
+    assertEquals(options.getOptionsId(), clone.getOptionsId());
   }
 
   @Test

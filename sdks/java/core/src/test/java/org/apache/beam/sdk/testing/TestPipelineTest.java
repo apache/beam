@@ -125,10 +125,12 @@ public class TestPipelineTest implements Serializable {
       PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
       String[] arr = TestPipeline.convertToArgs(options);
       List<String> lst = Arrays.asList(arr);
-      assertEquals(lst.size(), 2);
+      assertEquals(lst.size(), 3);
       assertThat(
           lst,
-          containsInAnyOrder("--tempLocation=Test_Location", "--appName=TestPipelineCreationTest"));
+          containsInAnyOrder("--tempLocation=Test_Location",
+              "--appName=TestPipelineCreationTest",
+              "--optionsId=" + options.getOptionsId()));
     }
 
     @Test
