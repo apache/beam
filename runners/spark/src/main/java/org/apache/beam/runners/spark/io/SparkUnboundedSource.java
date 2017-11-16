@@ -22,6 +22,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collections;
+import java.util.Iterator;
+
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -309,8 +311,8 @@ public class SparkUnboundedSource {
       implements FlatMapFunction<Tuple2<Iterable<byte[]>, Metadata>, byte[]> {
 
     @Override
-    public Iterable<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
-      return t2._1();
+    public Iterator<byte[]> call(Tuple2<Iterable<byte[]>, Metadata> t2) throws Exception {
+      return t2._1().iterator();
     }
   }
 }
