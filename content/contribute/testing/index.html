@@ -178,7 +178,8 @@
   </li>
   <li><a href="#testing-types" id="markdown-toc-testing-types">Testing Types</a>    <ul>
       <li><a href="#unit" id="markdown-toc-unit">Unit</a>        <ul>
-          <li><a href="#how-to-run-needsrunner-tests" id="markdown-toc-how-to-run-needsrunner-tests">How to run NeedsRunner tests</a></li>
+          <li><a href="#how-to-run-python-unit-tests" id="markdown-toc-how-to-run-python-unit-tests">How to run Python unit tests</a></li>
+          <li><a href="#how-to-run-java-needsrunner-tests" id="markdown-toc-how-to-run-java-needsrunner-tests">How to run Java NeedsRunner tests</a></li>
         </ul>
       </li>
       <li><a href="#validatesrunner" id="markdown-toc-validatesrunner">ValidatesRunner</a></li>
@@ -487,7 +488,21 @@ importance of testing, Beam has a robust set of unit tests, as well as testing
 coverage measurement tools, which protect the codebase from simple to moderate
 breakages. Beam Java unit tests are written in JUnit.</p>
 
-<h4 id="how-to-run-needsrunner-tests">How to run NeedsRunner tests</h4>
+<h4 id="how-to-run-python-unit-tests">How to run Python unit tests</h4>
+
+<p>Python tests are written using the standard Python unittest library.
+To run all unit tests, execute the following command in the <code class="highlighter-rouge">sdks/python</code>
+subdirectory</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>python setup.py test [-s apache_beam.package.module.TestClass.test_method]
+</code></pre>
+</div>
+
+<p>We also provide a <a href="https://tox.readthedocs.io/en/latest/">tox</a> configuration
+in that same directory to run all the tests, including lint, cleanly in all
+desired configurations.</p>
+
+<h4 id="how-to-run-java-needsrunner-tests">How to run Java NeedsRunner tests</h4>
 
 <p>NeedsRunner is a category of tests that require a Beam runner. A subset of these
 tests cannot be executed while building their corresponding modules because all
@@ -638,7 +653,13 @@ runner (i.e. not a <code class="highlighter-rouge">CrashingRunner</code>) and/or
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Unsupported in Beam's Python SDK.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># The suggested pattern of using pipelines as targets of with statements</span>
+<span class="c"># eliminates the possibility for this kind of error or a framework</span>
+<span class="c"># to catch it.</span>
+
+<span class="k">with</span> <span class="n">beam</span><span class="o">.</span><span class="n">Pipeline</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="k">as</span> <span class="n">p</span><span class="p">:</span>
+    <span class="p">[</span><span class="o">...</span><span class="n">arbitrary</span> <span class="n">construction</span><span class="o">...</span><span class="p">]</span>
+    <span class="c"># p.run() is automatically called on successfully exiting the context</span>
 </code></pre>
 </div>
 
@@ -675,7 +696,7 @@ the test unless handled by an <code class="highlighter-rouge">ExpectedException<
 </code></pre>
 </div>
 
-<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Unsupported in Beam's Python SDK.</span>
+<div class="language-py highlighter-rouge"><pre class="highlight"><code><span class="c"># Unneeded in Beam's Python SDK.</span>
 </code></pre>
 </div>
 
