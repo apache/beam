@@ -63,6 +63,8 @@ public class GcpApiSurfaceTest {
             classesInPackage("com.google.cloud.bigtable.config"),
             classesInPackage("com.google.spanner.v1"),
             Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.ApiException.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.class),
+            Matchers.<Class<?>>equalTo(com.google.api.gax.rpc.StatusCode.Code.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableClusterName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableInstanceName.class),
             Matchers.<Class<?>>equalTo(com.google.cloud.bigtable.grpc.BigtableTableName.class),
