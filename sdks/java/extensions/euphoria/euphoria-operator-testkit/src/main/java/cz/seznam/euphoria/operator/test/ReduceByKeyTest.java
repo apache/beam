@@ -594,7 +594,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       public Iterable<TimeInterval> assignWindowsToElement(WindowedElement<?, T> el) {
         // ~ we expect the 'element time' to be the end of the window which produced the
         // element in the preceding upstream (stateful and windowed) operator
-        assertTrue(el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);
+        assertTrue("Invalid timestamp " + el.getTimestamp(),
+            el.getTimestamp() == 15_000L - 1 || el.getTimestamp() == 25_000L - 1);
         return Collections.singleton(new TimeInterval(0, Long.MAX_VALUE));
       }
 
@@ -610,7 +611,8 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
             // ~ we expect the 'time' to be the end of the window which produced the
             // element in the preceding upstream (stateful and windowed) operator
-            assertTrue(time == 15_000L - 1 || time == 25_000L - 1);
+            assertTrue("Invalid timestamp " + time,
+                time == 15_000L - 1 || time == 25_000L - 1);
             return super.onElement(time, window, ctx);
           }
         };

@@ -15,6 +15,10 @@
  */
 package cz.seznam.euphoria.operator.test;
 
+import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.core.client.util.Pair;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -27,8 +31,15 @@ class Util {
     list.sort(c);
     return list;
   }
-  
+
   static <T extends Comparable<T>> List<T> sorted(Collection<T> xs) {
     return sorted(xs, Comparator.naturalOrder());
+  }
+
+  @SuppressWarnings("unchecked")
+  static <T, W extends Window> Dataset<Pair<W, T>> extractWindow(Dataset<T> input) {
+    return MapElements.of(input)
+        .using((e, ctx) -> Pair.of((W) ctx.getWindow(), e))
+        .output();
   }
 }

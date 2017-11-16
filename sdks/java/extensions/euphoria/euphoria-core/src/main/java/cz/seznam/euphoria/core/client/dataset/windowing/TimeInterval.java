@@ -18,9 +18,7 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 @Audience(Audience.Type.CLIENT)
-public final class TimeInterval
-    extends Window<TimeInterval>
-    implements TimedWindow {
+public final class TimeInterval extends Window<TimeInterval> {
 
   private final long startMillis;
   private final long endMillis;
@@ -61,10 +59,7 @@ public final class TimeInterval
 
   @Override
   public long maxTimestamp() {
-    // ~ TimeInterval is practically right-open interval.
-    // End time should be excluded because it would overlap with
-    // the start time of the following window.
-    return this.endMillis - 1;
+    return this.endMillis;
   }
 
   @Override

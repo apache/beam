@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
@@ -114,9 +113,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
       List<Tuple2<KeyedWindow, TimestampedElement>> out = new ArrayList<>();
       for (Window wid : windows) {
         Object el = wel.getElement();
-        long stamp = (wid instanceof TimedWindow)
-                ? ((TimedWindow) wid).maxTimestamp()
-                : wel.getTimestamp();
+        long stamp = wid.maxTimestamp() - 1;
         out.add(new Tuple2<>(
                 new KeyedWindow<>(wid, stamp, keyExtractor.apply(el)),
                 new TimestampedElement(stamp, valueExtractor.apply(el))));
