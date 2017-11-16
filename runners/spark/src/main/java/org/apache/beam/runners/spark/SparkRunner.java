@@ -190,6 +190,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
                   jssc.start();
                 }
               });
+      executorService.shutdown();
 
       result = new SparkPipelineResult.StreamingMode(startPipeline, jssc);
     } else {
@@ -214,6 +215,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
                   LOG.info("Batch pipeline execution complete.");
                 }
               });
+      executorService.shutdown();
 
       result = new SparkPipelineResult.BatchMode(startPipeline, jsc);
     }
