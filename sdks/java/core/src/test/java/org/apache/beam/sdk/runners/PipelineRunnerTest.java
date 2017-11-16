@@ -17,9 +17,17 @@
  */
 package org.apache.beam.sdk.runners;
 
+import static org.apache.beam.sdk.metrics.MetricResultsMatchers.metricsResult;
+import static org.hamcrest.Matchers.hasItem;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
@@ -54,13 +62,16 @@ public class PipelineRunnerTest {
       extends SimpleFunction<T, Double> {
 
     private final double scalar;
+    private final Counter counter;
 
-    public ScaleFn(double scalar) {
+    public ScaleFn(double scalar, Counter counter) {
       this.scalar = scalar;
+      this.counter = counter;
     }
 
     @Override
     public Double apply(T input) {
+      counter.inc();
       return scalar * input.doubleValue();
     }
   }
@@ -68,17 +79,28 @@ public class PipelineRunnerTest {
   @Test
   @Category(ValidatesRunner.class)
   public void testRunPTransform() {
-    PipelineRunner pipelineRunner = PipelineRunner.create();
-    PTransform<PBegin, POutput> scaleByTwo = new PTransform<PBegin, POutput>() {
-      @Override
-      public POutput expand(PBegin input) {
-        PCollection<Double> output = input
-            .apply(Create.<Integer>of(1, 2, 3, 4))
-            .apply("ScaleByTwo", MapElements.via(new ScaleFn<Integer>(2.0)));
-        PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
-        return output;
-      }
-    };
-    pipelineRunner.run(scaleByTwo);
+    final String namespace = PipelineRunnerTest.class.getName();
+    final Counter counter = Metrics.counter(namespace, "count");
+    final PipelineResult result = PipelineRunner.create().run(
+        new PTransform<PBegin, POutput>() {
+          @Override
+          public POutput expand(PBegin input) {
+            PCollection<Double> output = input
+                .apply(Create.<Integer>of(1, 2, 3, 4))
+                .apply("ScaleByTwo", MapElements.via(new ScaleFn<Integer>(2.0, counter)));
+            PAssert.that(output).containsInAnyOrder(2.0, 4.0, 6.0, 8.0);
+            return output;
+          }
+        }
+    );
+
+    assertThat(
+        result.metrics().queryMetrics(
+            MetricsFilter.builder()
+                .addNameFilter(MetricNameFilter.inNamespace(namespace))
+                .build()
+        ).counters(),
+        hasItem(metricsResult(namespace, "count", "ScaleByTwo", 4L, true))
+    );
   }
 }
