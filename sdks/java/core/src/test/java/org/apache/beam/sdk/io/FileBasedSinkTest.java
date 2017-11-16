@@ -27,7 +27,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,7 +44,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.zip.GZIPInputStream;
 import org.apache.beam.sdk.io.FileBasedSink.CompressionType;
 import org.apache.beam.sdk.io.FileBasedSink.FileResult;
@@ -205,13 +203,8 @@ public class FileBasedSinkTest {
 
     // TODO: test with null first argument?
     List<KV<FileResult<Void>, ResourceId>> resultsToFinalFilenames =
-        writeOp.buildOutputFilenames(null, null, null, fileResults);
-    Set<ResourceId> tempFiles = Sets.newHashSet();
-    for (KV<FileResult<Void>, ResourceId> res : resultsToFinalFilenames) {
-      tempFiles.add(res.getKey().getTempFilename());
-    }
-    writeOp.copyToOutputFiles(resultsToFinalFilenames);
-    writeOp.removeTemporaryFiles(tempFiles);
+        writeOp.finalizeDestination(null, null, null, fileResults);
+    writeOp.moveToOutputFiles(resultsToFinalFilenames);
 
     for (int i = 0; i < numFiles; i++) {
       ResourceId outputFilename =
@@ -304,7 +297,7 @@ public class FileBasedSinkTest {
     }
 
     // Copy input files to output files.
-    writeOp.copyToOutputFiles(resultsToFinalFilenames);
+    writeOp.moveToOutputFiles(resultsToFinalFilenames);
 
     // Assert that the contents were copied.
     for (int i = 0; i < expectedOutputPaths.size(); i++) {
@@ -355,7 +348,7 @@ public class FileBasedSinkTest {
 
   /** Reject non-distinct output filenames. */
   @Test
-  public void testCollidingOutputFilenames() throws IOException {
+  public void testCollidingOutputFilenames() throws Exception {
     ResourceId root = getBaseOutputDirectory();
     SimpleSink<Void> sink =
         SimpleSink.makeSimpleSink(root, "file", "-NN", "test", Compression.UNCOMPRESSED);
@@ -366,12 +359,12 @@ public class FileBasedSinkTest {
     ResourceId temp3 = root.resolve("temp3", StandardResolveOptions.RESOLVE_FILE);
     // More than one shard does.
     try {
-      Iterable<FileResult<Void>> results =
+      List<FileResult<Void>> results =
           Lists.newArrayList(
               new FileResult<Void>(temp1, 1 /* shard */, null, null, null),
               new FileResult<Void>(temp2, 1 /* shard */, null, null, null),
               new FileResult<Void>(temp3, 1 /* shard */, null, null, null));
-      writeOp.buildOutputFilenames(null, null, 5 /* numShards */, results);
+      writeOp.finalizeDestination(null, null, 5 /* numShards */, results);
       fail("Should have failed.");
     } catch (IllegalArgumentException exn) {
       assertThat(exn.getMessage(), containsString("generated the same name"));
