@@ -176,7 +176,7 @@ public class SplittableDoFnTest implements Serializable {
     assertEquals(windowFn, res.getWindowingStrategy().getWindowFn());
 
     PCollection<TimestampedValue<KV<String, Integer>>> timestamped =
-        res.apply("Reify timestamps", ParDo.of(new ReifyTimestampsFn<KV<String, Integer>>()));
+        res.apply("ReifyTest timestamps", ParDo.of(new ReifyTimestampsFn<KV<String, Integer>>()));
 
     for (int i = 0; i < 4; ++i) {
       Instant base = now.minus(Duration.standardSeconds(i));

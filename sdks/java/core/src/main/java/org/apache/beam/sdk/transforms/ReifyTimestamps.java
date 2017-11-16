@@ -26,18 +26,46 @@ import org.joda.time.Duration;
 /**
  * {@link PTransform PTransforms} for reifying the timestamp of values and reemitting the original
  * value with the original timestamp.
+ *
+ * @deprecated see {@link Reify}
  */
+@Deprecated
 class ReifyTimestamps {
   private ReifyTimestamps() {}
 
   /**
    * Create a {@link PTransform} that will output all input {@link KV KVs} with the timestamp inside
    * the value.
+   *
+   * @deprecated renamed to {@link Reify#timestampsInValue()}
    */
+  @Deprecated
   public static <K, V>
       PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>>
           inValues() {
-    return ParDo.of(new ReifyValueTimestampDoFn<K, V>());
+    return (new InValues<>());
+  }
+
+  /**
+   * Small composite transform to convert {@code ? extends KV<K, V>} into {@code KV<K, V>}
+   * @param <K>
+   * @param <V>
+   */
+  private static class InValues<K, V> extends
+      PTransform<PCollection<? extends KV<K, V>>, PCollection<KV<K, TimestampedValue<V>>>> {
+    @Override
+    public PCollection<KV<K, TimestampedValue<V>>> expand(PCollection<? extends KV<K, V>> input) {
+      return input
+          // Get rid of wildcard type
+          .apply(MapElements.via(new SimpleFunction<KV<K, V>, KV<K, V>>() {
+            @Override
+            public KV<K, V> apply(KV<K, V> input) {
+              return input;
+            }
+          }))
+          // Actually apply Reify
+          .apply(Reify.<K, V>timestampsInValue());
+    }
   }
 
   /**
@@ -49,17 +77,6 @@ class ReifyTimestamps {
       PTransform<PCollection<? extends KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>>
           extractFromValues() {
     return ParDo.of(new ExtractTimestampedValueDoFn<K, V>());
-  }
-
-  private static class ReifyValueTimestampDoFn<K, V>
-      extends DoFn<KV<K, V>, KV<K, TimestampedValue<V>>> {
-    @ProcessElement
-    public void processElement(ProcessContext context) {
-      context.output(
-          KV.of(
-              context.element().getKey(),
-              TimestampedValue.of(context.element().getValue(), context.timestamp())));
-    }
   }
 
   private static class ExtractTimestampedValueDoFn<K, V>

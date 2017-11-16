@@ -272,7 +272,7 @@ public class WatchTest implements Serializable {
                             standardSeconds(30) /* timeToFail */))
                     .withPollInterval(Duration.millis(500))
                     .withOutputCoder(VarIntCoder.of()))
-            .apply(ReifyTimestamps.<String, Integer>inValues())
+            .apply(Reify.<String, Integer>timestampsInValue())
             .apply("Drop timestamped input", Values.<TimestampedValue<Integer>>create());
 
     PAssert.that(res)
