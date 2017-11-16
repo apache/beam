@@ -84,7 +84,7 @@ public class Reshuffle<K, V> extends PTransform<PCollection<KV<K, V>>, PCollecti
 
     return input
         .apply(rewindow)
-        .apply("ReifyOriginalTimestamps", ReifyTimestamps.<K, V>inValues())
+        .apply("ReifyOriginalTimestamps", Reify.<K, V>timestampsInValue())
         .apply(GroupByKey.<K, TimestampedValue<V>>create())
         // Set the windowing strategy directly, so that it doesn't get counted as the user having
         // set allowed lateness.

@@ -17,13 +17,11 @@
  */
 package org.apache.beam.sdk.testing;
 
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reify;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
@@ -60,10 +58,7 @@ class GatherAllPanes<T>
     WindowFn<?, ?> originalWindowFn = input.getWindowingStrategy().getWindowFn();
 
     return input
-        .apply(ParDo.of(new ReifyTimestampsAndWindowsFn<T>()))
-        .setCoder(
-            ValueInSingleWindow.Coder.of(
-                input.getCoder(), input.getWindowingStrategy().getWindowFn().windowCoder()))
+        .apply(Reify.<T>windows())
         .apply(
             WithKeys.<Integer, ValueInSingleWindow<T>>of(0)
                 .withKeyType(new TypeDescriptor<Integer>() {}))
@@ -80,10 +75,4 @@ class GatherAllPanes<T>
         .setWindowingStrategyInternal(input.getWindowingStrategy());
   }
 
-  private static class ReifyTimestampsAndWindowsFn<T> extends DoFn<T, ValueInSingleWindow<T>> {
-    @DoFn.ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
-      c.output(ValueInSingleWindow.of(c.element(), c.timestamp(), window, c.pane()));
-    }
-  }
 }
