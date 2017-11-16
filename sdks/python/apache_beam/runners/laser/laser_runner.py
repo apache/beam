@@ -436,7 +436,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Perform initial source splitting.
     read_op = all_operations[0]
     assert isinstance(read_op, operation_specs.WorkerRead)
-    split_source_bundles = list(read_op.source.source.split(1))
+    split_source_bundles = list(read_op.source.source.split(1024))
     print '!!! SPLIT OFF', split_source_bundles
     split_read_ops = []
     for source_bundle in split_source_bundles:
@@ -815,6 +815,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       self.work_status[work_item] = WorkItemStatus.NOT_STARTED
       self.work_stage[work_item] = stage
       self.unscheduled_work.put(work_item)
+      self.event_condition.notify()
     return work_item_id
 
   def run(self):
@@ -822,7 +823,13 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
     self.channel_manager.register_interface('master/work_manager', self)
     print 'STARTING COMPUTE NODES'
     for node_stub in self.node_manager.get_nodes():
-      node_stub.start_worker()
+      while True:
+        try:
+          print 'START COMPUTE', node_stub, node_stub.start_worker()
+          break
+        except InterfaceNotReadyException:
+          print 'NOT READYU'
+          pass
     while True:
       print 'WORK MANAGER POLL', self.unscheduled_work, self.idle_workers
       keep_scheduling = True
@@ -943,6 +950,7 @@ class ComputeNodeStub(ComputeNodeStubInterface):
     # TODO: maybe in the future this will be another process
     self.worker = LaserWorker(self.config)
     self.worker.start()
+    return 'wtfwtfwtf'
 
 
   def confirm(self, message):
@@ -951,7 +959,7 @@ class ComputeNodeStub(ComputeNodeStubInterface):
 
 class InProcessComputeNodeManager(ComputeNodeManager):
 
-  def __init__(self, num_nodes=2):
+  def __init__(self, num_nodes=4):
     self.num_nodes = num_nodes
     self.started = False
     self.channel_manager = get_channel_manager()
@@ -1064,7 +1072,7 @@ if __name__ == '__main__':
     print 'PRRRINT:', x
   a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
   a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
-  # p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+  p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
   # | beam.Map(fn)
   p.run()
 
