@@ -854,7 +854,8 @@ public class WriteFiles<UserT, DestinationT, OutputT>
         } else if (numShardsProvider != null) {
           fixedNumShards = numShardsProvider.get();
         } else {
-          fixedNumShards = null;
+          throw new IllegalStateException(
+              "When finalizing a windowed write, should have set fixed sharding");
         }
       }
     }
