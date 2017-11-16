@@ -125,10 +125,11 @@
     <google-auth.version>0.7.1</google-auth.version>
     <google-clients.version>1.22.0</google-clients.version>
     <google-cloud-bigdataoss.version>1.4.5</google-cloud-bigdataoss.version>
-    <google-cloud-core.version>1.0.2</google-cloud-core.version>
+    <google-cloud-core.version>1.11.0</google-cloud-core.version>
+    <google-cloud-core-grpc.version>1.11.0</google-cloud-core-grpc.version>
     <google-cloud-dataflow-java-proto-library-all.version>0.5.160304</google-cloud-dataflow-java-proto-library-all.version>
     <guava.version>20.0</guava.version>
-    <grpc.version>1.2.0</grpc.version>
+    <grpc.version>1.7.0</grpc.version>
     <grpc-google-common-protos.version>0.1.9</grpc-google-common-protos.version>
     <!--
       This is the version of Hadoop used to compile the module that depend on Hadoop.
@@ -143,12 +144,12 @@
     <joda.version>2.4</joda.version>
     <junit.version>4.12</junit.version>
     <mockito.version>1.9.5</mockito.version>
-    <netty.version>4.1.8.Final</netty.version>
-    <netty.tcnative.version>1.1.33.Fork26</netty.tcnative.version>
+    <netty.version>4.1.16.Final</netty.version>
+    <netty.tcnative.version>2.0.6.Final</netty.tcnative.version>
     <protobuf.version>3.2.0</protobuf.version>
     <pubsub.version>v1-rev10-1.22.0</pubsub.version>
     <slf4j.version>1.7.25</slf4j.version>
-    <spanner.version>0.20.0-beta</spanner.version>
+    <spanner.version>0.29.0-beta</spanner.version>
     <spark.version>2.2.1</spark.version>
     <spring.version>4.3.5.RELEASE</spring.version>
     <stax2.version>3.1.4</stax2.version>
@@ -179,7 +180,7 @@
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
-    <gax-grpc.version>0.20.0</gax-grpc.version>
+    <gax-grpc.version>1.15.0</gax-grpc.version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -1018,7 +1019,7 @@
       <dependency>
         <groupId>com.google.cloud</groupId>
         <artifactId>google-cloud-core-grpc</artifactId>
-        <version>${grpc.version}</version>
+        <version>${google-cloud-core-grpc.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.cloud.bigtable</groupId>
