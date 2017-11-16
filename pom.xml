@@ -180,7 +180,7 @@
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
     <compiler.default.exclude>nothing</compiler.default.exclude>
-    <gax-grpc.version>1.15.0</gax-grpc.version>
+    <gax.version>1.15.0</gax.version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -792,8 +792,13 @@
 
       <dependency>
         <groupId>com.google.api</groupId>
+        <artifactId>gax</artifactId>
+        <version>${gax.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.api</groupId>
         <artifactId>gax-grpc</artifactId>
-        <version>${gax-grpc.version}</version>
+        <version>${gax.version}</version>
       </dependency>
 
       <dependency>
