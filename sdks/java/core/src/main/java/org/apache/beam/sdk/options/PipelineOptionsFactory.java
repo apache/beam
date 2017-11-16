@@ -302,6 +302,10 @@ public class PipelineOptionsFactory {
         appNameOptions.setAppName(defaultAppName);
       }
 
+      // Ensure the options id has been populated either by the user using the command line
+      // or by the default value factory.
+      t.getOptionsId();
+
       if (validation) {
         if (isCli) {
           PipelineOptionsValidator.validateCli(klass, t);
