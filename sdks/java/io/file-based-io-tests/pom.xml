@@ -60,6 +60,9 @@
             mvn verify -Dio-it-suite -pl sdks/java/io/file-based-io-tests
                 -DpkbLocation="path-to-pkb.py" \
                 -DintegrationTestPipelineOptions='["&ndash;&ndash;numberOfRecords=100000"]'
+
+            For DirectRunner, please use -DforceDirectRunner=true argument
+            For other runners please check doc in BEAM-3060 and https://beam.apache.org/documentation/io/testing/
         -->
         <profile>
             <id>io-it-suite</id>
