@@ -874,7 +874,7 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     /** Unique id for this output bundle. */
     private @Nullable String id;
 
-    private DestinationT destination;
+    private @Nullable DestinationT destination;
 
     /** The output file for this bundle. May be null if opening failed. */
     private @Nullable ResourceId outputFile;
