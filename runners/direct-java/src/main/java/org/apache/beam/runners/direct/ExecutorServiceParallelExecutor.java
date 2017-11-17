@@ -20,7 +20,6 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Optional;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -49,7 +48,6 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
-import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.direct.WatermarkManager.FiredTimers;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -77,32 +75,33 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
   private final DirectGraph graph;
   private final RootProviderRegistry rootProviderRegistry;
   private final TransformEvaluatorRegistry registry;
-  private final Map<String, Collection<ModelEnforcementFactory>> transformEnforcements;
 
   private final EvaluationContext evaluationContext;
 
-  private final LoadingCache<StepAndKey, TransformExecutorService> executorServices;
+  private final TransformExecutorFactory executorFactory;
+  private final TransformExecutorService parallelExecutorService;
+  private final LoadingCache<StepAndKey, TransformExecutorService> serialExecutorServices;
 
   private final Queue<ExecutorUpdate> allUpdates;
   private final BlockingQueue<VisibleExecutorUpdate> visibleUpdates;
 
-  private final TransformExecutorService parallelExecutorService;
   private final CompletionCallback defaultCompletionCallback;
 
   private final ConcurrentMap<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
       pendingRootBundles;
 
- private final AtomicReference<ExecutorState> state =
+  private final AtomicReference<ExecutorState> state =
       new AtomicReference<>(ExecutorState.QUIESCENT);
 
   /**
-   * Measures the number of {@link TransformExecutor TransformExecutors} that have been scheduled
-   * but not yet completed.
+   * Measures the number of {@link TransformExecutor TransformExecutors} that have been
+   * scheduled but not yet completed.
    *
-   * <p>Before a {@link TransformExecutor} is scheduled, this value is incremented. All methods in
-   * {@link CompletionCallback} decrement this value.
+   * <p>Before a {@link TransformExecutor} is scheduled, this value is incremented. All
+   * methods in {@link CompletionCallback} decrement this value.
    */
   private final AtomicLong outstandingWork = new AtomicLong();
+
   private AtomicReference<State> pipelineState = new AtomicReference<>(State.RUNNING);
 
   public static ExecutorServiceParallelExecutor create(
@@ -141,13 +140,12 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     this.graph = graph;
     this.rootProviderRegistry = rootProviderRegistry;
     this.registry = registry;
-    this.transformEnforcements = transformEnforcements;
     this.evaluationContext = context;
 
     // Weak Values allows TransformExecutorServices that are no longer in use to be reclaimed.
     // Executing TransformExecutorServices have a strong reference to their TransformExecutorService
     // which stops the TransformExecutorServices from being prematurely garbage collected
-    executorServices =
+    serialExecutorServices =
         CacheBuilder.newBuilder()
             .weakValues()
             .removalListener(shutdownExecutorServiceListener())
@@ -160,6 +158,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     defaultCompletionCallback =
         new TimerIterableCompletionCallback(Collections.<TimerData>emptyList());
     this.pendingRootBundles = new ConcurrentHashMap<>();
+    executorFactory = new DirectTransformExecutor.Factory(context, registry, transformEnforcements);
   }
 
   private CacheLoader<StepAndKey, TransformExecutorService>
@@ -222,29 +221,16 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
       final StepAndKey stepAndKey = StepAndKey.of(transform, bundle.getKey());
       // This executor will remain reachable until it has executed all scheduled transforms.
       // The TransformExecutors keep a strong reference to the Executor, the ExecutorService keeps
-      // a reference to the scheduled TransformExecutor callable. Follow-up TransformExecutors
-      // (scheduled due to the completion of another TransformExecutor) are provided to the
-      // ExecutorService before the Earlier TransformExecutor callable completes.
-      transformExecutor = executorServices.getUnchecked(stepAndKey);
+      // a reference to the scheduled DirectTransformExecutor callable. Follow-up TransformExecutors
+      // (scheduled due to the completion of another DirectTransformExecutor) are provided to the
+      // ExecutorService before the Earlier DirectTransformExecutor callable completes.
+      transformExecutor = serialExecutorServices.getUnchecked(stepAndKey);
     } else {
       transformExecutor = parallelExecutorService;
     }
 
-    Collection<ModelEnforcementFactory> enforcements =
-        MoreObjects.firstNonNull(
-            transformEnforcements.get(
-                PTransformTranslation.urnForTransform(transform.getTransform())),
-            Collections.<ModelEnforcementFactory>emptyList());
-
-    TransformExecutor<T> callable =
-        TransformExecutor.create(
-            evaluationContext,
-            registry,
-            enforcements,
-            bundle,
-            transform,
-            onComplete,
-            transformExecutor);
+    TransformExecutor callable =
+        executorFactory.create(bundle, transform, onComplete, transformExecutor);
     outstandingWork.incrementAndGet();
     if (!pipelineState.get().isTerminal()) {
       transformExecutor.schedule(callable);
@@ -321,8 +307,8 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     pipelineState.compareAndSet(State.RUNNING, newState);
     // Stop accepting new work before shutting down the executor. This ensures that thread don't try
     // to add work to the shutdown executor.
-    executorServices.invalidateAll();
-    executorServices.cleanUp();
+    serialExecutorServices.invalidateAll();
+    serialExecutorServices.cleanUp();
     parallelExecutorService.shutdown();
     executorService.shutdown();
     try {
@@ -584,7 +570,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
     }
 
     /**
-     * If all active {@link TransformExecutor TransformExecutors} are in a blocked state,
+     * If all active {@link DirectTransformExecutor TransformExecutors} are in a blocked state,
      * add more work from root nodes that may have additional work. This ensures that if a pipeline
      * has elements available from the root nodes it will add those elements when necessary.
      */
@@ -621,7 +607,7 @@ final class ExecutorServiceParallelExecutor implements PipelineExecutor {
      * been evaluated, and all pending, including potentially blocked work, should be evaluated.
      *
      * <p>The executor becomes active whenever a timer fires, a {@link PCollectionView} is updated,
-     * or output is produced by the evaluation of a {@link TransformExecutor}.
+     * or output is produced by the evaluation of a {@link DirectTransformExecutor}.
      */
     ACTIVE,
     /**

@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 
 /**
