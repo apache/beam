@@ -51,6 +51,21 @@ type CustomCoder struct {
 // TODO(herohde) 5/16/2017: we're ignoring the inner/outer context concept
 // present in java/python. Not clear whether we actually need it.
 
+// Equals returns true iff the two custom coders are equal. It assumes that
+// functions with the same name and types are identical.
+func (c *CustomCoder) Equals(o *CustomCoder) bool {
+	if c.Name != o.Name {
+		return false
+	}
+	if c.Type != o.Type {
+		return false
+	}
+	if c.Dec.Name != o.Dec.Name {
+		return false
+	}
+	return c.Enc.Name == o.Enc.Name
+}
+
 func (c *CustomCoder) String() string {
 	return fmt.Sprintf("%v[%v]", c.Type, c.Name)
 }
@@ -122,6 +137,36 @@ type Coder struct {
 	Components []*Coder       // WindowedValue, KV, GCK, CoGBK
 	Custom     *CustomCoder   // Custom
 	Window     *window.Window // WindowedValue
+}
+
+// Equals returns true iff the two coders are equal. It assumes that
+// functions with the same name and types are identical.
+func (c *Coder) Equals(o *Coder) bool {
+	if c.Kind != o.Kind {
+		return false
+	}
+	if !typex.IsEqual(c.T, o.T) {
+		return false
+	}
+	if len(c.Components) != len(o.Components) {
+		return false
+	}
+	for i, elm := range c.Components {
+		if !elm.Equals(o.Components[i]) {
+			return false
+		}
+	}
+	if c.Custom != nil {
+		if !c.Custom.Equals(o.Custom) {
+			return false
+		}
+	}
+	if c.Window != nil {
+		if !c.Window.Equals(o.Window) {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Coder) String() string {
