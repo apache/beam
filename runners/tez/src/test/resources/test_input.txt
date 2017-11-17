@@ -1,0 +1,2 @@
+This is an example of splitting up lines.
+Then formatting those lines into individual tokens.
