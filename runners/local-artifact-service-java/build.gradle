@@ -24,6 +24,7 @@ description = "Apache Beam :: Runners :: Java Local Artifact Service"
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-model-parent:beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-java-fn-execution", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   shadow library.java.grpc_core
   shadow library.java.grpc_stub

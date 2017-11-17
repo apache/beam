@@ -73,6 +73,13 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     return service;
   }
 
+  /**
+   * Get the underlying {@link Server} contained by this {@link GrpcFnServer}.
+   */
+  public Server getServer() {
+    return server;
+  }
+
   @Override
   public void close() throws Exception {
     try {
