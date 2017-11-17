@@ -26,6 +26,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.sources.generator.Generator;
+import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Instant;
