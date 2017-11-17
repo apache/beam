@@ -451,8 +451,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
    * written,
    *
    * <ol>
-   *   <li>{@link WriteOperation#finalizeDestination} is given a list of the temporary files containing the
-   *       output bundles.
+   *   <li>{@link WriteOperation#finalizeDestination} is given a list of the temporary files
+   *       containing the output bundles.
    *   <li>During finalize, these temporary files are copied to final output locations and named
    *       according to a file naming template.
    *   <li>Finally, any temporary files that were created during the write are removed.

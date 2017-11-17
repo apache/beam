@@ -85,12 +85,13 @@ public class WriteFilesTranslation {
 
           @Override
           public boolean isWindowedWrites() {
-            return transform.isWindowedWrites();
+            return transform.getWindowedWrites();
           }
 
           @Override
           public boolean isRunnerDeterminedSharding() {
-            return transform.getNumShards() == null && transform.getSharding() == null;
+            return transform.getNumShardsProvider() == null
+                && transform.getComputeNumShards() == null;
           }
         },
         components);
