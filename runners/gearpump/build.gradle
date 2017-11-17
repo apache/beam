@@ -1,0 +1,51 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature(javaVersion: 1.8)
+
+description = "Apache Beam :: Runners :: Gearpump"
+
+def gearpump_version = "0.8.4"
+
+dependencies {
+  compile library.java.guava
+  compileOnly "com.typesafe:config:1.3.0"
+  compileOnly "org.scala-lang:scala-library:2.11.8"
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow "org.apache.gearpump:gearpump-core_2.11:$gearpump_version"
+  shadow "org.apache.gearpump:gearpump-streaming_2.11:$gearpump_version"
+  shadow library.java.joda_time
+  shadow library.java.jackson_annotations
+  shadow library.java.findbugs_jsr305
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
+  testCompile library.java.junit
+  testCompile library.java.hamcrest_core
+  testCompile library.java.jackson_databind
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile library.java.mockito_core
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests
