@@ -24,11 +24,15 @@ description = "Apache Beam :: Runners :: Reference :: Job Orchestrator"
 dependencies {
   shadow library.java.grpc_netty
   shadow project(path: ":beam-model-parent:beam-model-job-management", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-local-artifact-service-java", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
   shadow library.java.slf4j_api
   shadow library.java.args4j
   testCompile library.java.junit
+  shadowTest project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadowTest library.java.slf4j_jdk14
 }
 
 task packageTests(type: Jar) {
