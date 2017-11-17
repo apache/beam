@@ -31,6 +31,7 @@ test {
 
 dependencies {
   compile library.java.guava
+  compileOnly library.java.findbugs_annotations
   shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")

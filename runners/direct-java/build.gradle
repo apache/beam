@@ -64,6 +64,7 @@ shadowJar {
   relocate "org.apache.beam.runners.core", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.runners.core"
   relocate "org.apache.beam.model", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.model"
   relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
+  relocate "javax.annotation", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.javax.annotation"
 }
 
 task packageTests(type: Jar) {
