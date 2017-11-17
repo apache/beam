@@ -50,6 +50,7 @@ include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-s
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-redis'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-solr'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-tika'
+include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-file-based-io-tests'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-xml'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent'
 include ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-starter'
@@ -125,6 +126,7 @@ project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-s
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-redis').projectDir = "$rootDir/sdks/java/io/redis" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-solr').projectDir = "$rootDir/sdks/java/io/solr" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-tika').projectDir = "$rootDir/sdks/java/io/tika" as File
+project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-file-based-io-tests').projectDir = "$rootDir/sdks/java/io/file-based-io-tests" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-xml').projectDir = "$rootDir/sdks/java/io/xml" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent').projectDir = "$rootDir/sdks/java/io" as File
 project(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-maven-archetypes-parent:beam-sdks-java-maven-archetypes-starter').projectDir = "$rootDir/sdks/java/maven-archetypes/starter" as File

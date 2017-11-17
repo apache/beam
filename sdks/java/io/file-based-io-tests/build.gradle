@@ -19,7 +19,7 @@
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
-description = "Apache Beam :: Runners :: Java Fn Execution"
+description = "Apache Beam :: SDKs :: Java :: File-based-io-tests"
 
 /*
  * We need to rely on manually specifying these evaluationDependsOn to ensure that
@@ -28,30 +28,16 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
  * TODO: Swap to generating test artifacts which we can then rely on instead of
  * the test outputs directly.
  */
-evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
-
-configurations.all {
-  // Fn Execution contains shared utilities for Runners and Harnesses which use            
-  // the Portability framework. Runner-side interactions must not require a
-  // dependency on any particular SDK, so this library must not introduce such an
-  // edge.
-  exclude group: "org.apache.beam", module: "beam-sdks-java-core"
-}
+evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
 
 dependencies {
-  compile library.java.guava
-  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution", configuration: "shadow")
-  shadow library.java.grpc_core
-  shadow library.java.grpc_stub
-  shadow library.java.grpc_netty
-  shadow library.java.slf4j_api
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution").sourceSets.test.output
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.hamcrest_library
-  testCompile library.java.mockito_core
+  shadowTest project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core")
+  shadowTest project(":beam-runners-parent:beam-runners-direct-java").sourceSets.test.output
+  shadowTest project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
+  shadowTest project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common").sourceSets.test.output
+  shadowTest library.java.guava
+  shadowTest library.java.junit
+  shadowTest library.java.hamcrest_core
 }
 
 task packageTests(type: Jar) {

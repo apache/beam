@@ -33,6 +33,8 @@ dependencies {
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
   compile "org.apache.calcite.avatica:avatica-core:$avatica_version"
+  compile "com.alibaba:fastjson:1.2.12"
+  compileOnly library.java.findbugs_jsr305
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-extensions-parent:beam-sdks-java-extensions-join-library", configuration: "shadow")
   shadow library.java.slf4j_api
@@ -44,7 +46,10 @@ dependencies {
   testCompile library.java.slf4j_jdk14
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
+  testCompile library.java.mockito_core
 }
+
+// TODO: Add support for generating fmpp
 
 shadowJar {
   dependencies {
