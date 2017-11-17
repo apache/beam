@@ -78,6 +78,16 @@ When creating a BigQuery input transform, users should provide either a query
 or a table. Pipeline construction will fail with a validation error if neither
 or both are specified.
 
+**Time partitioned tables**
+
+BigQuery sink currently does not fully support writing to BigQuery
+time partitioned tables. But writing to a *single* partition may work if
+that does not involve creating a new table (for example, when writing to an
+existing table with `create_disposition=CREATE_NEVER` and
+`write_disposition=WRITE_APPEND`). 
+BigQuery source supports reading from a single time partition with the partition
+decorator specified as a part of the table identifier.
+
 *** Short introduction to BigQuery concepts ***
 Tables have rows (TableRow) and each row has cells (TableCell).
 A table has a schema (TableSchema), which in turn describes the schema of each
