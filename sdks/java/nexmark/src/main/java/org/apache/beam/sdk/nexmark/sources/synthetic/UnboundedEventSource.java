@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.synthetic;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,14 +23,20 @@ import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.Generator;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorCheckpoint;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorConfig;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -43,7 +49,7 @@ import org.slf4j.LoggerFactory;
  * that the overall rate respect the {@code interEventDelayUs} period if possible. Otherwise,
  * events are returned every time the system asks for one.
  */
-public class UnboundedEventSource extends UnboundedSource<Event, Generator.Checkpoint> {
+public class UnboundedEventSource extends UnboundedSource<Event, GeneratorCheckpoint> {
   private static final Duration BACKLOG_PERIOD = Duration.standardSeconds(30);
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedEventSource.class);
 
@@ -161,12 +167,12 @@ public class UnboundedEventSource extends UnboundedSource<Event, Generator.Check
                              watermark - next.eventTimestamp);
         } else if (generator.hasNext()) {
           next = generator.nextEvent();
-          if (isRateLimited && config.configuration.probDelayedEvent > 0.0
-              && config.configuration.occasionalDelaySec > 0
-              && ThreadLocalRandom.current().nextDouble() < config.configuration.probDelayedEvent) {
+          if (isRateLimited && config.getProbDelayedEvent() > 0.0
+              && config.getOccasionalDelaySec() > 0
+              && ThreadLocalRandom.current().nextDouble() < config.getProbDelayedEvent()) {
             // We'll hold back this event and go around again.
             long delayMs =
-                ThreadLocalRandom.current().nextLong(config.configuration.occasionalDelaySec * 1000)
+                ThreadLocalRandom.current().nextLong(config.getOccasionalDelaySec() * 1000)
                 + 1L;
             LOG.debug("delaying event by {}ms", delayMs);
             heldBackEvents.add(next.withDelay(delayMs));
@@ -265,7 +271,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, Generator.Check
     }
 
     @Override
-    public Generator.Checkpoint getCheckpointMark() {
+    public GeneratorCheckpoint getCheckpointMark() {
       return generator.toCheckpoint();
     }
 
@@ -283,8 +289,8 @@ public class UnboundedEventSource extends UnboundedSource<Event, Generator.Check
   }
 
   @Override
-  public Coder<Generator.Checkpoint> getCheckpointMarkCoder() {
-    return Generator.Checkpoint.CODER_INSTANCE;
+  public Coder<GeneratorCheckpoint> getCheckpointMarkCoder() {
+    return GeneratorCheckpoint.CODER_INSTANCE;
   }
 
   @Override
@@ -301,7 +307,7 @@ public class UnboundedEventSource extends UnboundedSource<Event, Generator.Check
 
   @Override
   public EventReader createReader(
-      PipelineOptions options, @Nullable Generator.Checkpoint checkpoint) {
+      PipelineOptions options, @Nullable GeneratorCheckpoint checkpoint) {
     if (checkpoint == null) {
       LOG.trace("creating initial unbounded reader for {}", config);
       return new EventReader(config);

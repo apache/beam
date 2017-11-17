@@ -19,10 +19,13 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -74,41 +77,57 @@ public class Auction implements KnownSize, Serializable {
   };
 
 
-  /** Id of auction. */
+  /**
+   * Id of auction.
+   */
   @JsonProperty
   public final long id; // primary key
 
-  /** Extra auction properties. */
+  /**
+   * Extra auction properties.
+   */
   @JsonProperty
   private final String itemName;
 
   @JsonProperty
   private final String description;
 
-  /** Initial bid price, in cents. */
+  /**
+   * Initial bid price, in cents.
+   */
   @JsonProperty
   private final long initialBid;
 
-  /** Reserve price, in cents. */
+  /**
+   * Reserve price, in cents.
+   */
   @JsonProperty
   public final long reserve;
 
   @JsonProperty
   public final long dateTime;
 
-  /** When does auction expire? (ms since epoch). Bids at or after this time are ignored. */
+  /**
+   * When does auction expire? (ms since epoch). Bids at or after this time are ignored.
+   */
   @JsonProperty
   public final long expires;
 
-  /** Id of person who instigated auction. */
+  /**
+   * Id of person who instigated auction.
+   */
   @JsonProperty
   public final long seller; // foreign key: Person.id
 
-  /** Id of category auction is listed under. */
+  /**
+   * Id of category auction is listed under.
+   */
   @JsonProperty
   public final long category; // foreign key: Category.id
 
-  /** Additional arbitrary payload for performance testing. */
+  /**
+   * Additional arbitrary payload for performance testing.
+   */
   @JsonProperty
   private final String extra;
 
@@ -129,7 +148,7 @@ public class Auction implements KnownSize, Serializable {
   }
 
   public Auction(long id, String itemName, String description, long initialBid, long reserve,
-      long dateTime, long expires, long seller, long category, String extra) {
+                 long dateTime, long expires, long seller, long category, String extra) {
     this.id = id;
     this.itemName = itemName;
     this.description = description;
@@ -183,5 +202,34 @@ public class Auction implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (!(o instanceof Auction)) {
+      return false;
+    }
+
+    Auction auction = (Auction) o;
+    return id == auction.id
+        && initialBid == auction.initialBid
+        && reserve == auction.reserve
+        && dateTime == auction.dateTime
+        && expires == auction.expires
+        && seller == auction.seller
+        && category == auction.category
+        && Objects.equals(itemName, auction.itemName)
+        && Objects.equals(description, auction.description)
+        && Objects.equals(extra, auction.extra);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        id, itemName, description, initialBid, reserve, dateTime, expires, seller, category, extra);
   }
 }

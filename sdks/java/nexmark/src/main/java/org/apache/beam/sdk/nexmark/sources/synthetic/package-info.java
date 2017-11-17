@@ -17,6 +17,6 @@
  */
 
 /**
- * Classes to create event sources for {@link org.apache.beam.sdk.nexmark.NexmarkLauncher}.
+ * Nexmark Synthetic Sources.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.synthetic;

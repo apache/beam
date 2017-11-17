@@ -17,6 +17,6 @@
  */
 
 /**
- * Classes to create event sources for {@link org.apache.beam.sdk.nexmark.NexmarkLauncher}.
+ * Classes to generate, publish, and read events from Pubsub.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.pubsub;

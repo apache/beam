@@ -19,10 +19,13 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -159,5 +162,31 @@ public class Person implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (!(o instanceof Person)) {
+      return false;
+    }
+
+    Person person = (Person) o;
+    return id == person.id
+        && dateTime == person.dateTime
+        && Objects.equals(name, person.name)
+        && Objects.equals(emailAddress, person.emailAddress)
+        && Objects.equals(creditCard, person.creditCard)
+        && Objects.equals(city, person.city)
+        && Objects.equals(state, person.state)
+        && Objects.equals(extra, person.extra);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id, name, emailAddress, creditCard, city, state, dateTime, extra);
   }
 }

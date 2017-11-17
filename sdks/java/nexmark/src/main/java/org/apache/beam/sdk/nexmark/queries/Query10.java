@@ -17,18 +17,23 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import com.google.common.base.Strings;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.util.concurrent.ThreadLocalRandom;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
+import org.apache.beam.sdk.nexmark.NexmarkOptions;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Done;
 import org.apache.beam.sdk.nexmark.model.Event;
@@ -49,6 +54,7 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -61,6 +67,11 @@ import org.slf4j.LoggerFactory;
  */
 public class Query10 extends NexmarkQuery {
   private static final Logger LOG = LoggerFactory.getLogger(Query10.class);
+
+  /**
+   * Return maximum number of workers.
+   */
+  private static final int MAX_WORKERS = 5;
   private static final int CHANNEL_BUFFER = 8 << 20; // 8MB
   private static final int NUM_SHARDS_PER_WORKER = 5;
   private static final Duration LATE_BATCHING_PERIOD = Duration.standardSeconds(10);
@@ -111,15 +122,54 @@ public class Query10 extends NexmarkQuery {
    */
   private int maxNumWorkers;
 
-  public Query10(NexmarkConfiguration configuration) {
+  public Query10(NexmarkConfiguration configuration, NexmarkOptions options, long now) {
     super(configuration, "Query10");
+
+    configureLogs(configuration, options, now);
   }
 
-  public void setOutputPath(@Nullable String outputPath) {
+  /**
+   * Query 10 logs all events to Google Cloud storage files. It could generate a lot of logs,
+   * so, set parallelism. Also set the output path where to write log files.
+   */
+  private void configureLogs(NexmarkConfiguration configuration, NexmarkOptions options, long now) {
+
+    if (configuration.query == 10) {
+      String path = null;
+      if (options.getOutputPath() != null && !options.getOutputPath().isEmpty()) {
+        path = logsDir(options, now);
+      }
+
+      setOutputPath(path);
+      setMaxNumWorkers(MAX_WORKERS);
+    }
+  }
+
+
+  /**
+   * Return a directory for logs.
+   */
+  private String logsDir(NexmarkOptions options, long now) {
+    String baseFilename = options.getOutputPath();
+    if (Strings.isNullOrEmpty(baseFilename)) {
+      throw new RuntimeException("Missing --outputPath");
+    }
+    switch (options.getResourceNameMode()) {
+      case VERBATIM:
+        return baseFilename;
+      case QUERY:
+        return String.format("%s/logs_%s", baseFilename, name);
+      case QUERY_AND_SALT:
+        return String.format("%s/logs_%s_%d", baseFilename, name, now);
+    }
+    throw new RuntimeException("Unrecognized enum " + options.getResourceNameMode());
+  }
+
+  private void setOutputPath(@Nullable String outputPath) {
     this.outputPath = outputPath;
   }
 
-  public void setMaxNumWorkers(int maxNumWorkers) {
+  private void setMaxNumWorkers(int maxNumWorkers) {
     this.maxNumWorkers = maxNumWorkers;
   }
 

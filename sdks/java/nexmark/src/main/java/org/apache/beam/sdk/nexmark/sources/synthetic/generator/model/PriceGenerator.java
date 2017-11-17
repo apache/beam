@@ -16,7 +16,17 @@
  * limitations under the License.
  */
 
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator.model;
+
+import java.util.Random;
+
 /**
- * Classes to create event sources for {@link org.apache.beam.sdk.nexmark.NexmarkLauncher}.
+ * Generates a random price.
  */
-package org.apache.beam.sdk.nexmark.sources;
+public class PriceGenerator {
+
+  /** Return a random price. */
+  public static long nextPrice(Random random) {
+    return Math.round(Math.pow(10.0, random.nextDouble() * 6.0) * 100.0);
+  }
+}

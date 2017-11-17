@@ -16,7 +16,22 @@
  * limitations under the License.
  */
 
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator.model;
+
+import java.util.Random;
+
 /**
- * Classes to create event sources for {@link org.apache.beam.sdk.nexmark.NexmarkLauncher}.
+ * LongGenerator.
  */
-package org.apache.beam.sdk.nexmark.sources;
+public class LongGenerator {
+
+  /** Return a random long from {@code [0, n)}. */
+  public static long nextLong(Random random, long n) {
+    if (n < Integer.MAX_VALUE) {
+      return random.nextInt((int) n);
+    } else {
+      // WARNING: Very skewed distribution! Bad!
+      return Math.abs(random.nextLong() % n);
+    }
+  }
+}

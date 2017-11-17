@@ -19,11 +19,13 @@ package org.apache.beam.sdk.nexmark;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.hash.Hashing;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -32,7 +34,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
-import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.nexmark.model.Auction;
@@ -49,10 +50,8 @@ import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.nexmark.model.NameCityStateId;
 import org.apache.beam.sdk.nexmark.model.Person;
 import org.apache.beam.sdk.nexmark.model.SellerPrice;
-import org.apache.beam.sdk.nexmark.sources.BoundedEventSource;
-import org.apache.beam.sdk.nexmark.sources.Generator;
-import org.apache.beam.sdk.nexmark.sources.GeneratorConfig;
-import org.apache.beam.sdk.nexmark.sources.UnboundedEventSource;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.Generator;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorConfig;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -65,9 +64,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -325,7 +324,7 @@ public class NexmarkUtils {
   /**
    * All events will be given a timestamp relative to this time (ms since epoch).
    */
-  private static final long BASE_TIME = Instant.parse("2015-07-15T00:00:00.000Z").getMillis();
+  public static final long BASE_TIME = Instant.parse("2015-07-15T00:00:00.000Z").getMillis();
 
   /**
    * Instants guaranteed to be strictly before and after all event timestamps, and which won't
@@ -368,11 +367,13 @@ public class NexmarkUtils {
   /**
    * Return a generator config to match the given {@code options}.
    */
-  private static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
+  public static GeneratorConfig standardGeneratorConfig(NexmarkConfiguration configuration) {
     return new GeneratorConfig(configuration,
-                               configuration.useWallclockEventTime ? System.currentTimeMillis()
-                                                                   : BASE_TIME, 0,
-                               configuration.numEvents, 0);
+        configuration.useWallclockEventTime
+            ? System.currentTimeMillis()
+            : BASE_TIME,
+        0,
+        configuration.numEvents, 0);
   }
 
   /**
@@ -384,31 +385,9 @@ public class NexmarkUtils {
   }
 
   /**
-   * Return a transform which yields a finite number of synthesized events generated
-   * as a batch.
-   */
-  public static PTransform<PBegin, PCollection<Event>> batchEventsSource(
-          NexmarkConfiguration configuration) {
-    return Read.from(new BoundedEventSource(standardGeneratorConfig(configuration),
-      configuration.numEventGenerators));
-  }
-
-  /**
-   * Return a transform which yields a finite number of synthesized events generated
-   * on-the-fly in real time.
-   */
-  public static PTransform<PBegin, PCollection<Event>> streamEventsSource(
-          NexmarkConfiguration configuration) {
-    return Read.from(new UnboundedEventSource(NexmarkUtils.standardGeneratorConfig(configuration),
-                                              configuration.numEventGenerators,
-                                              configuration.watermarkHoldbackSec,
-                                              configuration.isRateLimited));
-  }
-
-  /**
    * Return a transform to pass-through events, but count them as they go by.
    */
-  public static ParDo.SingleOutput<Event, Event> snoop(final String name) {
+  public static ParDo.SingleOutput<Event, Event> countEvents(final String name) {
     return ParDo.of(new DoFn<Event, Event>() {
       final Counter eventCounter = Metrics.counter(name, "events");
       final Counter newPersonCounter = Metrics.counter(name, "newPersons");

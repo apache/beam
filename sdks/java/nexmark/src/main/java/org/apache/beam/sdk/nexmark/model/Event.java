@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
+import java.util.Objects;
+
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -38,10 +40,11 @@ public class Event implements KnownSize, Serializable {
 
     private int value = -1;
 
-    Tag(int value){
+    Tag(int value) {
       this.value = value;
     }
   }
+
   private static final Coder<Integer> INT_CODER = VarIntCoder.of();
 
   public static final Coder<Event> CODER =
@@ -80,7 +83,8 @@ public class Event implements KnownSize, Serializable {
         }
 
         @Override
-        public void verifyDeterministic() throws NonDeterministicException {}
+        public void verifyDeterministic() throws NonDeterministicException {
+        }
       };
 
   @Nullable
@@ -121,7 +125,9 @@ public class Event implements KnownSize, Serializable {
     this.bid = bid;
   }
 
-  /** Return a copy of event which captures {@code annotation}. (Used for debugging). */
+  /**
+   * Return a copy of event which captures {@code annotation}. (Used for debugging).
+   */
   public Event withAnnotation(String annotation) {
     if (newPerson != null) {
       return new Event(newPerson.withAnnotation(annotation));
@@ -132,7 +138,9 @@ public class Event implements KnownSize, Serializable {
     }
   }
 
-  /** Does event have {@code annotation}? (Used for debugging.) */
+  /**
+   * Does event have {@code annotation}? (Used for debugging.)
+   */
   public boolean hasAnnotation(String annotation) {
     if (newPerson != null) {
       return newPerson.hasAnnotation(annotation);
@@ -167,5 +175,26 @@ public class Event implements KnownSize, Serializable {
     } else {
       throw new RuntimeException("invalid event");
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (!(o instanceof Event)) {
+      return false;
+    }
+
+    Event event = (Event) o;
+    return Objects.equals(newPerson, event.newPerson)
+        && Objects.equals(newAuction, event.newAuction)
+        && Objects.equals(bid, event.bid);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(newPerson, newAuction, bid);
   }
 }

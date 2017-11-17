@@ -17,17 +17,25 @@
  */
 package org.apache.beam.sdk.nexmark.queries;
 
+import static org.apache.beam.sdk.nexmark.sources.synthetic.SyntheticEventsSource.batchEventsSource;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.SyntheticEventsSource.streamEventsSource;
+
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
+import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.UsesTimersInParDo;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -51,13 +59,15 @@ public class QueryTest {
   private void queryMatchesModel(
       String name, NexmarkQuery query, NexmarkQueryModel model, boolean streamingMode) {
     NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
-    PCollection<TimestampedValue<KnownSize>> results;
-    if (streamingMode) {
-      results =
-          p.apply(name + ".ReadUnBounded", NexmarkUtils.streamEventsSource(CONFIG)).apply(query);
-    } else {
-      results = p.apply(name + ".ReadBounded", NexmarkUtils.batchEventsSource(CONFIG)).apply(query);
-    }
+    PTransform<PBegin, PCollection<Event>> eventSource = streamingMode
+        ? Read.from(streamEventsSource(CONFIG))
+        : Read.from(batchEventsSource(CONFIG));
+    String eventSourceName = name + (streamingMode ? "ReadUnbounded" : "ReadBounded");
+
+    PCollection<TimestampedValue<KnownSize>> results = p
+        .apply(eventSourceName, eventSource)
+        .apply(query);
+
     PAssert.that(results).satisfies(model.assertionFor());
     PipelineResult result = p.run();
     result.waitUntilFinish();

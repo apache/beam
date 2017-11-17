@@ -15,11 +15,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.KV;
@@ -49,7 +50,7 @@ public class GeneratorConfig implements Serializable {
   /**
    * Environment options.
    */
-  public final NexmarkConfiguration configuration;
+  private final NexmarkConfiguration configuration;
 
   /**
    * Delay between events, in microseconds. If the array has more than one entry then
@@ -68,7 +69,7 @@ public class GeneratorConfig implements Serializable {
   public final long baseTime;
 
   /**
-   * Event id of first event to be generated. Event ids are unique over all generators, and
+   * Event id of first event to be generated. Event ids are unique over all model, and
    * are used as a seed to generate each event's data.
    */
   public final long firstEventId;
@@ -143,7 +144,7 @@ public class GeneratorConfig implements Serializable {
 
   /**
    * Split this config into {@code n} sub-configs with roughly equal number of
-   * possible events, but distinct value spaces. The generators will run on parallel timelines.
+   * possible events, but distinct value spaces. The model will run on parallel timelines.
    * This config should no longer be used.
    */
   public List<GeneratorConfig> split(int n) {
@@ -184,6 +185,46 @@ public class GeneratorConfig implements Serializable {
     return numPersons * configuration.avgPersonByteSize
            + numAuctions * configuration.avgAuctionByteSize
            + numBids * configuration.avgBidByteSize;
+  }
+
+  public int getAvgPersonByteSize() {
+    return configuration.avgPersonByteSize;
+  }
+
+  public int getNumActivePeople() {
+    return configuration.numActivePeople;
+  }
+
+  public int getHotSellersRatio() {
+    return configuration.hotSellersRatio;
+  }
+
+  public int getNumInFlightAuctions() {
+    return configuration.numInFlightAuctions;
+  }
+
+  public int getHotAuctionRatio() {
+    return configuration.hotAuctionRatio;
+  }
+
+  public int getHotBiddersRatio() {
+    return configuration.hotBiddersRatio;
+  }
+
+  public int getAvgBidByteSize() {
+    return configuration.avgBidByteSize;
+  }
+
+  public int getAvgAuctionByteSize() {
+    return configuration.avgAuctionByteSize;
+  }
+
+  public double getProbDelayedEvent() {
+    return configuration.probDelayedEvent;
+  }
+
+  public long getOccasionalDelaySec() {
+    return configuration.occasionalDelaySec;
   }
 
   /**
