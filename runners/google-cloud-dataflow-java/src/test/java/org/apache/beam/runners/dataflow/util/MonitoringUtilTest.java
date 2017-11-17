@@ -49,6 +49,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class MonitoringUtilTest {
   private static final String PROJECT_ID = "someProject";
+  private static final String REGION_ID = "thatRegion";
   private static final String JOB_ID = "1234";
 
   @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(LoggingHandler.class);
@@ -119,9 +120,10 @@ public class MonitoringUtilTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
-    assertEquals("gcloud dataflow jobs --project=someProject cancel 1234", cancelCommand);
+    assertEquals("gcloud dataflow jobs --project=someProject cancel 1234 --region=thatRegion", cancelCommand);
   }
 
   @Test
@@ -129,13 +131,14 @@ public class MonitoringUtilTest {
     DataflowPipelineOptions options =
         PipelineOptionsFactory.create().as(DataflowPipelineOptions.class);
     options.setProject(PROJECT_ID);
+    options.setRegion(REGION_ID);
     options.setGcpCredential(new TestCredential());
     String stagingDataflowEndpoint = "v0neverExisted";
     options.setDataflowEndpoint(stagingDataflowEndpoint);
     String cancelCommand = MonitoringUtil.getGcloudCancelCommand(options, JOB_ID);
     assertEquals(
         "CLOUDSDK_API_ENDPOINT_OVERRIDES_DATAFLOW=https://dataflow.googleapis.com/v0neverExisted/ "
-        + "gcloud dataflow jobs --project=someProject cancel 1234",
+        + "gcloud dataflow jobs --project=someProject cancel 1234 --region=thatRegion",
         cancelCommand);
   }
 
