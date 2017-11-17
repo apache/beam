@@ -170,10 +170,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         FileBasedSink<UserT, DestinationT, OutputT> sink);
 
     abstract Builder<UserT, DestinationT, OutputT> setComputeNumShards(
-        PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards);
+        @Nullable PTransform<PCollection<UserT>, PCollectionView<Integer>> computeNumShards);
 
     abstract Builder<UserT, DestinationT, OutputT> setNumShardsProvider(
-        ValueProvider<Integer> numShardsProvider);
+        @Nullable ValueProvider<Integer> numShardsProvider);
 
     abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
 
@@ -604,12 +604,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
       extends PTransform<PCollection<UserT>, PCollection<FileResult<DestinationT>>> {
     private final Coder<DestinationT> destinationCoder;
     private final Coder<FileResult<DestinationT>> fileResultCoder;
-    private final PCollectionView<Integer> numShardsView;
+    private final @Nullable PCollectionView<Integer> numShardsView;
 
     private WriteShardedBundlesToTempFiles(
         Coder<DestinationT> destinationCoder,
         Coder<FileResult<DestinationT>> fileResultCoder,
-        PCollectionView<Integer> numShardsView) {
+        @Nullable PCollectionView<Integer> numShardsView) {
       this.destinationCoder = destinationCoder;
       this.fileResultCoder = fileResultCoder;
       this.numShardsView = numShardsView;
