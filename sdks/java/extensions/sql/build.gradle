@@ -18,6 +18,7 @@
 
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
+apply plugin: 'ca.coglinc.javacc'
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: SQL"
 
@@ -25,10 +26,22 @@ test {
   jvmArgs "-da"
 }
 
+configurations {
+  // Create an fmppTask configuration representing the dependencies
+  // required to define and execute the Ant FMPP task.
+  // TODO: Migrate to a FMPP plugin once one exists
+  fmppTask
+  fmppTemplates
+}
+
+
 def calcite_version = "1.13.0"
 def avatica_version = "1.10.0"
 
 dependencies {
+  fmppTask "net.sourceforge.fmpp:fmpp:0.9.15"
+  fmppTask "org.freemarker:freemarker:2.3.25-incubating"
+  fmppTemplates "org.apache.calcite:calcite-core:$calcite_version"
   compile library.java.guava
   compile "org.apache.calcite:calcite-core:$calcite_version"
   compile "org.apache.calcite:calcite-linq4j:$calcite_version"
@@ -49,7 +62,39 @@ dependencies {
   testCompile library.java.mockito_core
 }
 
-// TODO: Add support for generating fmpp
+// Copy Caclcite templates and our own template into the build directory
+// so we have one location for the FMPP task to parse.
+task copyFmppTemplatesFromSrc(type: Copy) {
+  from "src/main/codegen"
+  into "build/templates-fmpp/codegen"
+}
+task copyFmppTemplatesFromCalciteCore(type: Copy) {
+  dependsOn configurations.fmppTemplates
+  File calciteCoreJar = files(configurations.fmppTemplates.files).filter {
+    it.name.startsWith("calcite-core")
+  }.singleFile
+  from zipTree(calciteCoreJar)
+  include "**/Parser.jj"
+  into "${project.buildDir}/templates-fmpp"
+}
+
+// Generate the FMPP sources from the FMPP templates.
+def generateFmppOutputDir = "${project.buildDir}/generated-fmpp"
+task generateFmppSources {
+  dependsOn configurations.fmppTask
+  dependsOn copyFmppTemplatesFromSrc
+  dependsOn copyFmppTemplatesFromCalciteCore
+  doLast {
+    ant.taskdef(name: "fmpp", classname: "fmpp.tools.AntTask", classpath: configurations.fmppTask.asPath)
+    ant.fmpp(configuration: "src/main/codegen/config.fmpp", sourceRoot: "${project.buildDir}/templates-fmpp/codegen/templates", outputRoot: generateFmppOutputDir)
+  }
+}
+
+compileJavacc {
+  dependsOn generateFmppSources
+  inputDirectory = file(generateFmppOutputDir)
+  arguments = [grammar_encoding: "UTF-8", static: "false", lookahead: "2"]
+}
 
 shadowJar {
   dependencies {
