@@ -35,12 +35,12 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
+import java.util.stream.Stream;
 
 public class RBKAttachedWindowingTest {
 
@@ -75,16 +75,16 @@ public class RBKAttachedWindowingTest {
         .windowBy(Time.of(Duration.ofMillis(10)))
         .output();
 
-    ListDataSink<Triple<TimeInterval, String, HashMap<String, Long>>> output
+    ListDataSink<Triple<TimeInterval, String, Map<String, Long>>> output
         = ListDataSink.get();
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    Dataset<Pair<String, HashMap<String, Long>>> reduced = ReduceByKey
+    Dataset<Pair<String, Map<String, Long>>> reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
         .valueBy(new ToHashMap<>(Pair::getFirst, Pair::getSecond))
-        .combineBy(new MergeHashMaps<>())
+        .combineBy(new MergeMaps<>())
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -141,23 +141,17 @@ public class RBKAttachedWindowingTest {
             .windowBy(Time.of(Duration.ofMillis(10)))
             .output();
 
-    ListDataSink<Triple<TimeInterval, String, HashMap<String, Long>>> output
+    ListDataSink<Triple<TimeInterval, String, Map<String, Long>>> output
         = ListDataSink.get();
 
     // ~ reduce the output using attached windowing, i.e. producing
     // one output element per received window
-    Dataset<Pair<String, HashMap<String, Long>>>
+    Dataset<Pair<String, Map<String, Long>>>
         reduced = ReduceByKey
         .of(uniq)
         .keyBy(e -> "")
         .valueBy(e -> e)
-        .reduceBy(xs -> {
-          HashMap<String, Long> m = new HashMap<>();
-          for (Pair<String, Long> x : xs) {
-            m.put(x.getFirst(), x.getSecond());
-          }
-          return m;
-        })
+        .reduceBy(s -> s.collect(Collectors.toMap(Pair::getFirst, Pair::getSecond)))
         .output();
 
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
@@ -184,7 +178,7 @@ public class RBKAttachedWindowingTest {
   }
 
   @SafeVarargs
-  static <K, V> HashMap<K, V> toMap(Pair<K, V> ... ps) {
+  static <K, V> Map<K, V> toMap(Pair<K, V> ... ps) {
     HashMap<K, V> m = new HashMap<>();
     for (Pair<K, V> p : ps) {
       m.put(p.getFirst(), p.getSecond());
@@ -193,7 +187,7 @@ public class RBKAttachedWindowingTest {
   }
 
   static class ToHashMap<K, V, E>
-      implements UnaryFunction<E, HashMap<K, V>> {
+      implements UnaryFunction<E, Map<K, V>> {
     private final UnaryFunction<E, K> keyFn;
     private final UnaryFunction<E, V> valFn;
 
@@ -203,25 +197,18 @@ public class RBKAttachedWindowingTest {
     }
 
     @Override
-    public HashMap<K, V> apply(E e) {
+    public Map<K, V> apply(E e) {
       HashMap<K, V> m = new HashMap<>();
       m.put(keyFn.apply(e), valFn.apply(e));
       return m;
     }
   }
 
-  static class MergeHashMaps<K, V> implements CombinableReduceFunction<HashMap<K, V>> {
+  static class MergeMaps<K, V> implements CombinableReduceFunction<Map<K, V>> {
     @Override
-    public HashMap<K, V> apply(Iterable<HashMap<K, V>> what) {
-      Iterator<HashMap<K, V>> iter = what.iterator();
-      HashMap<K, V> m = iter.next();
-      while (iter.hasNext()) {
-        HashMap<K, V> n = iter.next();
-        for (Map.Entry<K, V> e : n.entrySet()) {
-          m.put(e.getKey(), e.getValue());
-        }
-      }
-      return m;
+    public Map<K, V> apply(Stream<Map<K, V>> what) {
+      return what.flatMap(m -> m.entrySet().stream())
+          .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
   }
 
@@ -307,14 +294,14 @@ public class RBKAttachedWindowingTest {
             TimeInterval.class);
 
     // ~ reduced (in attached windowing mode) and partitioned by the window start time
-    Dataset<Pair<Long, HashMap<String, Long>>> reduced =
+    Dataset<Pair<Long, Map<String, Long>>> reduced =
         ReduceByKey.of(counted)
         .keyBy(e -> e.getFirst().getStartMillis())
         .valueBy(new ToHashMap<>(Triple::getSecond, Triple::getThird))
-        .combineBy(new MergeHashMaps<>())
+        .combineBy(new MergeMaps<>())
         .output();
 
-    ListDataSink<Triple<TimeInterval, Long, HashMap<String, Long>>> output =
+    ListDataSink<Triple<TimeInterval, Long, Map<String, Long>>> output =
         ListDataSink.get();
     Util.extractWindows(reduced, TimeInterval.class).persist(output);
 

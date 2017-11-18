@@ -46,6 +46,7 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
 
@@ -468,7 +469,7 @@ public class BasicOperatorTest {
             asList("1-one 1-two 1-three 2-three 2-four 2-one 2-one 2-two".split(" ")),
             asList("1-one 1-two 1-four 2-three 2-three 2-three".split(" "))));
 
-    ListDataSink<HashSet<String>> out = ListDataSink.get();
+    ListDataSink<Set<String>> out = ListDataSink.get();
 
     // expand it to words
     Dataset<String> words = FlatMap.of(lines)
@@ -480,7 +481,7 @@ public class BasicOperatorTest {
         .using(s -> (int) s.charAt(0) * 3_600_000L)
         .output();
     ReduceWindow.of(words)
-        .reduceBy(Sets::newHashSet)
+        .reduceBy(s -> s.collect(Collectors.toSet()))
         .windowBy(Time.of(Duration.ofMinutes(1)))
         .output()
         .persist(out);
