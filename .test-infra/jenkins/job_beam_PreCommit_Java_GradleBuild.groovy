@@ -32,21 +32,31 @@ job('beam_PreCommit_Java_GradleBuild') {
     'master',
     240)
 
+  def root_projects = [
+    ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core',
+    ':beam-runners-parent:beam-runners-direct-java',
+    ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution',
+  ]
+  def gradle_switches = [
+    // Continue the build even if there is a failure to show as many potential failures as possible.
+    '--continue',
+    // Until we verify the build cache is working appropriately, force rerunning all tasks
+    '--rerun-tasks',
+  ]
+
+  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' ' + root_projects.join(':buildNeeded ') + ' ' + root_projects.join(':buildDependents ')
   // Sets that this is a PreCommit job.
-  common_job_properties.setPreCommit(delegate, './gradlew --continue --rerun-tasks :beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core:buildDependents :beam-runners-parent:beam-runners-direct-java:buildDependents :beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution:buildDependents :beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core:buildNeeded :beam-runners-parent:beam-runners-direct-java:buildNeeded :beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution:buildNeeded', 'Run Java Gradle PreCommit')
+  common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Java Gradle PreCommit')
 
   steps {
     gradle {
-      tasks(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core:buildNeeded')
-      tasks(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core:buildDependents')
-      tasks(':beam-runners-parent:beam-runners-direct-java:buildNeeded')
-      tasks(':beam-runners-parent:beam-runners-direct-java:buildDependents')
-      tasks(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution:buildNeeded')
-      tasks(':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution:buildDependents')
-      // Continue the build even if there is a failure to show as many potential failures as possible.
-      switches('--continue')
-      // Until we verify the build cache is working appropriately, force rerunning all tasks
-      switches('--rerun-tasks')
+      for (String root_project : root_projects) {
+        tasks(root_project + ':buildNeeded')
+        tasks(root_project + ':buildDependents')
+      }
+      for (String gradle_switch : gradle_switches) {
+        switches(gradle_switch)
+      }
     }
   }
 }
