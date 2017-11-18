@@ -38,9 +38,9 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.util.Collector;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKey> {
 
@@ -63,7 +63,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
             Iterables.getOnlyElement(context.getInputStreams(operator));
 
     ReduceByKey origOperator = operator.getOriginalOperator();
-    final UnaryFunctor<Iterable, Object> reducer = origOperator.getReducer();
+    final UnaryFunctor<Stream, Object> reducer = origOperator.getReducer();
     final Windowing windowing =
         origOperator.getWindowing() == null
         ? AttachedWindowing.INSTANCE
@@ -140,10 +140,10 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
           GroupCombineFunction<BatchElement<Window, Pair>, BatchElement<Window, Pair>>,
           ResultTypeQueryable<BatchElement<Window, Pair>> {
 
-    final UnaryFunctor<Iterable, Object> reducer;
+    final UnaryFunctor<Stream, Object> reducer;
     transient SingleValueContext<Object> singleValueContext;
 
-    RBKReducer(UnaryFunctor<Iterable, Object> reducer) {
+    RBKReducer(UnaryFunctor<Stream, Object> reducer) {
       this.reducer = reducer;
     }
 
@@ -192,7 +192,7 @@ public class ReduceByKeyTranslator implements BatchOperatorTranslator<ReduceByKe
                   batchElement.getElement().getSecond()));
         } else {
 
-          reducer.apply(Arrays.asList(
+          reducer.apply(Stream.of(
               val.getElement(), batchElement.getElement().getSecond()),
               singleValueContext);
           Object reduced = singleValueContext.getAndResetValue();

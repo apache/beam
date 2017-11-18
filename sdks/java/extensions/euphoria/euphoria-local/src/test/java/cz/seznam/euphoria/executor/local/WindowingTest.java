@@ -21,7 +21,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
@@ -34,12 +33,12 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.util.Fold;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -151,8 +150,8 @@ public class WindowingTest {
     ).withReadDelay(READ_DELAY));
 
     // ~ emits after 3 input elements received due to "count windowing"
-    Dataset<HashSet<String>> first = ReduceWindow.of(input)
-        .reduceBy(Sets::newHashSet)
+    Dataset<Set<String>> first = ReduceWindow.of(input)
+        .reduceBy(s -> s.collect(Collectors.toSet()))
         .windowBy(Count.of(3))
         .output();
 
@@ -160,7 +159,7 @@ public class WindowingTest {
     // serving merely as another operator in the pipeline; must emit its
     // inputs elements as soon they arrive (note: this is a
     // non-window-wise operator)
-    Dataset<HashSet<String>> mediator = MapElements.of(first)
+    Dataset<Set<String>> mediator = MapElements.of(first)
         .using(e -> e)
         .output();
 
@@ -170,29 +169,22 @@ public class WindowingTest {
     // further, the operator is supposed to emit the windows as soon as possible,
     // i.e. once the last item for a window from the preceding window-wise operator
     // is received.
-    Dataset<HashSet<String>> second = ReduceWindow.of(mediator)
-        .reduceBy(what -> {
-          HashSet<String> s = new HashSet<>();
-          s.add("!");
-          for (Set<String> x : what) {
-            s.addAll(x);
-          }
-          return s;
-        })
+    Dataset<Set<String>> second = ReduceWindow.of(mediator)
+        .reduceBy(Fold.of(Sets::union))
         .output();
 
     // ~ consume the output and put a timestamp on each element. emits output
     // itself as soon as it receives input, due to the operator's streaming nature.
-    Dataset<Pair<Long, HashSet<String>>> third = MapElements.of(second)
+    Dataset<Pair<Long, Set<String>>> third = MapElements.of(second)
         .using(what -> Pair.of(System.currentTimeMillis(), what))
         .output();
 
-    ListDataSink<Pair<Long, HashSet<String>>> output = ListDataSink.get();
+    ListDataSink<Pair<Long, Set<String>>> output = ListDataSink.get();
     third.persist(output);
 
     executor.submit(flow).get();
 
-    List<Pair<Long, HashSet<String>>> ordered =
+    List<Pair<Long, Set<String>>> ordered =
         output.getOutputs()
             .stream()
             .sorted(Comparator.comparing(Pair::getFirst))
@@ -201,11 +193,11 @@ public class WindowingTest {
     // ~ test that we receive the first element earlier than the second one
     assertSmaller(
         ordered.get(0).getFirst() + 2 * READ_DELAY.toMillis(), ordered.get(1).getFirst());
-    assertEquals(Sets.newHashSet("!", "r-one", "r-two", "r-three"),
+    assertEquals(Sets.newHashSet("r-one", "r-two", "r-three"),
         ordered.get(0).getSecond());
-    assertEquals(Sets.newHashSet("!", "s-one", "s-two", "s-three"),
+    assertEquals(Sets.newHashSet("s-one", "s-two", "s-three"),
         ordered.get(1).getSecond());
-    assertEquals(Sets.newHashSet("!", "t-one"),
+    assertEquals(Sets.newHashSet("t-one"),
         ordered.get(2).getSecond());
   }
 
@@ -288,7 +280,7 @@ public class WindowingTest {
         ReduceByKey.of(input)
             .keyBy(e -> "")
             .valueBy(e -> e)
-            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+            .reduceBy(s -> s.collect(Collectors.toSet()))
             .windowBy(Count.of(3))
             .output();
 
@@ -305,7 +297,7 @@ public class WindowingTest {
     Dataset<Set<String>> third =
         ReduceWindow.of(second)
             .valueBy(e -> e)
-            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+            .reduceBy(s -> s.collect(Collectors.toSet()))
             .output();
 
     ListDataSink<Set<String>> out = ListDataSink.get();
