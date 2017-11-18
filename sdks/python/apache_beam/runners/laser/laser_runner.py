@@ -287,13 +287,13 @@ class ParDoStep(Step):
         input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
         side_inputs=[])
 
-class GroupByKeyStep(Step):
+class GroupByKeyOnlyStep(Step):
   def __init__(self, name, element_coder):
-    super(GroupByKeyStep, self).__init__(name)
+    super(GroupByKeyOnlyStep, self).__init__(name)
     self.element_coder = element_coder
 
   def copy(self):
-    return GroupByKeyStep(self.element_coder)
+    return GroupByKeyOnlyStep(self.element_coder)
 
 class CompositeWatermarkNode(WatermarkNode):
   class InputWatermarkNode(WatermarkNode):
@@ -363,6 +363,180 @@ class ExecutionGraph(object):
 class Stage(object):  # TODO: rename to ExecutionStage
   def __init__(self):
     super(Stage, self).__init__()
+
+
+
+class SimpleShuffleDataset(object):
+  def __init__(self):
+    self.finalized = False
+    self.items = []
+    self.sorted_items = None
+    self.uncommitted_items = {}
+    self.committed_txns = set()
+    self.lock = threading.Lock()
+
+  def put(self, txn_id, key, value):
+    assert isinstance(key, str)
+    assert isinstance(value, str)
+    with self.lock:
+      if self.finalized:
+        raise Exception('Dataset already finalized.')
+      if txn_id in committed_txns:
+        raise Exception('Can\'t write to already committed transaction: %s.' % txn_id)
+      if txn_id not in self.uncommitted_items:
+        self.uncommitted_items[txn_id] = []
+      self.uncommitted_items[txn_id].append((key, value))
+
+  def put_kvs(self, txn_id, kvs):
+    for key, value in kvs:
+      self.put(txn_id, key, value)
+
+
+  def commit_transaction(self, txn_id):
+    with self.lock:
+      if self.finalized:
+        raise Exception('Dataset already finalized.')
+      if txn_id in committed_txns:
+        raise Exception('Transaction already committed: %s.' % txn_id)
+      if txn_id in self.uncommitted_items:
+        self.items += self.uncommitted_items[txn_id]
+        del self.uncommitted_items[txn_id]
+      self.committed_txns.add(txn_id)
+
+
+  def finalize(self):
+    with self.lock:
+      self.finalized = True
+      self.sorted_items = sorted(self.items, key=lambda k, v: k)
+      self.cumulative_size = []
+      cumulative = 0
+      for k, v in self.sorted_items:
+        cumulative += len(k) + len(v)
+        self.cumulative_size.append(cumulative)
+
+  def _seek(self, lexicographic_position):
+    # returns first index >= the lexicographic position.
+    # if greater than all values, returns size of items list
+    # else, if less-eq than all values, returns 0
+    if lexicographic_position == LexicographicPosition.KEYSPACE_BEGINNING:
+      return 0
+    if lexicographic_position == LexicographicPosition.KEYSPACE_END:
+      return len(self.items)
+
+    # Do binary search on items for position.
+    # Invariant: lower is always <= lex position, upper is always > lex position.
+    lower = -1
+    upper = len(self.items)
+    while lower + 1 < upper:
+      middle = (lower + upper) / 2
+      if lexicographic_cmp(self.items[middle][0], lexicographic_position) >= 0:
+        # key at middle is >= lex position
+        lower, upper = lower, middle
+      else:
+        # key at middle is < lex position
+        lower, upper = middle, upper
+
+    first_index = upper
+
+    # sanity check
+    if len(self.items) == 0:
+      assert first_index == 0  # TODO: what to do about this special case?
+    if first_index == 0:
+      assert lexicographic_cmp(self.items[0][0], lexicographic_position) >= 0
+    elif first_index == len(self.items):
+      assert lexicographic_cmp(self.items[-1][0], lexicographic_position) < 0
+    else:
+      assert lexicographic_cmp(self.items[first_index][0], lexicographic_position) >= 0
+      assert lexicographic_cmp(self.items[first_index - 1][0], lexicographic_position) < 0
+
+    return first_index
+
+
+  def summarize_key_range(self, lexicographic_range):
+    first_index = self._seek(lexicographic_range.start)
+    one_past_last_index = self._seek(lexicographic_range.end)
+    return KeyRangeSummary(one_past_last_index - first_index, self.cumulative_size[one_past_last_index])
+
+
+class KeyRangeSummary(object):
+  def __init__(self, item_count, byte_count):
+    self.item_count = item_count
+    self.byte_count = byte_count
+
+class ShuffleWorkerInterface(Interface):
+  @remote_method(int, int, list)
+  def write(self, dataset_id, txn_id, kvs):
+    raise NotImplementedError()
+
+  @remote_method(int, int)
+  def commit_transaction(self, dataset_id, txn_id):
+    raise NotImplementedError()
+
+  @remote_method(int)
+  def finalize_dataset(self, dataset_id):
+    raise NotImplementedError()
+
+
+class LexicographicPosition(object):
+  KEYSPACE_BEGINNING = 1
+  KEYSPACE_END = 2
+
+
+def lexicographic_cmp(left, right):
+  if left == LexicographicPosition.KEYSPACE_BEGINNING:
+    return -1
+  if right == LexicographicPosition.KEYSPACE_END:
+    return 1
+  return cmp(left, right)
+
+
+class LexicographicRange(object):
+  def __init__(self, start, end):
+    assert isinstance(start, str) or start == KEYSPACE_BEGINNING
+    assert isinstance(end, str) or end == KEYSPACE_END
+    self.start = start
+    self.end = end
+
+
+
+class SimpleShuffleWorker(ShuffleWorkerInterface):
+  def __init__(self):
+    self.datasets = {}
+
+  # REMOTE METHOD
+  def write(self, dataset_id, txn_id, kvs):
+    self.datasets[dataset_id].put_kvs(txn_id, kvs)
+
+  # REMOTE METHOD
+  def commit_transaction(self, dataset_id, txn_id):
+    self.datasets[dataset_id].commit_transaction(txn_id)
+
+  def summarize_key_range(self, dataset_id, lexicographic_range):
+    return self.datasets[dataset_id].summarize_key_range(lexicographic_range)
+
+
+  # REMOTE METHOD
+  def finalize_dataset(self, dataset_id):
+    self.datasets[dataset_id].finalize()
+
+
+
+class ShuffleFinalizeStage(Stage):
+  def __init__(self, name, execution_context, dataset_id):
+    super(ShuffleFinalizeStage, self).__init__()
+    self.name = name
+    self.execution_context = execution_context
+    self.dataset_id = dataset_id
+
+  def start(self):
+    self.execution_context.shuffle_interface.finalize_dataset(dataset_id)
+
+
+  def input_watermark_advanced(self, new_watermark):
+    print 'ShuffleFinalizeStage input watermark ADVANCED', new_watermark
+    if new_watermark == MAX_TIMESTAMP:
+      self.start()  # TODO: reconcile all the run / start method names.
+  
 
 
 
@@ -518,12 +692,16 @@ def generate_execution_graph(step_graph, execution_context):
     elif isinstance(original_step, ParDoStep):
       assert len(original_step.inputs) == 1
       input_step = original_step.inputs[0].step
-      print 'input_step', input_step
+      print 'input_step', input_step, type(input_step)
       fused_stage = steps_to_fused_stages[input_step]
       fused_stage.add_step(original_step)
       steps_to_fused_stages[original_step] = fused_stage
       # TODO: add original step -> new step mapping.
       # TODO: add dependencies via WatermarkNode.
+    elif isinstance(original_step, GroupByKeyOnlyStep):
+      # hallucinate a shuffle write and a shuffle read.
+
+ 
     # TODO: handle GroupByKeyStep.
     for unused_tag, pcoll_node in original_step.outputs.iteritems():
       for consumer_step in pcoll_node.consumers:
@@ -578,13 +756,14 @@ class LaserRunner(PipelineRunner):
         pvalue.element_type or typehints.Any,
         pvalue.windowing.windowfn.get_window_coder() if windowed else None)
 
-  def apply_GroupByKey(self, transform, pcoll):
-    return pvalue.PCollection(pcoll.pipeline)
+  # def apply__GroupByKeyOnly(self, transform, pcoll):
+  #   return pvalue.PCollection(pcoll.pipeline)
 
-  def run_GroupByKey(self, transform_node):
+  def run__GroupByKeyOnly(self, transform_node):
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
-    step = GroupByKeyStep(transform_node.full_label, element_coder)
+    step = GroupByKeyOnlyStep(transform_node.full_label, element_coder)
+    print 'GBKO STEP', step
     self.step_graph.add_step(transform_node, step)
 
 
@@ -1066,13 +1245,13 @@ if __name__ == '__main__':
   # def fn(input):
   #   print input
   p | Create([1, 2, 3]) | beam.Map(lambda x: (x, '1')) | beam.GroupByKey()
-  p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
-  a = p | 'yo' >> Create(['a', 'b', 'c'])
-  def _print(x):
-    print 'PRRRINT:', x
-  a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
-  a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
-  p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
-  # | beam.Map(fn)
+  # p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
+  # a = p | 'yo' >> Create(['a', 'b', 'c'])
+  # def _print(x):
+  #   print 'PRRRINT:', x
+  # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
+  # a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
+  # p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+  # # | beam.Map(fn)
   p.run()
 
