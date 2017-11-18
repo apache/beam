@@ -44,6 +44,7 @@ import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.construction.TransformInputs;
 import org.apache.beam.runners.direct.ParDoMultiOverrideFactory.StatefulParDo;
 import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.AppliedPTransform;

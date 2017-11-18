@@ -55,6 +55,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -274,7 +275,7 @@ class WatermarkManager {
       if (!pendingElements.isEmpty()) {
         minInputWatermark =
             INSTANT_ORDERING.min(
-                minInputWatermark, pendingElements.firstEntry().getElement().getMinTimestamp());
+                minInputWatermark, pendingElements.firstEntry().getElement().getMinimumTimestamp());
       }
       Instant newWatermark = INSTANT_ORDERING.max(oldWatermark, minInputWatermark);
       currentWatermark.set(newWatermark);
@@ -1511,7 +1512,7 @@ class WatermarkManager {
     @Override
     public int compare(CommittedBundle<?> o1, CommittedBundle<?> o2) {
       return ComparisonChain.start()
-          .compare(o1.getMinTimestamp(), o2.getMinTimestamp())
+          .compare(o1.getMinimumTimestamp(), o2.getMinimumTimestamp())
           .result();
     }
   }

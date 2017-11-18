@@ -16,7 +16,18 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.local;
 
-/** A {@link Runnable} that will execute a {@code PTransform} on some bundle of input. */
-public interface TransformExecutor extends Runnable {}
+import org.apache.beam.sdk.util.WindowedValue;
+import org.joda.time.Instant;
+
+/** An immutable collection of elements which are part of a {@code PCollection}. */
+public interface Bundle<T> extends Iterable<WindowedValue<T>> {
+  /**
+   * Return the minimum timestamp among elements in this bundle.
+   *
+   * <p>This should be equivalent to iterating over all of the elements within a bundle and
+   * selecting the minimum timestamp from among them.
+   */
+  Instant getMinimumTimestamp();
+}

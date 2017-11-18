@@ -56,9 +56,9 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link TransformExecutor}. */
+/** Tests for {@link DirectTransformExecutor}. */
 @RunWith(JUnit4.class)
-public class TransformExecutorTest {
+public class DirectTransformExecutorTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   private PCollection<String> created;
 
@@ -120,8 +120,8 @@ public class TransformExecutorTest {
 
     when(registry.forApplication(createdProducer, null)).thenReturn(evaluator);
 
-    TransformExecutor<Object> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<Object> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
@@ -140,8 +140,8 @@ public class TransformExecutorTest {
   public void nullTransformEvaluatorTerminates() throws Exception {
     when(registry.forApplication(createdProducer, null)).thenReturn(null);
 
-    TransformExecutor<Object> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<Object> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
@@ -182,8 +182,8 @@ public class TransformExecutorTest {
         bundleFactory.createBundle(created).add(foo).add(spam).add(third).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<String> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
@@ -224,8 +224,8 @@ public class TransformExecutorTest {
         bundleFactory.createBundle(created).add(foo).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<String> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
@@ -258,8 +258,8 @@ public class TransformExecutorTest {
     CommittedBundle<String> inputBundle = bundleFactory.createBundle(created).commit(Instant.now());
     when(registry.<String>forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<String> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>emptyList(),
@@ -298,8 +298,8 @@ public class TransformExecutorTest {
     when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
     TestEnforcementFactory enforcement = new TestEnforcementFactory();
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<String> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(enforcement),
@@ -340,8 +340,8 @@ public class TransformExecutorTest {
         bundleFactory.createBundle(created).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<String> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(
@@ -379,8 +379,8 @@ public class TransformExecutorTest {
         bundleFactory.createBundle(created).add(fooBytes).commit(Instant.now());
     when(registry.forApplication(downstreamProducer, inputBundle)).thenReturn(evaluator);
 
-    TransformExecutor<String> executor =
-        TransformExecutor.create(
+    DirectTransformExecutor<String> executor =
+        new DirectTransformExecutor<>(
             evaluationContext,
             registry,
             Collections.<ModelEnforcementFactory>singleton(

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
+package org.apache.beam.runners.local;
 
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -26,7 +26,7 @@ import org.apache.beam.sdk.util.CoderUtils;
  * A (Key, Coder) pair that uses the structural value of the key (as provided by
  * {@link Coder#structuralValue(Object)}) to perform equality and hashing.
  */
-abstract class StructuralKey<K> {
+public abstract class StructuralKey<K> {
 
   private StructuralKey() {
     // Prevents extending outside of this class
@@ -40,7 +40,7 @@ abstract class StructuralKey<K> {
   /**
    * Get the empty {@link StructuralKey}. All instances of the empty key are considered equal.
    */
-  static StructuralKey<?> empty() {
+  public static StructuralKey<?> empty() {
     StructuralKey<Object> emptyKey = new StructuralKey<Object>() {
       @Override
       public Object getKey() {
@@ -53,7 +53,7 @@ abstract class StructuralKey<K> {
   /**
    * Create a new Structural Key of the provided key that can be encoded by the provided coder.
    */
-  static <K> StructuralKey<K> of(K key, Coder<K> coder) {
+  public static <K> StructuralKey<K> of(K key, Coder<K> coder) {
     try {
       return new CoderStructuralKey<>(coder, key);
     } catch (Exception e) {
