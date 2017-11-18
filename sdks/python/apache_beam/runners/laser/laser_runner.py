@@ -381,7 +381,7 @@ class SimpleShuffleDataset(object):
     with self.lock:
       if self.finalized:
         raise Exception('Dataset already finalized.')
-      if txn_id in committed_txns:
+      if txn_id in self.committed_txns:
         raise Exception('Can\'t write to already committed transaction: %s.' % txn_id)
       if txn_id not in self.uncommitted_items:
         self.uncommitted_items[txn_id] = []
@@ -396,7 +396,7 @@ class SimpleShuffleDataset(object):
     with self.lock:
       if self.finalized:
         raise Exception('Dataset already finalized.')
-      if txn_id in committed_txns:
+      if txn_id in self.committed_txns:
         raise Exception('Transaction already committed: %s.' % txn_id)
       if txn_id in self.uncommitted_items:
         self.items += self.uncommitted_items[txn_id]
@@ -407,12 +407,13 @@ class SimpleShuffleDataset(object):
   def finalize(self):
     with self.lock:
       self.finalized = True
-      self.sorted_items = sorted(self.items, key=lambda k, v: k)
+      self.sorted_items = sorted(self.items, key=lambda kv: kv[0])
       self.cumulative_size = []
       cumulative = 0
       for k, v in self.sorted_items:
         cumulative += len(k) + len(v)
         self.cumulative_size.append(cumulative)
+      self.cumulative_size.append(cumulative)
 
   def _seek(self, lexicographic_position):
     # returns first index >= the lexicographic position.
@@ -441,7 +442,7 @@ class SimpleShuffleDataset(object):
     # sanity check
     if len(self.items) == 0:
       assert first_index == 0  # TODO: what to do about this special case?
-    if first_index == 0:
+    elif first_index == 0:
       assert lexicographic_cmp(self.items[0][0], lexicographic_position) >= 0
     elif first_index == len(self.items):
       assert lexicographic_cmp(self.items[-1][0], lexicographic_position) < 0
@@ -455,13 +456,18 @@ class SimpleShuffleDataset(object):
   def summarize_key_range(self, lexicographic_range):
     first_index = self._seek(lexicographic_range.start)
     one_past_last_index = self._seek(lexicographic_range.end)
-    return KeyRangeSummary(one_past_last_index - first_index, self.cumulative_size[one_past_last_index])
+    # TODO: audit this code again
+    return KeyRangeSummary(one_past_last_index - first_index,
+        self.cumulative_size[one_past_last_index] - self.cumulative_size[first_index])
 
 
 class KeyRangeSummary(object):
   def __init__(self, item_count, byte_count):
     self.item_count = item_count
     self.byte_count = byte_count
+
+  def __repr__(self):
+    return 'KeyRangeSummary(items: %d, bytes: %d)' % (self.item_count, self.byte_count)
 
 class ShuffleWorkerInterface(Interface):
   @remote_method(int, int, list)
@@ -492,8 +498,8 @@ def lexicographic_cmp(left, right):
 
 class LexicographicRange(object):
   def __init__(self, start, end):
-    assert isinstance(start, str) or start == KEYSPACE_BEGINNING
-    assert isinstance(end, str) or end == KEYSPACE_END
+    assert isinstance(start, str) or start == LexicographicPosition.KEYSPACE_BEGINNING
+    assert isinstance(end, str) or end == LexicographicPosition.KEYSPACE_END
     self.start = start
     self.end = end
 
@@ -700,7 +706,7 @@ def generate_execution_graph(step_graph, execution_context):
       # TODO: add dependencies via WatermarkNode.
     elif isinstance(original_step, GroupByKeyOnlyStep):
       # hallucinate a shuffle write and a shuffle read.
-
+      pass
  
     # TODO: handle GroupByKeyStep.
     for unused_tag, pcoll_node in original_step.outputs.iteritems():
