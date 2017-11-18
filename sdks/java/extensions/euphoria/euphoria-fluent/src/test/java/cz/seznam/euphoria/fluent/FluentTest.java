@@ -16,20 +16,19 @@
 package cz.seznam.euphoria.fluent;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
-import cz.seznam.euphoria.core.client.functional.ReduceFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
-import com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
 import java.util.Set;
 
 import static java.util.Arrays.asList;
+import java.util.stream.Collectors;
 
 public class FluentTest {
 
@@ -45,7 +44,7 @@ public class FluentTest {
         .apply(input -> ReduceByKey.of(input)
             .keyBy(e -> "")
             .valueBy(e -> e)
-            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet)
+            .reduceBy(s -> s.collect(Collectors.toSet()))
             .windowBy(Count.of(3)))
         // ~ strip the needless key and flatten out the elements thereby
         // creating multiple elements in the output belonging to the same window
@@ -56,7 +55,7 @@ public class FluentTest {
         .apply(input -> ReduceByKey.of(input)
             .keyBy(e -> "")
             .valueBy(e -> e)
-            .reduceBy((ReduceFunction<String, Set<String>>) Sets::newHashSet))
+            .reduceBy(s -> s.collect(Collectors.toSet())))
         // ~ strip the needless key
         .mapElements(Pair::getSecond)
         .persist(out)

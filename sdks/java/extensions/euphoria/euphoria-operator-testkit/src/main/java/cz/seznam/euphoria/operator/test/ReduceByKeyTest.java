@@ -25,8 +25,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.functional.ReduceFunction;
-import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
@@ -50,6 +48,7 @@ import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import cz.seznam.euphoria.core.client.util.Fold;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -58,9 +57,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
@@ -74,7 +73,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test
   public void testReductionType0() {
-    execute(new AbstractTestCase<Integer, Pair<Integer, HashSet<Integer>>>(
+    execute(new AbstractTestCase<Integer, Pair<Integer, Set<Integer>>>(
         /* don't parallelize this test, because it doesn't work
          * well with count windows */
         1) {
@@ -84,18 +83,18 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Dataset<Pair<Integer, HashSet<Integer>>>
+      protected Dataset<Pair<Integer, Set<Integer>>>
       getOutput(Dataset<Integer> input) {
         return ReduceByKey.of(input)
             .keyBy(e -> e % 2)
             .valueBy(e -> e)
-            .reduceBy((ReduceFunction<Integer, HashSet<Integer>>) Sets::newHashSet)
+            .reduceBy(s -> s.collect(Collectors.toSet()))
             .windowBy(Count.of(3))
             .output();
       }
 
       @Override
-      public List<Pair<Integer, HashSet<Integer>>> getUnorderedOutput() {
+      public List<Pair<Integer, Set<Integer>>> getUnorderedOutput() {
         return Arrays.asList(
             Pair.of(0, Sets.newHashSet(2, 4, 6)),
             Pair.of(1, Sets.newHashSet(1, 3, 5)),
@@ -108,7 +107,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
   @Test
   public void testReductionType0WithSortedValues() {
-    execute(new AbstractTestCase<Integer, ArrayList<Pair<Integer, ArrayList<Integer>>>>(
+    execute(new AbstractTestCase<Integer, List<Pair<Integer, List<Integer>>>>(
         /* don't parallelize this test, because it doesn't work
          * well with count windows */
         1) {
@@ -118,18 +117,18 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Dataset<ArrayList<Pair<Integer, ArrayList<Integer>>>>
+      protected Dataset<List<Pair<Integer, List<Integer>>>>
       getOutput(Dataset<Integer> input) {
-        Dataset<Pair<Integer, ArrayList<Integer>>> reducedByWindow = ReduceByKey.of(input)
+        Dataset<Pair<Integer, List<Integer>>> reducedByWindow = ReduceByKey.of(input)
             .keyBy(e -> e % 2)
             .valueBy(e -> e)
-            .reduceBy((ReduceFunction<Integer, ArrayList<Integer>>) Lists::newArrayList)
+            .reduceBy(s -> s.collect(Collectors.toList()))
             .withSortedValues(Integer::compare)
             .windowBy(Count.of(3))
             .output();
 
         return ReduceWindow.of(reducedByWindow)
-            .reduceBy(Lists::newArrayList)
+            .reduceBy(s -> s.collect(Collectors.toList()))
             .withSortedValues((l, r) -> {
               int cmp = l.getFirst().compareTo(r.getFirst());
               if (cmp == 0) {
@@ -145,7 +144,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
       @Override
       public void validate(
-          List<ArrayList<Pair<Integer, ArrayList<Integer>>>> outputs) throws AssertionError {
+          List<List<Pair<Integer, List<Integer>>>> outputs) throws AssertionError {
 
         assertEquals(1, outputs.size());
         assertEquals(Lists.newArrayList(
@@ -178,25 +177,16 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       getOutput(Dataset<Integer> input) {
         return ReduceByKey.of(input)
             .keyBy(e -> e % 2)
-            .valueBy(e -> e)
-            .reduceBy((Iterable<Integer> in, Collector<Integer> ctx) -> {
-              int sum = 0;
-              for (Integer i : in) {
-                sum += i;
-                ctx.collect(sum);
-              }
-            })
+            .reduceBy(Fold.whileEmittingEach(0, (a, b) -> a + b))
             .windowBy(Count.of(3))
             .output();
       }
 
       @Override
       public void validate(List<Pair<Integer, Integer>> output) {
-        HashMap<Integer, List<Integer>> byKey = new HashMap<>();
-        for (Pair<Integer, Integer> p : output) {
-          List<Integer> xs = byKey.computeIfAbsent(p.getFirst(), k -> new ArrayList<>());
-          xs.add(p.getSecond());
-        }
+        Map<Integer, List<Integer>> byKey = output.stream()
+            .collect(Collectors.groupingBy(Pair::getFirst,
+                Collectors.mapping(Pair::getSecond, Collectors.toList())));
 
         assertEquals(2, byKey.size());
 
@@ -204,8 +194,6 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         assertEquals(3, byKey.get(0).size());
         assertEquals(Arrays.asList(2, 6, 12), byKey.get(0));
 
-        // ~ cannot make any assumption about the order of the elements in the windows
-        // (on batch) since we have no event-time order for the test data
         assertNotNull(byKey.get(1));
         assertEquals(
             Sets.newHashSet(1, 4, 9, 7, 16),
@@ -508,7 +496,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   public void testSessionWindowing() {
     execute(new AbstractTestCase<
         Pair<String, Integer>,
-        Triple<TimeInterval, Integer, HashSet<String>>>() {
+        Triple<TimeInterval, Integer, Set<String>>>() {
 
       @Override
       protected List<Pair<String, Integer>> getInput() {
@@ -525,25 +513,25 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      protected Dataset<Triple<TimeInterval, Integer, HashSet<String>>> getOutput
+      protected Dataset<Triple<TimeInterval, Integer, Set<String>>> getOutput
           (Dataset<Pair<String, Integer>> input) {
         input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
-        Dataset<Pair<Integer, HashSet<String>>> reduced =
+        Dataset<Pair<Integer, Set<String>>> reduced =
             ReduceByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
                 .valueBy(Pair::getFirst)
-                .reduceBy((ReduceFunction<String, HashSet<String>>) Sets::newHashSet)
+                .reduceBy(s -> s.collect(Collectors.toSet()))
                 .windowBy(Session.of(Duration.ofMillis(5)))
                 .output();
 
         return FlatMap.of(reduced)
-            .using((UnaryFunctor<Pair<Integer, HashSet<String>>, Triple<TimeInterval, Integer, HashSet<String>>>)
+            .using((UnaryFunctor<Pair<Integer, Set<String>>, Triple<TimeInterval, Integer, Set<String>>>)
                 (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
             .output();
       }
 
       @Override
-      public List<Triple<TimeInterval, Integer, HashSet<String>>> getUnorderedOutput() {
+      public List<Triple<TimeInterval, Integer, Set<String>>> getUnorderedOutput() {
         return Arrays.asList(
             Triple.of(new TimeInterval(1, 15), 1, Sets.newHashSet("1-four", "1-one", "1-three", "1-two")),
             Triple.of(new TimeInterval(10, 15), 2, Sets.newHashSet("2-two")),
@@ -718,18 +706,14 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         return ReduceByKey.of(input)
             .keyBy(e -> e % 2)
             .valueBy(e -> e)
-            .reduceBy((ReduceFunctor<Integer, Integer>) (elems, collector) -> {
-              int sum = 0;
-              for (Integer elem : elems) {
-                sum += elem;
-                if (elem % 2 == 0) {
-                  collector.getCounter("evens").increment();
-                } else {
-                  collector.getCounter("odds").increment();
-                }
+            .reduceBy(Fold.of(0, (Integer a, Integer b, Collector<Integer> ctx) -> {
+              if (b % 2 == 0) {
+                ctx.getCounter("evens").increment();
+              } else {
+                ctx.getCounter("odds").increment();
               }
-              collector.collect(sum);
-            })
+              ctx.collect(a + b);
+            }))
             .windowBy(GlobalWindowing.get())
             .output();
       }

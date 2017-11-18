@@ -128,13 +128,7 @@ public class RBKTimeSlidingTest {
         ReduceByKey.of(f.createInput(source, Pair::getSecond))
         .keyBy(Pair::getFirst)
         .valueBy(e -> 1L)
-        .reduceBy(xs -> {
-          long sum = 0;
-          for (long x : xs) {
-            sum += x;
-          }
-          return sum;
-        })
+        .reduceBy(Sums.ofLongs())
         .windowBy(TimeSliding.of(Duration.ofMillis(10), Duration.ofMillis(5)))
         .output();
 

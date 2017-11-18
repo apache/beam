@@ -21,6 +21,7 @@ import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
+import javax.annotation.Nullable;
 
 /**
  * A {@code Context} that holds only single value.
@@ -33,6 +34,16 @@ import cz.seznam.euphoria.core.client.io.Context;
 public class SingleValueContext<T> implements Context, Collector<T> {
 
   T value;
+  @Nullable
+  final Context wrap;
+
+  public SingleValueContext() {
+    this(null);
+  }
+
+  public SingleValueContext(Context wrap) {
+    this.wrap = wrap;
+  }
 
   /**
    * Replace the stored value with given one.
@@ -53,27 +64,39 @@ public class SingleValueContext<T> implements Context, Collector<T> {
    */
   @Override
   public Object getWindow() throws UnsupportedOperationException {
-    throw new UnsupportedOperationException(
-        "The window is unknown in this context");
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+          "The window is unknown in this context");
+    }
+    return wrap.getWindow();
   }
 
   @Override
   public Counter getCounter(String name) {
-    throw new UnsupportedOperationException(
-            "Accumulators not supported in this context");
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+              "Accumulators not supported in this context");
+    }
+    return wrap.getCounter(name);
   }
 
   @Override
   public Histogram getHistogram(String name) {
-    throw new UnsupportedOperationException(
-            "Accumulators not supported in this context");
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+              "Accumulators not supported in this context");
+    }
+    return wrap.getHistogram(name);
 
   }
 
   @Override
   public Timer getTimer(String name) {
-    throw new UnsupportedOperationException(
-            "Accumulators not supported in this context");
+    if (wrap == null) {
+      throw new UnsupportedOperationException(
+              "Accumulators not supported in this context");
+    }
+    return wrap.getTimer(name);
 
   }
 
@@ -85,6 +108,13 @@ public class SingleValueContext<T> implements Context, Collector<T> {
     T ret = value;
     value = null;
     return ret;
+  }
+
+  /**
+   * Retrieve value of this context.
+   */
+  public T get() {
+    return value;
   }
 
 }

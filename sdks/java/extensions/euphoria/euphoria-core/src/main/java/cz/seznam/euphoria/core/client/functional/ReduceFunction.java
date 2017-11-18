@@ -21,6 +21,7 @@
 package cz.seznam.euphoria.core.client.functional;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
+import java.util.stream.Stream;
 
 /**
  * Reduce function reducing iterable of elements into single element (of
@@ -28,6 +29,6 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface ReduceFunction<IN, OUT> extends UnaryFunction<Iterable<IN>, OUT> {
+public interface ReduceFunction<IN, OUT> extends UnaryFunction<Stream<IN>, OUT> {
 
 }

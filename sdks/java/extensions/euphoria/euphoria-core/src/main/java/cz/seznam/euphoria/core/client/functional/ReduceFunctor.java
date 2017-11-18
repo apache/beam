@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.core.client.functional;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
+import java.util.stream.Stream;
 
 /**
  * Reduce function reducing iterable of elements into multiple elements (of
@@ -23,7 +24,7 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
  */
 @Audience(Audience.Type.CLIENT)
 @FunctionalInterface
-public interface ReduceFunctor<IN, OUT> extends UnaryFunctor<Iterable<IN>, OUT> {
+public interface ReduceFunctor<IN, OUT> extends UnaryFunctor<Stream<IN>, OUT> {
 
   /**
    * Is this a commutative associative function with single final output?
