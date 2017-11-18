@@ -121,7 +121,7 @@ def GetNewHttp(http_class=httplib2.Http, **kwargs):
     proxy_rdns=None
   )
 
-  for proxy_env_var in ['http_proxy', 'https_proxy', 'HTTPS_PROXY']:
+  for proxy_env_var in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']:
     if proxy_env_var in os.environ and os.environ[proxy_env_var]:
       proxy_info = ProxyInfoFromEnvironmentVar(proxy_env_var)
       break
