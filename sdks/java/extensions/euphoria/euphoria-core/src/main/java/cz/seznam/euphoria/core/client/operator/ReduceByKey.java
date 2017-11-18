@@ -44,9 +44,10 @@ import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import java.io.IOException;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Operator performing state-less aggregation by given reduce function. The reduction
@@ -124,7 +125,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     default <OUT> SortableDatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
         ReduceFunction<VALUE, OUT> reducer) {
 
-      return reduceBy((Iterable<VALUE> in, Collector<OUT> ctx) -> {
+      return reduceBy((Stream<VALUE> in, Collector<OUT> ctx) -> {
         ctx.collect(reducer.apply(in));
       });
     }
@@ -440,7 +441,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       }
 
       @Override
-      public void apply(Iterable<VALUE> elem, Collector<VALUE> context) {
+      public void apply(Stream<VALUE> elem, Collector<VALUE> context) {
         context.collect(reducer1.apply(elem));
       }
     };
@@ -487,7 +488,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       if (v == null) {
         this.storage.set(element);
       } else {
-        this.reducer.apply(Arrays.asList(v, element), context);
+        this.reducer.apply(Stream.of(v, element), context);
         this.storage.set(context.getAndResetValue());
       }
     }
@@ -566,14 +567,16 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       if (comparator != null) {
         Comparator<IN> c = comparator::apply;
         ExternalIterable<IN> sorted = spill.sorted(reducibleValues.get(), c);
-        reducer.apply(sorted, ctx);
+        reducer.apply(StreamSupport.stream(sorted.spliterator(), false), ctx);
         try {
           sorted.close();
         } catch (IOException ex) {
           throw new RuntimeException(ex);
         }
       } else {
-        reducer.apply(reducibleValues.get(), ctx);
+        reducer.apply(
+            StreamSupport.stream(reducibleValues.get().spliterator(), false),
+            ctx);
       }
     }
 

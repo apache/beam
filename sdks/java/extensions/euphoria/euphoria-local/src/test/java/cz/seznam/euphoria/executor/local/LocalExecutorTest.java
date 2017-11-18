@@ -62,7 +62,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -538,13 +537,7 @@ public class LocalExecutorTest {
     // first add some fake operator operating on processing time
     // doing virtually nothing
     Dataset<Set<Integer>> reduced = ReduceWindow.of(input)
-        .reduceBy((Iterable<Integer> values) -> {
-          Set<Integer> grp = new TreeSet<>();
-          for (Integer i : values) {
-            grp.add(i);
-          }
-          return grp;
-        })
+        .reduceBy(s -> s.collect(Collectors.toSet()))
         .windowBy(GlobalWindowing.get())
         .output();
 

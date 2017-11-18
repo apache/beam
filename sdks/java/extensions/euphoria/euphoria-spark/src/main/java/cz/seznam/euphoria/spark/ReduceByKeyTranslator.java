@@ -31,9 +31,9 @@ import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Stream;
 
 class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
 
@@ -144,7 +144,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
       }
       iterable[0] = o1.getElement();
       iterable[1] = o2.getElement();
-      reducer.apply((Iterable) Arrays.asList(iterable), context);
+      reducer.apply((Stream) Stream.of(iterable), context);
 
       return new TimestampedElement(
           Math.max(o1.getTimestamp(), o2.getTimestamp()),
