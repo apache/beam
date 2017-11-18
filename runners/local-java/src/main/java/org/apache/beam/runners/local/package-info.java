@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.runners.direct;
-
-/** A {@link Runnable} that will execute a {@code PTransform} on some bundle of input. */
-public interface TransformExecutor extends Runnable {}
+/**
+ * Utilities useful when executing a pipeline on a single machine.
+ */
+package org.apache.beam.runners.local;
