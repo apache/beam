@@ -144,7 +144,8 @@ class WatermarkManager(object):
               self._refresh_watermarks(consumer)
 
   def extract_all_timers(self):
-    """Extracts fired timers and reports of any timers set for all transforms."""
+    """Extracts fired timers for all transforms
+    and reports if there are any timers set."""
     all_timers = []
     has_realtime_timer = False
     for applied_ptransform, tw in self._transform_to_watermarks.iteritems():
