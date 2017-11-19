@@ -581,7 +581,8 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
         public Trigger.TriggerResult onElement(long time, Window window, TriggerContext ctx) {
           // ~ we expect the 'time' to be the end of the window which produced the
           // element in the preceding upstream (stateful and windowed) operator
-          assertTrue(time == 15_000L - 1 || time == 25_000L - 1);
+          assertTrue("Invalid timestamp " + time,
+              time == 15_000L - 1 || time == 25_000L - 1);
           return super.onElement(time, window, ctx);
         }
       };

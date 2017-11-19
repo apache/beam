@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
-import cz.seznam.euphoria.core.client.dataset.windowing.TimedWindow;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.flink.accumulators.AbstractCollector;
@@ -80,7 +79,6 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
   /** True when executor is running in local test (mode) */
   private final boolean localMode;
 
-  /** See {@link cz.seznam.euphoria.core.executor.greduce.GroupReducer#allowEarlyEmitting} */
   private final boolean allowEarlyEmitting;
 
   // see {@link WindowedStorageProvider}
@@ -161,8 +159,10 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
    * @param record input stream record
    *
    * @return extracted data element fro Flink stream record
+   * @throws Exception on error
    */
-  protected abstract KeyedMultiWindowedElement<WID, KEY, ?> recordValue(StreamRecord<I> record) throws Exception;
+  protected abstract KeyedMultiWindowedElement<WID, KEY, ?> recordValue(
+      StreamRecord<I> record) throws Exception;
 
   @Override
   @SuppressWarnings("unchecked")
@@ -457,10 +457,7 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     @Override
     @SuppressWarnings("unchecked")
     public void collect(Object elem) {
-      long stamp = (window instanceof TimedWindow)
-              ? ((TimedWindow) window).maxTimestamp()
-              : timerService.currentWatermark();
-
+      long stamp = Math.min(timerService.currentWatermark(), window.maxTimestamp() - 1);
       output.collect(reuse.replace(
               new StreamingElement<>(window, Pair.of(key, elem)),
               stamp));
