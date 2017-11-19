@@ -36,6 +36,7 @@ dependencies {
   compile project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
   compile project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
   compile project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
+  compile project(path: ":beam-runners-parent:beam-runners-local-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
@@ -60,6 +61,7 @@ shadowJar {
     include(project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow"))
     include(project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow"))
     include(project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow"))
+    include(project(path: ":beam-runners-parent:beam-runners-local-java-core", configuration: "shadow"))
   }
   relocate "org.apache.beam.runners.core", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.runners.core"
   relocate "org.apache.beam.model", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.model"
