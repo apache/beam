@@ -23,10 +23,6 @@ import common_job_properties
 job('beam_PreCommit_Java_GradleBuild') {
   description('Runs a build of the current GitHub Pull Request.')
 
-  // TODO: Re-enable once gradle can find the wrapper script within
-  // the relative checkout directory.
-  disabled()
-
   // Execute concurrent builds if necessary.
   concurrentBuild()
 
@@ -54,6 +50,7 @@ job('beam_PreCommit_Java_GradleBuild') {
 
   steps {
     gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
       for (String root_project : root_projects) {
         tasks(root_project + ':buildNeeded')
         tasks(root_project + ':buildDependents')
