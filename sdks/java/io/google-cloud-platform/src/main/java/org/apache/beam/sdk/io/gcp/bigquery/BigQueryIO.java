@@ -1158,6 +1158,7 @@ public class BigQueryIO {
 
     /** Same as {@link #to(String)}, but with a {@link ValueProvider}. */
     public Write<T> to(ValueProvider<String> tableSpec) {
+      checkArgument(tableSpec != null, "tableSpec can not be null");
       return toBuilder()
           .setJsonTableRef(
               NestedValueProvider.of(
@@ -1172,6 +1173,7 @@ public class BigQueryIO {
      */
     public Write<T> to(
         SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
+      checkArgument(tableFunction != null, "tableFunction can not be null");
       return toBuilder().setTableFunction(tableFunction).build();
     }
 
@@ -1179,6 +1181,7 @@ public class BigQueryIO {
      * Writes to the table and schema specified by the {@link DynamicDestinations} object.
      */
     public Write<T> to(DynamicDestinations<T, ?> dynamicDestinations) {
+      checkArgument(dynamicDestinations != null, "dynamicDestinations can not be null");
       return toBuilder().setDynamicDestinations(dynamicDestinations).build();
     }
 
@@ -1186,6 +1189,7 @@ public class BigQueryIO {
      * Formats the user's type into a {@link TableRow} to be written to BigQuery.
      */
     public Write<T> withFormatFunction(SerializableFunction<T, TableRow> formatFunction) {
+      checkArgument(formatFunction != null, "formatFunction can not be null");
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 
@@ -1196,11 +1200,13 @@ public class BigQueryIO {
      * {@link CreateDisposition} is set to {@link CreateDisposition#CREATE_IF_NEEDED}.
      */
     public Write<T> withSchema(TableSchema schema) {
+      checkArgument(schema != null, "schema can not be null");
       return withJsonSchema(StaticValueProvider.of(BigQueryHelpers.toJsonString(schema)));
     }
 
     /** Same as {@link #withSchema(TableSchema)} but using a deferred {@link ValueProvider}. */
     public Write<T> withSchema(ValueProvider<TableSchema> schema) {
+      checkArgument(schema != null, "schema can not be null");
       return withJsonSchema(NestedValueProvider.of(schema, new TableSchemaToJsonSchema()));
     }
 
@@ -1209,6 +1215,7 @@ public class BigQueryIO {
      * TableSchema}.
      */
     public Write<T> withJsonSchema(String jsonSchema) {
+      checkArgument(jsonSchema != null, "jsonSchema can not be null");
       return withJsonSchema(StaticValueProvider.of(jsonSchema));
     }
 
@@ -1216,6 +1223,7 @@ public class BigQueryIO {
      * Same as {@link #withJsonSchema(String)} but using a deferred {@link ValueProvider}.
      */
     public Write<T> withJsonSchema(ValueProvider<String> jsonSchema) {
+      checkArgument(jsonSchema != null, "jsonSchema can not be null");
       return toBuilder().setJsonSchema(jsonSchema).build();
     }
 
@@ -1227,6 +1235,7 @@ public class BigQueryIO {
      * {@link #to(String)}.
      */
     public Write<T> withSchemaFromView(PCollectionView<Map<String, String>> view) {
+      checkArgument(view != null, "view can not be null");
       return toBuilder().setSchemaFromView(view).build();
     }
 
@@ -1237,6 +1246,7 @@ public class BigQueryIO {
      * directly in the returned {@link TableDestination}.
      */
     public Write<T> withTimePartitioning(TimePartitioning partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
       return withJsonTimePartitioning(
           StaticValueProvider.of(BigQueryHelpers.toJsonString(partitioning)));
     }
@@ -1245,30 +1255,35 @@ public class BigQueryIO {
      * Like {@link #withTimePartitioning(TimePartitioning)} but using a deferred
      * {@link ValueProvider}.
      */
-    public Write<T> withTimePartitioning(ValueProvider<TimePartitioning> partition) {
+    public Write<T> withTimePartitioning(ValueProvider<TimePartitioning> partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
       return withJsonTimePartitioning(NestedValueProvider.of(
-          partition, new TimePartitioningToJson()));
+          partitioning, new TimePartitioningToJson()));
     }
 
     /**
      * The same as {@link #withTimePartitioning}, but takes a JSON-serialized object.
      */
-    public Write<T> withJsonTimePartitioning(ValueProvider<String> partition) {
-      return toBuilder().setJsonTimePartitioning(partition).build();
+    public Write<T> withJsonTimePartitioning(ValueProvider<String> partitioning) {
+      checkArgument(partitioning != null, "partitioning can not be null");
+      return toBuilder().setJsonTimePartitioning(partitioning).build();
     }
 
     /** Specifies whether the table should be created if it does not exist. */
     public Write<T> withCreateDisposition(CreateDisposition createDisposition) {
+      checkArgument(createDisposition != null, "createDisposition can not be null");
       return toBuilder().setCreateDisposition(createDisposition).build();
     }
 
     /** Specifies what to do with existing data in the table, in case the table already exists. */
     public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
+      checkArgument(writeDisposition != null, "writeDisposition can not be null");
       return toBuilder().setWriteDisposition(writeDisposition).build();
     }
 
     /** Specifies the table description. */
     public Write<T> withTableDescription(String tableDescription) {
+      checkArgument(tableDescription != null, "tableDescription can not be null");
       return toBuilder().setTableDescription(tableDescription).build();
     }
 
@@ -1280,6 +1295,7 @@ public class BigQueryIO {
      * insert results.
      */
     public Write<T> withFailedInsertRetryPolicy(InsertRetryPolicy retryPolicy) {
+      checkArgument(retryPolicy != null, "retryPolicy can not be null");
       return toBuilder().setFailedInsertRetryPolicy(retryPolicy).build();
     }
 
@@ -1293,6 +1309,7 @@ public class BigQueryIO {
      * information and restrictions of the different methods.
      */
     public Write<T> withMethod(Method method) {
+      checkArgument(method != null, "method can not be null");
       return toBuilder().setMethod(method).build();
     }
 
@@ -1310,6 +1327,7 @@ public class BigQueryIO {
      * information about BigQuery quotas.
      */
     public Write<T> withTriggeringFrequency(Duration triggeringFrequency) {
+      checkArgument(triggeringFrequency != null, "triggeringFrequency can not be null");
       return toBuilder().setTriggeringFrequency(triggeringFrequency).build();
     }
 
@@ -1319,6 +1337,7 @@ public class BigQueryIO {
      */
     @Experimental
     public Write<T> withNumFileShards(int numFileShards) {
+      checkArgument(numFileShards > 0, "numFileShards must be > 0, but was: %s", numFileShards);
       return toBuilder().setNumFileShards(numFileShards).build();
     }
 
@@ -1328,21 +1347,27 @@ public class BigQueryIO {
      * discussion.
      */
     public Write<T> withCustomGcsTempLocation(ValueProvider<String> customGcsTempLocation) {
+      checkArgument(customGcsTempLocation != null, "customGcsTempLocation can not be null");
       return toBuilder().setCustomGcsTempLocation(customGcsTempLocation).build();
     }
 
     @VisibleForTesting
     Write<T> withTestServices(BigQueryServices testServices) {
+      checkArgument(testServices != null, "testServices can not be null");
       return toBuilder().setBigQueryServices(testServices).build();
     }
 
     @VisibleForTesting
     Write<T> withMaxFilesPerBundle(int maxFilesPerBundle) {
+      checkArgument(
+          maxFilesPerBundle > 0, "maxFilesPerBundle must be > 0, but was: %s", maxFilesPerBundle);
       return toBuilder().setMaxFilesPerBundle(maxFilesPerBundle).build();
     }
 
     @VisibleForTesting
     Write<T> withMaxFileSize(long maxFileSize) {
+      checkArgument(
+          maxFileSize > 0, "maxFileSize must be > 0, but was: %s", maxFileSize);
       return toBuilder().setMaxFileSize(maxFileSize).build();
     }
 
