@@ -460,6 +460,31 @@ class SimpleShuffleDataset(object):
     return KeyRangeSummary(one_past_last_index - first_index,
         self.cumulative_size[one_past_last_index] - self.cumulative_size[first_index])
 
+  def read(self, lexicographic_range, continuation_token, suggested_max_bytes=8 * 1024 * 1024):
+    first_index = self._seek(lexicographic_range.start)
+    one_past_last_index = self._seek(lexicographic_range.end)
+    i = first_index
+    result = []
+    if continuation_token:
+      continuation_data = json.loads(continuation_token)
+      continuation_index = continuation_data['start']
+      assert first_index <= continuation_index < one_past_last_index
+      i = continuation_index
+    total_bytes_read = 0
+    while i < one_past_last_index:
+      record = self.sorted_items[i]
+      record_size = len(record[0]) + len(record[1])
+      if total_bytes_read == 0 or total_bytes_read + record_size <= suggested_max_bytes:
+        result.append(record)
+        total_bytes_read += record_size
+        i += 1
+      else:
+        break
+    new_continuation_token = None
+    if i < one_past_last_index:
+      new_continuation_token = json.dumps({'start': i})
+    return result, new_continuation_token
+
 
 class KeyRangeSummary(object):
   def __init__(self, item_count, byte_count):
@@ -474,8 +499,17 @@ class ShuffleWorkerInterface(Interface):
   def write(self, dataset_id, txn_id, kvs):
     raise NotImplementedError()
 
+
+  @remote_method(int, object, str, int, returns=object)
+  def read(self, dataset_id, lexicographic_range, continuation_token, suggested_max_bytes):
+    raise NotImplementedError()
+
   @remote_method(int, int)
   def commit_transaction(self, dataset_id, txn_id):
+    raise NotImplementedError()
+
+  @remote_method(int, object, returns=object)
+  def summarize_key_range(self, dataset_id, lexicographic_range):
     raise NotImplementedError()
 
   @remote_method(int)
@@ -514,9 +548,15 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
     self.datasets[dataset_id].put_kvs(txn_id, kvs)
 
   # REMOTE METHOD
+  def read(self, dataset_id, lexicographic_range, continuation_token, suggested_max_bytes):
+    return self.datasets[dataset_id].read(lexicographic_range, continuation_token,
+        suggested_max_bytes=suggested_max_bytes)
+
+  # REMOTE METHOD
   def commit_transaction(self, dataset_id, txn_id):
     self.datasets[dataset_id].commit_transaction(txn_id)
 
+  # REMOTE METHOD
   def summarize_key_range(self, dataset_id, lexicographic_range):
     return self.datasets[dataset_id].summarize_key_range(lexicographic_range)
 

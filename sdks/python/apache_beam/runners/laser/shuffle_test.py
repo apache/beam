@@ -39,6 +39,10 @@ class ShuffleTest(unittest.TestCase):
     print dataset.summarize_key_range(LexicographicRange('k0', 'k2'))
     print dataset.summarize_key_range(LexicographicRange('k0', 'k1'))
     print dataset.summarize_key_range(LexicographicRange('zz', LexicographicPosition.KEYSPACE_END))
+    # TODO: add more reading tests
+    print dataset.read(LexicographicRange('k1', LexicographicPosition.KEYSPACE_END), None, 8+10)
+    print dataset.read(LexicographicRange('k1', LexicographicPosition.KEYSPACE_END), '{"start": 2}', 4)
+    print dataset.read(LexicographicRange('k1', LexicographicPosition.KEYSPACE_END), '{"start": 2}', 40)
 
 
 if __name__ == '__main__':
