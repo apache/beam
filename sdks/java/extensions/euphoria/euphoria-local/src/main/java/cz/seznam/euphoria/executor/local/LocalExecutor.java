@@ -57,7 +57,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -685,9 +684,6 @@ public class LocalExecutor implements Executor {
       emitStrategies[i] = watermarkEmitStrategySupplier.get();
     }
 
-    final Random random = new Random();
-    final Map<Integer, Integer> shifts = new HashMap<>();
-
     int i = 0;
     for (Supplier s : suppliers) {
       final int readerId = i++;
@@ -715,26 +711,21 @@ public class LocalExecutor implements Executor {
               // determine partition
               Object key = keyExtractor.apply(datum.getElement());
               final Iterable<Window> targetWindows;
-              int windowShift = 0;
+              Object windowShift = null;
               if (allowWindowBasedShuffling) {
                 if (windowing != null) {
-                  // FIXME: the time function inside windowing
-                  // must be part of the operator itself
                   targetWindows = windowing.assignWindowsToElement(datum);
                 } else {
                   targetWindows = Collections.singleton(datum.getWindow());
                 }
 
                 if (!isMergingWindowing && Iterables.size(targetWindows) == 1) {
-                  final int windowHash = Iterables.getOnlyElement(targetWindows).hashCode();
-                  synchronized (random) {
-                    windowShift = shifts.computeIfAbsent(windowHash, (ignore) -> random.nextInt());
-                  }
+                  windowShift = Iterables.getOnlyElement(targetWindows);
                 }
               }
-              int partition
-                  = ((key.hashCode() + windowShift)
-                      & Integer.MAX_VALUE) % numPartitions;
+              int partition = ((windowShift == null
+                  ? key.hashCode()
+                  : Objects.hash(windowShift, key)) & Integer.MAX_VALUE) % numPartitions;
               // write to the correct partition
               ret.get(partition).put(datum);
             }
