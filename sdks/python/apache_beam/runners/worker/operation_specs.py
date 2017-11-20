@@ -292,6 +292,21 @@ Attributes:
 """
 
 
+LaserShuffleWrite = build_worker_instruction(
+    'LaserShuffleWrite',
+    ['dataset_id', 'input', 'output_coders'])
+"""Worker details needed to write to a LaserRunner shuffle sink.
+
+Attributes:
+  dataset_id: An integer specifying the dataset to write.
+  input: A (producer index, output index) tuple representing the
+    ParallelInstruction operation whose output feeds into this operation.
+    The output index is 0 except for multi-output operations (like ParDo).
+  output_coders: 1-tuple of the coder for input elements. If the
+    shuffle_kind is grouping, this is expected to be a KV coder.
+"""
+
+
 def get_coder_from_spec(coder_spec):
   """Return a coder instance from a coder spec.
 
@@ -373,4 +388,4 @@ class MapTask(object):
 
   def __str__(self):
     return '<%s %s steps=%s>' % (self.__class__.__name__, self.stage_name,
-                                 '+'.join(self.step_names))
+                                 '+'.join(self.original_names))

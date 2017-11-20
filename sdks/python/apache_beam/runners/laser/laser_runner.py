@@ -42,6 +42,7 @@ import time
 # from google.protobuf import wrappers_pb2
 
 import apache_beam as beam
+from apache_beam.coders import coders
 from apache_beam.internal import pickler
 # from apache_beam import typehints
 # from apache_beam.metrics.execution import MetricsEnvironment
@@ -70,6 +71,7 @@ from apache_beam.runners.laser.channels import Interface
 from apache_beam.runners.laser.channels import set_channel_config
 from apache_beam.runners.laser.channels import get_channel_manager
 from apache_beam.runners.laser.channels import remote_method
+from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
 from apache_beam.runners.dataflow import DataflowRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.worker import operation_specs
@@ -277,7 +279,7 @@ class ParDoStep(Step):
   def copy(self):
     return ParDoStep(self.name, self.pardo_fn_data, self.element_coder, self.output_tags)
 
-  def as_operation(self, step_index):
+  def as_operation(self, step_index):  # TODO: rename to step_indices throughout?
     assert len(self.inputs) == 1
     return operation_specs.WorkerDoFn(
         serialized_fn=self.pardo_fn_data.as_serialized_fn(),
@@ -293,7 +295,25 @@ class GroupByKeyOnlyStep(Step):
     self.element_coder = element_coder
 
   def copy(self):
-    return GroupByKeyOnlyStep(self.element_coder)
+    return GroupByKeyOnlyStep(self.name, self.element_coder)
+
+
+class ShuffleWriteStep(Step):
+  def __init__(self, name, element_coder, dataset_id):
+    super(ShuffleWriteStep, self).__init__(name)
+    self.element_coder = element_coder
+    self.dataset_id = dataset_id
+
+  def copy(self):
+    return ShuffleWriteStep(self.name, self.element_coder, self.dataset_id)
+
+  def as_operation(self, step_index):
+    return operation_specs.LaserShuffleWrite(
+        dataset_id=self.dataset_id,
+        output_coders=[self.element_coder],
+        input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
+        )
+
 
 class CompositeWatermarkNode(WatermarkNode):
   class InputWatermarkNode(WatermarkNode):
@@ -312,6 +332,9 @@ class CompositeWatermarkNode(WatermarkNode):
     super(CompositeWatermarkNode, self).__init__()
     self.input_watermark_node = CompositeWatermarkNode.InputWatermarkNode(self)
     self.output_watermark_node = CompositeWatermarkNode.OutputWatermarkNode(self)
+
+  def add_dependent(self, dependent):
+    self.output_watermark_node.add_dependent(dependent)
 
   # def set_watermark_hold(self, hold_time=None):  # TODO: should we remove this so it is more explicit?
   #   self.input_watermark_node.set_watermark_hold(hold_time=hold_time)
@@ -495,6 +518,14 @@ class KeyRangeSummary(object):
     return 'KeyRangeSummary(items: %d, bytes: %d)' % (self.item_count, self.byte_count)
 
 class ShuffleWorkerInterface(Interface):
+  @remote_method(int)
+  def create_dataset(self, dataset_id):
+    raise NotImplementedError()
+
+  @remote_method(int)
+  def delete_dataset(self, dataset_id):
+    raise NotImplementedError()
+
   @remote_method(int, int, list)
   def write(self, dataset_id, txn_id, kvs):
     raise NotImplementedError()
@@ -544,6 +575,14 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
     self.datasets = {}
 
   # REMOTE METHOD
+  def create_dataset(self, dataset_id):
+    self.datasets[dataset_id] = SimpleShuffleDataset()
+
+  # REMOTE METHOD
+  def delete_dataset(self, dataset_id):
+    de; self.datasets[dataset_id]
+
+  # REMOTE METHOD
   def write(self, dataset_id, txn_id, kvs):
     self.datasets[dataset_id].put_kvs(txn_id, kvs)
 
@@ -567,7 +606,7 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
 
 
 
-class ShuffleFinalizeStage(Stage):
+class ShuffleFinalizeStage(Stage, WatermarkNode):
   def __init__(self, name, execution_context, dataset_id):
     super(ShuffleFinalizeStage, self).__init__()
     self.name = name
@@ -575,7 +614,14 @@ class ShuffleFinalizeStage(Stage):
     self.dataset_id = dataset_id
 
   def start(self):
-    self.execution_context.shuffle_interface.finalize_dataset(dataset_id)
+    self.execution_context.shuffle_interface.commit_transaction(self.dataset_id, 0)
+    self.execution_context.shuffle_interface.finalize_dataset(self.dataset_id)
+    print 'FINALIZED!!'
+    print self.execution_context.shuffle_interface.read(
+      self.dataset_id,
+      LexicographicRange(
+        LexicographicPosition.KEYSPACE_BEGINNING,
+        LexicographicPosition.KEYSPACE_END), None, 10000000)
 
 
   def input_watermark_advanced(self, new_watermark):
@@ -608,11 +654,11 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Hold watermark on all steps until execution progress is made.
     self.input_watermark_node.set_watermark_hold(MIN_TIMESTAMP)
 
-  def add_step(self, original_step):
+  def add_step(self, original_step, origin_step=None):
     # when a FusedStage adds a step, the step is copied.
     step = original_step.copy()
     # self.step_to_original_step[step] = original_step
-    self.original_step_to_step[original_step] = step
+    self.original_step_to_step[origin_step or original_step] = step  # TODO: HACK
     # Replicate outputs.
     for tag, original_output_pcoll in original_step.outputs.iteritems():
       step.outputs[tag] = PCollectionNode(step, tag)
@@ -626,7 +672,8 @@ class FusedStage(Stage, CompositeWatermarkNode):
       # Copy inputs.
       for original_input_pcoll in original_step.inputs:
         input_step = self.original_step_to_step[original_input_pcoll.step]
-        input_pcoll = input_step.outputs[tag]
+        # input_pcoll = input_step.outputs[tag]  # TODO: wait WTF is tag?
+        input_pcoll = input_step.outputs[None]  # TODO: fix for multiple outputs
         step.inputs.append(input_pcoll)
         input_pcoll.add_consumer(step)
         input_step.add_dependent(step)
@@ -708,9 +755,10 @@ class Executor(object):
 
 
 class ExecutionContext(object):
-  def __init__(self, work_manager, watermark_manager):
+  def __init__(self, work_manager, watermark_manager, shuffle_interface):
     self.work_manager = work_manager
     self.watermark_manager = watermark_manager
+    self.shuffle_interface = shuffle_interface
 
 
 def generate_execution_graph(step_graph, execution_context):
@@ -723,22 +771,29 @@ def generate_execution_graph(step_graph, execution_context):
   for step in root_steps:
     to_process.put(step)
   seen = set(root_steps)
+  next_shuffle_dataset_id = 0
+  next_stage_id = 0
 
   # Grow fused stages through a breadth-first traversal.
-  steps_to_fused_stages = {}
+  steps_to_fused_stages = {}  # TODO: comment that this is output, for transformed steps
   while not to_process.empty():
     original_step = to_process.get()
     if isinstance(original_step, ReadStep):
       assert not original_step.inputs
-      stage_name = 'S%02d' % len(steps_to_fused_stages)
+      stage_name = 'S%02d' % next_stage_id
+      next_stage_id += 1
       fused_stage = FusedStage(stage_name, execution_context)
       fused_stage.add_step(original_step)
       print 'fused_stage', original_step, fused_stage
       steps_to_fused_stages[original_step] = fused_stage
     elif isinstance(original_step, ParDoStep):
+      print 'NAME', original_step.name
+      if original_step.name in ('GroupByKey/GroupByWindow'):
+        print 'SKIPPING', original_step
+        continue
       assert len(original_step.inputs) == 1
       input_step = original_step.inputs[0].step
-      print 'input_step', input_step, type(input_step)
+      print 'input_step', input_step, type(input_step), original_step
       fused_stage = steps_to_fused_stages[input_step]
       fused_stage.add_step(original_step)
       steps_to_fused_stages[original_step] = fused_stage
@@ -746,7 +801,26 @@ def generate_execution_graph(step_graph, execution_context):
       # TODO: add dependencies via WatermarkNode.
     elif isinstance(original_step, GroupByKeyOnlyStep):
       # hallucinate a shuffle write and a shuffle read.
-      pass
+      # TODO: figure out lineage of hallucinated steps.
+      assert len(original_step.inputs) == 1
+      input_step = original_step.inputs[0].step
+      fused_stage = steps_to_fused_stages[input_step]
+      shuffle_dataset_id = next_shuffle_dataset_id
+      next_shuffle_dataset_id += 1
+      execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
+      shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.element_coder, shuffle_dataset_id)
+      shuffle_write_step.inputs.append(original_step.inputs[0])
+      print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
+      fused_stage.add_step(shuffle_write_step, origin_step=original_step)# HACK
+
+      # Add shuffle finalization stage.
+      stage_name = 'S%02d' % next_stage_id
+      next_stage_id += 1
+      finalize_stage = ShuffleFinalizeStage(stage_name, execution_context, shuffle_dataset_id)
+      fused_stage.add_dependent(finalize_stage)
+
+      # TODO: shuffle read
+      steps_to_fused_stages[original_step] = fused_stage
  
     # TODO: handle GroupByKeyStep.
     for unused_tag, pcoll_node in original_step.outputs.iteritems():
@@ -807,8 +881,12 @@ class LaserRunner(PipelineRunner):
 
   def run__GroupByKeyOnly(self, transform_node):
     output = transform_node.outputs[None]
-    element_coder = self._get_coder(output)
-    step = GroupByKeyOnlyStep(transform_node.full_label, element_coder)
+    output_coder = self._get_coder(output)
+    unwindowed_input_coder = self._get_coder(transform_node.inputs[0]).wrapped_value_coder
+    shuffle_coder = coders.TupleCoder(
+        [unwindowed_input_coder.key_coder(), coders.WindowedValueCoder(unwindowed_input_coder.value_coder())])
+
+    step = GroupByKeyOnlyStep(transform_node.full_label, shuffle_coder)
     print 'GBKO STEP', step
     self.step_graph.add_step(transform_node, step)
 
@@ -863,11 +941,15 @@ class LaserRunner(PipelineRunner):
     for step in self.step_graph.steps:
       print step.inputs, step.outputs
 
+    shuffle_worker = SimpleShuffleWorker()
+    channel_manager = get_channel_manager()
+    channel_manager.register_interface('master/shuffle', shuffle_worker)
+
     node_manager = InProcessComputeNodeManager()
     node_manager.start()
     work_manager = WorkManager(node_manager)
     watermark_manager = WatermarkManager()
-    execution_context = ExecutionContext(work_manager, watermark_manager)
+    execution_context = ExecutionContext(work_manager, watermark_manager, shuffle_worker)
     print 'GENERATING EXECUTION GRAPH'
     execution_graph = generate_execution_graph(self.step_graph, execution_context)
 
@@ -965,6 +1047,8 @@ class LaserWorker(WorkerInterface, threading.Thread):
         print '<<<<<<<<< WORKER DONE', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
       except Exception as e:
         print 'Exception while processing work:', e
+        import traceback
+        traceback.print_exc()
         status = WorkItemStatus.FAILED
       with self.lock:
         self.current_work_item = None

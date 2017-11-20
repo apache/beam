@@ -565,6 +565,10 @@ def create_operation(operation_name, spec, counter_factory, step_name,
     from dataflow_worker.shuffle_operations import ReifyTimestampAndWindowsOperation
     op = ReifyTimestampAndWindowsOperation(
         operation_name, spec, counter_factory, state_sampler)
+  elif isinstance(spec, operation_specs.LaserShuffleWrite):
+    from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
+    op = ShuffleWriteOperation(
+        operation_name, spec, counter_factory, state_sampler)
   else:
     raise TypeError('Expected an instance of operation_specs.Worker* class '
                     'instead of %s' % (spec,))
