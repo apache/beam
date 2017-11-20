@@ -19,27 +19,26 @@
 package org.apache.beam.runners.local;
 
 /**
- * Drives the execution of a {@code Pipeline} by scheduling work.
+ * Handles failures in the form of exceptions.
  */
-public interface ExecutionDriver {
-  DriverState drive();
+public interface PipelineMessageReceiver {
+  /**
+   * Report that a failure has occurred.
+   */
+  void failed(Exception e);
 
   /**
-   * The state of the driver. If the state is terminal, the driver can no longer make progress.
+   * Report that a failure has occurred.
    */
-  enum DriverState {
-    CONTINUE(false),
-    FAILED(true),
-    SHUTDOWN(true);
+  void failed(Error e);
 
-    private final boolean terminal;
+  /**
+   * Report that the pipeline has been cancelled.
+   */
+  void cancelled();
 
-    DriverState(boolean terminal) {
-      this.terminal = terminal;
-    }
-
-    public boolean isTermainal() {
-      return terminal;
-    }
-  }
+  /**
+   * Report that the pipeline has successfully completed.
+   */
+  void completed();
 }
