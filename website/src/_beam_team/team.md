@@ -38,6 +38,12 @@ members:
     organization: Google
     roles: committer, PMC
     time_zone: "-8"
+  - name: Etienne Chauchot
+    apache_id: echauchot
+    email: echauchot [at] apache [dot] org
+    organization: Talend
+    roles: committer
+    time_zone: "+1"
   - name: Luke Cwik
     apache_id: lcwik
     email: lcwik [at] apache [dot] org
