@@ -54,11 +54,16 @@ import org.junit.runners.JUnit4;
  *
  * <p>Run this test using the command below. Pass in connection information via PipelineOptions:
  * <pre>
- *  mvn -e -Pio-it verify -pl sdks/java/io/text -DintegrationTestPipelineOptions='[
+ *  mvn -e -Pio-it verify -pl sdks/java/io/file-based-io-tests
+ *  -Dit.test=org.apache.beam.sdk.io.text.TextIOIT
+ *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
  *  "--filenamePrefix=TEXTIOIT"
  *  ]'
  * </pre>
+ * </p>
+ * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  * */
 @RunWith(JUnit4.class)
 public class TextIOIT {
@@ -107,7 +112,8 @@ public class TextIOIT {
   private static String getExpectedHashForLineCount(Long lineCount) {
     Map<Long, String> expectedHashes = ImmutableMap.of(
         100_000L, "4c8bb3b99dcc59459b20fefba400d446",
-        1_000_000L, "9796db06e7a7960f974d5a91164afff1"
+        1_000_000L, "9796db06e7a7960f974d5a91164afff1",
+        100_000_000L, "6ce05f456e2fdc846ded2abd0ec1de95"
     );
 
     String hash = expectedHashes.get(lineCount);
