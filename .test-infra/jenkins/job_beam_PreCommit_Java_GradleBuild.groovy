@@ -50,6 +50,7 @@ job('beam_PreCommit_Java_GradleBuild') {
 
   steps {
     gradle {
+      rootBuildScriptDir(common_job_properties.checkoutDir)
       for (String root_project : root_projects) {
         tasks(root_project + ':buildNeeded')
         tasks(root_project + ':buildDependents')
