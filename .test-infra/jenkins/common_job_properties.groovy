@@ -22,6 +22,8 @@
 //  http://groovy-lang.org/style-guide.html
 class common_job_properties {
 
+  static String checkoutDir = 'src'
+
   static void setSCM(def context, String repositoryName) {
     context.scm {
       git {
@@ -36,6 +38,7 @@ class common_job_properties {
         branch('${sha1}')
         extensions {
           cleanAfterCheckout()
+          relativeTargetDirectory(checkoutDir)
         }
       }
     }
@@ -171,7 +174,7 @@ class common_job_properties {
     // tiered compilation to make the JVM startup times faster during the tests.
     context.mavenOpts('-XX:+TieredCompilation')
     context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM('pom.xml')
+    context.rootPOM(checkoutDir + '/pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
     // Disable archiving the built artifacts by default, as this is slow and flaky.
