@@ -59,6 +59,9 @@ import org.junit.runners.JUnit4;
  *  "--filenamePrefix=TEXTIOIT"
  *  ]'
  * </pre>
+ * </p>
+ * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
+ * running this test using Beam performance testing framework.</p>
  * */
 @RunWith(JUnit4.class)
 public class TextIOIT {

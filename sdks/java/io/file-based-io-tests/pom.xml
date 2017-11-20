@@ -59,7 +59,8 @@
 
             mvn verify -Dio-it-suite -pl sdks/java/io/file-based-io-tests
                 -DpkbLocation="path-to-pkb.py" \
-                -DintegrationTestPipelineOptions='["&ndash;&ndash;numberOfRecords=100000"]'
+                -DintegrationTestPipelineOptions='["&ndash;&ndash;numberOfRecords=100000"]' \
+                -DfileBasedIoItClass=file-based IO IT class, eg. org.apache.beam.sdk.io.text.TextIOIT
 
             For DirectRunner, please use -DforceDirectRunner=true argument
             For other runners please check doc in BEAM-3060 and https://beam.apache.org/documentation/io/testing/
@@ -120,7 +121,7 @@
                                 <argument>${pkbBeamRunnerOption}</argument>
                                 <!-- specific to this IO -->
                                 <argument>-beam_it_module=sdks/java/io/file-based-io-tests</argument>
-                                <argument>-beam_it_class=org.apache.beam.sdk.io.text.TextIOIT</argument>
+                                <argument>-beam_it_class=${fileBasedIoItClass}</argument>
                                 <!-- arguments typically defined by user -->
                                 <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
                             </arguments>
