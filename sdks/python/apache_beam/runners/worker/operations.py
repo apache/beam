@@ -509,7 +509,8 @@ class FlattenOperation(Operation):
 
 
 def create_operation(operation_name, spec, counter_factory, step_name,
-                     state_sampler, test_shuffle_source=None,
+                     state_sampler, work_context=None,
+                     test_shuffle_source=None,
                      test_shuffle_sink=None, is_streaming=False):
   """Create Operation object for given operation specification."""
   if isinstance(spec, operation_specs.WorkerRead):
@@ -568,7 +569,7 @@ def create_operation(operation_name, spec, counter_factory, step_name,
   elif isinstance(spec, operation_specs.LaserShuffleWrite):
     from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
     op = ShuffleWriteOperation(
-        operation_name, spec, counter_factory, state_sampler)
+        operation_name, spec, work_context, counter_factory, state_sampler)
   else:
     raise TypeError('Expected an instance of operation_specs.Worker* class '
                     'instead of %s' % (spec,))
@@ -586,7 +587,7 @@ class SimpleMapTaskExecutor(object):
   """
 
   def __init__(
-      self, map_task, counter_factory, state_sampler,
+      self, map_task, counter_factory, state_sampler, work_context=None,
       test_shuffle_source=None, test_shuffle_sink=None):
     """Initializes SimpleMapTaskExecutor.
 
@@ -594,6 +595,7 @@ class SimpleMapTaskExecutor(object):
       map_task: The map task we are to run.
       counter_factory: The CounterFactory instance for the work item.
       state_sampler: The StateSampler tracking the execution step.
+      work_context: Optional context passed for execution of operations.
       test_shuffle_source: Used during tests for dependency injection into
         shuffle read operation objects.
       test_shuffle_sink: Used during tests for dependency injection into
@@ -604,6 +606,7 @@ class SimpleMapTaskExecutor(object):
     self._counter_factory = counter_factory
     self._ops = []
     self._state_sampler = state_sampler
+    self._work_context = work_context
     self._test_shuffle_source = test_shuffle_source
     self._test_shuffle_sink = test_shuffle_sink
 
@@ -633,7 +636,7 @@ class SimpleMapTaskExecutor(object):
       step_name = step_names[ix]
       op = create_operation(
           operation_name, spec, self._counter_factory, step_name,
-          self._state_sampler,
+          self._state_sampler, work_context=self._work_context,
           test_shuffle_source=self._test_shuffle_source,
           test_shuffle_sink=self._test_shuffle_sink)
       self._ops.append(op)

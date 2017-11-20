@@ -294,11 +294,12 @@ Attributes:
 
 LaserShuffleWrite = build_worker_instruction(
     'LaserShuffleWrite',
-    ['dataset_id', 'input', 'output_coders'])
+    ['dataset_id', 'transaction_id', 'input', 'output_coders'])
 """Worker details needed to write to a LaserRunner shuffle sink.
 
 Attributes:
   dataset_id: An integer specifying the dataset to write.
+  transaction_id: An integer specifying the transaction id.
   input: A (producer index, output index) tuple representing the
     ParallelInstruction operation whose output feeds into this operation.
     The output index is 0 except for multi-output operations (like ParDo).

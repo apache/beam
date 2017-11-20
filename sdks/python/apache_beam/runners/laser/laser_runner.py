@@ -310,6 +310,7 @@ class ShuffleWriteStep(Step):
   def as_operation(self, step_index):
     return operation_specs.LaserShuffleWrite(
         dataset_id=self.dataset_id,
+        transaction_id=-1,
         output_coders=[self.element_coder],
         input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
         )
@@ -416,6 +417,7 @@ class SimpleShuffleDataset(object):
 
 
   def commit_transaction(self, txn_id):
+    print 'COMMIT TRANSACTION', txn_id
     with self.lock:
       if self.finalized:
         raise Exception('Dataset already finalized.')
@@ -614,7 +616,7 @@ class ShuffleFinalizeStage(Stage, WatermarkNode):
     self.dataset_id = dataset_id
 
   def start(self):
-    self.execution_context.shuffle_interface.commit_transaction(self.dataset_id, 0)
+    # self.execution_context.shuffle_interface.commit_transaction(self.dataset_id, 0)
     self.execution_context.shuffle_interface.finalize_dataset(self.dataset_id)
     print 'FINALIZED!!'
     print self.execution_context.shuffle_interface.read(
@@ -650,6 +652,8 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Step to index in self.steps.
     self.step_index = {}
 
+    self.shuffle_datasets_ids = []
+
     self.pending_work_item_ids = set()
     # Hold watermark on all steps until execution progress is made.
     self.input_watermark_node.set_watermark_hold(MIN_TIMESTAMP)
@@ -669,6 +673,8 @@ class FusedStage(Stage, CompositeWatermarkNode):
       self.read_step = step
       self.input_watermark_node.add_dependent(step)
     else:
+      if isinstance(step, ShuffleWriteStep):
+        self.shuffle_datasets_ids.append(step.dataset_id)
       # Copy inputs.
       for original_input_pcoll in original_step.inputs:
         input_step = self.original_step_to_step[original_input_pcoll.step]
@@ -727,12 +733,20 @@ class FusedStage(Stage, CompositeWatermarkNode):
     print 'DONE SCHEDULING WORK!'
     # self.input_watermark_node.set_watermark_hold(None)
 
-  def report_work_completion(self, work_item_id):
+  def report_work_completion(self, work_item):
+    work_item_id = work_item.id
     self.pending_work_item_ids.remove(work_item_id)
+
+    # Commit shuffle transactions.
+    for dataset_id in self.shuffle_datasets_ids:
+      # TODO: consider doing a 2-phase prepare-commit.
+      self.execution_context.shuffle_interface.commit_transaction(dataset_id, work_item.transaction_id)
+
     print 'COMPLETION', self, work_item_id, self.pending_work_item_ids
     if not self.pending_work_item_ids:
       # Stage completed!  Let's release the watermark.
       self.input_watermark_node.set_watermark_hold(None)
+
 
   def initialize(self):
     print 'INIT'
@@ -1013,6 +1027,11 @@ class WorkerInterface(Interface):
     raise NotImplementedError()
 
 
+class WorkContext(object):
+  def __init__(self, transaction_id):
+    self.transaction_id = transaction_id
+
+
 class LaserWorker(WorkerInterface, threading.Thread):
   def __init__(self, config):
     super(LaserWorker, self).__init__()
@@ -1039,7 +1058,8 @@ class LaserWorker(WorkerInterface, threading.Thread):
         work_item = self.current_work_item
       counter_factory = CounterFactory()
       state_sampler = statesampler.StateSampler(work_item.stage_name, counter_factory)
-      map_executor = operations.SimpleMapTaskExecutor(work_item.map_task, counter_factory, state_sampler)
+      work_context = WorkContext(work_item.transaction_id)
+      map_executor = operations.SimpleMapTaskExecutor(work_item.map_task, counter_factory, state_sampler, work_context=work_context)
       status = WorkItemStatus.COMPLETED
       try:
         print '>>>>>>>>> WORKER', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
@@ -1070,10 +1090,11 @@ class LaserWorker(WorkerInterface, threading.Thread):
 
 
 class WorkItem(object):
-  def __init__(self, id, stage_name, map_task):
-    self.id = id
+  def __init__(self, id, stage_name, map_task, transaction_id):
+    self.id = id  # TODO: rename to work_id or worK_item_id?
     self.stage_name = stage_name
     self.map_task = map_task
+    self.transaction_id = transaction_id
     # TODO: attempt number
 
 
@@ -1107,6 +1128,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
 
     self.work_status = {}
     self.work_stage = {}
+    self.next_work_transaction_id = 0
     self.lock = threading.Lock()
     self.event_condition = threading.Condition(self.lock)
 
@@ -1119,7 +1141,9 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
     with self.lock:
       work_item_id = len(self.work_items)
       print 'SCHEDULE_MAP_TASK', stage, map_task, work_item_id
-      work_item = WorkItem(work_item_id, stage.name, map_task)
+      transaction_id = self.next_work_transaction_id
+      self.next_work_transaction_id += 1
+      work_item = WorkItem(work_item_id, stage.name, map_task, transaction_id)
       self.work_items[work_item_id] = work_item
       self.work_status[work_item] = WorkItemStatus.NOT_STARTED
       self.work_stage[work_item] = stage
@@ -1191,11 +1215,14 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       else:
         raise ValueError('Invalid WorkItemStatus: %d' % new_status)
     if new_status == WorkItemStatus.COMPLETED:
-      self.work_stage[work_item].report_work_completion(work_item_id)
+      self.work_stage[work_item].report_work_completion(work_item)
     elif new_status == WorkItemStatus.FAILED:
       # TODO: retry, failure count
       with self.lock:
         self.work_status[work_item] = WorkItemStatus.NOT_STARTED
+        transaction_id = self.next_work_transaction_id
+        self.next_work_transaction_id += 1
+        work_item.transaction_id = transaction_id
         self.unscheduled_work.put(work_item)
     with self.lock:
       self.active_workers.remove(worker_id)
