@@ -31,8 +31,8 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.CrashingRunner;
+import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
-import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -77,7 +77,7 @@ public class PipelineRunnerTest {
   }
 
   @Test
-  @Category(ValidatesRunner.class)
+  @Category(NeedsRunner.class)
   public void testRunPTransform() {
     final String namespace = PipelineRunnerTest.class.getName();
     final Counter counter = Metrics.counter(namespace, "count");
@@ -94,6 +94,7 @@ public class PipelineRunnerTest {
         }
     );
 
+    // Checking counters to verify the pipeline actually ran.
     assertThat(
         result.metrics().queryMetrics(
             MetricsFilter.builder()
