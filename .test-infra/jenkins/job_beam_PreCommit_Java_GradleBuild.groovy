@@ -34,7 +34,7 @@ job('beam_PreCommit_Java_GradleBuild') {
 
   // Publish all test results to Jenkins
   publishers {
-    archiveJUnit('**/build/test-results/**/*.xml')
+    archiveJunit('**/build/test-results/**/*.xml')
   }
 
   def gradle_switches = [
