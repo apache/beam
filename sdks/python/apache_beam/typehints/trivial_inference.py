@@ -138,8 +138,8 @@ class FrameState(object):
     name = self.get_name(i)
     if name in self.f.__globals__:
       return Const(self.f.__globals__[name])
-    if name in __builtin__.__dict__:
-      return Const(__builtin__.__dict__[name])
+    if name in builtins.__dict__:
+      return Const(builtins.__dict__[name])
     return Any
 
   def get_name(self, i):

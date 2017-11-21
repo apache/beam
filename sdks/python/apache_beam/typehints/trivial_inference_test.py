@@ -16,6 +16,7 @@
 #
 
 """Tests for apache_beam.typehints.trivial_inference."""
+import sys
 import unittest
 
 from apache_beam.typehints import trivial_inference
@@ -72,6 +73,7 @@ class TrivialInferenceTest(unittest.TestCase):
       return None
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
+  @unittest.skipIf(sys.version_info[0] < 3, "List inference test py3 only")
   def testSimpleList(self):
     self.assertReturnType(
         typehints.List[int],
