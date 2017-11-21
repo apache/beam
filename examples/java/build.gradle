@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
@@ -29,6 +31,18 @@ description = "Apache Beam :: Examples :: Java"
  * the test outputs directly.
  */
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform")
+
+/** Define the list of runners which execute a precommit test. */
+def preCommitRunners = ["apexRunner", "dataflowRunner", "dataflowStreamingRunner", "directRunner", "flinkRunner", "sparkRunner"]
+for (String runner : preCommitRunners) {
+  configurations.create(runner + "PreCommit")
+}
+configurations.sparkRunnerPreCommit {
+  // Ban certain dependencies to prevent a StackOverflow within Spark
+  // because JUL -> SLF4J -> JUL, and similarly JDK14 -> SLF4J -> JDK14
+  exclude group: "org.slf4j", module: "jul-to-slf4j"
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
 
 dependencies {
   compile library.java.guava
@@ -50,10 +64,44 @@ dependencies {
   shadow library.java.slf4j_api
   shadow project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
   shadow library.java.slf4j_jdk14
-  testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
+  shadowTest project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-google-cloud-platform").sourceSets.test.output
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+
+  // Add dependencies for the PreCommit configurations
+  // For each runner a project level dependency on the examples project.
+  for (String runner : preCommitRunners) {
+    delegate.add(runner + "PreCommit", project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadow"))
+    delegate.add(runner + "PreCommit", project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadowTest"))
+  }
+  apexRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-apex", configuration: "shadow")
+  dataflowRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-google-cloud-dataflow-java", configuration: "shadow")
+  dataflowStreamingRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-google-cloud-dataflow-java", configuration: "shadow")
+  directRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  flinkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-flink_2.10", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-spark", configuration: "shadow")
+  sparkRunnerPreCommit project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
+  sparkRunnerPreCommit library.java.spark_streaming
+  sparkRunnerPreCommit library.java.spark_core
+}
+
+// Create a shaded test jar.
+task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar) {
+  classifier = "shaded-tests"
+  from sourceSets.test.output
+  configurations = [project.configurations.testRuntime]
+  dependencies {
+    exclude(".*")
+    include(dependency(library.java.guava))
+  }
+  relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
+    // com.google.common is too generic, need to exclude guava-testlib
+    exclude "com.google.common.collect.testing.**"
+    exclude "com.google.common.escape.testing.**"
+    exclude "com.google.common.testing.**"
+    exclude "com.google.common.util.concurrent.testing.**"
+  }
 }
 
 task packageTests(type: Jar) {
@@ -62,3 +110,47 @@ task packageTests(type: Jar) {
 }
 
 artifacts.archives packageTests
+artifacts {
+  shadowTest shadowTestJar
+}
+
+/*
+ * Create a ${runner}PreCommit task for each runner which runs a set
+ * of integration tests for WordCount and WindowedWordCount.
+ */
+def preCommitRunnerClass = [
+  apexRunner: "org.apache.beam.runners.apex.TestApexRunner",
+  dataflowRunner: "TestDataflowRunner",
+  dataflowStreamingRunner: "TestDataflowRunner",
+  directRunner: "org.apache.beam.runners.direct.DirectRunner",
+  flinkRunner: "org.apache.beam.runners.flink.TestFlinkRunner",
+  sparkRunner: "org.apache.beam.runners.spark.TestSparkRunner",
+]
+def preCommitAdditionalFlags = [
+  dataflowStreamingRunner: [ "--streaming=true" ],
+]
+for (String runner : preCommitRunners) {
+  tasks.create(name: runner + "PreCommit", type: Test) {
+    def preCommitBeamTestPipelineOptions = [
+       "--project=apache-beam-testing",
+       "--tempRoot=gs://temp-storage-for-end-to-end-tests",
+       "--runner=" + preCommitRunnerClass[runner],
+    ] + preCommitAdditionalFlags[runner]
+    classpath = configurations."${runner}PreCommit"
+    include "**/WordCountIT.class"
+    if (!"sparkRunner".equals(runner)) {
+      include "**/WindowedWordCountIT.class"
+    }
+    forkEvery 1
+    maxParallelForks 4
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+  }
+}
+
+/* Define a common precommit task which depends on all the individual precommits. */
+task preCommit() {
+  for (String runner : preCommitRunners) {
+    dependsOn runner + "PreCommit"
+  }
+}
+
