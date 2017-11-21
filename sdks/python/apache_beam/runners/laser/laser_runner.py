@@ -71,6 +71,7 @@ from apache_beam.runners.laser.channels import Interface
 from apache_beam.runners.laser.channels import set_channel_config
 from apache_beam.runners.laser.channels import get_channel_manager
 from apache_beam.runners.laser.channels import remote_method
+from apache_beam.runners.laser.laser_operations import ShuffleReadOperation
 from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
 from apache_beam.runners.dataflow import DataflowRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
@@ -166,8 +167,11 @@ class WatermarkNode(object):
     self.watermark_children = []
 
   def add_dependent(self, dependent):
-    self.watermark_children.append(dependent)
-    dependent.watermark_parents.append(self)
+    actual_dependent = dependent
+    if isinstance(dependent, CompositeWatermarkNode):
+      actual_dependent = dependent.input_watermark_node
+    self.watermark_children.append(actual_dependent)
+    actual_dependent.watermark_parents.append(self)
 
   def _refresh_input_watermark(self):
     print '_refresh_input_watermark OLD', self, self.input_watermark
@@ -186,7 +190,7 @@ class WatermarkNode(object):
       for dependent in self.watermark_children:
         dependent._refresh_input_watermark()
     else:
-      print 'OUTPUT watermark unchanged', self
+      print 'OUTPUT watermark unchanged', self, self.output_watermark
 
   def set_watermark_hold(self, hold_time=None):
     # TODO: do we need some synchronization?
@@ -290,12 +294,13 @@ class ParDoStep(Step):
         side_inputs=[])
 
 class GroupByKeyOnlyStep(Step):
-  def __init__(self, name, element_coder):
+  def __init__(self, name, shuffle_coder, output_coder):
     super(GroupByKeyOnlyStep, self).__init__(name)
-    self.element_coder = element_coder
+    self.shuffle_coder = shuffle_coder
+    self.output_coder = output_coder
 
   def copy(self):
-    return GroupByKeyOnlyStep(self.name, self.element_coder)
+    return GroupByKeyOnlyStep(self.name, self.shuffle_coder, self.output_coder)
 
 
 class ShuffleWriteStep(Step):
@@ -314,6 +319,26 @@ class ShuffleWriteStep(Step):
         output_coders=[self.element_coder],
         input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
         )
+
+
+
+class ShuffleReadStep(Step):
+  def __init__(self, name, element_coder, dataset_id, key_range):
+    super(ShuffleReadStep, self).__init__(name)
+    self.element_coder = element_coder
+    self.dataset_id = dataset_id
+    self.key_range = key_range
+
+  def copy(self):
+    return ShuffleReadStep(self.name, self.element_coder, self.dataset_id, self.key_range)
+
+  def as_operation(self, step_index):
+    return operation_specs.LaserShuffleRead(
+        dataset_id=self.dataset_id,
+        key_range=self.key_range,
+        output_coders=[self.element_coder],
+        )
+
 
 
 class CompositeWatermarkNode(WatermarkNode):
@@ -359,7 +384,7 @@ class WatermarkManager(object):
     queue.put(start_node)
     while not queue.empty():
       current = queue.get()
-      print 'TRACK NODE', current
+      print 'TRACK NODE', current, 'PARENTS', current.watermark_parents, 'CHILDREN', current.watermark_children
       for dependent in current.watermark_children:
         if dependent in self.tracked_nodes:
           self.root_nodes.discard(dependent)
@@ -417,7 +442,6 @@ class SimpleShuffleDataset(object):
 
 
   def commit_transaction(self, txn_id):
-    print 'COMMIT TRANSACTION', txn_id
     with self.lock:
       if self.finalized:
         raise Exception('Dataset already finalized.')
@@ -427,6 +451,7 @@ class SimpleShuffleDataset(object):
         self.items += self.uncommitted_items[txn_id]
         del self.uncommitted_items[txn_id]
       self.committed_txns.add(txn_id)
+    print 'DONE COMMIT TRANSACTION', txn_id
 
 
   def finalize(self):
@@ -441,6 +466,7 @@ class SimpleShuffleDataset(object):
       self.cumulative_size.append(cumulative)
 
   def _seek(self, lexicographic_position):
+    assert self.finalized
     # returns first index >= the lexicographic position.
     # if greater than all values, returns size of items list
     # else, if less-eq than all values, returns 0
@@ -479,6 +505,7 @@ class SimpleShuffleDataset(object):
 
 
   def summarize_key_range(self, lexicographic_range):
+    assert self.finalized
     first_index = self._seek(lexicographic_range.start)
     one_past_last_index = self._seek(lexicographic_range.end)
     # TODO: audit this code again
@@ -486,6 +513,7 @@ class SimpleShuffleDataset(object):
         self.cumulative_size[one_past_last_index] - self.cumulative_size[first_index])
 
   def read(self, lexicographic_range, continuation_token, suggested_max_bytes=8 * 1024 * 1024):
+    assert self.finalized
     first_index = self._seek(lexicographic_range.start)
     one_past_last_index = self._seek(lexicographic_range.end)
     i = first_index
@@ -614,23 +642,26 @@ class ShuffleFinalizeStage(Stage, WatermarkNode):
     self.name = name
     self.execution_context = execution_context
     self.dataset_id = dataset_id
+    # Hold watermark on following steps until execution progress is made.
+    self.set_watermark_hold(MIN_TIMESTAMP)
 
   def start(self):
     # self.execution_context.shuffle_interface.commit_transaction(self.dataset_id, 0)
     self.execution_context.shuffle_interface.finalize_dataset(self.dataset_id)
     print 'FINALIZED!!'
-    print self.execution_context.shuffle_interface.read(
-      self.dataset_id,
-      LexicographicRange(
-        LexicographicPosition.KEYSPACE_BEGINNING,
-        LexicographicPosition.KEYSPACE_END), None, 10000000)
+    self.set_watermark_hold(None)
+    # print self.execution_context.shuffle_interface.read(
+    #   self.dataset_id,
+    #   LexicographicRange(
+    #     LexicographicPosition.KEYSPACE_BEGINNING,
+    #     LexicographicPosition.KEYSPACE_END), None, 10000000)
 
 
   def input_watermark_advanced(self, new_watermark):
     print 'ShuffleFinalizeStage input watermark ADVANCED', new_watermark
     if new_watermark == MAX_TIMESTAMP:
       self.start()  # TODO: reconcile all the run / start method names.
-  
+
 
 
 
@@ -672,6 +703,11 @@ class FusedStage(Stage, CompositeWatermarkNode):
       assert not self.read_step
       self.read_step = step
       self.input_watermark_node.add_dependent(step)
+    elif isinstance(step, ShuffleReadStep):
+      assert not original_step.inputs
+      assert not self.read_step
+      self.read_step = step
+      self.input_watermark_node.add_dependent(step)
     else:
       if isinstance(step, ShuffleWriteStep):
         self.shuffle_datasets_ids.append(step.dataset_id)
@@ -708,13 +744,18 @@ class FusedStage(Stage, CompositeWatermarkNode):
 
     # Perform initial source splitting.
     read_op = all_operations[0]
-    assert isinstance(read_op, operation_specs.WorkerRead)
-    split_source_bundles = list(read_op.source.source.split(1024))
-    print '!!! SPLIT OFF', split_source_bundles
     split_read_ops = []
-    for source_bundle in split_source_bundles:
-      new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
-      split_read_ops.append(new_read_op)
+    if isinstance(read_op, operation_specs.WorkerRead):
+      split_source_bundles = list(read_op.source.source.split(16 * 1024))
+      print '!!! SPLIT OFF', split_source_bundles
+      for source_bundle in split_source_bundles:
+        new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
+        split_read_ops.append(new_read_op)
+    elif isinstance(read_op, operation_specs.LaserShuffleRead):
+      # TODO: do initial splitting of shuffle read operation, based on dataset characteristics.
+      split_read_ops.append(read_op)
+    else:
+      raise Exception('First operation should be a read operation: %s.' % read_op)
 
     for removeme_i, split_read_op in enumerate(split_read_ops):
       ops = [split_read_op] + all_operations[1:]
@@ -802,9 +843,9 @@ def generate_execution_graph(step_graph, execution_context):
       steps_to_fused_stages[original_step] = fused_stage
     elif isinstance(original_step, ParDoStep):
       print 'NAME', original_step.name
-      if original_step.name in ('GroupByKey/GroupByWindow'):
-        print 'SKIPPING', original_step
-        continue
+      # if original_step.name in ('GroupByKey/GroupByWindow'):
+      #   print 'SKIPPING', original_step
+      #   continue
       assert len(original_step.inputs) == 1
       input_step = original_step.inputs[0].step
       print 'input_step', input_step, type(input_step), original_step
@@ -822,7 +863,7 @@ def generate_execution_graph(step_graph, execution_context):
       shuffle_dataset_id = next_shuffle_dataset_id
       next_shuffle_dataset_id += 1
       execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
-      shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.element_coder, shuffle_dataset_id)
+      shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id)
       shuffle_write_step.inputs.append(original_step.inputs[0])
       print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
       fused_stage.add_step(shuffle_write_step, origin_step=original_step)# HACK
@@ -833,8 +874,18 @@ def generate_execution_graph(step_graph, execution_context):
       finalize_stage = ShuffleFinalizeStage(stage_name, execution_context, shuffle_dataset_id)
       fused_stage.add_dependent(finalize_stage)
 
+      # Add shuffle read step, dependent on shuffle finalization.
+      stage_name = 'S%02d' % next_stage_id
+      next_stage_id += 1
+      read_fused_stage = FusedStage(stage_name, execution_context)
+      read_step = ShuffleReadStep(original_step.name + '/Read', original_step.output_coder, shuffle_dataset_id,
+          LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END))
+      read_step.outputs[None] = PCollectionNode(read_step, None)
+      read_fused_stage.add_step(read_step, origin_step=original_step)
+      finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
+
       # TODO: shuffle read
-      steps_to_fused_stages[original_step] = fused_stage
+      steps_to_fused_stages[original_step] = read_fused_stage
  
     # TODO: handle GroupByKeyStep.
     for unused_tag, pcoll_node in original_step.outputs.iteritems():
@@ -900,7 +951,7 @@ class LaserRunner(PipelineRunner):
     shuffle_coder = coders.TupleCoder(
         [unwindowed_input_coder.key_coder(), coders.WindowedValueCoder(unwindowed_input_coder.value_coder())])
 
-    step = GroupByKeyOnlyStep(transform_node.full_label, shuffle_coder)
+    step = GroupByKeyOnlyStep(transform_node.full_label, shuffle_coder, output_coder)
     print 'GBKO STEP', step
     self.step_graph.add_step(transform_node, step)
 
@@ -1401,14 +1452,27 @@ if __name__ == '__main__':
   p = Pipeline(runner=LaserRunner())
   # def fn(input):
   #   print input
-  p | Create([1, 2, 3]) | beam.Map(lambda x: (x, '1')) | beam.GroupByKey()
+  def _print(x):
+    import time
+    # time.sleep(4)
+    print 'PRRRINT:', x
+  # p | Create([1, 2, 3]) | beam.FlatMap(lambda x: [(x, 'abc1-%d' % x), (x, 'xyz2-%d' % x)]) | beam.GroupByKey()  | 'cc' >> beam.Map(_print)
   # p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
   # a = p | 'yo' >> Create(['a', 'b', 'c'])
-  # def _print(x):
-  #   print 'PRRRINT:', x
   # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
   # a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
-  # p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt') | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+  lines = p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
+  # lines = p | Create(['a', 'a', 'b' ,'a c'])
+  # WORDCAP:
+  # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+
+  # WORDCOUNT:
+  counts = (lines
+            | 'split' >> beam.FlatMap(lambda text_line: __import__('re').findall(r'[A-Za-z\']+', text_line))
+                          .with_output_types(unicode)
+            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
+            | 'group' >> beam.GroupByKey()
+            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))) | beam.Map(_print)
   # # | beam.Map(fn)
   p.run()
 

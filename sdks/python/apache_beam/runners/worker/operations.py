@@ -570,6 +570,10 @@ def create_operation(operation_name, spec, counter_factory, step_name,
     from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
     op = ShuffleWriteOperation(
         operation_name, spec, work_context, counter_factory, state_sampler)
+  elif isinstance(spec, operation_specs.LaserShuffleRead):
+    from apache_beam.runners.laser.laser_operations import ShuffleReadOperation
+    op = ShuffleReadOperation(
+        operation_name, spec, counter_factory, state_sampler)
   else:
     raise TypeError('Expected an instance of operation_specs.Worker* class '
                     'instead of %s' % (spec,))

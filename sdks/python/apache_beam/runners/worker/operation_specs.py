@@ -308,6 +308,19 @@ Attributes:
 """
 
 
+LaserShuffleRead = build_worker_instruction(
+    'LaserShuffleRead',
+    ['dataset_id', 'key_range', 'output_coders'])
+"""Worker details needed to write to a LaserRunner shuffle source.
+
+Attributes:
+  dataset_id: An integer specifying the dataset to read.
+  key_range: The LexicographicRange for the read from the current dataset.
+  output_coders: 1-tuple of the coder for input elements. If the
+    shuffle_kind is grouping, this is expected to be a KV coder.
+"""
+
+
 def get_coder_from_spec(coder_spec):
   """Return a coder instance from a coder spec.
 
