@@ -16,14 +16,15 @@
 package cz.seznam.euphoria.hadoop.input;
 
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
 import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.core.client.io.UnsplittableBoundedSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -69,10 +70,10 @@ public class SimpleHadoopTextFileSource implements BoundedDataSource<String> {
    * {@code BoundedPartition<String>} where the {@code Text} is from the original partition
    * is transparently convered to a string.
    */
-  static final class WrapPartition implements BoundedPartition<String> {
-    private final BoundedPartition<Pair<LongWritable, Text>> wrap;
+  static final class WrapPartition extends UnsplittableBoundedSource<String> {
+    private final BoundedDataSource<Pair<LongWritable, Text>> wrap;
 
-    WrapPartition(BoundedPartition<Pair<LongWritable, Text>> wrap) {
+    WrapPartition(BoundedDataSource<Pair<LongWritable, Text>> wrap) {
       this.wrap = Objects.requireNonNull(wrap);
     }
 
@@ -89,14 +90,30 @@ public class SimpleHadoopTextFileSource implements BoundedDataSource<String> {
 
   private final HadoopTextFileSource wrap;
 
+
   @Override
-  public List<BoundedPartition<String>> getPartitions() {
-    return this.wrap.getPartitions().stream().map(WrapPartition::new).collect(toList());
+  public List<BoundedDataSource<String>> split(long desiredSplitSize) {
+    return this.wrap.split(desiredSplitSize).stream().map(WrapPartition::new).collect(toList());
   }
 
   @Override
   public boolean isBounded() {
     return this.wrap.isBounded();
+  }
+
+  @Override
+  public Set<String> getLocations() {
+    return Collections.singleton("unknown");
+  }
+
+  @Override
+  public BoundedReader<String> openReader() throws IOException {
+    throw new UnsupportedOperationException("Call `split` first!");
+  }
+
+  @Override
+  public int getDefaultParallelism() {
+    return this.wrap.getDefaultParallelism();
   }
 
   /**

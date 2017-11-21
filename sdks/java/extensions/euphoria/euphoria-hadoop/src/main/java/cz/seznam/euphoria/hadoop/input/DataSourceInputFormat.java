@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.hadoop.input;
 
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
 import cz.seznam.euphoria.core.client.io.BoundedReader;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.hadoop.utils.Serializer;
@@ -78,14 +77,14 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
 
   private static class SourceSplit<V> extends InputSplit implements Writable {
 
-    private BoundedPartition<V> partition;
+    private BoundedDataSource<V> partition;
 
     // Writable, DO NOT USE
     public SourceSplit() {
 
     }
 
-    SourceSplit(BoundedPartition<V> partition) {
+    SourceSplit(BoundedDataSource<V> partition) {
       this.partition = partition;
     }
 
@@ -133,7 +132,8 @@ public class DataSourceInputFormat<V> extends InputFormat<NullWritable, V> {
       throws IOException, InterruptedException {
 
     initialize(jc.getConfiguration());
-    return source.getPartitions().stream().map(SourceSplit::new)
+    return source.split(source.getDefaultParallelism())
+        .stream().map(SourceSplit::new)
         .collect(Collectors.toList());
   }
 
