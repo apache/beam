@@ -31,6 +31,13 @@ public interface DataSource<T> extends Serializable {
   boolean isBounded();
 
   /**
+   * @return {@code true} if this is not bounded source, {@code false} otherwise
+   */
+  default boolean isUnbounded() {
+    return !isBounded();
+  }
+
+  /**
    * Retrieve batch {@code DataSource}.
    * @return {@code BoundedDataSource} if this is bounded source
    * @throws UnsupportedOperationException if this is not {@code BoundedDataSource}.
@@ -47,11 +54,5 @@ public interface DataSource<T> extends Serializable {
   default UnboundedDataSource<T, ?> asUnbounded() {
     throw new UnsupportedOperationException("Not supported.");
   }
-
-  /**
-   * @return input parallelism with which the input can be read
-   */
-  int getParallelism();
-
 
 }

@@ -17,8 +17,6 @@ package cz.seznam.euphoria.flink.streaming.io;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
-import cz.seznam.euphoria.core.client.io.BoundedReader;
 import cz.seznam.euphoria.core.client.io.CloseableIterator;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
@@ -117,15 +115,8 @@ public class DataSourceWrapper<T>
     final int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
     final int totalSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 
-    List<BoundedPartition<T>> partitions = boundedSource.getPartitions();
-    List<BoundedReader<T>> openReaders = new ArrayList<>();
-
-    // find partitions which this data source is responsible for
-    for (int i = 0; i < partitions.size(); i++) {
-      if (i % totalSubtasks == subtaskIndex) {
-        openReaders.add(partitions.get(i).openReader());
-      }
-    }
+    List<BoundedDataSource<T>> partitions = boundedSource
+        .split(totalSubtasks);
 
     runInternal(
         ctx,

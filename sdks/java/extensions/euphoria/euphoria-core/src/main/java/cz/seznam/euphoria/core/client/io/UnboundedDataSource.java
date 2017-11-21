@@ -43,9 +43,4 @@ public interface UnboundedDataSource<T, OFFSET extends Serializable> extends Dat
     return this;
   }
 
-  @Override
-  public default int getParallelism() {
-    return getPartitions().size();
-  }
-
 }

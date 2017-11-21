@@ -17,8 +17,8 @@ package cz.seznam.euphoria.hadoop.input;
 
 import com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
 import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.core.client.io.UnsplittableBoundedSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
@@ -29,9 +29,9 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -54,9 +54,10 @@ public class HadoopSource<K, V> implements BoundedDataSource<Pair<K, V>> {
   @Nullable
   private transient InputFormat<K, V> hadoopFormatInstance;
 
-  public HadoopSource(Class<K> keyClass, Class<V> valueClass,
-                      Class<? extends InputFormat<K, V>> hadoopFormatCls,
-                      Configuration hadoopConf) {
+  public HadoopSource(
+      Class<K> keyClass, Class<V> valueClass,
+      Class<? extends InputFormat<K, V>> hadoopFormatCls,
+      Configuration hadoopConf) {
 
     this.keyClass = keyClass;
     this.valueClass = valueClass;
@@ -65,7 +66,7 @@ public class HadoopSource<K, V> implements BoundedDataSource<Pair<K, V>> {
   }
 
   @Override
-  public List<BoundedPartition<Pair<K, V>>> getPartitions() {
+  public List<BoundedDataSource<Pair<K, V>>> split(long desiredSplitSize) {
     try {
       Configuration c = conf.getWritable();
       return getHadoopFormatInstance()
@@ -100,6 +101,29 @@ public class HadoopSource<K, V> implements BoundedDataSource<Pair<K, V>> {
     }
 
     return hadoopFormatInstance;
+  }
+
+  @Override
+  public Set<String> getLocations() {
+    return Collections.singleton("unknown");
+  }
+
+  @Override
+  public BoundedReader<Pair<K, V>> openReader() throws IOException {
+    throw new UnsupportedOperationException(
+        "Please call `split` on this source first.");
+  }
+
+  @Override
+  public int getDefaultParallelism() {
+    try {
+      Configuration c = conf.getWritable();
+      return getHadoopFormatInstance()
+          .getSplits(HadoopUtils.createJobContext(c))
+          .size();
+    } catch (Exception ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
   /**
@@ -150,7 +174,7 @@ public class HadoopSource<K, V> implements BoundedDataSource<Pair<K, V>> {
   /**
    * Wraps Hadoop {@link InputSplit}
    */
-  private static class HadoopPartition<K, V> implements BoundedPartition<Pair<K, V>> {
+  private static class HadoopPartition<K, V> extends UnsplittableBoundedSource<Pair<K, V>> {
 
     private final Class<? extends InputFormat<K, V>> hadoopFormatCls;
     private SerializableWritable<Configuration> conf;
@@ -219,6 +243,7 @@ public class HadoopSource<K, V> implements BoundedDataSource<Pair<K, V>> {
     public String toString() {
       return getClass().getName() + "<" +  getHadoopInputSplit() + ">";
     }
+
   }
 
 }
