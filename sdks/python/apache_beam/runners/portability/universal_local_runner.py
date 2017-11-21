@@ -178,7 +178,9 @@ class PipelineResult(runner.PipelineResult):
       for message in self._job_service.GetMessageStream(
           beam_job_api_pb2.JobMessagesRequest(job_id=self._job_id)):
         self._messages.append(message)
-    threading.Thread(target=read_messages).start()
+    t = threading.Thread(target=read_messages, name='wait_until_finish_read')
+    t.daemon = True
+    t.start()
 
     for state_response in self._job_service.GetStateStream(
         beam_job_api_pb2.GetJobStateRequest(job_id=self._job_id)):
@@ -244,6 +246,7 @@ class BeamJob(threading.Thread):
         logging.exception("Error running pipeline.")
         traceback.print_exc()
         self.state = beam_job_api_pb2.JobState.FAILED
+        raise
 
   def cancel(self):
     if self.state not in TERMINAL_STATES:
