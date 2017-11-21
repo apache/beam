@@ -76,6 +76,7 @@ include ':beam-runners-parent:beam-java-fn-execution'
 include ':beam-runners-parent:beam-runners-core-construction-java'
 include ':beam-runners-parent:beam-runners-core-java'
 include ':beam-runners-parent:beam-local-artifact-service-java'
+include ':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java'
 include ':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator'
 include ':beam-runners-parent:beam-runners-reference-parent'
 include ':beam-runners-parent:beam-runners-direct-java'
@@ -153,6 +154,7 @@ project(':beam-runners-parent:beam-java-fn-execution').projectDir = "$rootDir/ru
 project(':beam-runners-parent:beam-runners-core-construction-java').projectDir = "$rootDir/runners/core-construction-java" as File
 project(':beam-runners-parent:beam-runners-core-java').projectDir = "$rootDir/runners/core-java" as File
 project(':beam-runners-parent:beam-local-artifact-service-java').projectDir = "$rootDir/runners/local-artifact-service-java" as File
+project(':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java').projectDir = "$rootDir/runners/reference/java" as File
 project(':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator').projectDir = "$rootDir/runners/reference/job-server" as File
 project(':beam-runners-parent:beam-runners-reference-parent').projectDir = "$rootDir/runners/reference" as File
 project(':beam-runners-parent:beam-runners-direct-java').projectDir = "$rootDir/runners/direct-java" as File
