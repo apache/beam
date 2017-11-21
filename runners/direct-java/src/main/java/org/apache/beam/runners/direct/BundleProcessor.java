@@ -24,10 +24,10 @@ import org.apache.beam.runners.local.Bundle;
  * An executor that is capable of processing some bundle of input over some executable stage or
  * step.
  */
-interface BundleExecutor<BundleT extends Bundle<?>, ExecutableT> {
+interface BundleProcessor<BundleT extends Bundle<?>, ExecutableT> {
   /**
    * Execute the provided bundle using the provided Executable, calling back to the {@link
    * CompletionCallback} when execution completes.
    */
-  void execute(BundleT bundle, ExecutableT consumer, CompletionCallback onComplete);
+  void process(BundleT bundle, ExecutableT consumer, CompletionCallback onComplete);
 }

@@ -43,7 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Pushes additional work onto a {@link BundleExecutor} based on the fact that a pipeline has
+ * Pushes additional work onto a {@link BundleProcessor} based on the fact that a pipeline has
  * quiesced.
  */
 class QuiescenceDriver implements ExecutionDriver {
@@ -52,15 +52,15 @@ class QuiescenceDriver implements ExecutionDriver {
   public static ExecutionDriver create(
       EvaluationContext context,
       DirectGraph graph,
-      BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleExecutor,
+      BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleProcessor,
       PipelineMessageReceiver messageReceiver,
       Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>> initialBundles) {
-    return new QuiescenceDriver(context, graph, bundleExecutor, messageReceiver, initialBundles);
+    return new QuiescenceDriver(context, graph, bundleProcessor, messageReceiver, initialBundles);
   }
 
   private final EvaluationContext evaluationContext;
   private final DirectGraph graph;
-  private final BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleExecutor;
+  private final BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleProcessor;
   private final PipelineMessageReceiver pipelineMessageReceiver;
 
   private final CompletionCallback defaultCompletionCallback =
@@ -78,13 +78,13 @@ class QuiescenceDriver implements ExecutionDriver {
   private QuiescenceDriver(
       EvaluationContext evaluationContext,
       DirectGraph graph,
-      BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleExecutor,
+      BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> bundleProcessor,
       PipelineMessageReceiver pipelineMessageReceiver,
       Map<AppliedPTransform<?, ?, ?>, ConcurrentLinkedQueue<CommittedBundle<?>>>
           pendingRootBundles) {
     this.evaluationContext = evaluationContext;
     this.graph = graph;
-    this.bundleExecutor = bundleExecutor;
+    this.bundleProcessor = bundleProcessor;
     this.pipelineMessageReceiver = pipelineMessageReceiver;
     this.pendingRootBundles = pendingRootBundles;
   }
@@ -136,7 +136,7 @@ class QuiescenceDriver implements ExecutionDriver {
         CommittedBundle<?> bundle = update.getBundle().get();
         for (AppliedPTransform<?, ?, ?> consumer : update.getConsumers()) {
           outstandingWork.incrementAndGet();
-          bundleExecutor.execute(bundle, consumer, defaultCompletionCallback);
+          bundleProcessor.process(bundle, consumer, defaultCompletionCallback);
         }
       } else {
         pendingWork.offer(update);
@@ -165,7 +165,7 @@ class QuiescenceDriver implements ExecutionDriver {
                 .add(WindowedValue.valueInGlobalWindow(work))
                 .commit(evaluationContext.now());
         outstandingWork.incrementAndGet();
-        bundleExecutor.execute(
+        bundleProcessor.process(
             bundle, transformTimers.getTransform(), new TimerIterableCompletionCallback(delivery));
         state.set(ExecutorState.ACTIVE);
       }
@@ -196,7 +196,7 @@ class QuiescenceDriver implements ExecutionDriver {
         }
         for (CommittedBundle<?> bundle : bundles) {
           outstandingWork.incrementAndGet();
-          bundleExecutor.execute(bundle, pendingRootEntry.getKey(), defaultCompletionCallback);
+          bundleProcessor.process(bundle, pendingRootEntry.getKey(), defaultCompletionCallback);
           state.set(ExecutorState.ACTIVE);
         }
       }

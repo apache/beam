@@ -54,8 +54,7 @@ import org.slf4j.LoggerFactory;
  * EvaluationContext} to execute a {@link Pipeline}.
  */
 final class ExecutorServiceParallelExecutor
-    implements PipelineExecutor,
-        BundleExecutor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
+    implements PipelineExecutor, BundleProcessor<CommittedBundle<?>, AppliedPTransform<?, ?, ?>> {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorServiceParallelExecutor.class);
 
   private final int targetParallelism;
@@ -189,7 +188,7 @@ final class ExecutorServiceParallelExecutor
 
   @SuppressWarnings("unchecked")
   @Override
-  public void execute(
+  public void process(
       CommittedBundle<?> bundle,
       AppliedPTransform<?, ?, ?> consumer,
       CompletionCallback onComplete) {
