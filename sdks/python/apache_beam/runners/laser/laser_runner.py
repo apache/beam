@@ -73,6 +73,9 @@ from apache_beam.runners.laser.channels import get_channel_manager
 from apache_beam.runners.laser.channels import remote_method
 from apache_beam.runners.laser.laser_operations import ShuffleReadOperation
 from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
+from apache_beam.runners.laser.lexicographic import LexicographicPosition
+from apache_beam.runners.laser.lexicographic import LexicographicRange
+from apache_beam.runners.laser.lexicographic import lexicographic_cmp
 from apache_beam.runners.dataflow import DataflowRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.worker import operation_specs
@@ -578,27 +581,6 @@ class ShuffleWorkerInterface(Interface):
     raise NotImplementedError()
 
 
-class LexicographicPosition(object):
-  KEYSPACE_BEGINNING = 1
-  KEYSPACE_END = 2
-
-
-def lexicographic_cmp(left, right):
-  if left == LexicographicPosition.KEYSPACE_BEGINNING:
-    return -1
-  if right == LexicographicPosition.KEYSPACE_END:
-    return 1
-  return cmp(left, right)
-
-
-class LexicographicRange(object):
-  def __init__(self, start, end):
-    assert isinstance(start, str) or start == LexicographicPosition.KEYSPACE_BEGINNING
-    assert isinstance(end, str) or end == LexicographicPosition.KEYSPACE_END
-    self.start = start
-    self.end = end
-
-
 
 class SimpleShuffleWorker(ShuffleWorkerInterface):
   def __init__(self):
@@ -1010,7 +992,7 @@ class LaserRunner(PipelineRunner):
     channel_manager = get_channel_manager()
     channel_manager.register_interface('master/shuffle', shuffle_worker)
 
-    node_manager = InProcessComputeNodeManager()
+    node_manager = MultiProcessComputeNodeManager()
     node_manager.start()
     work_manager = WorkManager(node_manager)
     watermark_manager = WatermarkManager()
@@ -1101,6 +1083,7 @@ class LaserWorker(WorkerInterface, threading.Thread):
 
   def run(self):
     self.channel_manager.register_interface('%s/worker' % self.worker_id, self)
+    time.sleep(2)  # HACK
     self.work_manager.register_worker(self.worker_id)
     while True:
       with self.lock:
@@ -1128,7 +1111,8 @@ class LaserWorker(WorkerInterface, threading.Thread):
 
 
   # REMOTE METHOD
-  def schedule_work_item(self, work_item):
+  def schedule_work_item(self, serialized_work_item):
+    work_item = pickler.loads(serialized_work_item)
     with self.lock:
       if self.current_work_item:
         raise Exception('Currently executing work item: %s' % self.current_work_item)
@@ -1233,7 +1217,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
             keep_scheduling = False
       print 'SCHEDULING', to_execute
       for worker_interface, work_item in to_execute:
-        worker_interface.schedule_work_item(work_item)
+        worker_interface.schedule_work_item(pickler.dumps(work_item))
 
       with self.lock:
         if not self.unscheduled_work.empty() and self.idle_workers:
@@ -1378,6 +1362,55 @@ class InProcessComputeNodeManager(ComputeNodeManager):
     return list(self.node_stubs.values())
 
 
+class MultiProcessComputeNodeManager(ComputeNodeManager):
+  def __init__(self, num_nodes=4):
+    self.num_nodes = num_nodes
+    self.started = False
+    self.channel_manager = get_channel_manager()
+    self.channel_manager.register_interface('master/node_manager', self)
+
+    self.node_stubs = {}
+
+  def start(self):
+    coordinator_port = random.randint(20000,30000)
+    self.channel_manager.add_link_strategy(
+        LinkStrategy(
+            LinkStrategyType.LISTEN,
+            mode=LinkMode.TCP,
+            address='localhost',
+            port=coordinator_port,
+        ))
+    for i in range(self.num_nodes):
+      worker_name = 'worker%d' % i
+      print 'SPAWN', worker_name
+      spawn_worker({
+          'name': worker_name,
+          'channel_config': ChannelConfig(
+              node_addresses=[worker_name],
+              link_strategies=[
+                LinkStrategy(
+                  LinkStrategyType.CONNECT,
+                  mode=LinkMode.TCP,
+                  address='localhost',
+                  port=coordinator_port,
+                  )]).to_dict(),
+      })
+    time.sleep(2)  # HACK
+    print 'DONE STARTING'
+    self.started = True
+
+  def report_node_started(self, node_name):  # TODO: HACK / C+P
+    # TODO: assert node name is correct
+    # TODO: what happens if node restarts?
+    print 'NODE STARTED', node_name
+    node_stub = self.channel_manager.get_interface('%s/stub' % node_name, ComputeNodeStubInterface)
+    node_stub.confirm('yay' + str(self))
+    return 'HI[%s]' % node_name
+
+
+  def get_nodes(self):
+    self._check_started()
+    return list(self.node_stubs.values())
 
 
 def spawn_worker(options):
@@ -1422,8 +1455,6 @@ def run(argv):
         mode=LinkMode.TCP,
         address='localhost',
         port=COORDINATOR_PORT,
-        # mode=LinkMode.UNIX,
-        # address='./uds_socket3-%s' % COORDINATOR_PORT,
         )]).to_dict(),
     })
   print 'DONE'
@@ -1440,6 +1471,12 @@ def run(argv):
   time.sleep(10)
 
 if __name__ == '__main__':
+  if '--worker' in sys.argv:
+    config_dict = json.loads(sys.argv[-1])
+    set_channel_config(ChannelConfig.from_dict(config_dict['channel_config']))
+    worker = LaserWorker(config_dict)
+    worker.run()
+    sys.exit(0)
   logging.getLogger().setLevel(logging.DEBUG)
   set_channel_config(ChannelConfig(
     node_addresses=['master']))

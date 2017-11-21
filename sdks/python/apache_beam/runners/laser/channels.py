@@ -131,6 +131,17 @@ class ChannelManager(threading.Thread):
         link.send_address_info(node_addresses, anycast_aliases)
       time.sleep(1)
 
+  def add_link_strategy(self, link_strategy):
+    if link_strategy.strategy_type == LinkStrategyType.LISTEN:
+      listener = LinkListener(self, link_strategy)
+      listener.start()
+    elif link_strategy.strategy_type == LinkStrategyType.CONNECT:
+      connecter = LinkConnecter(self, link_strategy)
+      connecter.start()
+    else:
+      raise ValueError('Invalid link strategy type: %s.' % link_strategy.strategy_type)
+    
+
 
 def get_remote_interface(host_descriptor, channel_manager, interface_name, interface_cls):
   class RemoteInterface(interface_cls):
@@ -232,7 +243,9 @@ class Channel(object):  # TODO: basechannel?
         message_id, = struct.unpack('<i', self.pipe.recv(4))
         message_len, = struct.unpack('<i', self.pipe.recv(4))
         # print 'RECEIVED MESSAGE RESULT', message_id
-        message_bytes = self.pipe.recv(message_len)
+        message_bytes = ''
+        while len(message_bytes) < message_len:
+          message_bytes += self.pipe.recv(message_len - len(message_bytes))
         with self.lock:
           self.results[message_id] = pickle.loads(message_bytes)
           cond = self.result_conds.get(message_id)
@@ -359,14 +372,7 @@ def get_channel_manager():
     manager.register_anycast_alias(alias_to, alias_from)
   for link_strategy in config.link_strategies:
     print 'GOT LINK STRATEGY', link_strategy
-    if link_strategy.strategy_type == LinkStrategyType.LISTEN:
-      listener = LinkListener(manager, link_strategy)
-      listener.start()
-    elif link_strategy.strategy_type == LinkStrategyType.CONNECT:
-      connecter = LinkConnecter(manager, link_strategy)
-      connecter.start()
-    else:
-      raise ValueError('Invalid link strategy type: %s.' % link_strategy.strategy_type)
+    manager.add_link_strategy(link_strategy)
   globals()['_channel_manager'] = manager
   manager.start()
   return manager
