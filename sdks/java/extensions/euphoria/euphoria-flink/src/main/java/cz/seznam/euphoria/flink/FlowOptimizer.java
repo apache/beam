@@ -15,6 +15,8 @@
  */
 package cz.seznam.euphoria.flink;
 
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
@@ -86,8 +88,14 @@ public class FlowOptimizer {
       Operator<?, ?> op = flinkOp.getOriginalOperator();
 
       if (op instanceof FlowUnfolder.InputOperator) {
-        int partitions = op.output().getSource().getParallelism();
-        flinkOp.setParallelism(Math.min(maxParallelism, partitions));
+        DataSource<?> raw = op.output().getSource();
+        if (raw.isBounded()) {
+          BoundedDataSource<?> source = raw.asBounded();
+          flinkOp.setParallelism(Math.min(maxParallelism, source.getDefaultParallelism()));
+        } else {
+          int partitions = raw.asUnbounded().getPartitions().size();
+          flinkOp.setParallelism(Math.min(maxParallelism, partitions));
+        }
       } else {
         // other operators inherit parallelism from their parents
         flinkOp.setParallelism(

@@ -26,7 +26,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ExtractEventTime;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
 import cz.seznam.euphoria.core.client.io.BoundedReader;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.DataSource;
@@ -128,8 +128,8 @@ public class LocalExecutor implements Executor {
   static final class BoundedPartitionSupplierStream implements Supplier {
 
     final BoundedReader<?> reader;
-    final BoundedPartition<?> partition;
-    BoundedPartitionSupplierStream(BoundedPartition<?> partition) {
+    final BoundedDataSource<?> partition;
+    BoundedPartitionSupplierStream(BoundedDataSource<?> partition) {
       this.partition = partition;
       try {
         this.reader = partition.openReader();
@@ -298,6 +298,8 @@ public class LocalExecutor implements Executor {
   private java.util.function.Supplier<TriggerScheduler> triggerSchedulerSupplier
       = ProcessingTimeTriggerScheduler::new;
 
+  // default parallelism
+  private int parallel = -1;
   private boolean allowWindowBasedShuffling = false;
   private boolean allowEarlyEmitting = false;
 
@@ -516,7 +518,9 @@ public class LocalExecutor implements Executor {
     InputProvider ret = new InputProvider();
 
     if (source.isBounded()) {
-      source.asBounded().getPartitions().stream()
+      BoundedDataSource<?> bounded = source.asBounded();
+      bounded.split(bounded.sizeEstimate() / defaultParallelism())
+          .stream()
           .map(BoundedPartitionSupplierStream::new)
           .forEach(ret::add);
     } else {
@@ -876,4 +880,16 @@ public class LocalExecutor implements Executor {
     // was handled
     return true;
   }
+
+  public LocalExecutor setDefaultParallelism(int parallel) {
+    this.parallel = parallel;
+    return this;
+  }
+
+  private int defaultParallelism() {
+    return parallel == -1
+        ? Runtime.getRuntime().availableProcessors()
+        : parallel;
+  }
+
 }

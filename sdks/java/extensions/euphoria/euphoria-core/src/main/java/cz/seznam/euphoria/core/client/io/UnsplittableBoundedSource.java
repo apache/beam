@@ -13,18 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import java.io.Serializable;
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * Reader of bounded data.
- *
- * The reader can split the bounded data into smaller pieces. By default it is
- * non splittable.
+ * A {@code BoundedPartition} that cannot be split into smaller pieces.
  */
-@Audience(Audience.Type.CLIENT)
-public interface BoundedReader<E> extends CloseableIterator<E>, Serializable {
+@Audience(Audience.Type.EXECUTOR)
+public abstract class UnsplittableBoundedSource<T> implements BoundedDataSource<T> {
+
+  @Override
+  public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
+    return Arrays.asList(this);
+  }
+
+  @Override
+  public int getDefaultParallelism() {
+    return 1;
+  }
 
 }

@@ -16,18 +16,20 @@
 package cz.seznam.euphoria.core.client.io;
 
 import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * A {@code DataSource} that is backed up by simple list.
@@ -67,6 +69,8 @@ public class ListDataSource<T>
   private long finalSleepMs = 0;
 
   private final int id = System.identityHashCode(this);
+  private final int partition;
+  private final ListDataSource<T> parent;
 
   private class DataIterator implements CloseableIterator<T> {
 
@@ -159,9 +163,17 @@ public class ListDataSource<T>
   @SuppressWarnings("unchecked")
   private ListDataSource(boolean bounded, List<List<T>> partitions) {
     this.bounded = bounded;
+    this.parent = null;
+    this.partition = -1;
 
     // save partitions to static storage
     storage.put(this, (List) partitions);
+  }
+
+  private ListDataSource(ListDataSource<T> parent, int partition) {
+    this.bounded = parent.bounded;
+    this.parent = parent;
+    this.partition = partition;
   }
 
   @Override
@@ -179,43 +191,7 @@ public class ListDataSource<T>
   }
 
   @Override
-  @SuppressWarnings({ "unchecked", "rawtypes", "cast" })
-  public List getPartitions() {
-    if (isBounded()) {
-      return getBoundedPartitions();
-    } else {
-      return getUnboundedPartitions();
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  private List getBoundedPartitions() {
-    final int n = storage.get(this).size();
-    List<BoundedPartition<T>> partitions = new ArrayList<>(n);
-    for (int i = 0; i < n; i++) {
-      final int partition = i;
-      partitions.add(new BoundedPartition<T>() {
-
-        @Override
-        public Set<String> getLocations(){
-          return Sets.newHashSet("localhost");
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public BoundedReader<T> openReader() throws IOException {
-          return new BoundedListReader(
-              (List<T>) storage.get(ListDataSource.this).get(partition));
-        }
-
-      });
-    }
-    return partitions;
-  }
-
-
-  @SuppressWarnings("unchecked")
-  private List getUnboundedPartitions() {
+  public List<UnboundedPartition<T, Integer>> getPartitions() {
     final int n = storage.get(this).size();
     List<UnboundedPartition<T, Integer>> partitions = new ArrayList<>(n);
     for (int i = 0; i < n; i++) {
@@ -226,6 +202,45 @@ public class ListDataSource<T>
     return partitions;
   }
 
+  @Override
+  public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
+    int partition = 0;
+    List<BoundedDataSource<T>> ret = new ArrayList<>();
+    for (List l : storage.get(this)) {
+      ret.add(new ListDataSource(this, partition++));
+    }
+    return ret;
+  }
+
+  @Override
+  public Set<String> getLocations() {
+    return Collections.singleton("localhost");
+  }
+
+  @Override
+  public int getDefaultParallelism() {
+    return parent == null ? storage.get(this).size() : 1;
+  }
+
+  @SuppressWarnings("unchecked")
+  @Override
+  public BoundedReader<T> openReader() throws IOException {
+    final List<Integer> partitions;
+    final ListDataSource<T> ref;
+    if (partition == -1) {
+      partitions = IntStream.range(0, storage.get(this).size())
+          .mapToObj(Integer::valueOf)
+          .collect(Collectors.toList());
+      ref = this;
+    } else {
+      partitions = Arrays.asList(partition);
+      ref = parent;
+    }
+    return new BoundedListReader(
+        (List) partitions.stream()
+            .flatMap(i -> storage.get(ref).get(i).stream())
+            .collect(Collectors.toList()));
+  }
 
   @Override
   public boolean isBounded() {
@@ -250,12 +265,6 @@ public class ListDataSource<T>
     }
     throw new UnsupportedOperationException("Source is bounded.");
   }
-
-  @Override
-  public int getParallelism() {
-    return getPartitions().size();
-  }
-
 
   /**
    * Converts this list data source into a bounded data source.

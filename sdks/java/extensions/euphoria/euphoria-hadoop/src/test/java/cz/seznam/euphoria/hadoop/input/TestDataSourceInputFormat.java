@@ -17,8 +17,8 @@ package cz.seznam.euphoria.hadoop.input;
 
 import com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
 import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.core.client.io.UnsplittableBoundedSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -44,7 +45,7 @@ import java.util.Set;
 public class TestDataSourceInputFormat {
 
 
-  static class DummyPartition<T> implements BoundedPartition<T> {
+  static class DummyPartition<T> extends UnsplittableBoundedSource<T> {
 
     final Set<String> locations;
     final Iterable<T> data;
@@ -94,7 +95,7 @@ public class TestDataSourceInputFormat {
     }
 
     @Override
-    public List<BoundedPartition<T>> getPartitions() {
+    public List<BoundedDataSource<T>> split(long ignore) {
       return Arrays.asList(
           new DummyPartition<>(Sets.newHashSet("a", "b"), elements(2)),
           new DummyPartition<>(Sets.newHashSet("c", "d"), elements(3))
@@ -114,6 +115,15 @@ public class TestDataSourceInputFormat {
       return ret;
     }
 
+    @Override
+    public Set<String> getLocations() {
+      return Collections.singleton("unknown");
+    }
+
+    @Override
+    public BoundedReader<T> openReader() throws IOException {
+      throw new UnsupportedOperationException("Call `split` first");
+    }
 
   }
 

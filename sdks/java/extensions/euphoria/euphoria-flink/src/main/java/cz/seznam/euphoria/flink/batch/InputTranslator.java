@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.batch;
 
-import cz.seznam.euphoria.core.client.io.DataSource;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
 import cz.seznam.euphoria.flink.FlinkOperator;
 import cz.seznam.euphoria.flink.batch.io.DataSourceWrapper;
@@ -34,15 +34,15 @@ class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOpera
   }
 
   @Override
-  public DataSet translate(FlinkOperator<FlowUnfolder.InputOperator> operator,
-                           BatchExecutorContext context)
-  {
+  public DataSet translate(
+      FlinkOperator<FlowUnfolder.InputOperator> operator,
+      BatchExecutorContext context) {
     // get original datasource from operator
-    DataSource<?> ds = operator.output().getSource();
+    BoundedDataSource<?> ds = operator.output().getSource().asBounded();
 
     return context
         .getExecutionEnvironment()
-        .createInput(new DataSourceWrapper<>(ds.asBounded(), splitAssignerFactory))
-        .setParallelism(operator.getParallelism());
+        .createInput(new DataSourceWrapper<>(ds, splitAssignerFactory))
+        .setParallelism(ds.getDefaultParallelism());
   }
 }
