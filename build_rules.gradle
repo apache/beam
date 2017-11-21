@@ -140,7 +140,7 @@ ext.applyJavaNature = {
     options.encoding = "UTF-8"
   }
 
-  // Configure the test tasks to always use JUnit and also configure the set of tests executed
+  // Configure the default test tasks set of tests executed
   // to match the equivalent set that is executed by the maven-surefire-plugin.
   // See http://maven.apache.org/components/surefire/maven-surefire-plugin/test-mojo.html
   test {
@@ -148,7 +148,14 @@ ext.applyJavaNature = {
     include "**/*Test.class"
     include "**/*Tests.class"
     include "**/*TestCase.class"
+  }
+
+  // Configure all test tasks to use JUnit and also configure the reporting
+  // location to not collide with other JUnit runs. This allows us to keep
+  // test reports for other types of acceptance/integration/validation test runs.
+  tasks.withType(Test) {
     useJUnit { }
+    reports.html.destination = file("${reporting.baseDir}/${name}")
   }
 
   // Configures annotation processing for commonly used annotation processors
