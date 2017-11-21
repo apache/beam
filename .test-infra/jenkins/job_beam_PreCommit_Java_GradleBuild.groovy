@@ -32,6 +32,11 @@ job('beam_PreCommit_Java_GradleBuild') {
     'master',
     240)
 
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
   def gradle_switches = [
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
