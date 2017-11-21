@@ -23,6 +23,8 @@ graph of transformations belonging to a pipeline on the local machine.
 
 # from __future__ import absolute_import
 
+import cProfile
+import pstats
 import cPickle as pickle
 import json
 import logging
@@ -1097,8 +1099,17 @@ class LaserWorker(WorkerInterface, threading.Thread):
       status = WorkItemStatus.COMPLETED
       try:
         print '>>>>>>>>> WORKER', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
+        start_time = time.time()
+        pr = cProfile.Profile()
+        pr.enable()
         map_executor.execute()
-        print '<<<<<<<<< WORKER DONE', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
+        pr.disable()
+        end_time = time.time()
+        sortby = 'cumtime'
+        ps = pstats.Stats(pr).sort_stats(sortby)
+        time_taken = end_time - start_time
+        print '<<<<<<<<< WORKER DONE (%fs)' % time_taken, self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
+        ps.print_stats()
       except Exception as e:
         print 'Exception while processing work:', e
         import traceback
