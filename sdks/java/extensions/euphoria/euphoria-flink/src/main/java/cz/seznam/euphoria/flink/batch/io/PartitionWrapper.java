@@ -15,21 +15,21 @@
  */
 package cz.seznam.euphoria.flink.batch.io;
 
-import cz.seznam.euphoria.core.client.io.BoundedPartition;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
 import org.apache.flink.core.io.LocatableInputSplit;
 
 class PartitionWrapper<T> extends LocatableInputSplit {
 
-  private final BoundedPartition<T> partition;
+  private final BoundedDataSource<T> source;
 
-  public PartitionWrapper(int splitNumber, BoundedPartition<T> partition) {
-    super(splitNumber, partition.getLocations().toArray(
-            new String[partition.getLocations().size()]));
+  public PartitionWrapper(int splitNumber, BoundedDataSource<T> source) {
+    super(splitNumber, source.getLocations().toArray(
+            new String[source.getLocations().size()]));
 
-    this.partition = partition;
+    this.source = source;
   }
 
-  public BoundedPartition<T> getPartition() {
-    return partition;
+  public BoundedDataSource<T> getSource() {
+    return source;
   }
 }
