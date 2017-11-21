@@ -20,12 +20,14 @@
 import logging
 import os
 import unittest
+from itertools import chain
 from itertools import permutations
 
 import apache_beam.io.source_test_utils as source_test_utils
 from apache_beam.io.vcfio import _VcfSource as VcfSource
 from apache_beam.io.vcfio import DEFAULT_PHASESET_VALUE
 from apache_beam.io.vcfio import MISSING_GENOTYPE_VALUE
+from apache_beam.io.vcfio import MalformedVcfRecord
 from apache_beam.io.vcfio import ReadFromVcf
 from apache_beam.io.vcfio import Variant
 from apache_beam.io.vcfio import VariantCall
@@ -95,8 +97,9 @@ class VcfSourceTest(unittest.TestCase):
   def _create_temp_vcf_file(self, lines, tempdir):
     return tempdir.create_temp_file(suffix='.vcf', lines=lines)
 
-  def _read_records(self, file_or_pattern):
-    return source_test_utils.read_from_source(VcfSource(file_or_pattern))
+  def _read_records(self, file_or_pattern, **kwargs):
+    return source_test_utils.read_from_source(
+        VcfSource(file_or_pattern, **kwargs))
 
   def _create_temp_file_and_read_records(self, lines):
     with TempDir() as tempdir:
@@ -176,6 +179,56 @@ class VcfSourceTest(unittest.TestCase):
         VariantCall(name='Sample2', genotype=[MISSING_GENOTYPE_VALUE],
                     info={'GQ': None}))
     return variant, vcf_line
+
+  def _get_invalid_file_contents(self):
+    """Gets sample invalid files contents.
+
+    Returns:
+       A `tuple` where the first element is contents that are invalid because
+       of record errors and the second element is contents that are invalid
+       because of header errors.
+    """
+    malformed_vcf_records = [
+        # Malfromed record.
+        [
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '1    1  '
+        ],
+        # Missing "GT:GQ" format, but GQ is provided.
+        [
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT	1|0:48'
+        ],
+        # GT is not an integer.
+        [
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT	A|0'
+        ],
+        # POS should be an integer.
+        [
+            '##FILTER=<ID=PASS,Description="All filters passed">\n',
+            '##FILTER=<ID=q10,Description="Quality is less than 10.">\n',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	abc	rs12345	T	C	9	q10	AF=0.2;NS=2	GT:GQ	1|0:48\n',
+        ]
+    ]
+    malformed_header_lines = [
+        # Malformed FILTER.
+        [
+            '##FILTER=<ID=PASS,Description="All filters passed">\n',
+            '##FILTER=<ID=LowQual,Descri\n',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48',
+        ],
+        # Invalid Number value for INFO.
+        [
+            '##INFO=<ID=G,Number=U,Type=String,Description="InvalidNumber">\n',
+            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
+            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48\n',
+        ]
+    ]
+
+    return (malformed_vcf_records, malformed_header_lines)
 
   def test_sort_variants(self):
     sorted_variants = [
@@ -286,59 +339,33 @@ class VcfSourceTest(unittest.TestCase):
     self.assertEqual(9882, len(split_records))
 
   def test_invalid_file(self):
-    invalid_file_contents = [
-        # Malfromed record.
-        [
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleName\n',
-            '1    1  '
-        ],
-        # Missing "GT:GQ" format, but GQ is provided.
-        [
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleName\n',
-            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT	1|0:48'
-        ],
-        # GT is not an integer.
-        [
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleName\n',
-            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT	A|0'
-        ],
-        # Malformed FILTER.
-        [
-            '##FILTER=<ID=PASS,Description="All filters passed">\n',
-            '##FILTER=<ID=LowQual,Descri\n',
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleName\n',
-            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48',
-        ],
-        # Invalid Number value for INFO.
-        [
-            '##INFO=<ID=G,Number=U,Type=String,Description="InvalidNumber">\n',
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleName\n',
-            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48\n',
-        ],
-        # POS should be an integer.
-        [
-            '##FILTER=<ID=PASS,Description="All filters passed">\n',
-            '##FILTER=<ID=LowQual,Descri\n',
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleName\n',
-            '19	abc	rs12345	T	C	50	q10	AF=0.2;NS=2	GT:GQ	1|0:48\n',
-        ],
-    ]
-    for content in invalid_file_contents:
-      try:
-        with TempDir() as tempdir:
-          self._read_records(self._create_temp_vcf_file(content, tempdir))
-          self.fail('Invalid VCF file must throw an exception')
-      except ValueError:
-        pass
+    invalid_file_contents = self._get_invalid_file_contents()
+    for content in chain(*invalid_file_contents):
+      with TempDir() as tempdir, self.assertRaises(ValueError):
+        self._read_records(self._create_temp_vcf_file(content, tempdir))
     # Try with multiple files (any one of them will throw an exception).
-    with TempDir() as tempdir:
-      for content in invalid_file_contents:
+    with TempDir() as tempdir, self.assertRaises(ValueError):
+      for content in chain(*invalid_file_contents):
         self._create_temp_vcf_file(content, tempdir)
-      try:
-        self._read_records(os.path.join(tempdir.get_path(), '*.vcf'))
-        self.fail('Invalid VCF file must throw an exception.')
-      except ValueError:
-        pass
+      self._read_records(os.path.join(tempdir.get_path(), '*.vcf'))
+
+  def test_allow_malformed_records(self):
+    invalid_records, invalid_headers = self._get_invalid_file_contents()
+
+    # Invalid records should not raise errors
+    for content in invalid_records:
+      with TempDir() as tempdir:
+        records = self._read_records(
+            self._create_temp_vcf_file(content, tempdir),
+            allow_malformed_records=True)
+        for record in records:
+          self.assertIsInstance(record, MalformedVcfRecord)
+
+    # Invalid headers should still raise errors
+    for content in invalid_headers:
+      with TempDir() as tempdir, self.assertRaises(ValueError):
+        self._read_records(self._create_temp_vcf_file(content, tempdir),
+                           allow_malformed_records=True)
 
   def test_no_samples(self):
     header_line = '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO\n'
