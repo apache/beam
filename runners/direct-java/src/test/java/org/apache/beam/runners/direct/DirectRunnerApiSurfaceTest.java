@@ -45,7 +45,8 @@ public class DirectRunnerApiSurfaceTest {
         ImmutableSet.of(
             "org.apache.beam.sdk",
             "org.apache.beam.runners.direct",
-            "org.joda.time");
+            "org.joda.time",
+            "javax.annotation");
 
     final Package thisPackage = getClass().getPackage();
     final ClassLoader thisClassLoader = getClass().getClassLoader();
