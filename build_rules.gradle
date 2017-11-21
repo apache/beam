@@ -150,12 +150,9 @@ ext.applyJavaNature = {
     include "**/*TestCase.class"
   }
 
-  // Configure all test tasks to use JUnit and also configure the reporting
-  // location to not collide with other JUnit runs. This allows us to keep
-  // test reports for other types of acceptance/integration/validation test runs.
+  // Configure all test tasks to use JUnit
   tasks.withType(Test) {
     useJUnit { }
-    reports.html.destination = file("${reporting.baseDir}/${name}")
   }
 
   // Configures annotation processing for commonly used annotation processors
