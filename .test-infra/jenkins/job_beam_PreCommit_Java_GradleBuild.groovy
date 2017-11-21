@@ -32,11 +32,11 @@ job('beam_PreCommit_Java_GradleBuild') {
     'master',
     240)
 
-  def root_projects = [
-    ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core',
-    ':beam-runners-parent:beam-runners-direct-java',
-    ':beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution',
-  ]
+  // Publish all test results to Jenkins
+  publishers {
+    archiveJunit('**/build/test-results/**/*.xml')
+  }
+
   def gradle_switches = [
     // Continue the build even if there is a failure to show as many potential failures as possible.
     '--continue',
@@ -44,17 +44,13 @@ job('beam_PreCommit_Java_GradleBuild') {
     '--rerun-tasks',
   ]
 
-  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' ' + root_projects.join(':buildNeeded ') + ' ' + root_projects.join(':buildDependents ')
+  def gradle_command_line = './gradlew ' + gradle_switches.join(' ') + ' :javaPreCommit'
   // Sets that this is a PreCommit job.
   common_job_properties.setPreCommit(delegate, gradle_command_line, 'Run Java Gradle PreCommit')
-
   steps {
     gradle {
       rootBuildScriptDir(common_job_properties.checkoutDir)
-      for (String root_project : root_projects) {
-        tasks(root_project + ':buildNeeded')
-        tasks(root_project + ':buildDependents')
-      }
+      tasks(':javaPreCommit')
       for (String gradle_switch : gradle_switches) {
         switches(gradle_switch)
       }
