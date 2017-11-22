@@ -109,9 +109,9 @@ class ShuffleReadOperation(Operation):
             has_active_key = True
           # print 'START TRY DECODE', self.value_coder, repr(encoded_value)
           current_values.append(self.value_coder.decode(encoded_value))
+        print "<<< CONTINUATION TOKEN", continuation_token
         if continuation_token is None:
           break
-        break
       if has_active_key:
         current_key = self.key_coder.decode(current_encoded_key)
         # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)

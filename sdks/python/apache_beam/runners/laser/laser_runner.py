@@ -730,7 +730,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     read_op = all_operations[0]
     split_read_ops = []
     if isinstance(read_op, operation_specs.WorkerRead):
-      split_source_bundles = list(read_op.source.source.split(16 * 1024))
+      split_source_bundles = list(read_op.source.source.split(16 * 1024 *  1024))
       print '!!! SPLIT OFF', split_source_bundles
       for source_bundle in split_source_bundles:
         new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
@@ -1125,6 +1125,7 @@ class LaserWorker(WorkerInterface, threading.Thread):
   def schedule_work_item(self, serialized_work_item):
     work_item = pickler.loads(serialized_work_item)
     with self.lock:
+      print 'SCHEDULED', work_item.id
       if self.current_work_item:
         raise Exception('Currently executing work item: %s' % self.current_work_item)
       self.current_work_item = work_item
@@ -1503,13 +1504,14 @@ if __name__ == '__main__':
   def _print(x):
     import time
     # time.sleep(4)
-    print 'PRRRINT:', x
+    # print 'PRRRINT:', x
   # p | Create([1, 2, 3]) | beam.FlatMap(lambda x: [(x, 'abc1-%d' % x), (x, 'xyz2-%d' % x)]) | beam.GroupByKey()  | 'cc' >> beam.Map(_print)
   # p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
   # a = p | 'yo' >> Create(['a', 'b', 'c'])
   # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
   # a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
   lines = p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
+  # lines = p | ReadFromText('data/*.txt')
   # lines = p | Create(['a', 'a', 'b' ,'a c'])
   # WORDCAP:
   # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
