@@ -29,13 +29,6 @@ test {
   }
 }
 
-test {
-  // TODO: Get tests to run. Known issues:
-  //  * hbase-server:tests conflict with hbase-shaded-server with ProtobufUtil
-  ignoreFailures true
-}
-
-
 def hbase_version = "1.2.6"
 
 dependencies {
@@ -54,7 +47,16 @@ dependencies {
   testCompile library.java.hadoop_hdfs
   testCompile library.java.hadoop_common
   testCompile "org.apache.hbase:hbase-shaded-server:$hbase_version"
-  testCompile "org.apache.hbase:hbase-server:$hbase_version:tests"
+  testCompile("org.apache.hbase:hbase-server:$hbase_version:tests") {
+    // We prevent bringing in unshaded dependencies to not conflict
+    // with hbase-shaded-server and hbase-shaded-client
+    transitive = false
+  }
+  testCompile("org.apache.hbase:hbase-common:$hbase_version:tests") {
+    // We prevent bringing in unshaded dependencies to not conflict
+    // with hbase-shaded-server and hbase-shaded-client
+    transitive = false
+  }
   testCompile "org.apache.hbase:hbase-hadoop-compat:$hbase_version:tests"
   testCompile "org.apache.hbase:hbase-hadoop2-compat:$hbase_version:tests"
 }
