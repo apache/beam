@@ -16,23 +16,7 @@
  * limitations under the License.
  */
 
-apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
-
-description = "Apache Beam :: Runners :: Reference :: Java"
-
-dependencies {
-  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
-  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
-  shadow library.java.slf4j_api
-  testCompile library.java.junit
-  testCompile library.java.hamcrest_core
-  testCompile library.java.slf4j_jdk14
-}
-
-task packageTests(type: Jar) {
-  from sourceSets.test.output
-  classifier = "tests"
-}
-
-artifacts.archives packageTests
+/**
+ * Support for executing a pipeline locally over the Beam fn API.
+ */
+package org.apache.beam.runners.reference;
