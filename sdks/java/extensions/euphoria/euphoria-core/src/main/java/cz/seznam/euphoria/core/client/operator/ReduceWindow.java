@@ -30,6 +30,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -103,7 +104,7 @@ public class ReduceWindow<
     }
     public <OUT> SortableOutputBuilder<T, VALUE, OUT> reduceBy(
         ReduceFunction<VALUE, OUT> reducer) {
-      return reduceBy((Iterable<VALUE> in, Collector<OUT> ctx) -> {
+      return reduceBy((Stream<VALUE> in, Collector<OUT> ctx) -> {
         ctx.collect(reducer.apply(in));
       });
     }
@@ -143,7 +144,7 @@ public class ReduceWindow<
 
       this(
           name, input, valueExtractor,
-          (Iterable<VALUE> in, Collector<OUT> ctx) -> {
+          (Stream<VALUE> in, Collector<OUT> ctx) -> {
             ctx.collect(reducer.apply(in));
           },
           windowing,

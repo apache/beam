@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -59,7 +60,7 @@ public class SinkTest extends AbstractOperatorTest {
           ReduceByKey.of(d)
               .keyBy(p -> p.getFirst() % 2)
               .valueBy(Pair::getSecond)
-              .reduceBy((Iterable<Long> values, Collector<Long> c) -> values.forEach(c::collect))
+              .reduceBy((Stream<Long> values, Collector<Long> c) -> values.forEach(c::collect))
               .withSortedValues(Long::compare)
               .output()
               .persist(sink);

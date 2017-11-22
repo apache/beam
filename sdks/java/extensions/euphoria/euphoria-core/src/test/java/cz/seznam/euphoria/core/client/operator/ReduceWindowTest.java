@@ -22,7 +22,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.ReduceFunctor;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import java.time.Duration;
-import java.util.Arrays;
+import java.util.stream.Stream;
 
 import org.junit.Test;
 
@@ -47,7 +47,7 @@ public class ReduceWindowTest {
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(
-        producer.getReducer(), Arrays.asList("blah")));
+        producer.getReducer(), Stream.of("blah")));
     assertEquals("", producer.valueExtractor.apply("blah"));
   }
 
@@ -66,7 +66,7 @@ public class ReduceWindowTest {
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertEquals(1L, (long) collectSingle(
-        producer.getReducer(), Arrays.asList("blah")));
+        producer.getReducer(), Stream.of("blah")));
     assertEquals("blah", producer.valueExtractor.apply("blah"));
     assertEquals(windowing, producer.windowing);
   }
@@ -91,7 +91,7 @@ public class ReduceWindowTest {
 
 
   private <IN, OUT> OUT collectSingle(
-      ReduceFunctor<IN, OUT> fn, Iterable<IN> values) {
+      ReduceFunctor<IN, OUT> fn, Stream<IN> values) {
 
     SingleValueContext<OUT> context;
     context = new SingleValueContext<>();
