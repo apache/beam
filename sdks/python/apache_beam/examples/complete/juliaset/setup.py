@@ -51,7 +51,7 @@ class build(_build):  # pylint: disable=invalid-name
 # two commands will have to be added:
 #
 #     ['apt-get', 'update'],
-#     ['apt-get', '--assume-yes', install', 'libjpeg62'],
+#     ['apt-get', '--assume-yes', 'install', 'libjpeg62'],
 #
 # First, note that there is no need to use the sudo command because the setup
 # script runs with appropriate access.
@@ -61,6 +61,14 @@ class build(_build):  # pylint: disable=invalid-name
 # will fail with package not found errors. Note also --assume-yes option which
 # shortcuts the interactive confirmation.
 #
+# Note that in this example custom commands will run after installing required
+# packages. If you have a PyPI package that depends on one of the custom
+# commands, move installation of the dependent package to the list of custom
+# commands, e.g.:
+#
+#     ['pip', 'install', 'my_package'],
+#
+# TODO(BEAM-3237): Output from the custom commands are missing from the logs.
 # The output of custom commands (including failures) will be logged in the
 # worker-startup log.
 CUSTOM_COMMANDS = [
