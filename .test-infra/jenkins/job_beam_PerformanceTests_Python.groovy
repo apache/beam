@@ -51,7 +51,8 @@ job('beam_PerformanceTests_Python'){
   def argMap = [
       beam_sdk : 'python',
       benchmarks: 'beam_integration_benchmark',
-      beam_it_args: pipelineArgsJoined
+      beam_it_args: pipelineArgsJoined,
+      beam_it_timeout: '1200'
   ]
 
   common_job_properties.buildPerformanceTest(delegate, argMap)
