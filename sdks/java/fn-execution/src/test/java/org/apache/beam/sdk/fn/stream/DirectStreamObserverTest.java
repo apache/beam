@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -31,27 +31,28 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.harness.test.Consumer;
-import org.apache.beam.harness.test.TestExecutors;
-import org.apache.beam.harness.test.TestExecutors.TestExecutorService;
-import org.apache.beam.harness.test.TestStreams;
+import org.apache.beam.sdk.fn.test.Consumer;
+import org.apache.beam.sdk.fn.test.Supplier;
+import org.apache.beam.sdk.fn.test.TestExecutors;
+import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
+import org.apache.beam.sdk.fn.test.TestStreams;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Tests for {@link BufferingStreamObserver}. */
+/** Tests for {@link DirectStreamObserver}. */
 @RunWith(JUnit4.class)
-public class BufferingStreamObserverTest {
-  @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
+public class DirectStreamObserverTest {
+  @Rule public TestExecutorService executor = TestExecutors.from(Executors.newCachedThreadPool());
 
   @Test
   public void testThreadSafety() throws Exception {
-    List<String> onNextValues = new ArrayList<>();
+    final List<String> onNextValues = new ArrayList<>();
     AdvancingPhaser phaser = new AdvancingPhaser(1);
     final AtomicBoolean isCriticalSectionShared = new AtomicBoolean();
-    final BufferingStreamObserver<String> streamObserver =
-        new BufferingStreamObserver<>(
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
             phaser,
             TestStreams.withOnNext(
                 new Consumer<String>() {
@@ -61,17 +62,15 @@ public class BufferingStreamObserverTest {
                     // critical section. Any thread that enters purposefully blocks by sleeping
                     // to increase the contention between threads artificially.
                     assertFalse(isCriticalSectionShared.getAndSet(true));
-                    Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
+                    Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
                     onNextValues.add(t);
                     assertTrue(isCriticalSectionShared.getAndSet(false));
                   }
-                }).build(),
-            executor,
-            3);
+                }).build());
 
     List<String> prefixes = ImmutableList.of("0", "1", "2", "3", "4");
     List<Callable<String>> tasks = new ArrayList<>();
-    for (String prefix : prefixes) {
+    for (final String prefix : prefixes) {
       tasks.add(
           new Callable<String>() {
             @Override
@@ -83,10 +82,7 @@ public class BufferingStreamObserverTest {
             }
           });
     }
-    List<Future<String>> results = executor.invokeAll(tasks);
-    for (Future<String> result : results) {
-      result.get();
-    }
+    executor.invokeAll(tasks);
     streamObserver.onCompleted();
 
     // Check that order was maintained.
@@ -104,8 +100,8 @@ public class BufferingStreamObserverTest {
   public void testIsReadyIsHonored() throws Exception {
     AdvancingPhaser phaser = new AdvancingPhaser(1);
     final AtomicBoolean elementsAllowed = new AtomicBoolean();
-    final BufferingStreamObserver<String> streamObserver =
-        new BufferingStreamObserver<>(
+    final DirectStreamObserver<String> streamObserver =
+        new DirectStreamObserver<>(
             phaser,
             TestStreams.withOnNext(
                 new Consumer<String>() {
@@ -113,13 +109,16 @@ public class BufferingStreamObserverTest {
                   public void accept(String t) {
                     assertTrue(elementsAllowed.get());
                   }
-                }).withIsReady(elementsAllowed::get).build(),
-            executor,
-            3);
+                }).withIsReady(new Supplier<Boolean>() {
+              @Override
+              public Boolean get() {
+                return elementsAllowed.get();
+              }
+            }).build());
 
     // Start all the tasks
     List<Future<String>> results = new ArrayList<>();
-    for (String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
+    for (final String prefix : ImmutableList.of("0", "1", "2", "3", "4")) {
       results.add(
           executor.submit(
               new Callable<String>() {
@@ -134,7 +133,7 @@ public class BufferingStreamObserverTest {
     }
 
     // Have them wait and then flip that we do allow elements and wake up those awaiting
-    Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
     elementsAllowed.set(true);
     phaser.arrive();
 
