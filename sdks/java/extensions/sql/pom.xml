@@ -417,9 +417,5 @@
       <artifactId>fastjson</artifactId>
       <version>1.2.12</version>
     </dependency>
-    <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
-    </dependency>
   </dependencies>
 </project>
