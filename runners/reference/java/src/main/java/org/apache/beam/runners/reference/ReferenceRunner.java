@@ -19,26 +19,17 @@
 package org.apache.beam.runners.reference;
 
 import com.google.protobuf.Struct;
+import java.nio.file.Path;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
-import org.apache.beam.runners.fnexecution.control.FnApiControlClientPoolService;
+import org.apache.beam.runners.core.construction.PipelineTranslation;
 
 /**
- * Created by tgroh on 11/8/17.
+ * A {@code PipelineRunner} that executes a job via the Beam portability framework.
  */
 public class ReferenceRunner {
-  public static ReferenceRunnerJob run(Pipeline p, Struct options) {
-    /*
-    docker run -v WORKER_PERSIST_DIR:SEMI_PERSIST_DIR
-      <sdk-harness-container-image> \
-      --id=ID \
-      --logging_endpoint=LOGGING_ENDPOINT \
-      --artifact_endpoint=ARTIFACT_ENDPOINT \
-      --provision_endpoint=PROVISION_ENDPOINT \
-      --control_endpoint=CONTROL_ENDPOINT \
-      --semi_persist_dir=SEMI_PERSIST_DIR
-     */
-    return new ReferenceRunnerJob();
+  public static void run(Pipeline p, Struct options, Path stagingLocation) throws Exception {
+    // Validate that the pipeline is well-formed.
+    PipelineTranslation.fromProto(p);
+    throw new UnsupportedOperationException("Not implemented");
   }
-
-  public static class ReferenceRunnerJob {}
 }

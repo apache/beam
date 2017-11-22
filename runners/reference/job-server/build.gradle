@@ -25,6 +25,7 @@ dependencies {
   shadow library.java.grpc_netty
   shadow project(path: ":beam-model-parent:beam-model-job-management", configuration: "shadow")
   shadow project(path: ":beam-runners-parent:beam-java-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java", configuration: "shadow")
   shadow project(path: ":beam-runners-parent:beam-local-artifact-service-java", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
