@@ -20,6 +20,7 @@ package org.apache.beam.runners.reference.job;
 
 import com.google.auto.value.AutoValue;
 import com.google.protobuf.Struct;
+import java.nio.file.Path;
 import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
@@ -33,6 +34,7 @@ abstract class PreparingJob implements AutoCloseable {
 
   abstract Pipeline getPipeline();
   abstract Struct getOptions();
+  abstract Path getStagingLocation();
   abstract GrpcFnServer<LocalFileSystemArtifactStagerService> getArtifactStagingServer();
 
   @Override
@@ -45,6 +47,8 @@ abstract class PreparingJob implements AutoCloseable {
     abstract Builder setPipeline(Pipeline pipeline);
 
     abstract Builder setOptions(Struct options);
+
+    abstract Builder setStagingLocation(Path stagingLocation);
 
     abstract Builder setArtifactStagingServer(
         GrpcFnServer<LocalFileSystemArtifactStagerService> server);
