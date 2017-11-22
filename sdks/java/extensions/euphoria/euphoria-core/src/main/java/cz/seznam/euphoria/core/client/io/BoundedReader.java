@@ -13,23 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink.batch.io;
+package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import org.apache.flink.core.io.LocatableInputSplit;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import java.io.Serializable;
 
-class PartitionWrapper<T> extends LocatableInputSplit {
+/**
+ * Reader of bounded data.
+ *
+ * The reader can split the bounded data into smaller pieces. By default it is
+ * non splittable.
+ */
+@Audience(Audience.Type.CLIENT)
+public interface BoundedReader<E> extends CloseableIterator<E>, Serializable {
 
-  private final BoundedDataSource<T> source;
-
-  public PartitionWrapper(int splitNumber, BoundedDataSource<T> source) {
-    super(splitNumber, source.getLocations().toArray(
-            new String[source.getLocations().size()]));
-
-    this.source = source;
-  }
-
-  public BoundedDataSource<T> getSource() {
-    return source;
-  }
 }

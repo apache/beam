@@ -104,8 +104,9 @@ public class AssignEventTime<IN> extends ElementWiseOperator<IN, IN> {
 
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(new FlatMap<IN, IN>(
-        getName(), getFlow(), input, (i, c) -> c.collect(i), eventTimeFn));
+    return DAG.of(new FlatMap<>(
+        getName(), getFlow(), input,
+        (i, c) -> c.collect(i), eventTimeFn));
   }
 
   /**

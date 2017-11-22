@@ -8,3 +8,4 @@ assembly/
 **/pom.xml.versionsBackup
 .gradle/
 build/
+/.nb-gradle/

@@ -15,34 +15,32 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-
+import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * A mock factory creating a stream datasource.
+ * {@code DataSource} for unbounded data.
+ *
+ * @param <T> the data type
+ * @param OFFSET the type of object that is being used to track progress
+ * of the source. The object has to be serializable, because java serialization
+ * is being used for checkpointing the state.
  */
-public class MockStreamDataSource<T>
-    implements UnboundedDataSource<T, MockStreamDataSource.Offset> {
+@Audience(Audience.Type.EXECUTOR)
+public interface UnboundedDataSource<T, OFFSET extends Serializable> extends DataSource<T> {
 
-  public static final class Offset implements Serializable {
-    public static Offset get() { return null; }
-  }
+  /** @return a list of all partitions of this source */
+  List<UnboundedPartition<T, OFFSET>> getPartitions();
 
-  private final List<UnboundedPartition<T, Offset>> partitions;
-
-  public MockStreamDataSource() {
-    final int p = 4;
-    this.partitions = new ArrayList<>(p);
-    for (int i = 0; i < p; i++) {
-      partitions.add((UnboundedPartition<T, Offset>) () -> new EmptyReader<>());
-    }
+  @Override
+  default boolean isBounded() {
+    return false;
   }
 
   @Override
-  public List<UnboundedPartition<T, Offset>> getPartitions() {
-    return partitions;
+  default UnboundedDataSource<T, OFFSET> asUnbounded() {
+    return this;
   }
 
 }

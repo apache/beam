@@ -15,36 +15,36 @@
  */
 package cz.seznam.euphoria.hadoop.input;
 
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.core.client.io.UnsplittableBoundedSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-
 import static java.util.stream.Collectors.toList;
 
 /**
  * A convenience, easy-to-use data source reading hadoop based inputs
  * as lines of UTF-8 encoded text and delivering them as strings.
  */
-public class SimpleHadoopTextFileSource implements DataSource<String> {
+public class SimpleHadoopTextFileSource implements BoundedDataSource<String> {
 
   /**
-   * Wraps a {@code Reader<Pair<LongWritable, Text>>} to provide an API as
-   * {@code Reader<String>} where the {@code Text} from the original reader
+   * Wraps a {@code BoundedReader<Pair<LongWritable, Text>>} to provide an API as
+   * {@code BoundedReader<String>} where the {@code Text} from the original reader
    * is transparently converted to a string.
    */
-  static final class WrapReader implements Reader<String> {
-    private final Reader<Pair<LongWritable, Text>> wrap;
+  static final class WrapReader implements BoundedReader<String> {
+    private final BoundedReader<Pair<LongWritable, Text>> wrap;
 
-    WrapReader(Reader<Pair<LongWritable, Text>> wrap) {
+    WrapReader(BoundedReader<Pair<LongWritable, Text>> wrap) {
       this.wrap = Objects.requireNonNull(wrap);
     }
 
@@ -66,14 +66,14 @@ public class SimpleHadoopTextFileSource implements DataSource<String> {
   }
 
   /**
-   * Wraps a {@code Partition<Pair<LongWritable, Text>>} to provide an API as
-   * {@code Partition<String>} where the {@code Text} is from the original partition
+   * Wraps a {@code BoundedPartition<Pair<LongWritable, Text>>} to provide an API as
+   * {@code BoundedPartition<String>} where the {@code Text} is from the original partition
    * is transparently convered to a string.
    */
-  static final class WrapPartition implements Partition<String> {
-    private final Partition<Pair<LongWritable, Text>> wrap;
+  static final class WrapPartition extends UnsplittableBoundedSource<String> {
+    private final BoundedDataSource<Pair<LongWritable, Text>> wrap;
 
-    WrapPartition(Partition<Pair<LongWritable, Text>> wrap) {
+    WrapPartition(BoundedDataSource<Pair<LongWritable, Text>> wrap) {
       this.wrap = Objects.requireNonNull(wrap);
     }
 
@@ -83,21 +83,37 @@ public class SimpleHadoopTextFileSource implements DataSource<String> {
     }
 
     @Override
-    public Reader<String> openReader() throws IOException {
+    public BoundedReader<String> openReader() throws IOException {
       return new WrapReader(this.wrap.openReader());
     }
   }
 
   private final HadoopTextFileSource wrap;
 
+
   @Override
-  public List<Partition<String>> getPartitions() {
-    return this.wrap.getPartitions().stream().map(WrapPartition::new).collect(toList());
+  public List<BoundedDataSource<String>> split(long desiredSplitSize) {
+    return this.wrap.split(desiredSplitSize).stream().map(WrapPartition::new).collect(toList());
   }
 
   @Override
   public boolean isBounded() {
     return this.wrap.isBounded();
+  }
+
+  @Override
+  public Set<String> getLocations() {
+    return Collections.singleton("unknown");
+  }
+
+  @Override
+  public BoundedReader<String> openReader() throws IOException {
+    throw new UnsupportedOperationException("Call `split` first!");
+  }
+
+  @Override
+  public int getDefaultParallelism() {
+    return this.wrap.getDefaultParallelism();
   }
 
   /**

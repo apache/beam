@@ -17,16 +17,54 @@ package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import java.io.IOException;
-import java.io.Serializable;
+import java.util.List;
 import java.util.Set;
 
 /**
- * Single partition of dataset.
- *
- * @param <T> the type of elements this partition hosts, i.e. is able to provide
+ * A {@code DataSource} with bounded data.
  */
-@Audience(Audience.Type.CLIENT)
-public interface Partition<T> extends Serializable {
+@Audience(Audience.Type.EXECUTOR)
+public interface BoundedDataSource<T> extends DataSource<T> {
+
+  static final long SIZE_UNKNOWN = -1L;
+  static final long DEFAULT_BATCH_SIZE = 128 * 1024 * 1024;
+
+  @Override
+  public default boolean isBounded() {
+    return true;
+  }
+
+  @Override
+  default BoundedDataSource<T> asBounded() {
+    return this;
+  }
+
+  /**
+   * Estimate size of this data source.
+   */
+  default long sizeEstimate() {
+    return SIZE_UNKNOWN;
+  }
+
+  /**
+   * Retrieve default parallelism of this source.
+   *
+   * That is, into how many pieces should this source split by default.
+   */
+  default int getDefaultParallelism() {
+    int def = (int) (sizeEstimate() / DEFAULT_BATCH_SIZE);
+    return def <= 0 ? 1 : def;
+  }
+
+  /**
+   * Split this source to smaller pieces.
+   *
+   * @param desiredSplitBytes hint of approximately how many bytes
+   * each partition should have
+   * @return list of partitions covering the original source's content
+   */
+  List<BoundedDataSource<T>> split(long desiredSplitBytes);
+
 
   /**
    * Get location strings (hostnames) of this partition. This is typically
@@ -37,6 +75,7 @@ public interface Partition<T> extends Serializable {
    */
   Set<String> getLocations();
 
+
   /**
    * Opens a reader over this partition. It the caller's
    * responsibility to close the reader once not needed anymore.
@@ -46,6 +85,7 @@ public interface Partition<T> extends Serializable {
    * @throws IOException if opening a reader to this partitions
    *          data fails for some reason
    */
-  Reader<T> openReader() throws IOException;
+  BoundedReader<T> openReader() throws IOException;
+
 
 }

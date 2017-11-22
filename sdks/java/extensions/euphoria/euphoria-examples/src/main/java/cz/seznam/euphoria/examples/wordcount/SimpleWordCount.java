@@ -29,7 +29,6 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.examples.Executors;
 import cz.seznam.euphoria.hadoop.input.SimpleHadoopTextFileSource;
 import cz.seznam.euphoria.hadoop.output.SimpleHadoopTextFileSink;
-
 import java.util.regex.Pattern;
 
 /**

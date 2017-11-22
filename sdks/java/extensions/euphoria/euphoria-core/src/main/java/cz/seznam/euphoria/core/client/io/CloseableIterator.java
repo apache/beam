@@ -13,23 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.flink.batch.io;
+package cz.seznam.euphoria.core.client.io;
 
-import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import org.apache.flink.core.io.LocatableInputSplit;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import java.io.Closeable;
+import java.util.Iterator;
 
-class PartitionWrapper<T> extends LocatableInputSplit {
+/**
+ * {@link Iterator} that is {@link Closeable}.
+ */
+@Audience(Audience.Type.EXECUTOR)
+public interface CloseableIterator<T> extends Iterator<T>, Closeable {
 
-  private final BoundedDataSource<T> source;
-
-  public PartitionWrapper(int splitNumber, BoundedDataSource<T> source) {
-    super(splitNumber, source.getLocations().toArray(
-            new String[source.getLocations().size()]));
-
-    this.source = source;
-  }
-
-  public BoundedDataSource<T> getSource() {
-    return source;
-  }
 }

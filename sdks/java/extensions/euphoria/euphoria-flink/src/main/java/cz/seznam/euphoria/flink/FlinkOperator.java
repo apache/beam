@@ -28,7 +28,7 @@ import java.util.Collection;
 public class FlinkOperator<OP extends Operator> extends Operator<Object, Object> {
 
   private final OP wrapped;
-  private int parallelism;
+  private int parallelism = -1;
 
   FlinkOperator(OP wrapped) {
     super(wrapped.getName(), wrapped.getFlow());
@@ -61,7 +61,7 @@ public class FlinkOperator<OP extends Operator> extends Operator<Object, Object>
     return parallelism;
   }
 
-  public void setParallelism(int parallelism) {
+  void setParallelism(int parallelism) {
     this.parallelism = parallelism;
   }
 }

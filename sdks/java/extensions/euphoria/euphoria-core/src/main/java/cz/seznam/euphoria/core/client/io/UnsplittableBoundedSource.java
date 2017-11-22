@@ -13,17 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import java.io.Closeable;
-import java.util.Iterator;
+import java.util.Arrays;
+import java.util.List;
 
 /**
- * Reader of data in a particular partition,
- * which essentially is merely a closable iterator.
+ * A {@code BoundedPartition} that cannot be split into smaller pieces.
  */
-@Audience(Audience.Type.CLIENT)
-public interface Reader<E> extends Closeable, Iterator<E> {
+@Audience(Audience.Type.EXECUTOR)
+public abstract class UnsplittableBoundedSource<T> implements BoundedDataSource<T> {
+
+  @Override
+  public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
+    return Arrays.asList(this);
+  }
+
+  @Override
+  public int getDefaultParallelism() {
+    return 1;
+  }
 
 }

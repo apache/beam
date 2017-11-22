@@ -15,12 +15,11 @@
  */
 package cz.seznam.euphoria.flink.batch.io;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
-import cz.seznam.euphoria.core.client.io.DataSource;
-import cz.seznam.euphoria.core.client.io.Partition;
-import cz.seznam.euphoria.core.client.io.Reader;
-import cz.seznam.euphoria.flink.batch.BatchElement;
 import com.google.common.base.Preconditions;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.io.BoundedReader;
+import cz.seznam.euphoria.flink.batch.BatchElement;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -34,18 +33,21 @@ import java.util.List;
 import java.util.function.BiFunction;
 
 public class DataSourceWrapper<T>
-        implements InputFormat<BatchElement<GlobalWindowing.Window, T>,
-        PartitionWrapper<T>>,
-        ResultTypeQueryable<T> {
+    implements InputFormat<BatchElement<GlobalWindowing.Window, T>,
+    PartitionWrapper<T>>,
+    ResultTypeQueryable<T> {
 
-  private final DataSource<T> dataSource;
+  private final BoundedDataSource<T> dataSource;
   private final BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
 
   /** currently opened reader (if any) */
-  private transient Reader<T> reader;
-  
-  public DataSourceWrapper(DataSource<T> dataSource, 
-                           BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
+  private transient BoundedReader<T> reader;
+
+  public DataSourceWrapper(
+      BoundedDataSource<T> dataSource,
+      BiFunction<LocatableInputSplit[], Integer,
+      InputSplitAssigner> splitAssignerFactory) {
+    
     Preconditions.checkArgument(dataSource.isBounded());
     this.dataSource = dataSource;
     this.splitAssignerFactory = splitAssignerFactory;
@@ -65,25 +67,28 @@ public class DataSourceWrapper<T>
 
   @Override
   public PartitionWrapper<T>[] createInputSplits(int minNumSplits) throws IOException {
-    List<Partition<T>> partitions = dataSource.getPartitions();
+    long sizeEstimate = dataSource.sizeEstimate();
+    List<BoundedDataSource<T>> splits = dataSource.split(sizeEstimate / minNumSplits);
 
     @SuppressWarnings("unchecked")
-    PartitionWrapper<T>[] splits = new PartitionWrapper[partitions.size()];
-    for (int i = 0; i < partitions.size(); i++) {
-      splits[i] = new PartitionWrapper<>(i, partitions.get(i));
+    PartitionWrapper<T>[] splitWrappers = new PartitionWrapper[splits.size()];
+    for (int i = 0; i < splits.size(); i++) {
+      splitWrappers[i] = new PartitionWrapper<>(i, splits.get(i));
     }
 
-    return splits;
+    return splitWrappers;
   }
 
   @Override
-  public InputSplitAssigner getInputSplitAssigner(PartitionWrapper[] partitions) {
-    return splitAssignerFactory.apply(partitions, dataSource.getPartitions().size());
+  public InputSplitAssigner getInputSplitAssigner(
+      PartitionWrapper[] partitions) {
+
+    return splitAssignerFactory.apply(partitions, partitions.length);
   }
 
   @Override
   public void open(PartitionWrapper<T> partition) throws IOException {
-    this.reader = partition.getPartition().openReader();
+    this.reader = partition.getSource().openReader();
   }
 
   @Override
