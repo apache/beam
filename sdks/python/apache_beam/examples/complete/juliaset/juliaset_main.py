@@ -43,7 +43,7 @@ python juliaset_main.py \
   --staging_location gs://YOUR-BUCKET/juliaset/staging \
   --temp_location gs://YOUR-BUCKET/juliaset/temp \
   --coordinate_output gs://YOUR-BUCKET/juliaset/out \
-  --grid_size 20 \
+  --grid_size 20
 
 """
 
