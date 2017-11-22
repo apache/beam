@@ -30,16 +30,22 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop :: jdk1.8-tests"
  */
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common")
 
-test {
-  // TODO: Get tests to run. Known issues:
-  //  * hive-exec bundles w/o repackaging Guava (HIVE-13690)
-  ignoreFailures true
-}
-
 def log4j_version = "2.6.2"
 def elastic_search_version = "5.0.0"
+// Migrate to using a version of the driver compatible with Guava 20
+def cassandra_driver = "3.2.0"
+
+// Ban dependencies from the test runtime classpath
+configurations.testRuntimeClasspath {
+  // Ban hive-exec and mesos since they bundle protobuf without repackaging
+  exclude group: "org.apache.hive", module: "hive-exec"
+  exclude group: "org.apache.mesos", module: "mesos"
+  // Prevent a StackOverflow because of wiring LOG4J -> SLF4J -> LOG4J
+  exclude group: "org.slf4j", module: "log4j-over-slf4j"
+}
 
 dependencies {
+  shadow library.java.protobuf_java
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format", configuration: "shadow")
   shadow library.java.slf4j_api
@@ -55,9 +61,9 @@ dependencies {
   testCompile "org.elasticsearch.client:transport:$elastic_search_version"
   testCompile "io.netty:netty-transport-native-epoll:4.1.0.CR3"
   testCompile "org.elasticsearch:elasticsearch:$elastic_search_version"
-  testCompile "com.datastax.cassandra:cassandra-driver-mapping:3.1.1"
+  testCompile "com.datastax.cassandra:cassandra-driver-mapping:$cassandra_driver"
   testCompile "org.apache.cassandra:cassandra-all:3.9"
-  testCompile "com.datastax.cassandra:cassandra-driver-core:3.1.1"
+  testCompile "com.datastax.cassandra:cassandra-driver-core:$cassandra_driver"
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
   testCompile library.java.mockito_core
@@ -69,3 +75,16 @@ task packageTests(type: Jar) {
 }
 
 artifacts.archives packageTests
+
+// The cassandra.yaml file currently assumes "target/..." exists.
+// TODO: Update cassandra.yaml to inject new properties representing
+// the root path. Also migrate cassandra.yaml to use any open ports
+// instead of a static port.
+task createTargetDirectoryForCassandra() {
+  doLast {
+    if (!project.file("target").exists()) {
+      project.file("target").mkdirs();
+    }
+  }
+}
+test.dependsOn createTargetDirectoryForCassandra
