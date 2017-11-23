@@ -46,6 +46,7 @@ import java.util.stream.Stream;
 import static java.util.Arrays.asList;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.*;
@@ -120,7 +121,11 @@ public class BasicOperatorTest {
         .withReadDelay(Duration.ofSeconds(2));
 
     Flow flow = Flow.create("Test");
-    Dataset<String> lines = flow.createInput(input);
+    // FIXME: this is basically wrong and cannot function this way outside of local executor
+    // the correct way of doing this is #192
+    // fix this after implementation of that issue
+    AtomicLong time = new AtomicLong(1000);
+    Dataset<String> lines = flow.createInput(input, e -> time.addAndGet(2000L));
 
     // expand it to words
     Dataset<Pair<String, Long>> words = FlatMap.of(lines)
@@ -129,11 +134,11 @@ public class BasicOperatorTest {
 
     Dataset<Pair<String, Long>> streamOutput =
         ReduceByKey.of(words)
-        .keyBy(Pair::getFirst)
-        .valueBy(Pair::getSecond)
-        .combineBy(Sums.ofLongs())
-        .windowBy(Time.of(Duration.ofSeconds(1)))
-        .output();
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .output();
 
     ListDataSink<Pair<String, Long>> out = ListDataSink.get();
 
@@ -150,7 +155,9 @@ public class BasicOperatorTest {
         .output()
         .persist(out);
 
-    executor.submit(flow).get();
+    executor
+        .setTriggeringSchedulerSupplier(() -> new WatermarkTriggerScheduler<>(0))
+        .submit(flow).get();
 
     List<Pair<String, Long>> fs = out.getOutputs();
 
