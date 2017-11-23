@@ -403,22 +403,23 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
       TupleTag<FileResult<DestinationT>> writtenRecordsTag = new TupleTag<>("writtenRecords");
-      TupleTag<KV<ShardedKey<Integer>, UserT>> spilledRecordsTag = new TupleTag<>("spilledRecords");
+      TupleTag<KV<ShardedKey<Integer>, UserT>> unwrittenRecordsTag =
+          new TupleTag<>("unwrittenRecords");
       PCollectionTuple writeTuple =
           input.apply(
               "WriteUnshardedBundles",
               ParDo.of(
                       new WriteUnshardedTempFilesWithSpillingFn(
-                          spilledRecordsTag, destinationCoder))
+                          unwrittenRecordsTag, destinationCoder))
                   .withSideInputs(getSideInputs())
-                  .withOutputTags(writtenRecordsTag, TupleTagList.of(spilledRecordsTag)));
+                  .withOutputTags(writtenRecordsTag, TupleTagList.of(unwrittenRecordsTag)));
       PCollection<FileResult<DestinationT>> writtenBundleFiles =
           writeTuple.get(writtenRecordsTag).setCoder(fileResultCoder);
       // Any "spilled" elements are written using WriteShardedBundles. Assign shard numbers in
       // finalize to stay consistent with what WriteWindowedBundles does.
       PCollection<FileResult<DestinationT>> writtenSpilledFiles =
           writeTuple
-              .get(spilledRecordsTag)
+              .get(unwrittenRecordsTag)
               .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
               // Here we group by a synthetic shard number in the range [0, spill factor),
               // just for the sake of getting some parallelism within each destination when
@@ -426,9 +427,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               // number assigned at all. Drop the shard number on the spilled records so that
               // shard numbers are assigned together to both the spilled and non-spilled files in
               // finalize.
-              .apply("GroupSpilled", GroupByKey.<ShardedKey<Integer>, UserT>create())
+              .apply("GroupUnwritten", GroupByKey.<ShardedKey<Integer>, UserT>create())
               .apply(
-                  "WriteSpilled",
+                  "WriteUnwritten",
                   ParDo.of(new WriteShardsIntoTempFilesFn()).withSideInputs(getSideInputs()))
               .setCoder(fileResultCoder)
               .apply(
