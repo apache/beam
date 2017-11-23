@@ -152,8 +152,8 @@ public class LocalExecutor implements Executor {
       }
       Object next = this.reader.next();
       // we assign it to batch
-      // which means null group, and batch label
-      return Datum.of(GlobalWindowing.Window.get(), next,
+      return Datum.of(
+          GlobalWindowing.Window.get(), next,
           // ingestion time
           System.currentTimeMillis());
     }
