@@ -17,10 +17,12 @@
 
 """SDK Fn Harness entry point."""
 
+import BaseHTTPServer
 import json
 import logging
 import os
 import sys
+import threading
 import traceback
 
 from google.protobuf import text_format
@@ -32,6 +34,39 @@ from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 
 # This module is experimental. No backwards-compatibility guarantees.
+
+
+class StatusServer(object):
+
+  def start(self, STATUS_HTTP_PORT=0, started_callback=None):
+    """Executes the serving loop for the status server."""
+
+    class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+      """HTTP handler for serving stacktraces of all worker threads."""
+
+      def do_GET(self):  # pylint: disable=invalid-name
+        """Return /threadz information for any GET request."""
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
+        frames = sys._current_frames()  # pylint: disable=protected-access
+        for t in threading.enumerate():
+          self.wfile.write('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
+          self.wfile.write(''.join(traceback.format_stack(frames[t.ident])))
+
+      def log_message(self, f, *args):
+        """Do not log any messages."""
+        pass
+
+    self.httpd = httpd = BaseHTTPServer.HTTPServer(
+        ('localhost', STATUS_HTTP_PORT), StatusHttpHandler)
+    logging.info('Status HTTP server running at %s:%s', httpd.server_name,
+                 httpd.server_port)
+
+    if started_callback:
+      started_callback()
+
+    httpd.serve_forever()
 
 
 def main(unused_argv):
@@ -48,6 +83,12 @@ def main(unused_argv):
     logging.getLogger().addHandler(fn_log_handler)
   else:
     fn_log_handler = None
+
+  # Start status HTTP server thread.
+  thread = threading.Thread(target=StatusServer().start)
+  thread.daemon = True
+  thread.setName('status-server-demon')
+  thread.start()
 
   if 'PIPELINE_OPTIONS' in os.environ:
     sdk_pipeline_options = json.loads(os.environ['PIPELINE_OPTIONS'])
