@@ -112,6 +112,7 @@ public class SingleValueContext<T> implements Context, Collector<T> {
 
   /**
    * Retrieve value of this context.
+   * @return value
    */
   public T get() {
     return value;
