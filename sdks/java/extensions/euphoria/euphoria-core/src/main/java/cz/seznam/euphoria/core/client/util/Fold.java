@@ -35,13 +35,11 @@ public class Fold implements Serializable {
    * operation and emits result after fold of all input data.
    *
    * @param <T> element type
-   * @param identity the zero element
    * @param fold the fold function
    * @return the {@link CombinableReduceFunction}
    */
   public static <T> CombinableReduceFunction<T> of(
       BinaryFunction<T, T, T> fold) {
-
     return s -> s.reduce(fold::apply).orElseThrow(
         () -> new IllegalStateException("Received empty stream on input!"));
   }

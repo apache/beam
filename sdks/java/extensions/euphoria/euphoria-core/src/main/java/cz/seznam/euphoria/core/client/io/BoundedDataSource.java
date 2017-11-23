@@ -26,11 +26,11 @@ import java.util.Set;
 @Audience(Audience.Type.EXECUTOR)
 public interface BoundedDataSource<T> extends DataSource<T> {
 
-  static final long SIZE_UNKNOWN = -1L;
-  static final long DEFAULT_BATCH_SIZE = 128 * 1024 * 1024;
+  long SIZE_UNKNOWN = -1L;
+  long DEFAULT_BATCH_SIZE = 128 * 1024 * 1024;
 
   @Override
-  public default boolean isBounded() {
+  default boolean isBounded() {
     return true;
   }
 
@@ -41,6 +41,7 @@ public interface BoundedDataSource<T> extends DataSource<T> {
 
   /**
    * Estimate size of this data source.
+   * @return estimated size
    */
   default long sizeEstimate() {
     return SIZE_UNKNOWN;
@@ -48,8 +49,8 @@ public interface BoundedDataSource<T> extends DataSource<T> {
 
   /**
    * Retrieve default parallelism of this source.
-   *
    * That is, into how many pieces should this source split by default.
+   * @return default parallelism
    */
   default int getDefaultParallelism() {
     int def = (int) (sizeEstimate() / DEFAULT_BATCH_SIZE);
