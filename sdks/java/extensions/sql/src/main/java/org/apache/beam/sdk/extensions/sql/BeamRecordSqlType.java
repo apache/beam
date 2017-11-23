@@ -17,13 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.GregorianCalendar;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.BigDecimalCoder;
@@ -50,26 +50,39 @@ import org.apache.beam.sdk.values.BeamRecordType;
  *
  */
 public class BeamRecordSqlType extends BeamRecordType {
-  private static final Map<Integer, Class> SQL_TYPE_TO_JAVA_CLASS = new HashMap<>();
-  static {
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TINYINT, Byte.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.SMALLINT, Short.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.INTEGER, Integer.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.BIGINT, Long.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.FLOAT, Float.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.DOUBLE, Double.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.DECIMAL, BigDecimal.class);
+  private static final Map<Integer, Class> JAVA_CLASSES = ImmutableMap
+      .<Integer, Class>builder()
+      .put(Types.TINYINT, Byte.class)
+      .put(Types.SMALLINT, Short.class)
+      .put(Types.INTEGER, Integer.class)
+      .put(Types.BIGINT, Long.class)
+      .put(Types.FLOAT, Float.class)
+      .put(Types.DOUBLE, Double.class)
+      .put(Types.DECIMAL, BigDecimal.class)
+      .put(Types.BOOLEAN, Boolean.class)
+      .put(Types.CHAR, String.class)
+      .put(Types.VARCHAR, String.class)
+      .put(Types.TIME, GregorianCalendar.class)
+      .put(Types.DATE, Date.class)
+      .put(Types.TIMESTAMP, Date.class)
+      .build();
 
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.BOOLEAN, Boolean.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.CHAR, String.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.VARCHAR, String.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TIME, GregorianCalendar.class);
-
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.DATE, Date.class);
-    SQL_TYPE_TO_JAVA_CLASS.put(Types.TIMESTAMP, Date.class);
-  }
+  private static final Map<Integer, Coder> CODERS = ImmutableMap
+      .<Integer, Coder>builder()
+      .put(Types.TINYINT, ByteCoder.of())
+      .put(Types.SMALLINT, ShortCoder.of())
+      .put(Types.INTEGER, BigEndianIntegerCoder.of())
+      .put(Types.BIGINT, BigEndianLongCoder.of())
+      .put(Types.FLOAT, FloatCoder.of())
+      .put(Types.DOUBLE, DoubleCoder.of())
+      .put(Types.DECIMAL, BigDecimalCoder.of())
+      .put(Types.BOOLEAN, BooleanCoder.of())
+      .put(Types.CHAR, StringUtf8Coder.of())
+      .put(Types.VARCHAR, StringUtf8Coder.of())
+      .put(Types.TIME, TimeCoder.of())
+      .put(Types.DATE, DateCoder.of())
+      .put(Types.TIMESTAMP, DateCoder.of())
+      .build();
 
   public List<Integer> fieldTypes;
 
@@ -84,54 +97,24 @@ public class BeamRecordSqlType extends BeamRecordType {
   }
 
   public static BeamRecordSqlType create(List<String> fieldNames,
-      List<Integer> fieldTypes) {
+                                         List<Integer> fieldTypes) {
     if (fieldNames.size() != fieldTypes.size()) {
       throw new IllegalStateException("the sizes of 'dataType' and 'fieldTypes' must match.");
     }
-    List<Coder> fieldCoders = new ArrayList<>(fieldTypes.size());
-    for (int idx = 0; idx < fieldTypes.size(); ++idx) {
-      switch (fieldTypes.get(idx)) {
-      case Types.INTEGER:
-        fieldCoders.add(BigEndianIntegerCoder.of());
-        break;
-      case Types.SMALLINT:
-        fieldCoders.add(ShortCoder.of());
-        break;
-      case Types.TINYINT:
-        fieldCoders.add(ByteCoder.of());
-        break;
-      case Types.DOUBLE:
-        fieldCoders.add(DoubleCoder.of());
-        break;
-      case Types.FLOAT:
-        fieldCoders.add(FloatCoder.of());
-        break;
-      case Types.DECIMAL:
-        fieldCoders.add(BigDecimalCoder.of());
-        break;
-      case Types.BIGINT:
-        fieldCoders.add(BigEndianLongCoder.of());
-        break;
-      case Types.VARCHAR:
-      case Types.CHAR:
-        fieldCoders.add(StringUtf8Coder.of());
-        break;
-      case Types.TIME:
-        fieldCoders.add(TimeCoder.of());
-        break;
-      case Types.DATE:
-      case Types.TIMESTAMP:
-        fieldCoders.add(DateCoder.of());
-        break;
-      case Types.BOOLEAN:
-        fieldCoders.add(BooleanCoder.of());
-        break;
 
-      default:
-        throw new UnsupportedOperationException(
-            "Data type: " + fieldTypes.get(idx) + " not supported yet!");
+    List<Coder> fieldCoders = new ArrayList<>(fieldTypes.size());
+
+    for (int idx = 0; idx < fieldTypes.size(); ++idx) {
+      Integer fieldType = fieldTypes.get(idx);
+
+      if (!CODERS.containsKey(fieldType)) {
+          throw new UnsupportedOperationException(
+              "Data type: " + fieldType + " not supported yet!");
       }
+
+      fieldCoders.add(CODERS.get(fieldType));
     }
+
     return new BeamRecordSqlType(fieldNames, fieldTypes, fieldCoders);
   }
 
@@ -142,7 +125,7 @@ public class BeamRecordSqlType extends BeamRecordType {
     }
 
     int fieldType = fieldTypes.get(index);
-    Class javaClazz = SQL_TYPE_TO_JAVA_CLASS.get(fieldType);
+    Class javaClazz = JAVA_CLASSES.get(fieldType);
     if (javaClazz == null) {
       throw new IllegalArgumentException("Data type: " + fieldType + " not supported yet!");
     }
@@ -159,7 +142,7 @@ public class BeamRecordSqlType extends BeamRecordType {
     return Collections.unmodifiableList(fieldTypes);
   }
 
-  public Integer getFieldTypeByIndex(int index){
+  public Integer getFieldTypeByIndex(int index) {
     return fieldTypes.get(index);
   }
 
