@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.sql;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.sql.Types;
@@ -108,8 +109,8 @@ public class BeamRecordSqlType extends BeamRecordType {
       Integer fieldType = fieldTypes.get(idx);
 
       if (!CODERS.containsKey(fieldType)) {
-          throw new UnsupportedOperationException(
-              "Data type: " + fieldType + " not supported yet!");
+        throw new UnsupportedOperationException(
+            "Data type: " + fieldType + " not supported yet!");
       }
 
       fieldCoders.add(CODERS.get(fieldType));
@@ -165,5 +166,85 @@ public class BeamRecordSqlType extends BeamRecordType {
   public String toString() {
     return "BeamRecordSqlType [fieldNames=" + getFieldNames()
         + ", fieldTypes=" + fieldTypes + "]";
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  /**
+   * Builder class to construct {@link BeamRecordSqlType}.
+   */
+  public static class Builder {
+
+    private ImmutableList.Builder<String> fieldNames;
+    private ImmutableList.Builder<Integer> fieldTypes;
+
+    public Builder withField(String fieldName, Integer fieldType) {
+      fieldNames.add(fieldName);
+      fieldTypes.add(fieldType);
+      return this;
+    }
+
+    public Builder withTinyIntField(String fieldName) {
+      return withField(fieldName, Types.TINYINT);
+    }
+
+    public Builder withSmallIntField(String fieldName) {
+      return withField(fieldName, Types.SMALLINT);
+    }
+
+    public Builder withIntegerField(String fieldName) {
+      return withField(fieldName, Types.INTEGER);
+    }
+
+    public Builder withBigIntField(String fieldName) {
+      return withField(fieldName, Types.BIGINT);
+    }
+
+    public Builder withFloatField(String fieldName) {
+      return withField(fieldName, Types.FLOAT);
+    }
+
+    public Builder withDoubleField(String fieldName) {
+      return withField(fieldName, Types.DOUBLE);
+    }
+
+    public Builder withDecimalField(String fieldName) {
+      return withField(fieldName, Types.DECIMAL);
+    }
+
+    public Builder withBooleanField(String fieldName) {
+      return withField(fieldName, Types.BOOLEAN);
+    }
+
+    public Builder withCharField(String fieldName) {
+      return withField(fieldName, Types.CHAR);
+    }
+
+    public Builder withVarcharField(String fieldName) {
+      return withField(fieldName, Types.VARCHAR);
+    }
+
+    public Builder withTimeField(String fieldName) {
+      return withField(fieldName, Types.TIME);
+    }
+
+    public Builder withDateField(String fieldName) {
+      return withField(fieldName, Types.DATE);
+    }
+
+    public Builder withTimestampField(String fieldName) {
+      return withField(fieldName, Types.TIMESTAMP);
+    }
+
+    private Builder() {
+      this.fieldNames = ImmutableList.builder();
+      this.fieldTypes = ImmutableList.builder();
+    }
+
+    public BeamRecordSqlType build() {
+      return create(fieldNames.build(), fieldTypes.build());
+    }
   }
 }
