@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -59,7 +59,14 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
     this.bufferSize = bufferSize;
     this.queue = new LinkedBlockingDeque<>(bufferSize);
     this.outboundObserver = outboundObserver;
-    this.queueDrainer = executor.submit(this::drainQueue);
+    this.queueDrainer =
+        executor.submit(
+            new Runnable() {
+              @Override
+              public void run() {
+                drainQueue();
+              }
+            });
   }
 
   private void drainQueue() {
@@ -108,8 +115,7 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
           // We shouldn't attempt to insert into the queue if the queue drainer thread is done
           // since the queue may be full and nothing will be emptying it.
           while (!queueDrainer.isDone()
-              && !queue.offerFirst((T) POISON_PILL, 60, TimeUnit.SECONDS)) {
-          }
+              && !queue.offerFirst((T) POISON_PILL, 60, TimeUnit.SECONDS)) {}
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);
@@ -133,8 +139,7 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
           // We shouldn't attempt to insert into the queue if the queue drainer thread is done
           // since the queue may be full and nothing will be emptying it.
           while (!queueDrainer.isDone()
-              && !queue.offerLast((T) POISON_PILL, 60, TimeUnit.SECONDS)) {
-          }
+              && !queue.offerLast((T) POISON_PILL, 60, TimeUnit.SECONDS)) {}
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
           throw new RuntimeException(e);

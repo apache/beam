@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
@@ -27,7 +28,6 @@ import io.grpc.stub.StreamObserver;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
 
 /** Tests for {@link ForwardingClientResponseObserver}. */
 @RunWith(JUnit4.class)
@@ -35,10 +35,10 @@ public class ForwardingClientResponseObserverTest {
   @Test
   public void testCallsAreForwardedAndOnReadyHandlerBound() {
     @SuppressWarnings("unchecked")
-    StreamObserver<Object> delegateObserver = Mockito.mock(StreamObserver.class);
+    StreamObserver<Object> delegateObserver = mock(StreamObserver.class);
     @SuppressWarnings("unchecked")
     ClientCallStreamObserver<Object> callStreamObserver =
-        Mockito.mock(ClientCallStreamObserver.class);
+        mock(ClientCallStreamObserver.class);
     Runnable onReadyHandler = new Runnable() {
       @Override
       public void run() {
