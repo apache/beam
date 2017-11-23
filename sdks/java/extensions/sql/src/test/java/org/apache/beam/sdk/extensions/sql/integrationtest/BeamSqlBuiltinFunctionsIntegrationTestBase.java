@@ -19,13 +19,12 @@
 package org.apache.beam.sdk.extensions.sql.integrationtest;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableMap;
 import java.math.BigDecimal;
 import java.sql.Types;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
@@ -44,35 +43,42 @@ import org.junit.Rule;
  * Base class for all built-in functions integration tests.
  */
 public class BeamSqlBuiltinFunctionsIntegrationTestBase {
-  private static final Map<Class, Integer> JAVA_CLASS_TO_SQL_TYPE = new HashMap<>();
-  static {
-    JAVA_CLASS_TO_SQL_TYPE.put(Byte.class, Types.TINYINT);
-    JAVA_CLASS_TO_SQL_TYPE.put(Short.class, Types.SMALLINT);
-    JAVA_CLASS_TO_SQL_TYPE.put(Integer.class, Types.INTEGER);
-    JAVA_CLASS_TO_SQL_TYPE.put(Long.class, Types.BIGINT);
-    JAVA_CLASS_TO_SQL_TYPE.put(Float.class, Types.FLOAT);
-    JAVA_CLASS_TO_SQL_TYPE.put(Double.class, Types.DOUBLE);
-    JAVA_CLASS_TO_SQL_TYPE.put(BigDecimal.class, Types.DECIMAL);
-    JAVA_CLASS_TO_SQL_TYPE.put(String.class, Types.VARCHAR);
-    JAVA_CLASS_TO_SQL_TYPE.put(Date.class, Types.DATE);
-    JAVA_CLASS_TO_SQL_TYPE.put(Boolean.class, Types.BOOLEAN);
-  }
+  private static final Map<Class, Integer> JAVA_CLASS_TO_SQL_TYPE = ImmutableMap
+      .<Class, Integer> builder()
+      .put(Byte.class, Types.TINYINT)
+      .put(Short.class, Types.SMALLINT)
+      .put(Integer.class, Types.INTEGER)
+      .put(Long.class, Types.BIGINT)
+      .put(Float.class, Types.FLOAT)
+      .put(Double.class, Types.DOUBLE)
+      .put(BigDecimal.class, Types.DECIMAL)
+      .put(String.class, Types.VARCHAR)
+      .put(Date.class, Types.DATE)
+      .put(Boolean.class, Types.BOOLEAN)
+      .build();
+
+  private static final BeamRecordSqlType RECORD_SQL_TYPE = BeamRecordSqlType.builder()
+      .withDateField("ts")
+      .withTinyIntField("c_tinyint")
+      .withSmallIntField("c_smallint")
+      .withIntegerField("c_integer")
+      .withBigIntField("c_bigint")
+      .withFloatField("c_float")
+      .withDoubleField("c_double")
+      .withDecimalField("c_decimal")
+      .withTinyIntField("c_tinyint_max")
+      .withSmallIntField("c_smallint_max")
+      .withIntegerField("c_integer_max")
+      .withBigIntField("c_bigint_max")
+      .build();
 
   @Rule
   public final TestPipeline pipeline = TestPipeline.create();
 
   protected PCollection<BeamRecord> getTestPCollection() {
-    BeamRecordSqlType type = BeamRecordSqlType.create(
-        Arrays.asList("ts", "c_tinyint", "c_smallint",
-            "c_integer", "c_bigint", "c_float", "c_double", "c_decimal",
-            "c_tinyint_max", "c_smallint_max", "c_integer_max", "c_bigint_max"),
-        Arrays.asList(Types.DATE, Types.TINYINT, Types.SMALLINT,
-            Types.INTEGER, Types.BIGINT, Types.FLOAT, Types.DOUBLE, Types.DECIMAL,
-            Types.TINYINT, Types.SMALLINT, Types.INTEGER, Types.BIGINT)
-    );
     try {
       return MockedBoundedTable
-          .of(type)
+          .of(RECORD_SQL_TYPE)
           .addRows(
               parseDate("1986-02-15 11:35:26"),
               (byte) 1,
@@ -88,7 +94,7 @@ public class BeamSqlBuiltinFunctionsIntegrationTestBase {
               9223372036854775807L
           )
           .buildIOReader(pipeline)
-          .setCoder(type.getRecordCoder());
+          .setCoder(RECORD_SQL_TYPE.getRecordCoder());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
