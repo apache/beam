@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.harness.channel;
+package org.apache.beam.sdk.fn.channel;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;

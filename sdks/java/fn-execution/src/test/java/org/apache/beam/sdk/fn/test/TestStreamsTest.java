@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.harness.test;
+package org.apache.beam.sdk.fn.test;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;

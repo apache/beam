@@ -17,6 +17,6 @@
  */
 
 /**
- * gRPC channel management.
+ * gRPC stream management.
  */
-package org.apache.beam.harness.channel;
+package org.apache.beam.sdk.fn.stream;

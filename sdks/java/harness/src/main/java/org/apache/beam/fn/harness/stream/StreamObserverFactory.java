@@ -24,6 +24,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
+import org.apache.beam.sdk.fn.stream.BufferingStreamObserver;
+import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
+import org.apache.beam.sdk.fn.stream.ForwardingClientResponseObserver;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 
@@ -58,9 +62,11 @@ public abstract class StreamObserverFactory {
         Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      CallStreamObserver<RespT> outboundObserver = (CallStreamObserver<RespT>) clientFactory.apply(
-          new ForwardingClientResponseObserver<ReqT, RespT>(
-              inboundObserver, phaser::arrive));
+      CallStreamObserver<RespT> outboundObserver =
+          (CallStreamObserver<RespT>)
+              clientFactory.apply(
+                  ForwardingClientResponseObserver.<ReqT, RespT>create(
+                      inboundObserver, phaser::arrive));
       return new DirectStreamObserver<>(phaser, outboundObserver);
     }
   }
@@ -80,9 +86,11 @@ public abstract class StreamObserverFactory {
         Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
-      CallStreamObserver<RespT> outboundObserver = (CallStreamObserver<RespT>) clientFactory.apply(
-          new ForwardingClientResponseObserver<ReqT, RespT>(
-              inboundObserver, phaser::arrive));
+      CallStreamObserver<RespT> outboundObserver =
+          (CallStreamObserver<RespT>)
+              clientFactory.apply(
+                  ForwardingClientResponseObserver.<ReqT, RespT>create(
+                      inboundObserver, phaser::arrive));
       return new BufferingStreamObserver<>(
           phaser, outboundObserver, executorService, bufferSize);
     }
