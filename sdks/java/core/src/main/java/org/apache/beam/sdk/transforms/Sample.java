@@ -27,12 +27,10 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * {@code PTransform}s for taking samples of the elements in a
@@ -56,10 +54,6 @@ public class Sample {
    *
    * <p>If limit is greater than or equal to the size of the input
    * {@code PCollection}, then all the input's elements will be selected.
-   *
-   * <p>All of the elements of the output {@code PCollection} should fit into
-   * main memory of a single worker machine.  This operation does not
-   * run in parallel.
    *
    * <p>Example of use:
    * <pre> {@code
@@ -149,11 +143,10 @@ public class Sample {
 
     @Override
     public PCollection<T> expand(PCollection<T> in) {
-      PCollectionView<Iterable<T>> iterableView = in.apply(View.<T>asIterable());
-      return in.getPipeline()
-          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
-          .apply(ParDo.of(new SampleAnyDoFn<>(limit, iterableView)).withSideInputs(iterableView))
-          .setCoder(in.getCoder());
+      return in
+          .apply(ParDo.of(new SampleAnyDoFn<T>(limit)))
+          .apply(Combine.globally(new SampleAnyCombineFn<T>(limit)))
+          .apply(Flatten.<T>iterables());
     }
 
     @Override
@@ -209,29 +202,67 @@ public class Sample {
   }
 
   /**
-   * A {@link DoFn} that returns up to limit elements from the side input PCollection.
+   * A {@link DoFn} that outputs up to limit elements.
    */
-  private static class SampleAnyDoFn<T> extends DoFn<Void, T> {
-    long limit;
-    final PCollectionView<Iterable<T>> iterableView;
+  private static class SampleAnyDoFn<T> extends DoFn<T, T> {
+    private long limit;
 
-    public SampleAnyDoFn(long limit, PCollectionView<Iterable<T>> iterableView) {
+    public SampleAnyDoFn(long limit) {
       this.limit = limit;
-      this.iterableView = iterableView;
     }
 
     @ProcessElement
     public void processElement(ProcessContext c) {
-      for (T i : c.sideInput(iterableView)) {
-        if (limit-- <= 0) {
-          break;
-        }
-        c.output(i);
+      if (--limit >= 0) {
+        c.output(c.element());
       }
     }
   }
 
   /**
+   * A {@link CombineFn} that combines into a {@link List} of up to limit elements.
+   */
+  private static class SampleAnyCombineFn<T> extends CombineFn<T, List<T>, Iterable<T>> {
+    private final long limit;
+
+    private SampleAnyCombineFn(long limit) {
+      this.limit = limit;
+    }
+
+    @Override
+    public List<T> createAccumulator() {
+      return new ArrayList<>();
+    }
+
+    @Override
+    public List<T> addInput(List<T> accumulator, T input) {
+      if (accumulator.size() < limit) {
+        accumulator.add(input);
+      }
+      return accumulator;
+    }
+
+    @Override
+    public List<T> mergeAccumulators(Iterable<List<T>> accumulators) {
+      List<T> merged = new ArrayList<>();
+      for (List<T> accumulator : accumulators) {
+        for (T t : accumulator) {
+          merged.add(t);
+          if (merged.size() >= limit) {
+            return merged;
+          }
+        }
+      }
+      return merged;
+    }
+
+    @Override
+    public Iterable<T> extractOutput(List<T> accumulator) {
+      return accumulator;
+    }
+  }
+
+    /**
    * {@code CombineFn} that computes a fixed-size sample of a
    * collection of values.
    *
