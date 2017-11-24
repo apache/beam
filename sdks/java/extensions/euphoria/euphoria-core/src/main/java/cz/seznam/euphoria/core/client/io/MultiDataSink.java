@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.util.IOUtils;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -143,7 +144,7 @@ public class MultiDataSink<KEY, IN> implements DataSink<IN> {
     }
   }
 
-  private static class DataSinkWrapper<KEY, IN, OUT> {
+  private static class DataSinkWrapper<KEY, IN, OUT> implements Serializable {
     private final KEY key;
     private final UnaryFunction<IN, OUT> mapper;
     private final DataSink<OUT> dataSink;
