@@ -2545,7 +2545,7 @@ public class ParDoTest implements Serializable {
           @StateId(stateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> state =
               StateSpecs.combining(Sum.ofIntegers());
-      
+
           @ProcessElement
           public void processElement(ProcessContext c,
               @StateId(stateId) GroupingState<Integer, Integer> state) {
