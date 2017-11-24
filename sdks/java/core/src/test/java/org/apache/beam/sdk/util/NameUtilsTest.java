@@ -77,6 +77,9 @@ public class NameUtilsTest {
    * Inner class for simple name test.
    */
   private class EmbeddedDoFn {
+    private Object anonymous() { // ensure we have a single one for the test
+      return new DeeperEmbeddedDoFn() {};
+    }
 
     private class DeeperEmbeddedDoFn extends EmbeddedDoFn {}
 
@@ -114,7 +117,7 @@ public class NameUtilsTest {
 
   @Test
   public void testAnonSimpleName() throws Exception {
-    assertEquals("Anonymous", NameUtils.approximateSimpleName(new EmbeddedDoFn() {}));
+    assertEquals("Embedded$1", NameUtils.approximateSimpleName(new EmbeddedDoFn().anonymous()));
   }
 
   @Test
@@ -179,11 +182,5 @@ public class NameUtilsTest {
       }
     };
     assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName));
-  }
-
-  @Test
-  public void testApproximateSimpleNameCustomAnonymous() {
-    Object overriddenName = new Object() {};
-    assertEquals("CUSTOM_NAME", NameUtils.approximateSimpleName(overriddenName, "CUSTOM_NAME"));
   }
 }
