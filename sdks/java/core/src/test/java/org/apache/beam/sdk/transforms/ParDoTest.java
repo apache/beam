@@ -2545,6 +2545,7 @@ public class ParDoTest implements Serializable {
           @StateId(stateId)
           private final StateSpec<CombiningState<Integer, int[], Integer>> state =
               StateSpecs.combining(Sum.ofIntegers());
+      
           @ProcessElement
           public void processElement(ProcessContext c,
               @StateId(stateId) GroupingState<Integer, Integer> state) {
@@ -2561,7 +2562,7 @@ public class ParDoTest implements Serializable {
             .apply(Create.of(KV.of(123, 4), KV.of(123, 7), KV.of(123, -3)))
             .apply(ParDo.of(fn));
 
-    // There should only be one moment at which the average is exactly 8
+    // There should only be one moment at which the sum is exactly 8
     PAssert.that(output).containsInAnyOrder("right on");
     pipeline.run();
   }
