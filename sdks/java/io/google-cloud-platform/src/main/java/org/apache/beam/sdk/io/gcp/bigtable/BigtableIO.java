@@ -91,7 +91,6 @@ import org.slf4j.LoggerFactory;
  * // Scan the entire table.
  * p.apply("read",
  *     BigtableIO.read()
- *         .withBigtableOptions(optionsBuilder)
  *         .withProjectId(projectId)
  *         .withInstanceId(instanceId)
  *         .withTableId("table"));
