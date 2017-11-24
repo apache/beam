@@ -121,6 +121,14 @@ public class HadoopSink<K, V>
   }
 
   /**
+   * Retrieve configuration.
+   * @return the configuration used in this source
+   */
+  public Configuration getConfiguration() {
+    return conf.getWritable();
+  }
+  
+  /**
    * Wraps Hadoop {@link RecordWriter}
    */
   private static class HadoopWriter<K, V>
