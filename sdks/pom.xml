@@ -32,15 +32,37 @@
 
   <name>Apache Beam :: SDKs</name>
 
-  <modules>
-    <module>go</module>
-    <module>java</module>
-    <module>python</module>
-  </modules>
-
   <profiles>
     <profile>
+      <id>default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <modules>
+        <module>go</module>
+        <module>java</module>
+        <module>python</module>
+      </modules>
+    </profile>
+    <profile> <!-- if you don't care of python/go put in your settings.xml the property <beam.java.only>true</beam.java.only> -->
+      <id>java</id>
+      <activation>
+        <property>
+          <name>beam.java.only</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <modules>
+        <module>java</module>
+      </modules>
+    </profile>
+    <profile>
       <id>release</id>
+      <modules>
+        <module>go</module>
+        <module>java</module>
+        <module>python</module>
+      </modules>
       <build>
         <plugins>
           <plugin>
