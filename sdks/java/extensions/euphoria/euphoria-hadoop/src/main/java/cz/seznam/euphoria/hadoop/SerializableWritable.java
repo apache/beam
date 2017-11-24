@@ -44,8 +44,8 @@ public class SerializableWritable<W extends Writable> implements Serializable {
 
   private void readObject(ObjectInputStream ois)
           throws IOException, ClassNotFoundException,
-          InstantiationException, IllegalAccessException
-  {
+          InstantiationException, IllegalAccessException {
+    
     @SuppressWarnings("unchecked")
     Class<W> cls = (Class<W>) ois.readObject();
     writable = cls.newInstance();

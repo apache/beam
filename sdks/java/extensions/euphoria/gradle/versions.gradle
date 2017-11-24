@@ -3,6 +3,7 @@ ext {
   flinkVersion = '1.2.1'
   guavaVersion = '23.0'
   hadoopVersion = '2.7.4'
+  hbaseVersion = '1.3.1'
   kafkaVersion = '0.10.0.1'
   kryoVersion = '2.24.0'
   log4jVersion = '1.2.17'

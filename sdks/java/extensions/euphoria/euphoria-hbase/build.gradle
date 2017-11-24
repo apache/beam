@@ -1,0 +1,23 @@
+dependencies {
+  compile project(':euphoria-core')
+  compile project(':euphoria-hadoop')
+  compile project(':euphoria-local')
+
+  compileOnly "org.apache.hbase:hbase-common:${hbaseVersion}"
+  compileOnly "org.apache.hbase:hbase-client:${hbaseVersion}"
+  compileOnly "org.apache.hbase:hbase-server:${hbaseVersion}"
+
+  testCompile "org.apache.hbase:hbase-common:${hbaseVersion}"
+  testCompile "org.apache.hbase:hbase-client:${hbaseVersion}"
+  testCompile "org.apache.hbase:hbase-server:${hbaseVersion}"
+  testCompile "org.apache.hbase:hbase-testing-util:${hbaseVersion}"
+  testCompile "org.apache.hbase:hbase-server:${hbaseVersion}:tests"
+}
+
+configurations {
+  runtime.exclude group: "tomcat", module: "jasper-runtime"
+}
+
+test {
+  systemProperty "sun.io.serialization.extendedDebugInfo", true
+}
