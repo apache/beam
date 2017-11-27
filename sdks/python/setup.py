@@ -109,6 +109,7 @@ REQUIRED_PACKAGES = [
     # TODO(BEAM-2964): Remove the upper bound.
     'six>=1.9,<1.11',
     'typing>=3.6.0,<3.7.0',
+    'future>=0.16.0,<1.0'
     'futures>=3.1.1,<4.0.0',
     ]
 

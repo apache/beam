@@ -99,6 +99,16 @@ class TrivialInferenceTest(unittest.TestCase):
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, float]])
 
+  def testGeneratorComprehension(self):
+    self.assertReturnType(
+        typehints.Iterable[int],
+        lambda xs: (x for x in xs),
+        [typehints.Tuple[int, ...]])
+    self.assertReturnType(
+        typehints.Iterable[typehints.Union[int, float]],
+        lambda xs: (x for x in xs),
+        [typehints.Tuple[int, float, int]])
+
   def testGenerator(self):
 
     def foo(x, y):
@@ -167,6 +177,13 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Any,
         lambda row: {f: row[f] for f in fields}, [typehints.Any])
+
+  def testNested(self):
+    def f(x):
+      def g(x):
+        return x
+      return g(x)
+    self.assertReturnType(int, f, [int])
 
 
 if __name__ == '__main__':
