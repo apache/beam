@@ -1,13 +1,26 @@
-"""The Python 3.5 disassembler source code ported to be compatible with
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""The Python 3 disassembler source code backported to be compatible with
 with Python 2.7.
-
-https://github.com/python/cpython/blob/3.5/Lib/dis.py
-
-To enable future compatibility with Python 3.6, which uses wordcodes
-instead of bytecodes, get_instructions should be used to parse ops.
 """
 
-from __future__ import absolute_import, print_function
+from __future__ import absolute_import
+from __future__ import print_function
 
 import collections
 import dis
@@ -39,7 +52,7 @@ def _get_code_object(x):
   """Helper to handle methods, functions, generators, strings
   and raw code objects"""
   if hasattr(x, '__func__'):  # Method
-    x = x.__func__  # Todo: Figure out why we want a function object
+    x = x.__func__
   if hasattr(x, '__code__'):  # Function
     x = x.__code__
   if hasattr(x, 'gi_code'):  # Generator

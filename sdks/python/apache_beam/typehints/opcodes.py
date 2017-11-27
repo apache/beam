@@ -270,7 +270,7 @@ def load_attr(state, arg):
   elif (isinstance(o, type)
         and isinstance(getattr(o, name, None),
                        (types.MethodType, types.FunctionType))):
-    # Todo: Modify BoundMethod as Python 3 has no unbound method type
+    # TODO(luke-zhu): Modify BoundMethod as Python 3 has no unbound method type
     state.stack.append(Const(BoundMethod(getattr(o, name))))
   else:
     state.stack.append(Any)
