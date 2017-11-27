@@ -205,15 +205,21 @@ public class Sample {
    * A {@link DoFn} that outputs up to limit elements.
    */
   private static class SampleAnyDoFn<T> extends DoFn<T, T> {
-    private long limit;
+    private final long limit;
+    private long n;
 
     public SampleAnyDoFn(long limit) {
       this.limit = limit;
     }
 
+    @StartBundle
+    public void startBundle() {
+      n = limit;
+    }
+
     @ProcessElement
     public void processElement(ProcessContext c) {
-      if (--limit >= 0) {
+      if (--n >= 0) {
         c.output(c.element());
       }
     }
