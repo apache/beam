@@ -85,6 +85,16 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
 
   abstract static class CleanupOperation implements Serializable {
     abstract void cleanup(ContextContainer container) throws Exception;
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj != null && obj.getClass() == this.getClass();
+    }
   }
 
   static class ContextContainer {

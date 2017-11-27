@@ -238,5 +238,29 @@ public class JacksonTransformsTest {
       this.myString = myString;
       this.myInt = myInt;
     }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      MyEmptyBean that = (MyEmptyBean) o;
+
+      if (myInt != that.myInt) {
+        return false;
+      }
+      return myString != null ? myString.equals(that.myString) : that.myString == null;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = myString != null ? myString.hashCode() : 0;
+      result = 31 * result + myInt;
+      return result;
+    }
   }
 }

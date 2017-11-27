@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisp
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.includesDisplayDataFor;
 import static org.junit.Assert.assertThat;
 
+import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -324,6 +325,21 @@ public class  CombineFnsTest {
       UserString ret = new UserString();
       ret.strValue = strValue;
       return ret;
+    }
+
+    @Override public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      UserString that = (UserString) o;
+      return Objects.equal(strValue, that.strValue);
+    }
+
+    @Override public int hashCode() {
+      return Objects.hashCode(strValue);
     }
   }
 
