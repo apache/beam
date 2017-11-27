@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;

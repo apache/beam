@@ -15,9 +15,9 @@
  */
 package cz.seznam.euphoria.kafka;
 
-import com.google.common.collect.AbstractIterator;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
 import cz.seznam.euphoria.core.client.io.UnboundedPartition;
 import cz.seznam.euphoria.core.client.io.UnboundedReader;
