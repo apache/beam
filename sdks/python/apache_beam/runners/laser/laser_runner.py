@@ -737,7 +737,14 @@ class FusedStage(Stage, CompositeWatermarkNode):
         split_read_ops.append(new_read_op)
     elif isinstance(read_op, operation_specs.LaserShuffleRead):
       # TODO: do initial splitting of shuffle read operation, based on dataset characteristics.
-      split_read_ops.append(read_op)
+      split_ranges = read_op.key_range.split(16)
+      for split_range in split_ranges:
+        new_read_op = operation_specs.LaserShuffleRead(
+          dataset_id=read_op.dataset_id,
+          key_range=split_range,
+          output_coders=read_op.output_coders,
+          )
+        split_read_ops.append(new_read_op)
     else:
       raise Exception('First operation should be a read operation: %s.' % read_op)
 
@@ -1506,7 +1513,7 @@ if __name__ == '__main__':
   def _print(x):
     import time
     # time.sleep(4)
-    # print 'PRRRINT:', x
+    print 'PRRRINT:', x
   # p | Create([1, 2, 3]) | beam.FlatMap(lambda x: [(x, 'abc1-%d' % x), (x, 'xyz2-%d' % x)]) | beam.GroupByKey()  | 'cc' >> beam.Map(_print)
   # p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
   # a = p | 'yo' >> Create(['a', 'b', 'c'])
