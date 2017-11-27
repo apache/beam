@@ -20,6 +20,7 @@
 For internal use only; no backwards-compatibility guarantees.
 """
 
+from __future__ import absolute_import
 import collections
 import inspect
 import sys
@@ -35,6 +36,7 @@ from apache_beam.typehints.decorators import getcallargs_forhints
 from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
+import six
 
 
 class AbstractDoFnWrapper(DoFn):
@@ -82,14 +84,14 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
     except TypeCheckError as e:
       error_msg = ('Runtime type violation detected within ParDo(%s): '
                    '%s' % (self.full_label, e))
-      raise TypeCheckError, error_msg, sys.exc_info()[2]
+      six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])
     else:
       return self._check_type(result)
 
   def _check_type(self, output):
     if output is None:
       return output
-    elif isinstance(output, (dict, basestring)):
+    elif isinstance(output, (dict, six.string_types)):
       object_type = type(output).__name__
       raise TypeCheckError('Returning a %s from a ParDo or FlatMap is '
                            'discouraged. Please use list("%s") if you really '
@@ -172,9 +174,9 @@ class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
     try:
       check_constraint(type_constraint, datum)
     except CompositeTypeHintError as e:
-      raise TypeCheckError, e.message, sys.exc_info()[2]
+      six.reraise(TypeCheckError, e.message, sys.exc_info()[2])
     except SimpleTypeHintError:
       error_msg = ("According to type-hint expected %s should be of type %s. "
                    "Instead, received '%s', an instance of type %s."
                    % (datum_type, type_constraint, datum, type(datum)))
-      raise TypeCheckError, error_msg, sys.exc_info()[2]
+      six.reraise(TypeCheckError, error_msg, sys.exc_info()[2])

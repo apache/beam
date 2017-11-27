@@ -83,6 +83,7 @@ properly it must appear at the top of the module where all functions are
 defined, or before importing a module containing type-hinted functions.
 """
 
+from __future__ import absolute_import
 import inspect
 import types
 
@@ -92,6 +93,7 @@ from apache_beam.typehints.typehints import CompositeTypeHintError
 from apache_beam.typehints.typehints import SimpleTypeHintError
 from apache_beam.typehints.typehints import check_constraint
 from apache_beam.typehints.typehints import validate_composite_type_param
+from six.moves import zip
 
 __all__ = [
     'with_input_types',
@@ -567,10 +569,12 @@ class GeneratorWrapper(object):
       return self.__iter__()
     return getattr(self.internal_gen, attr)
 
-  def next(self):
+  def __next__(self):
     next_val = next(self.internal_gen)
     self.interleave_func(next_val)
     return next_val
+
+  next = __next__
 
   def __iter__(self):
     while True:
