@@ -45,8 +45,16 @@ public class StringsGenerator {
   /** Return a random string of exactly {@code length}. */
   public static String nextExactString(Random random, int length) {
     StringBuilder sb = new StringBuilder();
+    int rnd = 0;
+    int n = 0;  // number of random characters left in rnd
     while (length-- > 0) {
-      sb.append((char) ('a' + random.nextInt(26)));
+      if (n == 0) {
+        rnd = random.nextInt();
+        n = 6;  // log_26(2^31)
+      }
+      sb.append((char) ('a' + rnd % 26));
+      rnd /= 26;
+      n--;
     }
     return sb.toString();
   }
