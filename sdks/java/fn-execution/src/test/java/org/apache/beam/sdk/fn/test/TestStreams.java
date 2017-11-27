@@ -30,7 +30,7 @@ public class TestStreams {
   public static <T> Builder<T> withOnNext(Consumer<T> onNext) {
     return new Builder<>(new ForwardingCallStreamObserver<>(
         onNext,
-        TestStreams.<Throwable>noopConsumer(),
+        TestStreams.throwingErrorHandler(),
         TestStreams.noopRunnable(),
         TestStreams.alwaysTrueSupplier()));
   }
@@ -95,6 +95,15 @@ public class TestStreams {
     public CallStreamObserver<T> build() {
       return observer;
     }
+  }
+
+  private static Consumer<Throwable> throwingErrorHandler() {
+    return new Consumer<Throwable>() {
+      @Override
+      public void accept(Throwable item) {
+        throw new RuntimeException(item);
+      }
+    };
   }
 
   private static void noop() {
