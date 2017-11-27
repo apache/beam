@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
@@ -63,6 +64,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -164,11 +166,9 @@ public class DataflowRunnerTest implements Serializable {
     assertNull(job.getCurrentState());
     assertTrue(Pattern.matches("[a-z]([-a-z0-9]*[a-z0-9])?", job.getName()));
 
-    // https://issues.apache.org/jira/browse/BEAM-3116
-    // for (WorkerPool workerPool : job.getEnvironment().getWorkerPools()) {
-    //   assertThat(workerPool.getMetadata(),
-    //       hasKey(DataflowRunner.STAGED_PIPELINE_METADATA_PROPERTY));
-    // }
+    assertThat(
+        (Map<String, Object>) job.getEnvironment().getSdkPipelineOptions().get("options"),
+        hasKey("pipelineUrl"));
   }
 
   @Before

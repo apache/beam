@@ -36,7 +36,6 @@ import org.apache.beam.sdk.transforms.ViewFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.ProcessElementMethod;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PValue;
 
@@ -304,7 +303,7 @@ public class PTransformMatchers {
         }
         CreatePCollectionView<?, ?> createView =
             (CreatePCollectionView<?, ?>) application.getTransform();
-        ViewFn<Iterable<WindowedValue<?>>, ?> viewFn = createView.getView().getViewFn();
+        ViewFn<?, ?> viewFn = createView.getView().getViewFn();
         return viewFn.getClass().equals(viewFnType);
       }
     };

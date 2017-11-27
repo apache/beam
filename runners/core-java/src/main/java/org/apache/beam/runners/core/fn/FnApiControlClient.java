@@ -39,7 +39,11 @@ import org.slf4j.LoggerFactory;
  * connections).
  *
  * <p>This low-level client is responsible only for correlating requests with responses.
+ *
+ * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
+ *     functionality.
  */
+@Deprecated
 class FnApiControlClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(FnApiControlClient.class);
 

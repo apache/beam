@@ -190,17 +190,10 @@ class Environment(object):
     pool = dataflow.WorkerPool(
         kind='local' if self.local else 'harness',
         packages=package_descriptors,
-        # https://issues.apache.org/jira/browse/BEAM-3116
-        # metadata=dataflow.WorkerPool.MetadataValue(),
         taskrunnerSettings=dataflow.TaskRunnerSettings(
             parallelWorkerSettings=dataflow.WorkerSettings(
                 baseUrl=GoogleCloudOptions.DATAFLOW_ENDPOINT,
                 servicePath=self.google_cloud_options.dataflow_endpoint)))
-
-    # https://issues.apache.org/jira/browse/BEAM-3116
-    # pool.metadata.additionalProperties.append(
-    #     dataflow.WorkerPool.MetadataValue.AdditionalProperty(
-    #         key=names.STAGED_PIPELINE_URL_METADATA_FIELD, value=pipeline_url))
 
     pool.autoscalingSettings = dataflow.AutoscalingSettings()
     # Set worker pool options received through command line.
@@ -260,6 +253,7 @@ class Environment(object):
       options_dict = {k: v
                       for k, v in sdk_pipeline_options.iteritems()
                       if v is not None}
+      options_dict["pipelineUrl"] = pipeline_url
       self.proto.sdkPipelineOptions.additionalProperties.append(
           dataflow.Environment.SdkPipelineOptionsValue.AdditionalProperty(
               key='options', value=to_json_value(options_dict)))

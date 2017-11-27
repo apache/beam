@@ -334,7 +334,7 @@ public interface PipelineOptions extends HasDisplayData {
   Map<String, Map<String, Object>> outputRuntimeOptions();
 
   /**
-   * Provides a unique ID for this {@link PipelineOptions} object, assigned at graph
+   * Provides a process wide unique ID for this {@link PipelineOptions} object, assigned at graph
    * construction time.
    */
   @Hidden

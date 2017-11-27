@@ -1,0 +1,97 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+apply from: project(":").file("build_rules.gradle")
+applyJavaNature()
+
+description = "Apache Beam :: Runners :: Spark"
+
+/*
+ * We need to rely on manually specifying these evaluationDependsOn to ensure that
+ * the following projects are evaluated before we evaluate this project. This is because
+ * we are attempting to reference the "sourceSets.test.output" directly.
+ * TODO: Swap to generating test artifacts which we can then rely on instead of
+ * the test outputs directly.
+ */
+evaluationDependsOn(":beam-model-parent:beam-model-fn-execution")
+evaluationDependsOn(":beam-runners-parent:beam-runners-core-java")
+
+test {
+  systemProperty "beam.spark.test.reuseSparkContext", "true"
+  systemProperty "spark.ui.enabled", "false"
+  systemProperty "spark.ui.showConsoleProgress", "false"
+  systemProperty "beamTestPipelineOptions", """[
+                    "--runner=TestSparkRunner",
+                    "--streaming=false",
+                    "--enableSparkMetricSinks=true"
+                  ]"""
+  // Only one SparkContext may be running in a JVM (SPARK-2243)
+  forkEvery 1
+  useJUnit {
+    excludeCategories "org.apache.beam.runners.spark.UsesCheckpointRecovery"
+    excludeCategories "org.apache.beam.runners.spark.StreamingTest"
+  }
+}
+
+dependencies {
+  shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadow project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow")
+  shadow library.java.findbugs_jsr305
+  shadow library.java.guava
+  shadow library.java.jackson_annotations
+  shadow library.java.slf4j_api
+  shadow library.java.joda_time
+  shadow library.java.commons_text
+  shadow "io.dropwizard.metrics:metrics-core:3.1.2"
+  provided library.java.spark_core
+  provided library.java.spark_streaming
+  provided library.java.spark_network_common
+  provided library.java.hadoop_common
+  provided library.java.hadoop_mapreduce_client_core
+  provided library.java.commons_compress
+  provided library.java.commons_lang3
+  provided library.java.commons_io_2x
+  provided library.java.hamcrest_core
+  provided "org.apache.zookeeper:zookeeper:3.4.6"
+  provided "org.scala-lang:scala-library:2.10.5"
+  provided "com.esotericsoftware.kryo:kryo:2.21"
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka", configuration: "shadow")
+  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
+  testCompile project(":beam-runners-parent:beam-runners-core-java").sourceSets.test.output
+  testCompile library.java.avro
+  testCompile library.java.kafka_clients
+  testCompile library.java.junit
+  testCompile library.java.mockito_core
+  testCompile library.java.jackson_dataformat_yaml
+  testCompile "org.apache.kafka:kafka_2.10:0.9.0.1"
+}
+
+configurations.testRuntimeClasspath {
+  // Testing the Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
+  exclude group: "org.slf4j", module: "slf4j-jdk14"
+}
+
+task packageTests(type: Jar) {
+  from sourceSets.test.output
+  classifier = "tests"
+}
+
+artifacts.archives packageTests

@@ -24,7 +24,13 @@ import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** A Fn API control service which adds incoming SDK harness connections to a pool. */
+/**
+ * A Fn API control service which adds incoming SDK harness connections to a pool.
+ *
+ * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
+ *     functionality.
+ */
+@Deprecated
 public class FnApiControlClientPoolService extends BeamFnControlGrpc.BeamFnControlImplBase {
   private static final Logger LOGGER = LoggerFactory.getLogger(FnApiControlClientPoolService.class);
 

@@ -19,4 +19,8 @@
 /**
  * Provides utilities for a Beam runner to interact with a client using the Fn API.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core.fn;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

@@ -31,7 +31,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi;
  *
  * <p>This provides a Java-friendly wrapper around {@link FnApiControlClient} and {@link
  * FnDataReceiver}, which handle lower-level gRPC message wrangling.
+ *
+ * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
+ *     functionality.
  */
+@Deprecated
 public class SdkHarnessClient {
 
   /**

@@ -27,7 +27,11 @@ import java.io.Closeable;
  *
  * <p>Register a target with a {@link FnDataService} to gain a {@link FnDataReceiver} to which you
  * may write outgoing data.
+ *
+ * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
+ *     functionality.
  */
+@Deprecated
 public interface FnDataReceiver<T> extends Closeable {
   void accept(T input) throws Exception;
 }

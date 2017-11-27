@@ -143,7 +143,7 @@ public class TriggerStateMachineContextFactory<W extends BoundedWindow> {
     }
 
     @Override
-    public ExecutableTriggerStateMachine firstUnfinishedSubTrigger() {
+    public @Nullable ExecutableTriggerStateMachine firstUnfinishedSubTrigger() {
       for (ExecutableTriggerStateMachine subTrigger : trigger.subTriggers()) {
         if (!finishedSet.isFinished(subTrigger)) {
           return subTrigger;

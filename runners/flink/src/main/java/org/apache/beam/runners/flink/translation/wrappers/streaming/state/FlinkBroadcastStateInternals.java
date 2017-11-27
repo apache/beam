@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -77,6 +78,7 @@ public class FlinkBroadcastStateInternals<K> implements StateInternals {
   }
 
   @Override
+  @Nullable
   public K getKey() {
     return null;
   }
