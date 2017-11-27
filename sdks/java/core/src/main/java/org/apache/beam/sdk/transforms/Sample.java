@@ -144,7 +144,6 @@ public class Sample {
     @Override
     public PCollection<T> expand(PCollection<T> in) {
       return in
-          .apply(ParDo.of(new SampleAnyDoFn<T>(limit)))
           .apply(Combine.globally(new SampleAnyCombineFn<T>(limit)))
           .apply(Flatten.<T>iterables());
     }
@@ -198,30 +197,6 @@ public class Sample {
       super.populateDisplayData(builder);
       builder.add(DisplayData.item("sampleSize", sampleSize)
           .withLabel("Sample Size"));
-    }
-  }
-
-  /**
-   * A {@link DoFn} that outputs up to limit elements.
-   */
-  private static class SampleAnyDoFn<T> extends DoFn<T, T> {
-    private final long limit;
-    private long n;
-
-    public SampleAnyDoFn(long limit) {
-      this.limit = limit;
-    }
-
-    @StartBundle
-    public void startBundle() {
-      n = limit;
-    }
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      if (--n >= 0) {
-        c.output(c.element());
-      }
     }
   }
 
