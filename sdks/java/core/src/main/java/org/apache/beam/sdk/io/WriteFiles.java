@@ -38,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
@@ -113,6 +114,10 @@ import org.slf4j.LoggerFactory;
 public abstract class WriteFiles<UserT, DestinationT, OutputT>
     extends PTransform<PCollection<UserT>, WriteFilesResult<DestinationT>> {
   private static final Logger LOG = LoggerFactory.getLogger(WriteFiles.class);
+
+  /** For internal use by runners. */
+  @Internal
+  public static final Class<? extends WriteFiles> CONCRETE_CLASS = AutoValue_WriteFiles.class;
 
   // The maximum number of file writers to keep open in a single bundle at a time, since file
   // writers default to 64mb buffers. This comes into play when writing per-window files.
@@ -497,7 +502,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               paneInfo,
               destination);
           writer = writeOperation.createWriter();
-          writer.open(uuid, destination);
+          writer.setDestination(destination);
+          writer.open(uuid);
           writers.put(key, writer);
           LOG.debug("Done opening writer");
         } else {
@@ -623,7 +629,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               "ApplyShardingKey",
               ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
                   .withSideInputs(
-                      numShardsView == null
+                      (numShardsView == null)
                           ? ImmutableList.<PCollectionView<Integer>>of()
                           : ImmutableList.of(numShardsView)))
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
@@ -706,7 +712,8 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
               c.pane(),
               destination);
           writer = writeOperation.createWriter();
-          writer.open(uuid, destination);
+          writer.setDestination(destination);
+          writer.open(uuid);
           writers.put(destination, writer);
         }
         writeOrClose(writer, getDynamicDestinations().formatRecord(input));
@@ -724,6 +731,10 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           throw e;
         }
         int shard = c.element().getKey().getShardNumber();
+        checkArgument(
+            shard != UNKNOWN_SHARDNUM,
+            "Shard should have been set, but is unset for element %s",
+            c.element());
         c.output(new FileResult<>(writer.getOutputFile(), shard, window, c.pane(), entry.getKey()));
       }
     }

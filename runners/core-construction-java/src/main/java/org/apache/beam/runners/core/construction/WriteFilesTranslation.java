@@ -303,7 +303,7 @@ public class WriteFilesTranslation {
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.<Class<? extends PTransform>, TransformPayloadTranslator>singletonMap(
-          WriteFiles.class, new WriteFilesTranslator());
+          WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
     }
 
     @Override
