@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.benchmarks.spark;
 
 
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import cz.seznam.euphoria.benchmarks.model.Benchmarks;
 import cz.seznam.euphoria.benchmarks.model.windowing.Time;
 import cz.seznam.euphoria.benchmarks.model.windowing.TimeSliding;
