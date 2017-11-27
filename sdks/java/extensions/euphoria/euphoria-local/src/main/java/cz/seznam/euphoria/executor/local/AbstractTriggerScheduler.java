@@ -15,10 +15,10 @@
  */
 package cz.seznam.euphoria.executor.local;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.shadow.com.google.common.collect.ArrayListMultimap;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Multimap;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Multimaps;
+import cz.seznam.euphoria.shadow.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

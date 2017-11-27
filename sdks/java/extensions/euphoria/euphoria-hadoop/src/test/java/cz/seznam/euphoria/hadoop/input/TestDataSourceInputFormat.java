@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.hadoop.input;
 
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.BoundedDataSource;
 import cz.seznam.euphoria.core.client.io.BoundedReader;
 import cz.seznam.euphoria.core.client.io.UnsplittableBoundedSource;

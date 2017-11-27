@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.operator.test.accumulators;
 
-import com.google.common.collect.Maps;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Maps;
 
 import java.time.Duration;
 import java.util.Map;

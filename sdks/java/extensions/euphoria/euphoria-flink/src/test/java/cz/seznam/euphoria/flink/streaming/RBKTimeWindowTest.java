@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.flink.streaming;
 
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;

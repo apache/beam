@@ -33,7 +33,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
-import com.google.common.collect.Sets;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
 

@@ -19,8 +19,8 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 
 import java.time.Duration;
 import java.util.Iterator;

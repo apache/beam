@@ -18,7 +18,7 @@ package cz.seznam.euphoria.executor.local;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.io.SpillTools;
 import cz.seznam.euphoria.core.executor.util.InMemExternalIterable;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;

@@ -17,7 +17,7 @@ package cz.seznam.euphoria.core.client.dataset.windowing;
 
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.util.Pair;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.time.Duration;
