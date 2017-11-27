@@ -163,10 +163,14 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$MonitorRunnable" />
-    <Method name="shouldShutdown" />
+    <Class name="org.apache.beam.runners.direct.ExecutorServiceParallelExecutor$QueueMessageReceiver" />
+    <Or>
+      <Method name="failed" />
+      <Method name="cancelled" />
+      <Method name="completed" />
+    </Or>
     <Bug pattern="RV_RETURN_VALUE_IGNORED_BAD_PRACTICE" />
-    <!-- visibleUpdates is a non-capacity-limited LinkedBlockingQueue, which
+    <!-- updates is a non-capacity-limited LinkedBlockingQueue, which
       can never refuse an offered update -->
   </Match>
 
