@@ -589,7 +589,12 @@ public class BigQueryIOTest implements Serializable {
 
     if (streaming) {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
+
     }
+
+    // Use a partition decorator to verify that partition decorators are supported.
+    final String partitionDecorator = "20171127";
+
     users.apply(
         "WriteBigQuery",
         BigQueryIO.<String>write()
@@ -630,7 +635,8 @@ public class BigQueryIOTest implements Serializable {
                     verifySideInputs();
                     // Each user in it's own table.
                     return new TableDestination(
-                        "dataset-id.userid-" + userId, "table for userid " + userId);
+                        "dataset-id.userid-" + userId + "$" + partitionDecorator,
+                        "table for userid " + userId);
                   }
 
                   @Override
@@ -2528,7 +2534,7 @@ public class BigQueryIOTest implements Serializable {
     p.apply(Create.of(row1, row2))
         .apply(
             BigQueryIO.writeTableRows()
-                .to("project-id:dataset-id.table-id$decorator")
+                .to("project-id:dataset-id.table-id$20171127")
                 .withTestServices(fakeBqServices)
                 .withMethod(Method.STREAMING_INSERTS)
                 .withSchema(schema)
@@ -2539,7 +2545,7 @@ public class BigQueryIOTest implements Serializable {
   @Test
   public void testTableDecoratorStripping() {
     assertEquals("project:dataset.table",
-        BigQueryHelpers.stripPartitionDecorator("project:dataset.table$decorator"));
+        BigQueryHelpers.stripPartitionDecorator("project:dataset.table$20171127"));
     assertEquals("project:dataset.table",
         BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
   }
