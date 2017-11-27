@@ -994,6 +994,7 @@ class LaserRunner(PipelineRunner):
     channel_manager = get_channel_manager()
     channel_manager.register_interface('master/shuffle', shuffle_worker)
 
+    # node_manager = InProcessComputeNodeManager()
     node_manager = MultiProcessComputeNodeManager()
     node_manager.start()
     work_manager = WorkManager(node_manager)
@@ -1499,6 +1500,7 @@ if __name__ == '__main__':
   from apache_beam import Create
   from apache_beam import DoFn
   p = Pipeline(runner=LaserRunner())
+  # p = Pipeline()
   # def fn(input):
   #   print input
   def _print(x):
@@ -1510,7 +1512,7 @@ if __name__ == '__main__':
   # a = p | 'yo' >> Create(['a', 'b', 'c'])
   # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
   # a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
-  lines = p | ReadFromText('gs://dataflow-samples/shakespeare/kinglear.txt')
+  lines = p | ReadFromText('gs://dataflow-samples/shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
   # lines = p | Create(['a', 'a', 'b' ,'a c'])
   # WORDCAP:
@@ -1524,5 +1526,5 @@ if __name__ == '__main__':
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))) | beam.Map(_print)
   # # | beam.Map(fn)
-  p.run()
+  p.run()#.wait_until_finish()
 
