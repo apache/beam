@@ -34,7 +34,7 @@ import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
-import com.google.common.annotations.VisibleForTesting;
+import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;

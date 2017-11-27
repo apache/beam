@@ -20,7 +20,7 @@ import cz.seznam.euphoria.core.client.triggers.AfterFirstCompositeTrigger;
 import cz.seznam.euphoria.core.client.triggers.PeriodicTimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.TimeTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
-import com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 
 import javax.annotation.Nullable;
 import java.time.Duration;

@@ -19,7 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.util.Triple;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.junit.Test;
 
 import java.time.Duration;

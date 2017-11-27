@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.executor.local;
 
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.shadow.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;

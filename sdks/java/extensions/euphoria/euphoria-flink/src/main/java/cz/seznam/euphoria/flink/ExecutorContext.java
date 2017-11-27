@@ -21,7 +21,7 @@ import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.operator.SingleInputOperator;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.apache.flink.streaming.api.datastream.DataStream;
 
 import java.util.IdentityHashMap;

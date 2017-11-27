@@ -17,7 +17,7 @@ package cz.seznam.euphoria.executor.local;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.util.Pair;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 
 import java.util.ArrayList;
 import java.util.HashMap;
