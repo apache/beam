@@ -877,7 +877,7 @@ public class AvroIO {
     @AutoValue.Builder
     abstract static class Builder<UserT, DestinationT, OutputT> {
       abstract Builder<UserT, DestinationT, OutputT> setFormatFunction(
-          SerializableFunction<UserT, OutputT> formatFunction);
+          @Nullable SerializableFunction<UserT, OutputT> formatFunction);
 
       abstract Builder<UserT, DestinationT, OutputT> setFilenamePrefix(
           ValueProvider<ResourceId> filenamePrefix);
@@ -889,7 +889,8 @@ public class AvroIO {
 
       abstract Builder<UserT, DestinationT, OutputT> setNumShards(int numShards);
 
-      abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(String shardTemplate);
+      abstract Builder<UserT, DestinationT, OutputT> setShardTemplate(
+          @Nullable String shardTemplate);
 
       abstract Builder<UserT, DestinationT, OutputT> setGenericRecords(boolean genericRecords);
 
@@ -1010,7 +1011,7 @@ public class AvroIO {
      * used instead.
      */
     public TypedWrite<UserT, DestinationT, OutputT> withFormatFunction(
-        SerializableFunction<UserT, OutputT> formatFunction) {
+        @Nullable SerializableFunction<UserT, OutputT> formatFunction) {
       return toBuilder().setFormatFunction(formatFunction).build();
     }
 

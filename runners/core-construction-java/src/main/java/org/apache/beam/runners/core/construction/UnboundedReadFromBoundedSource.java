@@ -138,10 +138,6 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
         }
         List<? extends BoundedSource<T>> splits =
             boundedSource.split(desiredBundleSize, options);
-        if (splits == null) {
-          LOG.warn("BoundedSource cannot split {}, skips the initial splits.", boundedSource);
-          return ImmutableList.of(this);
-        }
         return Lists.transform(
             splits,
             new Function<BoundedSource<T>, BoundedToUnboundedSourceAdapter<T>>() {
@@ -258,7 +254,8 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
      */
     @VisibleForTesting
     class Reader extends UnboundedReader<T> {
-      private ResidualElements residualElements;
+      // Initialized in init()
+      private @Nullable ResidualElements residualElements;
       private @Nullable ResidualSource residualSource;
       private final PipelineOptions options;
       private boolean done;

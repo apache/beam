@@ -30,11 +30,11 @@ public class NoOpStepContext implements StepContext, Serializable {
 
   @Override
   public StateInternals stateInternals() {
-    return null;
+    throw new UnsupportedOperationException("stateInternals is not supported");
   }
 
   @Override
   public TimerInternals timerInternals() {
-    return null;
+    throw new UnsupportedOperationException("timerInternals is not supported");
   }
 }

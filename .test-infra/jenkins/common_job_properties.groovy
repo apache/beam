@@ -150,8 +150,8 @@ class common_job_properties {
         extensions {
           commitStatus {
             // This is the name that will show up in the GitHub pull request UI
-            // for this Jenkins project.
-            delegate.context("Jenkins: " + commitStatusContext)
+            // for this Jenkins project. It has a limit of 255 characters.
+            delegate.context(("Jenkins: " + commitStatusContext).take(255))
           }
 
           // Comment messages after build completes.

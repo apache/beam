@@ -89,11 +89,13 @@ class ConstantAvroDestination<UserT, OutputT>
   }
 
   @Override
+  @Nullable
   public Void getDestination(UserT element) {
     return (Void) null;
   }
 
   @Override
+  @Nullable
   public Void getDefaultDestination() {
     return (Void) null;
   }

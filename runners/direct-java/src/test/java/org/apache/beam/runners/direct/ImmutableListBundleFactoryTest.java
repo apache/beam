@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -120,7 +121,7 @@ public class ImmutableListBundleFactoryTest {
 
     // Sanity check that the test is meaningful.
     assertThat(minElementTs, not(equalTo(commitTime)));
-    assertThat(committed.getMinTimestamp(), equalTo(minElementTs));
+    assertThat(committed.getMinimumTimestamp(), equalTo(minElementTs));
     assertThat(committed.getSynchronizedProcessingOutputWatermark(), equalTo(commitTime));
 
     return committed;
@@ -190,7 +191,7 @@ public class ImmutableListBundleFactoryTest {
     assertThat(
         withed.getSynchronizedProcessingOutputWatermark(),
         equalTo(committed.getSynchronizedProcessingOutputWatermark()));
-    assertThat(withed.getMinTimestamp(), equalTo(new Instant(2048L)));
+    assertThat(withed.getMinimumTimestamp(), equalTo(new Instant(2048L)));
   }
 
   @Test

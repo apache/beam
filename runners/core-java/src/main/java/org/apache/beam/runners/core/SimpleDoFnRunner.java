@@ -546,7 +546,7 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
     private final TimeDomain timeDomain;
 
     /** Lazily initialized; should only be accessed via {@link #getNamespace()}. */
-    private StateNamespace namespace;
+    private @Nullable StateNamespace namespace;
 
     /**
      * The state namespace for this context.

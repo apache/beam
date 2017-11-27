@@ -37,12 +37,12 @@ public abstract class SplittableProcessElementInvoker<
     @Nullable
     private final RestrictionT residualRestriction;
     private final DoFn.ProcessContinuation continuation;
-    private final Instant futureOutputWatermark;
+    private final @Nullable Instant futureOutputWatermark;
 
     public Result(
         @Nullable RestrictionT residualRestriction,
         DoFn.ProcessContinuation continuation,
-        Instant futureOutputWatermark) {
+        @Nullable Instant futureOutputWatermark) {
       this.continuation = checkNotNull(continuation);
       if (continuation.shouldResume()) {
         checkNotNull(residualRestriction);
@@ -65,7 +65,7 @@ public abstract class SplittableProcessElementInvoker<
       return continuation;
     }
 
-    public Instant getFutureOutputWatermark() {
+    public @Nullable Instant getFutureOutputWatermark() {
       return futureOutputWatermark;
     }
   }

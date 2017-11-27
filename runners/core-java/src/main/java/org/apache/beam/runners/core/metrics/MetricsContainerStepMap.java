@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.construction.metrics.MetricFiltering;
 import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
@@ -425,14 +426,14 @@ public class MetricsContainerStepMap implements Serializable {
       private final MetricName name;
       private final String step;
       private final T attempted;
-      private final T committed;
+      private final @Nullable T committed;
       private final boolean isCommittedSupported;
 
       private AccumulatedMetricResult(
           MetricName name,
           String step,
           T attempted,
-          T committed,
+          @Nullable T committed,
           boolean isCommittedSupported) {
         this.name = name;
         this.step = step;

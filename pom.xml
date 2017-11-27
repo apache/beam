@@ -45,9 +45,9 @@
   </licenses>
 
   <scm>
-    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</connection>
-    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/beam.git</developerConnection>
-    <url>https://git-wip-us.apache.org/repos/asf?p=beam.git;a=summary</url>
+    <connection>scm:git:https://gitbox.apache.org/repos/asf/beam.git</connection>
+    <developerConnection>scm:git:https://gitbox.apache.org/repos/asf/beam.git</developerConnection>
+    <url>https://gitbox.apache.org/repos/asf?p=beam.git;a=summary</url>
     <tag>HEAD</tag>
   </scm>
 
@@ -697,6 +697,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-reference-job-orchestrator</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-local-java-core</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1593,6 +1599,8 @@
           <artifactId>maven-javadoc-plugin</artifactId>
           <version>${maven-javadoc-plugin.version}</version>
           <configuration>
+            <!-- exclude this auto-generated packages from javadoc -->
+            <excludePackageNames>org.apache.beam.sdk.extensions.sql.impl.parser.impl</excludePackageNames>
             <additionalparam>${beam.javadoc_opts}</additionalparam>
             <windowtitle>Apache Beam SDK for Java, version ${project.version} API</windowtitle>
             <doctitle>Apache Beam SDK for Java, version ${project.version}</doctitle>
@@ -1655,7 +1663,7 @@
               <exclude>sdks/python/apache_beam/portability/api/*pb2*.*</exclude>
 
               <!-- .gitignore: Ignore IntelliJ files. -->
-              <exclude>**/idea/**/*</exclude>
+              <exclude>**/.idea/**/*</exclude>
               <exclude>**/*.iml</exclude>
               <exclude>**/*.ipr</exclude>
               <exclude>**/*.iws</exclude>
@@ -1695,6 +1703,9 @@
               <!-- Proto/grpc generated wrappers -->
               <exclude>**/apache_beam/portability/api/*_pb2*.py</exclude>
               <exclude>**/go/pkg/beam/model/**/*.pb.go</exclude>
+
+              <!-- VCF test files -->
+              <exclude>**/apache_beam/testing/data/vcf/*</exclude>
             </excludes>
           </configuration>
         </plugin>

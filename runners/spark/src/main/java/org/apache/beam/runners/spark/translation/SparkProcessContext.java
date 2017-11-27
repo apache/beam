@@ -106,12 +106,12 @@ class SparkProcessContext<FnInputT, FnOutputT, OutputT> {
 
     @Override
     public StateInternals stateInternals() {
-      return null;
+      throw new UnsupportedOperationException("stateInternals not supported");
     }
 
     @Override
     public TimerInternals timerInternals() {
-      return null;
+      throw new UnsupportedOperationException("timerInternals not supported");
     }
   }
 

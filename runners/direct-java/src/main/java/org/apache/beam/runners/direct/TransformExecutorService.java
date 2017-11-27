@@ -25,13 +25,13 @@ interface TransformExecutorService {
   /**
    * Schedule the provided work to be eventually executed.
    */
-  void schedule(TransformExecutor<?> work);
+  void schedule(TransformExecutor work);
 
   /**
    * Finish executing the provided work. This may cause additional
-   * {@link TransformExecutor TransformExecutors} to be evaluated.
+   * {@link DirectTransformExecutor TransformExecutors} to be evaluated.
    */
-  void complete(TransformExecutor<?> completed);
+  void complete(TransformExecutor completed);
 
   /**
    * Cancel any outstanding work, if possible. Any future calls to schedule should ignore any

@@ -47,7 +47,6 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
@@ -602,7 +601,24 @@ public class DoFnTester<InputT, OutputT> implements AutoCloseable {
           return windowValue;
         }
       }
-      return view.getViewFn().apply(Collections.<WindowedValue<?>>emptyList());
+      // Fallback to returning the default materialization if no data was supplied.
+      // This is really to support singleton views with default values.
+
+      // TODO: Update this to supply a materialization dependent on actual URN of materialization.
+      // Currently the SDK only supports the multimap materialization and it expects a
+      // mapping function.
+      checkState(Materializations.MULTIMAP_MATERIALIZATION_URN.equals(
+          view.getViewFn().getMaterialization().getUrn()),
+          "Only materializations of type %s supported, received %s",
+          Materializations.MULTIMAP_MATERIALIZATION_URN,
+          view.getViewFn().getMaterialization().getUrn());
+      return ((ViewFn<Materializations.MultimapView, T>) view.getViewFn()).apply(
+          new Materializations.MultimapView<Object, Object>() {
+            @Override
+            public Iterable<Object> get(Object o) {
+              return Collections.emptyList();
+            }
+          });
     }
 
     @Override

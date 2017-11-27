@@ -56,7 +56,7 @@ class FakeDatasetService implements DatasetService, Serializable {
               BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
         throwNotFound(
-            "Tried to get a dataset %s:%s from, but no such dataset was set",
+            "Tried to get a dataset %s:%s, but no such dataset was set",
             tableRef.getProjectId(),
             tableRef.getDatasetId());
       }

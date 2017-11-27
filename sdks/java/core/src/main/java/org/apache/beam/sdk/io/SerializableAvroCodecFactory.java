@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 import org.apache.avro.file.CodecFactory;
 
 /**
@@ -48,9 +49,9 @@ class SerializableAvroCodecFactory implements Externalizable {
   private static final Pattern deflatePattern = Pattern.compile(DEFLATE_CODEC + "-(?<level>-?\\d)");
   private static final Pattern xzPattern = Pattern.compile(XZ_CODEC + "-(?<level>\\d)");
 
-  private CodecFactory codecFactory;
+  private @Nullable CodecFactory codecFactory;
 
-  // For java.io.Serializable only
+  // For java.io.Externalizable
   public SerializableAvroCodecFactory() {}
 
   public SerializableAvroCodecFactory(CodecFactory codecFactory) {

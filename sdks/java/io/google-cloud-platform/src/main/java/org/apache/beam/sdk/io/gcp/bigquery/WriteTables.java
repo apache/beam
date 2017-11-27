@@ -18,6 +18,8 @@
 
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
@@ -106,17 +108,32 @@ class WriteTables<DestinationT>
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
       TableSchema tableSchema;
-      String jsonSchema = jsonSchemas.get(destination);
-      if (jsonSchema != null) {
-        tableSchema = BigQueryHelpers.fromJsonString(jsonSchema, TableSchema.class);
+      if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
+        tableSchema = null;
+      } else if (jsonSchemas.containsKey(destination)) {
+        tableSchema =
+            BigQueryHelpers.fromJsonString(jsonSchemas.get(destination), TableSchema.class);
       } else {
         tableSchema = dynamicDestinations.getSchema(destination);
-        if (tableSchema != null) {
-          jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
-        }
+        checkArgument(
+            tableSchema != null,
+            "Unless create disposition is %s, a schema must be specified, i.e. "
+                + "DynamicDestinations.getSchema() may not return null. "
+                + "However, create disposition is %s, and %s returned null for destination %s",
+            CreateDisposition.CREATE_NEVER,
+            firstPaneCreateDisposition,
+            dynamicDestinations,
+            destination);
+        jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 
       TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      checkArgument(
+          tableDestination != null,
+          "DynamicDestinations.getTable() may not return null, "
+              + "but %s returned null for destination %s",
+          dynamicDestinations,
+          destination);
       TableReference tableReference = tableDestination.getTableReference();
       if (Strings.isNullOrEmpty(tableReference.getProjectId())) {
         tableReference.setProjectId(

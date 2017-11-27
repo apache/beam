@@ -24,6 +24,7 @@ import static org.hamcrest.Matchers.theInstance;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertThat;
 
+import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;

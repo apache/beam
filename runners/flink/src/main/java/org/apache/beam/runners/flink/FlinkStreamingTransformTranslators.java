@@ -307,7 +307,6 @@ class FlinkStreamingTransformTranslators {
       intToViewMapping.put(count, sideInput);
       tagToIntMapping.put(tag, count);
       count++;
-      Coder<Iterable<WindowedValue<?>>> coder = sideInput.getCoderInternal();
     }
 
 

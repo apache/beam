@@ -64,7 +64,6 @@ public class WriteFilesTranslationTest {
     public static Iterable<WriteFiles<Object, Void, Object>> data() {
       return ImmutableList.of(
           WriteFiles.to(new DummySink()),
-          WriteFiles.to(new DummySink()).withWindowedWrites(),
           WriteFiles.to(new DummySink()).withNumShards(17),
           WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
     }

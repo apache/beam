@@ -44,6 +44,34 @@ class UtilTest(unittest.TestCase):
     pipeline_options = PipelineOptions()
     apiclient.DataflowApplicationClient(pipeline_options)
 
+  def test_pipeline_url(self):
+    pipeline_options = PipelineOptions(
+        ['--subnetwork', '/regions/MY/subnetworks/SUBNETWORK',
+         '--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0', # any environment version
+                                FAKE_PIPELINE_URL)
+
+    recovered_options = None
+    for additionalProperty in env.proto.sdkPipelineOptions.additionalProperties:
+      if additionalProperty.key == 'options':
+        recovered_options = additionalProperty.value
+        break
+    else:
+      self.fail('No pipeline options found in %s'
+                % env.proto.sdkPipelineOptions)
+
+    pipeline_url = None
+    for property in recovered_options.object_value.properties:
+      if property.key == 'pipelineUrl':
+        pipeline_url = property.value
+        break
+    else:
+      self.fail('No pipeline_url found in %s' % recovered_options)
+
+    self.assertEqual(pipeline_url.string_value, FAKE_PIPELINE_URL)
+
   def test_set_network(self):
     pipeline_options = PipelineOptions(
         ['--network', 'anetworkname',

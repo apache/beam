@@ -19,4 +19,8 @@
 /**
  * Utilities for runners to implement metrics.
  */
+@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core.construction.metrics;
+
+import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
+import edu.umd.cs.findbugs.annotations.NonNull;

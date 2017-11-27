@@ -19,6 +19,7 @@ package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
 import com.google.common.collect.Iterators;
 import java.util.Collections;
+import javax.annotation.Nullable;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
@@ -61,6 +62,7 @@ public class FlinkSplitStateInternals<K> implements StateInternals {
   }
 
   @Override
+  @Nullable
   public K getKey() {
     return null;
   }
