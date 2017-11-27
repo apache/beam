@@ -29,11 +29,9 @@ import pprint
 import sys
 import types
 from functools import reduce
-from builtins import zip
-from builtins import object
-from past.utils import old_div
 
-import six.moves
+from past.utils import old_div
+from six.moves import builtins, zip
 
 from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
@@ -144,8 +142,8 @@ class FrameState(object):
     name = self.get_name(i)
     if name in self.f.__globals__:
       return Const(self.f.__globals__[name])
-    if name in six.moves.builtins.__dict__:
-      return Const(six.moves.builtins.__dict__[name])
+    if name in builtins.__dict__:
+      return Const(builtins.__dict__[name])
     return Any
 
   def get_name(self, i):
