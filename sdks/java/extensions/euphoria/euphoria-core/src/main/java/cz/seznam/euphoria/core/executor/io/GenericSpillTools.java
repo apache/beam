@@ -20,7 +20,7 @@ import cz.seznam.euphoria.core.client.io.ExternalIterable;
 import cz.seznam.euphoria.core.client.io.SpillTools;
 import cz.seznam.euphoria.core.executor.Constants;
 import cz.seznam.euphoria.core.util.Settings;
-import com.google.common.annotations.VisibleForTesting;
+import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;

@@ -26,7 +26,7 @@ import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.WindowWiseOperator;
 import cz.seznam.euphoria.core.client.operator.WindowingRequiredException;
 import cz.seznam.euphoria.core.client.util.Pair;
-import com.google.common.base.Preconditions;
+import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 
 import java.util.HashMap;
 import java.util.List;

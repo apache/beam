@@ -17,8 +17,8 @@ package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.io.Collector;
-import com.google.common.collect.AbstractIterator;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
+import cz.seznam.euphoria.shadow.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.spark.TaskContext;
 import org.apache.spark.TaskContext$;
 

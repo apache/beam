@@ -22,8 +22,9 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import org.apache.flink.api.java.ExecutionEnvironment;
-import org.apache.flink.shaded.com.google.common.collect.Lists;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -35,10 +36,10 @@ import static org.junit.Assert.*;
  */
 public class BatchStateStorageProviderTest {
 
-  final int MAX_MEMORY_ELEMENTS = 100;
+  private static final int MAX_MEMORY_ELEMENTS = 100;
 
-  ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
-  BatchStateStorageProvider provider;
+  private ExecutionEnvironment env = ExecutionEnvironment.createLocalEnvironment();
+  private BatchStateStorageProvider provider;
 
   @Before
   public void setUp() {

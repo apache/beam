@@ -1,5 +1,8 @@
 rootProject.name = 'euphoria'
 
+// ~ guava
+include ':euphoria-guava'
+
 // ~ core
 include ':euphoria-core'
 include ':euphoria-operator-testkit'

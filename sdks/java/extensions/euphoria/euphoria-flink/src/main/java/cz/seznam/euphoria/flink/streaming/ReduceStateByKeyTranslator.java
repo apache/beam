@@ -29,7 +29,7 @@ import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElement;
 import cz.seznam.euphoria.flink.streaming.windowing.KeyedMultiWindowedElementWindowOperator;
 import cz.seznam.euphoria.flink.streaming.windowing.StreamingElementWindowOperator;
 import cz.seznam.euphoria.flink.streaming.windowing.WindowAssigner;
-import com.google.common.collect.Iterables;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;

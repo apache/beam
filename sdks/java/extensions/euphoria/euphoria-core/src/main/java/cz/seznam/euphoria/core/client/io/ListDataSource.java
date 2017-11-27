@@ -15,7 +15,7 @@
  */
 package cz.seznam.euphoria.core.client.io;
 
-import com.google.common.collect.Lists;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 
 import java.io.IOException;
