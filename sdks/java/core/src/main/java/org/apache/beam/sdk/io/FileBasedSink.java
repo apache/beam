@@ -699,7 +699,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       // if set.
       Set<Integer> missingShardNums;
       if (numShards == null) {
-        missingShardNums = ImmutableSet.of(UNKNOWN_SHARDNUM);
+        missingShardNums =
+            existingResults.isEmpty()
+                ? ImmutableSet.of(UNKNOWN_SHARDNUM)
+                : ImmutableSet.<Integer>of();
       } else {
         missingShardNums = Sets.newHashSet();
         for (int i = 0; i < numShards; ++i) {
@@ -726,8 +729,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
           String uuid = UUID.randomUUID().toString();
           LOG.info("Opening empty writer {} for destination {}", uuid, dest);
           Writer<DestinationT, ?> writer = createWriter();
+          writer.setDestination(dest);
           // Currently this code path is only called in the unwindowed case.
-          writer.open(uuid, dest);
+          writer.open(uuid);
           writer.close();
           completeResults.add(
               new FileResult<>(
@@ -760,8 +764,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         List<KV<FileResult<DestinationT>, ResourceId>> resultsToFinalFilenames) throws IOException {
       int numFiles = resultsToFinalFilenames.size();
       LOG.debug("Copying {} files.", numFiles);
-      List<ResourceId> srcFiles = new ArrayList<>(resultsToFinalFilenames.size());
-      List<ResourceId> dstFiles = new ArrayList<>(resultsToFinalFilenames.size());
+      List<ResourceId> srcFiles = new ArrayList<>();
+      List<ResourceId> dstFiles = new ArrayList<>();
       for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
         srcFiles.add(entry.getKey().getTempFilename());
         dstFiles.add(entry.getValue());
@@ -923,22 +927,14 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
     protected void finishWrite() throws Exception {}
 
     /**
-     * Performs bundle initialization. For example, creates a temporary file for writing or
-     * initializes any state that will be used across calls to {@link Writer#write}.
+     * Opens a uniquely named temporary file and initializes the writer using {@link #prepareWrite}.
      *
      * <p>The unique id that is given to open should be used to ensure that the writer's output does
      * not interfere with the output of other Writers, as a bundle may be executed many times for
      * fault tolerance.
-     *
-     * <p>The window and paneInfo arguments are populated when windowed writes are requested. shard
-     * id populated for the case of static sharding. In cases where the runner is dynamically
-     * picking sharding, shard might be set to -1.
      */
-    public final void open(
-        String uId, DestinationT destination)
-        throws Exception {
+    public final void open(String uId) throws Exception {
       this.id = uId;
-      this.destination = destination;
       ResourceId tempDirectory = getWriteOperation().tempDirectory.get();
       outputFile = tempDirectory.resolve(id, StandardResolveOptions.RESOLVE_FILE);
       verifyNotNull(
@@ -1040,6 +1036,10 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       return writeOperation;
     }
 
+    void setDestination(DestinationT destination) {
+      this.destination = destination;
+    }
+
     /** Return the user destination object for this writer. */
     public DestinationT getDestination() {
       return destination;
@@ -1064,8 +1064,8 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
         BoundedWindow window,
         PaneInfo paneInfo,
         DestinationT destination) {
-      checkArgument(window != null);
-      checkArgument(paneInfo != null);
+      checkArgument(window != null, "window can not be null");
+      checkArgument(paneInfo != null, "paneInfo can not be null");
       this.tempFilename = tempFilename;
       this.shard = shard;
       this.window = window;
