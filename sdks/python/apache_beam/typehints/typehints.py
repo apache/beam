@@ -63,10 +63,12 @@ In addition, type-hints can be used to implement run-time type-checking via the
 
 """
 
+from __future__ import absolute_import
 import collections
 import copy
 import sys
-import types
+import six
+from six.moves import zip
 
 __all__ = [
     'Any',
@@ -335,7 +337,7 @@ def validate_composite_type_param(type_param, error_msg_prefix):
   # Must either be a TypeConstraint instance or a basic Python type.
   possible_classes = [type, TypeConstraint]
   if sys.version_info[0] == 2:
-    possible_classes.append(types.ClassType)
+    possible_classes.append(type)
   is_not_type_constraint = (
       not isinstance(type_param, tuple(possible_classes))
       and type_param is not None)
@@ -802,7 +804,7 @@ class DictHint(CompositeTypeHint):
             'type dict. %s is of type %s.'
             % (dict_instance, dict_instance.__class__.__name__))
 
-      for key, value in dict_instance.iteritems():
+      for key, value in six.iteritems(dict_instance):
         try:
           check_constraint(self.key_type, key)
         except CompositeTypeHintError as e:
@@ -985,7 +987,8 @@ class IteratorHint(CompositeTypeHint):
 IteratorTypeConstraint = IteratorHint.IteratorTypeConstraint
 
 
-class WindowedTypeConstraint(TypeConstraint):
+class WindowedTypeConstraint(six.with_metaclass(GetitemConstructor,
+                                                TypeConstraint)):
   """A type constraint for WindowedValue objects.
 
   Mostly for internal use.
@@ -993,7 +996,6 @@ class WindowedTypeConstraint(TypeConstraint):
   Attributes:
     inner_type: The type which the element should be an instance of.
   """
-  __metaclass__ = GetitemConstructor
 
   def __init__(self, inner_type):
     self.inner_type = inner_type

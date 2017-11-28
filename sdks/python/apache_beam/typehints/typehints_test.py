@@ -16,9 +16,12 @@
 #
 
 """Unit tests for the type-hint objects and decorators."""
+from __future__ import absolute_import
 import functools
 import inspect
 import unittest
+
+from six.moves import range
 
 import apache_beam.typehints.typehints as typehints
 from apache_beam.typehints import Any
@@ -134,7 +137,7 @@ class UnionHintTestCase(TypeHintTestCase):
     with self.assertRaises(TypeError) as e:
       typehints.Union[5]
     self.assertEqual('Cannot create Union without a sequence of types.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_getitem_must_be_valid_type_param(self):
     t = [2, 3]
@@ -142,7 +145,7 @@ class UnionHintTestCase(TypeHintTestCase):
       typehints.Union[t]
     self.assertEqual('All parameters to a Union hint must be a non-sequence, '
                      'a type, or a TypeConstraint. 2 is an instance of int.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_getitem_duplicates_ignored(self):
     # Types should be de-duplicated.
@@ -219,7 +222,7 @@ class UnionHintTestCase(TypeHintTestCase):
     self.assertEqual("Union[float, int] type-constraint violated. Expected an "
                      "instance of one of: ('float', 'int'), received str "
                      "instead.",
-                     e.exception.message)
+                     str(e.exception))
 
 
 class OptionalHintTestCase(TypeHintTestCase):
@@ -227,7 +230,7 @@ class OptionalHintTestCase(TypeHintTestCase):
   def test_getitem_sequence_not_allowed(self):
     with self.assertRaises(TypeError) as e:
       typehints.Optional[int, str]
-    self.assertTrue(e.exception.message.startswith(
+    self.assertTrue(str(e.exception).startswith(
         'An Option type-hint only accepts a single type parameter.'))
 
   def test_getitem_proxy_to_union(self):
@@ -243,21 +246,21 @@ class TupleHintTestCase(TypeHintTestCase):
 
     with self.assertRaises(TypeError) as e:
       typehints.Tuple[int, int, ...]
-    self.assertEqual(error_msg, e.exception.message)
+    self.assertEqual(error_msg, str(e.exception))
 
     with self.assertRaises(TypeError) as e:
       typehints.Tuple[...]
-    self.assertEqual(error_msg, e.exception.message)
+    self.assertEqual(error_msg, str(e.exception))
 
   def test_getitem_params_must_be_type_or_constraint(self):
     expected_error_prefix = 'All parameters to a Tuple hint must be'
     with self.assertRaises(TypeError) as e:
       typehints.Tuple[5, [1, 3]]
-    self.assertTrue(e.exception.message.startswith(expected_error_prefix))
+    self.assertTrue(str(e.exception).startswith(expected_error_prefix))
 
     with self.assertRaises(TypeError) as e:
       typehints.Tuple[list, dict]
-    self.assertTrue(e.exception.message.startswith(expected_error_prefix))
+    self.assertTrue(str(e.exception).startswith(expected_error_prefix))
 
   def test_compatibility_arbitrary_length(self):
     self.assertNotCompatible(
@@ -310,7 +313,7 @@ class TupleHintTestCase(TypeHintTestCase):
     for t in invalid_instances:
       with self.assertRaises(TypeError) as e:
         hint.type_check(t)
-      self.assertTrue(e.exception.message.startswith(expected_error_prefix))
+      self.assertTrue(str(e.exception).startswith(expected_error_prefix))
 
   def test_type_check_must_have_same_arity(self):
     # A 2-tuple of ints.
@@ -322,7 +325,7 @@ class TupleHintTestCase(TypeHintTestCase):
     self.assertEqual('Passed object instance is of the proper type, but '
                      'differs in length from the hinted type. Expected a '
                      'tuple of length 2, received a tuple of length 3.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_invalid_simple_types(self):
     hint = typehints.Tuple[str, bool]
@@ -332,7 +335,7 @@ class TupleHintTestCase(TypeHintTestCase):
                      'type of element #0 in the passed tuple is incorrect.'
                      ' Expected an instance of type str, instead received '
                      'an instance of type int.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_invalid_composite_type(self):
     hint = typehints.Tuple[DummyTestClass1, DummyTestClass2]
@@ -345,7 +348,7 @@ class TupleHintTestCase(TypeHintTestCase):
                      'passed tuple is incorrect. Expected an instance of type '
                      'DummyTestClass1, instead received an instance of type '
                      'DummyTestClass2.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_valid_simple_types(self):
     hint = typehints.Tuple[float, bool]
@@ -382,7 +385,7 @@ class TupleHintTestCase(TypeHintTestCase):
                      'of element #2 in the passed tuple is incorrect. Expected '
                      'an instance of type str, instead received an instance of '
                      'type int.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_invalid_composite_type_arbitrary_length(self):
     hint = typehints.Tuple[typehints.List[int], ...]
@@ -396,7 +399,7 @@ class TupleHintTestCase(TypeHintTestCase):
                      "List type-constraint violated. Valid object instance "
                      "must be of type 'list'. Instead, an instance of 'str' "
                      "was received.",
-                     e.exception.message)
+                     str(e.exception))
 
 
 class ListHintTestCase(TypeHintTestCase):
@@ -439,7 +442,7 @@ class ListHintTestCase(TypeHintTestCase):
                      'element #0 in the passed list is incorrect. Expected an '
                      'instance of type int, instead received an instance of '
                      'type str.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_enforce_list_type_constraint_invalid_composite_type(self):
     hint = typehints.List[typehints.Tuple[int, int]]
@@ -453,7 +456,7 @@ class ListHintTestCase(TypeHintTestCase):
                      'violated. The type of element #0 in the passed tuple'
                      ' is incorrect. Expected an instance of type int, '
                      'instead received an instance of type str.',
-                     e.exception.message)
+                     str(e.exception))
 
 
 class KVHintTestCase(TypeHintTestCase):
@@ -464,16 +467,16 @@ class KVHintTestCase(TypeHintTestCase):
 
     self.assertEqual('Parameter to KV type-hint must be a tuple of types: '
                      'KV[.., ..].',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_getitem_param_must_have_length_2(self):
     with self.assertRaises(TypeError) as e:
       typehints.KV[int, str, bool]
 
     self.assertEqual("Length of parameters to a KV type-hint must be "
-                     "exactly 2. Passed parameters: (<type 'int'>, <type "
-                     "'str'>, <type 'bool'>), have a length of 3.",
-                     e.exception.message)
+                     "exactly 2. Passed parameters: ({}, {}, {}), "
+                     "have a length of 3.".format(int, str, bool),
+                     str(e.exception))
 
   def test_getitem_proxy_to_tuple(self):
     hint = typehints.KV[int, str]
@@ -493,16 +496,16 @@ class DictHintTestCase(TypeHintTestCase):
 
     self.assertEqual('Parameter to Dict type-hint must be a tuple of '
                      'types: Dict[.., ..].',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_getitem_param_must_have_length_2(self):
     with self.assertRaises(TypeError) as e:
       typehints.Dict[float, int, bool]
 
     self.assertEqual("Length of parameters to a Dict type-hint must be "
-                     "exactly 2. Passed parameters: (<type 'float'>, <type "
-                     "'int'>, <type 'bool'>), have a length of 3.",
-                     e.exception.message)
+                     "exactly 2. Passed parameters: ({}, {}, {}), "
+                     "have a length of 3.".format(float, int, bool),
+                     str(e.exception))
 
   def test_key_type_must_be_valid_composite_param(self):
     with self.assertRaises(TypeError):
@@ -533,7 +536,7 @@ class DictHintTestCase(TypeHintTestCase):
       hint.type_check(l)
     self.assertEqual('Dict type-constraint violated. All passed instances '
                      'must be of type dict. [1, 2] is of type list.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_invalid_key_type(self):
     hint = typehints.Dict[typehints.Tuple[int, int, int],
@@ -548,7 +551,7 @@ class DictHintTestCase(TypeHintTestCase):
                      'instance is of the proper type, but differs in '
                      'length from the hinted type. Expected a tuple of '
                      'length 3, received a tuple of length 2.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_invalid_value_type(self):
     hint = typehints.Dict[str, typehints.Dict[int, str]]
@@ -560,7 +563,7 @@ class DictHintTestCase(TypeHintTestCase):
                      'Dict[int, str]. Instead: Dict type-constraint '
                      'violated. All passed instances must be of type dict.'
                      ' [1, 2, 3] is of type list.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_valid_simple_type(self):
     hint = typehints.Dict[int, str]
@@ -586,9 +589,9 @@ class SetHintTestCase(TypeHintTestCase):
     with self.assertRaises(TypeError) as e:
       typehints.Set[list]
     self.assertEqual("Parameter to a Set hint must be a non-sequence, a "
-                     "type, or a TypeConstraint. <type 'list'> is an "
-                     "instance of type.",
-                     e.exception.message)
+                     "type, or a TypeConstraint. {} is an "
+                     "instance of type.".format(list),
+                     str(e.exception))
 
   def test_compatibility(self):
     hint1 = typehints.Set[typehints.List[str]]
@@ -609,7 +612,7 @@ class SetHintTestCase(TypeHintTestCase):
     self.assertEqual("Set type-constraint violated. Valid object instance "
                      "must be of type 'set'. Instead, an instance of 'int'"
                      " was received.",
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_invalid_elem_type(self):
     hint = typehints.Set[float]
@@ -635,7 +638,7 @@ class IterableHintTestCase(TypeHintTestCase):
     self.assertEqual('Parameter to an Iterable hint must be a '
                      'non-sequence, a type, or a TypeConstraint. 5 is '
                      'an instance of int.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_compatibility(self):
     self.assertCompatible(typehints.Iterable[int], typehints.List[int])
@@ -678,7 +681,7 @@ class IterableHintTestCase(TypeHintTestCase):
     self.assertEqual("Iterable type-constraint violated. Valid object "
                      "instance must be of type 'iterable'. Instead, an "
                      "instance of 'int' was received.",
-                     e.exception.message)
+                     str(e.exception))
 
   def test_type_check_violation_invalid_simple_type(self):
     hint = typehints.Iterable[float]
@@ -746,7 +749,7 @@ class GeneratorHintTestCase(TypeHintTestCase):
                      'hint type-constraint violated. Expected a iterator '
                      'of type int. Instead received a iterator of type '
                      'str.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_generator_argument_hint_invalid_yield_type(self):
     def wrong_yield_gen():
@@ -765,7 +768,7 @@ class GeneratorHintTestCase(TypeHintTestCase):
                      "hint type-constraint violated. Expected a iterator "
                      "of type int. Instead received a iterator of type "
                      "str.",
-                     e.exception.message)
+                     str(e.exception))
 
 
 class TakesDecoratorTestCase(TypeHintTestCase):
@@ -781,7 +784,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
     self.assertEqual('All type hint arguments must be a non-sequence, a '
                      'type, or a TypeConstraint. [1, 2] is an instance of '
                      'list.',
-                     e.exception.message)
+                     str(e.exception))
 
     with self.assertRaises(TypeError) as e:
       t = 5
@@ -793,7 +796,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
 
     self.assertEqual('All type hint arguments must be a non-sequence, a type, '
                      'or a TypeConstraint. 5 is an instance of int.',
-                     e.exception.message)
+                     str(e.exception))
 
   def test_basic_type_assertion(self):
     @check_type_hints
@@ -805,9 +808,9 @@ class TakesDecoratorTestCase(TypeHintTestCase):
       m = 'a'
       foo(m)
     self.assertEqual("Type-hint for argument: 'a' violated. Expected an "
-                     "instance of <type 'int'>, instead found an "
-                     "instance of <type 'str'>.",
-                     e.exception.message)
+                     "instance of {}, instead found an "
+                     "instance of {}.".format(int, str),
+                     str(e.exception))
 
   def test_composite_type_assertion(self):
     @check_type_hints
@@ -823,7 +826,7 @@ class TakesDecoratorTestCase(TypeHintTestCase):
                        "type-constraint violated. The type of element #0 in "
                        "the passed list is incorrect. Expected an instance of "
                        "type int, instead received an instance of type str.",
-                       e.exception.message)
+                       str(e.exception))
 
   def test_valid_simple_type_arguments(self):
     @with_input_types(a=str)
@@ -859,9 +862,9 @@ class TakesDecoratorTestCase(TypeHintTestCase):
       sub(1, 'two')
 
     self.assertEqual("Type-hint for argument: 'b' violated. Expected an "
-                     "instance of <type 'int'>, instead found an instance "
-                     "of <type 'str'>.",
-                     e.exception.message)
+                     "instance of {}, instead found an instance "
+                     "of {}.".format(int, str),
+                     str(e.exception))
 
   def test_valid_only_positional_arguments(self):
     @with_input_types(int, int)
@@ -905,9 +908,9 @@ class ReturnsDecoratorTestCase(TypeHintTestCase):
       foo(4)
 
     self.assertEqual("Type-hint for return type violated. Expected an "
-                     "instance of <type 'int'>, instead found an instance "
-                     "of <type 'str'>.",
-                     e.exception.message)
+                     "instance of {}, instead found an instance "
+                     "of {}.".format(int, str),
+                     str(e.exception))
 
   def test_type_check_simple_type(self):
     @with_output_types(str)
@@ -1046,15 +1049,15 @@ class DecoratorHelpers(TypeHintTestCase):
                       _positional_arg_hints(['x', 'y'], {'x': int}))
 
   def test_getcallargs_forhints(self):
-    func = lambda a, (b, c), *d: None
+    func = lambda a, b_c, *d: None
     self.assertEquals(
-        {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
-        getcallargs_forhints(func, *[Any, Any]))
+        {'a': Any, 'b_c': Tuple[Any, Any], 'd': Tuple[Any, ...]},
+        getcallargs_forhints(func, *[Any, Tuple[Any, Any]]))
     self.assertEquals(
-        {'a': Any, 'b': Any, 'c': Any, 'd': Tuple[Any, ...]},
-        getcallargs_forhints(func, *[Any, Any, Any, int]))
+        {'a': Any, 'b_c': Tuple[Any, Any], 'd': Tuple[Any, ...]},
+        getcallargs_forhints(func, *[Any, Tuple[Any, Any], int]))
     self.assertEquals(
-        {'a': int, 'b': str, 'c': Any, 'd': Tuple[Any, ...]},
+        {'a': int, 'b_c': Tuple[str, Any], 'd': Tuple[Any, ...]},
         getcallargs_forhints(func, *[int, Tuple[str, Any]]))
 
 

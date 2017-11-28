@@ -31,6 +31,8 @@ from __future__ import absolute_import
 import types
 from functools import reduce
 
+import six
+
 from . import typehints
 from .trivial_inference import BoundMethod
 from .trivial_inference import Const
@@ -147,7 +149,7 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 def binary_subscr(state, unused_arg):
   tos = state.stack.pop()
-  if tos in (str, unicode):
+  if tos in (str, six.text_type):
     out = tos
   else:
     out = element_type(tos)
@@ -266,7 +268,9 @@ def load_attr(state, arg):
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
   elif (isinstance(o, type)
-        and isinstance(getattr(o, name, None), types.MethodType)):
+        and isinstance(getattr(o, name, None),
+                       (types.MethodType, types.FunctionType))):
+    # TODO(luke-zhu): Modify BoundMethod as Python 3 has no unbound method type
     state.stack.append(Const(BoundMethod(getattr(o, name))))
   else:
     state.stack.append(Any)
@@ -327,8 +331,25 @@ def call_function(state, arg, has_var=False, has_kw=False):
 
 
 def make_function(state, arg):
-  state.stack[-arg - 1:] = [Any]  # a callable
+  """Creates a function wrapped in a const from the associated code.
 
+  This currently does not handle default arguments
+  """
+  if arg == 0:
+    globals = state.f.__globals__
+    tos = state.stack.pop()
+    if isinstance(tos.value, str):
+      func_name = tos
+      code = state.stack.pop()
+      new_function = types.FunctionType(code.value,
+                                        globals,
+                                        name=func_name.value)
+    else:
+      code = tos
+      new_function = types.FunctionType(code.value, globals)
+    state.stack.append(Const(new_function))
+  else:
+    state.stack[-arg - 1:] = [Any]
 
 def make_closure(state, arg):
   state.stack[-arg - 2:] = [Any]  # a callable

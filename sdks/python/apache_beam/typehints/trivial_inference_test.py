@@ -16,6 +16,8 @@
 #
 
 """Tests for apache_beam.typehints.trivial_inference."""
+from __future__ import absolute_import
+
 import unittest
 
 from apache_beam.typehints import trivial_inference
@@ -72,6 +74,17 @@ class TrivialInferenceTest(unittest.TestCase):
       return None
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
+  def testSimpleList(self):
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: list([1, 2]),
+        [typehints.Tuple[int, ...]])
+
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: list(xs),
+        [typehints.Tuple[int, ...]])
+
   def testListComprehension(self):
     self.assertReturnType(
         typehints.List[int],
@@ -87,6 +100,16 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, float]])
+
+  def testGeneratorComprehension(self):
+    self.assertReturnType(
+        typehints.Iterable[int],
+        lambda xs: (x for x in xs),
+        [typehints.Tuple[int, ...]])
+    self.assertReturnType(
+        typehints.Iterable[typehints.Union[int, float]],
+        lambda xs: (x for x in xs),
+        [typehints.Tuple[int, float, int]])
 
   def testGenerator(self):
 
@@ -156,6 +179,13 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Any,
         lambda row: {f: row[f] for f in fields}, [typehints.Any])
+
+  def testNested(self):
+    def f(x):
+      def g(x):
+        return x
+      return g(x)
+    self.assertReturnType(int, f, [int])
 
 
 if __name__ == '__main__':
