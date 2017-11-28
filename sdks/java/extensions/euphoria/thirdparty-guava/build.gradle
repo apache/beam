@@ -13,14 +13,13 @@ configurations.runtime.artifacts.with { archives ->
   }
 }
 
-// ~ disable compile and assembly
+// ~ disable jar task
 
-[compileJava, compileTestJava, classes, jar]*.enabled = false
+jar.enabled = false
 
 // ~ create shadow jar
 
 shadowJar {
-  classifier = null
   relocate 'com.google.common', 'cz.seznam.euphoria.shadow.com.google.common'
 }
 
@@ -29,7 +28,9 @@ build.dependsOn shadowJar
 publishing {
   publications {
     shadow(MavenPublication) { publication ->
-      project.shadow.component(publication)
+      publication.artifact(shadowJar) {
+        classifier = null
+      }
     }
   }
 }
