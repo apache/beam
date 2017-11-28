@@ -269,7 +269,7 @@
 <ol>
   <li><strong>Code:</strong> The best part ;-)</li>
   <li><strong>Review:</strong> Submit a pull request with your contribution to our <a href="https://github.com/apache/beam/">GitHub mirror</a>. Work with a committer to review and iterate on the code, if needed.</li>
-  <li><strong>Commit:</strong> A Beam committer merges the pull request into our <a href="https://git-wip-us.apache.org/repos/asf/beam.git">Apache repository</a>.</li>
+  <li><strong>Commit:</strong> A Beam committer merges the pull request into our <a href="https://gitbox.apache.org/repos/asf/beam.git">Apache repository</a>.</li>
 </ol>
 
 <p>We look forward to working with you!</p>
@@ -614,7 +614,7 @@ $ git push &lt;GitHub_user&gt; --delete &lt;my-branch&gt;
 <p>The community will close stale pull requests in order to keep the project healthy. A pull request becomes stale after its author fails to respond to actionable comments for 60 days.  Author of a closed pull request is welcome to reopen the same pull request again in the future. The associated JIRAs will be unassigned from the author but will stay open.</p>
 
 <h2 id="commit-committers-only">Commit (committers only)</h2>
-<p>Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the <a href="https://git-wip-us.apache.org/repos/asf/beam.git">authoritative Apache repository</a>, not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)</p>
+<p>Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the <a href="https://gitbox.apache.org/repos/asf/beam.git">authoritative Apache repository</a>, not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)</p>
 
 <p>Pull requests should not be merged before the review has received an explicit LGTM from another committer. Exceptions to this rule may be made rarely, on a case-by-case basis only, in the committer’s discretion for situations such as build breakages.</p>
 
@@ -625,7 +625,7 @@ $ git push &lt;GitHub_user&gt; --delete &lt;my-branch&gt;
 <h3 id="one-time-setup-1">One-time Setup</h3>
 <p>Add the Apache Git remote in your local clone, by running:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ git remote add apache https://git-wip-us.apache.org/repos/asf/beam.git
+<div class="highlighter-rouge"><pre class="highlight"><code>$ git remote add apache https://gitbox.apache.org/repos/asf/beam.git
 </code></pre>
 </div>
 
@@ -645,8 +645,8 @@ $ git push &lt;GitHub_user&gt; --delete &lt;my-branch&gt;
 <p>You can confirm your configuration by running the following command.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>$ git remote -v
-apache	https://git-wip-us.apache.org/repos/asf/beam.git (fetch)
-apache	https://git-wip-us.apache.org/repos/asf/beam.git (push)
+apache	https://gitbox.apache.org/repos/asf/beam.git (fetch)
+apache	https://gitbox.apache.org/repos/asf/beam.git (push)
 github	https://github.com/apache/beam.git (fetch)
 github	https://github.com/apache/beam.git (push)
 &lt;username&gt;	git@github.com:&lt;username&gt;/beam.git (fetch)
