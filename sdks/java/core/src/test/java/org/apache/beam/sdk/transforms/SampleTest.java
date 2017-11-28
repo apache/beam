@@ -40,7 +40,12 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -232,6 +237,103 @@ public class SampleTest {
         }
         return null;
       }
+    }
+
+    private class TimestampAndWindow
+        extends PTransform<PCollection<Integer>, PCollection<Integer>> {
+      private final int windowSize;
+
+      private TimestampAndWindow(int windowSize) {
+        this.windowSize = windowSize;
+      }
+
+      @Override
+      public PCollection<Integer> expand(PCollection<Integer> input) {
+        return input
+            .apply(ParDo.of(new DoFn<Integer, Integer>() {
+              @ProcessElement
+              public void processElement(ProcessContext c) {
+                Integer elem = c.element();
+                c.outputWithTimestamp(elem, new Instant(elem * 1000));
+              }
+            }))
+            .apply(Window.<Integer>into(FixedWindows.of(Duration.standardSeconds(windowSize))));
+      }
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSampleAny() {
+      PCollection<Integer> input =
+          pipeline.apply(
+              Create.of(ImmutableList.of(1, 2, 3, 4, 5, 6)).withCoder(BigEndianIntegerCoder.of()));
+      PCollection<Integer> output = input
+          .apply(new TimestampAndWindow(3))
+          .apply(Sample.<Integer>any(2));
+
+      PAssert.that(output)
+          .inWindow(new IntervalWindow(new Instant(1000), Duration.standardSeconds(3)))
+          .satisfies(new VerifyCorrectSample<>(2, 1, 2, 3));
+      PAssert.that(output)
+          .inWindow(new IntervalWindow(new Instant(4000), Duration.standardSeconds(3)))
+          .satisfies(new VerifyCorrectSample<>(2, 4, 5, 6));
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSampleAnyEmpty() {
+      PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
+      PCollection<Integer> output = input
+          .apply(new TimestampAndWindow(3))
+          .apply(Sample.<Integer>any(2));
+
+      PAssert.that(output).satisfies(new VerifyCorrectSample<>(0, EMPTY));
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSampleAnyZero() {
+      PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
+      PCollection<Integer> output = input
+          .apply(new TimestampAndWindow(3))
+          .apply(Sample.<Integer>any(0));
+
+      PAssert.that(output)
+          .inWindow(new IntervalWindow(new Instant(1000), Duration.standardSeconds(3)))
+          .satisfies(new VerifyCorrectSample<>(0, DATA));
+      PAssert.that(output)
+          .inWindow(new IntervalWindow(new Instant(4000), Duration.standardSeconds(3)))
+          .satisfies(new VerifyCorrectSample<>(0, DATA));
+      pipeline.run();
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testSampleAnyInsufficientElements() {
+      PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
+      PCollection<Integer> output = input
+          .apply(new TimestampAndWindow(3))
+          .apply(Sample.<Integer>any(10));
+
+      PAssert.that(output)
+          .inWindow(new IntervalWindow(new Instant(1000), Duration.standardSeconds(3)))
+          .satisfies(new VerifyCorrectSample<>(3, DATA));
+      PAssert.that(output)
+          .inWindow(new IntervalWindow(new Instant(4000), Duration.standardSeconds(3)))
+          .satisfies(new VerifyCorrectSample<>(3, DATA));
+      pipeline.run();
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testSampleAnyNegative() {
+      pipeline.enableAbandonedNodeEnforcement(false);
+
+      PCollection<Integer> input = pipeline.apply(Create.empty(BigEndianIntegerCoder.of()));
+      PCollection<Integer> output = input
+          .apply(new TimestampAndWindow(3))
+          .apply(Sample.<Integer>any(-10));
     }
 
     @Test
