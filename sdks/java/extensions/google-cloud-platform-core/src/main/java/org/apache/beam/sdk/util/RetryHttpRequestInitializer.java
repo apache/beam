@@ -218,12 +218,11 @@ public class RetryHttpRequestInitializer implements HttpRequestInitializer {
 
     LoggingHttpBackOffHandler loggingHttpBackOffHandler = new LoggingHttpBackOffHandler(
         sleeper,
-        // Retry immediately on IOExceptions.
-        BackOff.ZERO_BACKOFF,
-        // Back off on retryable http errors.
+        // Back off on retryable http errors and IOExceptions.
         // A back-off multiplier of 2 raises the maximum request retrying time
         // to approximately 5 minutes (keeping other back-off parameters to
         // their default values).
+        new ExponentialBackOff.Builder().setNanoClock(nanoClock).setMultiplier(2).build(),
         new ExponentialBackOff.Builder().setNanoClock(nanoClock).setMultiplier(2).build(),
         ignoredResponseCodes
     );
