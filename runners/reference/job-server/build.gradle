@@ -32,6 +32,7 @@ dependencies {
   shadow library.java.args4j
   testCompile library.java.junit
   shadowTest project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
+  shadowTest library.java.hamcrest_core
   shadowTest library.java.slf4j_jdk14
 }
 
