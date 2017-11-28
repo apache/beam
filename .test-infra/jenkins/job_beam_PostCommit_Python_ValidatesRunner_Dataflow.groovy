@@ -49,6 +49,6 @@ job('beam_PostCommit_Python_ValidatesRunner_Dataflow') {
 
   // Execute shell command to test Python SDK.
   steps {
-    shell('bash sdks/python/run_validatesrunner.sh')
+    shell('cd ' + common_job_properties.checkoutDir + ' && bash sdks/python/run_validatesrunner.sh')
   }
 }
