@@ -249,6 +249,10 @@
           <execution>
             <id>validates-runner-tests</id>
             <configuration>
+              <!-- BEAM-3245 -->
+              <excludes>
+                <exclude>org.apache.beam.sdk.transforms.ParDoLifecycleTest</exclude>
+              </excludes>
               <!--
                 UsesSplittableParDoWithWindowedSideInputs because of
                 https://issues.apache.org/jira/browse/BEAM-2476
