@@ -61,9 +61,9 @@ subprojects {
   }
 }
 
-// ~ configure euphoria sub-projects (exluding benchmarks)
+// ~ configure euphoria sub-projects (excluding benchmarks and guava)
 
-configure(subprojects.findAll { !it.name.startsWith('benchmark') }) {
+configure(subprojects.findAll { it.name.startsWith('euphoria') }) {
 
   apply plugin: 'maven-publish'
 

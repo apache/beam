@@ -1,0 +1,35 @@
+apply plugin: 'maven-publish'
+apply plugin: 'com.github.johnrengelman.shadow'
+
+dependencies {
+  compile "com.google.guava:guava:${guavaVersion}"
+}
+
+// ~ remove default archives
+
+configurations.runtime.artifacts.with { archives ->
+  archives.each {
+    archives.remove(it)
+  }
+}
+
+// ~ disable compile and assembly
+
+[compileJava, compileTestJava, classes, jar]*.enabled = false
+
+// ~ create shadow jar
+
+shadowJar {
+  classifier = null
+  relocate 'com.google.common', 'cz.seznam.euphoria.shadow.com.google.common'
+}
+
+build.dependsOn shadowJar
+
+publishing {
+  publications {
+    shadow(MavenPublication) { publication ->
+      project.shadow.component(publication)
+    }
+  }
+}

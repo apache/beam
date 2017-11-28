@@ -1,9 +1,0 @@
-apply plugin: 'com.github.johnrengelman.shadow'
-
-dependencies {
-  compile "com.google.guava:guava:${guavaVersion}"
-}
-
-shadowJar {
-  relocate 'com.google.common', 'cz.seznam.euphoria.shadow.com.google.common'
-}
