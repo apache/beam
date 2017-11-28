@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.sql.impl;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.BeamSql;
 import org.apache.beam.sdk.extensions.sql.BeamSqlCli;
 import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
@@ -51,8 +53,10 @@ import org.apache.calcite.tools.Frameworks;
 public class BeamSqlEnv implements Serializable{
   transient SchemaPlus schema;
   transient BeamQueryPlanner planner;
+  transient Map<String, BeamSqlTable> tables;
 
   public BeamSqlEnv() {
+    tables = new HashMap<String, BeamSqlTable>(16);
     schema = Frameworks.createRootSchema(true);
     planner = new BeamQueryPlanner(schema);
   }
@@ -85,8 +89,20 @@ public class BeamSqlEnv implements Serializable{
    *
    */
   public void registerTable(String tableName, BeamSqlTable table) {
+    tables.put(tableName, table);
     schema.add(tableName, new BeamCalciteTable(table.getRowType()));
     planner.getSourceTables().put(tableName, table);
+  }
+
+  public void deregisterTable(String targetTableName) {
+    // reconstruct the schema
+    schema = Frameworks.createRootSchema(true);
+    for (String tableName : tables.keySet()) {
+      if (!tableName.equals(targetTableName)) {
+        schema.add(tableName, new BeamCalciteTable(tables.get(tableName).getRowType()));
+      }
+    }
+    planner.getSourceTables().remove(targetTableName);
   }
 
   /**
