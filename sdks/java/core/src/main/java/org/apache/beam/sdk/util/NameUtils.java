@@ -52,8 +52,6 @@ public class NameUtils {
   private static final String ANONYMOUS_CLASS_REGEX = "\\$[0-9]+\\$";
 
   private static String approximateSimpleName(Class<?> clazz, boolean dropOuterClassNames) {
-    checkArgument(!clazz.isAnonymousClass(),
-        "Attempted to get simple name of anonymous class");
     return approximateSimpleName(clazz.getName(), dropOuterClassNames);
   }
 
@@ -93,14 +91,6 @@ public class NameUtils {
   }
 
   /**
-   * As {@link #approximateSimpleName(Object, String)} but returning {@code "Anonymous"} when
-   * {@code object} is an instance of anonymous class.
-   */
-  public static String approximateSimpleName(Object object) {
-    return approximateSimpleName(object, "Anonymous");
-  }
-
-  /**
    * Returns a simple name describing a class that is being used as a function (eg., a {@link DoFn}
    * or {@link CombineFn}, etc.).
    *
@@ -123,7 +113,7 @@ public class NameUtils {
    *   <li>{@code another.package.PairingFn} becomes "Pairing"
    * </ul>
    */
-  public static String approximateSimpleName(Object object, String anonymousValue) {
+  public static String approximateSimpleName(Object object) {
     if (object instanceof NameOverride) {
       return ((NameOverride) object).getNameOverride();
     }
@@ -134,9 +124,11 @@ public class NameUtils {
     } else {
       clazz = object.getClass();
     }
+    /* if anonymous ensure the name is unique to support multiple anonymous DoFn per class
     if (clazz.isAnonymousClass()) {
       return anonymousValue;
     }
+    */
 
     return approximateSimpleName(clazz, /* dropOuterClassNames */ true);
   }
