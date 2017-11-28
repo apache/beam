@@ -30,6 +30,7 @@ from __future__ import absolute_import
 
 import types
 from functools import reduce
+import inspect
 
 from . import typehints
 from .trivial_inference import BoundMethod
@@ -265,9 +266,12 @@ def load_attr(state, arg):
   name = state.get_name(arg)
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
-  elif (isinstance(o, type)
-        and isinstance(getattr(o, name, None), types.MethodType)):
-    state.stack.append(Const(BoundMethod(getattr(o, name))))
+  elif ((isinstance(o, type) or inspect.isclass(o))):
+    elem = getattr(o, name, None)
+    if callable(elem):
+      state.stack.append(Const(BoundMethod(elem)))
+    else:
+      state.stack.append(Any)
   else:
     state.stack.append(Any)
 
