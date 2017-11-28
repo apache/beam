@@ -140,7 +140,7 @@
             </build>
         </profile>
         <profile>
-            <!-- Include the google-cloud-platform activated by -Dfilesystem=GCS
+            <!-- Include the google-cloud-platform activated by -Dfilesystem=gcs
             Support for protocol scheme gs:// - allow to read/write to google storage -->
             <id>google-cloud-storage</id>
             <activation>
