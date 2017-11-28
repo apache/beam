@@ -122,5 +122,18 @@
       <artifactId>slf4j-jdk14</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- Stops the Maven Dependency Plugin from failing -->
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-all</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 </project>
