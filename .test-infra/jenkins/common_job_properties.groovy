@@ -265,7 +265,7 @@ class common_job_properties {
         // Install Perfkit benchmark requirements.
         shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
         // Install job requirements for Python SDK.
-        shell('pip install --user -e sdks/python/[gcp,test]')
+        shell('pip install --user -e ' + common_job_properties.checkoutDir + '/sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
     }
