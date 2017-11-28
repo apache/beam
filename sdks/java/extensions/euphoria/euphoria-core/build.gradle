@@ -3,7 +3,7 @@ configurations {
 }
 
 dependencies {
-  compile project(path: ':euphoria-guava', configuration: 'shadow')
+  compile project(path: ':thirdparty-guava', configuration: 'shadow')
   compile "org.slf4j:slf4j-api:${slf4jVersion}"
 }
 
