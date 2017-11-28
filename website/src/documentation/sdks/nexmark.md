@@ -1,8 +1,8 @@
 ---
 layout: section
 title: "Nexmark benchmark suite"
-section_menu: section-menu/documentation.html
-permalink: /documentation/sdks/nexmark/
+section_menu: section-menu/sdks.html
+permalink: /documentation/sdks/java/nexmark/
 ---
 # Nexmark benchmark suite
 
