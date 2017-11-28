@@ -56,8 +56,12 @@
       <artifactId>beam-model-job-management</artifactId>
     </dependency>
 
-    <!-- build dependencies -->
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-java-fn-execution</artifactId>
+    </dependency>
 
+    <!-- build dependencies -->
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
