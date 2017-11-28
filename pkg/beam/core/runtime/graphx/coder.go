@@ -16,6 +16,7 @@
 package graphx
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
@@ -211,6 +212,22 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 
 	case streamType:
 		return nil, fmt.Errorf("stream must be pair value: %v", c)
+
+	case "":
+		// TODO(herohde) 11/27/2017: we still see CoderRefs from Dataflow. Handle that
+		// case here, for now, so that the harness can use this logic.
+
+		payload := c.GetSpec().GetSpec().GetPayload()
+
+		var ref CoderRef
+		if err := json.Unmarshal(payload, &ref); err != nil {
+			return nil, fmt.Errorf("failed to decode urn-less coder payload \"%v\": %v", string(payload), err)
+		}
+		c, err := DecodeCoderRef(&ref)
+		if err != nil {
+			return nil, fmt.Errorf("failed to translate coder \"%v\": %v", string(payload), err)
+		}
+		return c, nil
 
 	default:
 		return nil, fmt.Errorf("custom coders must be length prefixed: %v", c)

@@ -16,13 +16,11 @@
 package harness
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/pipeline_v1"
@@ -32,8 +30,8 @@ import (
 )
 
 var (
-	errRootlessBundle = errors.New("Invalid bundle: no roots supplied")
-	errBundleHasCycle = errors.New("Bundle contained a cycle")
+	errRootlessBundle = errors.New("invalid bundle: no roots supplied")
+	errBundleHasCycle = errors.New("bundle contained a cycle")
 )
 
 // Tracks provenance information of PCollections to help linking nodes
@@ -131,10 +129,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 		return nil, err
 	}
 
-	coders, err := translateCoders(bundle.GetCoders())
-	if err != nil {
-		return nil, fmt.Errorf("invalid coders: %v", err)
-	}
+	coders := graphx.NewCoderUnmarshaller(bundle.GetCoders())
 
 	g := graph.New()
 	nodes := make(map[nodeID]*graph.Node)
@@ -202,7 +197,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 
 			if size := len(transform.GetOutputs()); size != 1 {
-				return nil, fmt.Errorf("Expected 1 output, got %v", size)
+				return nil, fmt.Errorf("expected 1 output, got %v", size)
 			}
 			var target *graph.Target
 			for key := range transform.GetOutputs() {
@@ -227,7 +222,7 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			}
 
 			if size := len(transform.GetInputs()); size != 1 {
-				return nil, fmt.Errorf("Expected 1 input, got %v", size)
+				return nil, fmt.Errorf("expected 1 input, got %v", size)
 			}
 			var target *graph.Target
 			for key := range transform.GetInputs() {
@@ -240,13 +235,13 @@ func translate(bundle *fnapi_pb.ProcessBundleDescriptor) (*graph.Graph, error) {
 			edge.Target = target
 			edge.Input = []*graph.Inbound{{Type: nil}}
 
-			if err := linkInbound(g, nodes, coders, transform, edge, colls); err != nil {
+			if err := linkInbound(nodes, transform, edge, colls); err != nil {
 				return nil, err
 			}
 			edge.Input[0].Type = edge.Input[0].From.Coder.T
 
 		default:
-			return nil, fmt.Errorf("Unexpected opcode: %v", spec)
+			return nil, fmt.Errorf("unexpected opcode: %v", spec)
 		}
 	}
 	return g, nil
@@ -262,14 +257,14 @@ func translatePort(data []byte) (*graph.Port, error) {
 	}, nil
 }
 
-func link(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *rnapi_pb.PTransform, tid string, edge *graph.MultiEdge, colls pCollMap) error {
-	if err := linkInbound(g, nodes, coders, transform, edge, colls); err != nil {
+func link(g *graph.Graph, nodes map[nodeID]*graph.Node, coders *graphx.CoderUnmarshaller, transform *rnapi_pb.PTransform, tid string, edge *graph.MultiEdge, colls pCollMap) error {
+	if err := linkInbound(nodes, transform, edge, colls); err != nil {
 		return err
 	}
 	return linkOutbound(g, nodes, coders, transform, tid, edge, colls)
 }
 
-func linkInbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *rnapi_pb.PTransform, edge *graph.MultiEdge, colls pCollMap) error {
+func linkInbound(nodes map[nodeID]*graph.Node, transform *rnapi_pb.PTransform, edge *graph.MultiEdge, colls pCollMap) error {
 	from := translateInputs(transform, colls)
 	if len(from) != len(edge.Input) {
 		return fmt.Errorf("unexpected number of inputs: %v, want %v", len(from), len(edge.Input))
@@ -280,7 +275,7 @@ func linkInbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string
 	return nil
 }
 
-func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[string]*coder.Coder, transform *rnapi_pb.PTransform, tid string, edge *graph.MultiEdge, colls pCollMap) error {
+func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders *graphx.CoderUnmarshaller, transform *rnapi_pb.PTransform, tid string, edge *graph.MultiEdge, colls pCollMap) error {
 	to := translateOutputs(transform, tid, colls)
 	if len(to) != len(edge.Output) {
 		return fmt.Errorf("unexpected number of outputs: %v, want %v", len(to), len(edge.Output))
@@ -291,7 +286,10 @@ func linkOutbound(g *graph.Graph, nodes map[nodeID]*graph.Node, coders map[strin
 		w = edge.Input[0].From.Window()
 	}
 	for i := 0; i < len(edge.Output); i++ {
-		c := coders[to[i].Coder]
+		c, err := coders.Coder(to[i].Coder)
+		if err != nil {
+			return err
+		}
 
 		n := g.NewNode(c.T, w)
 		n.Coder = c
@@ -342,77 +340,4 @@ func translateOutputs(transform *rnapi_pb.PTransform, tid string, colls pCollMap
 	}
 
 	return to
-}
-
-func translateCoders(in map[string]*rnapi_pb.Coder) (map[string]*coder.Coder, error) {
-	// Coders can be transmitted in two forms. The first method is by well-known name.
-	// We recognize these well-known names, and generate the appropriate CoderRef for them.
-	// The second method is for user-defined coders. In this case, the CoderRef is already serialized
-	// and we just deserialize it.
-
-	// The first pass populates the map of CoderRefs we construct.
-	coderRefs := make(map[string]*graphx.CoderRef)
-	for id := range in {
-		coderRefs[id] = &graphx.CoderRef{}
-	}
-
-	// The second pass over the supplied coder information populates each CoderRef.
-	for id, coder := range in {
-		spec := coder.GetSpec().GetSpec()
-
-		ref := coderRefs[id]
-		if spec.GetUrn() != "" {
-
-			// If this well-known coder has component coders, add them to our pool of known coders.
-			// This way, when their definition is read (possibly later), the type information can be
-			// set.
-
-			for _, nc := range coder.ComponentCoderIds {
-				c := coderRefs[nc]
-				ref.Components = append(ref.Components, c)
-			}
-			// Apply the type to the CoderRef. Entry is guaranteed to exist.
-			switch spec.GetUrn() {
-			case "urn:beam:coders:windowed_value:0.1":
-				coderRefs[id].Type = graphx.WindowedValueType
-
-			case "urn:beam:coders:global_window:0.1":
-				coderRefs[id].Type = graphx.GlobalWindowType
-			case "urn:beam:coders:bytes:0.1":
-				coderRefs[id].Type = graphx.BytesType
-
-			default:
-				return nil, fmt.Errorf("Unknown coder requested: %v", spec.GetUrn())
-			}
-		} else {
-			if spec.GetPayload() == nil {
-				return nil, fmt.Errorf("Invalid coder spec. Encoded coder expected but not present")
-			}
-			// Not a known coder. Decode the encoded data.
-			if err := json.Unmarshal(spec.GetPayload(), ref); err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	// The third pass translates the CoderRefs into Coders.
-	coders := make(map[string]*coder.Coder)
-	for id, cr := range coderRefs {
-		// TODO(wcn): we're at a transitional point in coder representation.
-		// The Go coder serializes the coder as a single entity, transitively closed over its
-		// component coders. The Beam model is using a graph approach identical to transforms.
-		// Until this Beam change is reflected throughout the system, we need to support both.
-		// Filtering out the GlobalWindowType coder below allows the two paradigms to
-		// coexist. Once our internal coder representation changes, this filtering will
-		// no longer be needed.
-		if cr.Type == graphx.GlobalWindowType {
-			continue
-		}
-		c, err := graphx.DecodeCoderRef(cr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to translate coder %s: %v", id, err)
-		}
-		coders[id] = c
-	}
-	return coders, nil
 }
