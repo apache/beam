@@ -888,8 +888,8 @@ public class DoFnSignatures {
           id);
 
       paramErrors.checkArgument(
-          stateDecl.stateType().equals(stateType),
-          "reference to %s %s with different type %s",
+          stateDecl.stateType().isSubtypeOf(stateType),
+          "data type of reference to %s %s must be a supertype of %s",
           StateId.class.getSimpleName(),
           id,
           formatType(stateDecl.stateType()));
