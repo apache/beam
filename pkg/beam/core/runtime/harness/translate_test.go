@@ -22,6 +22,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
 	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/pipeline_v1"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 )
@@ -256,14 +257,19 @@ func getCoders() map[string]*rnapi_pb.Coder {
 
 func TestTranslateCoders(t *testing.T) {
 	input := getCoders()
-	coders, err := translateCoders(input)
-	if err != nil {
-		t.Errorf("translateCoders() failed: %v", err)
-	}
+	coders := graphx.NewCoderUnmarshaller(input)
 
-	expected := len(input) - 1 // We don't see the global window coder
-	if len(coders) != expected {
-		t.Errorf("Got %d coders, wanted %d.", len(coders), expected)
+	for id := range input {
+		if id == "Coder" {
+			if _, err := coders.Window(id); err != nil {
+				t.Errorf("window translation failed: %v", err)
+			}
+			continue
+		}
+
+		if _, err := coders.Coder(id); err != nil {
+			t.Errorf("coder translation failed: %v", err)
+		}
 	}
 }
 
