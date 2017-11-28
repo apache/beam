@@ -21,10 +21,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +49,7 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -493,6 +499,7 @@ public class Pipeline {
   /** Lazily initialized; access via {@link #getCoderRegistry()}. */
   @Nullable private CoderRegistry coderRegistry;
 
+  private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
   private final List<String> unstableNames = new ArrayList<>();
   private final PipelineOptions defaultOptions;
 
@@ -520,8 +527,9 @@ public class Pipeline {
     String namePrefix = transforms.getCurrent().getFullName();
     String uniqueName = uniquifyInternal(namePrefix, name);
 
-    boolean nameIsUnique = uniqueName.equals(buildName(namePrefix, name));
-
+    final String builtName = buildName(namePrefix, name);
+    boolean nameIsUnique = uniqueName.equals(builtName);
+    instancePerName.put(builtName, transform);
     if (!nameIsUnique) {
       unstableNames.add(uniqueName);
     }
@@ -578,12 +586,51 @@ public class Pipeline {
               "The following transforms do not have stable unique names: {}",
               Joiner.on(", ").join(unstableNames));
           break;
-        case ERROR:
+        case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
                   "Pipeline update will not be possible"
                       + " because the following transforms do not have stable unique names: %s.",
-                  Joiner.on(", ").join(unstableNames)));
+                  Joiner.on(", ").join(unstableNames)) + "\n\n"
+                      + "Conflicting instances:\n"
+                      + Joiner.on("\n").join(Iterables.transform(unstableNames,
+                      new Function<String, String>() {
+                        @Override
+                        public String apply(final String input) {
+                          Collection<PTransform<?, ?>> values = null;
+                          String currentName = input;
+                          // strip the counter appended to the name
+                          while (values == null && !currentName.isEmpty()) {
+                            currentName = currentName.substring(0, currentName.length() - 1);
+                            values = instancePerName.keySet().contains(currentName)
+                                    ? instancePerName.get(currentName) : null;
+                          }
+                          if (values == null) {
+                            throw new IllegalStateException(
+                                    "Didn't find the conflict for input="
+                                            + input + ", this is likely a bug");
+                          }
+                          return "- name=" + currentName + ":\n" + Joiner.on("\n")
+                              .join(Iterables.transform(values,
+                                new Function<PTransform<?, ?>, String>() {
+                                  @Override
+                                  public String apply(final PTransform<?, ?> transform) {
+                                    final Object representant;
+                                    if (ParDo.SingleOutput.class.isInstance(transform)) {
+                                      representant = ParDo.SingleOutput.class.cast(
+                                              transform).getFn();
+                                    } else if (ParDo.MultiOutput.class.isInstance(transform)) {
+                                      representant = ParDo.MultiOutput.class.cast(
+                                              transform).getFn();
+                                    } else {
+                                      representant = transform;
+                                    }
+                                    return "    - " + representant;
+                                  }
+                                }));
+                        }
+                      })) + "\n\nYou can fix it adding a name when you call apply(): "
+                          + "pipeline.apply(<name>, <transform>).");
         default:
           throw new IllegalArgumentException(
               "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
