@@ -69,6 +69,10 @@
                   <goal>test</goal>
                 </goals>
                 <configuration>
+                  <!-- BEAM-3187 -->
+                  <excludes>
+                    <exclude>org.apache.beam.sdk.transforms.ParDoLifecycleTest</exclude>
+                  </excludes>
                   <groups>
                     org.apache.beam.sdk.testing.ValidatesRunner,
                     org.apache.beam.runners.spark.UsesCheckpointRecovery
