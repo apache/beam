@@ -26,7 +26,7 @@ We use a review-then-commit workflow in Beam for all contributions.
 
 1. **Code:** The best part ;-)
 1. **Review:** Submit a pull request with your contribution to our [GitHub mirror](https://github.com/apache/beam/). Work with a committer to review and iterate on the code, if needed.
-1. **Commit:** A Beam committer merges the pull request into our [Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git).
+1. **Commit:** A Beam committer merges the pull request into our [Apache repository](https://gitbox.apache.org/repos/asf/beam.git).
 
 We look forward to working with you!
 
@@ -308,7 +308,7 @@ From another local branch, run:
 The community will close stale pull requests in order to keep the project healthy. A pull request becomes stale after its author fails to respond to actionable comments for 60 days.  Author of a closed pull request is welcome to reopen the same pull request again in the future. The associated JIRAs will be unassigned from the author but will stay open.
 
 ## Commit (committers only)
-Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://git-wip-us.apache.org/repos/asf/beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)
+Once the code has been peer reviewed by a committer, the next step is for the committer to merge it into the [authoritative Apache repository](https://gitbox.apache.org/repos/asf/beam.git), not the read-only GitHub mirror. (In the case that the author is also a committer, it is acceptable for either the author of the change or committer who reviewed the change to do the merge. Just be explicit about whose job it is!)
 
 Pull requests should not be merged before the review has received an explicit LGTM from another committer. Exceptions to this rule may be made rarely, on a case-by-case basis only, in the committer’s discretion for situations such as build breakages.
 
@@ -319,7 +319,7 @@ Committing is currently a manual process, but we are investigating tools to auto
 ### One-time Setup
 Add the Apache Git remote in your local clone, by running:
 
-    $ git remote add apache https://git-wip-us.apache.org/repos/asf/beam.git
+    $ git remote add apache https://gitbox.apache.org/repos/asf/beam.git
 
 We recommend renaming the `origin` remote to `github`, to avoid confusion when dealing with this many remotes.
 
@@ -333,8 +333,8 @@ For the `github` remote, add an additional fetch reference, which will cause eve
 You can confirm your configuration by running the following command.
 
 	$ git remote -v
-	apache	https://git-wip-us.apache.org/repos/asf/beam.git (fetch)
-	apache	https://git-wip-us.apache.org/repos/asf/beam.git (push)
+	apache	https://gitbox.apache.org/repos/asf/beam.git (fetch)
+	apache	https://gitbox.apache.org/repos/asf/beam.git (push)
 	github	https://github.com/apache/beam.git (fetch)
 	github	https://github.com/apache/beam.git (push)
 	<username>	git@github.com:<username>/beam.git (fetch)
