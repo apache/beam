@@ -37,7 +37,7 @@ The following table summarizes project's self-assessment against the Apache Matu
     <tr>
       <td><p>CD20</p></td>
       <td><p>The project&#39;s code is easily discoverable and publicly accessible.</p></td>
-      <td><p><b>YES.</b> Linked from the <a href="{{ site.baseurl }}/contribute/source-repository/">website</a>, available via <a href="https://git-wip-us.apache.org/repos/asf?p%3Dbeam.git">git.apache.org</a> and <a href="https://github.com/apache/beam">GitHub</a>.</p></td>
+      <td><p><b>YES.</b> Linked from the <a href="{{ site.baseurl }}/contribute/source-repository/">website</a>, available via <a href="https://gitbox.apache.org/repos/asf?p%3Dbeam.git">git.apache.org</a> and <a href="https://github.com/apache/beam">GitHub</a>.</p></td>
     </tr>
     <tr>
       <td><p>CD30</p></td>
