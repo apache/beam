@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
 import org.apache.beam.sdk.transforms.ParDo.SingleOutput;
+import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -315,10 +316,20 @@ public class BatchStatefulParDoOverrides {
       return underlyingDoFn;
     }
 
+    @Setup
+    public void setup() {
+      DoFnInvokers.invokerFor(underlyingDoFn).invokeSetup();
+    }
+
     @ProcessElement
     public void processElement(final ProcessContext c, final BoundedWindow window) {
       throw new UnsupportedOperationException(
           "BatchStatefulDoFn.ProcessElement should never be invoked");
+    }
+
+    @Teardown
+    public void teardown() {
+      DoFnInvokers.invokerFor(underlyingDoFn).invokeTeardown();
     }
 
     @Override
