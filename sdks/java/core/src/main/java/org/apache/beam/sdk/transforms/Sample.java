@@ -243,7 +243,7 @@ public class Sample {
     }
   }
 
-    /**
+  /**
    * {@code CombineFn} that computes a fixed-size sample of a
    * collection of values.
    *
