@@ -50,6 +50,6 @@ job('beam_PostCommit_Python_Verify') {
 
   // Execute shell command to test Python SDK.
   steps {
-    shell('bash sdks/python/run_postcommit.sh')
+    shell('cd ' + common_job_properties.checkoutDir + ' && bash sdks/python/run_postcommit.sh')
   }
 }

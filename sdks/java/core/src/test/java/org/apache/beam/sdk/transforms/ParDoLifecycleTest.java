@@ -27,9 +27,14 @@ import static org.junit.Assert.fail;
 
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.UsesStatefulParDo;
 import org.apache.beam.sdk.testing.ValidatesRunner;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -151,6 +156,21 @@ public class ParDoLifecycleTest implements Serializable {
     p.run();
   }
 
+  @Test
+  @Category({ValidatesRunner.class, UsesStatefulParDo.class})
+  public void testFnCallSequenceStateful() {
+    PCollectionList.of(p.apply("Impolite", Create.of(KV.of("a", 1), KV.of("b", 2), KV.of("a", 4))))
+        .and(
+            p.apply(
+                "Polite", Create.of(KV.of("b", 3), KV.of("a", 5), KV.of("c", 6), KV.of("c", 7))))
+        .apply(Flatten.<KV<String, Integer>>pCollections())
+        .apply(
+            ParDo.of(new CallSequenceEnforcingStatefulFn<String, Integer>())
+                .withOutputTags(new TupleTag<KV<String, Integer>>() {}, TupleTagList.empty()));
+
+    p.run();
+  }
+
   private static class CallSequenceEnforcingFn<T> extends DoFn<T, T> {
     private boolean setupCalled = false;
     private int startBundleCalls = 0;
@@ -204,25 +224,13 @@ public class ParDoLifecycleTest implements Serializable {
     }
   }
 
-  @Test
-  @Category(NeedsRunner.class)
-  public void testTeardownCalledAfterExceptionInSetup() {
-    ExceptionThrowingOldFn fn = new ExceptionThrowingOldFn(MethodForException.SETUP);
-    p
-        .apply(Create.of(1, 2, 3))
-        .apply(ParDo.of(fn));
-    try {
-      p.run();
-      fail("Pipeline should have failed with an exception");
-    } catch (Exception e) {
-      assertThat(
-          "Function should have been torn down after exception",
-          ExceptionThrowingOldFn.teardownCalled.get(),
-          is(true));
-    }
+  private static class CallSequenceEnforcingStatefulFn<K, V>
+      extends CallSequenceEnforcingDoFn<KV<K, V>> {
+    private static final String STATE_ID = "foo";
+
+    @StateId(STATE_ID)
+    private final StateSpec<ValueState<String>> valueSpec = StateSpecs.value();
   }
-
-
 
   @Test
   @Category(NeedsRunner.class)

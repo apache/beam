@@ -188,16 +188,14 @@ public class DirectRunner extends PipelineRunner<DirectPipelineResult> {
             graph,
             keyedPValueVisitor.getKeyedPValues());
 
-    RootProviderRegistry rootInputProvider = RootProviderRegistry.defaultRegistry(context);
     TransformEvaluatorRegistry registry = TransformEvaluatorRegistry.defaultRegistry(context);
     PipelineExecutor executor =
         ExecutorServiceParallelExecutor.create(
-            options.getTargetParallelism(), graph,
-            rootInputProvider,
+            options.getTargetParallelism(),
             registry,
             Enforcement.defaultModelEnforcements(enabledEnforcements),
             context);
-    executor.start(graph.getRootTransforms());
+    executor.start(graph, RootProviderRegistry.defaultRegistry(context));
 
     DirectPipelineResult result = new DirectPipelineResult(executor, context);
     if (options.isBlockOnRun()) {

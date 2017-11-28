@@ -30,6 +30,8 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.CombiningState;
+import org.apache.beam.sdk.state.GroupingState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.TimeDomain;
@@ -39,6 +41,7 @@ import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.ProcessContextParameter;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.Parameter.StateParameter;
@@ -649,7 +652,7 @@ public class DoFnSignaturesTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("WatermarkHoldState");
     thrown.expectMessage("reference to");
-    thrown.expectMessage("different type");
+    thrown.expectMessage("supertype");
     thrown.expectMessage("ValueState");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
@@ -673,7 +676,7 @@ public class DoFnSignaturesTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("ValueState<String>");
     thrown.expectMessage("reference to");
-    thrown.expectMessage("different type");
+    thrown.expectMessage("supertype");
     thrown.expectMessage("ValueState<Integer>");
     thrown.expectMessage("my-id");
     thrown.expectMessage("myProcessElement");
@@ -690,6 +693,19 @@ public class DoFnSignaturesTest {
               public void myProcessElement(
                   ProcessContext context, @StateId("my-id") ValueState<String> stringState) {}
             }.getClass());
+  }
+
+  @Test
+  public void testGoodStateParameterSuperclassStateType() throws Exception {
+    DoFnSignatures.getSignature(new DoFn<KV<String, Integer>, Long>() {
+      @StateId("my-id")
+      private final StateSpec<CombiningState<Integer, int[], Integer>> state =
+          StateSpecs.combining(Sum.ofIntegers());
+
+      @ProcessElement public void myProcessElement(
+          ProcessContext context,
+          @StateId("my-id") GroupingState<Integer, Integer> groupingState) {}
+    }.getClass());
   }
 
   @Test

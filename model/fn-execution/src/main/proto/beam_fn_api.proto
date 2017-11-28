@@ -636,9 +636,9 @@ message LogEntry {
   // free not to use all severity levels in their log messages.
   message Severity {
     enum Enum {
+      // Unspecified level information. Will be logged at the TRACE level.
       UNSPECIFIED = 0;
-      // Trace level information, also the default log level unless
-      // another severity is specified.
+      // Trace level information.
       TRACE = 1;
       // Debugging information.
       DEBUG = 2;
