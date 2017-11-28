@@ -72,7 +72,7 @@ message Resources {
         // (optional) Hard limit in bytes. A zero value means unspecified.
         uint64 size = 1;
 
-        // TOOD(herohde) 10/20/2017: consider soft limits, shm usage?
+        // TODO(herohde) 10/20/2017: consider soft limits, shm usage?
     }
     // (optional) Memory usage limits. SDKs can use this value to configure
     // internal buffer sizes and language specific sizes.
