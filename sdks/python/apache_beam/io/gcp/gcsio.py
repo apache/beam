@@ -90,7 +90,7 @@ MAX_BATCH_OPERATION_SIZE = 100
 def ProxyInfoFromEnvironmentVar(proxy_env_var):
   """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
   Args:
-    proxy_env_var: Environment variable string to read, such as http_proxy or
+    proxy_env_var: environment variable string to read, such as http_proxy or
        https_proxy.
   Returns:
     httplib2.ProxyInfo constructed from the environment string.
@@ -107,8 +107,8 @@ def ProxyInfoFromEnvironmentVar(proxy_env_var):
 def GetNewHttp(http_class=httplib2.Http, **kwargs):
   """Creates and returns a new httplib2.Http instance.
   Args:
-    http_class: Optional custom Http class to use.
-    **kwargs: Arguments to pass to http_class constructor.
+    http_class: optional custom Http class to use.
+    **kwargs: arguments to pass to http_class constructor.
   Returns:
     An initialized httplib2.Http instance.
   """
