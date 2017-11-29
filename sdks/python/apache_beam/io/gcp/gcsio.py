@@ -99,9 +99,10 @@ def ProxyInfoFromEnvironmentVar(proxy_env_var):
   proxy_url = os.environ.get(proxy_env_var)
   if not proxy_url or not proxy_env_var.lower().startswith('http'):
     return httplib2.ProxyInfo(httplib2.socks.PROXY_TYPE_HTTP, None, 0)
+    logging.warn("Ignoring proxy_env_var, incorrect format")
   proxy_protocol = proxy_env_var.lower().split('_')[0]
   if not proxy_url.lower().startswith('http'):
-    # proxy_info_from_url requires a protocol, which is always http or https.
+    logging.warn("proxy_info_from_url requires a protocol, which is always http or https.")
     proxy_url = proxy_protocol + '://' + proxy_url
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
@@ -113,14 +114,6 @@ def GetNewHttp(http_class=httplib2.Http, **kwargs):
   Returns:
     An initialized httplib2.Http instance.
   """
-  proxy_info = httplib2.ProxyInfo(
-    proxy_type=3,
-    proxy_host=None,
-    proxy_port=None,
-    proxy_user=None,
-    proxy_pass=None,
-    proxy_rdns=None
-  )
 
   for proxy_env_var in ['http_proxy', 'https_proxy']:
     if proxy_env_var in os.environ and os.environ[proxy_env_var]:
