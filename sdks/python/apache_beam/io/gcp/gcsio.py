@@ -87,7 +87,7 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
-def ProxyInfoFromEnvironmentVar(proxy_env_var):
+def proxy_info_from_environment_var(proxy_env_var):
   """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
   Args:
     proxy_env_var: environment variable string to read, http_proxy or
@@ -106,7 +106,7 @@ def ProxyInfoFromEnvironmentVar(proxy_env_var):
     proxy_url = proxy_protocol + '://' + proxy_url
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
-def GetNewHttp(http_class=httplib2.Http, **kwargs):
+def get_new_http(http_class=httplib2.Http, **kwargs):
   """Creates and returns a new httplib2.Http instance.
   Args:
     http_class: optional custom Http class to use.
@@ -117,7 +117,7 @@ def GetNewHttp(http_class=httplib2.Http, **kwargs):
 
   for proxy_env_var in ['http_proxy', 'https_proxy']:
     if proxy_env_var in os.environ and os.environ[proxy_env_var]:
-      proxy_info = ProxyInfoFromEnvironmentVar(proxy_env_var)
+      proxy_info = proxy_info_from_environment_var(proxy_env_var)
       break
 
   # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
@@ -155,8 +155,8 @@ class GcsIO(object):
         credentials = auth.get_service_credentials()
         storage_client = storage.StorageV1(
             credentials=credentials,
+            http=get_new_http())
             get_credentials=False,
-            http=GetNewHttp())
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))
         local_state.gcsio_instance.client = storage_client
