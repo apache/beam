@@ -106,11 +106,8 @@ def proxy_info_from_environment_var(proxy_env_var):
     proxy_url = proxy_protocol + '://' + proxy_url
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
-def get_new_http(http_class=httplib2.Http, **kwargs):
+def get_new_http():
   """Creates and returns a new httplib2.Http instance.
-  Args:
-    http_class: optional custom Http class to use.
-    **kwargs: arguments to pass to http_class constructor.
   Returns:
     An initialized httplib2.Http instance.
   """
@@ -121,9 +118,7 @@ def get_new_http(http_class=httplib2.Http, **kwargs):
       break
 
   # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
-  kwargs['timeout'] = DEFAULT_HTTP_TIMEOUT_SECONDS
-  http = http_class(proxy_info=proxy_info, **kwargs)
-  return http
+  return httplib2.Http(proxy_info=proxy_info, timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
 
 def parse_gcs_path(gcs_path):
   """Return the bucket and object names of the given gs:// path."""
