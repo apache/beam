@@ -25,7 +25,9 @@ RUN apt-get update && \
        # These packages are needed for "pip install python-snappy" below.
        libsnappy-dev \
        # This package is needed for "pip install pyyaml" below to have c bindings.
-       libyaml-dev
+       libyaml-dev \
+       && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install packages required by the Python SDK.
 #
