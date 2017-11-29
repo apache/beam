@@ -19,13 +19,13 @@ package org.apache.beam.sdk;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.Iterables.transform;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import java.util.ArrayList;
@@ -593,44 +593,10 @@ public class Pipeline {
                       + " because the following transforms do not have stable unique names: %s.",
                   Joiner.on(", ").join(unstableNames)) + "\n\n"
                       + "Conflicting instances:\n"
-                      + Joiner.on("\n").join(Iterables.transform(unstableNames,
-                      new Function<String, String>() {
-                        @Override
-                        public String apply(final String input) {
-                          Collection<PTransform<?, ?>> values = null;
-                          String currentName = input;
-                          // strip the counter appended to the name
-                          while (values == null && !currentName.isEmpty()) {
-                            currentName = currentName.substring(0, currentName.length() - 1);
-                            values = instancePerName.keySet().contains(currentName)
-                                    ? instancePerName.get(currentName) : null;
-                          }
-                          if (values == null) {
-                            throw new IllegalStateException(
-                                    "Didn't find the conflict for input="
-                                            + input + ", this is likely a bug");
-                          }
-                          return "- name=" + currentName + ":\n" + Joiner.on("\n")
-                              .join(Iterables.transform(values,
-                                new Function<PTransform<?, ?>, String>() {
-                                  @Override
-                                  public String apply(final PTransform<?, ?> transform) {
-                                    final Object representant;
-                                    if (ParDo.SingleOutput.class.isInstance(transform)) {
-                                      representant = ParDo.SingleOutput.class.cast(
-                                              transform).getFn();
-                                    } else if (ParDo.MultiOutput.class.isInstance(transform)) {
-                                      representant = ParDo.MultiOutput.class.cast(
-                                              transform).getFn();
-                                    } else {
-                                      representant = transform;
-                                    }
-                                    return "    - " + representant;
-                                  }
-                                }));
-                        }
-                      })) + "\n\nYou can fix it adding a name when you call apply(): "
-                          + "pipeline.apply(<name>, <transform>).");
+                      + Joiner.on("\n").join(
+                              transform(unstableNames, new UnstableNameToMessage(instancePerName)))
+                      + "\n\nYou can fix it adding a name when you call apply(): "
+                      + "pipeline.apply(<name>, <transform>).");
         default:
           throw new IllegalArgumentException(
               "Unrecognized value for stable unique names: " + options.getStableUniqueNames());
@@ -681,6 +647,51 @@ public class Pipeline {
     @Override
     public void visitPrimitiveTransform(Node node) {
       node.getTransform().validate(options);
+    }
+  }
+
+  private static class TransformToMessage implements Function<PTransform<?, ?>, String> {
+    @Override
+    public String apply(final PTransform<?, ?> transform) {
+      final Object representant;
+      if (ParDo.SingleOutput.class.isInstance(transform)) {
+        representant = ParDo.SingleOutput.class.cast(
+                transform).getFn();
+      } else if (ParDo.MultiOutput.class.isInstance(transform)) {
+        representant = ParDo.MultiOutput.class.cast(
+                transform).getFn();
+      } else {
+        representant = transform;
+      }
+      return "    - " + representant;
+    }
+  }
+
+  private static class UnstableNameToMessage implements Function<String, String> {
+    private final Multimap<String, PTransform<?, ?>> instances;
+
+    private UnstableNameToMessage(final Multimap<String, PTransform<?, ?>> instancePerName) {
+      this.instances = instancePerName;
+    }
+
+    @Override
+    public String apply(final String input) {
+      Collection<PTransform<?, ?>> values = null;
+      String currentName = input;
+      // strip the counter appended to the name,
+      // see uniquifyInternal().
+      // common example: ParDo(Anonymous) becoming ParDo(Anonymous)2
+      while (values == null && !currentName.isEmpty()) {
+        currentName = currentName.substring(0, currentName.length() - 1);
+        values = instances.keySet().contains(currentName) ? instances.get(currentName) : null;
+      }
+      if (values == null) {
+        throw new IllegalStateException(
+                "Didn't find the conflict for input="
+                        + input + ", this is likely a bug");
+      }
+      return "- name=" + currentName + ":\n"
+              + Joiner.on("\n").join(transform(values, new TransformToMessage()));
     }
   }
 }

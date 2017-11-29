@@ -137,6 +137,19 @@ public class PipelineTest {
 
       @Override
       public boolean matches(final Object o) {
+        /*
+          example value (first 2 lines are a single one):
+
+          Pipeline update will not be possible because the following transforms do not have stable
+          unique names: ParDo(Anonymous)2.
+
+          Conflicting instances:
+          - name=ParDo(Anonymous):
+              - org.apache.beam.sdk.PipelineTest$3@75d2da2d
+              - org.apache.beam.sdk.PipelineTest$2@4278284b
+
+          You can fix it adding a name when you call apply(): pipeline.apply(<name>, <transform>).
+         */
         final String sanitized = String.class.cast(o)
                                      .replaceAll("\\$[\\p{Alnum}]+@[\\p{Alnum}]+", "\\$x@y");
         return sanitized.contains(
