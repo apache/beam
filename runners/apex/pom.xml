@@ -215,6 +215,10 @@
               <goal>test</goal>
             </goals>
             <configuration>
+              <excludes>
+                <!-- BEAM-3241 -->
+                <exclude>org.apache.beam.sdk.transforms.ParDoLifecycleTest</exclude>
+              </excludes>
               <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
               <excludedGroups>
                 org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders,
