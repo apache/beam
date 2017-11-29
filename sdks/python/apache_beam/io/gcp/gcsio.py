@@ -90,8 +90,9 @@ MAX_BATCH_OPERATION_SIZE = 100
 def ProxyInfoFromEnvironmentVar(proxy_env_var):
   """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
   Args:
-    proxy_env_var: environment variable string to read, such as http_proxy or
-       https_proxy.
+    proxy_env_var: environment variable string to read, http_proxy or
+       https_proxy (in lower case).
+       Example: http://myproxy.domain.com:8080
   Returns:
     httplib2.ProxyInfo constructed from the environment string.
   """
@@ -121,7 +122,7 @@ def GetNewHttp(http_class=httplib2.Http, **kwargs):
     proxy_rdns=None
   )
 
-  for proxy_env_var in ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY']:
+  for proxy_env_var in ['http_proxy', 'https_proxy']:
     if proxy_env_var in os.environ and os.environ[proxy_env_var]:
       proxy_info = ProxyInfoFromEnvironmentVar(proxy_env_var)
       break
