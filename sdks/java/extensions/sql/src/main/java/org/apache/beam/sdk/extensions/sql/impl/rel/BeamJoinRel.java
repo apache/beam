@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -26,6 +27,8 @@ import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
+import org.apache.beam.sdk.extensions.sql.BeamSqlTable;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamJoinTransforms;
 import org.apache.beam.sdk.extensions.sql.impl.utils.CalciteUtils;
@@ -98,9 +101,14 @@ public class BeamJoinRel extends Join implements BeamRelNode {
       throws Exception {
     BeamRelNode leftRelNode = BeamSqlRelUtils.getBeamRelInput(left);
     BeamRecordSqlType leftRowType = CalciteUtils.toBeamRowType(left.getRowType());
-    PCollection<BeamRecord> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
-
     final BeamRelNode rightRelNode = BeamSqlRelUtils.getBeamRelInput(right);
+
+    if (!seekable(leftRelNode, sqlEnv) && seekable(rightRelNode, sqlEnv)) {
+      return joinAsLookup(leftRelNode, rightRelNode, inputPCollections, sqlEnv)
+              .setCoder(CalciteUtils.toBeamRowType(getRowType()).getRecordCoder());
+    }
+
+    PCollection<BeamRecord> leftRows = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
     PCollection<BeamRecord> rightRows = rightRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
 
     String stageName = BeamSqlRelUtils.getStageName(this);
@@ -295,4 +303,37 @@ public class BeamJoinRel extends Join implements BeamRelNode {
 
     return new Pair<>(leftIndex, rightIndex);
   }
+
+  private PCollection<BeamRecord> joinAsLookup(BeamRelNode leftRelNode, BeamRelNode rightRelNode,
+      PCollectionTuple inputPCollections, BeamSqlEnv sqlEnv) throws Exception {
+    PCollection<BeamRecord> factStream = leftRelNode.buildBeamPipeline(inputPCollections, sqlEnv);
+    BeamSqlSeekableTable seekableTable = getSeekableTableFromRelNode(rightRelNode, sqlEnv);
+
+    return factStream.apply("join_as_lookup",
+        new BeamJoinTransforms.JoinAsLookup(condition, seekableTable,
+            CalciteUtils.toBeamRowType(rightRelNode.getRowType()),
+            CalciteUtils.toBeamRowType(leftRelNode.getRowType()).getFieldCount()));
+  }
+
+  private BeamSqlSeekableTable getSeekableTableFromRelNode(BeamRelNode relNode, BeamSqlEnv sqlEnv) {
+    BeamIOSourceRel srcRel = (BeamIOSourceRel) relNode;
+    String tableName = Joiner.on('.').join(srcRel.getTable().getQualifiedName());
+    BeamSqlTable sourceTable = sqlEnv.findTable(tableName);
+    return (BeamSqlSeekableTable) sourceTable;
+  }
+
+  /**
+   * check if {@code BeamRelNode} implements {@code BeamSeekableTable}.
+   */
+  private boolean seekable(BeamRelNode relNode, BeamSqlEnv sqlEnv) {
+    if (relNode instanceof BeamIOSourceRel) {
+      BeamIOSourceRel srcRel = (BeamIOSourceRel) relNode;
+      String tableName = Joiner.on('.').join(srcRel.getTable().getQualifiedName());
+      BeamSqlTable sourceTable = sqlEnv.findTable(tableName);
+      if (sourceTable instanceof BeamSqlSeekableTable) {
+        return true;
+      }
+    }
+    return false;
+}
 }

@@ -19,17 +19,26 @@
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
 import java.sql.Types;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.List;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.extensions.sql.BeamRecordSqlType;
+import org.apache.beam.sdk.extensions.sql.BeamSqlSeekableTable;
 import org.apache.beam.sdk.extensions.sql.TestUtils;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BaseBeamTable;
+import org.apache.beam.sdk.extensions.sql.impl.schema.BeamIOType;
 import org.apache.beam.sdk.extensions.sql.impl.transform.BeamSqlOutputToConsoleFn;
 import org.apache.beam.sdk.extensions.sql.mock.MockedBoundedTable;
 import org.apache.beam.sdk.extensions.sql.mock.MockedUnboundedTable;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.BeamRecord;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PDone;
 import org.joda.time.Duration;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -84,8 +93,40 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
             1, "james",
             2, "bond"
         ));
+    BEAM_SQL_ENV.registerTable("SITE_LKP", new SiteLookupTable(
+        TestUtils.buildBeamSqlRowType(Types.INTEGER, "site_id", Types.VARCHAR, "site_name")));
   }
 
+  /**
+   * Test table for JOIN-AS-LOOKUP.
+   *
+   */
+  public static class SiteLookupTable extends BaseBeamTable implements BeamSqlSeekableTable{
+
+    public SiteLookupTable(BeamRecordSqlType beamRecordSqlType) {
+      super(beamRecordSqlType);
+    }
+
+    @Override
+    public BeamIOType getSourceType() {
+      return BeamIOType.BOUNDED;
+    }
+
+    @Override
+    public PCollection<BeamRecord> buildIOReader(Pipeline pipeline) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public PTransform<? super PCollection<BeamRecord>, PDone> buildIOWriter() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public List<BeamRecord> seekRecord(BeamRecord lookupSubRecord) {
+      return Arrays.asList(new BeamRecord(getRowType(), 1, "SITE1"));
+    }
+  }
   @Test
   public void testInnerJoin_unboundedTableOnTheLeftSide() throws Exception {
     String sql = "SELECT o1.order_id, o1.sum_site_id, o2.buyer FROM "
@@ -235,6 +276,28 @@ public class BeamJoinRelUnboundedVsBoundedTest extends BaseRelTest {
         ;
     pipeline.enableAbandonedNodeEnforcement(false);
     compilePipeline(sql, pipeline, BEAM_SQL_ENV);
+    pipeline.run();
+  }
+
+  @Test
+  public void testJoinAsLookup() throws Exception {
+    String sql = "SELECT o1.order_id, o2.site_name FROM "
+        + " ORDER_DETAILS o1 "
+        + " JOIN SITE_LKP o2 "
+        + " on "
+        + " o1.site_id=o2.site_id "
+        + " WHERE o1.site_id=1"
+        ;
+    PCollection<BeamRecord> rows = compilePipeline(sql, pipeline, BEAM_SQL_ENV);
+    PAssert.that(rows.apply(ParDo.of(new TestUtils.BeamSqlRow2StringDoFn())))
+        .containsInAnyOrder(
+            TestUtils.RowsBuilder.of(
+                Types.INTEGER, "order_id",
+                Types.VARCHAR, "site_name"
+            ).addRows(
+                1, "SITE1"
+            ).getStringRows()
+        );
     pipeline.run();
   }
 }
