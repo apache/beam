@@ -123,7 +123,7 @@ import org.apache.beam.sdk.values.PCollectionViews;
  *     .apply(WithKeys.of( ... )) // extract the URL from the page
  *     .apply(View.<URL, Page>asMap());
  *
- * PCollection PageVisits = urlVisits
+ * PCollection<PageVisit> pageVisits = urlVisits
  *     .apply(ParDo.withSideInputs(urlToPageView)
  *         .of(new DoFn<UrlVisit, PageVisit>() {
  *             {@literal @}Override
