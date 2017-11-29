@@ -28,6 +28,7 @@ from apache_beam import coders
 from apache_beam import pvalue
 from apache_beam.internal import pickler
 from apache_beam.options.pipeline_options import TypeOptions
+from apache_beam.runners import common
 from apache_beam.runners.common import DoFnRunner
 from apache_beam.runners.common import DoFnState
 from apache_beam.runners.dataflow.native_io.iobase import _NativeWrite  # pylint: disable=protected-access
@@ -490,14 +491,14 @@ class _TaggedReceivers(dict):
     def output(self, element):
       pass
 
-  class _InMemoryReceiver(object):
+  class _InMemoryReceiver(common.Receiver):
     """Buffers undeclared outputs to the given dictionary."""
 
     def __init__(self, target, tag):
       self._target = target
       self._tag = tag
 
-    def output(self, element):
+    def receive(self, element):
       self._target[self._tag].append(element)
 
   def __missing__(self, key):
