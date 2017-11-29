@@ -18,21 +18,18 @@
 package org.apache.beam.sdk.io.jms;
 
 import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.io.IOException;
+import com.google.common.base.Throwables;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.MessageProducer;
@@ -116,12 +113,7 @@ public class JmsIOTest {
       pipeline.run();
       fail();
     } catch (Exception e) {
-      Throwable cause = e.getCause();
-      assertThat(cause, instanceOf(IOException.class));
-      assertThat(cause.getMessage(), equalTo("Error connecting to JMS"));
-      Throwable innerCause = cause.getCause();
-      assertThat(innerCause, instanceOf(JMSException.class));
-      assertThat(innerCause.getMessage(), containsString(innerMessage));
+      assertThat(Throwables.getRootCause(e).getMessage(), containsString(innerMessage));
     }
   }
 
