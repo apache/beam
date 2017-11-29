@@ -136,9 +136,13 @@ def _install_grpcio_tools_and_generate_proto_files():
     logging.warning(
         'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
   finally:
+    sys.stderr.flush()
     shutil.rmtree(build_path)
   sys.path.append(install_path)
-  generate_proto_files()
+  try:
+    generate_proto_files()
+  finally:
+    sys.stderr.flush()
 
 
 if __name__ == '__main__':
