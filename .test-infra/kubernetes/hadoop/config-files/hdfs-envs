@@ -1,0 +1,7 @@
+# The cluster default user is root
+
+export HADOOP_USER_NAME=root
+
+# We are using hadoop configuration provided here for small cluster
+
+export HADOOP_CONF_DIR=`pwd`/.test-infra/kubernetes/hadoop/config-files
