@@ -264,7 +264,9 @@ class WriteTables<DestinationT>
       switch (jobStatus) {
         case SUCCEEDED:
           if (tableDescription != null) {
-            datasetService.patchTableDescription(ref, tableDescription);
+            datasetService.patchTableDescription(
+                ref.clone().setTableId(BigQueryHelpers.stripPartitionDecorator(ref.getTableId())),
+                tableDescription);
           }
           return;
         case UNKNOWN:
