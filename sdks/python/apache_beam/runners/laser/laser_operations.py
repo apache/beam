@@ -9,6 +9,22 @@ from apache_beam.runners.laser.channels import get_channel_manager
 
 WRITE_BUFFER_SIZE = 8 * 1024 * 1024
 
+
+# key prefix hashing
+import hashlib
+
+HASH_LENGTH = 8
+
+def prepend_key_hash(key):
+  h = hashlib.md5()
+  h.update(key)
+  hash_bytes = h.digest()[0:HASH_LENGTH]
+  return hash_bytes + key
+
+def strip_hash(hash_and_key):
+  return hash_and_key[HASH_LENGTH:]
+
+
 class ShuffleWriteOperation(Operation):
   """A shuffle write operation."""
 
@@ -52,8 +68,9 @@ class ShuffleWriteOperation(Operation):
       encoded_key = self.key_coder.encode(key)
       encoded_value = self.value_coder.encode(value)
       # print 'E', repr(encoded_key), repr(encoded_value)
-      self.write_buffer.append((encoded_key, encoded_value))
-      self.buffer_bytes += len(encoded_key) + len(encoded_value)
+      hashed_encoded_key = prepend_key_hash(encoded_key)
+      self.write_buffer.append((hashed_encoded_key, encoded_value))
+      self.buffer_bytes += len(hashed_encoded_key) + len(encoded_value)
       if self.buffer_bytes >= WRITE_BUFFER_SIZE:
         self._flush()
 
@@ -97,7 +114,8 @@ class ShuffleReadOperation(Operation):
         # print '^^^^^^^^^^^^^^^^^^^^READ', elements, continuation_token
         for element in elements:
           # print 'ELE', element
-          encoded_key, encoded_value = element
+          hashed_encoded_key, encoded_value = element
+          encoded_key = strip_hash(hashed_encoded_key)
           if has_active_key and current_encoded_key != encoded_key:
             current_key = self.key_coder.decode(current_encoded_key)
             # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)
