@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/io/textio"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"google.golang.org/api/storage/v1"
 )
 
@@ -39,7 +39,7 @@ type fs struct {
 // New creates a new Google Cloud Storage filesystem using application
 // default credentials.
 func New(ctx context.Context) textio.FileSystem {
-	client, err := storagex.NewClient(ctx)
+	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
 	if err != nil {
 		panic(fmt.Sprintf("failed to create GCE client: %v", err))
 	}
@@ -52,7 +52,7 @@ func (f *fs) Close() error {
 }
 
 func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
-	bucket, object, err := storagex.ParseObject(glob)
+	bucket, object, err := gcsx.ParseObject(glob)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 }
 
 func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, error) {
-	bucket, object, err := storagex.ParseObject(filename)
+	bucket, object, err := gcsx.ParseObject(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (f *fs) OpenRead(ctx context.Context, filename string) (io.ReadCloser, erro
 // TODO(herohde) 7/12/2017: should we create the bucket in OpenWrite? For now, "no".
 
 func (f *fs) OpenWrite(ctx context.Context, filename string) (io.WriteCloser, error) {
-	bucket, object, err := storagex.ParseObject(filename)
+	bucket, object, err := gcsx.ParseObject(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -126,5 +126,5 @@ func (w *writer) Write(data []byte) (n int, err error) {
 }
 
 func (w *writer) Close() error {
-	return storagex.WriteObject(w.client, w.bucket, w.object, &w.buf)
+	return gcsx.WriteObject(w.client, w.bucket, w.object, &w.buf)
 }
