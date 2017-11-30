@@ -19,20 +19,21 @@ package cz.seznam.euphoria.hbase;
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 
+import java.io.IOException;
+
 /**
  * Direct sink to HBase using RPCs.
  */
-public class HBaseSink extends HadoopSink<Object, Mutation> {
+public class HBaseSink<T extends Mutation> implements DataSink<T> {
 
   public static Builder newBuilder() {
     return new Builder();
@@ -40,9 +41,9 @@ public class HBaseSink extends HadoopSink<Object, Mutation> {
 
   public static class Builder {
 
-    Configuration conf = HBaseConfiguration.create();
+    Configuration conf = null;
     String table = null;
-    List<Update<Configuration>> updaters = new ArrayList<>();
+    String quorum = null;
 
     /**
      * Specify configuration to use.
@@ -66,74 +67,71 @@ public class HBaseSink extends HadoopSink<Object, Mutation> {
 
     /**
      * Specify zookeeper quorum.
-     * @param quorum
+     * @param quorum the zookeeper quorum
      * @return this
      */
     public Builder withQuorum(String quorum) {
-      updaters.add(c -> c.set(TableOutputFormat.QUORUM_ADDRESS, quorum));
+      this.quorum = quorum;
       return this;
     }
 
     /**
      * Build the output sink.
-     * @return  the built output sink
+     * @return the built output sink
      */
-    public HBaseSink build() {
+    public <T extends Mutation> HBaseSink<T> build() {
       Preconditions.checkArgument(table != null, "Specify table by call to `withTable`");
-      updaters.add(c -> c.set(TableOutputFormat.OUTPUT_TABLE, table));
-      return new HBaseSink(conf, updaters);
+      conf = conf == null
+          ? HBaseConfiguration.create()
+          : HBaseConfiguration.create(conf);
+      if (quorum != null) {
+        conf.set(TableOutputFormat.QUORUM_ADDRESS, quorum);
+      }
+      conf.set(TableOutputFormat.OUTPUT_TABLE, table);
+      return new HBaseSink<>(new WrapperSink<>(conf));
     }
 
-    /**
-     * Build sink for raw mutations without any key.
-     */
+  }
+
+  private static class WrapperSink<T extends Mutation> extends HadoopSink<Object, T> {
+
     @SuppressWarnings("unchecked")
-    public DataSink<Mutation> buildRaw() {
-      return build().setRaw();
+    WrapperSink(Configuration conf) {
+      super((Class) TableOutputFormat.class, conf);
     }
 
   }
 
-  private boolean raw;
+  private static final Object EMPTY = new Object();
 
-  @SuppressWarnings("unchecked")
-  HBaseSink(Configuration conf, List<Update<Configuration>> updaters) {
+  private final WrapperSink<T> wrapped;
 
-    super((Class) TableOutputFormat.class, toConf(conf, updaters));
+  HBaseSink(WrapperSink<T> wrapped) {
+    this.wrapped = wrapped;
   }
 
-  @SuppressWarnings("unchecked")
   @Override
-  public boolean prepareDataset(Dataset output) {
-    if (!raw) {
-      return false;
-    }
-    MapElements.of(output)
-        .using(i -> Pair.of((Object) "", i))
+  public Writer<T> openWriter(int partitionId) {
+    throw new UnsupportedOperationException("Unsupported");
+  }
+
+  @Override
+  public boolean prepareDataset(Dataset<T> input) {
+    MapElements.of(input)
+        .using(i -> Pair.of(EMPTY, i))
         .output()
-        .persist(this);
+        .persist(wrapped);
     return true;
   }
 
-
-  @SuppressWarnings("unchecked")
-  private DataSink<Mutation> setRaw() {
-    this.raw = true;
-    return (DataSink) this;
+  @Override
+  public void commit() throws IOException {
+    wrapped.commit();
   }
 
-  private static Configuration toConf(
-      Configuration conf, List<Update<Configuration>> updaters) {
-
-    Configuration ret = HBaseConfiguration.create(conf);
-    for (Update<Configuration> u : updaters) {
-      try {
-        u.update(ret);
-      } catch (Exception ex) {
-        throw new RuntimeException(ex);
-      }
-    }
-    return ret;
+  @Override
+  public void rollback() throws IOException {
+    wrapped.rollback();
   }
 
 }
