@@ -3,7 +3,6 @@ import com.github.spotbugs.SpotBugsTask
 plugins {
   id "com.github.hierynomus.license" version "0.14.0" apply false
   id 'com.github.johnrengelman.shadow' version '2.0.1' apply false
-  id "com.google.protobuf" version "0.8.3" apply false
   id "com.github.spotbugs" version "1.6.0" apply false
 }
 
