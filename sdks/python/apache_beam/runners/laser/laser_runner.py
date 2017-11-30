@@ -737,7 +737,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
         split_read_ops.append(new_read_op)
     elif isinstance(read_op, operation_specs.LaserShuffleRead):
       # TODO: do initial splitting of shuffle read operation, based on dataset characteristics.
-      split_ranges = read_op.key_range.split(16)
+      split_ranges = read_op.key_range.split(64)
       for split_range in split_ranges:
         new_read_op = operation_specs.LaserShuffleRead(
           dataset_id=read_op.dataset_id,
@@ -1383,7 +1383,7 @@ class InProcessComputeNodeManager(ComputeNodeManager):
 
 
 class MultiProcessComputeNodeManager(ComputeNodeManager):
-  def __init__(self, num_nodes=4):
+  def __init__(self, num_nodes=12):
     self.num_nodes = num_nodes
     self.started = False
     self.channel_manager = get_channel_manager()
@@ -1505,23 +1505,20 @@ if __name__ == '__main__':
   # run(sys.argv)
   from apache_beam import Pipeline
   from apache_beam import Create
+  from apache_beam import Flatten
   from apache_beam import DoFn
+
+  #### WORDCOUNT SECTION
   p = Pipeline(runner=LaserRunner())
-  # p = Pipeline()
-  # def fn(input):
-  #   print input
   def _print(x):
     import time
     # time.sleep(4)
-    print 'PRRRINT:', x
-  # p | Create([1, 2, 3]) | beam.FlatMap(lambda x: [(x, 'abc1-%d' % x), (x, 'xyz2-%d' % x)]) | beam.GroupByKey()  | 'cc' >> beam.Map(_print)
-  # p | 'WTF' >> Create([1, 2, 3]) | 'm' >> beam.Map(lambda x: (x, '1'))
-  # a = p | 'yo' >> Create(['a', 'b', 'c'])
-  # a | 'aaa' >> beam.Map(lambda x: (x, '2')) | 'bbb' >> beam.Map(lambda x: (x, '3')) | 'cc' >> beam.Map(_print)
-  # a | beam.Map(lambda x: (x, '1'))# |  'gbk2' >>  beam.GroupByKey() | 'ccc' >> beam.Map(_print)
+    # print 'PRRRINT:', x
   lines = p | ReadFromText('gs://dataflow-samples/shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
-  # lines = p | Create(['a', 'a', 'b' ,'a c'])
+  # lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
+  # lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
+  # lines = (lines1, lines2) | Flatten()
   # WORDCAP:
   # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
 
@@ -1532,6 +1529,18 @@ if __name__ == '__main__':
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))) | beam.Map(_print)
-  # # | beam.Map(fn)
+  
+  # #### BIGSHUFFLE SECTION
+  # p = Pipeline(runner=LaserRunner())
+  # # lines = p | ReadFromText('gs://sort_g/input/ascii_sort_1GB_input.0000999', coder=beam.coders.BytesCoder())
+  # lines = p | ReadFromText('./ascii_sort_1GB_input.0000999', coder=beam.coders.BytesCoder())
+  # output = (lines
+  #           | 'split' >> beam.Map(
+  #               lambda x: (x[:10], x[10:99]))
+  #           .with_output_types(beam.typehints.KV[str, str])
+  #           | 'group' >> beam.GroupByKey()
+  #           | 'format' >> beam.FlatMap(
+  #               lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
+
   p.run()#.wait_until_finish()
 
