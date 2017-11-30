@@ -249,7 +249,7 @@ class _TransformWatermarks(object):
 
   @property
   def synchronized_processing_output_time(self):
-    return self._clock.current_time()
+    return self._clock.time()
 
   def extract_transform_timers(self):
     """Extracts fired timers and reports of any timers set per transform."""
@@ -259,7 +259,7 @@ class _TransformWatermarks(object):
       for encoded_key, state in self._keyed_states.iteritems():
         timers, had_realtime_timer = state.get_timers(
             watermark=self._input_watermark,
-            current_time=self._clock.current_time())
+            current_time=self._clock.time())
         if had_realtime_timer:
           has_realtime_timer = True
         for expired in timers:
