@@ -81,7 +81,7 @@ for file in "${EXCLUDED_GENERATED_FILES[@]}"; do
   SKIP_PARAM="$SKIP_PARAM --skip $(basename $file)"
 done
 pushd "$MODULE"
-isort -p apache_beam -w 120 -y -c -ot -cs -sl ${SKIP_PARAM}
+isort -p apache_beam --line-width 120 --check-only --order-by-type --combine-star --force-single-line-imports ${SKIP_PARAM}
 popd
 FUTURIZE_EXCLUDED=(
   "typehints.py"
