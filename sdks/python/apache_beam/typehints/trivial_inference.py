@@ -182,10 +182,14 @@ def union(a, b):
 def element_type(hint):
   """Returns the element type of a composite type.
   """
+  print("input hint %s " % hint)
   hint = Const.unwrap(hint)
+  print("unwrapped %s " % hint)
   if isinstance(hint, typehints.SequenceTypeConstraint):
+    print("sequence type")
     return hint.inner_type
   elif isinstance(hint, typehints.TupleHint.TupleConstraint):
+    print("tuple constraint")
     return typehints.Union[hint.tuple_types]
   return Any
 
@@ -220,7 +224,7 @@ def hashable(c):
     return False
 
 
-def infer_return_type(c, input_types, debug=False, depth=5):
+def infer_return_type(c, input_types, debug=True, depth=5):
   """Analyses a callable to deduce its return type.
 
   Args:
@@ -233,27 +237,37 @@ def infer_return_type(c, input_types, debug=False, depth=5):
     A TypeConstraint that that the return value of this function will (likely)
     satisfy given the specified inputs.
   """
+  print("\nhi!\n")
+  print("infering type %s" % c)
   try:
     if hashable(c) and c in known_return_types:
       return known_return_types[c]
     elif isinstance(c, types.FunctionType):
+      print("I'm a function!\n")
       return infer_return_type_func(c, input_types, debug, depth)
     elif isinstance(c, types.MethodType):
       if c.__self__ is not None:
         input_types = [Const(c.__self__)] + input_types
       return infer_return_type_func(c.__func__, input_types, debug, depth)
     elif isinstance(c, BoundMethod):
-      input_types = [c.unbound.__self__.__class__] + input_types
+      unbound = c.unbound
+      print("unbound is %s %s %s" % (unbound, type(unbound), dir(unbound)))
+      # Python 2/3 compatibility.
+      method_class = getattr(c.unbound, "__self__", c.unbound).__class__
+      func = getattr(c.unbound, "__func__", c.unbound)
+      input_types = [method_class] + input_types
       return infer_return_type_func(
-          c.unbound.__func__, input_types, debug, depth)
+          func, input_types, debug, depth)
     elif isinstance(c, type):
       if c in typehints.DISALLOWED_PRIMITIVE_TYPES:
+        print("Disallowed primitive type %s" % c)
         return {
             list: typehints.List[Any],
             set: typehints.Set[Any],
             tuple: typehints.Tuple[Any, ...],
             dict: typehints.Dict[Any, Any]
         }[c]
+      print("Allowed primitive time %s" % c)
       return c
     else:
       return Any
@@ -267,7 +281,7 @@ def infer_return_type(c, input_types, debug=False, depth=5):
       return Any
 
 
-def infer_return_type_func(f, input_types, debug=False, depth=0):
+def infer_return_type_func(f, input_types, debug=True, depth=0):
   """Analyses a function to deduce its return type.
 
   Args:
@@ -283,6 +297,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   Raises:
     TypeInferenceError: if no type can be inferred.
   """
+  debug = True
   if debug:
     print()
     print(f, id(f), input_types)
@@ -359,21 +374,28 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
     opname = dis.opname[op]
     jmp = jmp_state = None
+    print("Opname %s" % opname)
     if opname.startswith('CALL_FUNCTION'):
+      print("Calling function!")
       standard_args = (arg & 0xF) + old_div((arg & 0xF0), 8)
       var_args = 'VAR' in opname
       kw_args = 'KW' in opname
       pop_count = standard_args + var_args + kw_args + 1
+      print("%s, %s, %s, %s" % (standard_args, var_args, kw_args, pop_count))
       if depth <= 0:
+        print("Depth 0")
         return_type = Any
       elif arg & 0xF0:
+        print("idk wtf this is")
         # TODO(robertwb): Handle this case.
         return_type = Any
       elif (isinstance(state.stack[-pop_count], Const) and
             state.stack[-pop_count].value == list):
+        print("oook?")
         # TODO(robertwb + holden): Handle this better.
         return_type = typehints.List[element_type(state.stack[1])]
       elif isinstance(state.stack[-pop_count], Const):
+        print("boople")
         # TODO(robertwb): Handle this better.
         if var_args or kw_args:
           state.stack[-1] = Any
@@ -383,7 +405,12 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
                                         debug=debug,
                                         depth=depth - 1)
       else:
+        print("boop boop")
+        print("aww yeah? arg is %s and stack minus pop count is %s" %
+              (arg, state.stack[-pop_count]))
+        print("v%s" % type(state.stack[-pop_count]))
         return_type = Any
+      print("mok?")
       state.stack[-pop_count:] = [return_type]
     elif (opname == 'BINARY_SUBSCR'
           and isinstance(state.stack[1], Const)
@@ -400,7 +427,8 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
         state.stack.append(Any)
     elif opname in simple_ops:
       if debug:
-        print("Executing simple op " + opname)
+        print("Executing simple %s op with state %s and arg %s" %
+              (opname, state, arg))
       simple_ops[opname](state, arg)
     elif opname == 'RETURN_VALUE':
       returns.add(state.stack[-1])
@@ -420,23 +448,28 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
       jmp = arg
       jmp_state = state.copy()
     elif opname in ('JUMP_IF_TRUE_OR_POP', 'JUMP_IF_FALSE_OR_POP'):
+      print("jumping...")
       jmp = arg
       jmp_state = state.copy()
       state.stack.pop()
     elif opname == 'FOR_ITER':
+      print("for iter")
       jmp = pc + arg
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
     elif opname == 'BUILD_LIST':
+      print("building list")
       jmp = pc + arg
       jmp_state = state.copy()
       jmp_state.stack.pop()
       state.stack.append(element_type(state.stack[-1]))
     else:
+      print("fail")
       raise TypeInferenceError('unable to handle %s' % opname)
 
     if jmp is not None:
+      print("buttons")
       # TODO(robertwb): Is this guerenteed to converge?
       new_state = states[jmp] | jmp_state
       if jmp < pc and new_state != states[jmp] and jumps[pc] < 5:

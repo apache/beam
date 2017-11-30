@@ -77,13 +77,9 @@ class TrivialInferenceTest(unittest.TestCase):
   def testSimpleList(self):
     self.assertReturnType(
         typehints.List[int],
-        lambda xs: list([1, 2]),
+        lambda xs: [1, 2],
         [typehints.Tuple[int, ...]])
 
-    self.assertReturnType(
-        typehints.List[int],
-        lambda xs: list(xs),
-        [typehints.Tuple[int, ...]])
 
   def testListComprehension(self):
     self.assertReturnType(
@@ -149,6 +145,17 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(int, lambda: A().m(3))
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
+
+  def testMethod2(self):
+
+    class A(object):
+
+      def m(self, x, y):
+        return x
+
+    self.assertReturnType(int, lambda: A().m(3, "a"))
+    self.assertReturnType(float, lambda: A.m(A(), 3.0, "e"))
+
 
   def testAlwaysReturnsEarly(self):
 
