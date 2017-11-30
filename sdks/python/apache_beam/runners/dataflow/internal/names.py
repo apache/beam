@@ -17,7 +17,7 @@
 
 """Various names for properties, transforms, etc."""
 
-
+# TODO (altay): Move shared names to a common location.
 # Standard file names used for staging files.
 PICKLED_MAIN_SESSION_FILE = 'pickled_main_session'
 DATAFLOW_SDK_TARBALL_FILE = 'dataflow_python_sdk.tar'
