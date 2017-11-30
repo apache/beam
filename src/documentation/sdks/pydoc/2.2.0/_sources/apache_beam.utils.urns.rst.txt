@@ -1,0 +1,7 @@
+apache\_beam\.utils\.urns module
+================================
+
+.. automodule:: apache_beam.utils.urns
+    :members:
+    :undoc-members:
+    :show-inheritance:

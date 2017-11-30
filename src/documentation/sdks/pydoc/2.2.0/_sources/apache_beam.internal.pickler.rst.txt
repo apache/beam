@@ -1,0 +1,7 @@
+apache\_beam\.internal\.pickler module
+======================================
+
+.. automodule:: apache_beam.internal.pickler
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,7 @@
+apache\_beam\.runners\.direct\.clock module
+===========================================
+
+.. automodule:: apache_beam.runners.direct.clock
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,35 @@
+apache\_beam package
+====================
+
+.. automodule:: apache_beam
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Subpackages
+-----------
+
+.. toctree::
+
+    apache_beam.coders
+    apache_beam.internal
+    apache_beam.io
+    apache_beam.metrics
+    apache_beam.options
+    apache_beam.portability
+    apache_beam.runners
+    apache_beam.testing
+    apache_beam.transforms
+    apache_beam.typehints
+    apache_beam.utils
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.error
+   apache_beam.pipeline
+   apache_beam.pvalue
+   apache_beam.version
+

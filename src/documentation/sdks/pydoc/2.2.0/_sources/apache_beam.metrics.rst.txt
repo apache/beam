@@ -1,0 +1,17 @@
+apache\_beam\.metrics package
+=============================
+
+.. automodule:: apache_beam.metrics
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.metrics.cells
+   apache_beam.metrics.metric
+   apache_beam.metrics.metricbase
+

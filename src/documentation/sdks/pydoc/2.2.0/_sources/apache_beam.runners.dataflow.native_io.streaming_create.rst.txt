@@ -1,0 +1,7 @@
+apache\_beam\.runners\.dataflow\.native\_io\.streaming\_create module
+=====================================================================
+
+.. automodule:: apache_beam.runners.dataflow.native_io.streaming_create
+    :members:
+    :undoc-members:
+    :show-inheritance:
