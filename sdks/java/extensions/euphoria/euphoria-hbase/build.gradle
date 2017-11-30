@@ -7,9 +7,6 @@ dependencies {
   compileOnly "org.apache.hbase:hbase-client:${hbaseVersion}"
   compileOnly "org.apache.hbase:hbase-server:${hbaseVersion}"
 
-  testCompile "org.apache.hbase:hbase-common:${hbaseVersion}"
-  testCompile "org.apache.hbase:hbase-client:${hbaseVersion}"
-  testCompile "org.apache.hbase:hbase-server:${hbaseVersion}"
   testCompile "org.apache.hbase:hbase-testing-util:${hbaseVersion}"
   testCompile "org.apache.hbase:hbase-server:${hbaseVersion}:tests"
 }
