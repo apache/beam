@@ -127,6 +127,14 @@ public class HadoopSource<K, V> implements BoundedDataSource<Pair<K, V>> {
   }
 
   /**
+   * Retrieve configuration.
+   * @return the configuration used in this source
+   */
+  public Configuration getConfiguration() {
+    return conf.getWritable();
+  }
+
+  /**
    * Wraps Hadoop {@link RecordReader}
    */
   private static class HadoopReader<K, V>

@@ -78,6 +78,11 @@ configure(subprojects.findAll { it.name.startsWith('euphoria') }) {
     from javadoc.destinationDir
   }
 
+  sourceSets {
+    test.compileClasspath += configurations.compileOnly
+    test.runtimeClasspath += configurations.compileOnly
+  }
+
   publishing {
     publications {
       mavenJava(MavenPublication) {
