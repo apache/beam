@@ -15,7 +15,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.fn;
+
+package org.apache.beam.runners.fnexecution.data;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -27,13 +28,8 @@ import org.apache.beam.sdk.util.WindowedValue;
  * The {@link FnDataService} is able to forward inbound elements to a consumer and is also a
  * consumer of outbound elements. Callers can register themselves as consumers for inbound elements
  * or can get a handle for a consumer for outbound elements.
- *
- * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
- *     functionality.
  */
-@Deprecated
 public interface FnDataService {
-
   /**
    * A logical endpoint is a pair of an instruction ID corresponding to the {@link
    * BeamFnApi.ProcessBundleRequest} and the {@link
@@ -64,7 +60,7 @@ public interface FnDataService {
    *
    * <p>The provided receiver is not required to be thread safe.
    */
-  <T> ListenableFuture<Void> listen(
+  <T> ListenableFuture<Void> receive(
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> listener)
@@ -82,4 +78,5 @@ public interface FnDataService {
    */
   <T> FnDataReceiver<WindowedValue<T>> send(
       LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) throws Exception;
+
 }
