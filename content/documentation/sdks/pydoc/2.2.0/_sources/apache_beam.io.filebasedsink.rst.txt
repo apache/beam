@@ -1,0 +1,7 @@
+apache\_beam\.io\.filebasedsink module
+======================================
+
+.. automodule:: apache_beam.io.filebasedsink
+    :members:
+    :undoc-members:
+    :show-inheritance:

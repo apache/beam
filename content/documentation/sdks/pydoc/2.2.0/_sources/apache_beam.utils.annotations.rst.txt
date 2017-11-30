@@ -1,0 +1,7 @@
+apache\_beam\.utils\.annotations module
+=======================================
+
+.. automodule:: apache_beam.utils.annotations
+    :members:
+    :undoc-members:
+    :show-inheritance:
