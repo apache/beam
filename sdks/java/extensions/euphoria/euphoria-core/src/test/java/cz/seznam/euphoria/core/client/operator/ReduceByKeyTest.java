@@ -119,5 +119,20 @@ public class ReduceByKeyTest {
     assertNotNull(reduce.valueComparator);
   }
 
+  @Test
+  public void testBuild_sortedValuesWithNoWindowing() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
+            .keyBy(s -> s)
+            .valueBy(s -> 1L)
+            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+            .withSortedValues(Long::compare)
+            .output();
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertNotNull(reduce.valueComparator);
+  }
 
 }
