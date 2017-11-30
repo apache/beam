@@ -21,10 +21,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/golang/protobuf/proto"
 )
 
 const (

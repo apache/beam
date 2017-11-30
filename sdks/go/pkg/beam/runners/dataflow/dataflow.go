@@ -35,9 +35,10 @@ import (
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
-	"github.com/apache/beam/sdks/go/pkg/beam/util/storagex"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
+	"google.golang.org/api/storage/v1"
 )
 
 // TODO(herohde) 5/16/2017: the Dataflow flags should match the other SDKs.
@@ -214,7 +215,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 // stageWorker uploads the worker binary to GCS as a unique object.
 func stageWorker(ctx context.Context, project, location, worker string) (string, error) {
-	bucket, prefix, err := storagex.ParseObject(location)
+	bucket, prefix, err := gcsx.ParseObject(location)
 	if err != nil {
 		return "", fmt.Errorf("invalid staging location %v: %v", location, err)
 	}
@@ -225,7 +226,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 		return full, nil
 	}
 
-	client, err := storagex.NewClient(ctx)
+	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
 	if err != nil {
 		return "", err
 	}
@@ -236,7 +237,7 @@ func stageWorker(ctx context.Context, project, location, worker string) (string,
 	defer fd.Close()
 	defer os.Remove(worker)
 
-	return storagex.Upload(client, project, bucket, obj, fd)
+	return gcsx.Upload(client, project, bucket, obj, fd)
 }
 
 // buildLocalBinary creates a local worker binary suitable to run on Dataflow. It finds the filename

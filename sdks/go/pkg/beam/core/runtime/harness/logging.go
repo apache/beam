@@ -22,9 +22,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/golang/protobuf/ptypes"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	"github.com/golang/protobuf/ptypes"
 )
 
 // TODO(herohde) 10/12/2017: make this file a separate package. Then

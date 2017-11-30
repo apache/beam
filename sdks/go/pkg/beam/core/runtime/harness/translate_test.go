@@ -20,11 +20,11 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
-	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
-	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	rnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 )
 
 // Declare the DoFn that is used in the test graph

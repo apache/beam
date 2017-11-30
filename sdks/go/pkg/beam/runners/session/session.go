@@ -30,12 +30,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/apache/beam/sdks/go/pkg/beam"
-	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/fnexecution_v1"
-	rapi_pb "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/api/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/session"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	fnapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	rapi_pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
 
