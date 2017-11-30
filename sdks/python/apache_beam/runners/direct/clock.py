@@ -25,25 +25,27 @@ import time
 
 
 class Clock(object):
-  def current_time(self):
+  def time(self):
+    """Returns the number of milliseconds since epoch."""
     raise NotImplementedError()
 
-  def advance_time(self):
+  def advance_time(self, advance_by):
+    """Advances the clock by a number of miliseconds."""
     raise NotImplementedError()
 
 
 class RealClock(object):
-  def current_time(self):
-    return time.time()
+  def time(self):
+    return int(time.time() * 1000)
 
 
 class TestClock(object):
   """Clock used for Testing"""
-  def __init__(self, current=0):
-    self._current = current
+  def __init__(self, current_time=0):
+    self._current_time = current_time
 
-  def current_time(self):
-    return self._current
+  def time(self):
+    return self._current_time
 
   def advance_time(self, advance_by):
-    self._current += advance_by
+    self._current_time += advance_by
