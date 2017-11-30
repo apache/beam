@@ -19,12 +19,15 @@
 package org.apache.beam.sdk.io.text;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
 import java.text.ParseException;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
-import org.apache.beam.sdk.io.common.AbstractFileBasedIOIT;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
@@ -50,7 +53,7 @@ import org.junit.runners.JUnit4;
  *  -Dit.test=org.apache.beam.sdk.io.text.TextIOIT
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
- *  "--filenamePrefix=FILEBASEDIOIT"
+ *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
  * </pre>
@@ -59,7 +62,7 @@ import org.junit.runners.JUnit4;
  * running this test using Beam performance testing framework.</p>
  */
 @RunWith(JUnit4.class)
-public class TextIOIT extends AbstractFileBasedIOIT {
+public class TextIOIT {
 
   private static String filenamePrefix;
   private static Long numberOfTextLines;
@@ -74,7 +77,7 @@ public class TextIOIT extends AbstractFileBasedIOIT {
 
     numberOfTextLines = options.getNumberOfRecords();
     filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
-    compressionType = parseCompressionType(options.getCompressionType());
+    compressionType = Compression.valueOf(options.getCompressionType());
   }
 
   @Test
@@ -87,7 +90,8 @@ public class TextIOIT extends AbstractFileBasedIOIT {
 
     PCollection<String> testFilenames = pipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines", ParDo.of(new DeterministicallyConstructTestTextLineFn()))
+        .apply("Produce text lines",
+            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
         .apply("Write content to files", write)
         .getPerDestinationOutputFilenames().apply(Values.<String>create())
         .apply(Reshuffle.<String>viaRandomKey());
@@ -99,7 +103,7 @@ public class TextIOIT extends AbstractFileBasedIOIT {
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply("Delete test files", ParDo.of(new DeleteFileFn())
+    testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
         .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
 
     pipeline.run().waitUntilFinish();

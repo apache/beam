@@ -18,47 +18,44 @@
 
 package org.apache.beam.sdk.io.common;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Map;
-import org.apache.beam.sdk.io.Compression;
+import java.util.Set;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
- * Abstract class for file based IO Integration tests.
+ * Contains helper methods for file based IO Integration tests.
  */
-public abstract class AbstractFileBasedIOIT {
+public class FileBasedIOITHelper {
 
-  protected static IOTestPipelineOptions readTestPipelineOptions() {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    return TestPipeline.testingPipelineOptions().as(IOTestPipelineOptions.class);
+  private FileBasedIOITHelper() {
   }
 
-  protected static String appendTimestampToPrefix(String filenamePrefix) {
+  public static IOTestPipelineOptions readTestPipelineOptions() {
+    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
+    IOTestPipelineOptions options = TestPipeline
+        .testingPipelineOptions()
+        .as(IOTestPipelineOptions.class);
+
+    return PipelineOptionsValidator.validate(IOTestPipelineOptions.class, options);
+  }
+
+  public static String appendTimestampToPrefix(String filenamePrefix) {
     return String.format("%s_%s", filenamePrefix, new Date().getTime());
   }
 
-  protected static Compression parseCompressionType(String compressionType) {
-    try {
-      return Compression.valueOf(compressionType.toUpperCase());
-    } catch (IllegalArgumentException ex) {
-      throw new IllegalArgumentException(
-          String.format("Unsupported compression type: %s", compressionType));
-    }
-  }
-
-  protected String getExpectedHashForLineCount(Long lineCount) {
+  public static String getExpectedHashForLineCount(Long lineCount) {
     Map<Long, String> expectedHashes = ImmutableMap.of(
         100_000L, "4c8bb3b99dcc59459b20fefba400d446",
         1_000_000L, "9796db06e7a7960f974d5a91164afff1",
@@ -78,6 +75,7 @@ public abstract class AbstractFileBasedIOIT {
    * Constructs text lines in files used for testing.
    */
   public static class DeterministicallyConstructTestTextLineFn extends DoFn<Long, String> {
+
     @ProcessElement
     public void processElement(ProcessContext c) {
       c.output(String.format("IO IT Test line of text. Line seed: %s", c.element()));
@@ -94,18 +92,12 @@ public abstract class AbstractFileBasedIOIT {
       MatchResult match = Iterables
           .getOnlyElement(FileSystems.match(Collections.singletonList(c.element())));
 
-      Collection<ResourceId> resourceIds = toResourceIds(match);
+      Set<ResourceId> resourceIds = new HashSet<>();
+      for (MatchResult.Metadata metadataElem : match.metadata()) {
+        resourceIds.add(metadataElem.resourceId());
+      }
 
       FileSystems.delete(resourceIds);
-    }
-    private Collection<ResourceId> toResourceIds(MatchResult match) throws IOException {
-      return FluentIterable.from(match.metadata())
-          .transform(new Function<MatchResult.Metadata, ResourceId>() {
-            @Override
-            public ResourceId apply(MatchResult.Metadata metadata) {
-              return metadata.resourceId();
-            }
-          }).toList();
     }
   }
 }
