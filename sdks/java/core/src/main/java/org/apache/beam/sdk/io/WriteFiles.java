@@ -20,7 +20,6 @@ package org.apache.beam.sdk.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
@@ -42,8 +41,8 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.NonDeterministicException;
-import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.ShardedKeyCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -286,13 +285,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
           getWindowedWrites(),
           "Must use windowed writes when applying %s to an unbounded PCollection",
           WriteFiles.class.getSimpleName());
-    }
-    if (getWindowedWrites()) {
       // The reason for this is https://issues.apache.org/jira/browse/BEAM-1438
       // and similar behavior in other runners.
       checkArgument(
           getComputeNumShards() != null || getNumShardsProvider() != null,
-          "When using windowed writes, must specify number of output shards explicitly",
+          "When applying %s to an unbounded PCollection, "
+              + "must specify number of output shards explicitly",
           WriteFiles.class.getSimpleName());
     }
     this.writeOperation = getSink().createWriteOperation();
@@ -364,7 +362,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   }
 
   private class GatherResults<ResultT>
-      extends PTransform<PCollection<ResultT>, PCollection<Iterable<ResultT>>> {
+      extends PTransform<PCollection<ResultT>, PCollection<List<ResultT>>> {
     private final Coder<ResultT> resultCoder;
 
     private GatherResults(Coder<ResultT> resultCoder) {
@@ -372,7 +370,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     @Override
-    public PCollection<Iterable<ResultT>> expand(PCollection<ResultT> input) {
+    public PCollection<List<ResultT>> expand(PCollection<ResultT> input) {
       if (getWindowedWrites()) {
         // Reshuffle the results to make them stable against retries.
         // Use a single void key to maximize size of bundles for finalization.
@@ -381,7 +379,9 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             .apply("Reshuffle", Reshuffle.<Void, ResultT>of())
             .apply("Drop key", Values.<ResultT>create())
             .apply("Gather bundles", ParDo.of(new GatherBundlesPerWindowFn<ResultT>()))
-            .setCoder(IterableCoder.of(resultCoder));
+            .setCoder(ListCoder.of(resultCoder))
+            // Reshuffle one more time to stabilize the contents of the bundle lists to finalize.
+            .apply(Reshuffle.<List<ResultT>>viaRandomKey());
       } else {
         // Pass results via a side input rather than reshuffle, because we need to get an empty
         // iterable to finalize if there are no results.
@@ -389,7 +389,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
             .getPipeline()
             .apply(
                 Reify.viewInGlobalWindow(
-                    input.apply(View.<ResultT>asIterable()), IterableCoder.of(resultCoder)));
+                    input.apply(View.<ResultT>asList()), ListCoder.of(resultCoder)));
       }
     }
   }
@@ -742,7 +742,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
   private class FinalizeTempFileBundles
       extends PTransform<
-          PCollection<Iterable<FileResult<DestinationT>>>, WriteFilesResult<DestinationT>> {
+          PCollection<List<FileResult<DestinationT>>>, WriteFilesResult<DestinationT>> {
     @Nullable private final PCollectionView<Integer> numShardsView;
     private final Coder<DestinationT> destinationCoder;
 
@@ -754,7 +754,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @Override
     public WriteFilesResult<DestinationT> expand(
-        PCollection<Iterable<FileResult<DestinationT>>> input) {
+        PCollection<List<FileResult<DestinationT>>> input) {
 
       List<PCollectionView<?>> finalizeSideInputs = Lists.newArrayList(getSideInputs());
       if (numShardsView != null) {
@@ -772,7 +772,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     }
 
     private class FinalizeFn
-        extends DoFn<Iterable<FileResult<DestinationT>>, KV<DestinationT, String>> {
+        extends DoFn<List<FileResult<DestinationT>>, KV<DestinationT, String>> {
       @ProcessElement
       public void process(ProcessContext c) throws Exception {
         getDynamicDestinations().setSideInputAccessorFromProcessContext(c);
@@ -782,7 +782,6 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
         } else if (getNumShardsProvider() != null) {
           fixedNumShards = getNumShardsProvider().get();
         } else {
-          checkState(!getWindowedWrites(), "Windowed write should have set fixed sharding");
           fixedNumShards = null;
         }
         List<FileResult<DestinationT>> fileResults = Lists.newArrayList(c.element());
@@ -821,7 +820,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
     return resultsToFinalFilenames;
   }
 
-  private static class GatherBundlesPerWindowFn<T> extends DoFn<T, Iterable<T>> {
+  private static class GatherBundlesPerWindowFn<T> extends DoFn<T, List<T>> {
     @Nullable private transient Multimap<BoundedWindow, T> bundles = null;
 
     @StartBundle
