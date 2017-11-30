@@ -263,7 +263,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     public Dataset<Pair<KEY, OUT>> output() {
       return new DatasetBuilder5<>(
           name, input, keyExtractor, valueExtractor,
-          reducer, null, null).output();
+          reducer, null, valuesComparator).output();
     }
   }
 
