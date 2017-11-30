@@ -386,10 +386,11 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWindowedWritesNeedSharding() {
+  public void testUnboundedWritesNeedSharding() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "When using windowed writes, must specify number of output shards explicitly");
+        "When applying WriteFiles to an unbounded PCollection, "
+            + "must specify number of output shards explicitly");
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))

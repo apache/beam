@@ -32,7 +32,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.io.InputStream;
@@ -43,7 +42,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -634,28 +632,9 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       if (numShards != null) {
         resultsWithShardNumbers = Lists.newArrayList(completeResults);
       } else {
-        checkState(
-            !windowedWrites,
-            "When doing windowed writes, shards should have been assigned when writing");
-        // Sort files for idempotence. Sort by temporary filename.
-        // Note that this codepath should not be used when processing triggered windows. In the
-        // case of triggers, the list of FileResult objects in the Finalize iterable is not
-        // deterministic, and might change over retries. This breaks the assumption below that
-        // sorting the FileResult objects provides idempotency.
-        List<FileResult<DestinationT>> sortedByTempFilename =
-            Ordering.from(
-                    new Comparator<FileResult<DestinationT>>() {
-                      @Override
-                      public int compare(
-                          FileResult<DestinationT> first, FileResult<DestinationT> second) {
-                        String firstFilename = first.getTempFilename().toString();
-                        String secondFilename = second.getTempFilename().toString();
-                        return firstFilename.compareTo(secondFilename);
-                      }
-                    })
-                .sortedCopy(completeResults);
-        for (int i = 0; i < sortedByTempFilename.size(); i++) {
-          resultsWithShardNumbers.add(sortedByTempFilename.get(i).withShard(i));
+        int i = 0;
+        for (FileResult<DestinationT> res : completeResults) {
+          resultsWithShardNumbers.add(res.withShard(i++));
         }
       }
 
