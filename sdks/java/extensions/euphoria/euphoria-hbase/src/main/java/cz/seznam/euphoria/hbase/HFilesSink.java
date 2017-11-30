@@ -19,22 +19,11 @@ package cz.seznam.euphoria.hbase;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.functional.BinaryFunction;
-import cz.seznam.euphoria.core.client.functional.VoidFunction;
 import cz.seznam.euphoria.core.client.io.VoidSink;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.util.Pair;
-import cz.seznam.euphoria.hadoop.SerializableWritable;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
@@ -50,6 +39,14 @@ import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Sink to HBase using {@code HFileOutputFormat2}.
@@ -126,35 +123,14 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
 
   }
 
-  private static class LazyComparator<X> implements BinaryFunction<X, X, Integer> {
-
-    final VoidFunction<Comparator<X>> factory;
-    transient Comparator<X> raw;
-
-    LazyComparator(VoidFunction<Comparator<X>> factory) {
-      this.factory = factory;
-    }
-
-    @Override
-    public Integer apply(X left, X right) {
-      if (raw == null) {
-        raw = factory.apply();
-      }
-      return raw.compare(left, right);
-    }
-
-  }
-
-  final byte[][] endKeys;
+  private final byte[][] endKeys;
 
   HFilesSink(String table, Configuration conf, List<Update<Job>> updaters) {
-    super(HFileOutputFormat2.class, toConf(table, updaters, conf));
+    super(HFileOutputFormat2.class, toConf(updaters, conf));
     this.endKeys = getEndKeys(table, getConfiguration());
   }
 
-  private static Configuration toConf(
-      String table, List<Update<Job>> updaters, Configuration conf) {
-
+  private static Configuration toConf(List<Update<Job>> updaters, Configuration conf) {
     try {
       Configuration ret = HBaseConfiguration.create(conf);
       Job job = Job.getInstance(ret);
@@ -175,12 +151,8 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
   public boolean prepareDataset(
       Dataset<Pair<ImmutableBytesWritable, Cell>> output) {
 
-    // initialize this inside the `keyBy` function
-    AtomicReference<ByteBuffer[]> bufferedKeys = new AtomicReference<>();
-
-    // wrap the cache to serializable for distribution
-    final SerializableWritable<ImmutableBytesWritable> cache = new SerializableWritable<>(
-        new ImmutableBytesWritable(new byte[0]));
+    // initialize this inside the `keyBy` or `reduceBy` function
+    final AtomicReference<ByteBuffer[]> bufferedKeys = new AtomicReference<>();
 
     CellComparator comparator = new CellComparator();
 
@@ -194,7 +166,6 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
           // via #131
           Iterator<Cell> iterator = s.iterator();
           Cell first = iterator.next();
-          cache.getWritable().set(first.getRow());
           int id = toRegionIdUninitialized(bufferedKeys, endKeys, ByteBuffer.wrap(
               first.getRowArray(), first.getRowOffset(), first.getRowLength()));
           Writer<Pair<ImmutableBytesWritable, Cell>> writer = HFilesSink.this.openWriter(id);
@@ -204,9 +175,11 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
             for (;;) {
               w.set(c.getRowArray(), c.getRowOffset(), c.getRowLength());
               writer.write(Pair.of(w, c));
-              if (!iterator.hasNext()) break;
+              if (!iterator.hasNext()) {
+                break;
+              }
               c = iterator.next();
-            };
+            }
             writer.close();
             writer.commit();
           } catch (Exception ex) {
@@ -237,7 +210,7 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     return true;
   }
 
-  static int toRegionIdUninitialized(
+  private static int toRegionIdUninitialized(
       AtomicReference<ByteBuffer[]> endKeys,
       byte[][] bytesEndKeys,
       ImmutableBytesWritable row) {
@@ -249,7 +222,7 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
         row.get(), row.getOffset(), row.getLength()));
   }
 
-  static int toRegionIdUninitialized(
+  private static int toRegionIdUninitialized(
       AtomicReference<ByteBuffer[]> endKeys,
       byte[][] bytesEndKeys,
       ByteBuffer row) {
@@ -266,7 +239,7 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
         row.get(), row.getOffset(), row.getLength()));
   }
 
-  static int toRegionId(ByteBuffer[] endKeys, ByteBuffer row) {
+  private static int toRegionId(ByteBuffer[] endKeys, ByteBuffer row) {
     int search = Arrays.binarySearch(endKeys, row);
     return search >= 0 ? search : - (search + 1);
   }
@@ -278,15 +251,14 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
   }
 
   private byte[][] getEndKeys(String table, Configuration configuration) {
-    try {
-      Connection conn = ConnectionFactory.createConnection(configuration);
+    try (Connection conn = ConnectionFactory.createConnection(configuration)) {
       RegionLocator locator = conn.getRegionLocator(TableName.valueOf(table));
       byte[][] ends = locator.getEndKeys();
       return Arrays.stream(ends).map(ByteBuffer::wrap)
           .filter(b -> b.remaining() > 0)
           .sorted()
           .map(b -> b.slice().array())
-          .toArray(l -> new byte[l][]);
+          .toArray(byte[][]::new);
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
