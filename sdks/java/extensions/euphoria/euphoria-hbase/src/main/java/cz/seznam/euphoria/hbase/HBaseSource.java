@@ -46,7 +46,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
    * job.
    */
   @FunctionalInterface
-  public static interface ScanUpdate extends Update<Scan> {
+  public interface ScanUpdate extends Update<Scan> {
   }
 
   /**
@@ -62,9 +62,9 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
   public static class Builder {
 
     private Configuration conf = HBaseConfiguration.create();
-    private final List<ScanUpdate> scanUpdators = new ArrayList<>();
+    private final List<ScanUpdate> scanUpdaters = new ArrayList<>();
     private String table = null;
-    private VoidFunction<Scan> scanFactory = () -> new Scan();
+    private VoidFunction<Scan> scanFactory = Scan::new;
 
     /**
      * Specify configuration to use.
@@ -92,7 +92,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      * @return this
      */
     public Builder addFamily(byte[] family) {
-      scanUpdators.add(s -> s.addFamily(family));
+      scanUpdaters.add(s -> s.addFamily(family));
       return this;
     }
 
@@ -163,7 +163,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      * @return this
      */
     private Builder addColumn(byte[] family, byte[] qualifier) {
-      scanUpdators.add(s -> s.addColumn(family, qualifier));
+      scanUpdaters.add(s -> s.addColumn(family, qualifier));
       return this;
     }
 
@@ -184,7 +184,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      * @return this
      */
     public Builder withScanCaching(int caching) {
-      scanUpdators.add(s -> s.setCaching(caching));
+      scanUpdaters.add(s -> s.setCaching(caching));
       return this;
     }
 
@@ -194,7 +194,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      * @return this
      */
     public Builder withBatchSize(int batchSize) {
-      scanUpdators.add(s -> s.setBatch(batchSize));
+      scanUpdaters.add(s -> s.setBatch(batchSize));
       return this;
     }
 
@@ -214,7 +214,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      * @return this
      */
     public Builder withTimeRange(long minStamp, long maxStamp) {
-      scanUpdators.add(s -> s.setTimeRange(minStamp, maxStamp));
+      scanUpdaters.add(s -> s.setTimeRange(minStamp, maxStamp));
       return this;
     }
 
@@ -245,7 +245,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      * @return this
      */
     public Builder withScanUpdator(ScanUpdate update) {
-      scanUpdators.add(update);
+      scanUpdaters.add(update);
       return this;
     }
 
@@ -257,7 +257,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
     public HBaseSource build() {
       Preconditions.checkArgument(
           table != null, "Please specify source table by call to `usingTable`");
-      return new HBaseSource(conf, table, scanFactory, scanUpdators);
+      return new HBaseSource(conf, table, scanFactory, scanUpdaters);
     }
 
   }
@@ -266,28 +266,28 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
    * Create {@code HBaseSource} with specified configuration.
    * @param conf the configuration to use
    * @param table the table to scan
-   * @param scanUpdators functions to be applied on created scanner
+   * @param scanUpdaters functions to be applied on created scanner
    */
   private HBaseSource(Configuration conf,
       String table,
       VoidFunction<Scan> scanFactory,
-      List<ScanUpdate> scanUpdators) {
+      List<ScanUpdate> scanUpdaters) {
 
     super(ImmutableBytesWritable.class, Result.class,
-        TableInputFormat.class, setupConf(table, scanFactory, scanUpdators, conf));
+        TableInputFormat.class, setupConf(table, scanFactory, scanUpdaters, conf));
   }
 
   private static Configuration setupConf(
       String table,
       VoidFunction<Scan> scanFactory,
-      List<ScanUpdate> scanUpdators,
+      List<ScanUpdate> scanUpdaters,
       Configuration conf) {
 
     Configuration ret = HBaseConfiguration.create(conf);
     // create scan
     Scan scan = scanFactory.apply();
     // modify it according to the specification
-    scanUpdators.forEach(u -> {
+    scanUpdaters.forEach(u -> {
       try {
         u.update(scan);
       } catch (Exception ex) {
@@ -300,8 +300,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
       Job job = Job.getInstance(ret);
       // setup the configuration
       TableMapReduceUtil.initTableMapperJob(
-          table, scan, TableMapper.class, NullWritable.class, NullWritable.class,
-          job);
+          table, scan, TableMapper.class, NullWritable.class, NullWritable.class, job);
 
       return job.getConfiguration();
     } catch (IOException ex) {

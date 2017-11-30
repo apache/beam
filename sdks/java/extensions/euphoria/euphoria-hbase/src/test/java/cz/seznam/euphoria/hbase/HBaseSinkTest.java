@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Mutation;
+import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import static org.junit.Assert.*;
 import org.junit.Before;
@@ -37,8 +38,8 @@ import org.junit.Test;
  */
 public class HBaseSinkTest extends HBaseTestCase {
 
-  DataSink<Mutation> sink;
-  Flow flow;
+  private DataSink<Put> sink;
+  private Flow flow;
 
   @Before
   @Override
@@ -47,7 +48,7 @@ public class HBaseSinkTest extends HBaseTestCase {
     sink = HBaseSink.newBuilder()
         .withConfiguration(cluster.getConfiguration())
         .withTable("test")
-        .buildRaw();
+        .build();
     flow = Flow.create();
   }
 
@@ -57,7 +58,7 @@ public class HBaseSinkTest extends HBaseTestCase {
     ListDataSource<String> source = ListDataSource.unbounded(data);
     Dataset<String> input = flow.createInput(source);
     MapElements.of(input)
-        .using(s -> (Mutation) put(s))
+        .using(HBaseTestCase::put)
         .output()
         .persist(sink);
 
@@ -74,6 +75,5 @@ public class HBaseSinkTest extends HBaseTestCase {
     Result res = client.get(get);
     return res.getColumnLatestCell(b("t"), b(key)).getValue();
   }
-
 
 }
