@@ -206,14 +206,13 @@ class _Bundle(common.Receiver):
     self._synchronized_processing_time = synchronized_processing_time
 
   def get_min_timestamp(self):
-      """Returns the minimum timestamp across all elements in this bundle, or
-      MAX_TIMESTAMP if this bundle is empty."""
-      if self._min_timestamp is not None:
-          return self._min_timestamp
-      elements = self._elements if self._committed else list(self._elements)
-      min_ts = MAX_TIMESTAMP
-      for e in elements:
-          min_ts = min(min_ts, e.timestamp)
-      if self._committed:
-          self._min_timestamp = min_ts
-      return min_ts
+    """Returns min element timestamp in bundle or MAX_TIMESTAMP if empty."""
+    if self._min_timestamp is not None:
+      return self._min_timestamp
+    elements = self._elements if self._committed else list(self._elements)
+    min_ts = MAX_TIMESTAMP
+    for e in elements:
+      min_ts = min(min_ts, e.timestamp)
+    if self._committed:
+      self._min_timestamp = min_ts
+    return min_ts
