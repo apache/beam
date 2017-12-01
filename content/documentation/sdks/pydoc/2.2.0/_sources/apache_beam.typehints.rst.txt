@@ -1,0 +1,20 @@
+apache\_beam\.typehints package
+===============================
+
+.. automodule:: apache_beam.typehints
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
+Submodules
+----------
+
+.. toctree::
+
+   apache_beam.typehints.decorators
+   apache_beam.typehints.native_type_compatibility
+   apache_beam.typehints.opcodes
+   apache_beam.typehints.trivial_inference
+   apache_beam.typehints.typecheck
+   apache_beam.typehints.typehints
+

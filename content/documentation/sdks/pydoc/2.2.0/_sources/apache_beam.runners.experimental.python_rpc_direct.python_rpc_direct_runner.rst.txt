@@ -1,0 +1,7 @@
+apache\_beam\.runners\.experimental\.python\_rpc\_direct\.python\_rpc\_direct\_runner module
+============================================================================================
+
+.. automodule:: apache_beam.runners.experimental.python_rpc_direct.python_rpc_direct_runner
+    :members:
+    :undoc-members:
+    :show-inheritance:

@@ -1,0 +1,7 @@
+apache\_beam\.transforms\.ptransform module
+===========================================
+
+.. automodule:: apache_beam.transforms.ptransform
+    :members:
+    :undoc-members:
+    :show-inheritance:

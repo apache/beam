@@ -1,0 +1,7 @@
+apache\_beam\.typehints\.decorators module
+==========================================
+
+.. automodule:: apache_beam.typehints.decorators
+    :members:
+    :undoc-members:
+    :show-inheritance:

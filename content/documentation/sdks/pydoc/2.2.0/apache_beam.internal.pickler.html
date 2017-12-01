@@ -1,0 +1,302 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.internal.pickler module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.internal package" href="apache_beam.internal.html"/>
+        <link rel="next" title="apache_beam.internal.util module" href="apache_beam.internal.util.html"/>
+        <link rel="prev" title="apache_beam.internal.gcp.json_value module" href="apache_beam.internal.gcp.json_value.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="apache_beam.internal.html#subpackages">Subpackages</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.internal.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.internal.pickler module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.internal.util.html">apache_beam.internal.util module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.internal.html">apache_beam.internal package</a> &raquo;</li>
+        
+      <li>apache_beam.internal.pickler module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.internal.pickler.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.internal.pickler">
+<span id="apache-beam-internal-pickler-module"></span><h1>apache_beam.internal.pickler module<a class="headerlink" href="#module-apache_beam.internal.pickler" title="Permalink to this headline">¶</a></h1>
+<p>Pickler for values, functions, and classes.</p>
+<p>For internal use only. No backwards compatibility guarantees.</p>
+<p>Pickles created by the pickling library contain non-ASCII characters, so
+we base64-encode the results so that we can put them in a JSON objects.
+The pickler is used to embed FlatMap callable objects into the workflow JSON
+description.</p>
+<p>The pickler module should be used to pickle functions and modules; for values,
+the coders.*PickleCoder classes should be used instead.</p>
+<dl class="function">
+<dt id="apache_beam.internal.pickler.save_module">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">save_module</code><span class="sig-paren">(</span><em>pickler</em>, <em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#save_module"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.save_module" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.new_save_module_dict">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">new_save_module_dict</code><span class="sig-paren">(</span><em>pickler</em>, <em>obj</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#new_save_module_dict"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.new_save_module_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.dumps">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">dumps</code><span class="sig-paren">(</span><em>o</em>, <em>enable_trace=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#dumps"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.dumps" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.loads">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">loads</code><span class="sig-paren">(</span><em>encoded</em>, <em>enable_trace=True</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#loads"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.loads" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.dump_session">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">dump_session</code><span class="sig-paren">(</span><em>file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#dump_session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.dump_session" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Pickle the current python session to be used in the worker.</p>
+<p>Note: Due to the inconsistency in the first dump of dill dump_session we
+create and load the dump twice to have consistent results in the worker and
+the running session. Check: <a class="reference external" href="https://github.com/uqfoundation/dill/issues/195">https://github.com/uqfoundation/dill/issues/195</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.internal.pickler.load_session">
+<code class="descclassname">apache_beam.internal.pickler.</code><code class="descname">load_session</code><span class="sig-paren">(</span><em>file_path</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/internal/pickler.html#load_session"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.internal.pickler.load_session" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.internal.util.html" class="btn btn-neutral float-right" title="apache_beam.internal.util module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.internal.gcp.json_value.html" class="btn btn-neutral" title="apache_beam.internal.gcp.json_value module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>

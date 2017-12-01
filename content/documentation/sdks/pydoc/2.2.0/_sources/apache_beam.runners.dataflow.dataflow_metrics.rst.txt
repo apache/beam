@@ -1,0 +1,7 @@
+apache\_beam\.runners\.dataflow\.dataflow\_metrics module
+=========================================================
+
+.. automodule:: apache_beam.runners.dataflow.dataflow_metrics
+    :members:
+    :undoc-members:
+    :show-inheritance:

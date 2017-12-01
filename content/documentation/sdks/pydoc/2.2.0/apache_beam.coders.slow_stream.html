@@ -1,0 +1,401 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>apache_beam.coders.slow_stream module &mdash; Apache Beam  documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="genindex.html"/>
+        <link rel="search" title="Search" href="search.html"/>
+    <link rel="top" title="Apache Beam  documentation" href="index.html"/>
+        <link rel="up" title="apache_beam.coders package" href="apache_beam.coders.html"/>
+        <link rel="next" title="apache_beam.coders.typecoders module" href="apache_beam.coders.typecoders.html"/>
+        <link rel="prev" title="apache_beam.coders.observable module" href="apache_beam.coders.observable.html"/> 
+
+  
+  <script src="_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="index.html" class="icon icon-home"> Apache Beam
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="apache_beam.coders.html">apache_beam.coders package</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="apache_beam.coders.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.coders.html">apache_beam.coders.coders module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.observable.html">apache_beam.coders.observable module</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">apache_beam.coders.slow_stream module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="apache_beam.coders.typecoders.html">apache_beam.coders.typecoders module</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.internal.html">apache_beam.internal package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.io.html">apache_beam.io package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.metrics.html">apache_beam.metrics package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.options.html">apache_beam.options package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.portability.html">apache_beam.portability package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.runners.html">apache_beam.runners package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.testing.html">apache_beam.testing package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.transforms.html">apache_beam.transforms package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.typehints.html">apache_beam.typehints package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.utils.html">apache_beam.utils package</a></li>
+</ul>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.error.html">apache_beam.error module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pipeline.html">apache_beam.pipeline module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.pvalue.html">apache_beam.pvalue module</a></li>
+<li class="toctree-l1"><a class="reference internal" href="apache_beam.version.html">apache_beam.version module</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Apache Beam</a>
+        
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="apache_beam.coders.html">apache_beam.coders package</a> &raquo;</li>
+        
+      <li>apache_beam.coders.slow_stream module</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="_sources/apache_beam.coders.slow_stream.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="module-apache_beam.coders.slow_stream">
+<span id="apache-beam-coders-slow-stream-module"></span><h1>apache_beam.coders.slow_stream module<a class="headerlink" href="#module-apache_beam.coders.slow_stream" title="Permalink to this headline">¶</a></h1>
+<p>A pure Python implementation of stream.pyx.</p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<dl class="class">
+<dt id="apache_beam.coders.slow_stream.OutputStream">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.slow_stream.</code><code class="descname">OutputStream</code><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>A pure Python implementation of stream.OutputStream.</p>
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>b</em>, <em>nested=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write_byte">
+<code class="descname">write_byte</code><span class="sig-paren">(</span><em>val</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write_byte"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write_byte" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write_var_int64">
+<code class="descname">write_var_int64</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write_var_int64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write_var_int64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write_bigendian_int64">
+<code class="descname">write_bigendian_int64</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write_bigendian_int64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write_bigendian_int64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write_bigendian_uint64">
+<code class="descname">write_bigendian_uint64</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write_bigendian_uint64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write_bigendian_uint64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write_bigendian_int32">
+<code class="descname">write_bigendian_int32</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write_bigendian_int32"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write_bigendian_int32" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.write_bigendian_double">
+<code class="descname">write_bigendian_double</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.write_bigendian_double"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.write_bigendian_double" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.OutputStream.size">
+<code class="descname">size</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#OutputStream.size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.OutputStream.size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.slow_stream.ByteCountingOutputStream">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.slow_stream.</code><code class="descname">ByteCountingOutputStream</code><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#ByteCountingOutputStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.ByteCountingOutputStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#apache_beam.coders.slow_stream.OutputStream" title="apache_beam.coders.slow_stream.OutputStream"><code class="xref py py-class docutils literal"><span class="pre">apache_beam.coders.slow_stream.OutputStream</span></code></a></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>A pure Python implementation of stream.ByteCountingOutputStream.</p>
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.ByteCountingOutputStream.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>byte_array</em>, <em>nested=False</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#ByteCountingOutputStream.write"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.ByteCountingOutputStream.write" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.ByteCountingOutputStream.write_byte">
+<code class="descname">write_byte</code><span class="sig-paren">(</span><em>_</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#ByteCountingOutputStream.write_byte"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.ByteCountingOutputStream.write_byte" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.ByteCountingOutputStream.get_count">
+<code class="descname">get_count</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#ByteCountingOutputStream.get_count"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.ByteCountingOutputStream.get_count" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.ByteCountingOutputStream.get">
+<code class="descname">get</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#ByteCountingOutputStream.get"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.ByteCountingOutputStream.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="apache_beam.coders.slow_stream.InputStream">
+<em class="property">class </em><code class="descclassname">apache_beam.coders.slow_stream.</code><code class="descname">InputStream</code><span class="sig-paren">(</span><em>data</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/2/library/functions.html#object" title="(in Python v2.7)"><code class="xref py py-class docutils literal"><span class="pre">object</span></code></a></p>
+<p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>A pure Python implementation of stream.InputStream.</p>
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.size">
+<code class="descname">size</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read">
+<code class="descname">read</code><span class="sig-paren">(</span><em>size</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_all">
+<code class="descname">read_all</code><span class="sig-paren">(</span><em>nested</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_all"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_all" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_byte">
+<code class="descname">read_byte</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_byte"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_byte" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_var_int64">
+<code class="descname">read_var_int64</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_var_int64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_var_int64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_bigendian_int64">
+<code class="descname">read_bigendian_int64</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_bigendian_int64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_bigendian_int64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_bigendian_uint64">
+<code class="descname">read_bigendian_uint64</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_bigendian_uint64"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_bigendian_uint64" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_bigendian_int32">
+<code class="descname">read_bigendian_int32</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_bigendian_int32"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_bigendian_int32" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="apache_beam.coders.slow_stream.InputStream.read_bigendian_double">
+<code class="descname">read_bigendian_double</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#InputStream.read_bigendian_double"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.InputStream.read_bigendian_double" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="apache_beam.coders.slow_stream.get_varint_size">
+<code class="descclassname">apache_beam.coders.slow_stream.</code><code class="descname">get_varint_size</code><span class="sig-paren">(</span><em>v</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/apache_beam/coders/slow_stream.html#get_varint_size"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#apache_beam.coders.slow_stream.get_varint_size" title="Permalink to this definition">¶</a></dt>
+<dd><p>For internal use only; no backwards-compatibility guarantees.</p>
+<p>Returns the size of the given integer value when encode as a VarInt.</p>
+</dd></dl>
+
+</div>
+
+
+           </div>
+           <div class="articleComments">
+            
+           </div>
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="apache_beam.coders.typecoders.html" class="btn btn-neutral float-right" title="apache_beam.coders.typecoders module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="apache_beam.coders.observable.html" class="btn btn-neutral" title="apache_beam.coders.observable module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright .
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'./',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="_static/jquery.js"></script>
+      <script type="text/javascript" src="_static/underscore.js"></script>
+      <script type="text/javascript" src="_static/doctools.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
