@@ -41,7 +41,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -53,6 +52,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -313,8 +313,8 @@ public class BeamFnDataGrpcClientTest {
   }
 
   private <ReqT, RespT> StreamObserver<RespT> createStreamForTest(
-      Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
+      StreamObserverClientFactory<ReqT, RespT> clientFactory,
       StreamObserver<ReqT> handler) {
-    return clientFactory.apply(handler);
+    return clientFactory.outboundObserverFor(handler);
   }
 }
