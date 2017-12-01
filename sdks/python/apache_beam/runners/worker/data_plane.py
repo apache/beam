@@ -277,20 +277,23 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 
   def __init__(self):
     self._data_channel_cache = {}
+    self._lock = threading.Lock()
 
   def create_data_channel(self, remote_grpc_port):
     url = remote_grpc_port.api_service_descriptor.url
     if url not in self._data_channel_cache:
-      logging.info('Creating channel for %s', url)
-      grpc_channel = grpc.insecure_channel(
-          url,
-          # Options to have no limits (-1) on the size of the messages
-          # received or sent over the data plane. The actual buffer size is
-          # controlled in a layer above.
-          options=[("grpc.max_receive_message_length", -1),
-                   ("grpc.max_send_message_length", -1)])
-      self._data_channel_cache[url] = GrpcClientDataChannel(
-          beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
+      with self._lock:
+        if url not in self._data_channel_cache:
+          logging.info('Creating channel for %s', url)
+          grpc_channel = grpc.insecure_channel(
+              url,
+              # Options to have no limits (-1) on the size of the messages
+              # received or sent over the data plane. The actual buffer size is
+              # controlled in a layer above.
+              options=[("grpc.max_receive_message_length", -1),
+                       ("grpc.max_send_message_length", -1)])
+          self._data_channel_cache[url] = GrpcClientDataChannel(
+              beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel))
     return self._data_channel_cache[url]
 
   def close(self):
