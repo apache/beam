@@ -28,6 +28,7 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
+import inspect
 import sys
 import types
 from functools import reduce
@@ -271,14 +272,13 @@ def load_attr(state, arg):
   name = state.get_name(arg)
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
-  elif (isinstance(o, type)
-        and isinstance(getattr(o, name, None), (types.MethodType,
-                                                types.FunctionType))):
-    # Condition only occurs when o is instantiated
-    try:
+  elif (inspect.isclass(o) and
+        isinstance(getattr(o, name), (types.MethodType, types.FunctionType))):
+    # TODO(luke-zhu): Support other callable objects
+    if sys.version_info[0] == 2:
       func = getattr(o, name).__func__
-    except AttributeError: # Python 3 has no unbound method type
-      func = getattr(o, name)
+    else:
+      func = getattr(o, name) # Python 3 has no unbound methods
     state.stack.append(Const(BoundMethod(func, o)))
   else:
     state.stack.append(Any)
@@ -349,8 +349,7 @@ def make_function(state, arg):
   else:
     func_name = state.stack[-1].value
     func_code = state.stack[-2].value
-    func = types.FunctionType(func_code, globals,
-                              name=func_name)
+    func = types.FunctionType(func_code, globals, name=func_name)
   state.stack.append(Const(func))
 
 

@@ -147,7 +147,6 @@ class TrivialInferenceTest(unittest.TestCase):
   def testMethod(self):
 
     class A(object):
-
       def m(self, x):
         return x
 

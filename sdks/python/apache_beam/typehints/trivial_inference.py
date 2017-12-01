@@ -24,6 +24,7 @@ from __future__ import print_function
 
 import collections
 import dis
+import inspect
 import pprint
 import sys
 import types
@@ -50,7 +51,7 @@ def instance_to_type(o):
     try:
       if t == types.InstanceType: # For old-style classes
         return o.__class__
-    except AttributeError: # Python 3 has no instance types
+    except AttributeError: # Python 3 has no instance type
       pass
     if t == BoundMethod:
       return types.MethodType
@@ -248,7 +249,7 @@ def infer_return_type(c, input_types, debug=False, depth=5):
     elif isinstance(c, BoundMethod):
       input_types = [c.type] + input_types
       return infer_return_type_func(c.func, input_types, debug, depth)
-    elif isinstance(c, type):
+    elif inspect.isclass(c):
       if c in typehints.DISALLOWED_PRIMITIVE_TYPES:
         return {
             list: typehints.List[Any],
@@ -310,9 +311,9 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   last_pc = -1
   while pc < end:
     start = pc
-    try:
+    if sys.version_info[0] == 2:
       op = ord(code[pc])
-    except TypeError:
+    else:
       op = code[pc]
     if debug:
       print('-->' if pc == last_pc else '    ', end=' ')
@@ -321,10 +322,12 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
 
     pc += 1
     if op >= dis.HAVE_ARGUMENT:
-      try:
+      if sys.version_info[0] == 2:
         arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
-      except TypeError:
+      elif sys.version_info[0] == 3 and sys.version_info[1] < 6:
         arg = code[pc] + code[pc + 1] * 256 + extended_arg
+      else:
+        pass # TODO(luke-zhu): Python 3.6 bytecode to wordcode changes
       extended_arg = 0
       pc += 2
       if op == dis.EXTENDED_ARG:
