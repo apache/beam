@@ -16,6 +16,7 @@
 #
 
 """Tests for apache_beam.typehints.trivial_inference."""
+import sys
 import unittest
 
 from apache_beam.typehints import trivial_inference
@@ -71,6 +72,14 @@ class TrivialInferenceTest(unittest.TestCase):
         return a
       return None
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
+
+  @unittest.skipIf(sys.version_info[0] < 3, "List inference test py3 only")
+  def testSimpleList(self):
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: [1, 2],
+        [typehints.Tuple[int, ...]])
+
 
   def testListComprehension(self):
     self.assertReturnType(
@@ -136,6 +145,17 @@ class TrivialInferenceTest(unittest.TestCase):
 
     self.assertReturnType(int, lambda: A().m(3))
     self.assertReturnType(float, lambda: A.m(A(), 3.0))
+
+  def testMethod2(self):
+
+    class A(object):
+
+      def m(self, x, y):
+        return x
+
+    self.assertReturnType(int, lambda: A().m(3, "a"))
+    self.assertReturnType(float, lambda: A.m(A(), 3.0, "e"))
+
 
   def testAlwaysReturnsEarly(self):
 
