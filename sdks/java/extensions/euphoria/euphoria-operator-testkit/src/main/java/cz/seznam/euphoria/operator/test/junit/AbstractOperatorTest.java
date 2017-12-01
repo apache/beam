@@ -77,7 +77,7 @@ public abstract class AbstractOperatorTest implements Serializable {
      * @throws AssertionError when the output is not correct
      */
     default void validate(List<T> outputs) throws AssertionError {
-      assertUnorderedEquals(outputs, getUnorderedOutput());
+      assertUnorderedEquals(getUnorderedOutput(), outputs);
     }
 
     /**
