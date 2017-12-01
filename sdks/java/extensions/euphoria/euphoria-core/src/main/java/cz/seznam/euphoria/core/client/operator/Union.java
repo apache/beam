@@ -190,7 +190,7 @@ public class Union<IN> extends Operator<IN, IN> {
   }
 
   /**
-   * Retrieves the originial, user supplied inputs this union represents.
+   * Retrieves the original, user supplied inputs this union represents.
    *
    * @return a collection of the two input datasets this union represents
    */

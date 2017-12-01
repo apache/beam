@@ -26,7 +26,8 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
-import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.FullJoin;
+import cz.seznam.euphoria.core.client.operator.InnerJoin;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
@@ -54,11 +55,11 @@ public class JoinOperatorTest {
     E _e;
     long _time;
 
-    static <E> I<E>of(E e) {
+    static <E> I<E> of(E e) {
       return of(e, 0L);
     }
 
-    static <E> I<E>of(E e, long time) {
+    static <E> I<E> of(E e, long time) {
       I<E> i = new I<>();
       i._e = e;
       i._time = time;
@@ -67,56 +68,68 @@ public class JoinOperatorTest {
   }
 
   @SuppressWarnings("unchecked")
-  private void testJoin(boolean outer,
+  private void testJoin(boolean fullJoin,
                         Windowing windowing,
                         boolean bounded,
                         List<I<String>> leftInput,
                         List<I<String>> rightInput,
                         List<String> expectedOutput,
                         boolean makeOneArmLonger)
-      throws Exception
-  {
-    Flow flow = Flow.create("Test");
+      throws Exception {
+    final Flow flow = Flow.create("Test");
 
-    Dataset<String> first =
-        MapElements.of(
-            flow.createInput(ListDataSource.of(bounded, leftInput), i -> i._time))
-            .using(i -> i._e)
-            .output();
-    Dataset<String> second =
-        MapElements.of(
-            flow.createInput(ListDataSource.of(bounded, rightInput), i -> i._time))
+    final Dataset<String> first =
+        MapElements.of(flow.createInput(ListDataSource.of(bounded, leftInput), i -> i._time))
             .using(i -> i._e)
             .output();
 
-    UnaryFunctor<String, Pair<String, Integer>> tokv = (s, c) -> {
+    final Dataset<String> second =
+        MapElements.of(flow.createInput(ListDataSource.of(bounded, rightInput), i -> i._time))
+            .using(i -> i._e)
+            .output();
+
+    final UnaryFunctor<String, Pair<String, Integer>> toPair = (s, c) -> {
       String[] parts = s.split("[\t ]+", 2);
       if (parts.length == 2) {
         c.collect(Pair.of(parts[0], Integer.valueOf(parts[1])));
       }
     };
 
-    Dataset<Pair<String, Integer>> firstkv = FlatMap.of(first)
-        .using(tokv)
+    final Dataset<Pair<String, Integer>> firstPair = FlatMap.of(first)
+        .using(toPair)
         .output();
-    Dataset<Pair<String, Integer>> secondkv = FlatMap.of(second)
-        .using(tokv)
+    Dataset<Pair<String, Integer>> secondPair = FlatMap.of(second)
+        .using(toPair)
         .output();
+
     if (makeOneArmLonger) {
-      secondkv = Filter.of(secondkv).by(e -> true).output();
-      secondkv = MapElements.of(secondkv).using(e -> e).output();
+      secondPair = Filter.of(secondPair).by(e -> true).output();
+      secondPair = MapElements.of(secondPair).using(e -> e).output();
     }
 
-    Dataset<Pair<String, Object>> output = Join.of(firstkv, secondkv)
-        .by(Pair::getFirst, Pair::getFirst)
-        .using((l, r, c) ->
-            c.collect((l == null ? 0 : l.getSecond()) + (r == null ? 0 : r.getSecond())))
-        .applyIf(outer, b -> b.outer())
-        .windowBy(windowing)
-        .output();
+    final Dataset<Pair<String, Object>> output;
+    if (fullJoin) {
+      output = FullJoin.of(firstPair, secondPair)
+          .by(Pair::getFirst, Pair::getFirst)
+          .using((l, r, c) -> {
+            final int x = l.isPresent() ? l.get().getSecond() : 0;
+            final int y = r.isPresent() ? r.get().getSecond() : 0;
+            c.collect(x + y);
+          })
+          .windowBy(windowing)
+          .output();
+    } else {
+      output = InnerJoin.of(firstPair, secondPair)
+          .by(Pair::getFirst, Pair::getFirst)
+          .using((l, r, c) -> c.collect((l.getSecond()) + (r.getSecond())))
+          .windowBy(windowing)
+          .output();
+    }
 
-    ListDataSink<String> out = ListDataSink.get();
-    MapElements.of(output).using(p -> p.getFirst() + ", " + p.getSecond())
+    final ListDataSink<String> out = ListDataSink.get();
+
+    MapElements.of(output)
+        .using(p -> p.getFirst() + ", " + p.getSecond())
         .output().persist(out);
 
     executor.submit(flow).get();
@@ -129,9 +142,9 @@ public class JoinOperatorTest {
     testJoin(false,
         GlobalWindowing.get(),
         true,
-        asList(I.of("one 1"),  I.of("two 1"), I.of("one 22"),  I.of("one 44")),
+        asList(I.of("one 1"), I.of("two 1"), I.of("one 22"), I.of("one 44")),
         asList(I.of("one 10"), I.of("two 20"), I.of("one 33"), I.of("three 55"), I.of("one 66")),
-        asList("one, 11",  "one, 34", "one, 67",
+        asList("one, 11", "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
             "one, 77", "one, 110", "two, 21"),
         false);
@@ -142,9 +155,10 @@ public class JoinOperatorTest {
     testJoin(false,
         Time.of(Duration.ofSeconds(1)),
         false,
-        asList(I.of("one 1",  1), I.of("two 1",  600),  I.of("one 22", 1001), I.of("one 44",   2000)),
-        asList(I.of("one 10", 1), I.of("two 20", 501), I.of("one 33",  1999), I.of("three 55", 2001), I.of("one 66", 3000)),
-        asList("one, 11" ,  "two, 21", "one, 55"),
+        asList(I.of("one 1", 1), I.of("two 1", 600), I.of("one 22", 1001), I.of("one 44", 2000)),
+        asList(I.of("one 10", 1), I.of("two 20", 501), I.of("one 33", 1999), I.of("three 55",
+            2001), I.of("one 66", 3000)),
+        asList("one, 11", "two, 21", "one, 55"),
         false);
   }
 
@@ -153,10 +167,10 @@ public class JoinOperatorTest {
     testJoin(true,
         GlobalWindowing.get(),
         true,
-        asList(I.of("one 1"),  I.of("two 1"), I.of("one 22"),  I.of("one 44")),
+        asList(I.of("one 1"), I.of("two 1"), I.of("one 22"), I.of("one 44")),
         asList(I.of("one 10"), I.of("two 20"), I.of("one 33"), I.of("three 55"), I.of("one 66")),
         asList(
-            "one, 11",  "one, 34", "one, 67",
+            "one, 11", "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
             "one, 77", "one, 110", "two, 21", "three, 55"),
         false);
@@ -167,9 +181,10 @@ public class JoinOperatorTest {
     testJoin(true,
         Time.of(Duration.ofMillis(1)),
         false,
-        asList(I.of("one 1", 0),  I.of("two 1", 1),  I.of("one 22", 3),  I.of("one 44", 4)),
-        asList(I.of("one 10", 0), I.of("two 20", 1), I.of("one 33", 3), I.of("three 55", 4), I.of("one 66", 5)),
-        asList("one, 11",  "two, 21", "one, 55", "one, 44", "three, 55", "one, 66"),
+        asList(I.of("one 1", 0), I.of("two 1", 1), I.of("one 22", 3), I.of("one 44", 4)),
+        asList(I.of("one 10", 0), I.of("two 20", 1), I.of("one 33", 3), I.of("three 55", 4), I.of
+            ("one 66", 5)),
+        asList("one, 11", "two, 21", "one, 55", "one, 44", "three, 55", "one, 66"),
         false);
   }
 
@@ -178,9 +193,9 @@ public class JoinOperatorTest {
     testJoin(false,
         GlobalWindowing.get(),
         true,
-        asList(I.of("one 1"),  I.of("two 1"), I.of("one 22"),  I.of("one 44")),
+        asList(I.of("one 1"), I.of("two 1"), I.of("one 22"), I.of("one 44")),
         asList(I.of("one 10"), I.of("two 20"), I.of("one 33"), I.of("three 55"), I.of("one 66")),
-        asList("one, 11",  "one, 34", "one, 67",
+        asList("one, 11", "one, 34", "one, 67",
             "one, 32", "one, 55", "one, 88", "one, 54",
             "one, 77", "one, 110", "two, 21"),
         true);
