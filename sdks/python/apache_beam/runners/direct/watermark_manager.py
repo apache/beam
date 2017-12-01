@@ -212,8 +212,9 @@ class _TransformWatermarks(object):
       has_pending_elements = False
       for input_bundle in self._pending:
         if input_bundle.has_elements():
-            min_pending_timestamp = min(min_pending_timestamp, input_bundle.get_min_timestamp())
-            has_pending_elements = True
+          min_pending_timestamp = min(min_pending_timestamp,
+                                      input_bundle.get_min_timestamp())
+          has_pending_elements = True
 
       # If there is a pending element with a certain timestamp, we can at most
       # advance our watermark to the maximum timestamp less than that
