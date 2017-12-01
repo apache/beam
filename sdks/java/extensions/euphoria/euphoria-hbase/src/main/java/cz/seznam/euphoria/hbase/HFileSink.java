@@ -19,9 +19,10 @@ package cz.seznam.euphoria.hbase;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.VoidSink;
-import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
+import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
 import org.apache.hadoop.conf.Configuration;
@@ -47,13 +48,20 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 
 /**
  * Sink to HBase using {@code HFileOutputFormat2}.
  */
-public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
+public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
 
-  private static final Logger LOG = LoggerFactory.getLogger(HFilesSink.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HFileSink.class);
 
   /**
    * Create builder for the sink.
@@ -68,6 +76,7 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     Configuration conf = HBaseConfiguration.create();
     String table = null;
     Path output = null;
+    boolean doBulkLoad = true;
     List<Update<Job>> updaters = new ArrayList<>();
 
     /**
@@ -111,22 +120,47 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
       return this;
     }
 
-    public HFilesSink build() {
+    /**
+     * Disable call to {@link LoadIncrementalHFiles} after each window.
+     * When this is disabled, the resulting HFiles would accumulate
+     * in target directory and must be loaded manually.
+     * @return this
+     */
+    public Builder disableBulkLoad() {
+      this.doBulkLoad = false;
+      return this;
+    }
+
+    public HFileSink build() {
       Preconditions.checkArgument(table != null, "Specify table by call to `withTable`");
       Preconditions.checkArgument(
           output != null,
           "Specify output path by call to `withOutputPath`");
 
       updaters.add(j -> FileOutputFormat.setOutputPath(j, output));
-      return new HFilesSink(table, conf, updaters);
+      return new HFileSink(table, doBulkLoad, conf, updaters);
     }
 
   }
 
+  private final String table;
+  private final boolean doBulkLoad;
   private final byte[][] endKeys;
 
-  HFilesSink(String table, Configuration conf, List<Update<Job>> updaters) {
+  @VisibleForTesting
+  HFileSink(HFileSink clone) {
+    super(HFileOutputFormat2.class, clone.getConfiguration());
+    this.table = clone.table;
+    this.doBulkLoad = clone.doBulkLoad;
+    this.endKeys = clone.endKeys;
+  }
+
+  HFileSink(
+      String table, boolean doBulkLoad,
+      Configuration conf, List<Update<Job>> updaters) {
     super(HFileOutputFormat2.class, toConf(updaters, conf));
+    this.table = table;
+    this.doBulkLoad = doBulkLoad;
     this.endKeys = getEndKeys(table, getConfiguration());
   }
 
@@ -156,19 +190,20 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
 
     CellComparator comparator = new CellComparator();
 
-    ReduceByKey.of(output)
+    Dataset<Pair<Integer, String>> hfiles = ReduceByKey.of(output)
         .keyBy(p -> toRegionIdUninitialized(bufferedKeys, endKeys, p.getFirst()))
         // FIXME: use raw byte arrays here and rawcomparators to sort it
         // reconstruct the cell afterwards
         .valueBy(Pair::getSecond)
-        .reduceBy((s, ctx) -> {
+        .reduceBy((Stream<Cell> s, Collector<String> ctx) -> {
           // this is ugly and we should make it more clear with access to key
           // via #131
           Iterator<Cell> iterator = s.iterator();
           Cell first = iterator.next();
           int id = toRegionIdUninitialized(bufferedKeys, endKeys, ByteBuffer.wrap(
               first.getRowArray(), first.getRowOffset(), first.getRowLength()));
-          Writer<Pair<ImmutableBytesWritable, Cell>> writer = HFilesSink.this.openWriter(id);
+          HadoopWriter<ImmutableBytesWritable, Cell> writer = HFileSink.this.openWriter(id);
+          FileOutputCommitter committer = (FileOutputCommitter) writer.getOutputCommitter();
           ImmutableBytesWritable w = new ImmutableBytesWritable();
           try {
             Cell c = first;
@@ -182,6 +217,8 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
             }
             writer.close();
             writer.commit();
+            ctx.collect(committer.getCommittedTaskPath(
+                writer.getTaskAttemptContext()).toString());
           } catch (Exception ex) {
             try {
               writer.rollback();
@@ -192,22 +229,80 @@ public class HFilesSink extends HadoopSink<ImmutableBytesWritable, Cell> {
           }
         })
         .withSortedValues(comparator::compare)
+        .output();
+
+    String outputDir = HFileSink.this.getConfiguration().get(FileOutputFormat.OUTDIR);
+
+    ReduceWindow.of(hfiles)
+        .valueBy(Pair::getSecond)
+        .reduceBy(s -> {
+          Path o = new Path(outputDir);
+          s.forEach(p -> moveTo(p, o));
+          loadIncrementalHFiles(o);
+          return "";
+        })
         .output()
-        .persist(new VoidSink<Pair<Integer, Object>>() {
-
-          @Override
-          public void rollback() throws IOException {
-            HFilesSink.this.rollback();
-          }
-
-          @Override
-          public void commit() throws IOException {
-            HFilesSink.this.commit();
-          }
-
-        });
+        .persist(new VoidSink<>());
 
     return true;
+  }
+
+  private void moveTo(String p, Path outputDir) {
+    try {
+      Path source = new Path(outputDir, p);
+      FileSystem fs = source.getFileSystem(getConfiguration());
+      for (FileStatus f : fs.listStatus(source)) {
+        moveRecursively(fs, f.getPath(), outputDir);
+        LOG.info("Moved {} to {}", f.getPath(), outputDir);
+      }
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+
+  private void moveRecursively(FileSystem fs, Path source, Path dest)
+      throws IOException {
+
+    Path target = new Path(dest, source.getName());
+    if (!fs.exists(target)) {
+      fs.mkdirs(target);
+    }
+    if (fs.isDirectory(target)) {
+      for (FileStatus f : fs.listStatus(source)) {
+        if (!f.getPath().getName().startsWith("_")
+            && !f.getPath().getName().startsWith(".")) {
+          if (f.isDirectory()) {
+            moveRecursively(fs, f.getPath(), new Path(target, f.getPath().getName()));
+          } else {
+            fs.rename(f.getPath(), new Path(target, f.getPath().getName()));
+          }
+        }
+      }
+    } else {
+      throw new IllegalArgumentException("Cannot move to file " + target);
+    }
+  }
+
+  @VisibleForTesting
+  void loadIncrementalHFiles(Path path) {
+    if (doBulkLoad) {
+      try {
+        LOG.info("Bulk loading path {}", path);
+        LoadIncrementalHFiles load = new LoadIncrementalHFiles(getConfiguration());
+        TableName t = TableName.valueOf(table);
+        try (Connection conn = ConnectionFactory.createConnection(getConfiguration());
+            Table table = conn.getTable(t);
+            RegionLocator regionLocator = conn.getRegionLocator(t);
+            Admin admin = conn.getAdmin()) {
+
+          load.doBulkLoad(path, admin, table, regionLocator);
+        }
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
+    } else {
+      LOG.info("Skipping bulkloading by request.");
+    }
   }
 
   private static int toRegionIdUninitialized(

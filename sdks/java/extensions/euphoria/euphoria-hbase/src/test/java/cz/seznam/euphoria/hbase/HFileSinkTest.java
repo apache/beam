@@ -18,21 +18,27 @@ package cz.seznam.euphoria.hbase;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.flow.Flow;
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.junit.After;
 import static org.junit.Assert.*;
 import org.junit.Before;
@@ -41,15 +47,33 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 /**
- * Test {@code HFilesSink}.
+ * Test {@code HFileSink}.
  */
-public class HFilesSinkTest extends HBaseTestCase {
+public class HFileSinkTest extends HBaseTestCase {
+
+  static class TestedHFilesSink extends HFileSink {
+
+    private final List<String> loadedPaths;
+
+    public TestedHFilesSink(HFileSink clone, List<String> loadedPaths) {
+      super(clone);
+      this.loadedPaths = loadedPaths;
+    }
+
+    @Override
+    void loadIncrementalHFiles(Path path) {
+      loadedPaths.add(path.toString());
+      super.loadIncrementalHFiles(path);
+    }
+
+  };
 
   @Rule
   public TemporaryFolder folder = new TemporaryFolder();
 
   final TableName table = TableName.valueOf("test");
 
+  List<String> loadedPaths;
   Flow flow;
 
   @Before
@@ -57,6 +81,7 @@ public class HFilesSinkTest extends HBaseTestCase {
   public void setUp() throws Exception {
     super.setUp();
     flow = Flow.create();
+    loadedPaths = new ArrayList<>();
   }
 
   @After
@@ -82,20 +107,21 @@ public class HFilesSinkTest extends HBaseTestCase {
         .map(c -> ByteBuffer.wrap(b(c)))
         .toArray(l -> new ByteBuffer[l]);
 
-    assertEquals(0, HFilesSink.toRegionId(endKeys, ibw("a")));
-    assertEquals(0, HFilesSink.toRegionId(endKeys, ibw("b")));
-    assertEquals(1, HFilesSink.toRegionId(endKeys, ibw("c")));
-    assertEquals(1, HFilesSink.toRegionId(endKeys, ibw("dd")));
-    assertEquals(2, HFilesSink.toRegionId(endKeys, ibw("ddd")));
-    assertEquals(2, HFilesSink.toRegionId(endKeys, ibw("e")));
-    assertEquals(2, HFilesSink.toRegionId(endKeys, ibw("fff")));
-    assertEquals(3, HFilesSink.toRegionId(endKeys, ibw("ffff")));
-    assertEquals(3, HFilesSink.toRegionId(endKeys, ibw("gg")));
+    assertEquals(0, HFileSink.toRegionId(endKeys, ibw("a")));
+    assertEquals(0, HFileSink.toRegionId(endKeys, ibw("b")));
+    assertEquals(1, HFileSink.toRegionId(endKeys, ibw("c")));
+    assertEquals(1, HFileSink.toRegionId(endKeys, ibw("dd")));
+    assertEquals(2, HFileSink.toRegionId(endKeys, ibw("ddd")));
+    assertEquals(2, HFileSink.toRegionId(endKeys, ibw("e")));
+    assertEquals(2, HFileSink.toRegionId(endKeys, ibw("fff")));
+    assertEquals(3, HFileSink.toRegionId(endKeys, ibw("ffff")));
+    assertEquals(3, HFileSink.toRegionId(endKeys, ibw("gg")));
   }
 
   @Test
   public void testWrite() throws IOException {
-    List<String> inputs = Stream.of("a", "b", "bbb", "bbbb", "c", "xy")
+    List<String> data = Arrays.asList("a", "b", "bbb", "bbbb", "c", "xy");
+    List<String> inputs = data.stream()
         .sorted(Comparator.reverseOrder())
         .collect(Collectors.toList());
 
@@ -106,19 +132,31 @@ public class HFilesSinkTest extends HBaseTestCase {
     MapElements.of(input)
         .using(s -> kv(s))
         .output()
-        .persist(HFilesSink.newBuilder()
+        .persist(traceLoading(HFileSink.newBuilder()
             .withTable(table.getNameAsString())
             .withConfiguration(cluster.getConfiguration())
             .withOutputPath(new Path("file://" + tmp.getPath()))
-            .build());
+            .build()));
 
     new LocalExecutor().submit(flow).join();
 
-    // we should have three output files in "t" column family
-    assertEquals(3, new File(tmp, "t").listFiles().length);
-    // we should have success marker
-    assertTrue(new File(tmp, "_SUCCESS").exists());
+    // we should not have success marker
+    assertFalse(new File(tmp, "_SUCCESS").exists());
 
+    assertEquals(Arrays.asList("file:" + tmp.getPath()), loadedPaths);
+
+    // validate that there are three files in directory `t`
+    assertTrue(new File(tmp, "t").exists());
+    assertTrue(new File(tmp, "t").isDirectory());
+
+    // validate that the data have been written to hbase
+    data.forEach(s -> assertArrayEquals(b(s), get(s)));
+  }
+
+  private DataSink<Pair<ImmutableBytesWritable, Cell>> traceLoading(
+      HFileSink wrap) {
+
+    return new TestedHFilesSink(wrap, loadedPaths);
   }
 
 }
