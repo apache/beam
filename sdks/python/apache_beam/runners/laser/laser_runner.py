@@ -749,16 +749,22 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Perform initial source splitting.
     read_op = all_operations[0]
     split_read_ops = []
+    READ_SPLIT_TARGET_SIZE = 16 * 1024 *  1024
     if isinstance(read_op, operation_specs.WorkerRead):
       # split_source_bundles = [read_op.source]
-      split_source_bundles = list(read_op.source.source.split(16 * 1024 *  1024))
+      split_source_bundles = list(read_op.source.source.split(READ_SPLIT_TARGET_SIZE))
       # print '!!! SPLIT OFF', split_source_bundles
       for source_bundle in split_source_bundles:
         new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
         split_read_ops.append(new_read_op)
     elif isinstance(read_op, operation_specs.LaserShuffleRead):
-      # TODO: do initial splitting of shuffle read operation, based on dataset characteristics.
-      split_ranges = read_op.key_range.split(1)
+      # TODO: do size-based initial splitting of shuffle read operation, based on dataset characteristics,
+      # i.e. try to binary search to find appropriate split points.
+      key_range_summary = self.execution_context.shuffle_interface.summarize_key_range(read_op.dataset_id, read_op.key_range)
+      dataset_size = key_range_summary.byte_count
+      print 'DATASET SIZE', dataset_size, key_range_summary
+      split_count = max(1, int(round(dataset_size / READ_SPLIT_TARGET_SIZE)))
+      split_ranges = read_op.key_range.split(split_count)
       for split_range in split_ranges:
         new_read_op = operation_specs.LaserShuffleRead(
           dataset_id=read_op.dataset_id,
@@ -1006,11 +1012,14 @@ class LaserRunner(PipelineRunner):
   def run__GroupByKeyOnly(self, transform_node):
     output = transform_node.outputs[None]
     output_coder = self._get_coder(output)
-    unwindowed_input_coder = self._get_coder(transform_node.inputs[0]).wrapped_value_coder
+    input_coder = self._get_coder(transform_node.inputs[0])
+    unwindowed_input_coder = input_coder.wrapped_value_coder
+    print 'GBK INPUT WINDOWED_CODER', self._get_coder(transform_node.inputs[0])
     shuffle_coder = coders.WindowedValueCoder(
         coders.TupleCoder(
             [unwindowed_input_coder.key_coder(), coders.WindowedValueCoder(unwindowed_input_coder.value_coder(),
-                                      coders.GlobalWindowCoder())]))
+                input_coder.window_coder
+                                      )]), coders.GlobalWindowCoder())
 
     step = GroupByKeyOnlyStep(transform_node.full_label, shuffle_coder, output_coder)
     print 'GBKO STEP', step

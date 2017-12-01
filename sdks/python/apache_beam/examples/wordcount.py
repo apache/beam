@@ -82,7 +82,8 @@ def run(argv=None):
   # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
-  p = beam.Pipeline(options=pipeline_options)
+  from apache_beam.runners.laser.laser_runner import LaserRunner
+  p = beam.Pipeline(LaserRunner(), options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(known_args.input)

@@ -875,7 +875,7 @@ class WindowedValueCoder(FastCoder):
     return self.wrapped_value_coder.value_coder()
 
   def __repr__(self):
-    return 'WindowedValueCoder[%s]' % self.wrapped_value_coder
+    return 'WindowedValueCoder[%s, %s]' % (self.wrapped_value_coder, self.window_coder)
 
   def __eq__(self, other):
     return (type(self) == type(other)

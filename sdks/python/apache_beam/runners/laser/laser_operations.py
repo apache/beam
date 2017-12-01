@@ -44,7 +44,7 @@ class ShuffleWriteOperation(Operation):
       element_coder = coders.WindowedValueCoder(
           coders.TupleCoder([
               coders.BytesCoder(),
-              element_coder]))
+              element_coder]), window_coder=element_coder.window_coder)
     print 'NEW CODER', element_coder
     self.element_coder = element_coder
     print 'ECODER', element_coder
