@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -39,6 +38,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -113,7 +113,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Supplier<String> processBundleInstructionIdSupplier;
 
-  private CloseableThrowingConsumer<WindowedValue<InputT>> consumer;
+  private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
       RunnerApi.FunctionSpec functionSpec,
@@ -140,7 +140,7 @@ public class BeamFnDataWriteRunner<InputT> {
   }
 
   public void registerForOutput() {
-    consumer = beamFnDataClientFactory.forOutboundConsumer(
+    consumer = beamFnDataClientFactory.send(
         apiServiceDescriptor,
         LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), outputTarget),
         coder);
