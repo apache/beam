@@ -485,23 +485,20 @@ class ReshufflePerKey(PTransform):
   """
 
   def expand(self, pcoll):
-    class ReifyTimestampsIn(DoFn):
+    class ReifyTimestamps(DoFn):
       def process(self, element, timestamp=DoFn.TimestampParam):
-        if (isinstance(timestamp, type(DoFn.TimestampParam)) and
-            timestamp == DoFn.TimestampParam):
-          raise ValueError('timestamp was unset for element: %r' % element)
         yield element[0], TimestampedValue(element[1], timestamp)
 
-    class ReifyTimestampsExtract(DoFn):
+    class ExtractTimestamps(DoFn):
       def process(self, element, window=DoFn.WindowParam):
-        # Return a WindowedValue so that IdentityWindowFn can reuse the window
-        # value.
+        # Pass the current window since _IdentityWindowFn wouldn't know how
+        # to generate it.
         yield windowed_value.WindowedValue(
             (element[0], element[1].value), element[1].timestamp, [window])
 
     windowing_saved = pcoll.windowing
     result = (pcoll
-              | 'ReifyTimestampsIn' >> ParDo(ReifyTimestampsIn())
+              | ParDo(ReifyTimestamps())
               | 'IdentityWindow' >> WindowInto(
                   _IdentityWindowFn(
                       windowing_saved.windowfn.get_window_coder()),
@@ -509,10 +506,10 @@ class ReshufflePerKey(PTransform):
                   accumulation_mode=AccumulationMode.DISCARDING,
                   timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST,
                   )
-              | 'GroupByKey' >> GroupByKey()
+              | GroupByKey()
               | 'ExpandIterable' >> FlatMap(
                   lambda e: [(e[0], value) for value in e[1]])
-              | 'ReifyTimestampsExtract' >> ParDo(ReifyTimestampsExtract()))
+              | ParDo(ExtractTimestamps()))
     result._windowing = windowing_saved
     return result
 
@@ -535,4 +532,4 @@ class Reshuffle(PTransform):
     return (pcoll
             | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
             | ReshufflePerKey()
-            | 'RemoveTempKeys' >> Map(lambda t: t[1]))
+            | 'RemoveRandomKeys' >> Map(lambda t: t[1]))
