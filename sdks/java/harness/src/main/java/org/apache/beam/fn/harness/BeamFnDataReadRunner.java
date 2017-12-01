@@ -40,9 +40,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -152,7 +152,7 @@ public class BeamFnDataReadRunner<OutputT> {
   public void registerInputLocation() {
     this.readFuture = beamFnDataClientFactory.forInboundConsumer(
         apiServiceDescriptor,
-        KV.of(processBundleInstructionIdSupplier.get(), inputTarget),
+        LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
         coder,
         this::multiplexToConsumers);
   }

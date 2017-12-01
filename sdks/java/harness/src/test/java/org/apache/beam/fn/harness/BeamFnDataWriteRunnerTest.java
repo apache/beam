@@ -55,10 +55,10 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Test;
@@ -163,7 +163,7 @@ public class BeamFnDataWriteRunnerTest {
     Iterables.getOnlyElement(startFunctions).run();
     verify(mockBeamFnDataClient).forOutboundConsumer(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(KV.of(bundleId, BeamFnApi.Target.newBuilder()
+        eq(LogicalEndpoint.of(bundleId, BeamFnApi.Target.newBuilder()
             .setPrimitiveTransformReference("ptransformId")
             .setName(inputId)
             .build())),
@@ -203,7 +203,7 @@ public class BeamFnDataWriteRunnerTest {
 
     verify(mockBeamFnDataClient).forOutboundConsumer(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(KV.of(bundleId.get(), OUTPUT_TARGET)),
+        eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
         eq(CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
@@ -221,7 +221,7 @@ public class BeamFnDataWriteRunnerTest {
 
     verify(mockBeamFnDataClient).forOutboundConsumer(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(KV.of(bundleId.get(), OUTPUT_TARGET)),
+        eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
         eq(CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));
