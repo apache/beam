@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * a marker, detect on the input side that no bytes were read and force reading a single byte.
  */
 public class BeamFnDataBufferingOutboundObserver<T>
-    implements FnDataReceiver<WindowedValue<T>> {
+    implements CloseableFnDataReceiver<WindowedValue<T>> {
   // TODO: Consider moving this constant out of this class
   public static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
   @VisibleForTesting

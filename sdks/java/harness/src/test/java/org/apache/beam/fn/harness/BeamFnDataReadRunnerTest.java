@@ -56,6 +56,7 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
@@ -109,7 +110,7 @@ public class BeamFnDataReadRunnerTest {
 
   @Rule public TestExecutorService executor = TestExecutors.from(Executors::newCachedThreadPool);
   @Mock private BeamFnDataClient mockBeamFnDataClient;
-  @Captor private ArgumentCaptor<ThrowingConsumer<WindowedValue<String>>> consumerCaptor;
+  @Captor private ArgumentCaptor<FnDataReceiver<WindowedValue<String>>> consumerCaptor;
 
   @Before
   public void setUp() {
@@ -156,10 +157,10 @@ public class BeamFnDataReadRunnerTest {
     verifyZeroInteractions(mockBeamFnDataClient);
 
     CompletableFuture<Void> completionFuture = new CompletableFuture<>();
-    when(mockBeamFnDataClient.forInboundConsumer(any(), any(), any(), any()))
+    when(mockBeamFnDataClient.receive(any(), any(), any(), any()))
         .thenReturn(completionFuture);
     Iterables.getOnlyElement(startFunctions).run();
-    verify(mockBeamFnDataClient).forInboundConsumer(
+    verify(mockBeamFnDataClient).receive(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId, BeamFnApi.Target.newBuilder()
             .setPrimitiveTransformReference("pTransformId")
@@ -184,7 +185,7 @@ public class BeamFnDataReadRunnerTest {
   public void testReuseForMultipleBundles() throws Exception {
     CompletableFuture<Void> bundle1Future = new CompletableFuture<>();
     CompletableFuture<Void> bundle2Future = new CompletableFuture<>();
-    when(mockBeamFnDataClient.forInboundConsumer(
+    when(mockBeamFnDataClient.receive(
         any(),
         any(),
         any(),
@@ -205,7 +206,7 @@ public class BeamFnDataReadRunnerTest {
     // Process for bundle id 0
     readRunner.registerInputLocation();
 
-    verify(mockBeamFnDataClient).forInboundConsumer(
+    verify(mockBeamFnDataClient).receive(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId.get(), INPUT_TARGET)),
         eq(CODER),
@@ -237,7 +238,7 @@ public class BeamFnDataReadRunnerTest {
     valuesB.clear();
     readRunner.registerInputLocation();
 
-    verify(mockBeamFnDataClient).forInboundConsumer(
+    verify(mockBeamFnDataClient).receive(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId.get(), INPUT_TARGET)),
         eq(CODER),
