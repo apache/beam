@@ -33,7 +33,6 @@ from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
-from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -100,29 +99,6 @@ def streaming_rpc_handler(cls, method_name):
   return StreamingRpcHandler()
 
 
-class OldeSourceSplittableDoFn(beam.DoFn):
-  """A DoFn that reads and emits an entire source.
-  """
-
-  # TODO(robertwb): Make this a full SDF with progress splitting, etc.
-  def process(self, source):
-    if isinstance(source, iobase.SourceBundle):
-      for value in source.source.read(source.source.get_range_tracker(
-          source.start_position, source.stop_position)):
-        yield value
-    else:
-      # Dataflow native source
-      with source.reader() as reader:
-        for value in reader:
-          yield value
-
-
-# See DataflowRunner._pardo_fn_data
-OLDE_SOURCE_SPLITTABLE_DOFN_DATA = pickler.dumps(
-    (OldeSourceSplittableDoFn(), (), {}, [],
-     beam.transforms.core.Windowing(GlobalWindows())))
-
-
 class _GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
   def __init__(self, pre_grouped_coder, post_grouped_coder, windowing):
@@ -134,22 +110,32 @@ class _GroupingBuffer(object):
 
   def append(self, elements_data):
     input_stream = create_InputStream(elements_data)
+    coder_impl = self._pre_grouped_coder.get_impl()
+    key_coder_impl = self._key_coder.get_impl()
+    # TODO(robertwb): We could optimize this even more by using a
+    # window-dropping coder for the data plane.
+    is_trivial_windowing = self._windowing.is_default()
     while input_stream.size() > 0:
-      windowed_key_value = self._pre_grouped_coder.get_impl(
-          ).decode_from_stream(input_stream, True)
-      key = windowed_key_value.value[0]
-      windowed_value = windowed_key_value.with_value(
-          windowed_key_value.value[1])
-      self._table[self._key_coder.encode(key)].append(windowed_value)
+      windowed_key_value = coder_impl.decode_from_stream(input_stream, True)
+      key, value = windowed_key_value.value
+      self._table[key_coder_impl.encode(key)].append(
+          value if is_trivial_windowing
+          else windowed_key_value.with_value(value))
 
   def __iter__(self):
     output_stream = create_OutputStream()
-    trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+    if self._windowing.is_default():
+      globally_window = GlobalWindows.windowed_value(None).with_value
+      windowed_key_values = lambda key, values: [globally_window((key, values))]
+    else:
+      trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+      windowed_key_values = trigger_driver.process_entire_key
+    coder_impl = self._post_grouped_coder.get_impl()
+    key_coder_impl = self._key_coder.get_impl()
     for encoded_key, windowed_values in self._table.items():
-      key = self._key_coder.decode(encoded_key)
-      for wkvs in trigger_driver.process_entire_key(key, windowed_values):
-        self._post_grouped_coder.get_impl().encode_to_stream(
-            wkvs, output_stream, True)
+      key = key_coder_impl.decode(encoded_key)
+      for wkvs in windowed_key_values(key, windowed_values):
+        coder_impl.encode_to_stream(wkvs, output_stream, True)
     return iter([output_stream.get()])
 
 
@@ -867,9 +853,9 @@ class FnApiRunner(runner.PipelineRunner):
               self.data_plane_handler.inverse()))
 
     def push(self, request):
-      logging.info('CONTROL REQUEST %s', request)
+      logging.debug('CONTROL REQUEST %s', request)
       response = self.worker.do_instruction(request)
-      logging.info('CONTROL RESPONSE %s', response)
+      logging.debug('CONTROL RESPONSE %s', response)
       self._responses.append(response)
 
     def pull(self):

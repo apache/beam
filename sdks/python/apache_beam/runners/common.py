@@ -319,15 +319,9 @@ class DoFnRunner(Receiver):
                kwargs,
                side_inputs,
                windowing,
-               context=None,
                tagged_receivers=None,
-               logger=None,
                step_name=None,
-               # Preferred alternative to logger
-               # TODO(robertwb): Remove once all runners are updated.
                logging_context=None,
-               # Preferred alternative to context
-               # TODO(robertwb): Remove once all runners are updated.
                state=None,
                scoped_metrics_container=None):
     """Initializes a DoFnRunner.
@@ -338,45 +332,31 @@ class DoFnRunner(Receiver):
       kwargs: keyword side input arguments (static and placeholder), if any
       side_inputs: list of sideinput.SideInputMaps for deferred side inputs
       windowing: windowing properties of the output PCollection(s)
-      context: a DoFnContext to use (deprecated)
       tagged_receivers: a dict of tag name to Receiver objects
-      logger: a logging module (deprecated)
       step_name: the name of this step
       logging_context: a LoggingContext object
       state: handle for accessing DoFn state
       scoped_metrics_container: Context switcher for metrics container
     """
-    self.scoped_metrics_container = (scoped_metrics_container
-                                     or ScopedMetricsContainer())
-    self.step_name = step_name
-
     # Need to support multiple iterations.
     side_inputs = list(side_inputs)
 
-    if logging_context:
-      self.logging_context = logging_context
-    else:
-      self.logging_context = get_logging_context(logger, step_name=step_name)
-
-    # TODO(sourabh): Deprecate the use of context
-    if state:
-      assert context is None
-      context = DoFnContext(step_name, state=state)
-    else:
-      assert context is not None
-      context = context
-
-    self.context = context
+    self.scoped_metrics_container = (
+        scoped_metrics_container or ScopedMetricsContainer())
+    self.step_name = step_name
+    self.logging_context = logging_context or LoggingContext()
+    self.context = DoFnContext(step_name, state=state)
 
     do_fn_signature = DoFnSignature(fn)
 
     # Optimize for the common case.
-    main_receivers = as_receiver(tagged_receivers[None])
+    main_receivers = tagged_receivers[None]
     output_processor = _OutputProcessor(
         windowing.windowfn, main_receivers, tagged_receivers)
 
     self.do_fn_invoker = DoFnInvoker.create_invoker(
-        output_processor, do_fn_signature, context, side_inputs, args, kwargs)
+        output_processor, do_fn_signature, self.context,
+        side_inputs, args, kwargs)
 
   def receive(self, windowed_value):
     self.process(windowed_value)
@@ -479,7 +459,7 @@ class _OutputProcessor(object):
       if tag is None:
         self.main_receivers.receive(windowed_value)
       else:
-        self.tagged_receivers[tag].output(windowed_value)
+        self.tagged_receivers[tag].receive(windowed_value)
 
   def start_bundle_outputs(self, results):
     """Validate that start_bundle does not output any elements"""
@@ -514,7 +494,7 @@ class _OutputProcessor(object):
       if tag is None:
         self.main_receivers.receive(windowed_value)
       else:
-        self.tagged_receivers[tag].output(windowed_value)
+        self.tagged_receivers[tag].receive(windowed_value)
 
 
 class _NoContext(WindowFn.AssignContext):
@@ -586,42 +566,3 @@ class DoFnContext(object):
       raise AttributeError('windows not accessible in this context')
     else:
       return self.windowed_value.windows
-
-
-# TODO(robertwb): Remove all these adapters once service is updated out.
-class _LoggingContextAdapter(LoggingContext):
-
-  def __init__(self, underlying):
-    self.underlying = underlying
-
-  def enter(self):
-    self.underlying.enter()
-
-  def exit(self):
-    self.underlying.exit()
-
-
-def get_logging_context(maybe_logger, **kwargs):
-  if maybe_logger:
-    maybe_context = maybe_logger.PerThreadLoggingContext(**kwargs)
-    if isinstance(maybe_context, LoggingContext):
-      return maybe_context
-    return _LoggingContextAdapter(maybe_context)
-  return LoggingContext()
-
-
-class _ReceiverAdapter(Receiver):
-
-  def __init__(self, underlying):
-    self.underlying = underlying
-
-  def receive(self, windowed_value):
-    self.underlying.output(windowed_value)
-
-
-def as_receiver(maybe_receiver):
-  """For internal use only; no backwards-compatibility guarantees."""
-
-  if isinstance(maybe_receiver, Receiver):
-    return maybe_receiver
-  return _ReceiverAdapter(maybe_receiver)
