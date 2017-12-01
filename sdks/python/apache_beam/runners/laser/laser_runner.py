@@ -45,6 +45,7 @@ import time
 
 import apache_beam as beam
 from apache_beam.coders import coders
+from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 # from apache_beam import typehints
 # from apache_beam.metrics.execution import MetricsEnvironment
@@ -194,6 +195,7 @@ class WatermarkNode(object):
       print 'OUTPUT watermark advanced', self, new_output_watermark
       self.output_watermark = new_output_watermark
       for dependent in self.watermark_children:
+        print 'CHECK', dependent
         dependent._refresh_input_watermark()
     else:
       print 'OUTPUT watermark unchanged', self, self.output_watermark
@@ -310,13 +312,14 @@ class GroupByKeyOnlyStep(Step):
 
 
 class ShuffleWriteStep(Step):
-  def __init__(self, name, element_coder, dataset_id):
+  def __init__(self, name, element_coder, dataset_id, grouped=True):
     super(ShuffleWriteStep, self).__init__(name)
     self.element_coder = element_coder
     self.dataset_id = dataset_id
+    self.grouped = grouped
 
   def copy(self):
-    return ShuffleWriteStep(self.name, self.element_coder, self.dataset_id)
+    return ShuffleWriteStep(self.name, self.element_coder, self.dataset_id, grouped=self.grouped)
 
   def as_operation(self, step_index):
     return operation_specs.LaserShuffleWrite(
@@ -324,27 +327,38 @@ class ShuffleWriteStep(Step):
         transaction_id=-1,
         output_coders=[self.element_coder],
         input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
+        grouped=self.grouped,
         )
 
 
 
 class ShuffleReadStep(Step):
-  def __init__(self, name, element_coder, dataset_id, key_range):
+  def __init__(self, name, element_coder, dataset_id, key_range, grouped=True):
     super(ShuffleReadStep, self).__init__(name)
     self.element_coder = element_coder
     self.dataset_id = dataset_id
     self.key_range = key_range
+    self.grouped = grouped
 
   def copy(self):
-    return ShuffleReadStep(self.name, self.element_coder, self.dataset_id, self.key_range)
+    return ShuffleReadStep(self.name, self.element_coder, self.dataset_id, self.key_range, grouped=self.grouped)
 
   def as_operation(self, step_index):
     return operation_specs.LaserShuffleRead(
         dataset_id=self.dataset_id,
         key_range=self.key_range,
         output_coders=[self.element_coder],
+        grouped=self.grouped,
         )
 
+
+class FlattenStep(Step):
+  def __init__(self, name, element_coder):
+    super(FlattenStep, self).__init__(name)
+    self.element_coder = element_coder
+
+  def copy(self):
+    return FlattenStep(self.name, self.element_coder)
 
 
 class CompositeWatermarkNode(WatermarkNode):
@@ -632,6 +646,9 @@ class ShuffleFinalizeStage(Stage, WatermarkNode):
     # Hold watermark on following steps until execution progress is made.
     self.set_watermark_hold(MIN_TIMESTAMP)
 
+  def initialize(self):
+    pass
+
   def start(self):
     # self.execution_context.shuffle_interface.commit_transaction(self.dataset_id, 0)
     self.execution_context.shuffle_interface.finalize_dataset(self.dataset_id)
@@ -741,12 +758,13 @@ class FusedStage(Stage, CompositeWatermarkNode):
         split_read_ops.append(new_read_op)
     elif isinstance(read_op, operation_specs.LaserShuffleRead):
       # TODO: do initial splitting of shuffle read operation, based on dataset characteristics.
-      split_ranges = read_op.key_range.split(16)
+      split_ranges = read_op.key_range.split(1)
       for split_range in split_ranges:
         new_read_op = operation_specs.LaserShuffleRead(
           dataset_id=read_op.dataset_id,
           key_range=split_range,
           output_coders=read_op.output_coders,
+          grouped=read_op.grouped,
           )
         split_read_ops.append(new_read_op)
     else:
@@ -833,6 +851,7 @@ def generate_execution_graph(step_graph, execution_context):
       stage_name = 'S%02d' % next_stage_id
       next_stage_id += 1
       fused_stage = FusedStage(stage_name, execution_context)
+      execution_graph.add_stage(fused_stage)
       fused_stage.add_step(original_step)
       print 'fused_stage', original_step, fused_stage
       steps_to_fused_stages[original_step] = fused_stage
@@ -859,7 +878,7 @@ def generate_execution_graph(step_graph, execution_context):
       next_shuffle_dataset_id += 1
       execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
       print 'SHUFFLE CODER', original_step.shuffle_coder
-      shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id)
+      shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id, grouped=True)
       print 'STEP', shuffle_write_step
       shuffle_write_step.inputs.append(original_step.inputs[0])
       print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
@@ -869,20 +888,64 @@ def generate_execution_graph(step_graph, execution_context):
       stage_name = 'S%02d' % next_stage_id
       next_stage_id += 1
       finalize_stage = ShuffleFinalizeStage(stage_name, execution_context, shuffle_dataset_id)
+      execution_graph.add_stage(finalize_stage)
       fused_stage.add_dependent(finalize_stage)
 
-      # Add shuffle read step, dependent on shuffle finalization.
+      # Add shuffle read stage, dependent on shuffle finalization.
       stage_name = 'S%02d' % next_stage_id
       next_stage_id += 1
       read_fused_stage = FusedStage(stage_name, execution_context)
+      execution_graph.add_stage(read_fused_stage)
       read_step = ShuffleReadStep(original_step.name + '/Read', original_step.output_coder, shuffle_dataset_id,
-          LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END))
+          LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=True)
       read_step.outputs[None] = PCollectionNode(read_step, None)
       read_fused_stage.add_step(read_step, origin_step=original_step)
       finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
 
-      # TODO: shuffle read
+      # Output stage is the new read stage.
       steps_to_fused_stages[original_step] = read_fused_stage
+    elif isinstance(original_step, FlattenStep):
+      # Note: we are careful to correctly handle the case where there are zero inputs to the Flatten.
+      shuffle_dataset_id = next_shuffle_dataset_id
+      next_shuffle_dataset_id += 1
+      execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
+
+      input_fused_stages = []
+      for input_pcoll in original_step.inputs:
+        input_step = input_pcoll.step
+        fused_stage = steps_to_fused_stages[input_step]
+        shuffle_write_step = ShuffleWriteStep(
+            input_step.name + '/FlattenWrite',
+            original_step.element_coder,
+            shuffle_dataset_id,
+            grouped=False)
+        shuffle_write_step.inputs.append(input_pcoll)
+        fused_stage.add_step(shuffle_write_step, origin_step=original_step)  # TODO: clarify role of origin_step argument.
+        input_fused_stages.append(fused_stage)
+
+      # Add finalization stage,.
+      stage_name = 'S%02d' % next_stage_id
+      next_stage_id += 1
+      finalize_stage = ShuffleFinalizeStage(stage_name, execution_context, shuffle_dataset_id)
+      execution_graph.add_stage(finalize_stage)
+      for fused_stage in input_fused_stages:
+        fused_stage.add_dependent(finalize_stage)
+
+      # Add read stage, dependent on shuffle finalization.
+      stage_name = 'S%02d' % next_stage_id
+      next_stage_id += 1
+      read_fused_stage = FusedStage(stage_name, execution_context)
+      execution_graph.add_stage(read_fused_stage)
+      read_step = ShuffleReadStep(original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id,
+          LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=False)
+      read_step.outputs[None] = PCollectionNode(read_step, None)
+      read_fused_stage.add_step(read_step, origin_step=original_step)
+      finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
+
+      # Output stage is the new read stage.
+      steps_to_fused_stages[original_step] = read_fused_stage
+    else:
+      raise ValueError('Execution graph translation not implemented: %s.' % original_step)
 
     # TODO: handle GroupByKeyStep.
     for unused_tag, pcoll_node in original_step.outputs.iteritems():
@@ -894,7 +957,6 @@ def generate_execution_graph(step_graph, execution_context):
   # Add fused stages to graph.
   for fused_stage in set(steps_to_fused_stages.values()):
     fused_stage.finalize_steps()
-    execution_graph.add_stage(fused_stage)
 
   return execution_graph
 
@@ -952,6 +1014,14 @@ class LaserRunner(PipelineRunner):
 
     step = GroupByKeyOnlyStep(transform_node.full_label, shuffle_coder, output_coder)
     print 'GBKO STEP', step
+    self.step_graph.add_step(transform_node, step)
+
+  def run_Flatten(self, transform_node):
+    if transform_node.inputs:
+      element_coder = self._get_coder(transform_node.inputs[0])
+    else:
+      element_coder = typecoders.registry.get_coder(object)
+    step = FlattenStep(transform_node.full_label, element_coder)
     self.step_graph.add_step(transform_node, step)
 
 
@@ -1012,8 +1082,8 @@ class LaserRunner(PipelineRunner):
     channel_manager = get_channel_manager()
     channel_manager.register_interface('master/shuffle', shuffle_worker)
 
-    # node_manager = InProcessComputeNodeManager()
-    node_manager = MultiProcessComputeNodeManager()
+    node_manager = InProcessComputeNodeManager()
+    # node_manager = MultiProcessComputeNodeManager()
     node_manager.start()
     work_manager = WorkManager(node_manager)
     watermark_manager = WatermarkManager()
@@ -1533,13 +1603,13 @@ if __name__ == '__main__':
   def _print(x):
     import time
     # time.sleep(4)
-    # print 'PRRRINT:', x
+    print 'PRRRINT:', x
   # lines = p | ReadFromText('gs://dataflow-samples/shakespeare/*.txt')
-  lines = p | ReadFromText('shakespeare/*.txt')
+  # lines = p | ReadFromText('shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
-  # lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
-  # lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
-  # lines = (lines1, lines2) | Flatten()
+  lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
+  lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
+  lines = (lines1, lines2) | Flatten()
   # WORDCAP:
   # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
 
@@ -1549,7 +1619,8 @@ if __name__ == '__main__':
                           .with_output_types(unicode)
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))) | beam.Map(_print)
+            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+            | beam.Map(_print))
 
   # #### BIGSHUFFLE SECTION
   # p = Pipeline(runner=LaserRunner())

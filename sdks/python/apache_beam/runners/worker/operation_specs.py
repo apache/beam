@@ -294,7 +294,7 @@ Attributes:
 
 LaserShuffleWrite = build_worker_instruction(
     'LaserShuffleWrite',
-    ['dataset_id', 'transaction_id', 'input', 'output_coders'])
+    ['dataset_id', 'transaction_id', 'input', 'output_coders', 'grouped'])
 """Worker details needed to write to a LaserRunner shuffle sink.
 
 Attributes:
@@ -305,12 +305,14 @@ Attributes:
     The output index is 0 except for multi-output operations (like ParDo).
   output_coders: 1-tuple of the coder for input elements. If the
     shuffle_kind is grouping, this is expected to be a KV coder.
+  grouped: whether the stored elements are just values (ungrouped) or KVs
+    (grouped).
 """
 
 
 LaserShuffleRead = build_worker_instruction(
     'LaserShuffleRead',
-    ['dataset_id', 'key_range', 'output_coders'])
+    ['dataset_id', 'key_range', 'output_coders', 'grouped'])
 """Worker details needed to write to a LaserRunner shuffle source.
 
 Attributes:
@@ -318,6 +320,8 @@ Attributes:
   key_range: The LexicographicRange for the read from the current dataset.
   output_coders: 1-tuple of the coder for input elements. If the
     shuffle_kind is grouping, this is expected to be a KV coder.
+  grouped: whether the stored elements are just values (ungrouped) or KVs
+    (grouped).
 """
 
 
