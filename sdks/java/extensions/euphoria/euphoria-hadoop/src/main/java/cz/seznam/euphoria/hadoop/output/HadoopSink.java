@@ -59,7 +59,7 @@ public class HadoopSink<K, V>
   }
 
   @Override
-  public Writer<Pair<K, V>> openWriter(int partitionId) {
+  public HadoopWriter<K, V> openWriter(int partitionId) {
     try {
       TaskAttemptContext ctx =
           HadoopUtils.createTaskContext(conf.getWritable(), partitionId);
@@ -127,11 +127,11 @@ public class HadoopSink<K, V>
   public Configuration getConfiguration() {
     return conf.getWritable();
   }
-  
+
   /**
    * Wraps Hadoop {@link RecordWriter}
    */
-  private static class HadoopWriter<K, V>
+  public static class HadoopWriter<K, V>
       implements Writer<Pair<K, V>> {
 
     private final RecordWriter<K, V> hadoopWriter;
@@ -177,6 +177,18 @@ public class HadoopSink<K, V>
     @Override
     public void close() throws IOException {
       // do nothing
+    }
+
+    public RecordWriter<K, V> getRecordWriter() {
+      return hadoopWriter;
+    }
+
+    public OutputCommitter getOutputCommitter() {
+      return hadoopCommitter;
+    }
+
+    public TaskAttemptContext getTaskAttemptContext() {
+      return ctx;
     }
   }
 }

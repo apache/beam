@@ -25,10 +25,7 @@ import cz.seznam.euphoria.executor.local.LocalExecutor;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.Result;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
@@ -67,13 +64,6 @@ public class HBaseSinkTest extends HBaseTestCase {
     for (String v : data) {
       assertArrayEquals(b(v), get(v));
     }
-  }
-
-  private byte[] get(String key) throws IOException {
-    Get get = new Get(b(key));
-    get.addColumn(b("t"), b(key));
-    Result res = client.get(get);
-    return res.getColumnLatestCell(b("t"), b(key)).getValue();
   }
 
 }

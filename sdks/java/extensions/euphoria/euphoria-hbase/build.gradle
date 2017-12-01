@@ -18,3 +18,4 @@ configurations {
 test {
   systemProperty "sun.io.serialization.extendedDebugInfo", true
 }
+
