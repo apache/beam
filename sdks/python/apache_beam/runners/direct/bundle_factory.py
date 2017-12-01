@@ -20,6 +20,7 @@
 from __future__ import absolute_import
 
 from apache_beam import pvalue
+from apache_beam.runners import common
 from apache_beam.utils.windowed_value import WindowedValue
 
 
@@ -47,7 +48,7 @@ class BundleFactory(object):
 
 
 # a bundle represents a unit of work that will be processed by a transform.
-class _Bundle(object):
+class _Bundle(common.Receiver):
   """Part of a PCollection with output elements.
 
   Part of a PCollection. Elements are output to a bundle, which will cause them
@@ -183,6 +184,9 @@ class _Bundle(object):
       self._elements.append(element)
 
   def output(self, element):
+    self.add(element)
+
+  def receive(self, element):
     self.add(element)
 
   def commit(self, synchronized_processing_time):
