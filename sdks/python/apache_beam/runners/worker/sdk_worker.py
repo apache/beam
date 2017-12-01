@@ -38,7 +38,7 @@ from apache_beam.runners.worker import data_plane
 
 
 class SdkHarness(object):
-
+  REQUEST_METHOD_PREFIX = '_request_'
   def __init__(self, control_address, pipeline_options=None):
 
     def _get_worker_count(pipeline_options):
@@ -92,7 +92,8 @@ class SdkHarness(object):
       request_type = work_request.WhichOneof('request')
       # Name spacing the request method with 'request_'. The called method
       # will be like self.request_register(request)
-      getattr(self, 'request_' + request_type)(work_request)
+      getattr(self,
+              SdkHarness.REQUEST_METHOD_PREFIX + request_type)(work_request)
 
     logging.info('No more requests from control plane')
     logging.info('SDK Harness waiting for in-flight requests to complete')
@@ -133,7 +134,7 @@ class SdkHarness(object):
           instruction_id=request.instruction_id, error=str(e))
     self._responses.put(response)
 
-  def request_register(self, request):
+  def _request_register(self, request):
     for process_bundle_descriptor in getattr(
         request, request.WhichOneof('request')).process_bundle_descriptor:
       self._fns[process_bundle_descriptor.id] = process_bundle_descriptor
@@ -146,7 +147,7 @@ class SdkHarness(object):
             register=beam_fn_api_pb2.RegisterResponse()))
     self._handle_response(request, future)
 
-  def request_process_bundle(self, request):
+  def _request_process_bundle(self, request):
 
     def _next_worker_id():
       # Get the next worker in round robin fashion
@@ -168,7 +169,7 @@ class SdkHarness(object):
     self._schedule(worker_wrapper.worker_thread_pool, request,
                    worker_wrapper.worker, process_bundle_callback)
 
-  def request_process_bundle_progress(self, request):
+  def _request_process_bundle_progress(self, request):
     worker_wrapper = self._instruction_id_vs_worker_wrapper[
         request.instruction_id]
     self._schedule(self._progress_thread_pool, request, worker_wrapper.worker
