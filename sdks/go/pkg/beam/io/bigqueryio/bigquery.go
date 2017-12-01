@@ -194,7 +194,7 @@ func (f *writeFn) ProcessElement(ctx context.Context, _ []byte, iter func(*beam.
 		if !isNotFound(err) {
 			return err
 		}
-		if err := table.Create(ctx, mustInferSchema(f.Type.T)); err != nil {
+		if err := table.Create(ctx, &bigquery.TableMetadata{Schema: mustInferSchema(f.Type.T)}); err != nil {
 			return err
 		}
 	}
