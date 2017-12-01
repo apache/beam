@@ -41,8 +41,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
@@ -51,6 +49,7 @@ import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.fn.test.Consumer;
@@ -157,11 +156,9 @@ public class BeamFnDataGrpcClientTest {
         (Endpoints.ApiServiceDescriptor descriptor) -> channel,
         this::createStreamForTest);
 
-    CompletableFuture<Void> readFutureA = clientFactory.forInboundConsumer(
-        apiServiceDescriptor,
-        ENDPOINT_A,
-        CODER,
-        inboundValuesA::add);
+      CompletableFuture<Void> readFutureA =
+          clientFactory.receive(
+              apiServiceDescriptor, ENDPOINT_A, CODER, inboundValuesA::add);
 
       waitForClientToConnect.await();
       outboundServerObserver.get().onNext(ELEMENTS_A_1);
@@ -170,10 +167,9 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_B_1);
       Thread.sleep(100);
 
-      CompletableFuture<Void> readFutureB = clientFactory.forInboundConsumer(
-          apiServiceDescriptor, ENDPOINT_B,
-          CODER,
-          inboundValuesB::add);
+      CompletableFuture<Void> readFutureB =
+          clientFactory.receive(
+              apiServiceDescriptor, ENDPOINT_B, CODER, inboundValuesB::add);
 
       // Show that out of order stream completion can occur.
       readFutureB.get();
@@ -225,17 +221,15 @@ public class BeamFnDataGrpcClientTest {
           (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
-      CompletableFuture<Void> readFuture = clientFactory.forInboundConsumer(
-          apiServiceDescriptor,
-          ENDPOINT_A,
-          CODER,
-          new ThrowingConsumer<WindowedValue<String>>() {
-            @Override
-            public void accept(WindowedValue<String> t) throws Exception {
-              consumerInvoked.incrementAndGet();
-              throw exceptionToThrow;
-            }
-          });
+      CompletableFuture<Void> readFuture =
+          clientFactory.receive(
+              apiServiceDescriptor,
+              ENDPOINT_A,
+              CODER,
+              t -> {
+                consumerInvoked.incrementAndGet();
+                throw exceptionToThrow;
+              });
 
       waitForClientToConnect.await();
 
@@ -297,8 +291,8 @@ public class BeamFnDataGrpcClientTest {
           (Endpoints.ApiServiceDescriptor descriptor) -> channel,
           this::createStreamForTest);
 
-      try (CloseableThrowingConsumer<WindowedValue<String>> consumer =
-          clientFactory.forOutboundConsumer(apiServiceDescriptor, ENDPOINT_A, CODER)) {
+      try (CloseableFnDataReceiver<WindowedValue<String>> consumer =
+          clientFactory.send(apiServiceDescriptor, ENDPOINT_A, CODER)) {
         consumer.accept(valueInGlobalWindow("ABC"));
         consumer.accept(valueInGlobalWindow("DEF"));
         consumer.accept(valueInGlobalWindow("GHI"));
