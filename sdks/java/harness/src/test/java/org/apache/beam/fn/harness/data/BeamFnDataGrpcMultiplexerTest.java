@@ -32,16 +32,16 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.test.TestStreams;
-import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 
 /** Tests for {@link BeamFnDataGrpcMultiplexer}. */
 public class BeamFnDataGrpcMultiplexerTest {
   private static final Endpoints.ApiServiceDescriptor DESCRIPTOR =
       Endpoints.ApiServiceDescriptor.newBuilder().setUrl("test").build();
-  private static final KV<String, BeamFnApi.Target> OUTPUT_LOCATION =
-      KV.of(
+  private static final LogicalEndpoint OUTPUT_LOCATION =
+      LogicalEndpoint.of(
           "777L",
           BeamFnApi.Target.newBuilder()
               .setName("name")
@@ -49,14 +49,14 @@ public class BeamFnDataGrpcMultiplexerTest {
               .build());
   private static final BeamFnApi.Elements ELEMENTS = BeamFnApi.Elements.newBuilder()
       .addData(BeamFnApi.Elements.Data.newBuilder()
-          .setInstructionReference(OUTPUT_LOCATION.getKey())
-          .setTarget(OUTPUT_LOCATION.getValue())
+          .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+          .setTarget(OUTPUT_LOCATION.getTarget())
           .setData(ByteString.copyFrom(new byte[1])))
       .build();
   private static final BeamFnApi.Elements TERMINAL_ELEMENTS = BeamFnApi.Elements.newBuilder()
       .addData(BeamFnApi.Elements.Data.newBuilder()
-          .setInstructionReference(OUTPUT_LOCATION.getKey())
-          .setTarget(OUTPUT_LOCATION.getValue()))
+          .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+          .setTarget(OUTPUT_LOCATION.getTarget()))
       .build();
 
   @Test

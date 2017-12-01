@@ -21,11 +21,10 @@ package org.apache.beam.fn.harness.data;
 import java.util.concurrent.CompletableFuture;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a consumer and is also a
@@ -45,7 +44,7 @@ public interface BeamFnDataClient {
    */
   <T> CompletableFuture<Void> forInboundConsumer(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      KV<String, BeamFnApi.Target> inputLocation,
+      LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
       ThrowingConsumer<WindowedValue<T>> consumer);
 
@@ -60,6 +59,6 @@ public interface BeamFnDataClient {
    */
   <T> CloseableThrowingConsumer<WindowedValue<T>> forOutboundConsumer(
       Endpoints.ApiServiceDescriptor apiServiceDescriptor,
-      KV<String, BeamFnApi.Target> outputLocation,
+      LogicalEndpoint outputLocation,
       Coder<WindowedValue<T>> coder);
 }
