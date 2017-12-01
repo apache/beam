@@ -24,11 +24,13 @@ import static com.google.common.collect.Iterables.transform;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Collections2;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -49,7 +51,6 @@ import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.runners.TransformHierarchy.Node;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -500,7 +501,6 @@ public class Pipeline {
   @Nullable private CoderRegistry coderRegistry;
 
   private final Multimap<String, PTransform<?, ?>> instancePerName = ArrayListMultimap.create();
-  private final List<String> unstableNames = new ArrayList<>();
   private final PipelineOptions defaultOptions;
 
   private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
@@ -528,11 +528,7 @@ public class Pipeline {
     String uniqueName = uniquifyInternal(namePrefix, name);
 
     final String builtName = buildName(namePrefix, name);
-    boolean nameIsUnique = uniqueName.equals(builtName);
     instancePerName.put(builtName, transform);
-    if (!nameIsUnique) {
-      unstableNames.add(uniqueName);
-    }
 
     LOG.debug("Adding {} to {}", transform, this);
     transforms.pushNode(uniqueName, input, transform);
@@ -577,24 +573,27 @@ public class Pipeline {
   @VisibleForTesting
   void validate(PipelineOptions options) {
     this.traverseTopologically(new ValidateVisitor(options));
-    if (!unstableNames.isEmpty()) {
+    final Collection<Map.Entry<String, Collection<PTransform<?, ?>>>> errors =
+            Collections2.filter(instancePerName.asMap().entrySet(),
+                    Predicates.not(IsUnique.INSTANCE));
+    if (!errors.isEmpty()) {
       switch (options.getStableUniqueNames()) {
         case OFF:
           break;
         case WARNING:
           LOG.warn(
               "The following transforms do not have stable unique names: {}",
-              Joiner.on(", ").join(unstableNames));
+              Joiner.on(", ").join(transform(errors, KeysExtractor.INSTANCE)));
           break;
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
                   "Pipeline update will not be possible"
                       + " because the following transforms do not have stable unique names: %s.",
-                  Joiner.on(", ").join(unstableNames)) + "\n\n"
+                  Joiner.on(", ").join(transform(errors, KeysExtractor.INSTANCE))) + "\n\n"
                       + "Conflicting instances:\n"
-                      + Joiner.on("\n").join(
-                              transform(unstableNames, new UnstableNameToMessage(instancePerName)))
+                      + Joiner.on("\n").join(transform(
+                              errors, new UnstableNameToMessage(instancePerName)))
                       + "\n\nYou can fix it adding a name when you call apply(): "
                       + "pipeline.apply(<name>, <transform>).");
         default:
@@ -651,23 +650,16 @@ public class Pipeline {
   }
 
   private static class TransformToMessage implements Function<PTransform<?, ?>, String> {
+    private static final TransformToMessage INSTANCE = new TransformToMessage();
+
     @Override
     public String apply(final PTransform<?, ?> transform) {
-      final Object representant;
-      if (ParDo.SingleOutput.class.isInstance(transform)) {
-        representant = ParDo.SingleOutput.class.cast(
-                transform).getFn();
-      } else if (ParDo.MultiOutput.class.isInstance(transform)) {
-        representant = ParDo.MultiOutput.class.cast(
-                transform).getFn();
-      } else {
-        representant = transform;
-      }
-      return "    - " + representant;
+      return "    - " + transform;
     }
   }
 
-  private static class UnstableNameToMessage implements Function<String, String> {
+  private static class UnstableNameToMessage implements
+          Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
     private final Multimap<String, PTransform<?, ?>> instances;
 
     private UnstableNameToMessage(final Multimap<String, PTransform<?, ?>> instancePerName) {
@@ -675,23 +667,30 @@ public class Pipeline {
     }
 
     @Override
-    public String apply(final String input) {
-      Collection<PTransform<?, ?>> values = null;
-      String currentName = input;
-      // strip the counter appended to the name,
-      // see uniquifyInternal().
-      // common example: ParDo(Anonymous) becoming ParDo(Anonymous)2
-      while (values == null && !currentName.isEmpty()) {
-        currentName = currentName.substring(0, currentName.length() - 1);
-        values = instances.keySet().contains(currentName) ? instances.get(currentName) : null;
-      }
-      if (values == null) {
-        throw new IllegalStateException(
-                "Didn't find the conflict for input="
-                        + input + ", this is likely a bug");
-      }
-      return "- name=" + currentName + ":\n"
-              + Joiner.on("\n").join(transform(values, new TransformToMessage()));
+    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+      final Collection<PTransform<?, ?>> values = instances.get(input.getKey());
+      return "- name=" + input.getKey() + ":\n"
+              + Joiner.on("\n").join(transform(values, TransformToMessage.INSTANCE));
+    }
+  }
+
+  private static class KeysExtractor implements
+          Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
+    private static final KeysExtractor INSTANCE = new KeysExtractor();
+
+    @Override
+    public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
+      return input.getKey();
+    }
+  }
+
+  private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
+    private static final Predicate<Map.Entry<String, Collection<PTransform<?, ?>>>> INSTANCE =
+            new IsUnique<>();
+
+    @Override
+    public boolean apply(final Map.Entry<K, Collection<V>> input) {
+      return input != null && input.getValue().size() == 1;
     }
   }
 }
