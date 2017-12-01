@@ -105,6 +105,7 @@ class OperationCounters(object):
     return i + math.floor(gap)
 
   def _should_sample(self):
+    return False
     """Determines whether to sample the next element.
 
     Size calculation can be expensive, so we don't do it for each element.

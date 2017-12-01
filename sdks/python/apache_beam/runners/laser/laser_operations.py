@@ -33,9 +33,11 @@ class ShuffleWriteOperation(Operation):
         operation_name, spec, counter_factory, state_sampler)
     self.dataset_id = spec.dataset_id
     self.transaction_id = work_context.transaction_id
-    self.element_coder = spec.output_coders[0]
-    self.key_coder = self.element_coder.key_coder()
-    self.value_coder = self.element_coder.value_coder()
+    element_coder = spec.output_coders[0]
+    self.element_coder = element_coder
+    self.key_coder = element_coder.key_coder()
+    self.value_coder = element_coder.value_coder()
+    # self.value_coder = coders.VarIntCoder()
 
     channel_manager = get_channel_manager()
     from apache_beam.runners.laser.laser_runner import ShuffleWorkerInterface
@@ -58,25 +60,31 @@ class ShuffleWriteOperation(Operation):
 
   def process(self, element):
     with self.scoped_process_state:
-      import random
       # if random.randint(0,2) == 0:  # for testing retrying transactions
       #   raise Exception('wtf')
-      # print 'Ele', element
-      # print 'coder', self.element_coder
+      # print 'Ecoder', self.element_coder
+      # print 'Kcoder', self.key_coder
       # print 'Vcoder', self.value_coder
       key, value = element.value
+      # print 'K, V', key, value
       encoded_key = self.key_coder.encode(key)
+      # print 'ENCODED_KEY', repr(encoded_key)
       encoded_value = self.value_coder.encode(value)
+      # print 'ENCODED_VALUE', repr(encoded_value)
       # print 'E', repr(encoded_key), repr(encoded_value)
-      hashed_encoded_key = prepend_key_hash(encoded_key)
-      self.write_buffer.append((hashed_encoded_key, encoded_value))
-      self.buffer_bytes += len(hashed_encoded_key) + len(encoded_value)
+      # hashed_encoded_key = prepend_key_hash(encoded_key)
+      self.write_buffer.append((encoded_key, encoded_value))
+      self.buffer_bytes += len(encoded_key) + len(encoded_value)
       if self.buffer_bytes >= WRITE_BUFFER_SIZE:
         self._flush()
 
   def _flush(self):
     if self.write_buffer:
       print 'FLUSH (current buffer has %d bytes)' % self.buffer_bytes
+      print 'HELLO'
+      print 'KEY CODER', self.key_coder
+      print 'VALUE CODER', self.value_coder
+      # print 'ELEMENT CODER', self.element_coder
       self.shuffle_interface.write(self.dataset_id, self.transaction_id, self.write_buffer)
       self.write_buffer = []
       self.buffer_bytes = 0
@@ -92,9 +100,11 @@ class ShuffleReadOperation(Operation):
         operation_name, spec, counter_factory, state_sampler)
     self.dataset_id = spec.dataset_id
     self.key_range = spec.key_range
-    self.element_coder = spec.output_coders[0]
-    self.key_coder = self.element_coder.wrapped_value_coder.key_coder()
-    self.value_coder = coders.WindowedValueCoder(self.element_coder.wrapped_value_coder.value_coder().value_coder())
+    element_coder = spec.output_coders[0]
+    self.element_coder = element_coder
+    self.key_coder = element_coder.key_coder()
+    self.value_coder = coders.WindowedValueCoder(element_coder.value_coder().value_coder(), coders.GlobalWindowCoder())
+    # self.value_coder = coders.VarIntCoder()
 
     channel_manager = get_channel_manager()
     from apache_beam.runners.laser.laser_runner import ShuffleWorkerInterface
@@ -114,8 +124,10 @@ class ShuffleReadOperation(Operation):
         # print '^^^^^^^^^^^^^^^^^^^^READ', elements, continuation_token
         for element in elements:
           # print 'ELE', element
-          hashed_encoded_key, encoded_value = element
-          encoded_key = strip_hash(hashed_encoded_key)
+          # print 'KEY_CODER', self.key_coder
+          # print 'VALUE_CODER', self.value_coder
+          encoded_key, encoded_value = element
+          # encoded_key = strip_hash(hashed_encoded_key)
           if has_active_key and current_encoded_key != encoded_key:
             current_key = self.key_coder.decode(current_encoded_key)
             # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)

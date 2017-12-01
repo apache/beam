@@ -62,6 +62,7 @@ from apache_beam.runners.runner import PipelineRunner
 # from apache_beam.transforms.ptransform import PTransform
 
 # __all__ = ['LaserRunner']
+from apache_beam.metrics.execution import MetricsEnvironment
 
 from apache_beam.runners.dataflow.internal.names import PropertyNames
 
@@ -240,7 +241,7 @@ class Step(WatermarkNode):
   # def _add_output(self, output_step):  # add_consumer? what happens with named outputs? do we care?
   #   assert isinstance(output_step, Step)
   #   self.outputs.append(output_step)
-  
+
   def copy(self):
     """Return copy of this Step, without its attached inputs or outputs."""
     raise NotImplementedError()
@@ -430,8 +431,10 @@ class SimpleShuffleDataset(object):
     self.lock = threading.Lock()
 
   def put(self, txn_id, key, value):
-    assert isinstance(key, str)
-    assert isinstance(value, str)
+    self.put_kvs(txn_id, [(key, value)])
+
+  def put_kvs(self, txn_id, kvs):
+    print 'PUT KVS', txn_id
     with self.lock:
       if self.finalized:
         raise Exception('Dataset already finalized.')
@@ -439,11 +442,10 @@ class SimpleShuffleDataset(object):
         raise Exception('Can\'t write to already committed transaction: %s.' % txn_id)
       if txn_id not in self.uncommitted_items:
         self.uncommitted_items[txn_id] = []
-      self.uncommitted_items[txn_id].append((key, value))
-
-  def put_kvs(self, txn_id, kvs):
-    for key, value in kvs:
-      self.put(txn_id, key, value)
+      for key, value in kvs:
+        assert isinstance(key, str)
+        assert isinstance(value, str)
+        self.uncommitted_items[txn_id].append((key, value))
 
 
   def commit_transaction(self, txn_id):
@@ -598,6 +600,7 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
 
   # REMOTE METHOD
   def write(self, dataset_id, txn_id, kvs):
+    print 'write KVS', txn_id
     self.datasets[dataset_id].put_kvs(txn_id, kvs)
 
   # REMOTE METHOD
@@ -730,14 +733,15 @@ class FusedStage(Stage, CompositeWatermarkNode):
     read_op = all_operations[0]
     split_read_ops = []
     if isinstance(read_op, operation_specs.WorkerRead):
+      # split_source_bundles = [read_op.source]
       split_source_bundles = list(read_op.source.source.split(16 * 1024 *  1024))
-      print '!!! SPLIT OFF', split_source_bundles
+      # print '!!! SPLIT OFF', split_source_bundles
       for source_bundle in split_source_bundles:
         new_read_op = operation_specs.WorkerRead(source_bundle, read_op.output_coders)
         split_read_ops.append(new_read_op)
     elif isinstance(read_op, operation_specs.LaserShuffleRead):
       # TODO: do initial splitting of shuffle read operation, based on dataset characteristics.
-      split_ranges = read_op.key_range.split(64)
+      split_ranges = read_op.key_range.split(16)
       for split_range in split_ranges:
         new_read_op = operation_specs.LaserShuffleRead(
           dataset_id=read_op.dataset_id,
@@ -753,7 +757,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
       step_names = list('s%s' % ix for ix in range(len(self.steps)))
       system_names = step_names
       original_names = list(step.name for step in self.steps)
-      map_task = operation_specs.MapTask(ops, self.name, system_names, step_names, original_names)
+      map_task = operation_specs.MapTask(ops, self.name, system_names, original_names, original_names)
       print 'MAPTASK', map_task
       # counter_factory = CounterFactory()
       # state_sampler = statesampler.StateSampler(self.name, counter_factory)
@@ -854,7 +858,9 @@ def generate_execution_graph(step_graph, execution_context):
       shuffle_dataset_id = next_shuffle_dataset_id
       next_shuffle_dataset_id += 1
       execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
+      print 'SHUFFLE CODER', original_step.shuffle_coder
       shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id)
+      print 'STEP', shuffle_write_step
       shuffle_write_step.inputs.append(original_step.inputs[0])
       print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
       fused_stage.add_step(shuffle_write_step, origin_step=original_step)# HACK
@@ -877,7 +883,7 @@ def generate_execution_graph(step_graph, execution_context):
 
       # TODO: shuffle read
       steps_to_fused_stages[original_step] = read_fused_stage
- 
+
     # TODO: handle GroupByKeyStep.
     for unused_tag, pcoll_node in original_step.outputs.iteritems():
       for consumer_step in pcoll_node.consumers:
@@ -913,7 +919,7 @@ class LaserRunner(PipelineRunner):
     # print 'split off', list(source_bundle.source.split(1))
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
-    
+
     # step_info = StepInfo(None, transform_node.outputs)
     step = ReadStep(transform_node.full_label, source_bundle, element_coder)
     # print 'transform_node', transform_node.outputs[None].producer
@@ -939,8 +945,10 @@ class LaserRunner(PipelineRunner):
     output = transform_node.outputs[None]
     output_coder = self._get_coder(output)
     unwindowed_input_coder = self._get_coder(transform_node.inputs[0]).wrapped_value_coder
-    shuffle_coder = coders.TupleCoder(
-        [unwindowed_input_coder.key_coder(), coders.WindowedValueCoder(unwindowed_input_coder.value_coder())])
+    shuffle_coder = coders.WindowedValueCoder(
+        coders.TupleCoder(
+            [unwindowed_input_coder.key_coder(), coders.WindowedValueCoder(unwindowed_input_coder.value_coder(),
+                                      coders.GlobalWindowCoder())]))
 
     step = GroupByKeyOnlyStep(transform_node.full_label, shuffle_coder, output_coder)
     print 'GBKO STEP', step
@@ -998,6 +1006,9 @@ class LaserRunner(PipelineRunner):
       print step.inputs, step.outputs
 
     shuffle_worker = SimpleShuffleWorker()
+    set_channel_config(ChannelConfig(
+      node_addresses=['master'],
+      link_strategies=[]))
     channel_manager = get_channel_manager()
     channel_manager.register_interface('master/shuffle', shuffle_worker)
 
@@ -1103,10 +1114,12 @@ class LaserWorker(WorkerInterface, threading.Thread):
       counter_factory = CounterFactory()
       state_sampler = statesampler.StateSampler(work_item.stage_name, counter_factory)
       work_context = WorkContext(work_item.transaction_id)
+      MetricsEnvironment.set_metrics_supported(False)
       map_executor = operations.SimpleMapTaskExecutor(work_item.map_task, counter_factory, state_sampler, work_context=work_context)
       status = WorkItemStatus.COMPLETED
       try:
         print '>>>>>>>>> WORKER', self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
+        print 'operations:', work_item.map_task.operations
         start_time = time.time()
         pr = cProfile.Profile()
         pr.enable()
@@ -1114,6 +1127,7 @@ class LaserWorker(WorkerInterface, threading.Thread):
         pr.disable()
         end_time = time.time()
         sortby = 'cumtime'
+        sortby = 'tottime'
         ps = pstats.Stats(pr).sort_stats(sortby)
         time_taken = end_time - start_time
         print '<<<<<<<<< WORKER DONE (%fs)' % time_taken, self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
@@ -1192,8 +1206,12 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
     self.idle_workers = set()
     self.active_workers = set()
 
+    self.first_schedule_time = None
+
   def schedule_map_task(self, stage, map_task):  # TODO: should we track origin?  (yes)
     with self.lock:
+      if not self.first_schedule_time:
+        self.first_schedule_time = time.time()
       work_item_id = len(self.work_items)
       print 'SCHEDULE_MAP_TASK', stage, map_task, work_item_id
       transaction_id = self.next_work_transaction_id
@@ -1236,6 +1254,8 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
           else:
             keep_scheduling = False
       print 'SCHEDULING', to_execute
+      if self.first_schedule_time:
+        print '%f SECOND ELAPSED SINCE FIRST WORK SCHEDULED' % (time.time() - self.first_schedule_time)
       for worker_interface, work_item in to_execute:
         worker_interface.schedule_work_item(pickler.dumps(work_item))
 
@@ -1315,7 +1335,7 @@ class ComputeNodeManager(ComputeNodeManagerInterface):
 
 
 class ComputeNodeStubInterface(Interface):
-  
+
   @remote_method(str)
   def confirm(self, message):
     raise NotImplementedError
@@ -1350,7 +1370,7 @@ class ComputeNodeStub(ComputeNodeStubInterface):
 
 class InProcessComputeNodeManager(ComputeNodeManager):
 
-  def __init__(self, num_nodes=4):
+  def __init__(self, num_nodes=1):
     self.num_nodes = num_nodes
     self.started = False
     self.channel_manager = get_channel_manager()
@@ -1383,7 +1403,7 @@ class InProcessComputeNodeManager(ComputeNodeManager):
 
 
 class MultiProcessComputeNodeManager(ComputeNodeManager):
-  def __init__(self, num_nodes=12):
+  def __init__(self, num_nodes=8):
     self.num_nodes = num_nodes
     self.started = False
     self.channel_manager = get_channel_manager()
@@ -1446,17 +1466,17 @@ def run(argv):
     sys.exit(0)
 
   COORDINATOR_PORT = random.randint(20000,30000)
-  set_channel_config(ChannelConfig(
-    node_addresses=['master'],
-    link_strategies=[
-      LinkStrategy(
-        LinkStrategyType.LISTEN,
-        mode=LinkMode.TCP,
-        address='localhost',
-        port=COORDINATOR_PORT,
-        # mode=LinkMode.UNIX,
-        # address='./uds_socket3-%s' % COORDINATOR_PORT,
-        )]))
+  # set_channel_config(ChannelConfig(
+  #   node_addresses=['master'],
+  #   link_strategies=[
+  #     LinkStrategy(
+  #       LinkStrategyType.LISTEN,
+  #       mode=LinkMode.TCP,
+  #       address='localhost',
+  #       port=COORDINATOR_PORT,
+  #       # mode=LinkMode.UNIX,
+  #       # address='./uds_socket3-%s' % COORDINATOR_PORT,
+  #       )]))
   manager = get_channel_manager()
 
   coordinator = LaserCoordinator()
@@ -1514,7 +1534,8 @@ if __name__ == '__main__':
     import time
     # time.sleep(4)
     # print 'PRRRINT:', x
-  lines = p | ReadFromText('gs://dataflow-samples/shakespeare/*.txt')
+  # lines = p | ReadFromText('gs://dataflow-samples/shakespeare/*.txt')
+  lines = p | ReadFromText('shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
   # lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
   # lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
@@ -1529,7 +1550,7 @@ if __name__ == '__main__':
             | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
             | 'group' >> beam.GroupByKey()
             | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))) | beam.Map(_print)
-  
+
   # #### BIGSHUFFLE SECTION
   # p = Pipeline(runner=LaserRunner())
   # # lines = p | ReadFromText('gs://sort_g/input/ascii_sort_1GB_input.0000999', coder=beam.coders.BytesCoder())
@@ -1543,4 +1564,6 @@ if __name__ == '__main__':
   #               lambda (key, vals): ['%s%s' % (key, val) for val in vals]))
 
   p.run()#.wait_until_finish()
+
+
 
