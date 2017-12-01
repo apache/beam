@@ -30,13 +30,14 @@ import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -45,10 +46,10 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BeamFnDataBufferingOutboundObserverTest {
   private static final int DEFAULT_BUFFER_LIMIT = 1_000_000;
-  private static final KV<String, BeamFnApi.Target> OUTPUT_LOCATION =
-      KV.of(
+  private static final LogicalEndpoint OUTPUT_LOCATION =
+      LogicalEndpoint.of(
           "777L",
-          BeamFnApi.Target.newBuilder()
+          Target.newBuilder()
               .setPrimitiveTransformReference("555L")
               .setName("Test")
               .build());
@@ -125,8 +126,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
     assertEquals(
         BeamFnApi.Elements.newBuilder(messageWithData(new byte[1]))
             .addData(BeamFnApi.Elements.Data.newBuilder()
-                .setInstructionReference(OUTPUT_LOCATION.getKey())
-                .setTarget(OUTPUT_LOCATION.getValue()))
+                .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+                .setTarget(OUTPUT_LOCATION.getTarget()))
             .build(),
         Iterables.get(values, 1));
   }
@@ -138,8 +139,8 @@ public class BeamFnDataBufferingOutboundObserverTest {
     }
     return BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(OUTPUT_LOCATION.getKey())
-            .setTarget(OUTPUT_LOCATION.getValue())
+            .setInstructionReference(OUTPUT_LOCATION.getInstructionId())
+            .setTarget(OUTPUT_LOCATION.getTarget())
             .setData(output.toByteString()))
         .build();
   }

@@ -46,17 +46,18 @@ import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -68,16 +69,16 @@ public class BeamFnDataGrpcClientTest {
       LengthPrefixCoder.of(
           WindowedValue.getFullCoder(StringUtf8Coder.of(),
               GlobalWindow.Coder.INSTANCE));
-  private static final KV<String, BeamFnApi.Target> KEY_A =
-      KV.of(
+  private static final LogicalEndpoint ENDPOINT_A =
+      LogicalEndpoint.of(
           "12L",
-          BeamFnApi.Target.newBuilder()
+          Target.newBuilder()
               .setPrimitiveTransformReference("34L")
               .setName("targetA")
               .build());
 
-  private static final KV<String, BeamFnApi.Target> KEY_B =
-      KV.of(
+  private static final LogicalEndpoint ENDPOINT_B =
+      LogicalEndpoint.of(
           "56L",
           BeamFnApi.Target.newBuilder()
               .setPrimitiveTransformReference("78L")
@@ -91,29 +92,29 @@ public class BeamFnDataGrpcClientTest {
     try {
     ELEMENTS_A_1 = BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_A.getKey())
-            .setTarget(KEY_A.getValue())
+            .setInstructionReference(ENDPOINT_A.getInstructionId())
+            .setTarget(ENDPOINT_A.getTarget())
             .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("ABC")))
                 .concat(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("DEF"))))))
         .build();
     ELEMENTS_A_2 = BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_A.getKey())
-            .setTarget(KEY_A.getValue())
+            .setInstructionReference(ENDPOINT_A.getInstructionId())
+            .setTarget(ENDPOINT_A.getTarget())
             .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("GHI")))))
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_A.getKey())
-            .setTarget(KEY_A.getValue()))
+            .setInstructionReference(ENDPOINT_A.getInstructionId())
+            .setTarget(ENDPOINT_A.getTarget()))
         .build();
     ELEMENTS_B_1 = BeamFnApi.Elements.newBuilder()
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_B.getKey())
-            .setTarget(KEY_B.getValue())
+            .setInstructionReference(ENDPOINT_B.getInstructionId())
+            .setTarget(ENDPOINT_B.getTarget())
             .setData(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("JKL")))
                 .concat(ByteString.copyFrom(encodeToByteArray(CODER, valueInGlobalWindow("MNO"))))))
         .addData(BeamFnApi.Elements.Data.newBuilder()
-            .setInstructionReference(KEY_B.getKey())
-            .setTarget(KEY_B.getValue()))
+            .setInstructionReference(ENDPOINT_B.getInstructionId())
+            .setTarget(ENDPOINT_B.getTarget()))
         .build();
     } catch (Exception e) {
       throw new ExceptionInInitializerError(e);
@@ -158,7 +159,7 @@ public class BeamFnDataGrpcClientTest {
 
     CompletableFuture<Void> readFutureA = clientFactory.forInboundConsumer(
         apiServiceDescriptor,
-        KEY_A,
+        ENDPOINT_A,
         CODER,
         inboundValuesA::add);
 
@@ -170,8 +171,7 @@ public class BeamFnDataGrpcClientTest {
       Thread.sleep(100);
 
       CompletableFuture<Void> readFutureB = clientFactory.forInboundConsumer(
-          apiServiceDescriptor,
-          KEY_B,
+          apiServiceDescriptor, ENDPOINT_B,
           CODER,
           inboundValuesB::add);
 
@@ -227,7 +227,7 @@ public class BeamFnDataGrpcClientTest {
 
       CompletableFuture<Void> readFuture = clientFactory.forInboundConsumer(
           apiServiceDescriptor,
-          KEY_A,
+          ENDPOINT_A,
           CODER,
           new ThrowingConsumer<WindowedValue<String>>() {
             @Override
@@ -298,7 +298,7 @@ public class BeamFnDataGrpcClientTest {
           this::createStreamForTest);
 
       try (CloseableThrowingConsumer<WindowedValue<String>> consumer =
-          clientFactory.forOutboundConsumer(apiServiceDescriptor, KEY_A, CODER)) {
+          clientFactory.forOutboundConsumer(apiServiceDescriptor, ENDPOINT_A, CODER)) {
         consumer.accept(valueInGlobalWindow("ABC"));
         consumer.accept(valueInGlobalWindow("DEF"));
         consumer.accept(valueInGlobalWindow("GHI"));

@@ -39,9 +39,9 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 
 /**
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
@@ -142,7 +142,7 @@ public class BeamFnDataWriteRunner<InputT> {
   public void registerForOutput() {
     consumer = beamFnDataClientFactory.forOutboundConsumer(
         apiServiceDescriptor,
-        KV.of(processBundleInstructionIdSupplier.get(), outputTarget),
+        LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), outputTarget),
         coder);
   }
 
