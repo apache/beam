@@ -18,13 +18,12 @@ package cz.seznam.euphoria.core.executor;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
-import cz.seznam.euphoria.core.executor.graph.DAG;
-import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.MockStreamDataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.InnerJoin;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -33,6 +32,8 @@ import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.FlowUnfolder.InputOperator;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.junit.Before;
 import org.junit.Test;
@@ -66,7 +67,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
+    Dataset<Pair<Object, Long>> output = InnerJoin.of(mapped, reduced)
         .by(e -> e, Pair::getFirst)
         .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
         .windowBy(Time.of(Duration.ofSeconds(1)))
@@ -126,8 +127,6 @@ public class FlowUnfolderTest {
         firstReduceStateByKey.getChildren(), FlatMap.class);
     // the second flatMap is the second input to the union
     assertTrue(union == getOnlyAndValidate(secondFlatMap.getChildren(), Union.class));
-
-
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -148,7 +147,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
+    Dataset<Pair<Object, Long>> output = InnerJoin.of(mapped, reduced)
         .by(e -> e, Pair::getFirst)
         .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> {
           c.collect(r.getSecond());

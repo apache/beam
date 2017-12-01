@@ -16,7 +16,7 @@
 package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import java.util.List;
+import java.util.Set;
 
 @Audience(Audience.Type.INTERNAL)
 public interface HintAware<HINT extends Hint> {
@@ -26,5 +26,5 @@ public interface HintAware<HINT extends Hint> {
    *
    * @return hints for the operator
    */
-  List<HINT> getHints();
+  Set<HINT> getHints();
 }

@@ -16,10 +16,11 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.operator.InnerJoin;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -34,6 +35,7 @@ import org.junit.runners.Parameterized;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Processing(Processing.Type.ALL)
@@ -128,7 +130,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
         }
 
         Join.WindowingBuilder<Object, Object, Object, Object> joinBuilder =
-            Join.of(left, right)
+            InnerJoin.of(left, right)
                 .by(e -> e, e -> e)
                 .using((l, r, c) -> c.collect(new Object()));
         if (joinWindowing == null) {
@@ -140,12 +142,12 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
 
       @Override
       protected List<Object> getLeftInput() {
-        return Arrays.asList(new ArrayList<>());
+        return Collections.singletonList(new ArrayList<>());
       }
 
       @Override
       protected List<Object> getRightInput() {
-        return Arrays.asList(new ArrayList<>());
+        return Collections.singletonList(new ArrayList<>());
       }
     };
     Exception thrown = null;

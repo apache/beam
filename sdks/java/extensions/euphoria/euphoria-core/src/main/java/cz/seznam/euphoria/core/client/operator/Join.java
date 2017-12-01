@@ -25,7 +25,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
-import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
@@ -34,14 +33,15 @@ import cz.seznam.euphoria.core.client.operator.state.StateContext;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Join two datasets by given key producing single new dataset.
@@ -57,78 +57,19 @@ import java.util.Objects;
 )
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
-    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W,
-    Join<LEFT, RIGHT, KEY, OUT, W>>
+    Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, Join<LEFT, RIGHT, KEY, OUT, W>>
     implements HintAware<JoinHint> {
 
-  public static class OfBuilder {
-    private final String name;
-
-    OfBuilder(String name) {
-      this.name = name;
-    }
-
-    public <LEFT, RIGHT> ByBuilder<LEFT, RIGHT>
-    of(Dataset<LEFT> left, Dataset<RIGHT> right) {
-      if (right.getFlow() != left.getFlow()) {
-        throw new IllegalArgumentException("Pass inputs from the same flow");
-      }
-      return new ByBuilder<>(name, left, right);
-    }
-  }
-
-  public static class ByBuilder<LEFT, RIGHT> {
-    private final String name;
-    private final Dataset<LEFT> left;
-    private final Dataset<RIGHT> right;
-
-    ByBuilder(String name, Dataset<LEFT> left, Dataset<RIGHT> right) {
-      this.name = Objects.requireNonNull(name);
-      this.left = Objects.requireNonNull(left);
-      this.right = Objects.requireNonNull(right);
-    }
-
-    public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
-        UnaryFunction<LEFT, KEY> leftKeyExtractor,
-        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
-
-      return new UsingBuilder<>(name, left, right,
-          leftKeyExtractor, rightKeyExtractor);
-    }
-  }
-
-  public static class UsingBuilder<LEFT, RIGHT, KEY> {
-    private final String name;
-    private final Dataset<LEFT> left;
-    private final Dataset<RIGHT> right;
-    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
-    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-
-    UsingBuilder(String name,
-                 Dataset<LEFT> left,
-                 Dataset<RIGHT> right,
-                 UnaryFunction<LEFT, KEY> leftKeyExtractor,
-                 UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
-
-      this.name = name;
-      this.left = left;
-      this.right = right;
-      this.leftKeyExtractor = leftKeyExtractor;
-      this.rightKeyExtractor = rightKeyExtractor;
-    }
-
-    public <OUT> WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
-        BinaryFunctor<LEFT, RIGHT, OUT> functor) {
-
-      return new WindowingBuilder<>(name, left, right,
-          leftKeyExtractor, rightKeyExtractor, functor,
-          false, Collections.emptyList());
-    }
+  public enum Type {
+    INNER,
+    LEFT,
+    RIGHT,
+    FULL
   }
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
       implements Builders.Output<Pair<KEY, OUT>>,
-          OptionalMethodBuilder<WindowingBuilder<LEFT, RIGHT, KEY, OUT>> {
+      OptionalMethodBuilder<WindowingBuilder<LEFT, RIGHT, KEY, OUT>> {
 
     private final String name;
     private final Dataset<LEFT> left;
@@ -136,8 +77,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
     private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
     private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
-    private final boolean outer;
-    private final List<JoinHint> hints;
+    private final Type type;
 
     WindowingBuilder(String name,
                      Dataset<LEFT> left,
@@ -145,8 +85,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                      UnaryFunction<LEFT, KEY> leftKeyExtractor,
                      UnaryFunction<RIGHT, KEY> rightKeyExtractor,
                      BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
-                     boolean outer,
-                     List<JoinHint> hints) {
+                     Type type) {
 
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
@@ -154,35 +93,26 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
       this.joinFunc = Objects.requireNonNull(joinFunc);
-      this.outer = outer;
-      this.hints = Objects.requireNonNull(hints);
-    }
-
-    public WindowingBuilder<LEFT, RIGHT, KEY, OUT> outer() {
-      return new WindowingBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, true, hints);
+      this.type = Objects.requireNonNull(type);
     }
 
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      return windowBy(null).output();
+      return windowBy(null).withHints(null).output();
     }
 
-    public <W extends Window>
-    OutputBuilder<LEFT, RIGHT, KEY, OUT, W>
-    windowBy(Windowing<Either<LEFT, RIGHT>, W> windowing) {
-      return new OutputBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, outer, windowing, hints);
+    public OutputBuilder<LEFT, RIGHT, KEY, OUT, Window> withHints(Set<JoinHint> hints) {
+      return windowBy(null).withHints(null);
     }
 
-    public WindowingBuilder<LEFT, RIGHT, KEY, OUT> withHints(JoinHint... hints) {
-      return new WindowingBuilder<>(name, left, right, leftKeyExtractor,
-          rightKeyExtractor, joinFunc, outer, Arrays.asList(hints));
+    public <W extends Window> HintBuilder<LEFT, RIGHT, KEY, OUT, W> windowBy(
+        Windowing<Either<LEFT, RIGHT>, W> windowing) {
+      return new HintBuilder<>(name, left, right, leftKeyExtractor,
+          rightKeyExtractor, joinFunc, type, windowing);
     }
   }
 
-  public static class OutputBuilder<
-      LEFT, RIGHT, KEY, OUT, W extends Window>
+  public static class HintBuilder<LEFT, RIGHT, KEY, OUT, W extends Window>
       implements Builders.Output<Pair<KEY, OUT>> {
 
     private final String name;
@@ -191,10 +121,54 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
     private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
     private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
-    private final boolean outer;
+    private final Type type;
+
     @Nullable
     private final Windowing<Either<LEFT, RIGHT>, W> windowing;
-    private final List<JoinHint> hints;
+
+    HintBuilder(String name,
+                Dataset<LEFT> left,
+                Dataset<RIGHT> right,
+                UnaryFunction<LEFT, KEY> leftKeyExtractor,
+                UnaryFunction<RIGHT, KEY> rightKeyExtractor,
+                BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
+                Type type,
+                @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing) {
+      this.name = Objects.requireNonNull(name);
+      this.left = Objects.requireNonNull(left);
+      this.right = Objects.requireNonNull(right);
+      this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
+      this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
+      this.joinFunc = Objects.requireNonNull(joinFunc);
+      this.type = Objects.requireNonNull(type);
+      this.windowing = windowing;
+    }
+
+    @Override
+    public Dataset<Pair<KEY, OUT>> output() {
+      return withHints(null).output();
+    }
+
+    public OutputBuilder<LEFT, RIGHT, KEY, OUT, W> withHints(Set<JoinHint> hints) {
+      return new OutputBuilder<>(name, left, right, leftKeyExtractor,
+          rightKeyExtractor, joinFunc, type, windowing, hints);
+    }
+  }
+
+  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, W extends Window>
+      implements Builders.Output<Pair<KEY, OUT>> {
+
+    private final String name;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
+    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+    private final BinaryFunctor<LEFT, RIGHT, OUT> joinFunc;
+    private final Type type;
+
+    @Nullable
+    private final Windowing<Either<LEFT, RIGHT>, W> windowing;
+    private final Set<JoinHint> hints;
 
     OutputBuilder(String name,
                   Dataset<LEFT> left,
@@ -202,77 +176,51 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
                   UnaryFunction<LEFT, KEY> leftKeyExtractor,
                   UnaryFunction<RIGHT, KEY> rightKeyExtractor,
                   BinaryFunctor<LEFT, RIGHT, OUT> joinFunc,
-                  boolean outer,
+                  Type type,
                   @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
-                  List<JoinHint> hints) {
-
+                  Set<JoinHint> hints) {
       this.name = Objects.requireNonNull(name);
       this.left = Objects.requireNonNull(left);
       this.right = Objects.requireNonNull(right);
       this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
       this.joinFunc = Objects.requireNonNull(joinFunc);
-      this.outer = outer;
+      this.type = type;
       this.windowing = windowing;
       this.hints = hints;
     }
 
-    public OutputBuilder<LEFT, RIGHT, KEY, OUT, W> withHints(JoinHint... hints) {
-      return new OutputBuilder<>(name,
-          left,
-          right,
-          leftKeyExtractor,
-          rightKeyExtractor,
-          joinFunc,
-          outer,
-          windowing,
-          Arrays.asList(hints));
-    }
-
     @Override
     public Dataset<Pair<KEY, OUT>> output() {
-      Flow flow = left.getFlow();
-      Join<LEFT, RIGHT, KEY, OUT, W> join =
-          new Join<>(name, flow, left, right,
-              windowing, leftKeyExtractor, rightKeyExtractor, joinFunc, outer,
-              hints);
+      final Flow flow = left.getFlow();
+      final Join<LEFT, RIGHT, KEY, OUT, W> join = new Join<>(
+          name, flow, left, right, leftKeyExtractor,
+          rightKeyExtractor, joinFunc, type, windowing, hints);
       flow.add(join);
       return join.output();
     }
-  }
-
-  public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
-      Dataset<LEFT> left, Dataset<RIGHT> right) {
-
-    return new OfBuilder("Join").of(left, right);
-  }
-
-  public static OfBuilder named(String name) {
-    return new OfBuilder(name);
   }
 
   private final Dataset<LEFT> left;
   private final Dataset<RIGHT> right;
   private final Dataset<Pair<KEY, OUT>> output;
   private final BinaryFunctor<LEFT, RIGHT, OUT> functor;
-  @VisibleForTesting
-  final UnaryFunction<LEFT, KEY> leftKeyExtractor;
-  @VisibleForTesting
-  final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
-  @VisibleForTesting
-  final boolean outer;
-  private final List<JoinHint> hints;
+
+  @VisibleForTesting final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+  @VisibleForTesting final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+
+  private final Type type;
+  private final Set<JoinHint> hints;
 
   Join(String name,
        Flow flow,
        Dataset<LEFT> left, Dataset<RIGHT> right,
-       @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
        UnaryFunction<LEFT, KEY> leftKeyExtractor,
        UnaryFunction<RIGHT, KEY> rightKeyExtractor,
        BinaryFunctor<LEFT, RIGHT, OUT> functor,
-       boolean outer,
-       List<JoinHint> hints) {
-
+       Type type,
+       @Nullable Windowing<Either<LEFT, RIGHT>, W> windowing,
+       @Nullable Set<JoinHint> hints) {
     super(name, flow, windowing, (Either<LEFT, RIGHT> elem) -> {
       if (elem.isLeft()) {
         return leftKeyExtractor.apply(elem.left());
@@ -287,8 +235,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     @SuppressWarnings("unchecked")
     Dataset<Pair<KEY, OUT>> output = createOutput((Dataset) left);
     this.output = output;
-    this.outer = outer;
-    this.hints = hints;
+    this.type = type;
+    this.hints = hints == null ? Collections.emptySet() : hints;
   }
 
   @Override
@@ -327,20 +275,43 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       rightElements.clear();
     }
 
-    void flushUnjoinedElems(
-        Collector<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
+    /**
+     * This method can be triggered by all joins except INNER
+     */
+    void flushUnjoinedElems(Collector<OUT> context, Iterable<LEFT> lefts, Iterable<RIGHT> rights) {
       boolean leftEmpty = !lefts.iterator().hasNext();
       boolean rightEmpty = !rights.iterator().hasNext();
       // if just a one collection is empty
       if (leftEmpty != rightEmpty) {
-        if (leftEmpty) {
-          for (RIGHT elem : rights) {
-            functor.apply(null, elem, context);
-          }
-        } else {
-          for (LEFT elem : lefts) {
-            functor.apply(elem, null, context);
-          }
+        switch (getType()) {
+          case LEFT:
+            if (rightEmpty) {
+              for (LEFT elem : lefts) {
+                functor.apply(elem, null, context);
+              }
+            }
+            break;
+          case RIGHT:
+            if (leftEmpty) {
+              for (RIGHT elem : rights) {
+                functor.apply(null, elem, context);
+              }
+            }
+            break;
+          case FULL:
+            if (leftEmpty) {
+              for (RIGHT elem : rights) {
+                functor.apply(null, elem, context);
+              }
+            } else {
+              for (LEFT elem : lefts) {
+                functor.apply(elem, null, context);
+              }
+            }
+            break;
+          default:
+            throw new IllegalArgumentException("Unsupported type: " + getType());
+
         }
       }
     }
@@ -379,7 +350,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
           functor.apply(l, r, context);
         }
       }
-      if (outer) {
+      if (type != Type.INNER) {
         flushUnjoinedElems(context, lefts, rights);
       }
     }
@@ -459,7 +430,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     @Override
     public void close() {
-      if (outer) {
+      if (type != Type.INNER) {
         flushUnjoinedElems(context, leftElements.get(), rightElements.get());
       }
       super.close();
@@ -486,8 +457,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     }
   }
 
-  public boolean isOuter() {
-    return outer;
+  public Type getType() {
+    return type;
   }
 
   public UnaryFunction<LEFT, KEY> getLeftKeyExtractor() {
@@ -503,28 +474,26 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   @Override
-  public List<JoinHint> getHints() {
+  public Set<JoinHint> getHints() {
     return hints;
   }
 
   @Override
   @SuppressWarnings("unchecked")
   public DAG<Operator<?, ?>> getBasicOps() {
-    Flow flow = getFlow();
+    final Flow flow = getFlow();
 
-    String name = getName() + "::Map-left";
-    MapElements<LEFT, Either<LEFT, RIGHT>> leftMap = new MapElements<>(
-        name, flow, left, Either::left);
+    final MapElements<LEFT, Either<LEFT, RIGHT>> leftMap = new MapElements<>(
+        getName() + "::Map-left", flow, left, Either::left);
 
-    name = getName() + "::Map-right";
-    MapElements<RIGHT, Either<LEFT, RIGHT>> rightMap = new MapElements<>(
-        name, flow, right, Either::right);
+    final MapElements<RIGHT, Either<LEFT, RIGHT>> rightMap = new MapElements<>(
+        getName() + "::Map-right", flow, right, Either::right);
 
-    name = getName() + "::Union";
-    Union<Either<LEFT, RIGHT>> union =
-        new Union<>(name, flow, Arrays.asList(leftMap.output(), rightMap.output()));
+    final Union<Either<LEFT, RIGHT>> union =
+        new Union<>(getName() + "::Union", flow, Arrays.asList(
+            leftMap.output(), rightMap.output()));
 
-    ReduceStateByKey<Either<LEFT, RIGHT>, KEY, Either<LEFT, RIGHT>, OUT, StableJoinState, W>
+    final ReduceStateByKey<Either<LEFT, RIGHT>, KEY, Either<LEFT, RIGHT>, OUT, StableJoinState, W>
         reduce = new ReduceStateByKey(
         getName() + "::ReduceStateByKey",
         flow,
@@ -539,7 +508,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
               : new EarlyEmittingJoinState(storages, ctx);
         }, new StateSupport.MergeFromStateMerger<>());
 
-    DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
+    final DAG<Operator<?, ?>> dag = DAG.of(leftMap, rightMap);
     dag.add(union, leftMap, rightMap);
     dag.add(reduce, union);
     return dag;

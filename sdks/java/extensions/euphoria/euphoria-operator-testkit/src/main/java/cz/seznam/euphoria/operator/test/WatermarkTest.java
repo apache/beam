@@ -20,7 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
-import cz.seznam.euphoria.core.client.operator.Join;
+import cz.seznam.euphoria.core.client.operator.InnerJoin;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -62,9 +62,10 @@ public class WatermarkTest extends AbstractOperatorTest {
         left = AssignEventTime.of(left).using(Pair::getSecond).output();
         right = AssignEventTime.of(right).using(Pair::getSecond).output();
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
-            Join.of(left, right)
+            InnerJoin.of(left, right)
                 .by(p -> "", p -> "")
-                .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
+                .using((Pair<String, Long> l, Pair<String, Long> r,
+                        Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
                 .windowBy(Time.of(Duration.ofMillis(10)))
                 .output();
