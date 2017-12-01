@@ -86,10 +86,11 @@ def main(unused_argv):
       fn_log_handler.close()
 
 
-def _load_main_session(session_path):
+def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
-  if session_path:
-    session_file = os.path.join(session_path, names.PICKLED_MAIN_SESSION_FILE)
+  if semi_persistent_directory:
+    session_file = os.path.join(
+        semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
       pickler.load_session(session_file)
     else:
@@ -98,7 +99,7 @@ def _load_main_session(session_path):
           '(interactive session) may fail.', session_file)
   else:
     logging.warning(
-        'No session_path found: Functions defined in __main__ '
+        'No semi_persistent_directory found: Functions defined in __main__ '
         '(interactive session) may fail.')
 
 
