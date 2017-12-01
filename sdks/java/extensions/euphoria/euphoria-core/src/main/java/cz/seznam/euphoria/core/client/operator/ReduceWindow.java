@@ -254,11 +254,11 @@ public class ReduceWindow<
     return new OfBuilder(name);
   }
 
-  final ReduceFunctor<VALUE, OUT> reducer;
+  private final ReduceFunctor<VALUE, OUT> reducer;
   final UnaryFunction<IN, VALUE> valueExtractor;
   final BinaryFunction<VALUE, VALUE, Integer> valueComparator;
 
-  static final Byte B_ZERO = (byte) 0;
+  private static final Byte B_ZERO = (byte) 0;
 
   private ReduceWindow(
           String name,

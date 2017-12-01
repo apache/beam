@@ -38,7 +38,6 @@ public class Datasets {
    *
    * @return a dataset representing the output of the given operator
    */
-  @SuppressWarnings("unchecked")
   public static <IN, OUT> Dataset<OUT> createOutputFor(
       Flow flow, Dataset<IN> input, Operator<IN, OUT> op) {
 
@@ -57,7 +56,6 @@ public class Datasets {
    */
   public static <T> Dataset<T> createInputFromSource(
       Flow flow, DataSource<T> source) {
-
     return new InputDataset<>(flow, source, source.isBounded());
   }
 }
