@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -171,4 +172,55 @@ public class JoinTest {
     assertTrue(join.getWindowing() instanceof Time);
   }
 
+  @Test
+  public void testBuild_Hints() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    InnerJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .withHints(Sets.newHashSet(new TestHint(), new TestHint2(), new TestHint2()))
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertTrue(join.getHints().contains(new TestHint()));
+    assertTrue(join.getHints().contains(new TestHint2()));
+    assertEquals(2, join.getHints().size());
+  }
+
+  @Test
+  public void testBuild_Hints_afterWindowing() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    InnerJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .withHints(Sets.newHashSet(new TestHint(), new TestHint2(), new TestHint2()))
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertTrue(join.getHints().contains(new TestHint()));
+    assertTrue(join.getHints().contains(new TestHint2()));
+    assertEquals(2, join.getHints().size());
+    assertTrue(join.getWindowing() instanceof Time);
+  }
+
+  private static class TestHint implements JoinHint {
+
+  }
+
+  private static class TestHint2 implements JoinHint {
+
+  }
 }
