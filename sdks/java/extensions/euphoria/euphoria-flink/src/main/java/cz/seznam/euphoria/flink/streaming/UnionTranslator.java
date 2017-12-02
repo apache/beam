@@ -26,15 +26,13 @@ class UnionTranslator implements StreamingOperatorTranslator<Union> {
   @Override
   @SuppressWarnings("unchecked")
   public DataStream<?> translate(FlinkOperator<Union> operator,
-                                 StreamingExecutorContext context)
-  {
-    List<DataStream<?>> inputs = context.getInputStreams(operator);
-    if (inputs.size() != 2) {
-      throw new IllegalStateException("Union operator needs 2 inputs");
+                                 StreamingExecutorContext context) {
+    final List<DataStream<?>> inputs = context.getInputStreams(operator);
+    if (inputs.size() < 2) {
+      throw new IllegalStateException("Union operator needs at least 2 inputs");
     }
-    DataStream<?> left = inputs.get(0);
-    DataStream<?> right = inputs.get(1);
-
-    return left.union((DataStream) right);
+    return inputs.stream()
+        .reduce((l, r) -> ((DataStream<Object>) l).union((DataStream<Object>) r))
+        .orElseThrow(() -> new IllegalArgumentException("Unable to reduce inputs."));
   }
 }
