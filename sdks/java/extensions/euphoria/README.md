@@ -1,7 +1,6 @@
 # Euphoria
 
 [![Build Status](https://travis-ci.org/seznam/euphoria.svg?branch=master)](https://travis-ci.org/seznam/euphoria)
-[![Join the chat at https://gitter.im/euphoria-api/Lobby](https://badges.gitter.im/euphoira-api/Lobby.svg)](https://gitter.im/euphoria-api/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Euphoria is an open source Java API for creating unified big-data
 processing flows.  It provides an engine independent programming model
@@ -118,22 +117,8 @@ Building the project itself is a matter of:
 ```
 git clone https://github.com/seznam/euphoria
 cd euphoria
-mvn clean install -DskipTests
+./gradlew publishToMavenLocal -xtest
 ```
-
-For faster local development cycles, building javadocs, preparing
-source code packages, running project and source code validations can
-be avoided by de-activating the "regular-build" profile:
-
-```
-mvn clean install -DskipTests -P-regular-build
-```
-
-This is just a convenient, quick and dirty way to install the binaries
-locally without going through the full build cycle.  However, pull
-requests which do not pass the full build lifecycle as defined by the
-"regular-build" profile cannot be accepted.
-
 
 ## Documentation
 
@@ -146,13 +131,6 @@ requests which do not pass the full build lifecycle as defined by the
 ## Contact us
 
 * Feel free to open an issue in the [issue tracker](https://github.com/seznam/euphoria/issues)
-* In case of questions you can contact us via [Gitter channel](https://gitter.im/euphoria-api/Lobby) or e-mail directly any of the project members
-
-### Euphoria Team
-
-* __Jan Lukavský__ (je-ik) - je.ik@seznam.cz
-* __Jaromír Vaněk__ (vanekjar) - vanek.jaromir@gmail.com
-* __Adam Horký__ (horkyada) - adam.horky@firma.seznam.cz
 
 ## License
 
