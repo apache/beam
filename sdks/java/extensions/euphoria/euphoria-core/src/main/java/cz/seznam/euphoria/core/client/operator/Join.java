@@ -188,9 +188,9 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       this.leftKeyExtractor = Objects.requireNonNull(leftKeyExtractor);
       this.rightKeyExtractor = Objects.requireNonNull(rightKeyExtractor);
       this.joinFunc = Objects.requireNonNull(joinFunc);
-      this.type = type;
+      this.type = Objects.requireNonNull(type);
       this.windowing = windowing;
-      this.hints = hints;
+      this.hints = Objects.requireNonNull(hints);
     }
 
     @Override

@@ -218,9 +218,28 @@ public class JoinTest {
 
   private static class TestHint implements JoinHint {
 
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof TestHint;
+    }
   }
 
   private static class TestHint2 implements JoinHint {
 
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof TestHint2;
+    }
   }
 }
