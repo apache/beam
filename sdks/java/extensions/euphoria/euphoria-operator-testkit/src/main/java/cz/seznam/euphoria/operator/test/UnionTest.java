@@ -39,11 +39,11 @@ public class UnionTest extends AbstractOperatorTest {
 
       @Override
       public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
-        Dataset<Integer> first = flow.createInput(ListDataSource.of(bounded,
+        final Dataset<Integer> first = flow.createInput(ListDataSource.of(bounded,
             Arrays.asList(1, 2, 3),
             Arrays.asList(4, 5, 6)));
 
-        Dataset<Integer> second = flow.createInput(ListDataSource.of(bounded,
+        final Dataset<Integer> second = flow.createInput(ListDataSource.of(bounded,
             Arrays.asList(7, 8, 9),
             Arrays.asList(10, 11, 12)));
 
@@ -57,4 +57,90 @@ public class UnionTest extends AbstractOperatorTest {
     });
   }
 
+  @Test
+  public void testUnion_threeDataSets() {
+    execute(new TestCase<Integer>() {
+
+      @Override
+      public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
+        final Dataset<Integer> first = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(1, 2, 3),
+            Arrays.asList(4, 5, 6)));
+
+        final Dataset<Integer> second = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(7, 8, 9),
+            Arrays.asList(10, 11, 12)));
+
+        final Dataset<Integer> third = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(13, 14, 15),
+            Arrays.asList(16, 17, 18)));
+
+        return Union.of(first, second, third).output();
+      }
+
+      @Override
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
+      }
+    });
+  }
+
+  @Test
+  public void testUnion_threeDataSets_differentNumberOfPartitions() {
+    execute(new TestCase<Integer>() {
+
+      @Override
+      public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
+        final Dataset<Integer> first = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(1, 2, 3)));
+
+        final Dataset<Integer> second = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(4, 5, 6),
+            Arrays.asList(7, 8, 9)));
+
+        final Dataset<Integer> third = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(10, 11, 12),
+            Arrays.asList(13, 14, 15),
+            Arrays.asList(16, 17, 18)));
+
+        return Union.of(first, second, third).output();
+      }
+
+      @Override
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18);
+      }
+    });
+  }
+
+  @Test
+  public void testUnion_fiveDataSets() {
+    execute(new TestCase<Integer>() {
+
+      @Override
+      public Dataset<Integer> getOutput(Flow flow, boolean bounded) {
+        final Dataset<Integer> first = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(1, 2, 3)));
+
+        final Dataset<Integer> second = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(4, 5, 6)));
+
+        final Dataset<Integer> third = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(7, 8, 9)));
+
+        final Dataset<Integer> fourth = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(10, 11, 12)));
+
+        final Dataset<Integer> fifth = flow.createInput(ListDataSource.of(bounded,
+            Arrays.asList(13, 14, 15)));
+
+        return Union.of(first, second, third, fourth, fifth).output();
+      }
+
+      @Override
+      public List<Integer> getUnorderedOutput() {
+        return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
+      }
+    });
+  }
 }
