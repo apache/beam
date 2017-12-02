@@ -21,7 +21,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
-import java.util.List;
 import java.util.Set;
 
 /**
