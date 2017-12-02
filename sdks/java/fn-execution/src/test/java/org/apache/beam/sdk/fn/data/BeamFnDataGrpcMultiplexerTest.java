@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness.data;
+package org.apache.beam.sdk.fn.data;
 
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertFalse;
@@ -31,8 +31,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
+import org.apache.beam.sdk.fn.test.Consumer;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.junit.Test;
 
@@ -61,37 +64,68 @@ public class BeamFnDataGrpcMultiplexerTest {
 
   @Test
   public void testOutboundObserver() {
-    Collection<BeamFnApi.Elements> values = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer multiplexer = new BeamFnDataGrpcMultiplexer(
-        DESCRIPTOR,
-        (StreamObserver<BeamFnApi.Elements> inboundObserver)
-            -> TestStreams.withOnNext(values::add).build());
+    final Collection<BeamFnApi.Elements> values = new ArrayList<>();
+    BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            new StreamObserverClientFactory<Elements, Elements>() {
+              @Override
+              public StreamObserver<Elements> outboundObserverFor(
+                  StreamObserver<Elements> inboundObserver) {
+                return TestStreams.withOnNext(
+                        new Consumer<Elements>() {
+                          @Override
+                          public void accept(Elements item) {
+                            values.add(item);
+                          }
+                        })
+                    .build();
+              }
+            });
     multiplexer.getOutboundObserver().onNext(ELEMENTS);
     assertThat(values, contains(ELEMENTS));
   }
 
   @Test
   public void testInboundObserverBlocksTillConsumerConnects() throws Exception {
-    Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
-    Collection<BeamFnApi.Elements.Data> inboundValues = new ArrayList<>();
-    BeamFnDataGrpcMultiplexer multiplexer = new BeamFnDataGrpcMultiplexer(
-        DESCRIPTOR,
-        (StreamObserver<BeamFnApi.Elements> inboundObserver)
-            -> TestStreams.withOnNext(outboundValues::add).build());
+    final Collection<BeamFnApi.Elements> outboundValues = new ArrayList<>();
+    final Collection<BeamFnApi.Elements.Data> inboundValues = new ArrayList<>();
+    final BeamFnDataGrpcMultiplexer multiplexer =
+        new BeamFnDataGrpcMultiplexer(
+            DESCRIPTOR,
+            new StreamObserverClientFactory<Elements, Elements>() {
+              @Override
+              public StreamObserver<Elements> outboundObserverFor(
+                  StreamObserver<Elements> inboundObserver) {
+                return TestStreams.withOnNext(
+                        new Consumer<Elements>() {
+                          @Override
+                          public void accept(Elements item) {
+                            outboundValues.add(item);
+                          }
+                        })
+                    .build();
+              }
+            });
     ExecutorService executorService = Executors.newCachedThreadPool();
     executorService.submit(new Runnable() {
       @Override
       public void run() {
         // Purposefully sleep to simulate a delay in a consumer connecting.
         Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-        multiplexer.futureForKey(OUTPUT_LOCATION).complete(inboundValues::add);
+        multiplexer.registerReceiver(OUTPUT_LOCATION, new DataBytesReceiver() {
+          @Override
+          public void receive(Data data) {
+            inboundValues.add(data);
+          }
+        });
       }
     });
     multiplexer.getInboundObserver().onNext(ELEMENTS);
-    assertTrue(multiplexer.consumers.containsKey(OUTPUT_LOCATION));
+    assertTrue(multiplexer.hasReceiver(OUTPUT_LOCATION));
     // Ensure that when we see a terminal Elements object, we remove the consumer
     multiplexer.getInboundObserver().onNext(TERMINAL_ELEMENTS);
-    assertFalse(multiplexer.consumers.containsKey(OUTPUT_LOCATION));
+    assertFalse(multiplexer.hasReceiver(OUTPUT_LOCATION));
 
     // Assert that normal and terminal Elements are passed to the consumer
     assertThat(inboundValues, contains(ELEMENTS.getData(0), TERMINAL_ELEMENTS.getData(0)));

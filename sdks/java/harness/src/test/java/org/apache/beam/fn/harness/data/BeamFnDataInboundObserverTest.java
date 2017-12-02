@@ -55,18 +55,18 @@ public class BeamFnDataInboundObserverTest {
         new BeamFnDataInboundObserver<>(CODER, values::add, readFuture);
 
     // Test decoding multiple messages
-    observer.accept(dataWith("ABC", "DEF", "GHI"));
+    observer.receive(dataWith("ABC", "DEF", "GHI"));
     assertThat(values, contains(
         valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF"), valueInGlobalWindow("GHI")));
     values.clear();
 
     // Test empty message signaling end of stream
     assertFalse(readFuture.isDone());
-    observer.accept(dataWith());
+    observer.receive(dataWith());
     assertTrue(readFuture.isDone());
 
     // Test messages after stream is finished are discarded
-    observer.accept(dataWith("ABC", "DEF", "GHI"));
+    observer.receive(dataWith("ABC", "DEF", "GHI"));
     assertThat(values, empty());
   }
 
@@ -77,7 +77,7 @@ public class BeamFnDataInboundObserverTest {
         new BeamFnDataInboundObserver<>(CODER, this::throwOnDefValue, readFuture);
 
     assertFalse(readFuture.isDone());
-    observer.accept(dataWith("ABC", "DEF", "GHI"));
+    observer.receive(dataWith("ABC", "DEF", "GHI"));
     assertTrue(readFuture.isCompletedExceptionally());
 
     try {
