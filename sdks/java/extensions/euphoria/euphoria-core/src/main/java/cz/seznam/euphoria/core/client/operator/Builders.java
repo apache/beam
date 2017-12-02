@@ -21,6 +21,9 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
+import java.util.List;
+import java.util.Set;
+
 /**
  * Common methods used in operator builders to share related javadoc
  * descriptions.<p>
@@ -86,4 +89,16 @@ public class Builders {
      */
     Dataset<T> output();
   }
+
+  public interface OutputWithHint<T, HINT extends Hint> extends Output<T> {
+
+    /**
+     * Add runtime specific hints for the operator
+     *
+     * @param hints runtime specific hints
+     * @return output builder
+     */
+    Output<T> withHints(Set<HINT> hints);
+  }
+
 }
