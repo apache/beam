@@ -19,9 +19,9 @@ package org.apache.beam.fn.harness.data;
 
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.DataBytesReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * Decodes individually consumed {@link BeamFnApi.Elements.Data} with the
  * provided {@link Coder} passing the individual decoded elements to the provided consumer.
  */
-public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements.Data> {
+public class BeamFnDataInboundObserver<T> implements DataBytesReceiver {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
   private final FnDataReceiver<WindowedValue<T>> consumer;
   private final Coder<WindowedValue<T>> coder;
@@ -49,7 +49,7 @@ public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements
   }
 
   @Override
-  public void accept(BeamFnApi.Elements.Data t) {
+  public void receive(BeamFnApi.Elements.Data t) {
     if (readFuture.isDone()) {
       // Drop any incoming data if the stream processing has finished.
       return;

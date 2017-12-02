@@ -50,7 +50,7 @@
 
   <Match>
     <Class name="org.apache.beam.fn.harness.data.BeamFnDataInboundObserver"/>
-    <Method name="accept"/>
+    <Method name="receive"/>
     <Bug pattern="NP_NONNULL_PARAM_VIOLATION"/>
     <!--
     Findbugs limitation when using Void typed CompletableFuture. This is a limitation of FindBugs as discussed here:
