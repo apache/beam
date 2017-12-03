@@ -91,7 +91,7 @@ public class Flow implements Serializable {
       = new HashMap<>();
 
 
-  private Flow(@Nullable String name, Settings settings) {
+  protected Flow(@Nullable String name, Settings settings) {
     this.name = name == null ? "" : name;
     this.settings = cloneSettings(settings);
   }

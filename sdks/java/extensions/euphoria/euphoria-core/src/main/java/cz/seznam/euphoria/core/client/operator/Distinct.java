@@ -56,7 +56,7 @@ import java.util.Set;
     state = StateComplexity.CONSTANT,
     repartitions = 1
 )
-public class Distinct<IN, ELEM, W extends Window>
+public class Distinct<IN, ELEM, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>> {
 
@@ -125,7 +125,7 @@ public class Distinct<IN, ELEM, W extends Window>
     }
 
     @Override
-    public <W extends Window> OutputBuilder<IN, ELEM, W>
+    public <W extends Window<W>> OutputBuilder<IN, ELEM, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input, mapper, windowing);
     }
@@ -135,7 +135,7 @@ public class Distinct<IN, ELEM, W extends Window>
     }
   }
 
-  public static class OutputBuilder<IN, ELEM, W extends Window>
+  public static class OutputBuilder<IN, ELEM, W extends Window<W>>
       extends WindowingBuilder<IN, ELEM>
       implements Builders.Output<ELEM> {
 

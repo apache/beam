@@ -78,7 +78,7 @@ import static java.util.Objects.requireNonNull;
     repartitions = 1
 )
 public class TopPerKey<
-        IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extends Window>
+        IN, KEY, VALUE, SCORE extends Comparable<SCORE>, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Triple<KEY, VALUE, SCORE>, W,
     TopPerKey<IN, KEY, VALUE, SCORE, W>> {
@@ -218,7 +218,7 @@ public class TopPerKey<
     }
 
     @Override
-    public <W extends Window>
+    public <W extends Window<W>>
     OutputBuilder<IN, K, V, S, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input, keyFn, valueFn,
@@ -233,7 +233,7 @@ public class TopPerKey<
   }
 
   public static class OutputBuilder<
-      IN, K, V, S extends Comparable<S>, W extends Window>
+      IN, K, V, S extends Comparable<S>, W extends Window<W>>
       extends WindowByBuilder<IN, K, V, S> {
 
     @Nullable

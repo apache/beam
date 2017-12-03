@@ -28,7 +28,7 @@ import javax.annotation.Nullable;
  */
 @Audience(Audience.Type.INTERNAL)
 public abstract class StateAwareWindowWiseOperator<
-    IN, WIN, KIN, KEY, OUT, W extends Window,
+    IN, WIN, KIN, KEY, OUT, W extends Window<W>,
     OP extends StateAwareWindowWiseOperator<IN, WIN, KIN, KEY, OUT, W, OP>>
     extends WindowWiseOperator<IN, WIN, OUT, W>
     implements StateAware<KIN, KEY>

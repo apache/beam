@@ -28,7 +28,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  * A {@link cz.seznam.euphoria.flink.streaming.windowing.AbstractWindowOperator}
  * expecting the input elements to be already of type {@link KeyedMultiWindowedElement}.
  */
-public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window>
+public class KeyedMultiWindowedElementWindowOperator<KEY, WID extends Window<WID>>
         extends AbstractWindowOperator<KeyedMultiWindowedElement<WID, KEY, ?>, KEY, WID> {
 
   public KeyedMultiWindowedElementWindowOperator(
