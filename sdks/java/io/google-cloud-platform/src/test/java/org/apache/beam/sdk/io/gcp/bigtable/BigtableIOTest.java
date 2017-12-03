@@ -140,6 +140,15 @@ public class BigtableIOTest {
   private static final TypeDescriptor<KV<ByteString, Iterable<Mutation>>> BIGTABLE_WRITE_TYPE =
       new TypeDescriptor<KV<ByteString, Iterable<Mutation>>>() {};
 
+  private static final SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
+    PORT_CONFIGURATOR =
+    new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
+      @Override
+      public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
+        return input.setPort(1234);
+      }
+    };
+
   @Before
   public void setup() throws Exception {
     service = new FakeBigtableService();
@@ -158,12 +167,14 @@ public class BigtableIOTest {
         BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId("table")
             .withInstanceId("instance")
-            .withProjectId("project");
+            .withProjectId("project")
+            .withBigtableOptionsConfigurator(PORT_CONFIGURATOR);
     assertEquals("options_project", read.getBigtableOptions().getProjectId());
     assertEquals("options_instance", read.getBigtableOptions().getInstanceId());
     assertEquals("instance", read.getInstanceId());
     assertEquals("project", read.getProjectId());
     assertEquals("table", read.getTableId());
+    assertEquals(PORT_CONFIGURATOR, read.getBigtableOptionsConfigurator());
   }
 
   @Test
@@ -214,12 +225,14 @@ public class BigtableIOTest {
         BigtableIO.write().withBigtableOptions(BIGTABLE_OPTIONS)
             .withTableId("table")
             .withInstanceId("instance")
-            .withProjectId("project");
+            .withProjectId("project")
+            .withBigtableOptionsConfigurator(PORT_CONFIGURATOR);
     assertEquals("table", write.getTableId());
     assertEquals("options_project", write.getBigtableOptions().getProjectId());
     assertEquals("options_instance", write.getBigtableOptions().getInstanceId());
     assertEquals("instance", write.getInstanceId());
     assertEquals("project", write.getProjectId());
+    assertEquals(PORT_CONFIGURATOR, write.getBigtableOptionsConfigurator());
   }
 
   @Test
