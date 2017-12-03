@@ -26,7 +26,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
  * @param <W> the type of windows handled
  */
 @Audience(Audience.Type.INTERNAL)
-public interface WindowAware<IN, W extends Window> {
+public interface WindowAware<IN, W extends Window<W>> {
 
   Windowing<IN, W> getWindowing();
 

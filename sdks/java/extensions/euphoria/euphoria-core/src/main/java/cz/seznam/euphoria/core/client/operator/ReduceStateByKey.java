@@ -27,6 +27,8 @@ import cz.seznam.euphoria.core.client.operator.hint.OutputHint;
 import cz.seznam.euphoria.core.client.operator.state.State;
 import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StateMerger;
+import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunction;
+import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
@@ -102,7 +104,7 @@ import java.util.Set;
     repartitions = 1
 )
 public class ReduceStateByKey<
-    IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window>
+    IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, OUT>, W, ReduceStateByKey<IN, KEY, VALUE, OUT, STATE, W>>
 {
@@ -123,6 +125,7 @@ public class ReduceStateByKey<
   // builder classes used when input is Dataset<IN> ----------------------
 
   public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
+
     private final String name;
     private final Dataset<IN> input;
 
@@ -134,6 +137,11 @@ public class ReduceStateByKey<
     @Override
     public <KEY> DatasetBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
       return new DatasetBuilder2<>(name, input, keyExtractor);
+    }
+
+    public <KEY> DatasetBuilder2<IN, KEY> keyBy(
+        UnaryFunction<IN, KEY> keyExtractor, TypeHint<KEY> typeHint) {
+      return new DatasetBuilder2<>(name, input, TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 
@@ -273,7 +281,7 @@ public class ReduceStateByKey<
     }
 
     @Override
-    public <W extends Window>
+    public <W extends Window<W>>
     DatasetBuilder6<IN, KEY, VALUE, OUT, STATE, W>
     windowBy(Windowing<IN, W> windowing) {
       return new DatasetBuilder6<>(name, input, keyExtractor, valueExtractor,
@@ -289,7 +297,7 @@ public class ReduceStateByKey<
   }
 
   public static class DatasetBuilder6<
-      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window>
+      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window<W>>
       extends DatasetBuilder5<IN, KEY, VALUE, OUT, STATE> {
 
     @Nullable

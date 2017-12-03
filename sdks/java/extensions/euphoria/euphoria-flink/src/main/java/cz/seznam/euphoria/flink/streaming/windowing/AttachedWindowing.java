@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.flink.streaming.windowing;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
@@ -23,7 +24,7 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 
 import java.util.Collections;
 
-public class AttachedWindowing<T, WID extends cz.seznam.euphoria.core.client.dataset.windowing.Window> implements Windowing<T, WID> {
+public class AttachedWindowing<T, WID extends Window<WID>> implements Windowing<T, WID> {
 
   @Override
   @SuppressWarnings("unchecked")

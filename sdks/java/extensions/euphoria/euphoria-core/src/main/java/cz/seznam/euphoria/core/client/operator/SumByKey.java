@@ -63,7 +63,7 @@ import java.util.Set;
     state = StateComplexity.CONSTANT,
     repartitions = 1
 )
-public class SumByKey<IN, KEY, W extends Window>
+public class SumByKey<IN, KEY, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, Long>, W, SumByKey<IN, KEY, W>> {
 
@@ -151,7 +151,7 @@ public class SumByKey<IN, KEY, W extends Window>
     }
 
     @Override
-    public <W extends Window> OutputBuilder<IN, KEY, W>
+    public <W extends Window<W>> OutputBuilder<IN, KEY, W>
     windowBy(Windowing<IN, W> windowing) {
       return new OutputBuilder<>(name, input,
           keyExtractor, valueExtractor, windowing);
@@ -165,7 +165,7 @@ public class SumByKey<IN, KEY, W extends Window>
     }
   }
 
-  public static class OutputBuilder<IN, KEY, W extends Window>
+  public static class OutputBuilder<IN, KEY, W extends Window<W>>
       extends ByBuilder2<IN, KEY> {
 
     @Nullable

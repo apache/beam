@@ -69,7 +69,7 @@ public class WindowingTest {
     assertEquals(expectDurationMillis, w.getDuration());
   }
 
-  <W extends Window, T> Iterable<W> assignWindows(Windowing<T, W> windowing,
+  private <W extends Window<W>, T> Iterable<W> assignWindows(Windowing<T, W> windowing,
                                                   T elem,
                                                   UnaryFunction<T, Long> eventTimeAssigner) {
     return windowing.assignWindowsToElement(
