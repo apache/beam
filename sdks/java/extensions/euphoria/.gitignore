@@ -6,7 +6,6 @@ out/
 .project
 .classpath
 .settings
-**/pom.xml.versionsBackup
 .gradle/
 build/
 /.nb-gradle/
