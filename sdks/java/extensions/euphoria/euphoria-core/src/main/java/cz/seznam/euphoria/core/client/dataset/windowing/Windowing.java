@@ -23,9 +23,10 @@ import java.io.Serializable;
 
 /**
  * A windowing policy of a dataset.
+ * All implementations must implement equals/hashCode.
  */
 @Audience(Audience.Type.CLIENT)
-public interface Windowing<T, W extends Window> extends Serializable {
+public interface Windowing<T, W extends Window<W>> extends Serializable {
 
   /**
    * Assign a set of windows to a given input element. The input element
@@ -44,4 +45,5 @@ public interface Windowing<T, W extends Window> extends Serializable {
    * @return a {@link Trigger} associated with the current windowing strategy
    */
   Trigger<W> getTrigger();
+
 }

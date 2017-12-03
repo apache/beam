@@ -23,7 +23,7 @@ import cz.seznam.euphoria.core.client.triggers.Trigger;
 
 import java.util.Collections;
 
-class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
+class AttachedWindowing<T, W extends Window<W>> implements Windowing<T, W> {
 
   static final AttachedWindowing INSTANCE = new AttachedWindowing();
 
@@ -37,4 +37,15 @@ class AttachedWindowing<T, W extends Window> implements Windowing<T, W> {
   public Trigger<W> getTrigger() {
     return NoopTrigger.get();
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof AttachedWindowing;
+  }
+
+  @Override
+  public int hashCode() {
+    return 0;
+  }
+
 }

@@ -15,16 +15,12 @@
  */
 package cz.seznam.euphoria.core.client.functional;
 
-import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.type.TypeHint;
+
 import java.io.Serializable;
 
-/**
- * Function taking zero arguments.
- */
-@Audience(Audience.Type.CLIENT)
-@FunctionalInterface
-public interface VoidFunction<T> extends Serializable {
+public interface TypeHintAware<T> extends Serializable {
 
-  T apply();
+  TypeHint<T> getTypeHint();
 
 }

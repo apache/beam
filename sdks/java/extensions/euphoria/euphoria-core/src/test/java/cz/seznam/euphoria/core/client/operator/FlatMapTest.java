@@ -99,7 +99,7 @@ public class FlatMapTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 1);
 
-    Dataset<String> mapped = FlatMap.of(dataset)
+    FlatMap.of(dataset)
             .using((String s, Collector<String> c) -> c.collect(s))
             .output();
 

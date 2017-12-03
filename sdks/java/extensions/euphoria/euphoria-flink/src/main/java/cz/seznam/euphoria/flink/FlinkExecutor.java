@@ -24,6 +24,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.executor.AbstractExecutor;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
@@ -36,22 +37,19 @@ import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Executor implementation using Apache Flink as a runtime.
  */
-public class FlinkExecutor implements Executor {
+public class FlinkExecutor extends AbstractExecutor {
 
   private static final Logger LOG = LoggerFactory.getLogger(FlinkExecutor.class);
 
@@ -66,9 +64,6 @@ public class FlinkExecutor implements Executor {
   private final HashMap<Class<?>, Class<? extends Serializer>> registeredClasses = getDefaultClasses();
   @Nullable
   private Duration checkpointInterval;
-
-  // executor to submit flows, if closed all executions should be interrupted
-  private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   public FlinkExecutor() {
     this(false);
@@ -93,17 +88,6 @@ public class FlinkExecutor implements Executor {
   }
 
   @Override
-  public CompletableFuture<Executor.Result> submit(Flow flow) {
-    return CompletableFuture.supplyAsync(() -> execute(flow), submitExecutor);
-  }
-
-  @Override
-  public void shutdown() {
-    LOG.info("Shutting down flink executor.");
-    submitExecutor.shutdownNow();
-  }
-
-  @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
     this.accumulatorFactory = new FlinkAccumulatorFactory.Adapter(
             Objects.requireNonNull(factory));
@@ -120,7 +104,7 @@ public class FlinkExecutor implements Executor {
     this.accumulatorFactory = Objects.requireNonNull(factory);
   }
 
-  private Executor.Result execute(Flow flow) {
+  protected Executor.Result execute(Flow flow) {
     try {
       ExecutionEnvironment.Mode mode = ExecutionEnvironment.determineMode(flow);
 

@@ -72,7 +72,7 @@ import java.util.Set;
     state = StateComplexity.LINEAR,
     repartitions = 1
 )
-public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
+public class Join<LEFT, RIGHT, KEY, OUT, W extends Window<W>>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, Join<LEFT, RIGHT, KEY, OUT, W>> {
 
@@ -189,15 +189,15 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
       return windowBy(null).output(outputHints);
     }
 
-    public <W extends Window> OutputBuilder<LEFT, RIGHT, KEY, OUT, W> windowBy(
+    public <W extends Window<W>> OutputBuilder<LEFT, RIGHT, KEY, OUT, W> windowBy(
         Windowing<Either<LEFT, RIGHT>, W> windowing) {
       return new OutputBuilder<>(name, left, right, leftKeyExtractor,
           rightKeyExtractor, joinFunc, type, windowing);
     }
   }
 
-  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, W extends Window>
-      implements Builders.OutputValues<KEY, OUT>, Builders.Output<Pair<KEY, OUT>> {
+  public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, W extends Window<W>>
+      implements Builders.OutputValues<KEY, OUT> {
 
     private final String name;
     private final Dataset<LEFT> left;
