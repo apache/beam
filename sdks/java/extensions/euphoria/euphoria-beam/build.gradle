@@ -1,0 +1,12 @@
+ext {
+  beamVersion = '2.1.0'
+}
+
+dependencies {
+  compile project(':euphoria-core')
+  compile "org.apache.beam:beam-sdks-java-core:${beamVersion}"
+  compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
+  testCompile project(':euphoria-operator-testkit')
+  testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
+  testCompile "org.apache.beam:beam-runners-direct-java:${beamVersion}"
+}
