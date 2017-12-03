@@ -39,13 +39,15 @@ import cz.seznam.euphoria.core.client.operator.state.StateFactory;
 import cz.seznam.euphoria.core.client.operator.state.StorageProvider;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
+import cz.seznam.euphoria.core.client.type.TypeAwareReduceFunctor;
+import cz.seznam.euphoria.core.client.type.TypeAwareUnaryFunction;
+import cz.seznam.euphoria.core.client.type.TypeHint;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Objects;
 import java.util.Set;
@@ -95,13 +97,14 @@ import java.util.stream.StreamSupport;
     state = StateComplexity.CONSTANT_IF_COMBINABLE,
     repartitions = 1
 )
-public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
+public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window<W>>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, OUT>, W,
         ReduceByKey<IN, KEY, VALUE, OUT, W>> {
 
 
   public static class OfBuilder implements Builders.Of {
+
     private final String name;
 
     OfBuilder(String name) {
@@ -117,6 +120,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   // builder classes used when input is Dataset<IN> ----------------------
 
   public static class KeyByBuilder<IN> implements Builders.KeyBy<IN> {
+
     private final String name;
     private final Dataset<IN> input;
 
@@ -128,6 +132,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     @Override
     public <KEY> DatasetBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
       return new DatasetBuilder2<>(name, input, keyExtractor);
+    }
+
+    @Override
+    public <KEY> DatasetBuilder2<IN, KEY> keyBy(
+        UnaryFunction<IN, KEY> keyExtractor, TypeHint<KEY> typeHint) {
+      return new DatasetBuilder2<>(name, input, TypeAwareUnaryFunction.of(keyExtractor, typeHint));
     }
   }
 
@@ -146,10 +156,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      */
     default <OUT> SortableDatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
         ReduceFunction<VALUE, OUT> reducer) {
-
-      return reduceBy((Stream<VALUE> in, Collector<OUT> ctx) -> {
-        ctx.collect(reducer.apply(in));
-      });
+      return reduceBy((Stream<VALUE> in, Collector<OUT> ctx) -> ctx.collect(reducer.apply(in)));
     }
 
 
@@ -165,8 +172,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      *
      * @return next builder to complete the setup of the {@link ReduceByKey} operator
      */
-    <OUT> SortableDatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(
-        ReduceFunctor<VALUE, OUT> reducer);
+    <OUT> SortableDatasetBuilder4<IN, KEY, VALUE, OUT> reduceBy(ReduceFunctor<VALUE, OUT> reducer);
 
     /**
      * Define a function that reduces all values related to one key into one result object.
@@ -181,9 +187,15 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       return reduceBy(toReduceFunctor(reducer));
     }
 
+    default DatasetBuilder4<IN, KEY, VALUE, VALUE> combineBy(
+        CombinableReduceFunction<VALUE> reducer, TypeHint<VALUE> typeHint) {
+      return reduceBy(TypeAwareReduceFunctor.of(toReduceFunctor(reducer), typeHint));
+    }
+
   }
 
   public static class DatasetBuilder2<IN, KEY> implements ReduceBy<IN, KEY, IN> {
+
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
@@ -208,8 +220,12 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
      */
     public <VALUE> DatasetBuilder3<IN, KEY, VALUE> valueBy(
         UnaryFunction<IN, VALUE> valueExtractor) {
-
       return new DatasetBuilder3<>(name, input, keyExtractor, valueExtractor);
+    }
+
+    public <VALUE> DatasetBuilder3<IN, KEY, VALUE> valueBy(
+        UnaryFunction<IN, VALUE> valueExtractor, TypeHint<VALUE> typeHint) {
+      return valueBy(TypeAwareUnaryFunction.of(valueExtractor, typeHint));
     }
 
     @Override
@@ -273,7 +289,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
 
     @Override
-    public <W extends Window>
+    public <W extends Window<W>>
     DatasetBuilder5<IN, KEY, VALUE, OUT, W>
     windowBy(Windowing<IN, W> windowing) {
       return new DatasetBuilder5<>(
@@ -324,7 +340,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
 
-  public static class DatasetBuilder5<IN, KEY, VALUE, OUT, W extends Window>
+  public static class DatasetBuilder5<IN, KEY, VALUE, OUT, W extends Window<W>>
       extends DatasetBuilder4<IN, KEY, VALUE, OUT>
       implements Builders.OutputValues<KEY, OUT> {
 
@@ -456,6 +472,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       CombinableReduceFunction<VALUE> reducer1) {
 
     return new ReduceFunctor<VALUE, VALUE>() {
+
       @Override
       public boolean isCombinable() {
         return true;

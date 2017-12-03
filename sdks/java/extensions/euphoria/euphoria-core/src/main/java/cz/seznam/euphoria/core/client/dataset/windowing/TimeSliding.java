@@ -24,6 +24,7 @@ import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 
 import java.time.Duration;
 import java.util.Iterator;
+import java.util.Objects;
 
 /**
  * Time sliding windowing.
@@ -91,6 +92,20 @@ public final class TimeSliding<T>
     return slide;
   }
 
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof TimeSliding) {
+      TimeSliding other = (TimeSliding) obj;
+      return other.duration == duration && other.slide == slide;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(duration, slide);
+  }
+  
 
   /**
    * Calculates window boundaries lazily during the iteration.

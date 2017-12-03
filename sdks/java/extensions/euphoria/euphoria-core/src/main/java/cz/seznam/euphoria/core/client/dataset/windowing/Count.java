@@ -47,4 +47,17 @@ public final class Count<T> implements Windowing<T, GlobalWindowing.Window> {
     return new Count<>(count);
   }
 
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof Count) {
+      return ((Count) obj).maxCount == maxCount;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return maxCount;
+  }
+
 }

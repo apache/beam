@@ -91,5 +91,22 @@ public class Time<T> implements Windowing<T, TimeInterval> {
   public long getDuration() {
     return durationMillis;
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof Time) {
+      Time other = (Time) obj;
+      return other.durationMillis == durationMillis
+          && other.earlyTriggeringPeriod == earlyTriggeringPeriod;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(durationMillis, earlyTriggeringPeriod);
+  }
+
+
 }
 

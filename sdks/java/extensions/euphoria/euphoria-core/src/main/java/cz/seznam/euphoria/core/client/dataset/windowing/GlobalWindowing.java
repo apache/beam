@@ -84,4 +84,16 @@ public final class GlobalWindowing<T>
   private Object readResolve() throws ObjectStreamException {
     return INSTANCE;
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    return obj instanceof GlobalWindowing;
+  }
+
+  @Override
+  public int hashCode() {
+    return 314159265;
+  }
+
+
 }

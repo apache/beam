@@ -262,40 +262,6 @@ public class ListDataSource<T>
   }
 
   /**
-   * Converts this list data source into a bounded data source.
-   *
-   * @return this instance if it is already bounded, otherwise this source's data
-   *          as a bounded list data source
-   */
-  @SuppressWarnings("unchecked")
-  public ListDataSource<T> toBounded() {
-    if (bounded) {
-      return this;
-    }
-    List<List<?>> list = storage.get(this);
-    return ListDataSource.bounded(list.toArray(new List[list.size()]))
-        .withReadDelay(Duration.ofMillis(sleepMs))
-        .withFinalDelay(Duration.ofMillis(finalSleepMs));
-  }
-
-  /**
-   * Convert this list data source to an unbouded source unless it is already unbounded.
-   *
-   * @return this instance if it is an unbounded source, otherwise this source's data
-   *          in a new, unbouded list data source
-   */
-  @SuppressWarnings("unchecked")
-  public ListDataSource<T> toUnbounded() {
-    if (!bounded) {
-      return this;
-    }
-    List<List<?>> list = storage.get(this);
-    return ListDataSource.unbounded(list.toArray(new List[list.size()]))
-        .withReadDelay(Duration.ofMillis(sleepMs))
-        .withFinalDelay(Duration.ofMillis(finalSleepMs));
-  }
-
-  /**
    * Set sleep time between emitting of elements.
    *
    * @param timeout the duration to sleep between delivering individual elements

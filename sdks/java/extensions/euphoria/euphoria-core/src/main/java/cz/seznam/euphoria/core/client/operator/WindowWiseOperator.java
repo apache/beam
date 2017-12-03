@@ -26,7 +26,7 @@ import javax.annotation.Nullable;
  * Operator working on some context.
  */
 @Audience(Audience.Type.INTERNAL)
-public abstract class WindowWiseOperator<IN, WIN, OUT, W extends Window>
+public abstract class WindowWiseOperator<IN, WIN, OUT, W extends Window<W>>
     extends Operator<IN, OUT> implements WindowAware<WIN, W> {
 
   @Nullable

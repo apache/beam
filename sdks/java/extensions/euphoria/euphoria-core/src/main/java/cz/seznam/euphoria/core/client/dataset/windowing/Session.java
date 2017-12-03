@@ -145,4 +145,20 @@ public final class Session<T> implements MergingWindowing<T, TimeInterval> {
     // ~ deliver results (be sure not to return null)
     return merges == null ? Collections.emptyList() : merges;
   }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (obj instanceof Session) {
+      Session other = (Session) obj;
+      return other.earlyTriggeringPeriod == earlyTriggeringPeriod
+          && other.gapDurationMillis == gapDurationMillis;
+    }
+    return false;
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(earlyTriggeringPeriod, gapDurationMillis);
+  }
+
 }

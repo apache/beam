@@ -318,6 +318,21 @@ public class WindowingTest extends AbstractOperatorTest {
     public void onMerge(TimeInterval window, TriggerContext.TriggerMergeContext ctx) {
       trigger.onMerge(window, ctx);
     }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (obj instanceof CSession) {
+        CSession other = (CSession) obj;
+        return other.wrap.equals(wrap);
+      }
+      return false;
+    }
+
+    @Override
+    public int hashCode() {
+      return wrap.hashCode();
+    }
+
   }
 
   static final AtomicBoolean ON_CLEAR_VALIDATED = new AtomicBoolean(false);
