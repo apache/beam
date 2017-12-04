@@ -40,6 +40,7 @@ import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
+import cz.seznam.euphoria.core.client.util.Fold;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -48,7 +49,6 @@ import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-import cz.seznam.euphoria.core.client.util.Fold;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -61,6 +61,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.*;
 
@@ -337,6 +338,40 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
     });
   }
 
+  @Processing(Processing.Type.BOUNDED)
+  @Test
+  public void testReduceSorted() {
+    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, List<Long>>>() {
+
+      @Override
+      protected List<Pair<String, Long>> getInput() {
+        return Arrays.asList(
+            Pair.of("one", 3L), Pair.of("one", 2L), Pair.of("one", 1L),
+            Pair.of("two", 3L), Pair.of("two", 2L), Pair.of("two", 1L),
+            Pair.of("three", 3L), Pair.of("three", 2L), Pair.of("three", 1L));
+      }
+
+      @Override
+      public List<Pair<String, List<Long>>> getUnorderedOutput() {
+        return Arrays.asList(
+            Pair.of("one", Arrays.asList(1L, 2L, 3L)),
+            Pair.of("two", Arrays.asList(1L, 2L, 3L)),
+            Pair.of("three", Arrays.asList(1L, 2L, 3L)));
+      }
+
+      @Override
+      protected Dataset<Pair<String, List<Long>>> getOutput(Dataset<Pair<String, Long>> input) {
+        return ReduceByKey.of(input)
+            .keyBy(Pair::getFirst)
+            .valueBy(Pair::getSecond)
+            .reduceBy((Stream<Long> values, Collector<List<Long>> coll) ->
+                coll.collect(values.collect(Collectors.toList())))
+            .withSortedValues(Long::compareTo)
+            .output();
+      }
+    });
+  }
+
   // ----------------------------------------------------------------------------
 
   // ~ every instance is unique: this allows us to exercise merging
@@ -344,6 +379,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
 
     static int _idCounter = 0;
     static final Object _idCounterMutex = new Object();
+
     static int new_id() {
       synchronized (_idCounterMutex) {
         return ++_idCounter;
@@ -455,17 +491,17 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       @Override
       protected List<Pair<String, Long>> getInput() {
         return Arrays.asList(
-                Pair.of("a",      20L),
-                Pair.of("c",    3000L),
-                Pair.of("b",      10L),
-                Pair.of("b",     100L),
-                Pair.of("a",    4000L),
-                Pair.of("c",     300L),
-                Pair.of("b",    1000L),
-                Pair.of("b",   50000L),
-                Pair.of("a",  100000L),
-                Pair.of("a",     800L),
-                Pair.of("a",      80L));
+            Pair.of("a", 20L),
+            Pair.of("c", 3000L),
+            Pair.of("b", 10L),
+            Pair.of("b", 100L),
+            Pair.of("a", 4000L),
+            Pair.of("c", 300L),
+            Pair.of("b", 1000L),
+            Pair.of("b", 50000L),
+            Pair.of("a", 100000L),
+            Pair.of("a", 800L),
+            Pair.of("a", 80L));
       }
 
       @Override
@@ -483,11 +519,11 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       @Override
       public List<Pair<String, Long>> getUnorderedOutput() {
         return Arrays.asList(
-            Pair.of("a",         880L),
-            Pair.of("a",      104020L),
-            Pair.of("b",        1110L),
-            Pair.of("b",       50000L),
-            Pair.of("c",        3300L));
+            Pair.of("a", 880L),
+            Pair.of("a", 104020L),
+            Pair.of("b", 1110L),
+            Pair.of("b", 50000L),
+            Pair.of("c", 3300L));
       }
     });
   }
@@ -515,7 +551,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Triple<TimeInterval, Integer, Set<String>>> getOutput
           (Dataset<Pair<String, Integer>> input) {
-        input = AssignEventTime.of(input).using(e -> e.getSecond()).output();
+        input = AssignEventTime.of(input).using(Pair::getSecond).output();
         Dataset<Pair<Integer, Set<String>>> reduced =
             ReduceByKey.of(input)
                 .keyBy(e -> e.getFirst().charAt(0) - '0')
@@ -525,15 +561,18 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
                 .output();
 
         return FlatMap.of(reduced)
-            .using((UnaryFunctor<Pair<Integer, Set<String>>, Triple<TimeInterval, Integer, Set<String>>>)
-                (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(), elem.getFirst(), elem.getSecond())))
+            .using((UnaryFunctor<Pair<Integer, Set<String>>,
+                Triple<TimeInterval, Integer, Set<String>>>)
+                (elem, context) -> context.collect(Triple.of((TimeInterval) context.getWindow(),
+                    elem.getFirst(), elem.getSecond())))
             .output();
       }
 
       @Override
       public List<Triple<TimeInterval, Integer, Set<String>>> getUnorderedOutput() {
         return Arrays.asList(
-            Triple.of(new TimeInterval(1, 15), 1, Sets.newHashSet("1-four", "1-one", "1-three", "1-two")),
+            Triple.of(new TimeInterval(1, 15), 1, Sets.newHashSet(
+                "1-four", "1-one", "1-three", "1-two")),
             Triple.of(new TimeInterval(10, 15), 2, Sets.newHashSet("2-two")),
             Triple.of(new TimeInterval(18, 27), 1, Sets.newHashSet("1-five", "1-six")),
             Triple.of(new TimeInterval(2, 7), 2, Sets.newHashSet("2-one")),
@@ -595,6 +634,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
           public boolean isStateful() {
             return false;
           }
+
           @Override
           public TriggerResult onElement(long time, Window window, TriggerContext ctx) {
             // ~ we expect the 'time' to be the end of the window which produced the
@@ -664,11 +704,11 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       protected Dataset<Pair<Word, Long>> getOutput(Dataset<Pair<Word, Long>> input) {
         input = AssignEventTime.of(input).using(Pair::getSecond).output();
         return ReduceByKey.of(input)
-                .keyBy(Pair::getFirst)
-                .valueBy(e -> 1L)
-                .combineBy(Sums.ofLongs())
-                .windowBy(Time.of(Duration.ofSeconds(1)))
-                .output();
+            .keyBy(Pair::getFirst)
+            .valueBy(e -> 1L)
+            .combineBy(Sums.ofLongs())
+            .windowBy(Time.of(Duration.ofSeconds(1)))
+            .output();
       }
 
       @Override
