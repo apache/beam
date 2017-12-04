@@ -163,9 +163,20 @@ type MultiEdge struct {
 	Output []*Outbound
 }
 
-// ID returns the graph-local identifier for the scope.
+// ID returns the graph-local identifier for the edge.
 func (e *MultiEdge) ID() int {
 	return e.id
+}
+
+// Name returns a not-necessarily-unique name for the edge.
+func (e *MultiEdge) Name() string {
+	if e.DoFn != nil {
+		return e.DoFn.Name()
+	}
+	if e.CombineFn != nil {
+		return e.CombineFn.Name()
+	}
+	return string(e.Op)
 }
 
 // Scope return the scope.
