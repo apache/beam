@@ -22,6 +22,7 @@ import java.io.IOException;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
 
@@ -33,7 +34,10 @@ public class PCollectionTranslation {
 
   public static RunnerApi.PCollection toProto(PCollection<?> pCollection, SdkComponents components)
       throws IOException {
-    String coderId = components.registerCoder(pCollection.getCoder());
+    String coderId = components.registerCoder(
+        WindowedValue.getFullCoder(
+            pCollection.getCoder(),
+            pCollection.getWindowingStrategy().getWindowFn().windowCoder()));
     String windowingStrategyId =
         components.registerWindowingStrategy(pCollection.getWindowingStrategy());
     // TODO: Display Data
@@ -50,7 +54,9 @@ public class PCollectionTranslation {
       RunnerApi.PCollection pCollection, Pipeline pipeline, RehydratedComponents components)
       throws IOException {
 
-    Coder<?> coder = components.getCoder(pCollection.getCoderId());
+    Coder<?> coder =
+        ((WindowedValue.WindowedValueCoder<?>) components.getCoder(pCollection.getCoderId()))
+            .getValueCoder();
     return PCollection.createPrimitiveOutputInternal(
         pipeline,
         components.getWindowingStrategy(pCollection.getWindowingStrategyId()),
