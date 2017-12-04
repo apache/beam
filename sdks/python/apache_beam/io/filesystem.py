@@ -425,7 +425,7 @@ class FileSystem(BeamPlugin):
   """A class that defines the functions that can be performed on a filesystem.
 
   All methods are abstract and they are for file system providers to
-  implement. Clients should use the FileSystemUtil class to interact with
+  implement. Clients should use the FileSystems class to interact with
   the correct file system based on the provided file pattern scheme.
   """
   __metaclass__ = abc.ABCMeta
@@ -522,7 +522,7 @@ class FileSystem(BeamPlugin):
     """Returns a read channel for the given file path.
 
     Args:
-      path: string path of the file object to be written to the system
+      path: string path of the file object to be read
       mime_type: MIME type to specify the type of content in the file object
       compression_type: Type of compression to be used for this object
 
