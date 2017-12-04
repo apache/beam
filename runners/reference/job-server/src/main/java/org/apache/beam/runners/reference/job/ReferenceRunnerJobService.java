@@ -26,6 +26,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -48,16 +49,25 @@ import org.slf4j.LoggerFactory;
 public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
-  public static ReferenceRunnerJobService create(ServerFactory serverFactory) {
-    return new ReferenceRunnerJobService(serverFactory);
+  public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+    return new ReferenceRunnerJobService(
+        serverFactory, filesTempDirectory());
   }
 
   private final ServerFactory serverFactory;
+  private final Callable<Path> stagingPathSupplier;
+
   private final ConcurrentMap<String, PreparingJob> unpreparedJobs;
 
-  private ReferenceRunnerJobService(ServerFactory serverFactory) {
+  private ReferenceRunnerJobService(
+      ServerFactory serverFactory, Callable<Path> stagingPathSupplier) {
     this.serverFactory = serverFactory;
+    this.stagingPathSupplier = stagingPathSupplier;
     unpreparedJobs = new ConcurrentHashMap<>();
+  }
+
+  public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
+    return new ReferenceRunnerJobService(serverFactory, supplier);
   }
 
   @Override
@@ -94,13 +104,10 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
   }
 
   private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService(
-      String preparationId) throws IOException {
-    Path tempDir = Files.createTempDirectory("reference-runner-staging");
+      String preparationId) throws Exception {
     LocalFileSystemArtifactStagerService service =
-        LocalFileSystemArtifactStagerService.withRootDirectory(tempDir.toFile());
-    GrpcFnServer<LocalFileSystemArtifactStagerService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
-    return server;
+        LocalFileSystemArtifactStagerService.withRootDirectory(stagingPathSupplier.call().toFile());
+    return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
   @Override
@@ -139,5 +146,13 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
         LOG.warn("Exception while closing preparing job {}", preparingJob);
       }
     }
+  }
+
+  private static Callable<Path> filesTempDirectory() {
+    return new Callable<Path>() {
+      public Path call() throws IOException {
+        return Files.createTempDirectory("reference-runner-staging");
+      }
+    };
   }
 }
