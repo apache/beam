@@ -32,42 +32,14 @@ from apache_beam.runners.worker import sdk_worker_main
 class SdkWorkerMainTest(unittest.TestCase):
 
   def test_status_server(self):
-    status_server = sdk_worker_main.StatusServer()
-    condition = threading.Condition()
 
-    def callback():
-      condition.acquire()
-      # Notify the test thread to execute
-      condition.notify_all()
-      condition.release()
-
-    thread = threading.Thread(
-        target=functools.partial(
-            status_server.start, started_callback=callback))
-    thread.daemon = True
-    thread.start()
-    condition.acquire()
-    # Wait for maximum 10 sec before the server is started.
-    # Though the server should not take this long to start.
-    condition.wait(10)
-    condition.release()
-
-    self.assertGreater(status_server.httpd.server_port, 0)
-
-    # Wrapping the method to see if appears in threadump
-
+    # Wrapping the method to see if it appears in threadump
     def wrapped_method_for_test():
-      conn = httplib.HTTPConnection(
-          host=status_server.httpd.server_name,
-          port=status_server.httpd.server_port)
-      conn.request("GET", "/")
-      response = conn.getresponse()
-      threaddump = response.read()
+      lines = sdk_worker_main.StatusServer.get_thread_dump()
+      threaddump = '\n'.join(lines)
       self.assertRegexpMatches(threaddump, ".*wrapped_method_for_test.*")
-      conn.close()
 
     wrapped_method_for_test()
-    status_server.httpd.shutdown()
 
 
 if __name__ == "__main__":

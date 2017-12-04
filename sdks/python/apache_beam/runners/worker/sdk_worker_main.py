@@ -38,21 +38,35 @@ from apache_beam.runners.worker.sdk_worker import SdkHarness
 
 class StatusServer(object):
 
-  def start(self, STATUS_HTTP_PORT=0, started_callback=None):
-    """Executes the serving loop for the status server."""
+  @classmethod
+  def get_thread_dump(self):
+    lines = []
+    frames = sys._current_frames()  # pylint: disable=protected-access
+
+    for t in threading.enumerate():
+      lines.append('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
+      lines.append(''.join(traceback.format_stack(frames[t.ident])))
+
+    return lines
+
+  def start(self, STATUS_HTTP_PORT=0):
+    """Executes the serving loop for the status server.
+    Keyword arguments:
+        STATUS_HTTP_PORT -- Binding port for the debug server.
+            Default is 0 which means any free unsecured port
+    """
 
     class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
-      """HTTP handler for serving stacktraces of all worker threads."""
+      """HTTP handler for serving stacktraces of all threads."""
 
       def do_GET(self):  # pylint: disable=invalid-name
-        """Return /threadz information for any GET request."""
+        """Return all thread stacktraces information for GET request."""
         self.send_response(200)
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
-        frames = sys._current_frames()  # pylint: disable=protected-access
-        for t in threading.enumerate():
-          self.wfile.write('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
-          self.wfile.write(''.join(traceback.format_stack(frames[t.ident])))
+
+        for line in StatusServer.get_thread_dump(): self.wfile.write(line)
+
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -62,9 +76,6 @@ class StatusServer(object):
         ('localhost', STATUS_HTTP_PORT), StatusHttpHandler)
     logging.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)
-
-    if started_callback:
-      started_callback()
 
     httpd.serve_forever()
 
