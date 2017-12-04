@@ -166,7 +166,7 @@ public class ElasticsearchIOTest extends ESIntegTestCase implements Serializable
         ElasticsearchIO.read().withConnectionConfiguration(connectionConfiguration);
    BoundedElasticsearchSource initialSource = new BoundedElasticsearchSource(read, null, null,
        null);
-   int desiredBundleSizeBytes = 1000;
+   int desiredBundleSizeBytes = 2000;
     List<? extends BoundedSource<String>> splits =
         initialSource.split(desiredBundleSizeBytes, options);
     SourceTestUtils.assertSourcesEqualReferenceSource(initialSource, splits, options);
