@@ -489,7 +489,7 @@ class ReshufflePerKey(PTransform):
       def process(self, element, timestamp=DoFn.TimestampParam):
         yield element[0], TimestampedValue(element[1], timestamp)
 
-    class ExtractTimestamps(DoFn):
+    class RestoreTimestamps(DoFn):
       def process(self, element, window=DoFn.WindowParam):
         # Pass the current window since _IdentityWindowFn wouldn't know how
         # to generate it.
@@ -509,7 +509,7 @@ class ReshufflePerKey(PTransform):
               | GroupByKey()
               | 'ExpandIterable' >> FlatMap(
                   lambda e: [(e[0], value) for value in e[1]])
-              | ParDo(ExtractTimestamps()))
+              | ParDo(RestoreTimestamps()))
     result._windowing = windowing_saved
     return result
 
