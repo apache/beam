@@ -13,38 +13,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package protox contains utilities for working with protobufs.
 package protox
 
-import (
-	"encoding/base64"
-	"fmt"
+import "github.com/golang/protobuf/proto"
 
-	"github.com/golang/protobuf/proto"
-)
-
-// MustEncodeBase64 encodes a proto wrapped in base64 and panics on failure.
-func MustEncodeBase64(msg proto.Message) string {
-	ret, err := EncodeBase64(msg)
+// MustEncode encode the message and panics on failure.
+func MustEncode(msg proto.Message) []byte {
+	data, err := proto.Marshal(msg)
 	if err != nil {
 		panic(err)
 	}
-	return ret
-}
-
-// EncodeBase64 encodes a proto wrapped in base64.
-func EncodeBase64(msg proto.Message) (string, error) {
-	data, err := proto.Marshal(msg)
-	if err != nil {
-		return "", err
-	}
-	return base64.StdEncoding.EncodeToString(data), nil
-}
-
-// DecodeBase64 decodes a base64 wrapped proto.
-func DecodeBase64(data string, ret proto.Message) error {
-	decoded, err := base64.StdEncoding.DecodeString(data)
-	if err != nil {
-		return fmt.Errorf("base64 decoding failed: %v", err)
-	}
-	return proto.Unmarshal(decoded, ret)
+	return data
 }
