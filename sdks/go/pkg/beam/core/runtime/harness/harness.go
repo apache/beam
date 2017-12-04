@@ -94,7 +94,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 				recordFooter()
 				return nil
 			}
-			return fmt.Errorf("Recv failed: %v", err)
+			return fmt.Errorf("recv failed: %v", err)
 		}
 
 		log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))

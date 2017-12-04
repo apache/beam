@@ -16,6 +16,7 @@
 package dataflow
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -32,10 +33,13 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	// Importing to get the side effect of the remote execution hook. See init().
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/harness/init"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	"github.com/apache/beam/sdks/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/gcsx"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/oauth2/google"
 	df "google.golang.org/api/dataflow/v1b3"
 	"google.golang.org/api/storage/v1"
@@ -63,6 +67,11 @@ var (
 func init() {
 	// Note that we also _ import harness/init to setup the remote execution hook.
 	beam.RegisterRunner("dataflow", Execute)
+}
+
+type dataflowOptions struct {
+	Options     map[string]string `json:"options"`
+	PipelineURL string            `json:"pipelineUrl"`
 }
 
 // Execute runs the given pipeline on Google Cloud Dataflow. It uses the
@@ -100,7 +109,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 	options := beam.PipelineOptions.Export()
 
-	// (1) Upload Go binary to GCS.
+	// (1) Upload Go binary and model to GCS.
 
 	worker, err := buildLocalBinary(ctx)
 	if err != nil {
@@ -110,6 +119,16 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	if err != nil {
 		return err
 	}
+
+	model, err := graphx.Marshal(edges, &graphx.Options{ContainerImageURL: *image})
+	if err != nil {
+		return fmt.Errorf("failed to generate model pipeline: %v", err)
+	}
+	modelURL, err := stageModel(ctx, project, *stagingLocation, protox.MustEncode(model))
+	if err != nil {
+		return err
+	}
+	log.Info(ctx, proto.MarshalTextString(model))
 
 	// (2) Translate pipeline to v1b3 speak.
 
@@ -133,7 +152,10 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			}),
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: findPipelineFlags(),
-				Options:     options,
+				Options: dataflowOptions{
+					Options:     options.Options,
+					PipelineURL: modelURL,
+				},
 			}),
 			WorkerPools: []*df.WorkerPool{{
 				Kind: "harness",
@@ -165,7 +187,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 		return nil
 	}
 
-	// (3) Submit job.
+	// (4) Submit job.
 
 	client, err := newClient(ctx, *endpoint)
 	if err != nil {
@@ -211,6 +233,26 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 
 		time.Sleep(30 * time.Second)
 	}
+}
+
+// stageModel uploads the pipeline model to GCS as a unique object.
+func stageModel(ctx context.Context, project, location string, model []byte) (string, error) {
+	bucket, prefix, err := gcsx.ParseObject(location)
+	if err != nil {
+		return "", fmt.Errorf("invalid staging location %v: %v", location, err)
+	}
+	obj := path.Join(prefix, fmt.Sprintf("pipeline-%v", time.Now().UnixNano()))
+	if *dryRun {
+		full := fmt.Sprintf("gs://%v/%v", bucket, obj)
+		log.Infof(ctx, "Dry-run: not uploading model %v", full)
+		return full, nil
+	}
+
+	client, err := gcsx.NewClient(ctx, storage.DevstorageReadWriteScope)
+	if err != nil {
+		return "", err
+	}
+	return gcsx.Upload(client, project, bucket, obj, bytes.NewReader(model))
 }
 
 // stageWorker uploads the worker binary to GCS as a unique object.

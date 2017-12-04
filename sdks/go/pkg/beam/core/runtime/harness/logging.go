@@ -147,5 +147,5 @@ func (w *remoteWriter) connect(ctx context.Context) error {
 
 		// fmt.Fprintf(os.Stderr, "SENT: %v\n", msg)
 	}
-	return fmt.Errorf("Internal: buffer closed?")
+	return fmt.Errorf("internal: buffer closed?")
 }
