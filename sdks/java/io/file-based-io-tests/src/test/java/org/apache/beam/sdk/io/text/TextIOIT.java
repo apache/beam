@@ -46,6 +46,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -118,7 +119,8 @@ public class TextIOIT {
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
         .apply("Produce text lines", ParDo.of(new DeterministicallyConstructTestTextLineFn()))
         .apply("Write content to files", write)
-        .getPerDestinationOutputFilenames().apply(Values.<String>create());
+        .getPerDestinationOutputFilenames().apply(Values.<String>create())
+        .apply(Reshuffle.<String>viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", TextIO.readAll().withCompression(AUTO))
