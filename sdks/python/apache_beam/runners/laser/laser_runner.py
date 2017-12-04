@@ -921,7 +921,7 @@ def generate_execution_graph(step_graph, execution_context):
         input_step = input_pcoll.step
         fused_stage = steps_to_fused_stages[input_step]
         shuffle_write_step = ShuffleWriteStep(
-            input_step.name + '/FlattenWrite',
+            input_step.name + '/FlattenMaterialize',
             original_step.element_coder,
             shuffle_dataset_id,
             grouped=False)
