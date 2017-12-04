@@ -40,6 +40,7 @@ import cz.seznam.euphoria.core.client.triggers.CountTrigger;
 import cz.seznam.euphoria.core.client.triggers.NoopTrigger;
 import cz.seznam.euphoria.core.client.triggers.Trigger;
 import cz.seznam.euphoria.core.client.triggers.TriggerContext;
+import cz.seznam.euphoria.core.client.util.Fold;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
@@ -48,7 +49,6 @@ import cz.seznam.euphoria.operator.test.junit.AbstractOperatorTest;
 import cz.seznam.euphoria.operator.test.junit.Processing;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
-import cz.seznam.euphoria.core.client.util.Fold;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -60,7 +60,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -342,7 +341,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
   @Processing(Processing.Type.BOUNDED)
   @Test
   public void testReduceSorted() {
-    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, Long>>() {
+    execute(new AbstractTestCase<Pair<String, Long>, Pair<String, List<Long>>>() {
 
       @Override
       protected List<Pair<String, Long>> getInput() {
@@ -353,24 +352,20 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
       }
 
       @Override
-      public List<Pair<String, Long>> getUnorderedOutput() {
+      public List<Pair<String, List<Long>>> getUnorderedOutput() {
         return Arrays.asList(
-            Pair.of("one", 3L),
-            Pair.of("two", 3L),
-            Pair.of("three", 3L));
+            Pair.of("one", Arrays.asList(1L, 2L, 3L)),
+            Pair.of("two", Arrays.asList(1L, 2L, 3L)),
+            Pair.of("three", Arrays.asList(1L, 2L, 3L)));
       }
 
       @Override
-      protected Dataset<Pair<String, Long>> getOutput(Dataset<Pair<String, Long>> input) {
+      protected Dataset<Pair<String, List<Long>>> getOutput(Dataset<Pair<String, Long>> input) {
         return ReduceByKey.of(input)
             .keyBy(Pair::getFirst)
             .valueBy(Pair::getSecond)
-            .reduceBy((Stream<Long> values, Collector<Long> coll) -> {
-              final AtomicLong previous = new AtomicLong(0);
-              final long result = values
-                  .mapToLong(current -> current - previous.getAndSet(current)).sum();
-              coll.collect(result);
-            })
+            .reduceBy((Stream<Long> values, Collector<List<Long>> coll) ->
+                coll.collect(values.collect(Collectors.toList())))
             .withSortedValues(Long::compareTo)
             .output();
       }
