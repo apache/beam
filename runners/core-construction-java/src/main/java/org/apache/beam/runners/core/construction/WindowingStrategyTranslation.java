@@ -203,7 +203,6 @@ public class WindowingStrategyTranslation implements Serializable {
   // This URN says that the WindowFn is just a UDF blob the Java SDK understands
   // TODO: standardize such things
   public static final String SERIALIZED_JAVA_WINDOWFN_URN = "beam:windowfn:javasdk:v0.1";
-  public static final String OLD_SERIALIZED_JAVA_WINDOWFN_URN = "urn:beam:windowfn:javasdk:0.1";
 
   /**
    * Converts a {@link WindowFn} into a {@link RunnerApi.MessageWithComponents} where {@link
@@ -374,7 +373,6 @@ public class WindowingStrategyTranslation implements Serializable {
           return Sessions.withGapDuration(
               Duration.millis(Durations.toMillis(sessionParams.getGapSize())));
         case SERIALIZED_JAVA_WINDOWFN_URN:
-        case OLD_SERIALIZED_JAVA_WINDOWFN_URN:
           return (WindowFn<?, ?>)
               SerializableUtils.deserializeFromByteArray(
                   windowFnSpec.getSpec().getPayload().toByteArray(), "WindowFn");
