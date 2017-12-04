@@ -148,7 +148,6 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table")
  *         .withBigtableOptionsConfigurator(
  *            new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
- *              @Override
  *              public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
  *                return input
  *                        .setUsePlaintextNegotiation(true)
