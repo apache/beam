@@ -835,136 +835,191 @@ class ExecutionContext(object):
     self.shuffle_interface = shuffle_interface
 
 
-def generate_execution_graph(step_graph, execution_context):
-  # TODO: if we ever support interactive pipelines or incremental execution,
-  # we want to implement idempotent application of a step graph into updating
-  # the execution graph.
-  execution_graph = ExecutionGraph()
-  root_steps = list(step for step in step_graph.steps if not step.inputs)
-  to_process = Queue()
-  for step in root_steps:
-    to_process.put(step)
-  seen = set(root_steps)
-  next_shuffle_dataset_id = 0
-  next_stage_id = 0
 
-  # Grow fused stages through a breadth-first traversal.
-  steps_to_fused_stages = {}  # TODO: comment that this is output, for transformed steps
-  while not to_process.empty():
-    original_step = to_process.get()
-    if isinstance(original_step, ReadStep):
-      assert not original_step.inputs
-      stage_name = 'S%02d' % next_stage_id
-      next_stage_id += 1
-      fused_stage = FusedStage(stage_name, execution_context)
-      execution_graph.add_stage(fused_stage)
-      fused_stage.add_step(original_step)
-      print 'fused_stage', original_step, fused_stage
-      steps_to_fused_stages[original_step] = fused_stage
-    elif isinstance(original_step, ParDoStep):
-      print 'NAME', original_step.name
-      # if original_step.name in ('GroupByKey/GroupByWindow'):
-      #   print 'SKIPPING', original_step
-      #   continue
-      assert len(original_step.inputs) == 1
-      input_step = original_step.inputs[0].step
-      print 'input_step', input_step, type(input_step), original_step
-      fused_stage = steps_to_fused_stages[input_step]
-      fused_stage.add_step(original_step)
-      steps_to_fused_stages[original_step] = fused_stage
-      # TODO: add original step -> new step mapping.
-      # TODO: add dependencies via WatermarkNode.
-    elif isinstance(original_step, GroupByKeyOnlyStep):
-      # hallucinate a shuffle write and a shuffle read.
-      # TODO: figure out lineage of hallucinated steps.
-      assert len(original_step.inputs) == 1
-      input_step = original_step.inputs[0].step
-      fused_stage = steps_to_fused_stages[input_step]
-      shuffle_dataset_id = next_shuffle_dataset_id
-      next_shuffle_dataset_id += 1
-      execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
-      print 'SHUFFLE CODER', original_step.shuffle_coder
-      shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id, grouped=True)
-      print 'STEP', shuffle_write_step
-      shuffle_write_step.inputs.append(original_step.inputs[0])
-      print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
-      fused_stage.add_step(shuffle_write_step, origin_step=original_step)# HACK
+class ExecutionGraphTranslator(object):
 
-      # Add shuffle finalization stage.
-      stage_name = 'S%02d' % next_stage_id
-      next_stage_id += 1
-      finalize_stage = ShuffleFinalizeStage(stage_name, execution_context, shuffle_dataset_id)
-      execution_graph.add_stage(finalize_stage)
+  def __init__(self, step_graph, execution_context):
+    self.step_graph = step_graph
+    self.execution_context = execution_context
+
+  def generate_execution_graph(self):
+    # TODO: if we ever support interactive pipelines or incremental execution,
+    # we want to implement idempotent application of a step graph into updating
+    # the execution graph.
+    self.execution_graph = ExecutionGraph()
+    root_steps = list(step for step in self.step_graph.steps if not step.inputs)
+    to_process = Queue()
+    for step in root_steps:
+      to_process.put(step)
+    seen = set(root_steps)
+    self.next_shuffle_dataset_id = 0
+    self.next_stage_id = 0
+
+    # Grow fused stages through a breadth-first traversal.
+    self.steps_to_fused_stages = {}  # TODO: comment that this is output, for transformed steps
+    while not to_process.empty():
+      # Process current step.
+      original_step = to_process.get()
+
+      if isinstance(original_step, ReadStep):
+        self._process_read_step(original_step)
+      elif isinstance(original_step, ParDoStep):
+        self._process_pardo_step(original_step)
+      elif isinstance(original_step, GroupByKeyOnlyStep):
+        self._process_gbk_step(original_step)
+      elif isinstance(original_step, FlattenStep):
+        self._process_flatten_step(original_step)
+      else:
+        raise ValueError('Execution graph translation not implemented: %s.' % original_step)
+
+      # Continue traversal of step graph.
+      for unused_tag, pcoll_node in original_step.outputs.iteritems():
+        for consumer_step in pcoll_node.consumers:
+          if consumer_step not in seen:
+            to_process.put(consumer_step)
+            seen.add(consumer_step)
+
+    # Add fused stages to graph.
+    for fused_stage in set(self.steps_to_fused_stages.values()):
+      fused_stage.finalize_steps()
+
+    return self.execution_graph
+
+  def _process_read_step(self, original_step):
+    assert not original_step.inputs
+    stage_name = 'S%02d' % self.next_stage_id
+    self.next_stage_id += 1
+    fused_stage = FusedStage(stage_name, self.execution_context)
+    self.execution_graph.add_stage(fused_stage)
+    fused_stage.add_step(original_step)
+    print 'fused_stage', original_step, fused_stage
+    self.steps_to_fused_stages[original_step] = fused_stage
+
+  def _process_pardo_step(self, original_step):
+    print 'NAME', original_step.name
+    # if original_step.name in ('GroupByKey/GroupByWindow'):
+    #   print 'SKIPPING', original_step
+    #   continue
+    assert len(original_step.inputs) == 1
+    input_step = original_step.inputs[0].step
+    print 'input_step', input_step, type(input_step), original_step
+    fused_stage = self.steps_to_fused_stages[input_step]
+    fused_stage.add_step(original_step)
+    self.steps_to_fused_stages[original_step] = fused_stage
+    # TODO: add original step -> new step mapping.
+    # TODO: add dependencies via WatermarkNode.
+
+  def _process_gbk_step(self, original_step):
+    # hallucinate a shuffle write and a shuffle read.
+    # TODO: figure out lineage of hallucinated steps.
+    assert len(original_step.inputs) == 1
+    input_step = original_step.inputs[0].step
+    fused_stage = self.steps_to_fused_stages[input_step]
+    shuffle_dataset_id = self.next_shuffle_dataset_id
+    self.next_shuffle_dataset_id += 1
+    self.execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
+    print 'SHUFFLE CODER', original_step.shuffle_coder
+    shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id, grouped=True)
+    print 'STEP', shuffle_write_step
+    shuffle_write_step.inputs.append(original_step.inputs[0])
+    print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
+    fused_stage.add_step(shuffle_write_step, origin_step=original_step)# HACK
+
+    # Add shuffle finalization stage.
+    stage_name = 'S%02d' % self.next_stage_id
+    self.next_stage_id += 1
+    finalize_stage = ShuffleFinalizeStage(stage_name, self.execution_context, shuffle_dataset_id)
+    self.execution_graph.add_stage(finalize_stage)
+    fused_stage.add_dependent(finalize_stage)
+
+    # Add shuffle read stage, dependent on shuffle finalization.
+    stage_name = 'S%02d' % self.next_stage_id
+    self.next_stage_id += 1
+    read_fused_stage = FusedStage(stage_name, self.execution_context)
+    self.execution_graph.add_stage(read_fused_stage)
+    read_step = ShuffleReadStep(original_step.name + '/Read', original_step.output_coder, shuffle_dataset_id,
+        LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=True)
+    read_step.outputs[None] = PCollectionNode(read_step, None)
+    read_fused_stage.add_step(read_step, origin_step=original_step)
+    finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
+
+    # Output stage is the new read stage.
+    self.steps_to_fused_stages[original_step] = read_fused_stage
+
+  def _add_materialization_write(self, original_step, write_step_name, input_pcoll, element_coder, shuffle_dataset_id):
+    input_step = input_pcoll.step
+    fused_stage = self.steps_to_fused_stages[input_step]
+    shuffle_write_step = ShuffleWriteStep(
+        write_step_name,
+        element_coder,
+        shuffle_dataset_id,
+        grouped=False)
+    shuffle_write_step.inputs.append(input_pcoll)
+    fused_stage.add_step(shuffle_write_step, origin_step=original_step)  # TODO: clarify role of origin_step argument.
+    return fused_stage
+
+
+  def _add_shuffle_finalize(self, shuffle_dataset_id, shuffle_write_stages):
+    stage_name = 'S%02d' % self.next_stage_id
+    self.next_stage_id += 1
+    finalize_stage = ShuffleFinalizeStage(stage_name, self.execution_context, shuffle_dataset_id)
+    self.execution_graph.add_stage(finalize_stage)
+    for fused_stage in shuffle_write_stages:
       fused_stage.add_dependent(finalize_stage)
+    return finalize_stage
 
-      # Add shuffle read stage, dependent on shuffle finalization.
-      stage_name = 'S%02d' % next_stage_id
-      next_stage_id += 1
-      read_fused_stage = FusedStage(stage_name, execution_context)
-      execution_graph.add_stage(read_fused_stage)
-      read_step = ShuffleReadStep(original_step.name + '/Read', original_step.output_coder, shuffle_dataset_id,
-          LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=True)
-      read_step.outputs[None] = PCollectionNode(read_step, None)
-      read_fused_stage.add_step(read_step, origin_step=original_step)
-      finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
+  def _add_materialization_read(self,  original_step, read_step_name, element_coder, shuffle_dataset_id, finalize_stage):
+    stage_name = 'S%02d' % self.next_stage_id
+    self.next_stage_id += 1
+    read_fused_stage = FusedStage(stage_name, self.execution_context)
+    self.execution_graph.add_stage(read_fused_stage)
+    read_step = ShuffleReadStep(read_step_name, element_coder, shuffle_dataset_id,
+        LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=False)
+    read_step.outputs[None] = PCollectionNode(read_step, None)
+    read_fused_stage.add_step(read_step, origin_step=original_step)
+    finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
+    return read_fused_stage
 
-      # Output stage is the new read stage.
-      steps_to_fused_stages[original_step] = read_fused_stage
-    elif isinstance(original_step, FlattenStep):
-      # Note: we are careful to correctly handle the case where there are zero inputs to the Flatten.
-      shuffle_dataset_id = next_shuffle_dataset_id
-      next_shuffle_dataset_id += 1
-      execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
 
-      input_fused_stages = []
-      for input_pcoll in original_step.inputs:
-        input_step = input_pcoll.step
-        fused_stage = steps_to_fused_stages[input_step]
-        shuffle_write_step = ShuffleWriteStep(
-            input_step.name + '/FlattenMaterialize',
-            original_step.element_coder,
-            shuffle_dataset_id,
-            grouped=False)
-        shuffle_write_step.inputs.append(input_pcoll)
-        fused_stage.add_step(shuffle_write_step, origin_step=original_step)  # TODO: clarify role of origin_step argument.
-        input_fused_stages.append(fused_stage)
 
-      # Add finalization stage,.
-      stage_name = 'S%02d' % next_stage_id
-      next_stage_id += 1
-      finalize_stage = ShuffleFinalizeStage(stage_name, execution_context, shuffle_dataset_id)
-      execution_graph.add_stage(finalize_stage)
-      for fused_stage in input_fused_stages:
-        fused_stage.add_dependent(finalize_stage)
 
-      # Add read stage, dependent on shuffle finalization.
-      stage_name = 'S%02d' % next_stage_id
-      next_stage_id += 1
-      read_fused_stage = FusedStage(stage_name, execution_context)
-      execution_graph.add_stage(read_fused_stage)
-      read_step = ShuffleReadStep(original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id,
-          LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=False)
-      read_step.outputs[None] = PCollectionNode(read_step, None)
-      read_fused_stage.add_step(read_step, origin_step=original_step)
-      finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
+  def _process_flatten_step(self, original_step):
+    # Note: we are careful to correctly handle the case where there are zero inputs to the Flatten.
+    shuffle_dataset_id = self.next_shuffle_dataset_id
+    self.next_shuffle_dataset_id += 1
+    self.execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
 
-      # Output stage is the new read stage.
-      steps_to_fused_stages[original_step] = read_fused_stage
-    else:
-      raise ValueError('Execution graph translation not implemented: %s.' % original_step)
+    input_fused_stages = []
+    for input_pcoll in original_step.inputs:
+      # TODO: we will have multiple /Write materializes, potentially.  Should they have different names?
+      fused_stage = self._add_materialization_write(original_step, original_step.name + '/Write', input_pcoll, original_step.element_coder, shuffle_dataset_id)
+      input_fused_stages.append(fused_stage)
 
-    # TODO: handle GroupByKeyStep.
-    for unused_tag, pcoll_node in original_step.outputs.iteritems():
-      for consumer_step in pcoll_node.consumers:
-        if consumer_step not in seen:
-          to_process.put(consumer_step)
-          seen.add(consumer_step)
+    # Add finalization stage,.
+    finalize_stage = self._add_shuffle_finalize(shuffle_dataset_id, input_fused_stages)
 
-  # Add fused stages to graph.
-  for fused_stage in set(steps_to_fused_stages.values()):
-    fused_stage.finalize_steps()
+    # Add read stage, dependent on shuffle finalization.
+    stage_name = 'S%02d' % self.next_stage_id
+    self.next_stage_id += 1
+    read_fused_stage = FusedStage(stage_name, self.execution_context)
+    self.execution_graph.add_stage(read_fused_stage)
+    read_step = ShuffleReadStep(original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id,
+        LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=False)
+    read_step.outputs[None] = PCollectionNode(read_step, None)
+    read_fused_stage.add_step(read_step, origin_step=original_step)
+    finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
 
-  return execution_graph
+    read_fused_stage = self._add_materialization_read(original_step, original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id, finalize_stage)
+
+    # Output stage is the new read stage.
+    self.steps_to_fused_stages[original_step] = read_fused_stage
+
+
+
+
+def generate_execution_graph(step_graph, execution_context):
+  translator = ExecutionGraphTranslator(step_graph, execution_context)
+  return translator.generate_execution_graph()
 
 
 
