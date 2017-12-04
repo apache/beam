@@ -522,7 +522,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
     name = getName() + "::Union";
     Union<Either<LEFT, RIGHT>> union =
-        new Union<>(name, flow, leftMap.output(), rightMap.output());
+        new Union<>(name, flow, Arrays.asList(leftMap.output(), rightMap.output()));
 
     ReduceStateByKey<Either<LEFT, RIGHT>, KEY, Either<LEFT, RIGHT>, OUT, StableJoinState, W>
         reduce = new ReduceStateByKey(
