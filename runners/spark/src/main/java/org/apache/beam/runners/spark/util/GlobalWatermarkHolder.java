@@ -47,6 +47,7 @@ import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
+import scala.collection.Iterator;
 import scala.reflect.ClassTag;
 
 /**
@@ -277,7 +278,13 @@ public class GlobalWatermarkHolder {
     final Option<BlockResult> blockResultOption = blockManager.get(WATERMARKS_BLOCK_ID,
         WATERMARKS_TAG);
     if (blockResultOption.isDefined()) {
-      return (Map<Integer, SparkWatermarks>) blockResultOption.get().data().next();
+      Iterator<Object> data = blockResultOption.get().data();
+      Map<Integer, SparkWatermarks> next = (Map<Integer, SparkWatermarks>) data.next();
+      // Spark 2 only triggers completion at the end of the iterator.
+      while (data.hasNext()) {
+        // NO-OP
+      }
+      return next;
     } else {
       return null;
     }
