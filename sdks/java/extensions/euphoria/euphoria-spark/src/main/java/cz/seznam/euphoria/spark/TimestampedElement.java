@@ -15,12 +15,12 @@
  */
 package cz.seznam.euphoria.spark;
 
-final class TimestampedElement {
+public final class TimestampedElement<T> {
 
-  private long timestamp;
-  private final Object el;
+  private final long timestamp;
+  private final T el;
 
-  public TimestampedElement(long timestamp, Object el) {
+  public TimestampedElement(long timestamp, T el) {
     this.timestamp = timestamp;
     this.el = el;
   }

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -38,11 +39,9 @@ import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateByKey> {
@@ -124,7 +123,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
 
-    public CompositeKeyExtractor(UnaryFunction keyExtractor,
+    CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
                                  Windowing windowing) {
       this.keyExtractor = keyExtractor;
@@ -136,14 +135,9 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<KeyedWindow, Object>> call(SparkElement wel) throws Exception {
       Iterable<Window> windows = windowing.assignWindowsToElement(wel);
-      List<Tuple2<KeyedWindow, Object>> out = new ArrayList<>();
-      for (Window wid : windows) {
-        Object el = wel.getElement();
-        out.add(new Tuple2<>(
-                new KeyedWindow<>(wid, wel.getTimestamp(), keyExtractor.apply(el)),
-                valueExtractor.apply(el)));
-      }
-      return out.iterator();
+      return Iterators.transform(windows.iterator(), w -> new Tuple2<>(
+          new KeyedWindow<>(w, wel.getTimestamp(), keyExtractor.apply(wel.getElement())),
+          valueExtractor.apply(wel.getElement())));
     }
   }
 
@@ -160,7 +154,7 @@ class ReduceStateByKeyTranslator implements SparkOperatorTranslator<ReduceStateB
     // mapping of [Key -> GroupReducer]
     private transient Map<Object, GroupReducer> activeReducers;
 
-    public StateReducer(Windowing windowing,
+    StateReducer(Windowing windowing,
                         StateFactory<?, ?, State<?, ?>> stateFactory,
                         StateMerger<?, ?, State<?, ?>> stateCombiner,
                         StateContext stateContext,
