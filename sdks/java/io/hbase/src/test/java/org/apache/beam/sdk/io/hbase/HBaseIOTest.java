@@ -355,7 +355,7 @@ public class HBaseIOTest {
   public void testWritingFailsTableDoesNotExist() throws Exception {
     final String table = "TEST-TABLE-DOES-NOT-EXIST";
 
-    // Exception will be thrown by write.expand() when write is applied.
+    // Exception will be thrown by write.expand() when writeToDynamic is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
     p.apply(Create.empty(HBaseMutationCoder.of()))

@@ -33,11 +33,16 @@ import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.IOException;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -410,17 +415,8 @@ public class TextIOWriteTest {
     List<List<String>> actual = new ArrayList<>();
 
     for (File tmpFile : expectedFiles) {
-      try (BufferedReader reader = new BufferedReader(new FileReader(tmpFile))) {
-        List<String> currentFile = new ArrayList<>();
-        while (true) {
-          String line = reader.readLine();
-          if (line == null) {
-            break;
-          }
-          currentFile.add(line);
-        }
-        actual.add(currentFile);
-      }
+      List<String> currentFile = readLinesFromFile(tmpFile);
+      actual.add(currentFile);
     }
 
     List<String> expectedElements = new ArrayList<>(elems.length);
@@ -440,6 +436,20 @@ public class TextIOWriteTest {
     assertThat(actualElements, containsInAnyOrder(expectedElements.toArray()));
 
     assertTrue(Iterables.all(actual, haveProperHeaderAndFooter(header, footer)));
+  }
+
+  private static List<String> readLinesFromFile(File f) throws IOException {
+    List<String> currentFile = new ArrayList<>();
+    try (BufferedReader reader = new BufferedReader(new FileReader(f))) {
+      while (true) {
+        String line = reader.readLine();
+        if (line == null) {
+          break;
+        }
+        currentFile.add(line);
+      }
+    }
+    return currentFile;
   }
 
   private static Function<List<String>, List<String>> removeHeaderAndFooter(
@@ -647,5 +657,40 @@ public class TextIOWriteTest {
     PAssert.that(filenames.apply(TextIO.readAll())).containsInAnyOrder("0", "1", "2");
 
     p.run();
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteViaSink() throws Exception {
+    List<String> data = ImmutableList.of("a", "b", "c", "d", "e", "f");
+    PAssert.that(
+            p.apply(Create.of(data))
+                .apply(
+                    FileIO.<String>write()
+                        .to(tempFolder.getRoot().toString())
+                        .withSuffix(".txt")
+                        .via(TextIO.sink())
+                        .withIgnoreWindowing())
+                .getPerDestinationOutputFilenames()
+                .apply(Values.<String>create())
+                .apply(TextIO.readAll()))
+        .containsInAnyOrder(data);
+
+    p.run();
+  }
+
+  @Test
+  public void testSink() throws Exception {
+    TextIO.Sink sink = TextIO.sink().withHeader("header").withFooter("footer");
+    File f = new File(tempFolder.getRoot(), "file");
+    try (WritableByteChannel chan = Channels.newChannel(new FileOutputStream(f))) {
+      sink.open(chan);
+      sink.write("a");
+      sink.write("b");
+      sink.write("c");
+      sink.flush();
+    }
+
+    assertEquals(Arrays.asList("header", "a", "b", "c", "footer"), readLinesFromFile(f));
   }
 }
