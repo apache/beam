@@ -20,10 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import functools
-import httplib
 import logging
-import threading
 import unittest
 
 from apache_beam.runners.worker import sdk_worker_main
