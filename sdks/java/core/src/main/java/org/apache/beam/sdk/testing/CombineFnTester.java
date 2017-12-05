@@ -95,7 +95,7 @@ public class CombineFnTester {
       CombineFn<InputT, AccumT, OutputT> fn,
       List<? extends Iterable<InputT>> shards,
       Matcher<? super OutputT> matcher) {
-    AccumT accumulator = null;
+    AccumT accumulator = shards.isEmpty() ? fn.createAccumulator() : null;
     for (AccumT inputAccum : combineInputs(fn, shards)) {
       if (accumulator == null) {
         accumulator = inputAccum;
