@@ -68,6 +68,77 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     FULL
   }
 
+  public static <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(
+      Dataset<LEFT> left, Dataset<RIGHT> right) {
+    return new OfBuilder("Join").of(left, right);
+  }
+
+  public static OfBuilder named(String name) {
+    return new OfBuilder(name);
+  }
+
+  public static class OfBuilder {
+
+    private final String name;
+
+    OfBuilder(String name) {
+      this.name = name;
+    }
+
+    public <LEFT, RIGHT> ByBuilder<LEFT, RIGHT> of(Dataset<LEFT> left, Dataset<RIGHT> right) {
+      if (right.getFlow() != left.getFlow()) {
+        throw new IllegalArgumentException("Pass inputs from the same flow");
+      }
+      return new ByBuilder<>(name, left, right);
+    }
+  }
+
+  public static class ByBuilder<LEFT, RIGHT> {
+
+    private final String name;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
+
+    ByBuilder(String name, Dataset<LEFT> left, Dataset<RIGHT> right) {
+      this.name = Objects.requireNonNull(name);
+      this.left = Objects.requireNonNull(left);
+      this.right = Objects.requireNonNull(right);
+    }
+
+    public <KEY> UsingBuilder<LEFT, RIGHT, KEY> by(
+        UnaryFunction<LEFT, KEY> leftKeyExtractor,
+        UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+      return new UsingBuilder<>(name, left, right, leftKeyExtractor, rightKeyExtractor);
+    }
+  }
+
+  public static class UsingBuilder<LEFT, RIGHT, KEY> {
+
+    private final String name;
+    private final Dataset<LEFT> left;
+    private final Dataset<RIGHT> right;
+    private final UnaryFunction<LEFT, KEY> leftKeyExtractor;
+    private final UnaryFunction<RIGHT, KEY> rightKeyExtractor;
+
+    UsingBuilder(String name,
+                 Dataset<LEFT> left,
+                 Dataset<RIGHT> right,
+                 UnaryFunction<LEFT, KEY> leftKeyExtractor,
+                 UnaryFunction<RIGHT, KEY> rightKeyExtractor) {
+      this.name = name;
+      this.left = left;
+      this.right = right;
+      this.leftKeyExtractor = leftKeyExtractor;
+      this.rightKeyExtractor = rightKeyExtractor;
+    }
+
+    public <OUT> Join.WindowingBuilder<LEFT, RIGHT, KEY, OUT> using(
+        BinaryFunctor<LEFT, RIGHT, OUT> functor) {
+      return new Join.WindowingBuilder<>(name, left, right,
+          leftKeyExtractor, rightKeyExtractor, functor, Join.Type.INNER);
+    }
+  }
+
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
       implements Builders.OutputWithHint<Pair<KEY, OUT>, JoinHint>,
       OptionalMethodBuilder<WindowingBuilder<LEFT, RIGHT, KEY, OUT>> {

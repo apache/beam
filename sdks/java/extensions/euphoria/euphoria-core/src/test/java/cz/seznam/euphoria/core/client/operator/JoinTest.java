@@ -36,7 +36,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<Integer, String>> joined = InnerJoin.named("Join1")
+    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
@@ -63,7 +63,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<Integer, String>> joined = InnerJoin.named("Join1")
+    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
@@ -91,7 +91,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    InnerJoin.of(left, right)
+    Join.of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
           // no-op
@@ -99,7 +99,7 @@ public class JoinTest {
         .output();
 
     Join join = (Join) flow.operators().iterator().next();
-    assertEquals("InnerJoin", join.getName());
+    assertEquals("Join", join.getName());
   }
 
   @Test
@@ -161,7 +161,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    InnerJoin.named("Join1")
+    Join.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> c.collect(l + r))
@@ -178,7 +178,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    InnerJoin.named("Join1")
+    Join.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
@@ -199,7 +199,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    InnerJoin.named("Join1")
+    Join.named("Join1")
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {

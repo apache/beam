@@ -25,7 +25,7 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryFunctor;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
-import cz.seznam.euphoria.core.client.operator.InnerJoin;
+import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.TopPerKey;
 import cz.seznam.euphoria.core.client.util.Pair;
@@ -130,7 +130,7 @@ public class EuphoriaTrends {
     int rankSmoothness = params.getRankSmoothness();
     double rankThreshold = params.getRankThreshold();
     Dataset<Pair<String, Double>> joined =
-        InnerJoin.of(longStats, shortStats)
+        Join.of(longStats, shortStats)
             .by(Pair::getFirst, Pair::getFirst)
             .using((Pair<String, Integer> left,
                     Pair<String, Integer> right,
