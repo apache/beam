@@ -23,7 +23,6 @@ import cz.seznam.euphoria.core.client.io.ListDataSink;
 import cz.seznam.euphoria.core.client.io.MockStreamDataSource;
 import cz.seznam.euphoria.core.client.io.StdoutSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
-import cz.seznam.euphoria.core.client.operator.InnerJoin;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.Operator;
@@ -67,7 +66,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    Dataset<Pair<Object, Long>> output = InnerJoin.of(mapped, reduced)
+    Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
         .by(e -> e, Pair::getFirst)
         .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> c.collect(r.getSecond()))
         .windowBy(Time.of(Duration.ofSeconds(1)))
@@ -147,7 +146,7 @@ public class FlowUnfolderTest {
         .windowBy(Time.of(Duration.ofSeconds(1)))
         .output();
 
-    Dataset<Pair<Object, Long>> output = InnerJoin.of(mapped, reduced)
+    Dataset<Pair<Object, Long>> output = Join.of(mapped, reduced)
         .by(e -> e, Pair::getFirst)
         .using((Object l, Pair<Object, Long> r, Collector<Long> c) -> {
           c.collect(r.getSecond());

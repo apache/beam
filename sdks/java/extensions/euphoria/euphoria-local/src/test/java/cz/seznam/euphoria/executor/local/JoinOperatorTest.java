@@ -27,7 +27,7 @@ import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.Filter;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
 import cz.seznam.euphoria.core.client.operator.FullJoin;
-import cz.seznam.euphoria.core.client.operator.InnerJoin;
+import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
@@ -119,7 +119,7 @@ public class JoinOperatorTest {
           .windowBy(windowing)
           .output();
     } else {
-      output = InnerJoin.of(firstPair, secondPair)
+      output = Join.of(firstPair, secondPair)
           .by(Pair::getFirst, Pair::getFirst)
           .using((l, r, c) -> c.collect((l.getSecond()) + (r.getSecond())))
           .windowBy(windowing)
@@ -138,7 +138,7 @@ public class JoinOperatorTest {
   }
 
   @Test
-  public void testInnerJoinOnBatch() throws Exception {
+  public void testJoinOnBatch() throws Exception {
     testJoin(false,
         GlobalWindowing.get(),
         true,
@@ -151,7 +151,7 @@ public class JoinOperatorTest {
   }
 
   @Test
-  public void testInnerJoinOnStreams() throws Exception {
+  public void testJoinOnStreams() throws Exception {
     testJoin(false,
         Time.of(Duration.ofSeconds(1)),
         false,

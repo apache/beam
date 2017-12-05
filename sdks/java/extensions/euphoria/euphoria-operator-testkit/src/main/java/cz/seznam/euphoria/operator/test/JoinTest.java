@@ -26,7 +26,7 @@ import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.AssignEventTime;
 import cz.seznam.euphoria.core.client.operator.FullJoin;
-import cz.seznam.euphoria.core.client.operator.InnerJoin;
+import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.LeftJoin;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.RightJoin;
@@ -197,7 +197,7 @@ public class JoinTest extends AbstractOperatorTest {
       @Override
       protected Dataset<Pair<Integer, String>> getOutput(
           Dataset<Integer> left, Dataset<Long> right) {
-        return InnerJoin.of(left, right)
+        return Join.of(left, right)
             .by(e -> e, e -> (int) (e % 10))
             .using((Integer l, Long r, Collector<String> c) -> {
                 c.collect(l + "+" + r);
@@ -370,7 +370,7 @@ public class JoinTest extends AbstractOperatorTest {
   // ~ we expect the result to reflect this fact
   // ~ note: no early triggering
   @Test
-  public void innerJoinOnSessionWindowingNoEarlyTriggering() {
+  public void JoinOnSessionWindowingNoEarlyTriggering() {
     execute(new JoinTestCase<
         Pair<String, Long>,
         Pair<String, Long>,
@@ -392,7 +392,7 @@ public class JoinTest extends AbstractOperatorTest {
         left = AssignEventTime.of(left).using(Pair::getSecond).output();
         right = AssignEventTime.of(right).using(Pair::getSecond).output();
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
-            InnerJoin.of(left, right)
+            Join.of(left, right)
                 .by(p -> "", p -> "")
                 .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
@@ -436,7 +436,7 @@ public class JoinTest extends AbstractOperatorTest {
         left = AssignEventTime.of(left).using(Pair::getSecond).output();
         right = AssignEventTime.of(right).using(Pair::getSecond).output();
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
-            InnerJoin.of(left, right)
+            Join.of(left, right)
                 .by(p -> "", p -> "")
                 .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) -> {
                   TimeInterval window = (TimeInterval) c.getWindow();

@@ -20,7 +20,6 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Count;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
-import cz.seznam.euphoria.core.client.operator.InnerJoin;
 import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
@@ -130,7 +129,7 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
         }
 
         Join.WindowingBuilder<Object, Object, Object, Object> joinBuilder =
-            InnerJoin.of(left, right)
+            Join.of(left, right)
                 .by(e -> e, e -> e)
                 .using((l, r, c) -> c.collect(new Object()));
         if (joinWindowing == null) {
