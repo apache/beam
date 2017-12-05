@@ -128,7 +128,9 @@ def main(unused_argv):
                       service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
-    SdkHarness(service_descriptor.url).run()
+    SdkHarness(
+        control_address=service_descriptor.url,
+        pipeline_options=sdk_pipeline_options).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')

@@ -99,8 +99,8 @@ class SdkWorkerTest(unittest.TestCase):
         "localhost:%s" % test_port, pipeline_options=pipeline_options)
     harness.run()
 
-    for worker_wrapper in harness.worker_wrappers:
-      self.assertEqual(worker_wrapper.worker.fns,
+    for worker in harness.workers.queue:
+      self.assertEqual(worker.fns,
                        {item.id: item
                         for item in process_bundle_descriptors})
     return harness
@@ -115,12 +115,12 @@ class SdkWorkerTest(unittest.TestCase):
 
   def test_work_count_default_value(self):
     harness = self._check_fn_registration_multi_request(1, 1, {})
-    self.assertEquals(len(harness.worker_wrappers), 1)
+    self.assertEquals(len(harness.workers.queue), 1)
 
   def test_work_count_custom_value(self):
     harness = self._check_fn_registration_multi_request(
-        1, 1, json.loads('{"experiments":["worker_threads=4"]}'))
-    self.assertEquals(len(harness.worker_wrappers), 4)
+        1, 1, json.loads('{"options": {"experiments":["worker_threads=4"]}}'))
+    self.assertEquals(harness.workers.qsize(), 4)
 
 
 if __name__ == "__main__":
