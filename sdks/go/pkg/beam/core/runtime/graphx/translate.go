@@ -373,9 +373,15 @@ func (u *unmarshaller) unmarshalNode(id string) (*graph.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	w, err := u.unmarshalWindow(col.WindowingStrategyId)
-	if err != nil {
-		return nil, err
+
+	w := window.NewGlobalWindow()
+	if col.WindowingStrategyId != "" {
+		// TODO(herohde) 12/4/2017: seems to be optional or just not present through legacy Dataflow.
+
+		w, err = u.unmarshalWindow(col.WindowingStrategyId)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	n := u.g.NewNode(c.T, w)
@@ -473,6 +479,38 @@ func (u *unmarshaller) unmarshalTransform(scope *graph.Scope, id string) error {
 			panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", edge.Op))
 		}
 
+	case urnDoFn:
+		// TODO(herohde) 12/4/2017: we see DoFns directly with Dataflow. Handle that
+		// case here, for now, so that the harness can use this logic.
+
+		var me v1.MultiEdge
+		if err := protox.DecodeBase64(string(payload), &me); err != nil {
+			return err
+		}
+		op, fn, in, out, err := DecodeMultiEdge(&me)
+		if err != nil {
+			return err
+		}
+
+		edge.Op = op
+		edge.Input = in
+		edge.Output = out
+
+		switch edge.Op {
+		case graph.ParDo:
+			edge.DoFn, err = graph.AsDoFn(fn)
+			if err != nil {
+				return err
+			}
+		case graph.Combine:
+			edge.CombineFn, err = graph.AsCombineFn(fn)
+			if err != nil {
+				return err
+			}
+		default:
+			panic(fmt.Sprintf("Opcode should be one of ParDo or Combine, but it is: %v", edge.Op))
+		}
+
 	case urnFlatten:
 		edge.Op = graph.Flatten
 		edge.Input = makeEmptyInbound(len(transform.GetInputs()))
@@ -540,7 +578,7 @@ func (u *unmarshaller) unmarshalKeyedNodes(m map[string]string) ([]*graph.Node, 
 	complete := true
 
 	for key, value := range m {
-		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); err != nil {
+		if i, err := strconv.Atoi(strings.TrimPrefix(key, "i")); !strings.HasPrefix(key, "i") || err != nil {
 			complete = false
 			if key == "bogus" {
 				continue // Ignore special bogus node for legacy Dataflow.
@@ -555,6 +593,8 @@ func (u *unmarshaller) unmarshalKeyedNodes(m map[string]string) ([]*graph.Node, 
 		nodes[key] = n
 	}
 
+	// (2) Impose order, if present, on nodes.
+
 	if !complete {
 		// Inserted node or fallback. Assume any order is ok.
 		var ret []*graph.Node
@@ -564,7 +604,7 @@ func (u *unmarshaller) unmarshalKeyedNodes(m map[string]string) ([]*graph.Node, 
 		return ret, nil
 	}
 
-	ret := make([]*graph.Node, len(m))
+	ret := make([]*graph.Node, len(m), len(m))
 	for key, n := range nodes {
 		ret[index[key]] = n
 	}
