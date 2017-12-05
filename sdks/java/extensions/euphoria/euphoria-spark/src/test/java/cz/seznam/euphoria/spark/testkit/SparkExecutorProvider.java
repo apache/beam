@@ -21,6 +21,7 @@ import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
 import cz.seznam.euphoria.spark.TestSparkExecutor;
 
 public interface SparkExecutorProvider extends ExecutorProvider {
+
   @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
     TestSparkExecutor exec = new TestSparkExecutor();

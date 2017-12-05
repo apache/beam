@@ -55,7 +55,7 @@ import static org.junit.Assert.assertEquals;
 @Processing(Processing.Type.ALL)
 public class JoinTest extends AbstractOperatorTest {
 
-  static abstract class JoinTestCase<LEFT, RIGHT, OUT> implements TestCase<OUT> {
+  public static abstract class JoinTestCase<LEFT, RIGHT, OUT> implements TestCase<OUT> {
     @Override
     public Dataset<OUT> getOutput(Flow flow, boolean bounded) {
       Dataset<LEFT> left =

@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterators;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
@@ -30,9 +31,8 @@ import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import scala.Tuple2;
 
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
@@ -98,7 +98,7 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     private final UnaryFunction valueExtractor;
     private final Windowing windowing;
 
-    public CompositeKeyExtractor(UnaryFunction keyExtractor,
+    CompositeKeyExtractor(UnaryFunction keyExtractor,
                                  UnaryFunction valueExtractor,
                                  Windowing windowing) {
       this.keyExtractor = keyExtractor;
@@ -109,16 +109,13 @@ class ReduceByKeyTranslator implements SparkOperatorTranslator<ReduceByKey> {
     @Override
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<KeyedWindow, TimestampedElement>> call(SparkElement wel) throws Exception {
-      Iterable<Window> windows = windowing.assignWindowsToElement(wel);
-      List<Tuple2<KeyedWindow, TimestampedElement>> out = new ArrayList<>();
-      for (Window wid : windows) {
-        Object el = wel.getElement();
-        long stamp = wid.maxTimestamp() - 1;
-        out.add(new Tuple2<>(
-                new KeyedWindow<>(wid, stamp, keyExtractor.apply(el)),
-                new TimestampedElement(stamp, valueExtractor.apply(el))));
-      }
-      return out.iterator();
+      final Iterable<Window> windows = windowing.assignWindowsToElement(wel);
+      return Iterators.transform(windows.iterator(), wid -> {
+        final long stamp = Objects.requireNonNull(wid).maxTimestamp() - 1;
+        return new Tuple2<>(
+            new KeyedWindow<>(wid, stamp, keyExtractor.apply(wel.getElement())),
+            new TimestampedElement(stamp, valueExtractor.apply(wel.getElement())));
+      });
     }
   }
 

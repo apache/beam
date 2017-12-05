@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
 
 public class SparkElement<W extends Window, T> implements WindowedElement<W, T> {
+
   private W window;
   private T element;
   private long timestamp;
@@ -37,10 +38,6 @@ public class SparkElement<W extends Window, T> implements WindowedElement<W, T> 
   @Override
   public long getTimestamp() {
     return timestamp;
-  }
-
-  public void setTimestamp(long timestamp) {
-    this.timestamp = timestamp;
   }
 
   @Override
