@@ -20,6 +20,5 @@ set -e
 
 # Delete Cassandra services and statefulset.
 kubectl delete -f cassandra-svc-statefulset.yaml
-kubectl delete -f cassandra-service-for-local-dev.yaml
 # Delete the persistent storage media for the PersistentVolumes
 kubectl delete pvc -l app=cassandra

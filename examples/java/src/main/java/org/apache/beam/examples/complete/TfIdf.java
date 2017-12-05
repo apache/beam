@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete;
 
+import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -24,7 +25,6 @@ import java.net.URISyntaxException;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringDelegateCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -121,7 +121,7 @@ public class TfIdf {
     Set<URI> uris = new HashSet<>();
     if (absoluteUri.getScheme().equals("file")) {
       File directory = new File(absoluteUri);
-      for (String entry : directory.list()) {
+      for (String entry : Optional.fromNullable(directory.list()).or(new String[] {})) {
         File path = new File(directory, entry);
         uris.add(path.toURI());
       }
@@ -154,11 +154,6 @@ public class TfIdf {
     }
 
     @Override
-    public Coder<?> getDefaultOutputCoder() {
-      return KvCoder.of(StringDelegateCoder.of(URI.class), StringUtf8Coder.of());
-    }
-
-    @Override
     public PCollection<KV<URI, String>> expand(PBegin input) {
       Pipeline pipeline = input.getPipeline();
 
@@ -178,9 +173,11 @@ public class TfIdf {
           uriString = uri.toString();
         }
 
-        PCollection<KV<URI, String>> oneUriToLines = pipeline
-            .apply("TextIO.Read(" + uriString + ")", TextIO.read().from(uriString))
-            .apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri));
+        PCollection<KV<URI, String>> oneUriToLines =
+            pipeline
+                .apply("TextIO.Read(" + uriString + ")", TextIO.read().from(uriString))
+                .apply("WithKeys(" + uriString + ")", WithKeys.<URI, String>of(uri))
+                .setCoder(KvCoder.of(StringDelegateCoder.of(URI.class), StringUtf8Coder.of()));
 
         urisToLines = urisToLines.and(oneUriToLines);
       }

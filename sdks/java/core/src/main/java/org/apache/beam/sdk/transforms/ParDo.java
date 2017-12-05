@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import java.io.Serializable;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -33,6 +32,7 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
+import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.transforms.DoFn.WindowedContext;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -46,10 +46,10 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.NameUtils;
-import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
@@ -455,6 +455,27 @@ public class ParDo {
     }
   }
 
+  private static void validateStateApplicableForInput(
+      DoFn<?, ?> fn,
+      PCollection<?> input) {
+    Coder<?> inputCoder = input.getCoder();
+    checkArgument(
+        inputCoder instanceof KvCoder,
+        "%s requires its input to use %s in order to use state and timers.",
+        ParDo.class.getSimpleName(),
+        KvCoder.class.getSimpleName());
+
+    KvCoder<?, ?> kvCoder = (KvCoder<?, ?>) inputCoder;
+    try {
+        kvCoder.getKeyCoder().verifyDeterministic();
+    } catch (Coder.NonDeterministicException exc) {
+      throw new IllegalArgumentException(
+          String.format(
+              "%s requires a deterministic key coder in order to use state and timers",
+              ParDo.class.getSimpleName()));
+    }
+  }
+
   /**
    * Try to provide coders for as many of the type arguments of given
    * {@link DoFnSignature.StateDeclaration} as possible.
@@ -515,7 +536,8 @@ public class ParDo {
     if (methodSignature.windowT() != null) {
       checkArgument(
           methodSignature.windowT().isSupertypeOf(actualWindowT),
-          "%s expects window type %s, which is not a supertype of actual window type %s",
+          "%s unable to provide window -- expected window type from parameter (%s) is not a "
+              + "supertype of actual window type assigned by windowing (%s)",
           methodSignature.targetMethod(),
           methodSignature.windowT(),
           actualWindowT);
@@ -566,7 +588,7 @@ public class ParDo {
         DoFn<InputT, OutputT> fn,
         List<PCollectionView<?>> sideInputs,
         DisplayData.ItemSpec<? extends Class<?>> fnDisplayData) {
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
       this.sideInputs = sideInputs;
     }
@@ -614,19 +636,21 @@ public class ParDo {
 
     @Override
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
-      finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
+      CoderRegistry registry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
       TupleTag<OutputT> mainOutput = new TupleTag<>();
-      return input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    protected Coder<OutputT> getDefaultOutputCoder(PCollection<? extends InputT> input)
-        throws CannotProvideCoderException {
-      return input.getPipeline().getCoderRegistry().getCoder(
-          getFn().getOutputTypeDescriptor(),
-          getFn().getInputTypeDescriptor(),
-          ((PCollection<InputT>) input).getCoder());
+      PCollection<OutputT> res =
+          input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
+      try {
+        res.setCoder(
+            registry.getCoder(
+                getFn().getOutputTypeDescriptor(),
+                getFn().getInputTypeDescriptor(),
+                ((PCollection<InputT>) input).getCoder()));
+      } catch (CannotProvideCoderException e) {
+        // Ignore and leave coder unset.
+      }
+      return res;
     }
 
     @Override
@@ -662,11 +686,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
   }
 
@@ -696,7 +716,7 @@ public class ParDo {
       this.sideInputs = sideInputs;
       this.mainOutputTag = mainOutputTag;
       this.additionalOutputTags = additionalOutputTags;
-      this.fn = SerializableUtils.clone(fn);
+      this.fn = fn;
       this.fnDisplayData = fnDisplayData;
     }
 
@@ -739,13 +759,33 @@ public class ParDo {
       validateWindowType(input, fn);
 
       // Use coder registry to determine coders for all StateSpec defined in the fn signature.
-      finishSpecifyingStateSpecs(fn, input.getPipeline().getCoderRegistry(), input.getCoder());
+      CoderRegistry registry = input.getPipeline().getCoderRegistry();
+      finishSpecifyingStateSpecs(fn, registry, input.getCoder());
+
+      DoFnSignature signature = DoFnSignatures.getSignature(fn.getClass());
+      if (signature.usesState() || signature.usesTimers()) {
+        validateStateApplicableForInput(fn, input);
+      }
 
       PCollectionTuple outputs = PCollectionTuple.ofPrimitiveOutputsInternal(
           input.getPipeline(),
           TupleTagList.of(mainOutputTag).and(additionalOutputTags.getAll()),
+          // TODO
+          Collections.<TupleTag<?>, Coder<?>>emptyMap(),
           input.getWindowingStrategy(),
           input.isBounded());
+      @SuppressWarnings("unchecked")
+      Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
+      for (PCollection<?> out : outputs.getAll().values()) {
+        try {
+          out.setCoder(
+              (Coder)
+                  registry.getCoder(
+                      out.getTypeDescriptor(), getFn().getInputTypeDescriptor(), inputCoder));
+        } catch (CannotProvideCoderException e) {
+          // Ignore and let coder inference happen later.
+        }
+      }
 
       // The fn will likely be an instance of an anonymous subclass
       // such as DoFn<Integer, String> { }, thus will have a high-fidelity
@@ -754,24 +794,6 @@ public class ParDo {
 
       return outputs;
     }
-
-    @Override
-    protected Coder<OutputT> getDefaultOutputCoder() {
-      throw new RuntimeException(
-          "internal error: shouldn't be calling this on a multi-output ParDo");
-    }
-
-    @Override
-    public <T> Coder<T> getDefaultOutputCoder(
-        PCollection<? extends InputT> input, PCollection<T> output)
-        throws CannotProvideCoderException {
-      @SuppressWarnings("unchecked")
-      Coder<InputT> inputCoder = ((PCollection<InputT>) input).getCoder();
-      return input.getPipeline().getCoderRegistry().getCoder(
-          output.getTypeDescriptor(),
-          getFn().getInputTypeDescriptor(),
-          inputCoder);
-      }
 
     @Override
     protected String getKindString() {
@@ -807,11 +829,7 @@ public class ParDo {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
   }
 

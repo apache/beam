@@ -1,0 +1,174 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * Protocol Buffers describing the Job API, api for communicating with a runner
+ * for job submission over GRPC.
+ */
+
+syntax = "proto3";
+
+package org.apache.beam.model.job_management.v1;
+
+option go_package = "jobmanagement_v1";
+option java_package = "org.apache.beam.model.jobmanagement.v1";
+option java_outer_classname = "JobApi";
+
+import "beam_runner_api.proto";
+import "endpoints.proto";
+import "google/protobuf/struct.proto";
+
+
+// Job Service for running RunnerAPI pipelines
+service JobService {
+  // Prepare a job for execution. The job will not be executed until a call is made to run with the
+  // returned preparationId.
+  rpc Prepare (PrepareJobRequest) returns (PrepareJobResponse);
+
+  // Submit the job for execution
+  rpc Run (RunJobRequest) returns (RunJobResponse);
+
+  // Get the current state of the job
+  rpc GetState (GetJobStateRequest) returns (GetJobStateResponse);
+
+  // Cancel the job
+  rpc Cancel (CancelJobRequest) returns (CancelJobResponse);
+
+  // Subscribe to a stream of state changes of the job, will immediately return the current state of the job as the first response.
+  rpc GetStateStream (GetJobStateRequest) returns (stream GetJobStateResponse);
+
+  // Subscribe to a stream of state changes and messages from the job
+  rpc GetMessageStream (JobMessagesRequest) returns (stream JobMessagesResponse);
+}
+
+
+// Prepare is a synchronous request that returns a preparationId back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error ALREADY_EXISTS if the jobName is reused. Runners are permitted to deduplicate based on the name of the job.
+// Throws error UNKNOWN for all other issues
+message PrepareJobRequest {
+  org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
+  google.protobuf.Struct pipeline_options = 2; // (required)
+  string job_name = 3;  // (required)
+}
+
+message PrepareJobResponse {
+  // (required) The ID used to associate calls made while preparing the job. preparationId is used
+  // to run the job, as well as in other pre-execution APIs such as Artifact staging.
+  string preparation_id = 1;
+
+  // An endpoint which exposes the Beam Artifact Staging API. Artifacts used by the job should be
+  // staged to this endpoint, and will be available during job execution.
+  org.apache.beam.model.pipeline.v1.ApiServiceDescriptor artifact_staging_endpoint = 2;
+}
+
+
+// Run is a synchronous request that returns a jobId back.
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the preparation ID does not exist
+// Throws error UNKNOWN for all other issues
+message RunJobRequest {
+  // (required) The ID provided by an earlier call to prepare. Runs the job. All prerequisite tasks
+  // must have been completed.
+  string preparation_id = 1;
+  // (optional) If any artifacts have been staged for this job, contains the staging_token returned
+  // from the CommitManifestResponse.
+  string staging_token = 2;
+}
+
+
+message RunJobResponse {
+  string job_id = 1; // (required) The ID for the executing job
+}
+
+
+// Cancel is a synchronus request that returns a job state back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message CancelJobRequest {
+  string job_id = 1; // (required)
+
+}
+
+// Valid responses include any terminal state or CANCELLING
+message CancelJobResponse {
+  JobState.Enum state = 1; // (required)
+}
+
+
+// GetState is a synchronus request that returns a job state back
+// Throws error GRPC_STATUS_UNAVAILABLE if server is down
+// Throws error NOT_FOUND if the jobId is not found
+message GetJobStateRequest {
+  string job_id = 1; // (required)
+
+}
+
+message GetJobStateResponse {
+  JobState.Enum state = 1; // (required)
+}
+
+
+// GetJobMessages is a streaming api for streaming job messages from the service
+// One request will connect you to the job and you'll get a stream of job state
+// and job messages back; one is used for logging and the other for detecting
+// the job ended.
+message JobMessagesRequest {
+  string job_id = 1; // (required)
+
+}
+
+message JobMessage {
+  string message_id = 1;
+  string time = 2;
+  MessageImportance importance = 3;
+  string message_text = 4;
+
+  enum MessageImportance {
+    MESSAGE_IMPORTANCE_UNSPECIFIED = 0;
+    JOB_MESSAGE_DEBUG = 1;
+    JOB_MESSAGE_DETAILED = 2;
+    JOB_MESSAGE_BASIC = 3;
+    JOB_MESSAGE_WARNING = 4;
+    JOB_MESSAGE_ERROR = 5;
+  }
+}
+
+message JobMessagesResponse {
+  oneof response {
+    JobMessage message_response = 1;
+    GetJobStateResponse state_response = 2;
+  }
+}
+
+// Enumeration of all JobStates
+message JobState {
+  enum Enum {
+    UNSPECIFIED = 0;
+    STOPPED = 1;
+    RUNNING = 2;
+    DONE = 3;
+    FAILED = 4;
+    CANCELLED = 5;
+    UPDATED = 6;
+    DRAINING = 7;
+    DRAINED = 8;
+    STARTING = 9;
+    CANCELLING = 10;
+  }
+}

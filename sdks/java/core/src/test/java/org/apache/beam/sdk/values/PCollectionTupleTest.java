@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -59,9 +60,9 @@ public final class PCollectionTupleTest implements Serializable {
   @Test
   public void testOfThenHas() {
 
-    PCollection<Object> pCollection = PCollection.createPrimitiveOutputInternal(
-        pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
-    TupleTag<Object> tag = new TupleTag<>();
+    PCollection<Integer> pCollection = PCollection.createPrimitiveOutputInternal(
+        pipeline, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
+    TupleTag<Integer> tag = new TupleTag<>();
 
     assertTrue(PCollectionTuple.of(tag, pCollection).has(tag));
   }

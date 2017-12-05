@@ -22,10 +22,12 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.WriteBundlesToFiles.Result;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -33,11 +35,13 @@ import org.apache.beam.sdk.values.TupleTag;
  * tablespec and the list of files corresponding to each partition of that table.
  */
 class WritePartition<DestinationT>
-    extends DoFn<Void, KV<ShardedKey<DestinationT>, List<String>>> {
+    extends DoFn<
+        Iterable<WriteBundlesToFiles.Result<DestinationT>>,
+        KV<ShardedKey<DestinationT>, List<String>>> {
   private final boolean singletonTable;
+  private final DynamicDestinations<?, DestinationT> dynamicDestinations;
   private final PCollectionView<String> tempFilePrefix;
-  private final PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results;
-  private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
+  @Nullable private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag;
   private TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag;
 
   private static class PartitionData {
@@ -100,12 +104,12 @@ class WritePartition<DestinationT>
 
   WritePartition(
       boolean singletonTable,
+      DynamicDestinations<?, DestinationT> dynamicDestinations,
       PCollectionView<String> tempFilePrefix,
-      PCollectionView<Iterable<WriteBundlesToFiles.Result<DestinationT>>> results,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> multiPartitionsTag,
       TupleTag<KV<ShardedKey<DestinationT>, List<String>>> singlePartitionTag) {
     this.singletonTable = singletonTable;
-    this.results = results;
+    this.dynamicDestinations = dynamicDestinations;
     this.tempFilePrefix = tempFilePrefix;
     this.multiPartitionsTag = multiPartitionsTag;
     this.singlePartitionTag = singlePartitionTag;
@@ -113,8 +117,7 @@ class WritePartition<DestinationT>
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    List<WriteBundlesToFiles.Result<DestinationT>> results =
-        Lists.newArrayList(c.sideInput(this.results));
+    List<WriteBundlesToFiles.Result<DestinationT>> results = Lists.newArrayList(c.element());
 
     // If there are no elements to write _and_ the user specified a constant output table, then
     // generate an empty table of that name.
@@ -126,8 +129,8 @@ class WritePartition<DestinationT>
       // Return a null destination in this case - the constant DynamicDestinations class will
       // resolve it to the singleton output table.
       results.add(
-          new Result<DestinationT>(
-              writerResult.resourceId.toString(), writerResult.byteSize, null));
+          new Result<>(writerResult.resourceId.toString(), writerResult.byteSize,
+              dynamicDestinations.getDestination(null)));
     }
 
     Map<DestinationT, DestinationData> currentResults = Maps.newHashMap();

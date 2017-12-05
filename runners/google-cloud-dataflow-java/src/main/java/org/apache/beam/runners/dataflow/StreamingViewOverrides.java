@@ -42,12 +42,12 @@ import org.apache.beam.sdk.values.PCollectionView;
 class StreamingViewOverrides {
   static class StreamingCreatePCollectionViewFactory<ElemT, ViewT>
       extends SingleInputOutputOverrideFactory<
-          PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>> {
+          PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>> {
     @Override
-    public PTransformReplacement<PCollection<ElemT>, PCollectionView<ViewT>>
+    public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>>
         getReplacementTransform(
             AppliedPTransform<
-                    PCollection<ElemT>, PCollectionView<ViewT>, CreatePCollectionView<ElemT, ViewT>>
+                    PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>>
                 transform) {
       StreamingCreatePCollectionView<ElemT, ViewT> streamingView =
           new StreamingCreatePCollectionView<>(transform.getTransform().getView());
@@ -56,7 +56,7 @@ class StreamingViewOverrides {
     }
 
     private static class StreamingCreatePCollectionView<ElemT, ViewT>
-        extends PTransform<PCollection<ElemT>, PCollectionView<ViewT>> {
+        extends PTransform<PCollection<ElemT>, PCollection<ElemT>> {
       private final PCollectionView<ViewT> view;
 
       private StreamingCreatePCollectionView(PCollectionView<ViewT> view) {
@@ -64,7 +64,7 @@ class StreamingViewOverrides {
       }
 
       @Override
-      public PCollectionView<ViewT> expand(PCollection<ElemT> input) {
+      public PCollection<ElemT> expand(PCollection<ElemT> input) {
         return input
             .apply(Combine.globally(new Concatenate<ElemT>()).withoutDefaults())
             .apply(ParDo.of(StreamingPCollectionViewWriterFn.create(view, input.getCoder())))

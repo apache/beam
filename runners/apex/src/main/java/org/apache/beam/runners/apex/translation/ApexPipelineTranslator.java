@@ -25,7 +25,8 @@ import org.apache.beam.runners.apex.ApexPipelineOptions;
 import org.apache.beam.runners.apex.ApexRunner.CreateApexPCollectionView;
 import org.apache.beam.runners.apex.translation.operators.ApexProcessFnOperator;
 import org.apache.beam.runners.apex.translation.operators.ApexReadUnboundedInputOperator;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems;
 import org.apache.beam.runners.core.construction.PrimitiveCreate;
 import org.apache.beam.runners.core.construction.UnboundedReadFromBoundedSource.BoundedToUnboundedSourceAdapter;
 import org.apache.beam.sdk.Pipeline;
@@ -38,7 +39,6 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * into Apex logical plan {@link DAG}.
  */
 @SuppressWarnings({"rawtypes", "unchecked"})
-public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
+public class ApexPipelineTranslator extends Pipeline.PipelineVisitor.Defaults {
   private static final Logger LOG = LoggerFactory.getLogger(ApexPipelineTranslator.class);
 
   /**
@@ -63,9 +63,9 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
   static {
     // register TransformTranslators
     registerTransformTranslator(ParDo.MultiOutput.class, new ParDoTranslator<>());
-    registerTransformTranslator(SplittableParDo.ProcessElements.class,
+    registerTransformTranslator(SplittableParDoViaKeyedWorkItems.ProcessElements.class,
         new ParDoTranslator.SplittableProcessElementsTranslator());
-    registerTransformTranslator(SplittableParDo.GBKIntoKeyedWorkItems.class,
+    registerTransformTranslator(GBKIntoKeyedWorkItems.class,
         new GBKIntoKeyedWorkItemsTranslator());
     registerTransformTranslator(Read.Unbounded.class, new ReadUnboundedTranslator());
     registerTransformTranslator(Read.Bounded.class, new ReadBoundedTranslator());
@@ -109,7 +109,7 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
       throw new UnsupportedOperationException(
           "no translator registered for " + transform);
     }
-    translationContext.setCurrentTransform(node);
+    translationContext.setCurrentTransform(node.toAppliedPTransform(getPipeline()));
     translator.translate(transform, translationContext);
   }
 
@@ -153,7 +153,6 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
           unboundedSource, true, context.getPipelineOptions());
       context.addOperator(operator, operator.output);
     }
-
   }
 
   private static class CreateApexPCollectionViewTranslator<ElemT, ViewT>
@@ -161,11 +160,10 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     private static final long serialVersionUID = 1L;
 
     @Override
-    public void translate(CreateApexPCollectionView<ElemT, ViewT> transform,
-        TranslationContext context) {
-      PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
-      context.addView(view);
-      LOG.debug("view {}", view.getName());
+    public void translate(
+        CreateApexPCollectionView<ElemT, ViewT> transform, TranslationContext context) {
+      context.addView(transform.getView());
+      LOG.debug("view {}", transform.getView().getName());
     }
   }
 
@@ -176,18 +174,17 @@ public class ApexPipelineTranslator implements Pipeline.PipelineVisitor {
     @Override
     public void translate(
         CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context) {
-      PCollectionView<ViewT> view = (PCollectionView<ViewT>) context.getOutput();
-      context.addView(view);
-      LOG.debug("view {}", view.getName());
+      context.addView(transform.getView());
+      LOG.debug("view {}", transform.getView().getName());
     }
   }
 
   private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
-    implements TransformTranslator<SplittableParDo.GBKIntoKeyedWorkItems<K, InputT>> {
+    implements TransformTranslator<GBKIntoKeyedWorkItems<K, InputT>> {
 
     @Override
     public void translate(
-        SplittableParDo.GBKIntoKeyedWorkItems<K, InputT> transform, TranslationContext context) {
+        GBKIntoKeyedWorkItems<K, InputT> transform, TranslationContext context) {
       // https://issues.apache.org/jira/browse/BEAM-1850
       ApexProcessFnOperator<KV<K, InputT>> operator = ApexProcessFnOperator.toKeyedWorkItems(
           context.getPipelineOptions());

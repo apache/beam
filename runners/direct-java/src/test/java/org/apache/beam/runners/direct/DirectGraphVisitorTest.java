@@ -78,6 +78,9 @@ public class DirectGraphVisitorTest implements Serializable {
             .apply(View.<String>asList());
     PCollectionView<Object> singletonView =
         p.apply("singletonCreate", Create.<Object>of(1, 2, 3)).apply(View.<Object>asSingleton());
+    p.replaceAll(
+        DirectRunner.fromOptions(TestPipeline.testingPipelineOptions())
+            .defaultTransformOverrides());
     p.traverseTopologically(visitor);
     assertThat(
         visitor.getGraph().getViews(),
@@ -148,13 +151,13 @@ public class DirectGraphVisitorTest implements Serializable {
         graph.getProducer(flattened);
 
     assertThat(
-        graph.getPrimitiveConsumers(created),
+        graph.getPerElementConsumers(created),
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(
             transformedProducer, flattenedProducer));
     assertThat(
-        graph.getPrimitiveConsumers(transformed),
+        graph.getPerElementConsumers(transformed),
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(flattenedProducer));
-    assertThat(graph.getPrimitiveConsumers(flattened), emptyIterable());
+    assertThat(graph.getPerElementConsumers(flattened), emptyIterable());
   }
 
   @Test
@@ -170,10 +173,10 @@ public class DirectGraphVisitorTest implements Serializable {
     AppliedPTransform<?, ?, ?> flattenedProducer = graph.getProducer(flattened);
 
     assertThat(
-        graph.getPrimitiveConsumers(created),
+        graph.getPerElementConsumers(created),
         Matchers.<AppliedPTransform<?, ?, ?>>containsInAnyOrder(flattenedProducer,
             flattenedProducer));
-    assertThat(graph.getPrimitiveConsumers(flattened), emptyIterable());
+    assertThat(graph.getPerElementConsumers(flattened), emptyIterable());
   }
 
   @Test

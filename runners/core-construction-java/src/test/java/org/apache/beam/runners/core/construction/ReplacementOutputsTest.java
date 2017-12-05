@@ -24,6 +24,8 @@ import static org.junit.Assert.assertThat;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.util.Map;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory.ReplacementOutput;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.values.PCollection;
@@ -50,23 +52,23 @@ public class ReplacementOutputsTest {
 
   private PCollection<Integer> ints =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<Integer> moreInts =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<String> strs =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
 
   private PCollection<Integer> replacementInts =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<Integer> moreReplacementInts =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, VarIntCoder.of());
   private PCollection<String> replacementStrs =
       PCollection.createPrimitiveOutputInternal(
-          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED);
+          p, WindowingStrategy.globalDefault(), IsBounded.BOUNDED, StringUtf8Coder.of());
 
   @Test
   public void singletonSucceeds() {

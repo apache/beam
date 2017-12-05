@@ -169,7 +169,7 @@ public final class TestSparkRunner extends PipelineRunner<SparkPipelineResult> {
     result.waitUntilFinish(Duration.millis(batchDurationMillis));
     do {
       SparkTimerInternals sparkTimerInternals =
-          SparkTimerInternals.global(GlobalWatermarkHolder.get());
+          SparkTimerInternals.global(GlobalWatermarkHolder.get(batchDurationMillis));
       sparkTimerInternals.advanceWatermark();
       globalWatermark = sparkTimerInternals.currentInputWatermarkTime();
       // let another batch-interval period of execution, just to reason about WM propagation.

@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.direct.UnboundedReadDeduplicator.NeverDeduplicator;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.Read.Unbounded;
@@ -253,7 +254,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
   }
 
   @AutoValue
-  abstract static class UnboundedSourceShard<T, CheckpointT extends CheckpointMark> {
+  abstract static class UnboundedSourceShard<T, CheckpointT extends CheckpointMark>
+      implements SourceShard<T> {
     static <T, CheckpointT extends CheckpointMark> UnboundedSourceShard<T, CheckpointT> unstarted(
         UnboundedSource<T, CheckpointT> source, UnboundedReadDeduplicator deduplicator) {
       return of(source, deduplicator, null, null);
@@ -268,7 +270,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
           source, deduplicator, reader, checkpoint);
     }
 
-    abstract UnboundedSource<T, CheckpointT> getSource();
+    @Override
+    public abstract UnboundedSource<T, CheckpointT> getSource();
 
     abstract UnboundedReadDeduplicator getDeduplicator();
 
@@ -283,9 +286,8 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
   }
 
-  static class InputProvider<OutputT>
-      implements RootInputProvider<
-          OutputT, UnboundedSourceShard<OutputT, ?>, PBegin, Unbounded<OutputT>> {
+  static class InputProvider<T>
+      implements RootInputProvider<T, UnboundedSourceShard<T, ?>, PBegin> {
     private final EvaluationContext evaluationContext;
 
     InputProvider(EvaluationContext evaluationContext) {
@@ -293,27 +295,28 @@ class UnboundedReadEvaluatorFactory implements TransformEvaluatorFactory {
     }
 
     @Override
-    public Collection<CommittedBundle<UnboundedSourceShard<OutputT, ?>>> getInitialInputs(
-        AppliedPTransform<PBegin, PCollection<OutputT>, Unbounded<OutputT>> transform,
+    public Collection<CommittedBundle<UnboundedSourceShard<T, ?>>> getInitialInputs(
+        AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>
+            transform,
         int targetParallelism)
         throws Exception {
-      UnboundedSource<OutputT, ?> source = transform.getTransform().getSource();
-      List<? extends UnboundedSource<OutputT, ?>> splits =
+      UnboundedSource<T, ?> source = ReadTranslation.unboundedSourceFromTransform(transform);
+      List<? extends UnboundedSource<T, ?>> splits =
           source.split(targetParallelism, evaluationContext.getPipelineOptions());
       UnboundedReadDeduplicator deduplicator =
           source.requiresDeduping()
               ? UnboundedReadDeduplicator.CachedIdDeduplicator.create()
               : NeverDeduplicator.create();
 
-      ImmutableList.Builder<CommittedBundle<UnboundedSourceShard<OutputT, ?>>> initialShards =
+      ImmutableList.Builder<CommittedBundle<UnboundedSourceShard<T, ?>>> initialShards =
           ImmutableList.builder();
-      for (UnboundedSource<OutputT, ?> split : splits) {
-        UnboundedSourceShard<OutputT, ?> shard =
+      for (UnboundedSource<T, ?> split : splits) {
+        UnboundedSourceShard<T, ?> shard =
             UnboundedSourceShard.unstarted(split, deduplicator);
         initialShards.add(
             evaluationContext
-                .<UnboundedSourceShard<OutputT, ?>>createRootBundle()
-                .add(WindowedValue.<UnboundedSourceShard<OutputT, ?>>valueInGlobalWindow(shard))
+                .<UnboundedSourceShard<T, ?>>createRootBundle()
+                .add(WindowedValue.<UnboundedSourceShard<T, ?>>valueInGlobalWindow(shard))
                 .commit(BoundedWindow.TIMESTAMP_MAX_VALUE));
       }
       return initialShards.build();

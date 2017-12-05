@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -28,6 +29,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.io.Read;
@@ -179,6 +181,12 @@ public class Pipeline {
     return begin().apply(name, root);
   }
 
+  @Internal
+  public static Pipeline forTransformHierarchy(
+      TransformHierarchy transforms, PipelineOptions options) {
+    return new Pipeline(transforms, options);
+  }
+
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
@@ -205,7 +213,7 @@ public class Pipeline {
           public CompositeBehavior enterCompositeTransform(Node node) {
             if (!node.isRootNode()) {
               for (PTransformOverride override : overrides) {
-                if (override.getMatcher().matches(node.toAppliedPTransform())) {
+                if (override.getMatcher().matches(node.toAppliedPTransform(getPipeline()))) {
                   matched.put(node, override);
                 }
               }
@@ -227,7 +235,7 @@ public class Pipeline {
           @Override
           public void visitPrimitiveTransform(Node node) {
             for (PTransformOverride override : overrides) {
-              if (override.getMatcher().matches(node.toAppliedPTransform())) {
+              if (override.getMatcher().matches(node.toAppliedPTransform(getPipeline()))) {
                 matched.put(node, override);
               }
             }
@@ -238,7 +246,7 @@ public class Pipeline {
   private void replace(final PTransformOverride override) {
     final Set<Node> matches = new HashSet<>();
     final Set<Node> freedNodes = new HashSet<>();
-    transforms.visit(
+    traverseTopologically(
         new PipelineVisitor.Defaults() {
           @Override
           public CompositeBehavior enterCompositeTransform(Node node) {
@@ -247,7 +255,8 @@ public class Pipeline {
               freedNodes.add(node);
               return CompositeBehavior.ENTER_TRANSFORM;
             }
-            if (!node.isRootNode() && override.getMatcher().matches(node.toAppliedPTransform())) {
+            if (!node.isRootNode()
+                && override.getMatcher().matches(node.toAppliedPTransform(getPipeline()))) {
               matches.add(node);
               // This node will be freed. When we visit any of its children, they will also be freed
               freedNodes.add(node);
@@ -259,7 +268,7 @@ public class Pipeline {
           public void visitPrimitiveTransform(Node node) {
             if (freedNodes.contains(node.getEnclosingNode())) {
               freedNodes.add(node);
-            } else if (override.getMatcher().matches(node.toAppliedPTransform())) {
+            } else if (override.getMatcher().matches(node.toAppliedPTransform(getPipeline()))) {
               matches.add(node);
               freedNodes.add(node);
             }
@@ -334,8 +343,14 @@ public class Pipeline {
   @Internal
   public interface PipelineVisitor {
     /**
-     * Called for each composite transform after all topological predecessors have been visited
-     * but before any of its component transforms.
+     * Called before visiting anything values or transforms, as many uses of a visitor require
+     * access to the {@link Pipeline} object itself.
+     */
+    void enterPipeline(Pipeline p);
+
+    /**
+     * Called for each composite transform after all topological predecessors have been visited but
+     * before any of its component transforms.
      *
      * <p>The return value controls whether or not child transforms are visited.
      */
@@ -360,6 +375,11 @@ public class Pipeline {
     void visitValue(PValue value, TransformHierarchy.Node producer);
 
     /**
+     * Called when all values and transforms in a {@link Pipeline} have been visited.
+     */
+    void leavePipeline(Pipeline pipeline);
+
+    /**
      * Control enum for indicating whether or not a traversal should process the contents of
      * a composite transform or not.
      */
@@ -373,6 +393,22 @@ public class Pipeline {
      * User implementations can override just those methods they are interested in.
      */
     class Defaults implements PipelineVisitor {
+
+      @Nullable private Pipeline pipeline;
+
+      protected Pipeline getPipeline() {
+        if (pipeline == null) {
+          throw new IllegalStateException(
+              "Illegal access to pipeline after visitor traversal was completed");
+        }
+        return pipeline;
+      }
+
+      @Override
+      public void enterPipeline(Pipeline pipeline) {
+        this.pipeline = checkNotNull(pipeline);
+      }
+
       @Override
       public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
         return CompositeBehavior.ENTER_TRANSFORM;
@@ -386,6 +422,11 @@ public class Pipeline {
 
       @Override
       public void visitValue(PValue value, TransformHierarchy.Node producer) { }
+
+      @Override
+      public void leavePipeline(Pipeline pipeline) {
+        this.pipeline = null;
+      }
     }
   }
 
@@ -406,7 +447,9 @@ public class Pipeline {
    */
   @Internal
   public void traverseTopologically(PipelineVisitor visitor) {
+    visitor.enterPipeline(this);
     transforms.visit(visitor);
+    visitor.leavePipeline(this);
   }
 
   /**
@@ -444,14 +487,22 @@ public class Pipeline {
   /////////////////////////////////////////////////////////////////////////////
   // Below here are internal operations, never called by users.
 
-  private final TransformHierarchy transforms = new TransformHierarchy(this);
+  private final TransformHierarchy transforms;
   private Set<String> usedFullNames = new HashSet<>();
-  private CoderRegistry coderRegistry;
+
+  /** Lazily initialized; access via {@link #getCoderRegistry()}. */
+  @Nullable private CoderRegistry coderRegistry;
+
   private final List<String> unstableNames = new ArrayList<>();
   private final PipelineOptions defaultOptions;
 
-  protected Pipeline(PipelineOptions options) {
+  private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+    this.transforms = transforms;
     this.defaultOptions = options;
+  }
+
+  protected Pipeline(PipelineOptions options) {
+    this(new TransformHierarchy(), options);
   }
 
   @Override
@@ -495,7 +546,7 @@ public class Pipeline {
           PTransformOverrideFactory<InputT, OutputT, TransformT> replacementFactory) {
     PTransformReplacement<InputT, OutputT> replacement =
         replacementFactory.getReplacementTransform(
-            (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform());
+            (AppliedPTransform<InputT, OutputT, TransformT>) original.toAppliedPTransform(this));
     if (replacement.getTransform() == original.getTransform()) {
       return;
     }

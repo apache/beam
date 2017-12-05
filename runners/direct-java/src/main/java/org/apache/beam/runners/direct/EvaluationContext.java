@@ -20,6 +20,7 @@ package org.apache.beam.runners.direct;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -31,7 +32,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.core.ExecutionContext;
 import org.apache.beam.runners.core.ReadyCheckingSideInputReader;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
@@ -52,22 +52,20 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.joda.time.Instant;
 
 /**
- * The evaluation context for a specific pipeline being executed by the
- * {@link DirectRunner}. Contains state shared within the execution across all
- * transforms.
+ * The evaluation context for a specific pipeline being executed by the {@link DirectRunner}.
+ * Contains state shared within the execution across all transforms.
  *
- * <p>{@link EvaluationContext} contains shared state for an execution of the
- * {@link DirectRunner} that can be used while evaluating a {@link PTransform}. This
- * consists of views into underlying state and watermark implementations, access to read and write
- * {@link PCollectionView PCollectionViews}, and managing the
- * {@link ExecutionContext ExecutionContexts}. This includes executing callbacks asynchronously when
- * state changes to the appropriate point (e.g. when a {@link PCollectionView} is requested and
- * known to be empty).
+ * <p>{@link EvaluationContext} contains shared state for an execution of the {@link DirectRunner}
+ * that can be used while evaluating a {@link PTransform}. This consists of views into underlying
+ * state and watermark implementations, access to read and write {@link PCollectionView
+ * PCollectionViews}, and managing the {@link DirectExecutionContext ExecutionContexts}. This
+ * includes executing callbacks asynchronously when state changes to the appropriate point (e.g.
+ * when a {@link PCollectionView} is requested and known to be empty).
  *
- * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based
- * on the current global state and updating the global state appropriately. This includes updating
- * the per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that
- * can be executed.
+ * <p>{@link EvaluationContext} also handles results by committing finalizing bundles based on the
+ * current global state and updating the global state appropriately. This includes updating the
+ * per-{@link StepAndKey} state, updating global watermarks, and executing any callbacks that can be
+ * executed.
  */
 class EvaluationContext {
   /**
@@ -161,12 +159,9 @@ class EvaluationContext {
     } else {
       outputTypes.add(OutputType.BUNDLE);
     }
-    CommittedResult committedResult = CommittedResult.create(result,
-        completedBundle == null
-            ? null
-            : completedBundle.withElements((Iterable) result.getUnprocessedElements()),
-        committedBundles,
-        outputTypes);
+    CommittedResult committedResult =
+        CommittedResult.create(
+            result, getUnprocessedInput(completedBundle, result), committedBundles, outputTypes);
     // Update state internals
     CopyOnAccessInMemoryStateInternals theirState = result.getState();
     if (theirState != null) {
@@ -188,6 +183,22 @@ class EvaluationContext {
         committedResult,
         result.getWatermarkHold());
     return committedResult;
+  }
+
+  /**
+   * Returns an {@link Optional} containing a bundle which contains all of the unprocessed elements
+   * that were not processed from the {@code completedBundle}. If all of the elements of the {@code
+   * completedBundle} were processed, or if {@code completedBundle} is null, returns an absent
+   * {@link Optional}.
+   */
+  private Optional<? extends CommittedBundle<?>> getUnprocessedInput(
+      @Nullable CommittedBundle<?> completedBundle, TransformResult<?> result) {
+    if (completedBundle == null || Iterables.isEmpty(result.getUnprocessedElements())) {
+      return Optional.absent();
+    }
+    CommittedBundle<?> residual =
+        completedBundle.withElements((Iterable) result.getUnprocessedElements());
+    return Optional.of(residual);
   }
 
   private Iterable<? extends CommittedBundle<?>> commitBundles(
@@ -279,11 +290,26 @@ class EvaluationContext {
    * callback will be executed regardless of whether values have been produced.
    */
   public void scheduleAfterOutputWouldBeProduced(
-      PValue value,
+      PCollection<?> value,
       BoundedWindow window,
       WindowingStrategy<?, ?> windowingStrategy,
       Runnable runnable) {
     AppliedPTransform<?, ?, ?> producing = graph.getProducer(value);
+    callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
+
+    fireAvailableCallbacks(producing);
+  }
+
+  /**
+   * Schedule a callback to be executed after output would be produced for the given window if there
+   * had been input.
+   */
+  public void scheduleAfterOutputWouldBeProduced(
+      PCollectionView<?> view,
+      BoundedWindow window,
+      WindowingStrategy<?, ?> windowingStrategy,
+      Runnable runnable) {
+    AppliedPTransform<?, ?, ?> producing = graph.getWriter(view);
     callbackExecutor.callOnGuaranteedFiring(producing, window, windowingStrategy, runnable);
 
     fireAvailableCallbacks(producing);
@@ -312,7 +338,7 @@ class EvaluationContext {
   }
 
   /**
-   * Get an {@link ExecutionContext} for the provided {@link AppliedPTransform} and key.
+   * Get a {@link DirectExecutionContext} for the provided {@link AppliedPTransform} and key.
    */
   public DirectExecutionContext getExecutionContext(
       AppliedPTransform<?, ?, ?> application, StructuralKey<?> key) {

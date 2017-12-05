@@ -31,17 +31,19 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
-import com.google.common.collect.Iterators;
+import com.google.common.collect.Maps;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
@@ -51,7 +53,10 @@ import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions.CheckEnabled;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
@@ -137,7 +142,8 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   private static class PipelineAbandonedNodeEnforcement extends PipelineRunEnforcement {
 
-    private List<TransformHierarchy.Node> runVisitedNodes;
+    // Null until the pipeline has been run
+    @Nullable private List<TransformHierarchy.Node> runVisitedNodes;
 
     private final Predicate<TransformHierarchy.Node> isPAssertNode =
         new Predicate<TransformHierarchy.Node>() {
@@ -167,6 +173,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
     private PipelineAbandonedNodeEnforcement(final TestPipeline pipeline) {
       super(pipeline);
+      runVisitedNodes = null;
     }
 
     private List<TransformHierarchy.Node> recordPipelineNodes(final Pipeline pipeline) {
@@ -307,6 +314,7 @@ public class TestPipeline extends Pipeline implements TestRule {
 
       @Override
       public void evaluate() throws Throwable {
+        options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
 
         setDeducedEnforcementLevel();
 
@@ -329,6 +337,11 @@ public class TestPipeline extends Pipeline implements TestRule {
    * testing.
    */
   public PipelineResult run() {
+    return run(getOptions());
+  }
+
+  /** Like {@link #run} but with the given potentially modified options. */
+  public PipelineResult run(PipelineOptions options) {
     checkState(
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
@@ -337,7 +350,12 @@ public class TestPipeline extends Pipeline implements TestRule {
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
-      pipelineResult = super.run();
+      PipelineOptions updatedOptions =
+          MAPPER.convertValue(MAPPER.valueToTree(options), PipelineOptions.class);
+      updatedOptions
+          .as(TestValueProviderOptions.class)
+          .setProviderRuntimeValues(StaticValueProvider.of(providerRuntimeValues));
+      pipelineResult = super.run(updatedOptions);
       verifyPAssertsSucceeded(this, pipelineResult);
     } catch (RuntimeException exc) {
       Throwable cause = exc.getCause();
@@ -352,6 +370,41 @@ public class TestPipeline extends Pipeline implements TestRule {
     // its execution.
     enforcement.get().afterPipelineExecution();
     return pipelineResult;
+  }
+
+  /** Implementation detail of {@link #newProvider}, do not use. */
+  @Internal
+  public interface TestValueProviderOptions extends PipelineOptions {
+    ValueProvider<Map<String, Object>> getProviderRuntimeValues();
+    void setProviderRuntimeValues(ValueProvider<Map<String, Object>> runtimeValues);
+  }
+
+  /**
+   * Returns a new {@link ValueProvider} that is inaccessible before {@link #run}, but will be
+   * accessible while the pipeline runs.
+   */
+  public <T> ValueProvider<T> newProvider(T runtimeValue) {
+    String uuid = UUID.randomUUID().toString();
+    providerRuntimeValues.put(uuid, runtimeValue);
+    return ValueProvider.NestedValueProvider.of(
+        options.as(TestValueProviderOptions.class).getProviderRuntimeValues(),
+        new GetFromRuntimeValues<T>(uuid));
+  }
+
+  private final Map<String, Object> providerRuntimeValues = Maps.newHashMap();
+
+  private static class GetFromRuntimeValues<T>
+      implements SerializableFunction<Map<String, Object>, T> {
+    private final String key;
+
+    private GetFromRuntimeValues(String key) {
+      this.key = key;
+    }
+
+    @Override
+    public T apply(Map<String, Object> input) {
+      return (T) input.get(key);
+    }
   }
 
   /**
@@ -402,7 +455,6 @@ public class TestPipeline extends Pipeline implements TestRule {
               MAPPER.readValue(beamTestPipelineOptions, String[].class))
               .as(TestPipelineOptions.class);
 
-      options.as(ApplicationNameOptions.class).setAppName(getAppName());
       // If no options were specified, set some reasonable defaults
       if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
         // If there are no provided options, check to see if a dummy runner should be used.
@@ -450,56 +502,17 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  /** Returns the class + method name of the test, or a default name. */
-  private static String getAppName() {
-    Optional<StackTraceElement> stackTraceElement = findCallersStackTrace();
-    if (stackTraceElement.isPresent()) {
-      String methodName = stackTraceElement.get().getMethodName();
-      String className = stackTraceElement.get().getClassName();
-      if (className.contains(".")) {
-        className = className.substring(className.lastIndexOf(".") + 1);
-      }
-      return className + "-" + methodName;
+  /** Returns the class + method name of the test. */
+  private String getAppName(Description description) {
+    String methodName = description.getMethodName();
+    Class<?> testClass = description.getTestClass();
+    if (testClass.isMemberClass()) {
+      return String.format(
+          "%s$%s-%s",
+          testClass.getEnclosingClass().getSimpleName(), testClass.getSimpleName(), methodName);
+    } else {
+      return String.format("%s-%s", testClass.getSimpleName(), methodName);
     }
-    return "UnitTest";
-  }
-
-  /** Returns the {@link StackTraceElement} of the calling class. */
-  private static Optional<StackTraceElement> findCallersStackTrace() {
-    Iterator<StackTraceElement> elements =
-        Iterators.forArray(Thread.currentThread().getStackTrace());
-    // First find the TestPipeline class in the stack trace.
-    while (elements.hasNext()) {
-      StackTraceElement next = elements.next();
-      if (TestPipeline.class.getName().equals(next.getClassName())) {
-        break;
-      }
-    }
-    // Then find the first instance after that is not the TestPipeline
-    Optional<StackTraceElement> firstInstanceAfterTestPipeline = Optional.absent();
-    while (elements.hasNext()) {
-      StackTraceElement next = elements.next();
-      if (!TestPipeline.class.getName().equals(next.getClassName())) {
-        if (!firstInstanceAfterTestPipeline.isPresent()) {
-          firstInstanceAfterTestPipeline = Optional.of(next);
-        }
-        try {
-          Class<?> nextClass = Class.forName(next.getClassName());
-          for (Method method : nextClass.getMethods()) {
-            if (method.getName().equals(next.getMethodName())) {
-              if (method.isAnnotationPresent(org.junit.Test.class)) {
-                return Optional.of(next);
-              } else if (method.isAnnotationPresent(org.junit.Before.class)) {
-                break;
-              }
-            }
-          }
-        } catch (Throwable t) {
-          break;
-        }
-      }
-    }
-    return firstInstanceAfterTestPipeline;
   }
 
   /**

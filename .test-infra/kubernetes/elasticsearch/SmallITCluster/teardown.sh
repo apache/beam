@@ -18,4 +18,3 @@ set -e
 
 # Delete elasticsearch services and deployments.
 kubectl delete -f elasticsearch-svc-rc.yaml
-kubectl delete -f elasticsearch-service-for-local-dev.yaml

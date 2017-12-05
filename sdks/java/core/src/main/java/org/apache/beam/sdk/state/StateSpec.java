@@ -22,6 +22,7 @@ import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.transforms.Combine;
 
 /**
  * A specification of a persistent state cell. This includes information necessary to encode the
@@ -43,6 +44,14 @@ public interface StateSpec<StateT extends State> extends Serializable {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
+   * <p>Perform case analysis on this {@link StateSpec} using the provided {@link Cases}.
+   */
+  @Internal
+  <ResultT> ResultT match(Cases<ResultT> cases);
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
    * <p>Given {code coders} are inferred from type arguments defined for this class. Coders which
    * are already set should take precedence over offered coders.
    *
@@ -60,4 +69,48 @@ public interface StateSpec<StateT extends State> extends Serializable {
    */
   @Internal
   void finishSpecifying();
+
+  /**
+   * Cases for doing a "switch" on the type of {@link StateSpec}.
+   */
+  interface Cases<ResultT> {
+    ResultT dispatchValue(Coder<?> valueCoder);
+    ResultT dispatchBag(Coder<?> elementCoder);
+    ResultT dispatchCombining(Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder);
+    ResultT dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder);
+    ResultT dispatchSet(Coder<?> elementCoder);
+
+    /**
+     * A base class for a visitor with a default method for cases it is not interested in.
+     */
+    abstract class WithDefault<ResultT> implements Cases<ResultT> {
+
+      protected abstract ResultT dispatchDefault();
+
+      @Override
+      public ResultT dispatchValue(Coder<?> valueCoder) {
+        return dispatchDefault();
+      }
+
+      @Override
+      public ResultT dispatchBag(Coder<?> elementCoder) {
+        return dispatchDefault();
+      }
+
+      @Override
+      public ResultT dispatchCombining(Combine.CombineFn<?, ?, ?> combineFn, Coder<?> accumCoder) {
+        return dispatchDefault();
+      }
+
+      @Override
+      public ResultT dispatchMap(Coder<?> keyCoder, Coder<?> valueCoder) {
+        return dispatchDefault();
+      }
+
+      @Override
+      public ResultT dispatchSet(Coder<?> elementCoder) {
+        return dispatchDefault();
+      }
+    }
+  }
 }

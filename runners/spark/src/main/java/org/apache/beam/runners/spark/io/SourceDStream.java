@@ -20,8 +20,8 @@ package org.apache.beam.runners.spark.io;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.spark.api.java.JavaSparkContext$;
@@ -58,7 +58,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   private static final Logger LOG = LoggerFactory.getLogger(SourceDStream.class);
 
   private final UnboundedSource<T, CheckpointMarkT> unboundedSource;
-  private final SparkRuntimeContext runtimeContext;
+  private final SerializablePipelineOptions options;
   private final Duration boundReadDuration;
   // Reader cache interval to expire readers if they haven't been accessed in the last microbatch.
   // The reason we expire readers is that upon executor death/addition source split ownership can be
@@ -81,20 +81,20 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
   SourceDStream(
       StreamingContext ssc,
       UnboundedSource<T, CheckpointMarkT> unboundedSource,
-      SparkRuntimeContext runtimeContext,
+      SerializablePipelineOptions options,
       Long boundMaxRecords) {
     super(ssc, JavaSparkContext$.MODULE$.<scala.Tuple2<Source<T>, CheckpointMarkT>>fakeClassTag());
     this.unboundedSource = unboundedSource;
-    this.runtimeContext = runtimeContext;
+    this.options = options;
 
-    SparkPipelineOptions options = runtimeContext.getPipelineOptions().as(
+    SparkPipelineOptions sparkOptions = options.get().as(
         SparkPipelineOptions.class);
 
     // Reader cache expiration interval. 50% of batch interval is added to accommodate latency.
-    this.readerCacheInterval = 1.5 * options.getBatchIntervalMillis();
+    this.readerCacheInterval = 1.5 * sparkOptions.getBatchIntervalMillis();
 
-    this.boundReadDuration = boundReadDuration(options.getReadTimePercentage(),
-        options.getMinReadTimeMillis());
+    this.boundReadDuration = boundReadDuration(sparkOptions.getReadTimePercentage(),
+        sparkOptions.getMinReadTimeMillis());
     // set initial parallelism once.
     this.initialParallelism = ssc().sparkContext().defaultParallelism();
     checkArgument(this.initialParallelism > 0, "Number of partitions must be greater than zero.");
@@ -104,7 +104,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     try {
       this.numPartitions =
           createMicrobatchSource()
-              .split(options)
+              .split(sparkOptions)
               .size();
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -116,7 +116,7 @@ class SourceDStream<T, CheckpointMarkT extends UnboundedSource.CheckpointMark>
     RDD<scala.Tuple2<Source<T>, CheckpointMarkT>> rdd =
         new SourceRDD.Unbounded<>(
             ssc().sparkContext(),
-            runtimeContext,
+            options,
             createMicrobatchSource(),
             numPartitions);
     return scala.Option.apply(rdd);

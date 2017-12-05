@@ -17,15 +17,16 @@
 
 """Unit tests for the type-hint objects and decorators."""
 import inspect
+import typing
 import unittest
-
 
 import apache_beam as beam
 from apache_beam import pvalue
 from apache_beam import typehints
 from apache_beam.options.pipeline_options import OptionsContext
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.typehints import WithTypeHints
 
 # These test often construct a pipeline as value | PTransform to test side
@@ -98,6 +99,34 @@ class MainInputTest(unittest.TestCase):
       [1, 2, 3] | (beam.ParDo(my_do_fn) | 'again' >> beam.ParDo(my_do_fn))
 
 
+class NativeTypesTest(unittest.TestCase):
+
+  def test_good_main_input(self):
+    @typehints.with_input_types(typing.Tuple[str, int])
+    def munge(s_i):
+      (s, i) = s_i
+      return (s + 's', i * 2)
+    result = [('apple', 5), ('pear', 3)] | beam.Map(munge)
+    self.assertEqual([('apples', 10), ('pears', 6)], sorted(result))
+
+  def test_bad_main_input(self):
+    @typehints.with_input_types(typing.Tuple[str, str])
+    def munge(s_i):
+      (s, i) = s_i
+      return (s + 's', i * 2)
+    with self.assertRaises(typehints.TypeCheckError):
+      [('apple', 5), ('pear', 3)] | beam.Map(munge)
+
+  def test_bad_main_output(self):
+    @typehints.with_input_types(typing.Tuple[int, int])
+    @typehints.with_output_types(typing.Tuple[str, str])
+    def munge(a_b):
+      (a, b) = a_b
+      return (str(a), str(b))
+    with self.assertRaises(typehints.TypeCheckError):
+      [(5, 4), (3, 2)] | beam.Map(munge) | 'Again' >> beam.Map(munge)
+
+
 class SideInputTest(unittest.TestCase):
 
   def _run_repeat_test(self, repeat):
@@ -168,12 +197,11 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, int)
     def repeat(s, times):
       return s * times
-    p = TestPipeline()
-    main_input = p | beam.Create(['a', 'bb', 'c'])
-    side_input = p | 'side' >> beam.Create([3])
-    result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
-    assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
-    p.run()
+    with TestPipeline() as p:
+      main_input = p | beam.Create(['a', 'bb', 'c'])
+      side_input = p | 'side' >> beam.Create([3])
+      result = main_input | beam.Map(repeat, pvalue.AsSingleton(side_input))
+      assert_that(result, equal_to(['aaa', 'bbbbbb', 'ccc']))
 
     bad_side_input = p | 'bad_side' >> beam.Create(['z'])
     with self.assertRaises(typehints.TypeCheckError):
@@ -183,12 +211,11 @@ class SideInputTest(unittest.TestCase):
     @typehints.with_input_types(str, typehints.Iterable[str])
     def concat(glue, items):
       return glue.join(sorted(items))
-    p = TestPipeline()
-    main_input = p | beam.Create(['a', 'bb', 'c'])
-    side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
-    result = main_input | beam.Map(concat, pvalue.AsIter(side_input))
-    assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
-    p.run()
+    with TestPipeline() as p:
+      main_input = p | beam.Create(['a', 'bb', 'c'])
+      side_input = p | 'side' >> beam.Create(['x', 'y', 'z'])
+      result = main_input | beam.Map(concat, pvalue.AsIter(side_input))
+      assert_that(result, equal_to(['xayaz', 'xbbybbz', 'xcycz']))
 
     bad_side_input = p | 'bad_side' >> beam.Create([1, 2, 3])
     with self.assertRaises(typehints.TypeCheckError):

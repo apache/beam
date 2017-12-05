@@ -32,9 +32,8 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import javax.annotation.Nonnull;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
-import org.apache.beam.runners.spark.aggregators.NamedAggregators;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
 import org.apache.beam.runners.spark.io.ConsoleIO;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -50,7 +49,6 @@ import org.apache.beam.runners.spark.translation.SparkAssignWindowFn;
 import org.apache.beam.runners.spark.translation.SparkKeyedCombineFn;
 import org.apache.beam.runners.spark.translation.SparkPCollectionView;
 import org.apache.beam.runners.spark.translation.SparkPipelineTranslator;
-import org.apache.beam.runners.spark.translation.SparkRuntimeContext;
 import org.apache.beam.runners.spark.translation.TransformEvaluator;
 import org.apache.beam.runners.spark.translation.TranslationUtils;
 import org.apache.beam.runners.spark.translation.WindowingHelpers;
@@ -84,6 +82,7 @@ import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.JavaSparkContext$;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaInputDStream;
@@ -125,7 +124,7 @@ public final class StreamingTransformTranslator {
             transform,
             SparkUnboundedSource.read(
                 context.getStreamingContext(),
-                context.getRuntimeContext(),
+                context.getSerializableOptions(),
                 transform.getSource(),
                 stepName));
       }
@@ -141,18 +140,41 @@ public final class StreamingTransformTranslator {
     return new TransformEvaluator<CreateStream<T>>() {
       @Override
       public void evaluate(CreateStream<T> transform, EvaluationContext context) {
-        Coder<T> coder = context.getOutput(transform).getCoder();
-        JavaStreamingContext jssc = context.getStreamingContext();
-        Queue<Iterable<TimestampedValue<T>>> values = transform.getBatches();
-        WindowedValue.FullWindowedValueCoder<T> windowCoder =
+
+        final Queue<JavaRDD<WindowedValue<T>>> rddQueue =
+            buildRdds(
+                transform.getBatches(),
+                context.getStreamingContext(),
+                context.getOutput(transform).getCoder());
+
+        final JavaInputDStream<WindowedValue<T>> javaInputDStream =
+            buildInputStream(rddQueue, transform, context);
+
+        final UnboundedDataset<T> unboundedDataset =
+            new UnboundedDataset<>(
+                javaInputDStream, Collections.singletonList(javaInputDStream.inputDStream().id()));
+
+        // add pre-baked Watermarks for the pre-baked batches.
+        GlobalWatermarkHolder.addAll(
+            ImmutableMap.of(unboundedDataset.getStreamSources().get(0), transform.getTimes()));
+
+        context.putDataset(transform, unboundedDataset);
+      }
+
+      private Queue<JavaRDD<WindowedValue<T>>> buildRdds(
+          Queue<Iterable<TimestampedValue<T>>> batches, JavaStreamingContext jssc, Coder<T> coder) {
+
+        final WindowedValue.FullWindowedValueCoder<T> windowCoder =
             WindowedValue.FullWindowedValueCoder.of(coder, GlobalWindow.Coder.INSTANCE);
-        // create the DStream from queue.
-        Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
-        for (Iterable<TimestampedValue<T>> tv : values) {
-          Iterable<WindowedValue<T>> windowedValues =
+
+        final Queue<JavaRDD<WindowedValue<T>>> rddQueue = new LinkedBlockingQueue<>();
+
+        for (final Iterable<TimestampedValue<T>> timestampedValues : batches) {
+          final Iterable<WindowedValue<T>> windowedValues =
               Iterables.transform(
-                  tv,
+                  timestampedValues,
                   new com.google.common.base.Function<TimestampedValue<T>, WindowedValue<T>>() {
+
                     @Override
                     public WindowedValue<T> apply(@Nonnull TimestampedValue<T> timestampedValue) {
                       return WindowedValue.of(
@@ -161,22 +183,28 @@ public final class StreamingTransformTranslator {
                           GlobalWindow.INSTANCE,
                           PaneInfo.NO_FIRING);
                     }
-              });
-          JavaRDD<WindowedValue<T>> rdd =
+                  });
+
+          final JavaRDD<WindowedValue<T>> rdd =
               jssc.sparkContext()
                   .parallelize(CoderHelpers.toByteArrays(windowedValues, windowCoder))
                   .map(CoderHelpers.fromByteFunction(windowCoder));
+
           rddQueue.offer(rdd);
         }
+        return rddQueue;
+      }
 
-        JavaInputDStream<WindowedValue<T>> inputDStream = jssc.queueStream(rddQueue, true);
-        UnboundedDataset<T> unboundedDataset = new UnboundedDataset<T>(
-            inputDStream, Collections.singletonList(inputDStream.inputDStream().id()));
-        // add pre-baked Watermarks for the pre-baked batches.
-        Queue<GlobalWatermarkHolder.SparkWatermarks> times = transform.getTimes();
-        GlobalWatermarkHolder.addAll(
-            ImmutableMap.of(unboundedDataset.getStreamSources().get(0), times));
-        context.putDataset(transform, unboundedDataset);
+      private JavaInputDStream<WindowedValue<T>> buildInputStream(
+          Queue<JavaRDD<WindowedValue<T>>> rddQueue,
+          CreateStream<T> transform,
+          EvaluationContext context) {
+        return transform.isForceWatermarkSync()
+            ? new JavaInputDStream<>(
+                new WatermarkSyncedDStream<>(
+                    rddQueue, transform.getBatchDuration(), context.getStreamingContext().ssc()),
+                JavaSparkContext$.MODULE$.<WindowedValue<T>>fakeClassTag())
+            : context.getStreamingContext().queueStream(rddQueue, true);
       }
 
       @Override
@@ -273,7 +301,6 @@ public final class StreamingTransformTranslator {
         JavaDStream<WindowedValue<KV<K, V>>> dStream = inputDataset.getDStream();
         @SuppressWarnings("unchecked")
         final KvCoder<K, V> coder = (KvCoder<K, V>) context.getInput(transform).getCoder();
-        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
         @SuppressWarnings("unchecked")
         final WindowingStrategy<?, W> windowingStrategy =
             (WindowingStrategy<?, W>) context.getInput(transform).getWindowingStrategy();
@@ -303,8 +330,9 @@ public final class StreamingTransformTranslator {
                 coder.getKeyCoder(),
                 wvCoder,
                 windowingStrategy,
-                runtimeContext,
-                streamSources);
+                context.getSerializableOptions(),
+                streamSources,
+                context.getCurrentTransform().getFullName());
 
         context.putDataset(transform, new UnboundedDataset<>(outStream, streamSources));
       }
@@ -336,7 +364,7 @@ public final class StreamingTransformTranslator {
             ((UnboundedDataset<KV<K, Iterable<InputT>>>) context.borrowDataset(transform));
         JavaDStream<WindowedValue<KV<K, Iterable<InputT>>>> dStream = unboundedDataset.getDStream();
 
-        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
+        final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
 
         JavaDStream<WindowedValue<KV<K, OutputT>>> outStream = dStream.transform(
@@ -347,7 +375,7 @@ public final class StreamingTransformTranslator {
                     call(JavaRDD<WindowedValue<KV<K, Iterable<InputT>>>> rdd)
                         throws Exception {
                         SparkKeyedCombineFn<K, InputT, ?, OutputT> combineFnWithContext =
-                            new SparkKeyedCombineFn<>(fn, runtimeContext,
+                            new SparkKeyedCombineFn<>(fn, options,
                                 TranslationUtils.getSideInputs(transform.getSideInputs(),
                                 new JavaSparkContext(rdd.context()), pviews),
                                 windowingStrategy);
@@ -374,7 +402,7 @@ public final class StreamingTransformTranslator {
         final DoFn<InputT, OutputT> doFn = transform.getFn();
         rejectSplittable(doFn);
         rejectStateAndTimers(doFn);
-        final SparkRuntimeContext runtimeContext = context.getRuntimeContext();
+        final SerializablePipelineOptions options = context.getSerializableOptions();
         final SparkPCollectionView pviews = context.getPViews();
         final WindowingStrategy<?, ?> windowingStrategy =
             context.getInput(transform).getWindowingStrategy();
@@ -393,8 +421,6 @@ public final class StreamingTransformTranslator {
                   @Override
                   public JavaPairRDD<TupleTag<?>, WindowedValue<?>> call(
                       JavaRDD<WindowedValue<InputT>> rdd) throws Exception {
-                    final Accumulator<NamedAggregators> aggAccum =
-                        AggregatorsAccumulator.getInstance();
                     final Accumulator<MetricsContainerStepMap> metricsAccum =
                         MetricsAccumulator.getInstance();
                     final Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>>
@@ -405,21 +431,30 @@ public final class StreamingTransformTranslator {
                             pviews);
                     return rdd.mapPartitionsToPair(
                         new MultiDoFnFunction<>(
-                            aggAccum,
                             metricsAccum,
                             stepName,
                             doFn,
-                            runtimeContext,
+                            options,
                             transform.getMainOutputTag(),
+                            transform.getAdditionalOutputTags().getAll(),
                             sideInputs,
-                            windowingStrategy));
+                            windowingStrategy,
+                            false));
                   }
                 });
+
         Map<TupleTag<?>, PValue> outputs = context.getOutputs(transform);
         if (outputs.size() > 1) {
-          // cache the DStream if we're going to filter it more than once.
-          all.cache();
+          // Caching can cause Serialization, we need to code to bytes
+          // more details in https://issues.apache.org/jira/browse/BEAM-2669
+          Map<TupleTag<?>, Coder<WindowedValue<?>>> coderMap =
+              TranslationUtils.getTupleTagCoders(outputs);
+          all = all
+              .mapToPair(TranslationUtils.getTupleTagEncodeFunction(coderMap))
+              .cache()
+              .mapToPair(TranslationUtils.getTupleTagDecodeFunction(coderMap));
         }
+
         for (Map.Entry<TupleTag<?>, PValue> output : outputs.entrySet()) {
           @SuppressWarnings("unchecked")
           JavaPairDStream<TupleTag<?>, WindowedValue<?>> filtered =
@@ -431,7 +466,8 @@ public final class StreamingTransformTranslator {
                   (JavaDStream<?>) TranslationUtils.dStreamValues(filtered);
           context.putDataset(
               output.getValue(),
-              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()));
+              new UnboundedDataset<>(values, unboundedDataset.getStreamSources()),
+              false);
         }
       }
 

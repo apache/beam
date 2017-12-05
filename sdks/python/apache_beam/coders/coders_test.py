@@ -20,8 +20,8 @@ import base64
 import logging
 import unittest
 
-from apache_beam.coders import coders
 from apache_beam.coders import proto2_coder_test_messages_pb2 as test_message
+from apache_beam.coders import coders
 from apache_beam.coders.typecoders import registry as coders_registry
 
 

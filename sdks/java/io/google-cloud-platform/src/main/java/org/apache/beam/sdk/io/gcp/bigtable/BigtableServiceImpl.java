@@ -168,20 +168,25 @@ class BigtableServiceImpl implements BigtableService {
     private BigtableSession session;
     private AsyncExecutor executor;
     private BulkMutation bulkMutation;
-    private final MutateRowRequest.Builder partialBuilder;
+    private final String tableName;
 
     public BigtableWriterImpl(BigtableSession session, BigtableTableName tableName) {
       this.session = session;
       executor = session.createAsyncExecutor();
       bulkMutation = session.createBulkMutation(tableName, executor);
-
-      partialBuilder = MutateRowRequest.newBuilder().setTableName(tableName.toString());
+      this.tableName = tableName.toString();
     }
 
     @Override
     public void flush() throws IOException {
       if (bulkMutation != null) {
-        bulkMutation.flush();
+        try {
+          bulkMutation.flush();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          // We fail since flush() operation was interrupted.
+          throw new IOException(e);
+        }
         executor.flush();
       }
     }
@@ -190,7 +195,13 @@ class BigtableServiceImpl implements BigtableService {
     public void close() throws IOException {
       try {
         if (bulkMutation != null) {
-          bulkMutation.flush();
+          try {
+            bulkMutation.flush();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            // We fail since flush() operation was interrupted.
+            throw new IOException(e);
+          }
           bulkMutation = null;
           executor.flush();
           executor = null;
@@ -208,8 +219,8 @@ class BigtableServiceImpl implements BigtableService {
         KV<ByteString, Iterable<Mutation>> record)
         throws IOException {
       MutateRowRequest r =
-          partialBuilder
-              .clone()
+          MutateRowRequest.newBuilder()
+              .setTableName(tableName)
               .setRowKey(record.getKey())
               .addAllMutations(record.getValue())
               .build();

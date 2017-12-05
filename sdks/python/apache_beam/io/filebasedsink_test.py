@@ -31,11 +31,10 @@ import mock
 import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.io import filebasedsink
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-
-from apache_beam.options.value_provider import StaticValueProvider
 
 
 # TODO: Refactor code so all io tests are using same library
@@ -146,9 +145,8 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
     sink = MyFileBasedSink(
         temp_path, file_name_suffix='.output', coder=coders.ToStringCoder()
     )
-    p = TestPipeline()
-    p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
-    p.run()
+    with TestPipeline() as p:
+      p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     self.assertEqual(
         open(temp_path + '-00000-of-00001.output').read(), '[start][end]')
 
@@ -160,9 +158,8 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
         file_name_suffix=StaticValueProvider(value_type=str, value='.output'),
         coder=coders.ToStringCoder()
     )
-    p = TestPipeline()
-    p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
-    p.run()
+    with TestPipeline() as p:
+      p | beam.Create([]) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
     self.assertEqual(
         open(temp_path.get() + '-00000-of-00001.output').read(), '[start][end]')
 
@@ -174,10 +171,8 @@ class TestFileBasedSink(_TestCaseWithTempDirCleanUp):
         num_shards=3,
         shard_name_template='_NN_SSS_',
         coder=coders.ToStringCoder())
-    p = TestPipeline()
-    p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
-
-    p.run()
+    with TestPipeline() as p:
+      p | beam.Create(['a', 'b']) | beam.io.Write(sink)  # pylint: disable=expression-not-assigned
 
     concat = ''.join(
         open(temp_path + '_03_%03d_.output' % shard_num).read()

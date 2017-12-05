@@ -17,14 +17,15 @@
  */
 package org.apache.beam.runners.dataflow;
 
-import static org.apache.beam.runners.dataflow.util.Structs.addObject;
-import static org.apache.beam.runners.dataflow.util.Structs.getDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.getString;
+import static org.apache.beam.sdk.util.StringUtils.jsonStringToByteArray;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -68,18 +69,21 @@ import java.util.Set;
 import org.apache.beam.runners.dataflow.DataflowPipelineTranslator.JobSpecification;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.runners.dataflow.util.CloudObject;
+import org.apache.beam.runners.dataflow.util.CloudObjects;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.util.Structs;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsPathValidator;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.range.OffsetRange;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -94,7 +98,13 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.transforms.windowing.WindowFn;
+import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.GcsUtil;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -103,6 +113,8 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.hamcrest.Matchers;
+import org.joda.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -188,6 +200,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     options.setGcpCredential(new TestCredential());
     options.setJobName("some-job-name");
     options.setProject("some-project");
+    options.setRegion("some-region");
     options.setTempLocation(GcsPath.fromComponents("somebucket", "some/path").toString());
     options.setFilesToStage(new LinkedList<String>());
     options.setDataflowClient(buildMockDataflow(new IsValidCreateRequest()));
@@ -531,57 +544,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         job.getEnvironment().getWorkerPools().get(0).getDiskSizeGb());
   }
 
-  @Test
-  public void testPredefinedAddStep() throws Exception {
-    DataflowPipelineOptions options = buildPipelineOptions();
-
-    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
-    DataflowPipelineTranslator.registerTransformTranslator(
-        EmbeddedTransform.class, new EmbeddedTranslator());
-
-    // Create a predefined step using another pipeline
-    Step predefinedStep = createPredefinedStep();
-
-    // Create a pipeline that the predefined step will be embedded into
-    Pipeline pipeline = Pipeline.create(options);
-    pipeline.apply("ReadMyFile", TextIO.read().from("gs://bucket/in"))
-        .apply(ParDo.of(new NoOpFn()))
-        .apply(new EmbeddedTransform(predefinedStep.clone()))
-        .apply(ParDo.of(new NoOpFn()));
-    DataflowRunner runner = DataflowRunner.fromOptions(options);
-    runner.replaceTransforms(pipeline);
-    Job job =
-        translator
-            .translate(
-                pipeline,
-                runner,
-                Collections.<DataflowPackage>emptyList())
-            .getJob();
-    assertAllStepOutputsHaveUniqueIds(job);
-
-    List<Step> steps = job.getSteps();
-    assertEquals(4, steps.size());
-
-    // The input to the embedded step should match the output of the step before
-    Map<String, Object> step1Out = getOutputPortReference(steps.get(1));
-    Map<String, Object> step2In = getDictionary(
-        steps.get(2).getProperties(), PropertyNames.PARALLEL_INPUT);
-    assertEquals(step1Out, step2In);
-
-    // The output from the embedded step should match the input of the step after
-    Map<String, Object> step2Out = getOutputPortReference(steps.get(2));
-    Map<String, Object> step3In = getDictionary(
-        steps.get(3).getProperties(), PropertyNames.PARALLEL_INPUT);
-    assertEquals(step2Out, step3In);
-
-    // The step should not have been modified other than remapping the input
-    Step predefinedStepClone = predefinedStep.clone();
-    Step embeddedStepClone = steps.get(2).clone();
-    predefinedStepClone.getProperties().remove(PropertyNames.PARALLEL_INPUT);
-    embeddedStepClone.getProperties().remove(PropertyNames.PARALLEL_INPUT);
-    assertEquals(predefinedStepClone, embeddedStepClone);
-  }
-
   /**
    * Construct a OutputReference for the output of the step.
    */
@@ -630,47 +592,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
   }
 
   /**
-   * A placeholder transform that will be used to substitute a predefined Step.
-   */
-  private static class EmbeddedTransform
-      extends PTransform<PCollection<String>, PCollection<String>> {
-    private final Step step;
-
-    public EmbeddedTransform(Step step) {
-      this.step = step;
-    }
-
-    @Override
-    public PCollection<String> expand(PCollection<String> input) {
-      return PCollection.createPrimitiveOutputInternal(
-          input.getPipeline(),
-          WindowingStrategy.globalDefault(),
-          input.isBounded());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return StringUtf8Coder.of();
-    }
-  }
-
-  /**
-   * A TransformTranslator that adds the predefined Step using
-   * {@link TranslationContext#addStep} and remaps the input port reference.
-   */
-  private static class EmbeddedTranslator
-      implements TransformTranslator<EmbeddedTransform> {
-    @Override public void translate(EmbeddedTransform transform, TranslationContext context) {
-      PCollection<String> input = context.getInput(transform);
-      addObject(
-          transform.step.getProperties(),
-          PropertyNames.PARALLEL_INPUT,
-          context.asOutputReference(input, context.getProducer(input)));
-      context.addStep(transform, transform.step);
-    }
-  }
-
-  /**
    * A composite transform that returns an output that is unrelated to
    * the input.
    */
@@ -684,11 +605,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       // Return a value unrelated to the input.
       return input.getPipeline().apply(Create.of(1, 2, 3, 4));
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VarIntCoder.of();
     }
   }
 
@@ -704,11 +620,6 @@ public class DataflowPipelineTranslatorTest implements Serializable {
       input.apply(Count.<Integer>perElement());
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 
@@ -729,10 +640,13 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
       // Fails here when attempting to construct a tuple with an unbound object.
       return PCollectionTuple.of(sumTag, sum)
-          .and(doneTag, PCollection.<Void>createPrimitiveOutputInternal(
-              input.getPipeline(),
-              WindowingStrategy.globalDefault(),
-              input.isBounded()));
+          .and(
+              doneTag,
+              PCollection.createPrimitiveOutputInternal(
+                  input.getPipeline(),
+                  WindowingStrategy.globalDefault(),
+                  input.isBounded(),
+                  VoidCoder.of()));
     }
   }
 
@@ -834,7 +748,7 @@ public class DataflowPipelineTranslatorTest implements Serializable {
 
   /**
    * Test that in translation the name for a collection (in this case just a Create output) is
-   * overriden to be what the Dataflow service expects.
+   * overridden to be what the Dataflow service expects.
    */
   @Test
   public void testNamesOverridden() throws Exception {
@@ -991,6 +905,68 @@ public class DataflowPipelineTranslatorTest implements Serializable {
         not(equalTo("true")));
   }
 
+  /**
+   * Smoke test to fail fast if translation of a splittable ParDo
+   * in streaming breaks.
+   */
+  @Test
+  public void testStreamingSplittableParDoTranslation() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    DataflowRunner runner = DataflowRunner.fromOptions(options);
+    options.setStreaming(true);
+    DataflowPipelineTranslator translator = DataflowPipelineTranslator.fromOptions(options);
+
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<String> windowedInput = pipeline
+        .apply(Create.of("a"))
+        .apply(Window.<String>into(FixedWindows.of(Duration.standardMinutes(1))));
+    windowedInput.apply(ParDo.of(new TestSplittableFn()));
+
+    runner.replaceTransforms(pipeline);
+
+    Job job =
+        translator
+            .translate(
+                pipeline,
+                runner,
+                Collections.<DataflowPackage>emptyList())
+            .getJob();
+
+    // The job should contain a SplittableParDo.ProcessKeyedElements step, translated as
+    // "SplittableProcessKeyed".
+
+    List<Step> steps = job.getSteps();
+    Step processKeyedStep = null;
+    for (Step step : steps) {
+      if (step.getKind().equals("SplittableProcessKeyed")) {
+        assertNull(processKeyedStep);
+        processKeyedStep = step;
+      }
+    }
+    assertNotNull(processKeyedStep);
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    DoFnInfo<String, Integer> fnInfo =
+        (DoFnInfo<String, Integer>)
+            SerializableUtils.deserializeFromByteArray(
+                jsonStringToByteArray(
+                    Structs.getString(
+                        processKeyedStep.getProperties(), PropertyNames.SERIALIZED_FN)),
+                "DoFnInfo");
+    assertThat(fnInfo.getDoFn(), instanceOf(TestSplittableFn.class));
+    assertThat(
+        fnInfo.getWindowingStrategy().getWindowFn(),
+        Matchers.<WindowFn>equalTo(FixedWindows.of(Duration.standardMinutes(1))));
+    Coder<?> restrictionCoder =
+        CloudObjects.coderFromCloudObject(
+            (CloudObject)
+                Structs.getObject(
+                    processKeyedStep.getProperties(), PropertyNames.RESTRICTION_CODER));
+
+    assertEquals(SerializableCoder.of(OffsetRange.class), restrictionCoder);
+  }
+
   @Test
   public void testToSingletonTranslationWithIsmSideInput() throws Exception {
     // A "change detector" test that makes sure the translation
@@ -1015,15 +991,15 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     assertAllStepOutputsHaveUniqueIds(job);
 
     List<Step> steps = job.getSteps();
-    assertEquals(5, steps.size());
+    assertEquals(9, steps.size());
 
     @SuppressWarnings("unchecked")
     List<Map<String, Object>> toIsmRecordOutputs =
-        (List<Map<String, Object>>) steps.get(3).getProperties().get(PropertyNames.OUTPUT_INFO);
+        (List<Map<String, Object>>) steps.get(7).getProperties().get(PropertyNames.OUTPUT_INFO);
     assertTrue(
         Structs.getBoolean(Iterables.getOnlyElement(toIsmRecordOutputs), "use_indexed_format"));
 
-    Step collectionToSingletonStep = steps.get(4);
+    Step collectionToSingletonStep = steps.get(8);
     assertEquals("CollectionToSingleton", collectionToSingletonStep.getKind());
   }
 
@@ -1184,5 +1160,17 @@ public class DataflowPipelineTranslatorTest implements Serializable {
     outputIds.removeAll(uniqueOutputNames);
     assertTrue(String.format("Found duplicate output ids %s", outputIds),
         outputIds.size() == 0);
+  }
+
+  private static class TestSplittableFn extends DoFn<String, Integer> {
+    @ProcessElement
+    public void process(ProcessContext c, OffsetRangeTracker tracker) {
+      // noop
+    }
+
+    @GetInitialRestriction
+    public OffsetRange getInitialRange(String element) {
+      return null;
+    }
   }
 }

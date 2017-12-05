@@ -24,13 +24,22 @@ import tempfile
 import unittest
 
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.runners.dataflow.internal import dependency
-from apache_beam.runners.dataflow.internal import names
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import SetupOptions
+from apache_beam.runners.dataflow.internal import dependency
+from apache_beam.runners.dataflow.internal import names
+
+# Protect against environments where GCS library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class SetupTest(unittest.TestCase):
 
   def update_options(self, options):
@@ -369,7 +378,9 @@ class SetupTest(unittest.TestCase):
       if from_path.startswith('gs://'):
         gcs_copied_files.append(from_path)
         _, from_name = os.path.split(from_path)
-        self.create_temp_file(os.path.join(to_path, from_name), 'nothing')
+        if os.path.isdir(to_path):
+          to_path = os.path.join(to_path, from_name)
+        self.create_temp_file(to_path, 'nothing')
         logging.info('Fake copied GCS file: %s to %s', from_path, to_path)
       elif to_path.startswith('gs://'):
         logging.info('Faking file_copy(%s, %s)', from_path, to_path)
@@ -416,8 +427,9 @@ class SetupTest(unittest.TestCase):
       dependency.stage_job_resources(options)
     self.assertEqual(
         cm.exception.message,
-        'The --extra_package option expects a full path ending with ".tar" or '
-        '".tar.gz" instead of %s' % os.path.join(source_dir, 'abc.tgz'))
+        'The --extra_package option expects a full path ending with '
+        '".tar", ".tar.gz", ".whl" or ".zip" '
+        'instead of %s' % os.path.join(source_dir, 'abc.tgz'))
 
 
 if __name__ == '__main__':

@@ -22,7 +22,9 @@ import static org.apache.commons.lang.builder.HashCodeBuilder.reflectionHashCode
 import com.amazonaws.services.kinesis.clientlibrary.types.ExtendedSequenceNumber;
 import com.amazonaws.services.kinesis.clientlibrary.types.UserRecord;
 import com.google.common.base.Charsets;
+
 import java.nio.ByteBuffer;
+
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.joda.time.Instant;
 
@@ -30,91 +32,92 @@ import org.joda.time.Instant;
  * {@link UserRecord} enhanced with utility methods.
  */
 public class KinesisRecord {
-    private Instant readTime;
-    private String streamName;
-    private String shardId;
-    private long subSequenceNumber;
-    private String sequenceNumber;
-    private Instant approximateArrivalTimestamp;
-    private ByteBuffer data;
-    private String partitionKey;
 
-    public KinesisRecord(UserRecord record, String streamName, String shardId) {
-        this(record.getData(), record.getSequenceNumber(), record.getSubSequenceNumber(),
-                record.getPartitionKey(),
-                new Instant(record.getApproximateArrivalTimestamp()),
-                Instant.now(),
-                streamName, shardId);
-    }
+  private Instant readTime;
+  private String streamName;
+  private String shardId;
+  private long subSequenceNumber;
+  private String sequenceNumber;
+  private Instant approximateArrivalTimestamp;
+  private ByteBuffer data;
+  private String partitionKey;
 
-    public KinesisRecord(ByteBuffer data, String sequenceNumber, long subSequenceNumber,
-                         String partitionKey, Instant approximateArrivalTimestamp,
-                         Instant readTime,
-                         String streamName, String shardId) {
-        this.data = data;
-        this.sequenceNumber = sequenceNumber;
-        this.subSequenceNumber = subSequenceNumber;
-        this.partitionKey = partitionKey;
-        this.approximateArrivalTimestamp = approximateArrivalTimestamp;
-        this.readTime = readTime;
-        this.streamName = streamName;
-        this.shardId = shardId;
-    }
+  public KinesisRecord(UserRecord record, String streamName, String shardId) {
+    this(record.getData(), record.getSequenceNumber(), record.getSubSequenceNumber(),
+        record.getPartitionKey(),
+        new Instant(record.getApproximateArrivalTimestamp()),
+        Instant.now(),
+        streamName, shardId);
+  }
 
-    public ExtendedSequenceNumber getExtendedSequenceNumber() {
-        return new ExtendedSequenceNumber(getSequenceNumber(), getSubSequenceNumber());
-    }
+  public KinesisRecord(ByteBuffer data, String sequenceNumber, long subSequenceNumber,
+      String partitionKey, Instant approximateArrivalTimestamp,
+      Instant readTime,
+      String streamName, String shardId) {
+    this.data = data;
+    this.sequenceNumber = sequenceNumber;
+    this.subSequenceNumber = subSequenceNumber;
+    this.partitionKey = partitionKey;
+    this.approximateArrivalTimestamp = approximateArrivalTimestamp;
+    this.readTime = readTime;
+    this.streamName = streamName;
+    this.shardId = shardId;
+  }
 
-    /***
-     * @return unique id of the record based on its position in the stream
-     */
-    public byte[] getUniqueId() {
-        return getExtendedSequenceNumber().toString().getBytes(Charsets.UTF_8);
-    }
+  public ExtendedSequenceNumber getExtendedSequenceNumber() {
+    return new ExtendedSequenceNumber(getSequenceNumber(), getSubSequenceNumber());
+  }
 
-    public Instant getReadTime() {
-        return readTime;
-    }
+  /***
+   * @return unique id of the record based on its position in the stream
+   */
+  public byte[] getUniqueId() {
+    return getExtendedSequenceNumber().toString().getBytes(Charsets.UTF_8);
+  }
 
-    public String getStreamName() {
-        return streamName;
-    }
+  public Instant getReadTime() {
+    return readTime;
+  }
 
-    public String getShardId() {
-        return shardId;
-    }
+  public String getStreamName() {
+    return streamName;
+  }
 
-    public byte[] getDataAsBytes() {
-        return getData().array();
-    }
+  public String getShardId() {
+    return shardId;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        return EqualsBuilder.reflectionEquals(this, obj);
-    }
+  public byte[] getDataAsBytes() {
+    return getData().array();
+  }
 
-    @Override
-    public int hashCode() {
-        return reflectionHashCode(this);
-    }
+  @Override
+  public boolean equals(Object obj) {
+    return EqualsBuilder.reflectionEquals(this, obj);
+  }
 
-    public long getSubSequenceNumber() {
-        return subSequenceNumber;
-    }
+  @Override
+  public int hashCode() {
+    return reflectionHashCode(this);
+  }
 
-    public String getSequenceNumber() {
-        return sequenceNumber;
-    }
+  public long getSubSequenceNumber() {
+    return subSequenceNumber;
+  }
 
-    public Instant getApproximateArrivalTimestamp() {
-        return approximateArrivalTimestamp;
-    }
+  public String getSequenceNumber() {
+    return sequenceNumber;
+  }
 
-    public ByteBuffer getData() {
-        return data;
-    }
+  public Instant getApproximateArrivalTimestamp() {
+    return approximateArrivalTimestamp;
+  }
 
-    public String getPartitionKey() {
-        return partitionKey;
-    }
+  public ByteBuffer getData() {
+    return data;
+  }
+
+  public String getPartitionKey() {
+    return partitionKey;
+  }
 }

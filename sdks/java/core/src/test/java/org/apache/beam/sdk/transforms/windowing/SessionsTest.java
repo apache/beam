@@ -36,7 +36,9 @@ import org.apache.beam.sdk.testing.WindowFnTestUtils;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -45,6 +47,8 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class SessionsTest {
+  @Rule
+  public ExpectedException thrown = ExpectedException.none();
 
   @Test
   public void testSimple() throws Exception {
@@ -104,6 +108,16 @@ public class SessionsTest {
     assertTrue(
         Sessions.withGapDuration(new Duration(10)).isCompatible(
             Sessions.withGapDuration(new Duration(20))));
+  }
+
+  @Test
+  public void testVerifyCompatibility() throws IncompatibleWindowException {
+    Sessions.withGapDuration(new Duration(10))
+        .verifyCompatibility(Sessions.withGapDuration(new Duration(10)));
+
+    thrown.expect(IncompatibleWindowException.class);
+    Sessions.withGapDuration(new Duration(10))
+        .verifyCompatibility(FixedWindows.of(new Duration(10)));
   }
 
   /**

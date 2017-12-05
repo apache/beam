@@ -28,14 +28,15 @@ import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.function.Consumer;
-import org.apache.beam.fn.harness.test.TestStreams;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnApi.InstructionRequest;
-import org.apache.beam.fn.v1.BeamFnApi.InstructionResponse;
-import org.apache.beam.fn.v1.BeamFnApi.LogControl;
-import org.apache.beam.fn.v1.BeamFnControlGrpc;
-import org.apache.beam.fn.v1.BeamFnLoggingGrpc;
+import org.apache.beam.harness.test.Consumer;
+import org.apache.beam.harness.test.TestStreams;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.LogControl;
+import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
+import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
+import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -90,7 +91,7 @@ public class FnHarnessTest {
             responseObserver.onCompleted();
           }
         });
-        return TestStreams.withOnNext(new Consumer<BeamFnApi.InstructionResponse>() {
+        return TestStreams.withOnNext(new Consumer<InstructionResponse>() {
           @Override
           public void accept(InstructionResponse t) {
             instructionResponses.add(t);
@@ -106,14 +107,12 @@ public class FnHarnessTest {
       Server controlServer = ServerBuilder.forPort(0).addService(controlService).build();
       controlServer.start();
       try {
-        BeamFnApi.ApiServiceDescriptor loggingDescriptor = BeamFnApi.ApiServiceDescriptor
+        Endpoints.ApiServiceDescriptor loggingDescriptor = Endpoints.ApiServiceDescriptor
             .newBuilder()
-            .setId("1L")
             .setUrl("localhost:" + loggingServer.getPort())
             .build();
-        BeamFnApi.ApiServiceDescriptor controlDescriptor = BeamFnApi.ApiServiceDescriptor
+        Endpoints.ApiServiceDescriptor controlDescriptor = Endpoints.ApiServiceDescriptor
             .newBuilder()
-            .setId("2L")
             .setUrl("localhost:" + controlServer.getPort())
             .build();
 

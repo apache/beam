@@ -43,6 +43,12 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.CannotProvideCoderException.ReasonCode;
+import org.apache.beam.sdk.io.FileIO;
+import org.apache.beam.sdk.io.ReadableFileCoder;
+import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MetadataCoder;
+import org.apache.beam.sdk.io.fs.ResourceId;
+import org.apache.beam.sdk.io.fs.ResourceIdCoder;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -89,6 +95,8 @@ public class CoderRegistry {
 
     private CommonTypes() {
       ImmutableMap.Builder<Class<?>, CoderProvider> builder = ImmutableMap.builder();
+      builder.put(Boolean.class,
+          CoderProviders.fromStaticMethods(Boolean.class, BooleanCoder.class));
       builder.put(Byte.class,
           CoderProviders.fromStaticMethods(Byte.class, ByteCoder.class));
       builder.put(BitSet.class,
@@ -109,6 +117,14 @@ public class CoderRegistry {
           CoderProviders.fromStaticMethods(Long.class, VarLongCoder.class));
       builder.put(Map.class,
           CoderProviders.fromStaticMethods(Map.class, MapCoder.class));
+      builder.put(Metadata.class,
+          CoderProviders.fromStaticMethods(Metadata.class, MetadataCoder.class));
+      builder.put(ResourceId.class,
+          CoderProviders.fromStaticMethods(ResourceId.class, ResourceIdCoder.class));
+      builder.put(
+          FileIO.ReadableFile.class,
+          CoderProviders.fromStaticMethods(
+              FileIO.ReadableFile.class, ReadableFileCoder.class));
       builder.put(Set.class,
           CoderProviders.fromStaticMethods(Set.class, SetCoder.class));
       builder.put(String.class,
@@ -147,9 +163,13 @@ public class CoderRegistry {
     Set<CoderProviderRegistrar> registrars = Sets.newTreeSet(ObjectsClassComparator.INSTANCE);
     registrars.addAll(Lists.newArrayList(
         ServiceLoader.load(CoderProviderRegistrar.class, ReflectHelpers.findClassLoader())));
+
+    // DefaultCoder should have the highest precedence and SerializableCoder the lowest
+    codersToRegister.addAll(new DefaultCoder.DefaultCoderProviderRegistrar().getCoderProviders());
     for (CoderProviderRegistrar registrar : registrars) {
         codersToRegister.addAll(registrar.getCoderProviders());
     }
+    codersToRegister.add(SerializableCoder.getCoderProvider());
 
     REGISTERED_CODER_FACTORIES = ImmutableList.copyOf(codersToRegister);
   }
@@ -234,6 +254,9 @@ public class CoderRegistry {
    * type uses the given {@link Coder}.
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
   @Deprecated
   @Internal
@@ -254,6 +277,9 @@ public class CoderRegistry {
    * used for its input elements.
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
   @Deprecated
   @Internal
@@ -276,6 +302,9 @@ public class CoderRegistry {
    * subclass, given {@link Coder Coders} to use for all other type parameters (if any).
    *
    * @throws CannotProvideCoderException if a {@link Coder} cannot be provided
+   *
+   * @deprecated This method is to change in an unknown backwards incompatible way once support for
+   * this functionality is refined.
    */
   @Deprecated
   @Internal

@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
@@ -97,6 +98,17 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
   }
 
   @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {
+    if (!this.isCompatible(other)) {
+      throw new IncompatibleWindowException(
+          other,
+          String.format(
+              "Only %s objects with the same window supplier are compatible.",
+              StaticWindows.class.getSimpleName()));
+    }
+  }
+
+  @Override
   public Coder<BoundedWindow> windowCoder() {
     return coder;
   }
@@ -113,5 +125,10 @@ final class StaticWindows extends NonMergingWindowFn<Object, BoundedWindow> {
         return mainWindow;
       }
     };
+  }
+
+  @Override
+  public boolean assignsToOneWindow() {
+    return true;
   }
 }

@@ -36,7 +36,6 @@ import org.apache.beam.sdk.coders.AvroCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
@@ -147,17 +146,11 @@ public class PubsubIO {
   private static void populateCommonDisplayData(DisplayData.Builder builder,
       String timestampAttribute, String idAttribute, ValueProvider<PubsubTopic> topic) {
     builder
-        .addIfNotNull(DisplayData.item("timestampAttribute", timestampAttribute)
-            .withLabel("Timestamp Attribute"))
-        .addIfNotNull(DisplayData.item("idAttribute", idAttribute)
-            .withLabel("ID Attribute"));
-
-    if (topic != null) {
-      String topicString = topic.isAccessible() ? topic.get().asPath()
-          : topic.toString();
-      builder.add(DisplayData.item("topic", topicString)
-          .withLabel("Pubsub Topic"));
-    }
+        .addIfNotNull(
+            DisplayData.item("timestampAttribute", timestampAttribute)
+                .withLabel("Timestamp Attribute"))
+        .addIfNotNull(DisplayData.item("idAttribute", idAttribute).withLabel("ID Attribute"))
+        .addIfNotNull(DisplayData.item("topic", topic).withLabel("Pubsub Topic"));
   }
 
   /**
@@ -263,6 +256,11 @@ public class PubsubIO {
       } else {
         return subscription;
       }
+    }
+
+    @Override
+    public String toString() {
+      return asPath();
     }
   }
 
@@ -429,6 +427,11 @@ public class PubsubIO {
         return topic;
       }
     }
+
+    @Override
+    public String toString() {
+      return asPath();
+    }
   }
 
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
@@ -527,7 +530,7 @@ public class PubsubIO {
    * Returns A {@link PTransform} that writes binary encoded Avro messages of a given type
    * to a Google Cloud Pub/Sub stream.
    */
-  public static <T extends Message> Write<T> writeAvros(Class<T> clazz) {
+  public static <T> Write<T> writeAvros(Class<T> clazz) {
     // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
     return PubsubIO.<T>write().withFormatFn(new FormatPayloadUsingCoder<>(AvroCoder.of(clazz)));
   }
@@ -727,7 +730,7 @@ public class PubsubIO {
               getTimestampAttribute(),
               getIdAttribute(),
               getNeedsAttributes());
-      return input.apply(source).apply(MapElements.via(getParseFn()));
+      return input.apply(source).apply(MapElements.via(getParseFn())).setCoder(getCoder());
     }
 
     @Override
@@ -735,18 +738,8 @@ public class PubsubIO {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
-
-      if (getSubscriptionProvider() != null) {
-        String subscriptionString = getSubscriptionProvider().isAccessible()
-            ? getSubscriptionProvider().get().asPath() : getSubscriptionProvider().toString();
-        builder.add(DisplayData.item("subscription", subscriptionString)
-            .withLabel("Pubsub Subscription"));
-      }
-    }
-
-    @Override
-    protected Coder<T> getDefaultOutputCoder() {
-      return getCoder();
+      builder.addIfNotNull(DisplayData.item("subscription", getSubscriptionProvider())
+          .withLabel("Pubsub Subscription"));
     }
   }
 
@@ -870,11 +863,6 @@ public class PubsubIO {
           builder, getTimestampAttribute(), getIdAttribute(), getTopicProvider());
     }
 
-    @Override
-    protected Coder<Void> getDefaultOutputCoder() {
-      return VoidCoder.of();
-    }
-
     /**
      * Writer to Pubsub which batches messages from bounded collections.
      *
@@ -970,8 +958,7 @@ public class PubsubIO {
     }
   }
 
-  private static class FormatPayloadUsingCoder<T extends Message>
-      extends SimpleFunction<T, PubsubMessage> {
+  private static class FormatPayloadUsingCoder<T> extends SimpleFunction<T, PubsubMessage> {
     private Coder<T> coder;
 
     public FormatPayloadUsingCoder(Coder<T> coder) {

@@ -26,7 +26,7 @@ import com.alibaba.jstorm.metric.MetricClient;
 import com.alibaba.jstorm.metrics.Gauge;
 import com.google.common.collect.Maps;
 import java.util.Map;
-import org.apache.beam.runners.core.metrics.MetricKey;
+import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;

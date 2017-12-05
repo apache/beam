@@ -47,6 +47,7 @@ class JStormTimerInternals<K> implements TimerInternals {
     setTimer(TimerData.of(timerId, namespace, target, timeDomain));
   }
 
+  /** @deprecated */
   @Override
   @Deprecated
   public void setTimer(TimerData timerData) {
@@ -59,6 +60,7 @@ class JStormTimerInternals<K> implements TimerInternals {
         "Canceling of a timer is not yet supported.");
   }
 
+  /** @deprecated */
   @Override
   @Deprecated
   public void deleteTimer(StateNamespace namespace, String timerId) {
@@ -66,6 +68,7 @@ class JStormTimerInternals<K> implements TimerInternals {
         "Canceling of a timer is not yet supported.");
   }
 
+  /** @deprecated */
   @Override
   @Deprecated
   public void deleteTimer(TimerData timerData) {

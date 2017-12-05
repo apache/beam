@@ -18,13 +18,14 @@
 package org.apache.beam.runners.direct;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.runners.core.construction.PTransformTranslation.FLATTEN_TRANSFORM_URN;
+import static org.apache.beam.runners.direct.TestStreamEvaluatorFactory.DirectTestStreamFactory.DIRECT_TEST_STREAM_URN;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Collection;
 import java.util.Map;
-import org.apache.beam.sdk.io.Read;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.runners.AppliedPTransform;
-import org.apache.beam.sdk.transforms.Flatten.PCollections;
 import org.apache.beam.sdk.transforms.PTransform;
 
 /**
@@ -33,34 +34,31 @@ import org.apache.beam.sdk.transforms.PTransform;
  */
 class RootProviderRegistry {
   public static RootProviderRegistry defaultRegistry(EvaluationContext context) {
-    ImmutableMap.Builder<Class<? extends PTransform>, RootInputProvider<?, ?, ?, ?>>
+    ImmutableMap.Builder<String, RootInputProvider<?, ?, ?>>
         defaultProviders = ImmutableMap.builder();
     defaultProviders
-        .put(Read.Bounded.class, new BoundedReadEvaluatorFactory.InputProvider(context))
-        .put(Read.Unbounded.class, new UnboundedReadEvaluatorFactory.InputProvider(context))
-        .put(
-            TestStreamEvaluatorFactory.DirectTestStreamFactory.DirectTestStream.class,
-            new TestStreamEvaluatorFactory.InputProvider(context))
-        .put(PCollections.class, new EmptyInputProvider());
+        .put(PTransformTranslation.READ_TRANSFORM_URN, ReadEvaluatorFactory.inputProvider(context))
+        .put(DIRECT_TEST_STREAM_URN, new TestStreamEvaluatorFactory.InputProvider(context))
+        .put(FLATTEN_TRANSFORM_URN, new EmptyInputProvider());
     return new RootProviderRegistry(defaultProviders.build());
   }
 
-  private final Map<Class<? extends PTransform>, RootInputProvider<?, ?, ?, ?>> providers;
+  private final Map<String, RootInputProvider<?, ?, ?>> providers;
 
   private RootProviderRegistry(
-      Map<Class<? extends PTransform>, RootInputProvider<?, ?, ?, ?>> providers) {
+      Map<String, RootInputProvider<?, ?, ?>> providers) {
     this.providers = providers;
   }
 
   public Collection<CommittedBundle<?>> getInitialInputs(
       AppliedPTransform<?, ?, ?> transform, int targetParallelism) throws Exception {
-    Class<? extends PTransform> transformClass = transform.getTransform().getClass();
+    String transformUrn = PTransformTranslation.urnForTransform(transform.getTransform());
     RootInputProvider provider =
         checkNotNull(
-            providers.get(transformClass),
-            "Tried to get a %s for a Transform of type %s, but there is no such provider",
+            providers.get(transformUrn),
+            "Tried to get a %s for a transform \"%s\", but there is no such provider",
             RootInputProvider.class.getSimpleName(),
-            transformClass.getSimpleName());
+            transformUrn);
     return provider.getInitialInputs(transform, targetParallelism);
   }
 }

@@ -28,7 +28,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.values.PCollection;
-import org.apache.beam.sdk.values.PCollectionView;
 
 /**
  * The {@link DirectRunner} {@link TransformEvaluatorFactory} for the {@link CreatePCollectionView}
@@ -60,12 +59,13 @@ class ViewEvaluatorFactory implements TransformEvaluatorFactory {
   public void cleanup() throws Exception {}
 
   private <InT, OuT> TransformEvaluator<Iterable<InT>> createEvaluator(
-      final AppliedPTransform<PCollection<Iterable<InT>>, PCollectionView<OuT>, WriteView<InT, OuT>>
+      final AppliedPTransform<
+              PCollection<Iterable<InT>>, PCollection<Iterable<InT>>, WriteView<InT, OuT>>
           application) {
     PCollection<Iterable<InT>> input =
         (PCollection<Iterable<InT>>) Iterables.getOnlyElement(application.getInputs().values());
-    final PCollectionViewWriter<InT, OuT> writer = context.createPCollectionViewWriter(input,
-        (PCollectionView<OuT>) Iterables.getOnlyElement(application.getOutputs().values()));
+    final PCollectionViewWriter<InT, OuT> writer =
+        context.createPCollectionViewWriter(input, application.getTransform().getView());
     return new TransformEvaluator<Iterable<InT>>() {
       private final List<WindowedValue<InT>> elements = new ArrayList<>();
 

@@ -21,8 +21,10 @@ package org.apache.beam.runners.core.metrics;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsContainer;
 
 /**
  * Tracks the current value (and delta) for a Distribution metric.
@@ -41,10 +43,12 @@ public class DistributionCell implements Distribution, MetricCell<DistributionDa
   private final MetricName name;
 
   /**
-   * Package-visibility because all {@link DistributionCell DistributionCells} should be created by
-   * {@link MetricsContainerImpl#getDistribution(MetricName)}.
+   * Generally, runners should construct instances using the methods in
+   * {@link MetricsContainerImpl}, unless they need to define their own version of
+   * {@link MetricsContainer}. These constructors are *only* public so runners can instantiate.
    */
-  DistributionCell(MetricName name) {
+  @Internal
+  public DistributionCell(MetricName name) {
     this.name = name;
   }
 

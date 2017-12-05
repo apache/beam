@@ -105,10 +105,10 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
         // We check to see if we were able to successfully insert the poison pill at the front of
         // the queue to cancel the processing thread eagerly or if the processing thread is done.
         try {
-          // The order of these checks is important because short circuiting will cause us to
-          // insert into the queue first and only if it fails do we check that the thread is done.
-          while (!queue.offerFirst((T) POISON_PILL, 60, TimeUnit.SECONDS)
-              || !queueDrainer.isDone()) {
+          // We shouldn't attempt to insert into the queue if the queue drainer thread is done
+          // since the queue may be full and nothing will be emptying it.
+          while (!queueDrainer.isDone()
+              && !queue.offerFirst((T) POISON_PILL, 60, TimeUnit.SECONDS)) {
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
@@ -130,10 +130,10 @@ public final class BufferingStreamObserver<T> implements StreamObserver<T> {
         // the queue forcing the remainder of the elements to be processed or if the processing
         // thread is done.
         try {
-          // The order of these checks is important because short circuiting will cause us to
-          // insert into the queue first and only if it fails do we check that the thread is done.
-          while (!queue.offer((T) POISON_PILL, 60, TimeUnit.SECONDS)
-              || !queueDrainer.isDone()) {
+          // We shouldn't attempt to insert into the queue if the queue drainer thread is done
+          // since the queue may be full and nothing will be emptying it.
+          while (!queueDrainer.isDone()
+              && !queue.offerLast((T) POISON_PILL, 60, TimeUnit.SECONDS)) {
           }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();

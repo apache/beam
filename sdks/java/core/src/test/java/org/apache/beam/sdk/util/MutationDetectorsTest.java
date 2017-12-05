@@ -20,11 +20,17 @@ package org.apache.beam.sdk.util;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -39,9 +45,47 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MutationDetectorsTest {
+  /**
+   * Solely used to test that immutability is enforced from the SDK's perspective and not from
+   * Java's {@link Object#equals} method. Note that we do not expect users to create such
+   * an implementation.
+   */
+  private class ForSDKMutationDetectionTestCoder extends AtomicCoder<Object> {
+    // Use a unique instance that is returned as the structural value making all structural
+    // values of this coder equivalent to each other.
+    private final Object uniqueInstance = new Object();
+
+    @Override
+    public void encode(Object value, OutputStream outStream) throws  IOException {
+    }
+
+    @Override
+    public Object decode(InputStream inStream) throws  IOException {
+      return new AtomicInteger();
+    }
+
+    @Override
+    public Object structuralValue(Object value) {
+      return uniqueInstance;
+    }
+  }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
+  /**
+   * Tests that mutation detection is enforced from the SDK point of view
+   * (Based on the {@link Coder#structuralValue}) and not from the Java's equals method.
+   */
+  @Test
+  public void testMutationBasedOnStructuralValue() throws Exception {
+    AtomicInteger value = new AtomicInteger();
+    MutationDetector detector =
+        MutationDetectors.forValueWithCoder(value, new ForSDKMutationDetectionTestCoder());
+    // Even though we modified the value, we are relying on the fact that the structural
+    // value will be used to compare equality
+    value.incrementAndGet();
+    detector.verifyUnmodified();
+  }
   /**
    * Tests that {@link MutationDetectors#forValueWithCoder} detects a mutation to a list.
    */
@@ -89,6 +133,18 @@ public class MutationDetectorsTest {
     Set<Integer> value = Sets.newHashSet(Arrays.asList(1, 2, 3, 4));
     MutationDetector detector =
         MutationDetectors.forValueWithCoder(value, IterableCoder.of(VarIntCoder.of()));
+    detector.verifyUnmodified();
+  }
+
+  /**
+   * Tests that {@link MutationDetectors#forValueWithCoder} does not false positive on a
+   * {@link Set} coded as an {@link Iterable}.
+   */
+  @Test
+  public void testStructuralValue() throws Exception {
+    Set<Integer> value = Sets.newHashSet(Arrays.asList(1, 2, 3, 4));
+    MutationDetector detector =
+            MutationDetectors.forValueWithCoder(value, IterableCoder.of(VarIntCoder.of()));
     detector.verifyUnmodified();
   }
 

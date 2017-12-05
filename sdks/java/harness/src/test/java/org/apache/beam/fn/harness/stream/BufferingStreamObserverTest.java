@@ -31,10 +31,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Consumer;
-import org.apache.beam.fn.harness.test.TestExecutors;
-import org.apache.beam.fn.harness.test.TestExecutors.TestExecutorService;
-import org.apache.beam.fn.harness.test.TestStreams;
+import org.apache.beam.harness.test.Consumer;
+import org.apache.beam.harness.test.TestExecutors;
+import org.apache.beam.harness.test.TestExecutors.TestExecutorService;
+import org.apache.beam.harness.test.TestStreams;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,7 +61,7 @@ public class BufferingStreamObserverTest {
                     // critical section. Any thread that enters purposefully blocks by sleeping
                     // to increase the contention between threads artificially.
                     assertFalse(isCriticalSectionShared.getAndSet(true));
-                    Uninterruptibles.sleepUninterruptibly(50, TimeUnit.MILLISECONDS);
+                    Uninterruptibles.sleepUninterruptibly(1, TimeUnit.MILLISECONDS);
                     onNextValues.add(t);
                     assertTrue(isCriticalSectionShared.getAndSet(false));
                   }
@@ -134,7 +134,7 @@ public class BufferingStreamObserverTest {
     }
 
     // Have them wait and then flip that we do allow elements and wake up those awaiting
-    Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+    Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
     elementsAllowed.set(true);
     phaser.arrive();
 

@@ -28,6 +28,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.io.FileSystem;
 import org.apache.beam.sdk.io.fs.CreateOptions;
@@ -78,6 +79,12 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
     for (String spec : specs) {
       try {
         FileStatus[] fileStatuses = fileSystem.globStatus(new Path(spec));
+        if (fileStatuses == null) {
+          resultsBuilder.add(MatchResult.create(Status.NOT_FOUND,
+                  Collections.<Metadata>emptyList()));
+          continue;
+        }
+
         List<Metadata> metadata = new ArrayList<>();
         for (FileStatus fileStatus : fileStatuses) {
           if (fileStatus.isFile()) {
@@ -182,7 +189,25 @@ class HadoopFileSystem extends FileSystem<HadoopResourceId> {
       if (closed) {
         throw new IOException("Channel is closed");
       }
-      return inputStream.read(dst);
+      // O length read must be supported
+      int read = 0;
+      // We avoid using the ByteBuffer based read for Hadoop because some FSDataInputStream
+      // implementations are not ByteBufferReadable,
+      // See https://issues.apache.org/jira/browse/HADOOP-14603
+      if (dst.hasArray()) {
+        // does the same as inputStream.read(dst):
+        // stores up to dst.remaining() bytes into dst.array() starting at dst.position().
+        // But dst can have an offset with its backing array hence the + dst.arrayOffset()
+        read = inputStream.read(dst.array(), dst.position() + dst.arrayOffset(), dst.remaining());
+      } else {
+        // TODO: Add support for off heap ByteBuffers in case the underlying FSDataInputStream
+        // does not support reading from a ByteBuffer.
+        read = inputStream.read(dst);
+      }
+      if (read > 0) {
+        dst.position(dst.position() + read);
+      }
+      return read;
     }
 
     @Override

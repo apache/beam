@@ -47,6 +47,9 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
+import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -55,7 +58,6 @@ import org.apache.beam.sdk.testing.ValidatesRunner;
 import org.apache.beam.sdk.transforms.Create.Values.CreateSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.KV;
-import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TypeDescriptor;
@@ -307,28 +309,24 @@ public class CreateTest {
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingCoder() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
             TimestampedValue.of(new Record(), new Instant(0)),
             TimestampedValue.<Record>of(new Record2(), new Instant(0)))
             .withCoder(coder);
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test
   public void testCreateTimestampedDefaultOutputCoderUsingTypeDescriptor() throws Exception {
     Coder<Record> coder = new RecordCoder();
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    PBegin pBegin = PBegin.in(p);
     Create.TimestampedValues<Record> values =
         Create.timestamped(
             TimestampedValue.of(new Record(), new Instant(0)),
             TimestampedValue.<Record>of(new Record2(), new Instant(0)))
             .withType(new TypeDescriptor<Record>() {});
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test
@@ -353,6 +351,42 @@ public class CreateTest {
     p.run();
   }
 
+  /** Testing options for {@link #testCreateOfProvider()}. */
+  public interface CreateOfProviderOptions extends PipelineOptions {
+    ValueProvider<String> getFoo();
+    void setFoo(ValueProvider<String> value);
+  }
+
+  @Test
+  @Category(ValidatesRunner.class)
+  public void testCreateOfProvider() throws Exception {
+    PAssert.that(
+            p.apply(
+                "Static", Create.ofProvider(StaticValueProvider.of("foo"), StringUtf8Coder.of())))
+        .containsInAnyOrder("foo");
+    PAssert.that(
+            p.apply(
+                "Static nested",
+                Create.ofProvider(
+                    NestedValueProvider.of(
+                        StaticValueProvider.of("foo"),
+                        new SerializableFunction<String, String>() {
+                          @Override
+                          public String apply(String input) {
+                            return input + "bar";
+                          }
+                        }),
+                    StringUtf8Coder.of())))
+        .containsInAnyOrder("foobar");
+    PAssert.that(
+            p.apply(
+                "Runtime", Create.ofProvider(p.newProvider("runtimeFoo"), StringUtf8Coder.of())))
+        .containsInAnyOrder("runtimeFoo");
+
+    p.run();
+  }
+
+
   @Test
   public void testCreateGetName() {
     assertEquals("Create.Values", Create.of(1, 2, 3).getName());
@@ -364,31 +398,25 @@ public class CreateTest {
   public void testCreateDefaultOutputCoderUsingInference() throws Exception {
     Coder<Record> coder = new RecordCoder();
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    PBegin pBegin = PBegin.in(p);
-    Create.Values<Record> values = Create.of(new Record(), new Record(), new Record());
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(
+        p.apply(Create.of(new Record(), new Record(), new Record())).getCoder(), equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingCoder() throws Exception {
     Coder<Record> coder = new RecordCoder();
-    PBegin pBegin = PBegin.in(p);
-    Create.Values<Record> values =
-        Create.of(new Record(), new Record2()).withCoder(coder);
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(
+        p.apply(Create.of(new Record(), new Record2()).withCoder(coder)).getCoder(),
+        equalTo(coder));
   }
 
   @Test
   public void testCreateDefaultOutputCoderUsingTypeDescriptor() throws Exception {
     Coder<Record> coder = new RecordCoder();
     p.getCoderRegistry().registerCoderForClass(Record.class, coder);
-    PBegin pBegin = PBegin.in(p);
     Create.Values<Record> values =
         Create.of(new Record(), new Record2()).withType(new TypeDescriptor<Record>() {});
-    Coder<Record> defaultCoder = values.getDefaultOutputCoder(pBegin);
-    assertThat(defaultCoder, equalTo(coder));
+    assertThat(p.apply(values).getCoder(), equalTo(coder));
   }
 
   @Test
@@ -434,12 +462,12 @@ public class CreateTest {
   }
 
   @Test
-  public void testSourceGetDefaultOutputCoderReturnsConstructorCoder() throws Exception {
+  public void testSourceGetOutputCoderReturnsConstructorCoder() throws Exception {
     Coder<Integer> coder = VarIntCoder.of();
     CreateSource<Integer> source =
         CreateSource.fromIterable(ImmutableList.of(1, 2, 3, 4, 5, 6, 7, 8), coder);
 
-    Coder<Integer> defaultCoder = source.getDefaultOutputCoder();
+    Coder<Integer> defaultCoder = source.getOutputCoder();
     assertThat(defaultCoder, equalTo(coder));
   }
 

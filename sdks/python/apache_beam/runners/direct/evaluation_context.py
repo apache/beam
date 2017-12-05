@@ -22,27 +22,30 @@ from __future__ import absolute_import
 import collections
 import threading
 
-from apache_beam.transforms import sideinputs
 from apache_beam.runners.direct.clock import Clock
-from apache_beam.runners.direct.watermark_manager import WatermarkManager
-from apache_beam.runners.direct.executor import TransformExecutor
 from apache_beam.runners.direct.direct_metrics import DirectMetrics
+from apache_beam.runners.direct.executor import TransformExecutor
+from apache_beam.runners.direct.watermark_manager import WatermarkManager
+from apache_beam.transforms import sideinputs
+from apache_beam.transforms.trigger import InMemoryUnmergedState
 from apache_beam.utils import counters
 
 
 class _ExecutionContext(object):
 
-  def __init__(self, watermarks, existing_state):
-    self._watermarks = watermarks
-    self._existing_state = existing_state
+  def __init__(self, watermarks, keyed_states):
+    self.watermarks = watermarks
+    self.keyed_states = keyed_states
 
-  @property
-  def watermarks(self):
-    return self._watermarks
+    self._step_context = None
 
-  @property
-  def existing_state(self):
-    return self._existing_state
+  def get_step_context(self):
+    if not self._step_context:
+      self._step_context = DirectStepContext(self.keyed_states)
+    return self._step_context
+
+  def reset(self):
+    self._step_context = None
 
 
 class _SideInputView(object):
@@ -145,11 +148,11 @@ class EvaluationContext(object):
     self._pcollection_to_views = collections.defaultdict(list)
     for view in views:
       self._pcollection_to_views[view.pvalue].append(view)
-
-    # AppliedPTransform -> Evaluator specific state objects
-    self._application_state_interals = {}
+    self._transform_keyed_states = self._initialize_keyed_states(
+        root_transforms, value_to_consumers)
     self._watermark_manager = WatermarkManager(
-        Clock(), root_transforms, value_to_consumers)
+        Clock(), root_transforms, value_to_consumers,
+        self._transform_keyed_states)
     self._side_inputs_container = _SideInputsContainer(views)
     self._pending_unblocked_tasks = []
     self._counter_factory = counters.CounterFactory()
@@ -157,6 +160,15 @@ class EvaluationContext(object):
     self._metrics = DirectMetrics()
 
     self._lock = threading.Lock()
+
+  def _initialize_keyed_states(self, root_transforms, value_to_consumers):
+    transform_keyed_states = {}
+    for transform in root_transforms:
+      transform_keyed_states[transform] = {}
+    for consumers in value_to_consumers.values():
+      for consumer in consumers:
+        transform_keyed_states[consumer] = {}
+    return transform_keyed_states
 
   def use_pvalue_cache(self, cache):
     assert not self._cache
@@ -199,11 +211,12 @@ class EvaluationContext(object):
       the committed bundles contained within the handled result.
     """
     with self._lock:
-      committed_bundles = self._commit_bundles(
-          result.uncommitted_output_bundles)
+      committed_bundles, unprocessed_bundles = self._commit_bundles(
+          result.uncommitted_output_bundles,
+          result.unprocessed_bundles)
       self._watermark_manager.update_watermarks(
           completed_bundle, result.transform, completed_timers,
-          committed_bundles, result.watermark_hold)
+          committed_bundles, unprocessed_bundles, result.keyed_watermark_holds)
 
       self._metrics.commit_logical(completed_bundle,
                                    result.logical_metric_updates)
@@ -231,7 +244,10 @@ class EvaluationContext(object):
               counter.name, counter.combine_fn)
           merged_counter.accumulator.merge([counter.accumulator])
 
-      self._application_state_interals[result.transform] = result.state
+      # Commit partial GBK states
+      existing_keyed_state = self._transform_keyed_states[result.transform]
+      for k, v in result.partial_keyed_state.iteritems():
+        existing_keyed_state[k] = v
       return committed_bundles
 
   def get_aggregator_values(self, aggregator_or_name):
@@ -244,19 +260,22 @@ class EvaluationContext(object):
           executor_service.submit(task)
         self._pending_unblocked_tasks = []
 
-  def _commit_bundles(self, uncommitted_bundles):
+  def _commit_bundles(self, uncommitted_bundles, unprocessed_bundles):
     """Commits bundles and returns a immutable set of committed bundles."""
     for in_progress_bundle in uncommitted_bundles:
       producing_applied_ptransform = in_progress_bundle.pcollection.producer
       watermarks = self._watermark_manager.get_watermarks(
           producing_applied_ptransform)
       in_progress_bundle.commit(watermarks.synchronized_processing_output_time)
-    return tuple(uncommitted_bundles)
+
+    for unprocessed_bundle in unprocessed_bundles:
+      unprocessed_bundle.commit(None)
+    return tuple(uncommitted_bundles), tuple(unprocessed_bundles)
 
   def get_execution_context(self, applied_ptransform):
     return _ExecutionContext(
         self._watermark_manager.get_watermarks(applied_ptransform),
-        self._application_state_interals.get(applied_ptransform))
+        self._transform_keyed_states[applied_ptransform])
 
   def create_bundle(self, output_pcollection):
     """Create an uncommitted bundle for the specified PCollection."""
@@ -296,3 +315,28 @@ class EvaluationContext(object):
     assert isinstance(task, TransformExecutor)
     return self._side_inputs_container.get_value_or_schedule_after_output(
         side_input, task)
+
+
+class DirectUnmergedState(InMemoryUnmergedState):
+  """UnmergedState implementation for the DirectRunner."""
+
+  def __init__(self):
+    super(DirectUnmergedState, self).__init__(defensive_copy=False)
+
+
+class DirectStepContext(object):
+  """Context for the currently-executing step."""
+
+  def __init__(self, existing_keyed_state):
+    self.existing_keyed_state = existing_keyed_state
+    # In order to avoid partial writes of a bundle, every time
+    # existing_keyed_state is accessed, a copy of the state is made
+    # to be transferred to the bundle state once the bundle is committed.
+    self.partial_keyed_state = {}
+
+  def get_keyed_state(self, key):
+    if not self.existing_keyed_state.get(key):
+      self.existing_keyed_state[key] = DirectUnmergedState()
+    if not self.partial_keyed_state.get(key):
+      self.partial_keyed_state[key] = self.existing_keyed_state[key].copy()
+    return self.partial_keyed_state[key]

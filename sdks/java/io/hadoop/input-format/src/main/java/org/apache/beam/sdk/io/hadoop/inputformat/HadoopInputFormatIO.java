@@ -15,7 +15,6 @@
 package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -23,11 +22,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AtomicDouble;
-import java.io.Externalizable;
 import java.io.IOException;
-import java.io.ObjectInput;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -46,6 +42,7 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -168,7 +165,7 @@ import org.slf4j.LoggerFactory;
  * }
  * </pre>
  */
-@Experimental
+@Experimental(Experimental.Kind.SOURCE_SINK)
 public class HadoopInputFormatIO {
   private static final Logger LOG = LoggerFactory.getLogger(HadoopInputFormatIO.class);
 
@@ -221,12 +218,7 @@ public class HadoopInputFormatIO {
       abstract Read<K, V> build();
     }
 
-    /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will read from the source using the
-     * options provided by the given configuration.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Reads from the source using the options provided by the given configuration. */
     public Read<K, V> withConfiguration(Configuration configuration) {
       validateConfiguration(configuration);
       TypeDescriptor<?> inputFormatClass =
@@ -257,27 +249,17 @@ public class HadoopInputFormatIO {
       return builder.build();
     }
 
-    /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will transform the keys read from the
-     * source using the given key translation function.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Transforms the keys read from the source using the given key translation function. */
     public Read<K, V> withKeyTranslation(SimpleFunction<?, K> function) {
-      checkNotNull(function, "function");
+      checkArgument(function != null, "function can not be null");
       // Sets key class to key translation function's output class type.
       return toBuilder().setKeyTranslationFunction(function)
           .setKeyTypeDescriptor((TypeDescriptor<K>) function.getOutputTypeDescriptor()).build();
     }
 
-    /**
-     * Returns a new {@link HadoopInputFormatIO.Read} that will transform the values read from the
-     * source using the given value translation function.
-     *
-     * <p>Does not modify this object.
-     */
+    /** Transforms the values read from the source using the given value translation function. */
     public Read<K, V> withValueTranslation(SimpleFunction<?, V> function) {
-      checkNotNull(function, "function");
+      checkArgument(function != null, "function can not be null");
       // Sets value class to value translation function's output class type.
       return toBuilder().setValueTranslationFunction(function)
           .setValueTypeDescriptor((TypeDescriptor<V>) function.getOutputTypeDescriptor()).build();
@@ -304,12 +286,14 @@ public class HadoopInputFormatIO {
      * key and value classes are provided in the Hadoop configuration.
      */
     private void validateConfiguration(Configuration configuration) {
-      checkNotNull(configuration, "configuration");
-      checkNotNull(configuration.get("mapreduce.job.inputformat.class"),
-          "configuration.get(\"mapreduce.job.inputformat.class\")");
-      checkNotNull(configuration.get("key.class"), "configuration.get(\"key.class\")");
-      checkNotNull(configuration.get("value.class"),
-          "configuration.get(\"value.class\")");
+      checkArgument(configuration != null, "configuration can not be null");
+      checkArgument(
+          configuration.get("mapreduce.job.inputformat.class") != null,
+          "Configuration must contain \"mapreduce.job.inputformat.class\"");
+      checkArgument(
+          configuration.get("key.class") != null, "configuration must contain \"key.class\"");
+      checkArgument(
+          configuration.get("value.class") != null, "configuration must contain \"value.class\"");
     }
 
     /**
@@ -317,7 +301,7 @@ public class HadoopInputFormatIO {
      */
     @VisibleForTesting
     void validateTransform() {
-      checkNotNull(getConfiguration(), "getConfiguration()");
+      checkArgument(getConfiguration() != null, "withConfiguration() is required");
       // Validate that the key translation input type must be same as key class of InputFormat.
       validateTranslationFunction(getinputFormatKeyClass(), getKeyTranslationFunction(),
           "Key translation's input type is not same as hadoop InputFormat : %s key class : %s");
@@ -424,15 +408,15 @@ public class HadoopInputFormatIO {
 
     @Override
     public void validate() {
-      checkNotNull(conf, "conf");
-      checkNotNull(keyCoder, "keyCoder");
-      checkNotNull(valueCoder, "valueCoder");
+      checkArgument(conf != null, "conf can not be null");
+      checkArgument(keyCoder != null, "keyCoder can not be null");
+      checkArgument(valueCoder != null, "valueCoder can not be null");
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
-      Configuration hadoopConfig = getConfiguration().getHadoopConfiguration();
+      Configuration hadoopConfig = getConfiguration().get();
       if (hadoopConfig != null) {
         builder.addIfNotNull(DisplayData.item("mapreduce.job.inputformat.class",
             hadoopConfig.get("mapreduce.job.inputformat.class"))
@@ -493,7 +477,7 @@ public class HadoopInputFormatIO {
       }
       createInputFormatInstance();
       List<InputSplit> splits =
-          inputFormatObj.getSplits(Job.getInstance(conf.getHadoopConfiguration()));
+          inputFormatObj.getSplits(Job.getInstance(conf.get()));
       if (splits == null) {
         throw new IOException("Error in computing splits, getSplits() returns null.");
       }
@@ -520,12 +504,12 @@ public class HadoopInputFormatIO {
       if (inputFormatObj == null) {
         try {
           taskAttemptContext =
-              new TaskAttemptContextImpl(conf.getHadoopConfiguration(), new TaskAttemptID());
+              new TaskAttemptContextImpl(conf.get(), new TaskAttemptID());
           inputFormatObj =
               (InputFormat<?, ?>) conf
-                  .getHadoopConfiguration()
+                  .get()
                   .getClassByName(
-                      conf.getHadoopConfiguration().get("mapreduce.job.inputformat.class"))
+                      conf.get().get("mapreduce.job.inputformat.class"))
                   .newInstance();
           /*
            * If InputFormat explicitly implements interface {@link Configurable}, then setConf()
@@ -535,7 +519,7 @@ public class HadoopInputFormatIO {
            * org.apache.hadoop.hbase.mapreduce.TableInputFormat TableInputFormat}, etc.
            */
           if (Configurable.class.isAssignableFrom(inputFormatObj.getClass())) {
-            ((Configurable) inputFormatObj).setConf(conf.getHadoopConfiguration());
+            ((Configurable) inputFormatObj).setConf(conf.get());
           }
         } catch (InstantiationException | IllegalAccessException | ClassNotFoundException e) {
           throw new IOException("Unable to create InputFormat object: ", e);
@@ -554,7 +538,7 @@ public class HadoopInputFormatIO {
     }
 
     @Override
-    public Coder<KV<K, V>> getDefaultOutputCoder() {
+    public Coder<KV<K, V>> getOutputCoder() {
       return KvCoder.of(keyCoder, valueCoder);
     }
 
@@ -800,43 +784,6 @@ public class HadoopInputFormatIO {
 
     private void writeObject(ObjectOutputStream out) throws IOException {
       new ObjectWritable(inputSplit).write(out);
-    }
-  }
-
-  /**
-   * A wrapper to allow Hadoop {@link org.apache.hadoop.conf.Configuration} to be serialized using
-   * Java's standard serialization mechanisms. Note that the org.apache.hadoop.conf.Configuration
-   * is Writable.
-   */
-  public static class SerializableConfiguration implements Externalizable {
-
-    private Configuration conf;
-
-    public SerializableConfiguration() {}
-
-    public SerializableConfiguration(Configuration conf) {
-      this.conf = conf;
-    }
-
-    public Configuration getHadoopConfiguration() {
-      return conf;
-    }
-
-    @Override
-    public void writeExternal(ObjectOutput out) throws IOException {
-      out.writeUTF(conf.getClass().getCanonicalName());
-      ((Writable) conf).write(out);
-    }
-
-    @Override
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-      String className = in.readUTF();
-      try {
-        conf = (Configuration) Class.forName(className).newInstance();
-        conf.readFields(in);
-      } catch (InstantiationException | IllegalAccessException e) {
-        throw new IOException("Unable to create configuration: " + e);
-      }
     }
   }
 }

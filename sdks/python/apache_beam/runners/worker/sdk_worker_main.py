@@ -21,10 +21,9 @@ import logging
 import os
 import sys
 
-import grpc
 from google.protobuf import text_format
 
-from apache_beam.runners.api import beam_fn_api_pb2
+from apache_beam.portability.api import endpoints_pb2
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 
@@ -33,31 +32,34 @@ from apache_beam.runners.worker.sdk_worker import SdkHarness
 
 def main(unused_argv):
   """Main entry point for SDK Fn Harness."""
-  logging_service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
-  text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
-                    logging_service_descriptor)
+  if 'LOGGING_API_SERVICE_DESCRIPTOR' in os.environ:
+    logging_service_descriptor = endpoints_pb2.ApiServiceDescriptor()
+    text_format.Merge(os.environ['LOGGING_API_SERVICE_DESCRIPTOR'],
+                      logging_service_descriptor)
 
-  # Send all logs to the runner.
-  fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
-  # TODO(vikasrk): This should be picked up from pipeline options.
-  logging.getLogger().setLevel(logging.INFO)
-  logging.getLogger().addHandler(fn_log_handler)
+    # Send all logs to the runner.
+    fn_log_handler = FnApiLogRecordHandler(logging_service_descriptor)
+    # TODO(vikasrk): This should be picked up from pipeline options.
+    logging.getLogger().setLevel(logging.INFO)
+    logging.getLogger().addHandler(fn_log_handler)
+  else:
+    fn_log_handler = None
 
   try:
     logging.info('Python sdk harness started.')
-    service_descriptor = beam_fn_api_pb2.ApiServiceDescriptor()
+    service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
     # TODO(robertwb): Support credentials.
     assert not service_descriptor.oauth2_client_credentials_grant.url
-    channel = grpc.insecure_channel(service_descriptor.url)
-    SdkHarness(channel).run()
+    SdkHarness(service_descriptor.url).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
     raise
   finally:
-    fn_log_handler.close()
+    if fn_log_handler:
+      fn_log_handler.close()
 
 
 if __name__ == '__main__':

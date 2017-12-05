@@ -81,6 +81,14 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <!--
 
+    ANNOTATIONS CHECKS
+
+    -->
+
+    <module name="MissingDeprecated" />
+
+    <!--
+
     IMPORT CHECKS
 
     -->

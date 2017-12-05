@@ -46,7 +46,7 @@ import org.apache.flink.streaming.api.operators.InternalTimer;
  * Flink operator for executing window {@link DoFn DoFns}.
  */
 public class WindowDoFnOperator<K, InputT, OutputT>
-    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>, WindowedValue<KV<K, OutputT>>> {
+    extends DoFnOperator<KeyedWorkItem<K, InputT>, KV<K, OutputT>> {
 
   private final SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> systemReduceFn;
 
@@ -56,7 +56,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       Coder<WindowedValue<KeyedWorkItem<K, InputT>>> inputCoder,
       TupleTag<KV<K, OutputT>> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
-      OutputManagerFactory<WindowedValue<KV<K, OutputT>>> outputManagerFactory,
+      OutputManagerFactory<KV<K, OutputT>> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
       Map<Integer, PCollectionView<?>> sideInputTagMapping,
       Collection<PCollectionView<?>> sideInputs,
@@ -86,7 +86,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
       public StateInternals stateInternalsForKey(K key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals) stateInternals;
+        return (StateInternals) keyedStateInternals;
       }
     };
     TimerInternalsFactory<K> timerInternalsFactory = new TimerInternalsFactory<K>() {
@@ -112,7 +112,7 @@ public class WindowDoFnOperator<K, InputT, OutputT>
   public void fireTimer(InternalTimer<?, TimerData> timer) {
     doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
         KeyedWorkItems.<K, InputT>timersWorkItem(
-            (K) stateInternals.getKey(),
+            (K) keyedStateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }
 

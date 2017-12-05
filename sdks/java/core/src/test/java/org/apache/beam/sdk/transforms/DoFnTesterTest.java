@@ -360,6 +360,38 @@ public class DoFnTesterTest {
     }
   }
 
+  @Test
+  public void testSupportsFinishBundleOutput() throws Exception {
+    for (DoFnTester.CloningBehavior cloning : DoFnTester.CloningBehavior.values()) {
+      try (DoFnTester<Integer, Integer> tester = DoFnTester.of(new BundleCounterDoFn())) {
+        tester.setCloningBehavior(cloning);
+
+        assertThat(tester.processBundle(1, 2, 3, 4), contains(4));
+        assertThat(tester.processBundle(5, 6, 7), contains(3));
+        assertThat(tester.processBundle(8, 9), contains(2));
+      }
+    }
+  }
+
+  private static class BundleCounterDoFn extends DoFn<Integer, Integer> {
+    private int elements;
+
+    @StartBundle
+    public void startBundle() {
+      elements = 0;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      elements++;
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      c.output(elements, Instant.now(), GlobalWindow.INSTANCE);
+    }
+  }
+
   private static class SideInputDoFn extends DoFn<Integer, Integer> {
     private final PCollectionView<Integer> value;
 

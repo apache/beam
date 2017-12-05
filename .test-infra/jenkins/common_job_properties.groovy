@@ -22,18 +22,41 @@
 //  http://groovy-lang.org/style-guide.html
 class common_job_properties {
 
+  static String checkoutDir = 'src'
+
+  static void setSCM(def context, String repositoryName) {
+    context.scm {
+      git {
+        remote {
+          // Double quotes here mean ${repositoryName} is interpolated.
+          github("apache/${repositoryName}")
+          // Single quotes here mean that ${ghprbPullId} is not interpolated and instead passed
+          // through to Jenkins where it refers to the environment variable.
+          refspec('+refs/heads/*:refs/remotes/origin/* ' +
+                  '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
+        }
+        branch('${sha1}')
+        extensions {
+          cleanAfterCheckout()
+          relativeTargetDirectory(checkoutDir)
+        }
+      }
+    }
+  }
+
   // Sets common top-level job properties for website repository jobs.
-  static void setTopLevelWebsiteJobProperties(context) {
+  static void setTopLevelWebsiteJobProperties(def context,
+                                              String branch = 'asf-site') {
     setTopLevelJobProperties(
             context,
             'beam-site',
-            'asf-site',
+            branch,
             'beam',
             30)
   }
 
   // Sets common top-level job properties for main repository jobs.
-  static void setTopLevelMainJobProperties(context,
+  static void setTopLevelMainJobProperties(def context,
                                            String branch = 'master',
                                            int timeout = 100,
                                            String jenkinsExecutorLabel = 'beam') {
@@ -47,7 +70,7 @@ class common_job_properties {
 
   // Sets common top-level job properties. Accessed through one of the above
   // methods to protect jobs from internal details of param defaults.
-  private static void setTopLevelJobProperties(context,
+  private static void setTopLevelJobProperties(def context,
                                                String repositoryName,
                                                String defaultBranch,
                                                String jenkinsExecutorLabel,
@@ -70,19 +93,7 @@ class common_job_properties {
     }
 
     // Source code management.
-    context.scm {
-      git {
-        remote {
-          url('https://github.com/apache/' + repositoryName + '.git')
-          refspec('+refs/heads/*:refs/remotes/origin/* ' +
-                  '+refs/pull/*:refs/remotes/origin/pr/*')
-        }
-        branch('${sha1}')
-        extensions {
-          cleanAfterCheckout()
-        }
-      }
-    }
+    setSCM(context, repositoryName)
 
     context.parameters {
       // This is a recommended setup if you want to run the job manually. The
@@ -114,8 +125,9 @@ class common_job_properties {
   // below to insulate callers from internal parameter defaults.
   private static void setPullRequestBuildTrigger(context,
                                                  String commitStatusContext,
-                                                 String successComment = '--none--',
-                                                 String prTriggerPhrase = '') {
+                                                 String prTriggerPhrase = '',
+                                                 boolean onlyTriggerPhraseToggle = true,
+                                                 String successComment = '--none--') {
     context.triggers {
       githubPullRequest {
         admins(['asfbot'])
@@ -130,6 +142,8 @@ class common_job_properties {
         // required to start it.
         if (prTriggerPhrase) {
           triggerPhrase(prTriggerPhrase)
+        }
+        if (onlyTriggerPhraseToggle) {
           onlyTriggerPhrase()
         }
 
@@ -140,41 +154,19 @@ class common_job_properties {
             delegate.context("Jenkins: " + commitStatusContext)
           }
 
-          /*
-            This section is disabled, because of jenkinsci/ghprb-plugin#417 issue.
-            For the time being, an equivalent configure section below is added.
-
           // Comment messages after build completes.
           buildStatus {
             completedStatus('SUCCESS', successComment)
             completedStatus('FAILURE', '--none--')
             completedStatus('ERROR', '--none--')
           }
-          */
         }
-      }
-    }
-
-    // Comment messages after build completes.
-    context.configure {
-      def messages = it / triggers / 'org.jenkinsci.plugins.ghprb.GhprbTrigger' / extensions / 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildStatus' / messages
-      messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message(successComment)
-        result('SUCCESS')
-      }
-      messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message('--none--')
-        result('ERROR')
-      }
-      messages << 'org.jenkinsci.plugins.ghprb.extensions.comments.GhprbBuildResultMessage' {
-        message('--none--')
-        result('FAILURE')
       }
     }
   }
 
   // Sets common config for Maven jobs.
-  static void setMavenConfig(context, mavenInstallation='Maven 3.3.3') {
+  static void setMavenConfig(context, String mavenInstallation='Maven 3.3.3') {
     context.mavenInstallation(mavenInstallation)
     context.mavenOpts('-Dorg.slf4j.simpleLogger.showDateTime=true')
     context.mavenOpts('-Dorg.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd\\\'T\\\'HH:mm:ss.SSS')
@@ -182,21 +174,24 @@ class common_job_properties {
     // tiered compilation to make the JVM startup times faster during the tests.
     context.mavenOpts('-XX:+TieredCompilation')
     context.mavenOpts('-XX:TieredStopAtLevel=1')
-    context.rootPOM('pom.xml')
+    context.rootPOM(checkoutDir + '/pom.xml')
     // Use a repository local to the workspace for better isolation of jobs.
     context.localRepository(LocalRepositoryLocation.LOCAL_TO_WORKSPACE)
     // Disable archiving the built artifacts by default, as this is slow and flaky.
     // We can usually recreate them easily, and we can also opt-in individual jobs
     // to artifact archiving.
-    context.archivingDisabled(true)
+    if (context.metaClass.respondsTo(context, 'archivingDisabled', boolean)) {
+      context.archivingDisabled(true)
+    }
   }
 
   // Sets common config for PreCommit jobs.
   static void setPreCommit(context,
                            String commitStatusName,
+                           String prTriggerPhrase = '',
                            String successComment = '--none--') {
     // Set pull request build trigger.
-    setPullRequestBuildTrigger(context, commitStatusName, successComment)
+    setPullRequestBuildTrigger(context, commitStatusName, prTriggerPhrase, false, successComment)
   }
 
   // Enable triggering postcommit runs against pull requests. Users can comment the trigger phrase
@@ -208,8 +203,9 @@ class common_job_properties {
     setPullRequestBuildTrigger(
       context,
       commitStatusName,
-      '--none--',
-      prTriggerPhrase)
+      prTriggerPhrase,
+      true,
+      '--none--')
   }
 
   // Sets common config for PostCommit jobs.
@@ -233,10 +229,19 @@ class common_job_properties {
     }
   }
 
+  static def mapToArgString(LinkedHashMap<String, String> inputArgs) {
+    List argList = []
+    inputArgs.each({
+        // FYI: Replacement only works with double quotes.
+      key, value -> argList.add("--$key=$value")
+    })
+    return argList.join(' ')
+  }
+
   // Configures the argument list for performance tests, adding the standard
   // performance test job arguments.
   private static def genPerformanceArgs(def argMap) {
-    def standard_args = [
+    LinkedHashMap<String, String> standardArgs = [
       project: 'apache-beam-testing',
       dpb_log_level: 'INFO',
       maven_binary: '/home/jenkins/tools/maven/latest/bin/mvn',
@@ -245,13 +250,8 @@ class common_job_properties {
       official: 'true'
     ]
     // Note: in case of key collision, keys present in ArgMap win.
-    def joined_args = standard_args.plus(argMap)
-    def argList = []
-    joined_args.each({
-        // FYI: Replacement only works with double quotes.
-        key, value -> argList.add("--$key=$value")
-    })
-    return argList.join(' ')
+    LinkedHashMap<String, String> joinedArgs = standardArgs.plus(argMap)
+    return mapToArgString(joinedArgs)
   }
 
   // Adds the standard performance test job steps.
@@ -262,10 +262,114 @@ class common_job_properties {
         shell('rm -rf PerfKitBenchmarker')
         // Clone appropriate perfkit branch
         shell('git clone https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git')
-        // Install job requirements.
+        // Install Perfkit benchmark requirements.
         shell('pip install --user -r PerfKitBenchmarker/requirements.txt')
+        // Install job requirements for Python SDK.
+        shell('pip install --user -e sdks/python/[gcp,test]')
         // Launch performance test.
         shell("python PerfKitBenchmarker/pkb.py $pkbArgs")
+    }
+  }
+
+  /**
+   * Sets properties for all jobs which are run by a pipeline top-level (maven) job.
+   * @param context    The delegate from the top level of a MavenJob.
+   * @param jobTimeout How long (in minutes) to wait for the job to finish.
+   * @param descriptor A short string identifying the job, e.g. "Java Unit Test".
+   */
+  static def setPipelineJobProperties(def context, int jobTimeout, String descriptor) {
+    context.parameters {
+      stringParam(
+              'ghprbGhRepository',
+              'N/A',
+              'Repository name for use by ghprb plugin.')
+      stringParam(
+              'ghprbActualCommit',
+              'N/A',
+              'Commit ID for use by ghprb plugin.')
+      stringParam(
+              'ghprbPullId',
+              'N/A',
+              'PR # for use by ghprb plugin.')
+
+    }
+
+    // Set JDK version.
+    context.jdk('JDK 1.8 (latest)')
+
+    // Restrict this project to run only on Jenkins executors as specified
+    context.label('beam')
+
+    // Execute concurrent builds if necessary.
+    context.concurrentBuild()
+
+    context.wrappers {
+      timeout {
+        absolute(jobTimeout)
+        abortBuild()
+      }
+      credentialsBinding {
+        string("COVERALLS_REPO_TOKEN", "beam-coveralls-token")
+      }
+      downstreamCommitStatus {
+        delegate.context("Jenkins: ${descriptor}")
+        triggeredStatus("${descriptor} Pending")
+        startedStatus("Running ${descriptor}")
+        statusUrl()
+        completedStatus('SUCCESS', "${descriptor} Passed")
+        completedStatus('FAILURE', "${descriptor} Failed")
+        completedStatus('ERROR', "Error Executing ${descriptor}")
+      }
+      // Set SPARK_LOCAL_IP for spark tests.
+      environmentVariables {
+        env('SPARK_LOCAL_IP', '127.0.0.1')
+      }
+    }
+
+    // Set Maven parameters.
+    setMavenConfig(context)
+  }
+
+  /**
+   * Sets job properties common to pipeline jobs which are responsible for being the root of a
+   * build tree. Downstream jobs should pull artifacts from these jobs.
+   * @param context The delegate from the top level of a MavenJob.
+   */
+  static def setPipelineBuildJobProperties(def context) {
+    context.properties {
+      githubProjectUrl('https://github.com/apache/beam/')
+    }
+
+    context.parameters {
+      stringParam(
+              'sha1',
+              'master',
+              'Commit id or refname (e.g. origin/pr/9/head) you want to build.')
+    }
+
+    // Source code management.
+    setSCM(context, 'beam')
+  }
+
+  /**
+   * Sets common job parameters for jobs which consume artifacts built for them by an upstream job.
+   * @param context The delegate from the top level of a MavenJob.
+   * @param jobName The job from which to copy artifacts.
+   */
+  static def setPipelineDownstreamJobProperties(def context, String jobName) {
+    context.parameters {
+      stringParam(
+              'buildNum',
+              'N/A',
+              "Build number of ${jobName} to copy from.")
+    }
+
+    context.preBuildSteps {
+      copyArtifacts(jobName) {
+        buildSelector {
+          buildNumber('${buildNum}')
+        }
+      }
     }
   }
 }

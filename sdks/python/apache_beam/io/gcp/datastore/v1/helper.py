@@ -19,7 +19,16 @@
 
 For internal use only; no backwards-compatibility guarantees.
 """
+
+import errno
+import logging
 import sys
+import time
+from socket import error as SocketError
+
+# pylint: disable=ungrouped-imports
+from apache_beam.internal.gcp import auth
+from apache_beam.utils import retry
 
 # Protect against environments where datastore library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -36,8 +45,7 @@ except ImportError:
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 
-from apache_beam.internal.gcp import auth
-from apache_beam.utils import retry
+# pylint: enable=ungrouped-imports
 
 
 def key_comparator(k1, k2):
@@ -130,6 +138,11 @@ def retry_on_rpc_error(exception):
             err_code == code_pb2.UNAVAILABLE or
             err_code == code_pb2.UNKNOWN or
             err_code == code_pb2.INTERNAL)
+
+  if isinstance(exception, SocketError):
+    return (exception.errno == errno.ECONNRESET or
+            exception.errno == errno.ETIMEDOUT)
+
   return False
 
 
@@ -158,13 +171,28 @@ def is_key_valid(key):
   return key.path[-1].HasField('id') or key.path[-1].HasField('name')
 
 
-def write_mutations(datastore, project, mutations):
+def write_mutations(datastore, project, mutations, throttler,
+                    rpc_stats_callback=None, throttle_delay=1):
   """A helper function to write a batch of mutations to Cloud Datastore.
 
   If a commit fails, it will be retried upto 5 times. All mutations in the
   batch will be committed again, even if the commit was partially successful.
   If the retry limit is exceeded, the last exception from Cloud Datastore will
   be raised.
+
+  Args:
+    datastore: googledatastore.connection.Datastore
+    project: str, project id
+    mutations: list of google.cloud.proto.datastore.v1.datastore_pb2.Mutation
+    rpc_stats_callback: a function to call with arguments `successes` and
+        `failures` and `throttled_secs`; this is called to record successful
+        and failed RPCs to Datastore and time spent waiting for throttling.
+    throttler: AdaptiveThrottler, to use to select requests to be throttled.
+    throttle_delay: float, time in seconds to sleep when throttled.
+
+  Returns a tuple of:
+    CommitResponse, the response from Datastore;
+    int, the latency of the successful RPC in milliseconds.
   """
   commit_request = datastore_pb2.CommitRequest()
   commit_request.mode = datastore_pb2.CommitRequest.NON_TRANSACTIONAL
@@ -174,10 +202,30 @@ def write_mutations(datastore, project, mutations):
 
   @retry.with_exponential_backoff(num_retries=5,
                                   retry_filter=retry_on_rpc_error)
-  def commit(req):
-    datastore.commit(req)
+  def commit(request):
+    # Client-side throttling.
+    while throttler.throttle_request(time.time()*1000):
+      logging.info("Delaying request for %ds due to previous failures",
+                   throttle_delay)
+      time.sleep(throttle_delay)
+      rpc_stats_callback(throttled_secs=throttle_delay)
 
-  commit(commit_request)
+    try:
+      start_time = time.time()
+      response = datastore.commit(request)
+      end_time = time.time()
+
+      rpc_stats_callback(successes=1)
+      throttler.successful_request(start_time*1000)
+      commit_time_ms = int((end_time-start_time)*1000)
+      return response, commit_time_ms
+    except (RPCError, SocketError):
+      if rpc_stats_callback:
+        rpc_stats_callback(errors=1)
+      raise
+
+  response, commit_time_ms = commit(commit_request)
+  return response, commit_time_ms
 
 
 def make_latest_timestamp_query(namespace):
@@ -229,7 +277,7 @@ class QueryIterator(object):
     self._project = project
     self._namespace = namespace
     self._start_cursor = None
-    self._limit = self._query.limit.value or sys.maxint
+    self._limit = self._query.limit.value or sys.maxsize
     self._req = make_request(project, namespace, query)
 
   @retry.with_exponential_backoff(num_retries=5,

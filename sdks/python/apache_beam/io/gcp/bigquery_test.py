@@ -27,14 +27,14 @@ import hamcrest as hc
 import mock
 
 import apache_beam as beam
+from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io.gcp.bigquery import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery import TableRowJsonCoder
 from apache_beam.io.gcp.bigquery import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
-from apache_beam.internal.gcp.json_value import to_json_value
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms.display import DisplayData
 from apache_beam.transforms.display_test import DisplayDataItemMatcher
-from apache_beam.options.pipeline_options import PipelineOptions
 
 # Protect against environments where bigquery library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
@@ -650,7 +650,8 @@ class TestBigQueryWriter(unittest.TestCase):
     self.assertFalse(client.tables.Delete.called)
     self.assertFalse(client.tables.Insert.called)
 
-  def test_table_with_write_disposition_truncate(self):
+  @mock.patch('time.sleep', return_value=None)
+  def test_table_with_write_disposition_truncate(self, _patched_sleep):
     client = mock.Mock()
     table = bigquery.Table(
         tableReference=bigquery.TableReference(
@@ -822,6 +823,265 @@ class TestBigQueryWrapper(unittest.TestCase):
     wrapper = beam.io.gcp.bigquery.BigQueryWrapper(client)
     new_dataset = wrapper.get_or_create_dataset('project_id', 'dataset_id')
     self.assertEqual(new_dataset.datasetReference.datasetId, 'dataset_id')
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class WriteToBigQuery(unittest.TestCase):
+
+  def test_dofn_client_start_bundle_called(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    self.assertTrue(client.tables.Get.called)
+
+  def test_dofn_client_start_bundle_create_called(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = None
+    client.tables.Insert.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    self.assertTrue(client.tables.Get.called)
+    self.assertTrue(client.tables.Insert.called)
+
+  def test_dofn_client_process_performs_batching(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+        bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    fn.process({'month': 1})
+
+    self.assertTrue(client.tables.Get.called)
+    # InsertRows not called as batch size is not hit yet
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_process_flush_called(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = (
+        bigquery.TableDataInsertAllResponse(insertErrors=[]))
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    fn.process({'month': 1})
+    fn.process({'month': 2})
+    self.assertTrue(client.tables.Get.called)
+    # InsertRows called as batch size is hit
+    self.assertTrue(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_finish_bundle_flush_called(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+        bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    fn.process({'month': 1})
+
+    self.assertTrue(client.tables.Get.called)
+    # InsertRows not called as batch size is not hit
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+    fn.finish_bundle()
+    # InsertRows called in finish bundle
+    self.assertTrue(client.tabledata.InsertAll.called)
+
+  def test_dofn_client_no_records(self):
+    client = mock.Mock()
+    client.tables.Get.return_value = bigquery.Table(
+        tableReference=bigquery.TableReference(
+            projectId='project_id', datasetId='dataset_id', tableId='table_id'))
+    client.tabledata.InsertAll.return_value = \
+        bigquery.TableDataInsertAllResponse(insertErrors=[])
+    create_disposition = beam.io.BigQueryDisposition.CREATE_NEVER
+    write_disposition = beam.io.BigQueryDisposition.WRITE_APPEND
+    schema = {'fields': [
+        {'name': 'month', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+
+    fn = beam.io.gcp.bigquery.BigQueryWriteFn(
+        table_id='table_id',
+        dataset_id='dataset_id',
+        project_id='project_id',
+        batch_size=2,
+        schema=schema,
+        create_disposition=create_disposition,
+        write_disposition=write_disposition,
+        client=client)
+
+    fn.start_bundle()
+    self.assertTrue(client.tables.Get.called)
+    # InsertRows not called as batch size is not hit
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+    fn.finish_bundle()
+    # InsertRows not called in finish bundle as no records
+    self.assertFalse(client.tabledata.InsertAll.called)
+
+  def test_noop_schema_parsing(self):
+    expected_table_schema = None
+    table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
+        schema=None)
+    self.assertEqual(expected_table_schema, table_schema)
+
+  def test_dict_schema_parsing(self):
+    schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+        {'name': 'r', 'type': 'RECORD', 'mode': 'NULLABLE', 'fields': [
+            {'name': 'x', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}]}
+    table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(schema)
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE')
+    nested_field = bigquery.TableFieldSchema(
+        name='x', type='INTEGER', mode='NULLABLE')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='NULLABLE')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='NULLABLE', fields=[nested_field])
+    expected_table_schema = bigquery.TableSchema(
+        fields=[string_field, number_field, record_field])
+    self.assertEqual(expected_table_schema, table_schema)
+
+  def test_string_schema_parsing(self):
+    schema = 's:STRING, n:INTEGER'
+    expected_dict_schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
+  def test_table_schema_parsing(self):
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE')
+    nested_field = bigquery.TableFieldSchema(
+        name='x', type='INTEGER', mode='NULLABLE')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='NULLABLE')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='NULLABLE', fields=[nested_field])
+    schema = bigquery.TableSchema(
+        fields=[string_field, number_field, record_field])
+    expected_dict_schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'},
+        {'name': 'r', 'type': 'RECORD', 'mode': 'NULLABLE', 'fields': [
+            {'name': 'x', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}]}
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
+  def test_table_schema_parsing_end_to_end(self):
+    string_field = bigquery.TableFieldSchema(
+        name='s', type='STRING', mode='NULLABLE')
+    nested_field = bigquery.TableFieldSchema(
+        name='x', type='INTEGER', mode='NULLABLE')
+    number_field = bigquery.TableFieldSchema(
+        name='n', type='INTEGER', mode='NULLABLE')
+    record_field = bigquery.TableFieldSchema(
+        name='r', type='RECORD', mode='NULLABLE', fields=[nested_field])
+    schema = bigquery.TableSchema(
+        fields=[string_field, number_field, record_field])
+    table_schema = beam.io.gcp.bigquery.BigQueryWriteFn.get_table_schema(
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(table_schema, schema)
+
+  def test_none_schema_parsing(self):
+    schema = None
+    expected_dict_schema = None
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
+
+  def test_noop_dict_schema_parsing(self):
+    schema = {'fields': [
+        {'name': 's', 'type': 'STRING', 'mode': 'NULLABLE'},
+        {'name': 'n', 'type': 'INTEGER', 'mode': 'NULLABLE'}]}
+    expected_dict_schema = schema
+    dict_schema = (
+        beam.io.gcp.bigquery.WriteToBigQuery.get_dict_table_schema(schema))
+    self.assertEqual(expected_dict_schema, dict_schema)
 
 
 if __name__ == '__main__':

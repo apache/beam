@@ -135,7 +135,7 @@ public class GcsUtil {
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
   private static final FluentBackoff BACKOFF_FACTORY =
-      FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
+      FluentBackoff.DEFAULT.withMaxRetries(10).withInitialBackoff(Duration.standardSeconds(1));
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -176,7 +176,13 @@ public class GcsUtil {
       char c = src[i++];
       switch (c) {
         case '*':
-          dst.append(".*");
+          // One char lookahead for **
+          if (i < src.length && src[i] == '*') {
+            dst.append(".*");
+            ++i;
+          } else {
+            dst.append("[^/]*");
+          }
           break;
         case '?':
           dst.append("[^/]");
@@ -761,7 +767,11 @@ public class GcsUtil {
 
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        throw new IOException(String.format("Error trying to delete %s: %s", file, e));
+        if (e.getCode() == 404) {
+          LOG.info("Ignoring failed deletion of file {} which already does not exist: {}", file, e);
+        } else {
+          throw new IOException(String.format("Error trying to delete %s: %s", file, e));
+        }
       }
     });
   }

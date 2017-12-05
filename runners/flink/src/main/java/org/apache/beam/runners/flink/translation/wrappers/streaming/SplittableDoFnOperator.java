@@ -26,12 +26,11 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.ElementAndRestriction;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
 import org.apache.beam.runners.core.OutputWindowedValue;
-import org.apache.beam.runners.core.SplittableParDo;
+import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems.ProcessFn;
 import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.TimerInternals;
@@ -43,6 +42,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.WindowedValue;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowingStrategy;
@@ -55,19 +55,16 @@ import org.joda.time.Instant;
  * the {@code @ProcessElement} method of a splittable {@link DoFn}.
  */
 public class SplittableDoFnOperator<
-    InputT, FnOutputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
-    extends DoFnOperator<
-    KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, FnOutputT, OutputT> {
+        InputT, OutputT, RestrictionT, TrackerT extends RestrictionTracker<RestrictionT>>
+    extends DoFnOperator<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> {
 
   private transient ScheduledExecutorService executorService;
 
   public SplittableDoFnOperator(
-      DoFn<KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>, FnOutputT> doFn,
+      DoFn<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> doFn,
       String stepName,
-      Coder<
-          WindowedValue<
-              KeyedWorkItem<String, ElementAndRestriction<InputT, RestrictionT>>>> inputCoder,
-      TupleTag<FnOutputT> mainOutputTag,
+      Coder<WindowedValue<KeyedWorkItem<String, KV<InputT, RestrictionT>>>> inputCoder,
+      TupleTag<OutputT> mainOutputTag,
       List<TupleTag<?>> additionalOutputTags,
       OutputManagerFactory<OutputT> outputManagerFactory,
       WindowingStrategy<?, ?> windowingStrategy,
@@ -87,21 +84,20 @@ public class SplittableDoFnOperator<
         sideInputs,
         options,
         keyCoder);
-
   }
 
   @Override
   public void open() throws Exception {
     super.open();
 
-    checkState(doFn instanceof SplittableParDo.ProcessFn);
+    checkState(doFn instanceof ProcessFn);
 
     StateInternalsFactory<String> stateInternalsFactory = new StateInternalsFactory<String>() {
       @Override
       public StateInternals stateInternalsForKey(String key) {
         //this will implicitly be keyed by the key of the incoming
         // element or by the key of a firing timer
-        return (StateInternals) stateInternals;
+        return (StateInternals) keyedStateInternals;
       }
     };
     TimerInternalsFactory<String> timerInternalsFactory = new TimerInternalsFactory<String>() {
@@ -114,16 +110,16 @@ public class SplittableDoFnOperator<
 
     executorService = Executors.newSingleThreadScheduledExecutor(Executors.defaultThreadFactory());
 
-    ((SplittableParDo.ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
-    ((SplittableParDo.ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
-    ((SplittableParDo.ProcessFn) doFn).setProcessElementInvoker(
+    ((ProcessFn) doFn).setStateInternalsFactory(stateInternalsFactory);
+    ((ProcessFn) doFn).setTimerInternalsFactory(timerInternalsFactory);
+    ((ProcessFn) doFn).setProcessElementInvoker(
         new OutputAndTimeBoundedSplittableProcessElementInvoker<>(
             doFn,
-            serializedOptions.getPipelineOptions(),
-            new OutputWindowedValue<FnOutputT>() {
+            serializedOptions.get(),
+            new OutputWindowedValue<OutputT>() {
               @Override
               public void outputWindowedValue(
-                  FnOutputT output,
+                  OutputT output,
                   Instant timestamp,
                   Collection<? extends BoundedWindow> windows,
                   PaneInfo pane) {
@@ -151,8 +147,8 @@ public class SplittableDoFnOperator<
   @Override
   public void fireTimer(InternalTimer<?, TimerInternals.TimerData> timer) {
     doFnRunner.processElement(WindowedValue.valueInGlobalWindow(
-        KeyedWorkItems.<String, ElementAndRestriction<InputT, RestrictionT>>timersWorkItem(
-            (String) stateInternals.getKey(),
+        KeyedWorkItems.<String, KV<InputT, RestrictionT>>timersWorkItem(
+            (String) keyedStateInternals.getKey(),
             Collections.singletonList(timer.getNamespace()))));
   }
 

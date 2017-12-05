@@ -89,7 +89,8 @@ public class DefaultCoderTest {
 
   private static class OldCustomSerializableCoder extends SerializableCoder<OldCustomRecord> {
     // Extending SerializableCoder isn't trivial, but it can be done.
-    @Deprecated // old form using a Class
+
+    // Old form using a Class.
     @SuppressWarnings("unchecked")
     public static <T extends Serializable> SerializableCoder<T> of(Class<T> recordType) {
        checkArgument(OldCustomRecord.class.isAssignableFrom(recordType));

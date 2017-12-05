@@ -35,13 +35,13 @@ class CodersTest(unittest.TestCase):
       {'host': ['Brasil', 1], 'guest': ['Italy', 0]}]
 
   def test_compute_points(self):
-    p = TestPipeline()
-    records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
-    result = (records
-              | 'points' >> beam.FlatMap(coders.compute_points)
-              | beam.CombinePerKey(sum))
-    assert_that(result, equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
-    p.run()
+    with TestPipeline() as p:
+      records = p | 'create' >> beam.Create(self.SAMPLE_RECORDS)
+      result = (records
+                | 'points' >> beam.FlatMap(coders.compute_points)
+                | beam.CombinePerKey(sum))
+      assert_that(result,
+                  equal_to([('Italy', 0), ('Brasil', 6), ('Germany', 3)]))
 
 
 if __name__ == '__main__':

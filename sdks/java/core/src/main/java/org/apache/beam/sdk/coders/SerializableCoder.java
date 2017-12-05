@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +25,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.values.TypeDescriptor;
 
 /**
@@ -80,7 +80,6 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
    * A {@link CoderProviderRegistrar} which registers a {@link CoderProvider} which can handle
    * serializable types.
    */
-  @AutoService(CoderProviderRegistrar.class)
   public static class SerializableCoderProviderRegistrar implements CoderProviderRegistrar {
 
     @Override
@@ -107,7 +106,9 @@ public class SerializableCoder<T extends Serializable> extends CustomCoder<T> {
   }
 
   private final Class<T> type;
-  private transient TypeDescriptor<T> typeDescriptor;
+
+  /** Access via {@link #getEncodedTypeDescriptor()}. */
+  @Nullable private transient TypeDescriptor<T> typeDescriptor;
 
   protected SerializableCoder(Class<T> type, TypeDescriptor<T> typeDescriptor) {
     this.type = type;

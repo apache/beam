@@ -54,7 +54,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -69,6 +68,7 @@ import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -105,17 +105,6 @@ class BigQueryServicesImpl implements BigQueryServices {
   @Override
   public DatasetService getDatasetService(BigQueryOptions options) {
     return new DatasetServiceImpl(options);
-  }
-
-  @Override
-  public BigQueryJsonReader getReaderFromTable(BigQueryOptions bqOptions, TableReference tableRef) {
-    return BigQueryJsonReaderImpl.fromTable(bqOptions, tableRef);
-  }
-
-  @Override
-  public BigQueryJsonReader getReaderFromQuery(
-      BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
-    return BigQueryJsonReaderImpl.fromQuery(bqOptions, projectId, queryConfig);
   }
 
   private static BackOff createDefaultBackoff() {
@@ -585,10 +574,20 @@ class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public void createDataset(
-        String projectId, String datasetId, @Nullable String location, @Nullable String description)
+        String projectId,
+        String datasetId,
+        @Nullable String location,
+        @Nullable String description,
+        @Nullable Long defaultTableExpirationMs)
         throws IOException, InterruptedException {
       createDataset(
-          projectId, datasetId, location, description, Sleeper.DEFAULT, createDefaultBackoff());
+          projectId,
+          datasetId,
+          location,
+          description,
+          defaultTableExpirationMs,
+          Sleeper.DEFAULT,
+          createDefaultBackoff());
     }
 
     private void createDataset(
@@ -596,6 +595,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         String datasetId,
         @Nullable String location,
         @Nullable String description,
+        @Nullable Long defaultTableExpirationMs,
         Sleeper sleeper,
         BackOff backoff) throws IOException, InterruptedException {
       DatasetReference datasetRef = new DatasetReference()
@@ -609,6 +609,9 @@ class BigQueryServicesImpl implements BigQueryServices {
       if (description != null) {
         dataset.setFriendlyName(description);
         dataset.setDescription(description);
+      }
+      if (defaultTableExpirationMs != null) {
+        dataset.setDefaultTableExpirationMs(defaultTableExpirationMs);
       }
 
       Exception lastException;
@@ -656,8 +659,11 @@ class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    long insertAll(TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList,
-        BackOff backoff, final Sleeper sleeper) throws IOException, InterruptedException {
+    long insertAll(TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+                   @Nullable List<String> insertIdList,
+                   BackOff backoff, final Sleeper sleeper, InsertRetryPolicy retryPolicy,
+                   List<ValueInSingleWindow<TableRow>> failedInserts)
+        throws IOException, InterruptedException {
       checkNotNull(ref, "ref");
       if (executor == null) {
         this.executor = options.as(GcsOptions.class).getExecutorService();
@@ -671,10 +677,10 @@ class BigQueryServicesImpl implements BigQueryServices {
       List<TableDataInsertAllResponse.InsertErrors> allErrors = new ArrayList<>();
       // These lists contain the rows to publish. Initially the contain the entire list.
       // If there are failures, they will contain only the failed rows to be retried.
-      List<TableRow> rowsToPublish = rowList;
+      List<ValueInSingleWindow<TableRow>> rowsToPublish = rowList;
       List<String> idsToPublish = insertIdList;
       while (true) {
-        List<TableRow> retryRows = new ArrayList<>();
+        List<ValueInSingleWindow<TableRow>> retryRows = new ArrayList<>();
         List<String> retryIds = (idsToPublish != null) ? new ArrayList<String>() : null;
 
         int strideIndex = 0;
@@ -686,7 +692,7 @@ class BigQueryServicesImpl implements BigQueryServices {
         List<Integer> strideIndices = new ArrayList<>();
 
         for (int i = 0; i < rowsToPublish.size(); ++i) {
-          TableRow row = rowsToPublish.get(i);
+          TableRow row = rowsToPublish.get(i).getValue();
           TableDataInsertAllRequest.Rows out = new TableDataInsertAllRequest.Rows();
           if (idsToPublish != null) {
             out.setInsertId(idsToPublish.get(i));
@@ -743,18 +749,23 @@ class BigQueryServicesImpl implements BigQueryServices {
         try {
           for (int i = 0; i < futures.size(); i++) {
             List<TableDataInsertAllResponse.InsertErrors> errors = futures.get(i).get();
-            if (errors != null) {
-              for (TableDataInsertAllResponse.InsertErrors error : errors) {
-                allErrors.add(error);
-                if (error.getIndex() == null) {
-                  throw new IOException("Insert failed: " + allErrors);
-                }
+            if (errors == null) {
+              continue;
+            }
+            for (TableDataInsertAllResponse.InsertErrors error : errors) {
+              if (error.getIndex() == null) {
+                throw new IOException("Insert failed: " + error + ", other errors: " + allErrors);
+              }
 
-                int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
+              int errorIndex = error.getIndex().intValue() + strideIndices.get(i);
+              if (retryPolicy.shouldRetry(new InsertRetryPolicy.Context(error))) {
+                allErrors.add(error);
                 retryRows.add(rowsToPublish.get(errorIndex));
                 if (retryIds != null) {
                   retryIds.add(idsToPublish.get(errorIndex));
                 }
+              } else {
+                failedInserts.add(rowsToPublish.get(errorIndex));
               }
             }
           }
@@ -793,13 +804,15 @@ class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public long insertAll(
-        TableReference ref, List<TableRow> rowList, @Nullable List<String> insertIdList)
+        TableReference ref, List<ValueInSingleWindow<TableRow>> rowList,
+        @Nullable List<String> insertIdList,
+        InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
         throws IOException, InterruptedException {
       return insertAll(
           ref, rowList, insertIdList,
           BackOffAdapter.toGcpBackOff(
               INSERT_BACKOFF_FACTORY.backoff()),
-          Sleeper.DEFAULT);
+          Sleeper.DEFAULT, retryPolicy, failedInserts);
     }
 
 
@@ -822,58 +835,6 @@ class BigQueryServicesImpl implements BigQueryServices {
           Sleeper.DEFAULT,
           createDefaultBackoff(),
           ALWAYS_RETRY);
-    }
-  }
-
-  private static class BigQueryJsonReaderImpl implements BigQueryJsonReader {
-    private BigQueryTableRowIterator iterator;
-
-    private BigQueryJsonReaderImpl(BigQueryTableRowIterator iterator) {
-      this.iterator = iterator;
-    }
-
-    private static BigQueryJsonReader fromQuery(
-        BigQueryOptions bqOptions, String projectId, JobConfigurationQuery queryConfig) {
-      return new BigQueryJsonReaderImpl(
-          BigQueryTableRowIterator.fromQuery(
-              queryConfig, projectId, newBigQueryClient(bqOptions).build()));
-    }
-
-    private static BigQueryJsonReader fromTable(
-        BigQueryOptions bqOptions, TableReference tableRef) {
-      return new BigQueryJsonReaderImpl(BigQueryTableRowIterator.fromTable(
-          tableRef, newBigQueryClient(bqOptions).build()));
-    }
-
-    @Override
-    public boolean start() throws IOException {
-      try {
-        iterator.open();
-        return iterator.advance();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted during start() operation", e);
-      }
-    }
-
-    @Override
-    public boolean advance() throws IOException {
-      try {
-        return iterator.advance();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new RuntimeException("Interrupted during advance() operation", e);
-      }
-    }
-
-    @Override
-    public TableRow getCurrent() throws NoSuchElementException {
-      return iterator.getCurrent();
-    }
-
-    @Override
-    public void close() throws IOException {
-      iterator.close();
     }
   }
 

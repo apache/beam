@@ -834,6 +834,8 @@ public class ApiSurface {
         .pruningPattern("org[.]apache[.]beam[.].*Test")
         // Exposes Guava, but not intended for users
         .pruningClassName("org.apache.beam.sdk.util.common.ReflectHelpers")
+         // test only
+        .pruningClassName("org.apache.beam.sdk.testing.InterceptingUrlClassLoader")
         .pruningPrefix("java");
   }
 }

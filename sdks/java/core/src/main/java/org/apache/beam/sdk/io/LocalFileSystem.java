@@ -34,10 +34,12 @@ import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -46,11 +48,32 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.commons.lang3.SystemUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * {@link FileSystem} implementation for local files.
+ *
+ * {@link #match} should interpret {@code spec} and resolve paths correctly according to OS being
+ * used. In order to do that specs should be defined in one of the below formats:
+ *
+ * <p>Linux/Mac:
+ * <ul>
+ *   <li>pom.xml</li>
+ *   <li>/Users/beam/Documents/pom.xml</li>
+ *   <li>file:/Users/beam/Documents/pom.xml</li>
+ *   <li>file:///Users/beam/Documents/pom.xml</li>
+ * </ul>
+ *
+ * <p>Windows OS:
+ * <ul>
+ *   <li>pom.xml</li>
+ *   <li>C:/Users/beam/Documents/pom.xml</li>
+ *   <li>C:\\Users\\beam\\Documents\\pom.xml</li>
+ *   <li>file:/C:/Users/beam/Documents/pom.xml</li>
+ *   <li>file:///C:/Users/beam/Documents/pom.xml</li>
+ * </ul>
  */
 class LocalFileSystem extends FileSystem<LocalResourceId> {
 
@@ -159,8 +182,12 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   @Override
   protected void delete(Collection<LocalResourceId> resourceIds) throws IOException {
     for (LocalResourceId resourceId : resourceIds) {
-      LOG.debug("Deleting file {}", resourceId);
-      Files.delete(resourceId.getPath());
+      try {
+        Files.delete(resourceId.getPath());
+      } catch (NoSuchFileException e) {
+        LOG.info("Ignoring failed deletion of file {} which already does not exist: {}", resourceId,
+            e);
+      }
     }
   }
 
@@ -176,8 +203,20 @@ class LocalFileSystem extends FileSystem<LocalResourceId> {
   }
 
   private MatchResult matchOne(String spec) throws IOException {
-    File file = Paths.get(spec).toFile();
+    if (spec.toLowerCase().startsWith("file:")) {
+      spec = spec.substring("file:".length());
+    }
 
+    if (SystemUtils.IS_OS_WINDOWS) {
+      List<String> prefixes = Arrays.asList("///", "/");
+      for (String prefix : prefixes) {
+        if (spec.toLowerCase().startsWith(prefix)) {
+          spec = spec.substring(prefix.length());
+        }
+      }
+    }
+
+    File file = Paths.get(spec).toFile();
     if (file.exists()) {
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(file)));
     }

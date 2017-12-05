@@ -19,11 +19,10 @@
 
 import argparse
 
-from apache_beam.transforms.display import HasDisplayData
-from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.options.value_provider import ValueProvider
-
+from apache_beam.transforms.display import HasDisplayData
 
 __all__ = [
     'PipelineOptions',
@@ -51,7 +50,7 @@ def _static_value_provider_of(value_type):
 
   """
   def _f(value):
-    _f.func_name = value_type.__name__
+    _f.__name__ = value_type.__name__
     return StaticValueProvider(value_type, value)
   return _f
 
@@ -278,14 +277,6 @@ class StandardOptions(PipelineOptions):
                         action='store_true',
                         help='Whether to enable streaming mode.')
 
-  # TODO(BEAM-1265): Remove this error, once at least one runner supports
-  # streaming pipelines.
-  def validate(self, validator):
-    errors = []
-    if self.view_as(StandardOptions).streaming:
-      errors.append('Streaming pipelines are not supported.')
-    return errors
-
 
 class TypeOptions(PipelineOptions):
 
@@ -322,6 +313,13 @@ class DirectOptions(PipelineOptions):
         help='DirectRunner uses stacked WindowedValues within a Bundle for '
         'memory optimization. Set --no_direct_runner_use_stacked_bundle to '
         'avoid it.')
+    parser.add_argument(
+        '--direct_runner_bundle_retry',
+        action='store_true',
+        default=False,
+        help=
+        ('Whether to allow bundle retries. If True the maximum'
+         'number of attempts to process a bundle is 4. '))
 
 
 class GoogleCloudOptions(PipelineOptions):
@@ -376,6 +374,13 @@ class GoogleCloudOptions(PipelineOptions):
     parser.add_argument('--template_location',
                         default=None,
                         help='Save job to specified local or GCS location.')
+    parser.add_argument(
+        '--label', '--labels',
+        dest='labels',
+        action='append',
+        default=None,
+        help='Labels that will be applied to this Dataflow job. Labels are key '
+        'value pairs separated by = (e.g. --label key=value).')
 
   def validate(self, validator):
     errors = []
@@ -473,7 +478,14 @@ class WorkerOptions(PipelineOptions):
     parser.add_argument(
         '--use_public_ips',
         default=None,
-        help='Whether to assign public IP addresses to the worker machines.')
+        action='store_true',
+        help='Whether to assign public IP addresses to the worker VMs.')
+    parser.add_argument(
+        '--no_use_public_ips',
+        dest='use_public_ips',
+        default=None,
+        action='store_false',
+        help='Whether to assign only private IP addresses to the worker VMs.')
 
   def validate(self, validator):
     errors = []
@@ -553,6 +565,18 @@ class SetupOptions(PipelineOptions):
          'worker will install the resulting package before running any custom '
          'code.'))
     parser.add_argument(
+        '--beam_plugin', '--beam_plugin',
+        dest='beam_plugins',
+        action='append',
+        default=None,
+        help=
+        ('Bootstrap the python process before executing any code by importing '
+         'all the plugins used in the pipeline. Please pass a comma separated'
+         'list of import paths to be included. This is currently an '
+         'experimental flag and provides no stability. Multiple '
+         '--beam_plugin options can be specified if more than one plugin '
+         'is needed.'))
+    parser.add_argument(
         '--save_main_session',
         default=False,
         action='store_true',
@@ -578,11 +602,12 @@ class SetupOptions(PipelineOptions):
         default=None,
         help=
         ('Local path to a Python package file. The file is expected to be (1) '
-         'a package tarball (".tar") or (2) a compressed package tarball '
-         '(".tar.gz") which can be installed using the "pip install" command '
-         'of the standard pip package. Multiple --extra_package options can '
-         'be specified if more than one package is needed. During job '
-         'submission, the files will be staged in the staging area '
+         'a package tarball (".tar"), (2) a compressed package tarball '
+         '(".tar.gz"), (3) a Wheel file (".whl") or (4) a compressed package '
+         'zip file (".zip") which can be installed using the "pip install" '
+         'command  of the standard pip package. Multiple --extra_package '
+         'options can be specified if more than one package is needed. During '
+         'job submission, the files will be staged in the staging area '
          '(--staging_location option) and the workers will install them in '
          'same order they were specified on the command line.'))
 
@@ -598,6 +623,11 @@ class TestOptions(PipelineOptions):
         help=('Verify state/output of e2e test pipeline. This is pickled '
               'version of the matcher which should extends '
               'hamcrest.core.base_matcher.BaseMatcher.'))
+    parser.add_argument(
+        '--dry_run',
+        default=False,
+        help=('Used in unit testing runners without submitting the '
+              'actual job.'))
 
   def validate(self, validator):
     errors = []

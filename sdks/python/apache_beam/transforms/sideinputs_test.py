@@ -24,7 +24,8 @@ from nose.plugins.attrib import attr
 
 import apache_beam as beam
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.util import assert_that, equal_to
+from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
 
 
@@ -54,7 +55,7 @@ class SideInputsTest(unittest.TestCase):
         side |= beam.Map(lambda x: ('k%s' % x, 'v%s' % x))
       res = main | beam.Map(lambda x, s: (x, s), side_input_type(side, **kw))
       if side_input_type in (beam.pvalue.AsIter, beam.pvalue.AsList):
-        res |= beam.Map(lambda (x, s): (x, sorted(s)))
+        res |= beam.Map(lambda x_s: (x_s[0], sorted(x_s[1])))
       assert_that(res, equal_to(expected))
 
   def test_global_global_windows(self):

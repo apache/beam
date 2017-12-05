@@ -22,6 +22,7 @@ import java.util.Collections;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.IncompatibleWindowException;
 import org.apache.beam.sdk.transforms.windowing.NonMergingWindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
@@ -41,6 +42,9 @@ public class IdentitySideInputWindowFn extends NonMergingWindowFn<Integer, Bound
   public boolean isCompatible(WindowFn<?, ?> other) {
     return true;
   }
+
+  @Override
+  public void verifyCompatibility(WindowFn<?, ?> other) throws IncompatibleWindowException {}
 
   @Override
   public Coder<BoundedWindow> windowCoder() {

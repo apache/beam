@@ -17,13 +17,14 @@
  */
 package org.apache.beam.runners.flink.translation.functions;
 
-import java.util.Collections;
+import com.google.common.collect.Lists;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
-import org.apache.beam.runners.flink.translation.utils.SerializedPipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
@@ -49,7 +50,7 @@ import org.apache.flink.util.Collector;
 public class FlinkDoFnFunction<InputT, OutputT>
     extends RichMapPartitionFunction<WindowedValue<InputT>, WindowedValue<OutputT>> {
 
-  private final SerializedPipelineOptions serializedOptions;
+  private final SerializablePipelineOptions serializedOptions;
 
   private final DoFn<InputT, OutputT> doFn;
   private final String stepName;
@@ -74,7 +75,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     this.doFn = doFn;
     this.stepName = stepName;
     this.sideInputs = sideInputs;
-    this.serializedOptions = new SerializedPipelineOptions(options);
+    this.serializedOptions = new SerializablePipelineOptions(options);
     this.windowingStrategy = windowingStrategy;
     this.outputMap = outputMap;
     this.mainOutputTag = mainOutputTag;
@@ -89,7 +90,7 @@ public class FlinkDoFnFunction<InputT, OutputT>
     RuntimeContext runtimeContext = getRuntimeContext();
 
     DoFnRunners.OutputManager outputManager;
-    if (outputMap == null) {
+    if (outputMap.size() == 1) {
       outputManager = new FlinkDoFnFunction.DoFnOutputManager(out);
     } else {
       // it has some additional outputs
@@ -97,17 +98,18 @@ public class FlinkDoFnFunction<InputT, OutputT>
           new FlinkDoFnFunction.MultiDoFnOutputManager((Collector) out, outputMap);
     }
 
+    List<TupleTag<?>> additionalOutputTags = Lists.newArrayList(outputMap.keySet());
+
     DoFnRunner<InputT, OutputT> doFnRunner = DoFnRunners.simpleRunner(
-        serializedOptions.getPipelineOptions(), doFn,
+        serializedOptions.get(), doFn,
         new FlinkSideInputReader(sideInputs, runtimeContext),
         outputManager,
         mainOutputTag,
-        // see SimpleDoFnRunner, just use it to limit number of additional outputs
-        Collections.<TupleTag<?>>emptyList(),
+        additionalOutputTags,
         new FlinkNoOpStepContext(),
         windowingStrategy);
 
-    if ((serializedOptions.getPipelineOptions().as(FlinkPipelineOptions.class))
+    if ((serializedOptions.get().as(FlinkPipelineOptions.class))
         .getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
     }
@@ -144,7 +146,9 @@ public class FlinkDoFnFunction<InputT, OutputT>
     @Override
     @SuppressWarnings("unchecked")
     public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-      collector.collect(output);
+      collector.collect(
+          WindowedValue.of(new RawUnionValue(0 /* single output */, output.getValue()),
+          output.getTimestamp(), output.getWindows(), output.getPane()));
     }
   }
 

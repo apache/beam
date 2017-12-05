@@ -37,7 +37,7 @@ public class DirectRegistrarTest {
   @Test
   public void testCorrectOptionsAreReturned() {
     assertEquals(
-        ImmutableList.of(DirectOptions.class),
+        ImmutableList.of(DirectOptions.class, DirectTestOptions.class),
         new Options().getPipelineOptions());
   }
 

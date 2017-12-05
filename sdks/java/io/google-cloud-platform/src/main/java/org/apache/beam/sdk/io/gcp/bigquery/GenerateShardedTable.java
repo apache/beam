@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ShardedKey;
 
 /**
  * Given a write to a specific table, assign that to one of the

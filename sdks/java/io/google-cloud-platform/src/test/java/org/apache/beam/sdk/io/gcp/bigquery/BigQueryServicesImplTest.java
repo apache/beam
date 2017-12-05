@@ -58,6 +58,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -67,11 +68,14 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.DatasetServiceIm
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServicesImpl.JobServiceImpl;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.ExpectedLogs;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.BackOffAdapter;
 import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.RetryHttpRequestInitializer;
 import org.apache.beam.sdk.util.Transport;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -485,6 +489,11 @@ public class BigQueryServicesImplTest {
     verify(response, times(1)).getContentType();
   }
 
+  private ValueInSingleWindow<TableRow> wrapTableRow(TableRow row) {
+    return ValueInSingleWindow.of(row, GlobalWindow.TIMESTAMP_MAX_VALUE,
+        GlobalWindow.INSTANCE, PaneInfo.ON_TIME_AND_ONLY_FIRING);
+  }
+
   /**
    * Tests that {@link DatasetServiceImpl#insertAll} retries quota rate limited attempts.
    */
@@ -492,8 +501,8 @@ public class BigQueryServicesImplTest {
   public void testInsertRetry() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = new ArrayList<>();
-    rows.add(new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    rows.add(wrapTableRow(new TableRow()));
 
     // First response is 403 rate limited, second response has valid payload.
     when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
@@ -505,7 +514,8 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(ref, rows, null,
-        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(), null);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
@@ -524,8 +534,9 @@ public class BigQueryServicesImplTest {
   public void testInsertRetrySelectRows() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = ImmutableList.of(
-        new TableRow().set("row", "a"), new TableRow().set("row", "b"));
+    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
+        wrapTableRow(new TableRow().set("row", "a")),
+        wrapTableRow(new TableRow().set("row", "b")));
     List<String> insertIds = ImmutableList.of("a", "b");
 
     final TableDataInsertAllResponse bFailed = new TableDataInsertAllResponse()
@@ -542,11 +553,11 @@ public class BigQueryServicesImplTest {
     DatasetServiceImpl dataService =
         new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
     dataService.insertAll(ref, rows, insertIds,
-        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+        InsertRetryPolicy.alwaysRetry(), null);
     verify(response, times(2)).getStatusCode();
     verify(response, times(2)).getContent();
     verify(response, times(2)).getContentType();
-    expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
   /**
@@ -556,7 +567,8 @@ public class BigQueryServicesImplTest {
   public void testInsertFailsGracefully() throws Exception {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = ImmutableList.of(new TableRow(), new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
+        wrapTableRow(new TableRow()), wrapTableRow(new TableRow()));
 
     final TableDataInsertAllResponse row1Failed = new TableDataInsertAllResponse()
         .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(1L)));
@@ -584,7 +596,8 @@ public class BigQueryServicesImplTest {
     // Expect it to fail.
     try {
       dataService.insertAll(ref, rows, null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+          InsertRetryPolicy.alwaysRetry(), null);
       fail();
     } catch (IOException e) {
       assertThat(e, instanceOf(IOException.class));
@@ -606,8 +619,8 @@ public class BigQueryServicesImplTest {
   public void testInsertDoesNotRetry() throws Throwable {
     TableReference ref =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
-    List<TableRow> rows = new ArrayList<>();
-    rows.add(new TableRow());
+    List<ValueInSingleWindow<TableRow>> rows = new ArrayList<>();
+    rows.add(wrapTableRow(new TableRow()));
 
     // First response is 403 not-rate-limited, second response has valid payload but should not
     // be invoked.
@@ -625,7 +638,8 @@ public class BigQueryServicesImplTest {
 
     try {
       dataService.insertAll(ref, rows, null,
-          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper());
+          BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+          InsertRetryPolicy.alwaysRetry(), null);
       fail();
     } catch (RuntimeException e) {
       verify(response, times(1)).getStatusCode();
@@ -633,6 +647,56 @@ public class BigQueryServicesImplTest {
       verify(response, times(1)).getContentType();
       throw e.getCause();
     }
+  }
+
+  /**
+   * Tests that {@link DatasetServiceImpl#insertAll} uses the supplied {@link InsertRetryPolicy},
+   * and returns the list of rows not retried.
+   */
+  @Test
+  public void testInsertRetryPolicy() throws InterruptedException, IOException {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<ValueInSingleWindow<TableRow>> rows = ImmutableList.of(
+        wrapTableRow(new TableRow()), wrapTableRow(new TableRow()));
+
+    // First time row0 fails with a retryable error, and row1 fails with a persistent error.
+    final TableDataInsertAllResponse firstFailure = new TableDataInsertAllResponse()
+        .setInsertErrors(ImmutableList.of(
+            new InsertErrors().setIndex(0L).setErrors(
+                ImmutableList.of(new ErrorProto().setReason("timeout"))),
+            new InsertErrors().setIndex(1L).setErrors(
+            ImmutableList.of(new ErrorProto().setReason("invalid")))));
+
+    // Second time there is only one row, which fails with a retryable error.
+    final TableDataInsertAllResponse secondFialure = new TableDataInsertAllResponse()
+        .setInsertErrors(ImmutableList.of(new InsertErrors().setIndex(0L).setErrors(
+            ImmutableList.of(new ErrorProto().setReason("timeout")))));
+
+    // On the final attempt, no failures are returned.
+    final TableDataInsertAllResponse allRowsSucceeded = new TableDataInsertAllResponse();
+
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    // Always return 200.
+    when(response.getStatusCode()).thenReturn(200);
+    when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+    when(response.getStatusCode()).thenReturn(200).thenReturn(200);
+
+    // First fail
+    when(response.getContent())
+        .thenReturn(toStream(firstFailure))
+        .thenReturn(toStream(secondFialure))
+        .thenReturn(toStream(allRowsSucceeded));
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+
+    List<ValueInSingleWindow<TableRow>> failedInserts = Lists.newArrayList();
+    dataService.insertAll(ref, rows, null,
+        BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()), new MockSleeper(),
+        InsertRetryPolicy.retryTransientErrors(), failedInserts);
+    assertEquals(1, failedInserts.size());
+    expectedLogs.verifyInfo("Retrying 1 failed inserts to BigQuery");
   }
 
   /** A helper to wrap a {@link GenericJson} object in a content stream. */

@@ -24,11 +24,15 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,8 +40,11 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -80,6 +87,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.kafka.clients.consumer.Consumer;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.MockConsumer;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -106,14 +114,19 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tests of {@link KafkaIO}.
  * Run with 'mvn test -Dkafka.clients.version=0.10.1.1',
- * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version
+ * or 'mvn test -Dkafka.clients.version=0.9.0.1' for either Kafka client version.
  */
 @RunWith(JUnit4.class)
 public class KafkaIOTest {
+
+  private static final Logger LOG = LoggerFactory.getLogger(KafkaIOTest.class);
+
   /*
    * The tests below borrow code and structure from CountingSourceTest. In addition verifies
    * the reader interleaves the records from multiple partitions.
@@ -150,7 +163,7 @@ public class KafkaIOTest {
     }
 
     int numPartitions = partitions.size();
-    long[] offsets = new long[numPartitions];
+    final long[] offsets = new long[numPartitions];
 
     for (int i = 0; i < numElements; i++) {
       int pIdx = i % numPartitions;
@@ -182,6 +195,36 @@ public class KafkaIOTest {
             for (TopicPartition tp : assigned) {
               updateBeginningOffsets(ImmutableMap.of(tp, 0L));
               updateEndOffsets(ImmutableMap.of(tp, (long) records.get(tp).size()));
+            }
+          }
+          // Override offsetsForTimes() in order to look up the offsets by timestamp.
+          // Remove keyword '@Override' here, Kafka client 0.10.1.0 previous versions does not have
+          // this method.
+          // Should return Map<TopicPartition, OffsetAndTimestamp>, but 0.10.1.0 previous versions
+          // does not have the OffsetAndTimestamp class. So return a raw type and use reflection
+          // here.
+          @SuppressWarnings("unchecked")
+          public Map offsetsForTimes(Map<TopicPartition, Long> timestampsToSearch) {
+            HashMap<TopicPartition, Object> result = new HashMap<>();
+            try {
+              Class<?> cls = Class.forName("org.apache.kafka.clients.consumer.OffsetAndTimestamp");
+              // OffsetAndTimestamp(long offset, long timestamp)
+              Constructor constructor = cls.getDeclaredConstructor(long.class, long.class);
+
+              // In test scope, timestamp == offset.
+              for (Map.Entry<TopicPartition, Long> entry : timestampsToSearch.entrySet()) {
+                long maxOffset = offsets[partitions.indexOf(entry.getKey())];
+                Long offset = entry.getValue();
+                if (offset >= maxOffset) {
+                  offset = null;
+                }
+                result.put(
+                    entry.getKey(), constructor.newInstance(entry.getValue(), offset));
+              }
+              return result;
+            } catch (ClassNotFoundException | IllegalAccessException
+                | InstantiationException | NoSuchMethodException | InvocationTargetException e) {
+              throw new RuntimeException(e);
             }
           }
         };
@@ -239,12 +282,19 @@ public class KafkaIOTest {
     }
   }
 
+  private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
+      int numElements,
+      @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
+    return mkKafkaReadTransform(numElements, numElements, timestampFn);
+  }
+
   /**
    * Creates a consumer with two topics, with 10 partitions each.
    * numElements are (round-robin) assigned all the 20 partitions.
    */
   private static KafkaIO.Read<Integer, Long> mkKafkaReadTransform(
       int numElements,
+      int maxNumRecords,
       @Nullable SerializableFunction<KV<Integer, Long>, Instant> timestampFn) {
 
     List<String> topics = ImmutableList.of("topic_a", "topic_b");
@@ -256,7 +306,7 @@ public class KafkaIOTest {
             topics, 10, numElements, OffsetResetStrategy.EARLIEST)) // 20 partitions
         .withKeyDeserializer(IntegerDeserializer.class)
         .withValueDeserializer(LongDeserializer.class)
-        .withMaxNumRecords(numElements);
+        .withMaxNumRecords(maxNumRecords);
 
     if (timestampFn != null) {
       return reader.withTimestampFn(timestampFn);
@@ -283,22 +333,31 @@ public class KafkaIOTest {
 
   public static void addCountingAsserts(PCollection<Long> input, long numElements) {
     // Count == numElements
-    PAssert
-      .thatSingleton(input.apply("Count", Count.<Long>globally()))
-      .isEqualTo(numElements);
     // Unique count == numElements
-    PAssert
-      .thatSingleton(input.apply(Distinct.<Long>create())
-                          .apply("UniqueCount", Count.<Long>globally()))
-      .isEqualTo(numElements);
     // Min == 0
-    PAssert
-      .thatSingleton(input.apply("Min", Min.<Long>globally()))
-      .isEqualTo(0L);
     // Max == numElements-1
+    addCountingAsserts(input, numElements, numElements, 0L, numElements - 1);
+  }
+
+  public static void addCountingAsserts(
+      PCollection<Long> input, long count, long uniqueCount, long min, long max) {
+
     PAssert
-      .thatSingleton(input.apply("Max", Max.<Long>globally()))
-      .isEqualTo(numElements - 1);
+        .thatSingleton(input.apply("Count", Count.<Long>globally()))
+        .isEqualTo(count);
+
+    PAssert
+        .thatSingleton(input.apply(Distinct.<Long>create())
+            .apply("UniqueCount", Count.<Long>globally()))
+        .isEqualTo(uniqueCount);
+
+    PAssert
+        .thatSingleton(input.apply("Min", Min.<Long>globally()))
+        .isEqualTo(min);
+
+    PAssert
+        .thatSingleton(input.apply("Max", Max.<Long>globally()))
+        .isEqualTo(max);
   }
 
   @Test
@@ -307,6 +366,35 @@ public class KafkaIOTest {
 
     PCollection<Long> input = p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+            .withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, numElements);
+    p.run();
+  }
+
+  @Test
+  public void testUnreachableKafkaBrokers() {
+    // Expect an exception when the Kafka brokers are not reachable on the workers.
+    // We specify partitions explicitly so that splitting does not involve server interaction.
+    // Set request timeout to 10ms so that test does not take long.
+
+    thrown.expect(Exception.class);
+    thrown.expectMessage("Reader-0: Timeout while initializing partition 'test-0'");
+
+    int numElements = 1000;
+    PCollection<Long> input = p
+        .apply(KafkaIO.<Integer, Long>read()
+            .withBootstrapServers("8.8.8.8:9092") // Google public DNS ip.
+            .withTopicPartitions(ImmutableList.of(new TopicPartition("test", 0)))
+            .withKeyDeserializer(IntegerDeserializer.class)
+            .withValueDeserializer(LongDeserializer.class)
+            .updateConsumerProperties(ImmutableMap.<String, Object>of(
+                ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10,
+                ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 5,
+                ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 8,
+                ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 8))
+            .withMaxNumRecords(10)
             .withoutMetadata())
         .apply(Values.<Long>create());
 
@@ -645,11 +733,10 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    synchronized (MOCK_PRODUCER_LOCK) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
 
-      MOCK_PRODUCER.clear();
-
-      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
+      ProducerSendCompletionThread completionThread =
+        new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
 
       String topic = "test";
 
@@ -661,13 +748,13 @@ public class KafkaIOTest {
             .withTopic(topic)
             .withKeySerializer(IntegerSerializer.class)
             .withValueSerializer(LongSerializer.class)
-            .withProducerFactoryFn(new ProducerFactoryFn()));
+            .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(topic, numElements, false);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
     }
   }
 
@@ -677,11 +764,10 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    synchronized (MOCK_PRODUCER_LOCK) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
 
-      MOCK_PRODUCER.clear();
-
-      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
+      ProducerSendCompletionThread completionThread =
+        new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
 
       String topic = "test";
 
@@ -693,14 +779,58 @@ public class KafkaIOTest {
             .withBootstrapServers("none")
             .withTopic(topic)
             .withValueSerializer(LongSerializer.class)
-            .withProducerFactoryFn(new ProducerFactoryFn())
+            .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey))
             .values());
 
       p.run();
 
       completionThread.shutdown();
 
-      verifyProducerRecords(topic, numElements, true);
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, true);
+    }
+  }
+
+  @Test
+  public void testEOSink() {
+    // testSink() with EOS enabled.
+    // This does not actually inject retries in a stage to test exactly-once-semantics.
+    // It mainly exercises the code in normal flow without retries.
+    // Ideally we should test EOS Sink by triggering replays of a messages between stages.
+    // It is not feasible to test such retries with direct runner. When DoFnTester supports
+    // state, we can test KafkaEOWriter DoFn directly to ensure it handles retries correctly.
+
+    if (!ProducerSpEL.supportsTransactions()) {
+      LOG.warn("testEOSink() is disabled as Kafka client version does not support transactions.");
+      return;
+    }
+
+    int numElements = 1000;
+
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+
+      ProducerSendCompletionThread completionThread =
+        new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
+
+      String topic = "test";
+
+      p
+        .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
+                 .withoutMetadata())
+        .apply(KafkaIO.<Integer, Long>write()
+                 .withBootstrapServers("none")
+                 .withTopic(topic)
+                 .withKeySerializer(IntegerSerializer.class)
+                 .withValueSerializer(LongSerializer.class)
+                 .withEOS(1, "test")
+                 .withConsumerFactoryFn(new ConsumerFactoryFn(
+                   Lists.newArrayList(topic), 10, 10, OffsetResetStrategy.EARLIEST))
+                 .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
+
+      p.run();
+
+      completionThread.shutdown();
+
+      verifyProducerRecords(producerWrapper.mockProducer, topic, numElements, false);
     }
   }
 
@@ -718,14 +848,12 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    synchronized (MOCK_PRODUCER_LOCK) {
-
-      MOCK_PRODUCER.clear();
-
-      String topic = "test";
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
 
       ProducerSendCompletionThread completionThreadWithErrors =
-          new ProducerSendCompletionThread(10, 100).start();
+        new ProducerSendCompletionThread(producerWrapper.mockProducer, 10, 100).start();
+
+      String topic = "test";
 
       p
         .apply(mkKafkaReadTransform(numElements, new ValueAsTimestampFn())
@@ -735,7 +863,7 @@ public class KafkaIOTest {
             .withTopic(topic)
             .withKeySerializer(IntegerSerializer.class)
             .withValueSerializer(LongSerializer.class)
-            .withProducerFactoryFn(new ProducerFactoryFn()));
+            .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       try {
         p.run();
@@ -746,6 +874,51 @@ public class KafkaIOTest {
         completionThreadWithErrors.shutdown();
       }
     }
+  }
+
+  @Test
+  public void testUnboundedSourceStartReadTime() {
+
+    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+
+    int numElements = 1000;
+    // In this MockConsumer, we let the elements of the time and offset equal and there are 20
+    // partitions. So set this startTime can read half elements.
+    int startTime = numElements / 20 / 2;
+    int maxNumRecords = numElements / 2;
+
+    PCollection<Long> input = p
+        .apply(mkKafkaReadTransform(numElements, maxNumRecords, new ValueAsTimestampFn())
+            .withStartReadTime(new Instant(startTime))
+            .withoutMetadata())
+        .apply(Values.<Long>create());
+
+    addCountingAsserts(input, maxNumRecords, maxNumRecords, maxNumRecords, numElements - 1);
+    p.run();
+
+  }
+
+  @Rule public ExpectedException noMessagesException = ExpectedException.none();
+
+  @Test
+  public void testUnboundedSourceStartReadTimeException() {
+
+    assumeTrue(new ConsumerSpEL().hasOffsetsForTimes());
+
+    noMessagesException.expect(RuntimeException.class);
+
+    int numElements = 1000;
+    // In this MockConsumer, we let the elements of the time and offset equal and there are 20
+    // partitions. So set this startTime can not read any element.
+    int startTime = numElements / 20;
+
+    p.apply(mkKafkaReadTransform(numElements, numElements, new ValueAsTimestampFn())
+            .withStartReadTime(new Instant(startTime))
+            .withoutMetadata())
+        .apply(Values.<Long>create());
+
+    p.run();
+
   }
 
   @Test
@@ -783,17 +956,19 @@ public class KafkaIOTest {
 
   @Test
   public void testSinkDisplayData() {
-    KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
+      KafkaIO.Write<Integer, Long> write = KafkaIO.<Integer, Long>write()
         .withBootstrapServers("myServerA:9092,myServerB:9092")
         .withTopic("myTopic")
         .withValueSerializer(LongSerializer.class)
-        .withProducerFactoryFn(new ProducerFactoryFn());
+        .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey));
 
-    DisplayData displayData = DisplayData.from(write);
+      DisplayData displayData = DisplayData.from(write);
 
-    assertThat(displayData, hasDisplayItem("topic", "myTopic"));
-    assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
-    assertThat(displayData, hasDisplayItem("retries", 3));
+      assertThat(displayData, hasDisplayItem("topic", "myTopic"));
+      assertThat(displayData, hasDisplayItem("bootstrap.servers", "myServerA:9092,myServerB:9092"));
+      assertThat(displayData, hasDisplayItem("retries", 3));
+    }
   }
 
   // interface for testing coder inference
@@ -879,11 +1054,10 @@ public class KafkaIOTest {
 
     int numElements = 1000;
 
-    synchronized (MOCK_PRODUCER_LOCK) {
+    try (MockProducerWrapper producerWrapper = new MockProducerWrapper()) {
 
-      MOCK_PRODUCER.clear();
-
-      ProducerSendCompletionThread completionThread = new ProducerSendCompletionThread().start();
+      ProducerSendCompletionThread completionThread =
+        new ProducerSendCompletionThread(producerWrapper.mockProducer).start();
 
       String topic = "test";
 
@@ -895,7 +1069,7 @@ public class KafkaIOTest {
               .withTopic(topic)
               .withKeySerializer(IntegerSerializer.class)
               .withValueSerializer(LongSerializer.class)
-              .withProducerFactoryFn(new ProducerFactoryFn()));
+              .withProducerFactoryFn(new ProducerFactoryFn(producerWrapper.producerKey)));
 
       PipelineResult result = p.run();
 
@@ -918,10 +1092,11 @@ public class KafkaIOTest {
     }
   }
 
-  private static void verifyProducerRecords(String topic, int numElements, boolean keyIsAbsent) {
+  private static void verifyProducerRecords(MockProducer<Integer, Long> mockProducer,
+                                            String topic, int numElements, boolean keyIsAbsent) {
 
     // verify that appropriate messages are written to kafka
-    List<ProducerRecord<Integer, Long>> sent = MOCK_PRODUCER.history();
+    List<ProducerRecord<Integer, Long>> sent = mockProducer.history();
 
     // sort by values
     Collections.sort(sent, new Comparator<ProducerRecord<Integer, Long>>() {
@@ -944,63 +1119,104 @@ public class KafkaIOTest {
   }
 
   /**
-   * Singleton MockProudcer. Using a singleton here since we need access to the object to fetch
-   * the actual records published to the producer. This prohibits running the tests using
-   * the producer in parallel, but there are only one or two tests.
+   * This wrapper over MockProducer. It also places the mock producer in global MOCK_PRODUCER_MAP.
+   * The map is needed so that the producer returned by ProducerFactoryFn during pipeline can be
+   * used in verification after the test. We also override {@code flush()} method in MockProducer
+   * so that test can control behavior of {@code send()} method (e.g. to inject errors).
    */
-  private static final MockProducer<Integer, Long> MOCK_PRODUCER =
-    new MockProducer<Integer, Long>(
-      false, // disable synchronous completion of send. see ProducerSendCompletionThread below.
-      new IntegerSerializer(),
-      new LongSerializer()) {
+  private static class MockProducerWrapper implements AutoCloseable {
 
-      // override flush() so that it does not complete all the waiting sends, giving a chance to
-      // ProducerCompletionThread to inject errors.
+    final String producerKey;
+    final MockProducer<Integer, Long> mockProducer;
 
-      @Override
-      public void flush() {
-        while (completeNext()) {
-          // there are some uncompleted records. let the completion thread handle them.
-          try {
-            Thread.sleep(10);
-          } catch (InterruptedException e) {
+    // MockProducer has "closed" method starting version 0.11.
+    private static Method closedMethod;
+
+    static {
+      try {
+        closedMethod = MockProducer.class.getMethod("closed");
+      } catch (NoSuchMethodException e) {
+        closedMethod = null;
+      }
+    }
+
+
+    MockProducerWrapper() {
+      producerKey = String.valueOf(ThreadLocalRandom.current().nextLong());
+      mockProducer = new MockProducer<Integer, Long>(
+        false, // disable synchronous completion of send. see ProducerSendCompletionThread below.
+        new IntegerSerializer(),
+        new LongSerializer()) {
+
+        // override flush() so that it does not complete all the waiting sends, giving a chance to
+        // ProducerCompletionThread to inject errors.
+
+        @Override
+        public void flush() {
+          while (completeNext()) {
+            // there are some uncompleted records. let the completion thread handle them.
+            try {
+              Thread.sleep(10);
+            } catch (InterruptedException e) {
+              // ok to retry.
+            }
           }
         }
-      }
-    };
+      };
 
-  // use a separate object serialize tests using MOCK_PRODUCER so that we don't interfere
-  // with Kafka MockProducer locking itself.
-  private static final Object MOCK_PRODUCER_LOCK = new Object();
+      // Add the producer to the global map so that producer factory function can access it.
+      assertNull(MOCK_PRODUCER_MAP.putIfAbsent(producerKey, mockProducer));
+    }
+
+    public void close() {
+      MOCK_PRODUCER_MAP.remove(producerKey);
+      try {
+        if (closedMethod == null || !((Boolean) closedMethod.invoke(mockProducer))) {
+          mockProducer.close();
+        }
+      } catch (Exception e) { // Not expected.
+        throw new RuntimeException(e);
+      }
+    }
+  }
+
+  private static final ConcurrentMap<String, MockProducer<Integer, Long>> MOCK_PRODUCER_MAP =
+    new ConcurrentHashMap<>();
 
   private static class ProducerFactoryFn
     implements SerializableFunction<Map<String, Object>, Producer<Integer, Long>> {
+    final String producerKey;
+
+    ProducerFactoryFn(String producerKey) {
+      this.producerKey = producerKey;
+    }
 
     @SuppressWarnings("unchecked")
     @Override
     public Producer<Integer, Long> apply(Map<String, Object> config) {
 
       // Make sure the config is correctly set up for serializers.
-
-      // There may not be a key serializer if we're interested only in values.
-      if (config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG) != null) {
-        Utils.newInstance(
-                ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
-                        .asSubclass(Serializer.class)
-        ).configure(config, true);
-      }
+      Utils.newInstance(
+              ((Class<?>) config.get(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG))
+                      .asSubclass(Serializer.class)
+      ).configure(config, true);
 
       Utils.newInstance(
           ((Class<?>) config.get(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG))
               .asSubclass(Serializer.class)
       ).configure(config, false);
 
-      return MOCK_PRODUCER;
+      // Returning same producer in each instance in a pipeline seems to work fine currently.
+      // If DirectRunner creates multiple DoFn instances for sinks, we might need to handle
+      // it appropriately. I.e. allow multiple producers for each producerKey and concatenate
+      // all the messages written to each producer for verification after the pipeline finishes.
+
+      return MOCK_PRODUCER_MAP.get(producerKey);
     }
   }
 
   private static class InjectedErrorException extends RuntimeException {
-    public InjectedErrorException(String message) {
+    InjectedErrorException(String message) {
       super(message);
     }
   }
@@ -1013,18 +1229,22 @@ public class KafkaIOTest {
    */
   private static class ProducerSendCompletionThread {
 
+    private final MockProducer<Integer, Long> mockProducer;
     private final int maxErrors;
     private final int errorFrequency;
     private final AtomicBoolean done = new AtomicBoolean(false);
     private final ExecutorService injectorThread;
     private int numCompletions = 0;
 
-    ProducerSendCompletionThread() {
+    ProducerSendCompletionThread(MockProducer<Integer, Long> mockProducer) {
       // complete everything successfully
-      this(0, 0);
+      this(mockProducer, 0, 0);
     }
 
-    ProducerSendCompletionThread(final int maxErrors, final int errorFrequency) {
+    ProducerSendCompletionThread(MockProducer<Integer, Long> mockProducer,
+                                 int maxErrors,
+                                 int errorFrequency) {
+      this.mockProducer = mockProducer;
       this.maxErrors = maxErrors;
       this.errorFrequency = errorFrequency;
       injectorThread = Executors.newSingleThreadExecutor();
@@ -1040,14 +1260,14 @@ public class KafkaIOTest {
             boolean successful;
 
             if (errorsInjected < maxErrors && ((numCompletions + 1) % errorFrequency) == 0) {
-              successful = MOCK_PRODUCER.errorNext(
+              successful = mockProducer.errorNext(
                   new InjectedErrorException("Injected Error #" + (errorsInjected + 1)));
 
               if (successful) {
                 errorsInjected++;
               }
             } else {
-              successful = MOCK_PRODUCER.completeNext();
+              successful = mockProducer.completeNext();
             }
 
             if (successful) {
@@ -1057,6 +1277,7 @@ public class KafkaIOTest {
               try {
                 Thread.sleep(1);
               } catch (InterruptedException e) {
+                // ok to retry.
               }
             }
           }

@@ -27,8 +27,12 @@ mavenJob('beam_Release_NightlySnapshot') {
   // Execute concurrent builds if necessary.
   concurrentBuild()
 
-  // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  // Set common parameters. Huge timeout because we really do need to
+  // run all the ITs and release the artifacts.
+  common_job_properties.setTopLevelMainJobProperties(
+      delegate,
+      'master',
+      240)
 
   // Set maven paramaters.
   common_job_properties.setMavenConfig(delegate)
@@ -41,5 +45,17 @@ mavenJob('beam_Release_NightlySnapshot') {
       'dev@beam.apache.org')
 
   // Maven goals for this job.
-  goals('-B -e clean deploy -P release,dataflow-runner -DskipITs=false -DintegrationTestPipelineOptions=\'[ "--project=apache-beam-testing", "--tempRoot=gs://temp-storage-for-end-to-end-tests", "--runner=TestDataflowRunner" ]\'')
+  goals('''\
+      clean deploy \
+      --batch-mode \
+      --errors \
+      --fail-at-end \
+      -P release,dataflow-runner \
+      -D skipITs=false \
+      -D integrationTestPipelineOptions=\'[ \
+        "--project=apache-beam-testing", \
+        "--tempRoot=gs://temp-storage-for-end-to-end-tests", \
+        "--runner=TestDataflowRunner" \
+      ]\'\
+  ''')
 }

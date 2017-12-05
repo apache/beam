@@ -76,18 +76,14 @@ public class SortValues<PrimaryKeyT, SecondaryKeyT, ValueT>
   @Override
   public PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> expand(
       PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> input) {
-    return input.apply(
-        ParDo.of(
-            new SortValuesDoFn<PrimaryKeyT, SecondaryKeyT, ValueT>(
-                sorterOptions,
-                getSecondaryKeyCoder(input.getCoder()),
-                getValueCoder(input.getCoder()))));
-  }
-
-  @Override
-  protected Coder<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> getDefaultOutputCoder(
-      PCollection<KV<PrimaryKeyT, Iterable<KV<SecondaryKeyT, ValueT>>>> input) {
-    return input.getCoder();
+    return input
+        .apply(
+            ParDo.of(
+                new SortValuesDoFn<PrimaryKeyT, SecondaryKeyT, ValueT>(
+                    sorterOptions,
+                    getSecondaryKeyCoder(input.getCoder()),
+                    getValueCoder(input.getCoder()))))
+        .setCoder(input.getCoder());
   }
 
   /** Retrieves the {@link Coder} for the secondary key-value pairs. */

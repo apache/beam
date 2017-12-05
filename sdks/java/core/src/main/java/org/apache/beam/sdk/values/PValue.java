@@ -37,8 +37,8 @@ public interface PValue extends POutput, PInput {
   /**
    * {@inheritDoc}.
    *
-   * <p>A {@link PValue} always expands into itself. Calling {@link #expand()} on a PValue is almost
-   * never appropriate.
+   * @deprecated A {@link PValue} always expands into itself. Calling {@link #expand()} on a PValue
+   * is almost never appropriate.
    */
   @Deprecated
   Map<TupleTag<?>, PValue> expand();

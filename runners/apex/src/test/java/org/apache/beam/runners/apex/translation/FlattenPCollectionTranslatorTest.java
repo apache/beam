@@ -53,7 +53,6 @@ public class FlattenPCollectionTranslatorTest {
   @Test
   public void test() throws Exception {
     ApexPipelineOptions options = PipelineOptionsFactory.as(ApexPipelineOptions.class);
-    options.setApplicationName("FlattenPCollection");
     options.setRunner(ApexRunner.class);
     Pipeline p = Pipeline.create(options);
 

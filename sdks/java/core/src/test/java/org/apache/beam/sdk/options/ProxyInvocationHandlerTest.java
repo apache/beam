@@ -24,7 +24,6 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasType
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -44,6 +43,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.testing.EqualsTester;
 import java.io.IOException;
+import java.io.NotSerializableException;
 import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
@@ -54,13 +54,13 @@ import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.hamcrest.Matchers;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.ExternalResource;
 import org.junit.rules.TestRule;
@@ -795,7 +795,7 @@ public class ProxyInvocationHandlerTest {
 
     expectedException.expectMessage(
         ProxyInvocationHandler.PipelineOptionsDisplayData.class.getName());
-    expectedException.expectCause(ThrowableMessageMatcher.hasMessage(is("oh noes!!")));
+    expectedException.expectMessage("oh noes!!");
     p.run();
   }
 
@@ -1018,5 +1018,22 @@ public class ProxyInvocationHandlerTest {
 
     DisplayData data = DisplayData.from(options);
     assertThat(data, not(hasDisplayItem("value")));
+  }
+
+  private static class CapturesOptions implements Serializable {
+    PipelineOptions options = PipelineOptionsFactory.create();
+  }
+
+  @Test
+  public void testOptionsAreNotSerializable() {
+    expectedException.expectCause(Matchers.<Throwable>instanceOf(NotSerializableException.class));
+    SerializableUtils.clone(new CapturesOptions());
+  }
+
+  @Test
+  public void testGetOptionNameFromMethod() throws NoSuchMethodException {
+    ProxyInvocationHandler handler = new ProxyInvocationHandler(Maps.<String, Object>newHashMap());
+    handler.as(BaseOptions.class);
+    assertEquals("foo", handler.getOptionName(BaseOptions.class.getMethod("getFoo")));
   }
 }

@@ -23,10 +23,11 @@ import static org.junit.Assert.assertEquals;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.apache.beam.fn.harness.test.TestExecutors;
-import org.apache.beam.fn.harness.test.TestExecutors.TestExecutorService;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.harness.test.TestExecutors;
+import org.apache.beam.harness.test.TestExecutors.TestExecutorService;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,12 +42,21 @@ public class RegisterHandlerTest {
       BeamFnApi.InstructionRequest.newBuilder()
       .setInstructionId("1L")
       .setRegister(BeamFnApi.RegisterRequest.newBuilder()
-          .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId("1L")
-              .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId("10L")).build()))
+          .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder()
+              .setId("1L")
+              .putCoders("10L", RunnerApi.Coder.newBuilder()
+                  .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn("urn:10L").build())
+                      .build())
+                  .build())
+              .build())
           .addProcessBundleDescriptor(BeamFnApi.ProcessBundleDescriptor.newBuilder().setId("2L")
-              .addCoders(BeamFnApi.Coder.newBuilder().setFunctionSpec(
-                  BeamFnApi.FunctionSpec.newBuilder().setId("20L")).build()))
+              .putCoders("20L", RunnerApi.Coder.newBuilder()
+                  .setSpec(RunnerApi.SdkFunctionSpec.newBuilder()
+                      .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn("urn:20L").build())
+                      .build())
+                  .build())
+              .build())
           .build())
       .build();
   private static final BeamFnApi.InstructionResponse REGISTER_RESPONSE =
@@ -71,9 +81,11 @@ public class RegisterHandlerTest {
         handler.getById("1L"));
     assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1),
         handler.getById("2L"));
-    assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCoders(0),
+    assertEquals(
+        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(0).getCodersOrThrow("10L"),
         handler.getById("10L"));
-    assertEquals(REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCoders(0),
+    assertEquals(
+        REGISTER_REQUEST.getRegister().getProcessBundleDescriptor(1).getCodersOrThrow("20L"),
         handler.getById("20L"));
     assertEquals(REGISTER_RESPONSE, responseFuture.get());
   }

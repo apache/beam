@@ -25,48 +25,56 @@ from __future__ import absolute_import
 
 import argparse
 import logging
-import re
-
 
 import apache_beam as beam
 import apache_beam.transforms.window as window
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
+
+
+def split_fn(lines):
+  import re
+  return re.findall(r'[A-Za-z\']+', lines)
 
 
 def run(argv=None):
   """Build and run the pipeline."""
-
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input_topic', required=True,
-      help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+      help=('Input PubSub topic of the form '
+            '"projects/<PROJECT>/topics/<TOPIC>".'))
   parser.add_argument(
       '--output_topic', required=True,
-      help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+      help=('Output PubSub topic of the form '
+            '"projects/<PROJECT>/topic/<TOPIC>".'))
   known_args, pipeline_args = parser.parse_known_args(argv)
+  options = PipelineOptions(pipeline_args)
+  options.view_as(StandardOptions).streaming = True
 
-  p = beam.Pipeline(argv=pipeline_args)
+  with beam.Pipeline(options=options) as p:
 
-  # Read the text file[pattern] into a PCollection.
-  lines = p | 'read' >> beam.io.Read(
-      beam.io.PubSubSource(known_args.input_topic))
+    # Read from PubSub into a PCollection.
+    lines = p | beam.io.ReadStringsFromPubSub(known_args.input_topic)
 
-  # Capitalize the characters in each line.
-  transformed = (lines
-                 | 'Split' >> (
-                     beam.FlatMap(lambda x: re.findall(r'[A-Za-z\']+', x))
-                     .with_output_types(unicode))
-                 | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
-                 | beam.WindowInto(window.FixedWindows(15, 0))
-                 | 'Group' >> beam.GroupByKey()
-                 | 'Count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-                 | 'Format' >> beam.Map(lambda tup: '%s: %d' % tup))
+    # Capitalize the characters in each line.
+    def count_ones(word_ones):
+      (word, ones) = word_ones
+      return (word, sum(ones))
 
-  # Write to PubSub.
-  # pylint: disable=expression-not-assigned
-  transformed | 'pubsub_write' >> beam.io.Write(
-      beam.io.PubSubSink(known_args.output_topic))
+    transformed = (lines
+                   # Use a pre-defined function that imports the re package.
+                   | 'Split' >> (
+                       beam.FlatMap(split_fn).with_output_types(unicode))
+                   | 'PairWithOne' >> beam.Map(lambda x: (x, 1))
+                   | beam.WindowInto(window.FixedWindows(15, 0))
+                   | 'Group' >> beam.GroupByKey()
+                   | 'Count' >> beam.Map(count_ones)
+                   | 'Format' >> beam.Map(lambda tup: '%s: %d' % tup))
 
-  p.run().wait_until_finish()
+    # Write to PubSub.
+    # pylint: disable=expression-not-assigned
+    transformed | beam.io.WriteStringsToPubSub(known_args.output_topic)
 
 
 if __name__ == '__main__':

@@ -46,6 +46,17 @@ def unpack_Any(any_msg, msg_class):
   return msg
 
 
+def parse_Bytes(bytes, msg_class):
+  """Parses the String of bytes into msg_class.
+
+  Returns the input bytes if msg_class is None."""
+  if msg_class is None:
+    return bytes
+  msg = msg_class()
+  msg.ParseFromString(bytes)
+  return msg
+
+
 def pack_Struct(**kwargs):
   """Returns a struct containing the values indicated by kwargs.
   """
@@ -53,3 +64,9 @@ def pack_Struct(**kwargs):
   for key, value in kwargs.items():
     msg[key] = value  # pylint: disable=unsubscriptable-object, unsupported-assignment-operation
   return msg
+
+
+def from_micros(cls, micros):
+  result = cls()
+  result.FromMicroseconds(micros)
+  return result

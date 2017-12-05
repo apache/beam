@@ -27,8 +27,7 @@ import java.io.File;
 import java.util.Arrays;
 import java.util.EnumSet;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.io.WriteFiles;
@@ -85,10 +84,13 @@ public class TransformTreeTest {
       // Issue below: PCollection.createPrimitiveOutput should not be used
       // from within a composite transform.
       return PCollectionList.of(
-          Arrays.asList(result, PCollection.<String>createPrimitiveOutputInternal(
-              b.getPipeline(),
-              WindowingStrategy.globalDefault(),
-              result.isBounded())));
+          Arrays.asList(
+              result,
+              PCollection.createPrimitiveOutputInternal(
+                  b.getPipeline(),
+                  WindowingStrategy.globalDefault(),
+                  result.isBounded(),
+                  StringUtf8Coder.of())));
     }
   }
 
@@ -104,11 +106,6 @@ public class TransformTreeTest {
       input.apply(Count.<Integer>perElement());
 
       return PDone.in(input.getPipeline());
-    }
-
-    @Override
-    protected Coder<?> getDefaultOutputCoder() {
-      return VoidCoder.of();
     }
   }
 

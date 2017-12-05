@@ -30,9 +30,9 @@ from apache_beam.io import ReadFromText
 from apache_beam.io import WriteToText
 from apache_beam.options.pipeline_options import PipelineOptions
 
-
 # pylint doesn't understand our pipeline syntax:
 # pylint:disable=expression-not-assigned
+
 
 class Count1(beam.PTransform):
   """Count as a subclass of PTransform, with an apply method."""
@@ -47,11 +47,10 @@ class Count1(beam.PTransform):
 def run_count1(known_args, options):
   """Runs the first example pipeline."""
   logging.info('Running first pipeline')
-  p = beam.Pipeline(options=options)
-  (p | beam.io.ReadFromText(known_args.input)
-   | Count1()
-   | beam.io.WriteToText(known_args.output))
-  p.run().wait_until_finish()
+  with beam.Pipeline(options=options) as p:
+    (p | beam.io.ReadFromText(known_args.input)
+     | Count1()
+     | beam.io.WriteToText(known_args.output))
 
 
 @beam.ptransform_fn
@@ -66,11 +65,10 @@ def Count2(pcoll):  # pylint: disable=invalid-name
 def run_count2(known_args, options):
   """Runs the second example pipeline."""
   logging.info('Running second pipeline')
-  p = beam.Pipeline(options=options)
-  (p | ReadFromText(known_args.input)
-   | Count2()  # pylint: disable=no-value-for-parameter
-   | WriteToText(known_args.output))
-  p.run().wait_until_finish()
+  with beam.Pipeline(options=options) as p:
+    (p | ReadFromText(known_args.input)
+     | Count2()  # pylint: disable=no-value-for-parameter
+     | WriteToText(known_args.output))
 
 
 @beam.ptransform_fn
@@ -93,11 +91,10 @@ def Count3(pcoll, factor=1):  # pylint: disable=invalid-name
 def run_count3(known_args, options):
   """Runs the third example pipeline."""
   logging.info('Running third pipeline')
-  p = beam.Pipeline(options=options)
-  (p | ReadFromText(known_args.input)
-   | Count3(2)  # pylint: disable=no-value-for-parameter
-   | WriteToText(known_args.output))
-  p.run()
+  with beam.Pipeline(options=options) as p:
+    (p | ReadFromText(known_args.input)
+     | Count3(2)  # pylint: disable=no-value-for-parameter
+     | WriteToText(known_args.output))
 
 
 def get_args(argv):

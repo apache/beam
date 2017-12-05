@@ -28,7 +28,7 @@ from apache_beam.examples.complete import tfidf
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
-
+from apache_beam.testing.util import open_shards
 
 EXPECTED_RESULTS = set([
     ('ghi', '1.txt', 0.3662040962227032),
@@ -50,20 +50,24 @@ class TfIdfTest(unittest.TestCase):
       f.write(contents)
 
   def test_tfidf_transform(self):
-    p = TestPipeline()
-    uri_to_line = p | 'create sample' >> beam.Create(
-        [('1.txt', 'abc def ghi'),
-         ('2.txt', 'abc def'),
-         ('3.txt', 'abc')])
-    result = (
-        uri_to_line
-        | tfidf.TfIdf()
-        | beam.Map(lambda (word, (uri, tfidf)): (word, uri, tfidf)))
-    assert_that(result, equal_to(EXPECTED_RESULTS))
-    # Run the pipeline. Note that the assert_that above adds to the pipeline
-    # a check that the result PCollection contains expected values. To actually
-    # trigger the check the pipeline must be run.
-    p.run()
+    with TestPipeline() as p:
+      def re_key(word_uri_tfidf):
+        (word, (uri, tfidf)) = word_uri_tfidf
+        return (word, uri, tfidf)
+
+      uri_to_line = p | 'create sample' >> beam.Create(
+          [('1.txt', 'abc def ghi'),
+           ('2.txt', 'abc def'),
+           ('3.txt', 'abc')])
+      result = (
+          uri_to_line
+          | tfidf.TfIdf()
+          | beam.Map(re_key))
+      assert_that(result, equal_to(EXPECTED_RESULTS))
+      # Run the pipeline. Note that the assert_that above adds to the pipeline
+      # a check that the result PCollection contains expected values.
+      # To actually trigger the check the pipeline must be run (e.g. by
+      # exiting the with context).
 
   def test_basics(self):
     # Setup the files with expected content.
@@ -76,8 +80,8 @@ class TfIdfTest(unittest.TestCase):
         '--output', os.path.join(temp_folder, 'result')])
     # Parse result file and compare.
     results = []
-    with open(os.path.join(temp_folder,
-                           'result-00000-of-00001')) as result_file:
+    with open_shards(os.path.join(
+        temp_folder, 'result-*-of-*')) as result_file:
       for line in result_file:
         match = re.search(EXPECTED_LINE_RE, line)
         logging.info('Result line: %s', line)

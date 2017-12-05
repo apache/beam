@@ -25,6 +25,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.util.SideInputBroadcast;
 import org.apache.beam.sdk.transforms.CombineWithContext;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -49,10 +50,10 @@ public class SparkKeyedCombineFn<K, InputT, AccumT, OutputT> extends SparkAbstra
 
   public SparkKeyedCombineFn(
       CombineWithContext.CombineFnWithContext<InputT, AccumT, OutputT> combineFn,
-      SparkRuntimeContext runtimeContext,
+      SerializablePipelineOptions options,
       Map<TupleTag<?>, KV<WindowingStrategy<?, ?>, SideInputBroadcast<?>>> sideInputs,
       WindowingStrategy<?, ?> windowingStrategy) {
-    super(runtimeContext, sideInputs, windowingStrategy);
+    super(options, sideInputs, windowingStrategy);
     this.combineFn = combineFn;
   }
 

@@ -20,7 +20,6 @@ package org.apache.beam.sdk.transforms;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,6 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -441,6 +441,7 @@ public class Combine {
     /**
      * Returns the value that should be used for the combine of the empty set.
      */
+    @Nullable
     public V identity() {
       return null;
     }
@@ -507,7 +508,7 @@ public class Combine {
    * <p>Used only as a private accumulator class.
    */
   public static class Holder<V> {
-    private V value;
+    @Nullable private V value;
     private boolean present;
     private Holder() { }
     private Holder(V value) {
@@ -1122,11 +1123,7 @@ public class Combine {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
 
     /**
@@ -1277,14 +1274,15 @@ public class Combine {
     public PCollectionView<OutputT> expand(PCollection<InputT> input) {
       PCollection<OutputT> combined =
           input.apply(Combine.<InputT, OutputT>globally(fn).withoutDefaults().withFanout(fanout));
-      return combined.apply(
-          CreatePCollectionView.<OutputT, OutputT>of(
-              PCollectionViews.singletonView(
-                  combined,
-                  input.getWindowingStrategy(),
-                  insertDefault,
-                  insertDefault ? fn.defaultValue() : null,
-                  combined.getCoder())));
+      PCollectionView<OutputT> view =
+          PCollectionViews.singletonView(
+              combined,
+              input.getWindowingStrategy(),
+              insertDefault,
+              insertDefault ? fn.defaultValue() : null,
+              combined.getCoder());
+      combined.apply(CreatePCollectionView.<OutputT, OutputT>of(view));
+      return view;
     }
 
     public int getFanout() {
@@ -1420,7 +1418,6 @@ public class Combine {
      * Returns a {@code CombineFn} that uses the given
      * {@code SerializableFunction} to combine values.
      */
-    @Deprecated
     public static <V> SimpleCombineFn<V> of(
         SerializableFunction<Iterable<V>, V> combiner) {
       return new SimpleCombineFn<>(combiner);
@@ -1577,11 +1574,7 @@ public class Combine {
      */
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
-      ImmutableMap.Builder<TupleTag<?>, PValue> additionalInputs = ImmutableMap.builder();
-      for (PCollectionView<?> sideInput : sideInputs) {
-        additionalInputs.put(sideInput.getTagInternal(), sideInput.getPCollection());
-      }
-      return additionalInputs.build();
+      return PCollectionViews.toAdditionalInputs(sideInputs);
     }
 
     @Override
@@ -1954,10 +1947,10 @@ public class Combine {
      * the hot and cold key paths.
      */
     private static class InputOrAccum<InputT, AccumT> {
-      public final InputT input;
-      public final AccumT accum;
+      @Nullable public final InputT input;
+      @Nullable public final AccumT accum;
 
-      private InputOrAccum(InputT input, AccumT aggr) {
+      private InputOrAccum(@Nullable InputT input, @Nullable AccumT aggr) {
         this.input = input;
         this.accum = aggr;
       }
@@ -2165,8 +2158,13 @@ public class Combine {
           }).withSideInputs(sideInputs));
 
       try {
-        Coder<KV<K, OutputT>> outputCoder = getDefaultOutputCoder(input);
-        output.setCoder(outputCoder);
+        KvCoder<K, InputT> kvCoder = getKvCoder(input.getCoder());
+        @SuppressWarnings("unchecked")
+        Coder<OutputT> outputValueCoder =
+            ((GlobalCombineFn<InputT, ?, OutputT>) fn)
+                .getDefaultOutputCoder(
+                    input.getPipeline().getCoderRegistry(), kvCoder.getValueCoder());
+        output.setCoder(KvCoder.of(kvCoder.getKeyCoder(), outputValueCoder));
       } catch (CannotProvideCoderException exc) {
         // let coder inference happen later, if it can
       }
@@ -2206,19 +2204,6 @@ public class Combine {
       IterableCoder<InputT> inputValuesCoder = (IterableCoder<InputT>) kvValueCoder;
       Coder<InputT> inputValueCoder = inputValuesCoder.getElemCoder();
       return KvCoder.of(keyCoder, inputValueCoder);
-    }
-
-    @Override
-    public Coder<KV<K, OutputT>> getDefaultOutputCoder(
-        PCollection<? extends KV<K, ? extends Iterable<InputT>>> input)
-        throws CannotProvideCoderException {
-      KvCoder<K, InputT> kvCoder = getKvCoder(input.getCoder());
-      @SuppressWarnings("unchecked")
-      Coder<OutputT> outputValueCoder =
-          ((GlobalCombineFn<InputT, ?, OutputT>) fn)
-              .getDefaultOutputCoder(
-                  input.getPipeline().getCoderRegistry(), kvCoder.getValueCoder());
-      return KvCoder.of(kvCoder.getKeyCoder(), outputValueCoder);
     }
 
     @Override

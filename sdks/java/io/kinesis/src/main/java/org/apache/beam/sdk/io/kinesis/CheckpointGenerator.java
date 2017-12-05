@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-
 import java.io.Serializable;
 
 /**
@@ -25,6 +24,7 @@ import java.io.Serializable;
  * How exactly the checkpoint is generated is up to implementing class.
  */
 interface CheckpointGenerator extends Serializable {
-    KinesisReaderCheckpoint generate(SimplifiedKinesisClient client)
-            throws TransientKinesisException;
+
+  KinesisReaderCheckpoint generate(SimplifiedKinesisClient client)
+      throws TransientKinesisException;
 }

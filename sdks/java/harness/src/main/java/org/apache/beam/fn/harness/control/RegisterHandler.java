@@ -19,19 +19,21 @@
 package org.apache.beam.fn.harness.control;
 
 import com.google.protobuf.Message;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import org.apache.beam.fn.v1.BeamFnApi;
-import org.apache.beam.fn.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.RegisterResponse;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * A handler and datastore for types that be can be registered via the Fn API.
  *
- * <p>Allows for {@link org.apache.beam.fn.v1.BeamFnApi.RegisterRequest}s to occur in parallel with
+ * <p>Allows for {@link BeamFnApi.RegisterRequest}s to occur in parallel with
  * subsequent requests that may lookup registered values by blocking lookups until registration
  * occurs.
  */
@@ -45,6 +47,7 @@ public class RegisterHandler {
 
   public <T extends Message> T getById(String id) {
     try {
+      LOG.debug("Attempting to find {}", id);
       @SuppressWarnings("unchecked")
       CompletableFuture<T> returnValue = (CompletableFuture<T>) computeIfAbsent(id);
       /*
@@ -75,11 +78,12 @@ public class RegisterHandler {
           processBundleDescriptor.getId(),
           processBundleDescriptor.getClass());
       computeIfAbsent(processBundleDescriptor.getId()).complete(processBundleDescriptor);
-      for (BeamFnApi.Coder coder : processBundleDescriptor.getCodersList()) {
+      for (Map.Entry<String, RunnerApi.Coder> entry
+          : processBundleDescriptor.getCodersMap().entrySet()) {
         LOG.debug("Registering {} with type {}",
-            coder.getFunctionSpec().getId(),
-            coder.getClass());
-        computeIfAbsent(coder.getFunctionSpec().getId()).complete(coder);
+            entry.getKey(),
+            entry.getValue().getClass());
+        computeIfAbsent(entry.getKey()).complete(entry.getValue());
       }
     }
 

@@ -93,11 +93,17 @@ public class GcsUtilTest {
   @Test
   public void testGlobTranslation() {
     assertEquals("foo", GcsUtil.wildcardToRegexp("foo"));
-    assertEquals("fo.*o", GcsUtil.wildcardToRegexp("fo*o"));
-    assertEquals("f.*o\\.[^/]", GcsUtil.wildcardToRegexp("f*o.?"));
-    assertEquals("foo-[0-9].*", GcsUtil.wildcardToRegexp("foo-[0-9]*"));
-    assertEquals(".*.*foo", GcsUtil.wildcardToRegexp("**/*foo"));
-    assertEquals(".*.*foo", GcsUtil.wildcardToRegexp("**foo"));
+    assertEquals("fo[^/]*o", GcsUtil.wildcardToRegexp("fo*o"));
+    assertEquals("f[^/]*o\\.[^/]", GcsUtil.wildcardToRegexp("f*o.?"));
+    assertEquals("foo-[0-9][^/]*", GcsUtil.wildcardToRegexp("foo-[0-9]*"));
+    assertEquals("foo-[0-9].*", GcsUtil.wildcardToRegexp("foo-[0-9]**"));
+    assertEquals(".*foo", GcsUtil.wildcardToRegexp("**/*foo"));
+    assertEquals(".*foo", GcsUtil.wildcardToRegexp("**foo"));
+    assertEquals("foo/[^/]*", GcsUtil.wildcardToRegexp("foo/*"));
+    assertEquals("foo[^/]*", GcsUtil.wildcardToRegexp("foo*"));
+    assertEquals("foo/[^/]*/[^/]*/[^/]*", GcsUtil.wildcardToRegexp("foo/*/*/*"));
+    assertEquals("foo/[^/]*/.*", GcsUtil.wildcardToRegexp("foo/*/**"));
+    assertEquals("foo.*baz", GcsUtil.wildcardToRegexp("foo**baz"));
   }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
@@ -515,6 +521,51 @@ public class GcsUtilTest {
         gcsUtil.setStorageClient(
         new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
     gcsUtil.fileSizes(ImmutableList.of(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  @Test
+  public void testRemoveWhenFileNotFound() throws Exception {
+    JsonFactory jsonFactory = new JacksonFactory();
+
+    String contentBoundary = "batch_foobarbaz";
+    String contentBoundaryLine = "--" + contentBoundary;
+    String endOfContentBoundaryLine = "--" + contentBoundary + "--";
+
+    GenericJson error = new GenericJson()
+        .set("error", new GenericJson().set("code", 404));
+    error.setFactory(jsonFactory);
+
+    String content = contentBoundaryLine + "\n"
+        + "Content-Type: application/http\n"
+        + "\n"
+        + "HTTP/1.1 404 Not Found\n"
+        + "Content-Length: -1\n"
+        + "\n"
+        + error.toString()
+        + "\n"
+        + "\n"
+        + endOfContentBoundaryLine
+        + "\n";
+
+    final LowLevelHttpResponse mockResponse = Mockito.mock(LowLevelHttpResponse.class);
+    when(mockResponse.getContentType()).thenReturn("multipart/mixed; boundary=" + contentBoundary);
+    when(mockResponse.getStatusCode()).thenReturn(200);
+    when(mockResponse.getContent()).thenReturn(toStream(content));
+
+    // A mock transport that lets us mock the API responses.
+    MockLowLevelHttpRequest request = new MockLowLevelHttpRequest() {
+      @Override
+      public LowLevelHttpResponse execute() throws IOException {
+        return mockResponse;
+      }
+    };
+    MockHttpTransport mockTransport =
+        new MockHttpTransport.Builder().setLowLevelHttpRequest(request).build();
+
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+    gcsUtil.setStorageClient(
+        new Storage(mockTransport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()));
+    gcsUtil.remove(Arrays.asList("gs://some-bucket/already-deleted"));
   }
 
   @Test

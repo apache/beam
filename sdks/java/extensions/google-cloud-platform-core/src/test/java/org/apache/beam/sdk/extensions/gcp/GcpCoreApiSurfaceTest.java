@@ -15,14 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam;
+package org.apache.beam.sdk.extensions.gcp;
 
-import static org.apache.beam.sdk.util.ApiSurface.containsOnlyPackages;
+import static org.apache.beam.sdk.util.ApiSurface.classesInPackage;
+import static org.apache.beam.sdk.util.ApiSurface.containsOnlyClassesMatching;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import org.apache.beam.sdk.util.ApiSurface;
+import org.hamcrest.Matcher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -32,28 +34,32 @@ import org.junit.runners.JUnit4;
 public class GcpCoreApiSurfaceTest {
 
   @Test
-  public void testApiSurface() throws Exception {
+  public void testGcpCoreApiSurface() throws Exception {
+    final Package thisPackage = getClass().getPackage();
+    final ClassLoader thisClassLoader = getClass().getClassLoader();
+    final ApiSurface apiSurface =
+        ApiSurface.ofPackage(thisPackage, thisClassLoader)
+            .pruningPattern("org[.]apache[.]beam[.].*Test.*")
+            .pruningPattern("org[.]apache[.]beam[.].*IT")
+            .pruningPattern("java[.]lang.*")
+            .pruningPattern("java[.]util.*");
 
     @SuppressWarnings("unchecked")
-    final Set<String> allowed =
+    final Set<Matcher<Class<?>>> allowedClasses =
         ImmutableSet.of(
-            "org.apache.beam",
-            "com.google.api.client",
-            "com.google.api.services.storage",
-            "com.google.auth",
-            "com.fasterxml.jackson.annotation",
-            "com.fasterxml.jackson.core",
-            "com.fasterxml.jackson.databind",
-            "org.apache.avro",
-            "org.hamcrest",
-            // via DataflowMatchers
-            "org.codehaus.jackson",
-            // via Avro
-            "org.joda.time",
-            "org.junit",
-            "sun.reflect");
+            classesInPackage("com.google.api.client.googleapis"),
+            classesInPackage("com.google.api.client.http"),
+            classesInPackage("com.google.api.client.json"),
+            classesInPackage("com.google.api.client.util"),
+            classesInPackage("com.google.api.services.storage"),
+            classesInPackage("com.google.auth"),
+            classesInPackage("com.fasterxml.jackson.annotation"),
+            classesInPackage("java"),
+            classesInPackage("javax"),
+            classesInPackage("org.apache.beam.sdk"),
+            classesInPackage("org.joda.time")
+        );
 
-    assertThat(
-        ApiSurface.getSdkApiSurface(getClass().getClassLoader()), containsOnlyPackages(allowed));
+    assertThat(apiSurface, containsOnlyClassesMatching(allowedClasses));
   }
 }

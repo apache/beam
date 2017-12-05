@@ -22,7 +22,7 @@
   <parent>
     <groupId>org.apache.beam</groupId>
     <artifactId>beam-runners-parent</artifactId>
-    <version>2.1.0-SNAPSHOT</version>
+    <version>2.3.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -34,10 +34,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <spark.version>1.6.3</spark.version>
-    <hadoop.version>2.2.0</hadoop.version>
     <kafka.version>0.9.0.1</kafka.version>
-    <jackson.version>2.4.4</jackson.version>
     <dropwizard.metrics.version>3.1.2</dropwizard.metrics.version>
   </properties>
 
@@ -77,11 +74,10 @@
                     org.apache.beam.runners.spark.UsesCheckpointRecovery
                   </groups>
                   <excludedGroups>
-                    org.apache.beam.sdk.testing.UsesStatefulParDo,
-                    org.apache.beam.sdk.testing.UsesTimersInParDo,
                     org.apache.beam.sdk.testing.UsesSplittableParDo,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
-                    org.apache.beam.sdk.testing.UsesTestStream
+                    org.apache.beam.sdk.testing.UsesTestStream,
+                    org.apache.beam.sdk.testing.UsesCustomWindowMerging
                   </excludedGroups>
                   <parallel>none</parallel>
                   <forkCount>1</forkCount>
@@ -105,6 +101,27 @@
                   <threadCount>4</threadCount>
                 </configuration>
               </execution>
+              <execution>
+                <id>streaming-tests</id>
+                <phase>test</phase>
+                <goals>
+                  <goal>test</goal>
+                </goals>
+                <configuration>
+                  <groups>
+                    org.apache.beam.runners.spark.StreamingTest
+                  </groups>
+                  <systemPropertyVariables>
+                    <beamTestPipelineOptions>
+                      [
+                      "--runner=TestSparkRunner",
+                      "--forceStreaming=true",
+                      "--enableSparkMetricSinks=true"
+                      ]
+                    </beamTestPipelineOptions>
+                  </systemPropertyVariables>
+                </configuration>
+              </execution>
             </executions>
           </plugin>
         </plugins>
@@ -116,31 +133,33 @@
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_2.10</artifactId>
-      <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-streaming_2.10</artifactId>
-      <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-network-common_2.10</artifactId>
-      <version>${spark.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
-      <version>${hadoop.version}</version>
       <scope>provided</scope>
+      <exclusions>
+        <!-- Fix build on JDK-9 -->
+        <exclusion>
+          <groupId>jdk.tools</groupId>
+          <artifactId>jdk.tools</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-mapreduce-client-core</artifactId>
-      <version>${hadoop.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
@@ -164,22 +183,12 @@
     </dependency>
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-core</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-annotations</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-      <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-        <version>${jackson.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>
@@ -197,6 +206,11 @@
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-text</artifactId>
     </dependency>
     <dependency>
       <groupId>commons-io</groupId>
@@ -215,6 +229,10 @@
       <artifactId>scala-library</artifactId>
       <version>2.10.5</version>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-model-pipeline</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -315,7 +333,14 @@
 
     <dependency>
       <groupId>org.apache.beam</groupId>
-      <artifactId>beam-sdks-common-fn-api</artifactId>
+      <artifactId>beam-model-fn-execution</artifactId>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-runners-core-java</artifactId>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
@@ -352,27 +377,6 @@
                     [
                     "--runner=TestSparkRunner",
                     "--streaming=false",
-                    "--enableSparkMetricSinks=true"
-                    ]
-                  </beamTestPipelineOptions>
-                </systemPropertyVariables>
-              </configuration>
-            </execution>
-            <execution>
-              <id>streaming-tests</id>
-              <phase>test</phase>
-              <goals>
-                <goal>test</goal>
-              </goals>
-              <configuration>
-                <groups>
-                  org.apache.beam.runners.spark.StreamingTest
-                </groups>
-                <systemPropertyVariables>
-                  <beamTestPipelineOptions>
-                    [
-                    "--runner=TestSparkRunner",
-                    "--forceStreaming=true",
                     "--enableSparkMetricSinks=true"
                     ]
                   </beamTestPipelineOptions>

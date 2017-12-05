@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
-import static org.apache.beam.sdk.TestUtils.checkCombineFn;
+import static org.apache.beam.sdk.testing.CombineFnTester.testCombineFn;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
@@ -51,7 +51,7 @@ public class SumTest {
 
   @Test
   public void testSumIntegerFn() {
-    checkCombineFn(
+    testCombineFn(
         Sum.ofIntegers(),
         Lists.newArrayList(1, 2, 3, 4),
         10);
@@ -59,7 +59,7 @@ public class SumTest {
 
   @Test
   public void testSumLongFn() {
-    checkCombineFn(
+    testCombineFn(
         Sum.ofLongs(),
         Lists.newArrayList(1L, 2L, 3L, 4L),
         10L);
@@ -67,7 +67,7 @@ public class SumTest {
 
   @Test
   public void testSumDoubleFn() {
-    checkCombineFn(
+    testCombineFn(
         Sum.ofDoubles(),
         Lists.newArrayList(1.0, 2.0, 3.0, 4.0),
         10.0);

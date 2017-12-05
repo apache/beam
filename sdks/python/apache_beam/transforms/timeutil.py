@@ -22,7 +22,6 @@ from __future__ import absolute_import
 from abc import ABCMeta
 from abc import abstractmethod
 
-
 __all__ = [
     'TimeDomain',
     ]

@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.util.Map;
+import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.metrics.MetricKey;
 import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
@@ -31,7 +33,9 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsContainer;
 
 /**
- * Holds the metrics for a single step and unit-of-commit (bundle).
+ * Holds the metrics for a single step and uses metric cells that allow extracting the cumulative
+ * value. Generally, this implementation should be used for a specific unit of commitment (bundle)
+ * that wishes to report the values since the start of the bundle (eg., for committed metrics).
  *
  * <p>This class is thread-safe. It is intended to be used with 1 (or more) threads are updating
  * metrics and at-most 1 thread is extracting updates by calling {@link #getUpdates} and
@@ -77,19 +81,58 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     this.stepName = stepName;
   }
 
+  /**
+   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, create a
+   * {@code Metric} with the specified name.
+   */
   @Override
   public CounterCell getCounter(MetricName metricName) {
     return counters.get(metricName);
   }
 
+  /**
+   * Return a {@code CounterCell} named {@code metricName}. If it doesn't exist, return
+   * {@code null}.
+   */
+  @Nullable
+  public CounterCell tryGetCounter(MetricName metricName) {
+    return counters.tryGet(metricName);
+  }
+
+  /**
+   * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, create a
+   * {@code Metric} with the specified name.
+   */
   @Override
   public DistributionCell getDistribution(MetricName metricName) {
     return distributions.get(metricName);
   }
 
+  /**
+   * Return a {@code DistributionCell} named {@code metricName}. If it doesn't exist, return
+   * {@code null}.
+   */
+  @Nullable
+  public DistributionCell tryGetDistribution(MetricName metricName) {
+    return distributions.tryGet(metricName);
+  }
+
+  /**
+   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, create a
+   * {@code Metric} with the specified name.
+   */
   @Override
   public GaugeCell getGauge(MetricName metricName) {
     return gauges.get(metricName);
+  }
+
+  /**
+   * Return a {@code GaugeCell} named {@code metricName}. If it doesn't exist, return
+   * {@code null}.
+   */
+  @Nullable
+  public GaugeCell tryGetGauge(MetricName metricName) {
+    return gauges.tryGet(metricName);
   }
 
   private <UpdateT, CellT extends MetricCell<UpdateT>>
