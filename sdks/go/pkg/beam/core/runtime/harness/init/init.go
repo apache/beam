@@ -34,11 +34,14 @@ import (
 )
 
 var (
-	// The below 4 flags implement the Fn API container contract. Subject to change.
-	worker          = flag.Bool("worker", false, "Whether binary is running in worker mode.")
+	// These flags handle the invocation by the container boot code.
+
+	worker = flag.Bool("worker", false, "Whether binary is running in worker mode.")
+
+	id              = flag.String("id", "", "Local identifier (required in worker mode).")
 	loggingEndpoint = flag.String("logging_endpoint", "", "Local logging gRPC endpoint (required in worker mode).")
 	controlEndpoint = flag.String("control_endpoint", "", "Local control gRPC endpoint (required in worker mode).")
-	persistDir      = flag.String("persist_dir", "", "Local semi-persistent directory (required in worker mode).")
+	semiPersistDir  = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional in worker mode).")
 	options         = flag.String("options", "", "JSON-encoded pipeline options (required in worker mode).")
 )
 
