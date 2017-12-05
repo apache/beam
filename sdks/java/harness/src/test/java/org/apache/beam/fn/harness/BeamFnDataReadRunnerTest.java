@@ -149,6 +149,7 @@ public class BeamFnDataReadRunnerTest {
         ImmutableMap.of("outputPC",
             RunnerApi.PCollection.newBuilder().setCoderId(CODER_SPEC_ID).build()),
         COMPONENTS.getCodersMap(),
+        COMPONENTS.getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);

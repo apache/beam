@@ -146,6 +146,7 @@ public class BoundedSourceRunnerTest {
         Suppliers.ofInstance("57L")::get,
         ImmutableMap.of(),
         ImmutableMap.of(),
+        ImmutableMap.of(),
         consumers,
         startFunctions::add,
         finishFunctions::add);

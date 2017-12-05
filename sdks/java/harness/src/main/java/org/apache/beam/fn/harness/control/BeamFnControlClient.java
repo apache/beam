@@ -137,6 +137,7 @@ public class BeamFnControlClient {
       executor.execute(
           () -> sendInstructionResponse(delegateOnInstructionRequestType(currentRequest)));
     }
+    Thread.sleep(50);
     onFinish.get();
   }
 

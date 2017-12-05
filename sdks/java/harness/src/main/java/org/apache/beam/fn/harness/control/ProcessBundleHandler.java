@@ -68,6 +68,7 @@ public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
+  public static final String READ_URN = "urn:beam:transform:read:v1";
   public static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
@@ -132,6 +133,7 @@ public class ProcessBundleHandler {
           Supplier<String> processBundleInstructionId,
           Map<String, RunnerApi.PCollection> pCollections,
           Map<String, RunnerApi.Coder> coders,
+          Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
           Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
           Consumer<ThrowingRunnable> addStartFunction,
           Consumer<ThrowingRunnable> addFinishFunction) {
@@ -157,6 +159,7 @@ public class ProcessBundleHandler {
     // Recursively ensure that all consumers of the output PCollection have been created.
     // Since we are creating the consumers first, we know that the we are building the DAG
     // in reverse topological order.
+    System.out.println("* Create " + pTransform.toString().replace("\n", " "));
     for (String pCollectionId : pTransform.getOutputsMap().values()) {
       // If we have created the consumers for this PCollection we can skip it.
       if (pCollectionIdsToConsumers.containsKey(pCollectionId)) {
@@ -188,6 +191,7 @@ public class ProcessBundleHandler {
             processBundleInstructionId,
             processBundleDescriptor.getPcollectionsMap(),
             processBundleDescriptor.getCodersMap(),
+            processBundleDescriptor.getWindowingStrategiesMap(),
             pCollectionIdsToConsumers,
             addStartFunction,
             addFinishFunction);
@@ -231,7 +235,8 @@ public class ProcessBundleHandler {
         // Skip anything which isn't a root
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
-            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())) {
+            && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
+            && !READ_URN.equals(entry.getValue().getSpec().getUrn())) {
           continue;
         }
 

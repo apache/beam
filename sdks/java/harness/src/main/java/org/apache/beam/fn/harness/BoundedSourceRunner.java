@@ -28,11 +28,14 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -45,8 +48,6 @@ import org.apache.beam.sdk.util.WindowedValue;
  */
 public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT> {
 
-  private static final String URN = "urn:org.apache.beam:source:java:0.1";
-
   /** A registrar which provides a factory to handle Java {@link BoundedSource}s. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements
@@ -54,7 +55,9 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(URN, new Factory());
+      return ImmutableMap.of(
+          ProcessBundleHandler.JAVA_SOURCE_URN, new Factory(),
+          ProcessBundleHandler.READ_URN, new Factory());
     }
   }
 
@@ -71,6 +74,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         Supplier<String> processBundleInstructionId,
         Map<String, RunnerApi.PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) {
@@ -124,10 +128,17 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
     try {
       // The representation here is defined as the java serialized representation of the
       // bounded source object in a ByteString wrapper.
-      byte[] bytes = definition.getPayload().toByteArray();
-      @SuppressWarnings("unchecked")
-      InputT boundedSource =
-          (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
+      InputT boundedSource;
+      if (definition.getUrn().equals(ProcessBundleHandler.JAVA_SOURCE_URN)) {
+        byte[] bytes = definition.getPayload().toByteArray();
+        @SuppressWarnings("unchecked")
+        InputT boundedSource0 =
+            (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
+        boundedSource = boundedSource0;
+      } else {
+        ReadPayload readPayload = ReadPayload.parseFrom(definition.getPayload());
+        boundedSource = (InputT) ReadTranslation.boundedSourceFromProto(readPayload);
+      }
       runReadLoop(WindowedValue.valueInGlobalWindow(boundedSource));
     } catch (InvalidProtocolBufferException e) {
       throw new IOException(String.format("Failed to decode %s", definition.getUrn()), e);

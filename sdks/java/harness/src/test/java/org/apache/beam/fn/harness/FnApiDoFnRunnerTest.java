@@ -151,6 +151,7 @@ public class FnApiDoFnRunnerTest {
         Suppliers.ofInstance("57L")::get,
         ImmutableMap.of(),
         ImmutableMap.of(),
+        ImmutableMap.of(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
@@ -317,6 +318,7 @@ public class FnApiDoFnRunnerTest {
         TEST_PTRANSFORM_ID,
         pTransform,
         Suppliers.ofInstance("57L")::get,
+        ImmutableMap.of(),
         ImmutableMap.of(),
         ImmutableMap.of(),
         consumers,

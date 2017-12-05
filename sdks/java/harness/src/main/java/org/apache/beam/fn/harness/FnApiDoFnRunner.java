@@ -27,8 +27,10 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -49,8 +51,11 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.ParDoPayload;
 import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -109,7 +114,9 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(ParDoTranslation.CUSTOM_JAVA_DO_FN_URN, new Factory());
+      return ImmutableMap.of(
+          PTransformTranslation.PAR_DO_TRANSFORM_URN, new NewFactory(),
+          ParDoTranslation.CUSTOM_JAVA_DO_FN_URN, new Factory());
     }
   }
 
@@ -127,6 +134,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         Supplier<String> processBundleInstructionId,
         Map<String, RunnerApi.PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) {
@@ -185,16 +193,100 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           tagToOutputMap,
           doFnInfo.getWindowingStrategy());
 
-      // Register the appropriate handlers.
-      addStartFunction.accept(runner::startBundle);
-      for (String pcollectionId : pTransform.getInputsMap().values()) {
-        pCollectionIdsToConsumers.put(
-            pcollectionId,
-            (ThrowingConsumer) (ThrowingConsumer<WindowedValue<InputT>>) runner::processElement);
-      }
-      addFinishFunction.accept(runner::finishBundle);
+      registerHandlers(
+          runner, pTransform, addStartFunction, addFinishFunction, pCollectionIdsToConsumers);
       return runner;
     }
+  }
+
+  static class NewFactory<InputT, OutputT>
+      implements PTransformRunnerFactory<DoFnRunner<InputT, OutputT>> {
+
+    @Override
+    public DoFnRunner<InputT, OutputT> createRunnerForPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
+        String pTransformId,
+        RunnerApi.PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, RunnerApi.Coder> coders,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Consumer<ThrowingRunnable> addStartFunction,
+        Consumer<ThrowingRunnable> addFinishFunction) {
+
+      DoFn<InputT, OutputT> doFn;
+      TupleTag<OutputT> mainOutputTag;
+      Coder<InputT> inputCoder;
+      WindowingStrategy<InputT, ?> windowingStrategy;
+
+      try {
+        RehydratedComponents rehydratedComponents = RehydratedComponents.forComponents(
+            RunnerApi.Components.newBuilder()
+                .putAllCoders(coders).putAllWindowingStrategies(windowingStrategies).build());
+        ParDoPayload parDoPayload = ParDoPayload.parseFrom(pTransform.getSpec().getPayload());
+        if (parDoPayload.getSideInputsCount() != 0) {
+          throw new UnsupportedOperationException("Side inputs not yet supported.");
+        }
+        doFn = (DoFn) ParDoTranslation.getDoFn(parDoPayload);
+        mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
+        // There will only be one due to the check above.
+        RunnerApi.PCollection mainInput = pCollections.get(
+            Iterables.getOnlyElement(pTransform.getInputsMap().values()));
+        inputCoder = (Coder) rehydratedComponents.getCoder(mainInput.getCoderId());
+        windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
+            mainInput.getWindowingStrategyId());
+      } catch (InvalidProtocolBufferException exn) {
+        throw new IllegalArgumentException("Malformed ParDoPayload", exn);
+      } catch (IOException exn) {
+        throw new IllegalArgumentException("Malformed ParDoPayload", exn);
+      }
+
+      ImmutableMultimap.Builder<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>>
+          tagToConsumerBuilder = ImmutableMultimap.builder();
+      for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
+        tagToConsumerBuilder.putAll(
+            new TupleTag<>(entry.getKey()), pCollectionIdsToConsumers.get(entry.getValue()));
+      }
+      Multimap<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>> tagToConsumer =
+          tagToConsumerBuilder.build();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      DoFnRunner<InputT, OutputT> runner = new FnApiDoFnRunner<>(
+          pipelineOptions,
+          beamFnStateClient,
+          pTransformId,
+          processBundleInstructionId,
+          doFn,
+          WindowedValue.getFullCoder(
+              inputCoder,
+              windowingStrategy.getWindowFn().windowCoder()),
+          (Collection<ThrowingConsumer<WindowedValue<OutputT>>>) (Collection)
+              tagToConsumer.get(mainOutputTag),
+          tagToConsumer,
+          windowingStrategy);
+      registerHandlers(
+          runner, pTransform, addStartFunction, addFinishFunction, pCollectionIdsToConsumers);
+      return runner;
+    }
+  }
+
+  private static <InputT, OutputT> void registerHandlers(
+      DoFnRunner<InputT, OutputT> runner,
+      RunnerApi.PTransform pTransform,
+      Consumer<ThrowingRunnable> addStartFunction,
+      Consumer<ThrowingRunnable> addFinishFunction,
+      Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers) {
+    // Register the appropriate handlers.
+    addStartFunction.accept(runner::startBundle);
+    for (String pcollectionId : pTransform.getInputsMap().values()) {
+      pCollectionIdsToConsumers.put(
+          pcollectionId,
+          (ThrowingConsumer) (ThrowingConsumer<WindowedValue<InputT>>) runner::processElement);
+    }
+    addFinishFunction.accept(runner::finishBundle);
   }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////

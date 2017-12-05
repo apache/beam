@@ -112,6 +112,7 @@ public class ProcessBundleHandlerTest {
           Supplier<String> processBundleInstructionId,
           Map<String, RunnerApi.PCollection> pCollections,
           Map<String, RunnerApi.Coder> coders,
+          Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
           Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
           Consumer<ThrowingRunnable> addStartFunction,
           Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
@@ -176,6 +177,7 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, RunnerApi.PCollection> pCollections,
               Map<String, RunnerApi.Coder> coders,
+              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
               Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
@@ -216,6 +218,7 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, RunnerApi.PCollection> pCollections,
               Map<String, RunnerApi.Coder> coders,
+              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
               Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
@@ -257,6 +260,7 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, RunnerApi.PCollection> pCollections,
               Map<String, RunnerApi.Coder> coders,
+              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
               Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
@@ -334,6 +338,7 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, RunnerApi.PCollection> pCollections,
               Map<String, RunnerApi.Coder> coders,
+              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
               Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
@@ -384,6 +389,7 @@ public class ProcessBundleHandlerTest {
               Supplier<String> processBundleInstructionId,
               Map<String, RunnerApi.PCollection> pCollections,
               Map<String, RunnerApi.Coder> coders,
+              Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
               Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
