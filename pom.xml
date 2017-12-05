@@ -92,6 +92,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <external.build.directory>${project.basedir}/target</external.build.directory>
     <beam.javadoc_opts />
 
     <!-- Disable integration tests by default -->
@@ -2174,6 +2175,7 @@
         </executions>
       </plugin>
     </plugins>
+    <directory>${external.build.directory}</directory>
   </build>
 
   <reporting>
