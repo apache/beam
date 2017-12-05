@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """SDK Fn Harness entry point."""
 
 import BaseHTTPServer
@@ -39,7 +38,7 @@ from apache_beam.runners.worker.sdk_worker import SdkHarness
 class StatusServer(object):
 
   @classmethod
-  def get_thread_dump(self):
+  def get_thread_dump(cls):
     lines = []
     frames = sys._current_frames()  # pylint: disable=protected-access
 
@@ -65,8 +64,8 @@ class StatusServer(object):
         self.send_header('Content-Type', 'text/plain')
         self.end_headers()
 
-        for line in StatusServer.get_thread_dump(): self.wfile.write(line)
-
+        for line in StatusServer.get_thread_dump():
+          self.wfile.write(line)
 
       def log_message(self, f, *args):
         """Do not log any messages."""
@@ -141,8 +140,8 @@ def main(unused_argv):
 def _load_main_session(semi_persistent_directory):
   """Loads a pickled main session from the path specified."""
   if semi_persistent_directory:
-    session_file = os.path.join(
-        semi_persistent_directory, 'staged', names.PICKLED_MAIN_SESSION_FILE)
+    session_file = os.path.join(semi_persistent_directory, 'staged',
+                                names.PICKLED_MAIN_SESSION_FILE)
     if os.path.isfile(session_file):
       pickler.load_session(session_file)
     else:
