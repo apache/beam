@@ -26,6 +26,7 @@ graph of transformations belonging to a pipeline on the local machine.
 import cProfile
 import pstats
 import cPickle as pickle
+import itertools
 import json
 import logging
 import multiprocessing
@@ -77,6 +78,7 @@ from apache_beam.runners.laser.channels import get_channel_manager
 from apache_beam.runners.laser.channels import remote_method
 from apache_beam.runners.laser.laser_operations import ShuffleReadOperation
 from apache_beam.runners.laser.laser_operations import ShuffleWriteOperation
+from apache_beam.runners.laser.laser_operations import LaserSideInputSource
 from apache_beam.runners.laser.lexicographic import LexicographicPosition
 from apache_beam.runners.laser.lexicographic import LexicographicRange
 from apache_beam.runners.laser.lexicographic import lexicographic_cmp
@@ -127,6 +129,15 @@ class StepGraph(object):
     print 'YO inputs', inputs
 
     # TODO: side inputs in this graph.
+    side_inputs = []
+    for input_pcollection_view in transform_node.side_inputs:
+      input_pcollection = input_pcollection_view.pvalue
+      print 'input "PCOLLECTION"', input_pcollection
+      assert input_pcollection in self.pcollection_to_node
+      pcollection_node = self.pcollection_to_node[input_pcollection]
+      pcollection_node.add_side_input_consumer(step)  # TODO: necessary?
+      side_inputs.append(pcollection_node)
+    step.side_inputs = side_inputs
 
     outputs = {}
     for tag, output_pcollection in transform_node.outputs.iteritems():
@@ -156,9 +167,14 @@ class PCollectionNode(object):
     self.step = step
     self.tag = tag
     self.consumers = []
+    self.side_input_consumers = []
 
   def add_consumer(self, consumer_step):
     self.consumers.append(consumer_step)
+
+  def add_side_input_consumer(self, consumer_step):
+    # TODO: to what extent is this useful as tracking separate from self.consumers?
+    self.side_input_consumers.append(consumer_step)
 
   def __repr__(self):
     return 'PCollectionNode[%s.%s]' % (self.step.name, self.tag)
@@ -233,7 +249,7 @@ class Step(WatermarkNode):
     super(Step, self).__init__()
     self.name = name
     self.inputs = []  # Should have one element except in case of Combine
-    # self.side_input_steps
+    self.side_inputs = []
     self.outputs = {}
 
   # def _add_input(self, input_step):
@@ -243,6 +259,15 @@ class Step(WatermarkNode):
   # def _add_output(self, output_step):  # add_consumer? what happens with named outputs? do we care?
   #   assert isinstance(output_step, Step)
   #   self.outputs.append(output_step)
+
+  def has_predecessor_step(self, step):
+    if self is step:
+      return True
+    for pcoll_node in itertools.chain(self.inputs, self.side_inputs):
+      if pcoll_node.step.has_predecessor_step(step):
+        return True
+    return False
+
 
   def copy(self):
     """Return copy of this Step, without its attached inputs or outputs."""
@@ -287,6 +312,7 @@ class ParDoStep(Step):
     self.pardo_fn_data = pardo_fn_data
     self.element_coder = element_coder
     self.output_tags = output_tags
+    self.side_input_sources = []
 
   def copy(self):
     return ParDoStep(self.name, self.pardo_fn_data, self.element_coder, self.output_tags)
@@ -299,7 +325,7 @@ class ParDoStep(Step):
                                            for tag in self.output_tags],
         output_coders=[self.element_coder] * (len(self.output_tags) + 1),
         input=(step_index[self.inputs[0].step], 0),  # TODO: multiple output support.
-        side_inputs=[])
+        side_inputs=self.side_input_sources)
 
 class GroupByKeyOnlyStep(Step):
   def __init__(self, name, shuffle_coder, output_coder):
@@ -687,17 +713,18 @@ class FusedStage(Stage, CompositeWatermarkNode):
     # Step to index in self.steps.
     self.step_index = {}
 
-    self.shuffle_datasets_ids = []
+    self.shuffle_dataset_ids = []
 
     self.pending_work_item_ids = set()
     # Hold watermark on all steps until execution progress is made.
     self.input_watermark_node.set_watermark_hold(MIN_TIMESTAMP)
 
-  def add_step(self, original_step, origin_step=None):
+  def add_step(self, original_step, origin_step=None, side_input_map={}):
     # when a FusedStage adds a step, the step is copied.
     step = original_step.copy()
     # self.step_to_original_step[step] = original_step
-    self.original_step_to_step[origin_step or original_step] = step  # TODO: HACK
+    if not (origin_step or original_step) in self.original_step_to_step: # TODO: HACKHACK for fusion break materialization
+      self.original_step_to_step[origin_step or original_step] = step  # TODO: HACK
     # Replicate outputs.
     for tag, original_output_pcoll in original_step.outputs.iteritems():
       step.outputs[tag] = PCollectionNode(step, tag)
@@ -714,17 +741,21 @@ class FusedStage(Stage, CompositeWatermarkNode):
       self.input_watermark_node.add_dependent(step)
     else:
       if isinstance(step, ShuffleWriteStep):
-        self.shuffle_datasets_ids.append(step.dataset_id)
+        self.shuffle_dataset_ids.append(step.dataset_id)
       # Copy inputs.
       for original_input_pcoll in original_step.inputs:
         input_step = self.original_step_to_step[original_input_pcoll.step]
         # input_pcoll = input_step.outputs[tag]  # TODO: wait WTF is tag?
+        print 'original_step', original_step
+        print 'input_step', input_step
         input_pcoll = input_step.outputs[None]  # TODO: fix for multiple outputs
         step.inputs.append(input_pcoll)
         input_pcoll.add_consumer(step)
         input_step.add_dependent(step)
+      # TODO: copy side inputs
     self.steps.append(step)
     self.step_index[step] = len(self.steps) - 1
+    return step
 
   def finalize_steps(self):
     for step in self.steps:
@@ -750,6 +781,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     read_op = all_operations[0]
     split_read_ops = []
     READ_SPLIT_TARGET_SIZE = 16 * 1024 *  1024
+    # READ_SPLIT_TARGET_SIZE = 16 * 1024
     if isinstance(read_op, operation_specs.WorkerRead):
       # split_source_bundles = [read_op.source]
       split_source_bundles = list(read_op.source.source.split(READ_SPLIT_TARGET_SIZE))
@@ -798,7 +830,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     self.pending_work_item_ids.remove(work_item_id)
 
     # Commit shuffle transactions.
-    for dataset_id in self.shuffle_datasets_ids:
+    for dataset_id in self.shuffle_dataset_ids:
       # TODO: consider doing a 2-phase prepare-commit.
       self.execution_context.shuffle_interface.commit_transaction(dataset_id, work_item.transaction_id)
 
@@ -847,19 +879,31 @@ class ExecutionGraphTranslator(object):
     # we want to implement idempotent application of a step graph into updating
     # the execution graph.
     self.execution_graph = ExecutionGraph()
-    root_steps = list(step for step in self.step_graph.steps if not step.inputs)
-    to_process = Queue()
-    for step in root_steps:
-      to_process.put(step)
-    seen = set(root_steps)
+
+    depths = {}
+    def depth(step):
+      if step in depths:
+        return depths[step]
+      if not step.inputs and not step.side_inputs:
+        value = 0
+      else:
+        value = 1 + max(depth(s.step) for s in itertools.chain(step.inputs, step.side_inputs))
+      depths[step] = value
+      return value
+
+    sorted_steps = sorted(self.step_graph.steps, key=lambda step: depth(step))
+
     self.next_shuffle_dataset_id = 0
     self.next_stage_id = 0
 
+    self.pcoll_materialized_dataset_id = {}
+    self.pcoll_materialization_finalization_steps = {}
+
     # Grow fused stages through a breadth-first traversal.
     self.steps_to_fused_stages = {}  # TODO: comment that this is output, for transformed steps
-    while not to_process.empty():
+    for original_step in sorted_steps:
       # Process current step.
-      original_step = to_process.get()
+      # original_step = to_process.get()
 
       if isinstance(original_step, ReadStep):
         self._process_read_step(original_step)
@@ -872,12 +916,25 @@ class ExecutionGraphTranslator(object):
       else:
         raise ValueError('Execution graph translation not implemented: %s.' % original_step)
 
-      # Continue traversal of step graph.
-      for unused_tag, pcoll_node in original_step.outputs.iteritems():
-        for consumer_step in pcoll_node.consumers:
-          if consumer_step not in seen:
-            to_process.put(consumer_step)
-            seen.add(consumer_step)
+      for unused_tag, output_pcoll in original_step.outputs.iteritems():
+        if output_pcoll.side_input_consumers:
+          print 'CONSUMERRR', output_pcoll.side_input_consumers
+          print 'SIDEINPUTTT', output_pcoll
+          # Materialize this pcollection.
+          shuffle_dataset_id = self.next_shuffle_dataset_id
+          self.next_shuffle_dataset_id += 1
+          self.execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
+          write_stage = self._add_materialization_write(original_step, original_step.name + '/Write', output_pcoll, original_step.element_coder, shuffle_dataset_id)
+          finalize_stage = self._add_shuffle_finalize(shuffle_dataset_id, [write_stage])
+          self.pcoll_materialized_dataset_id[output_pcoll] = shuffle_dataset_id
+          self.pcoll_materialization_finalization_steps[output_pcoll] = finalize_stage
+
+      # # Continue traversal of step graph.
+      # for unused_tag, pcoll_node in original_step.outputs.iteritems():
+      #   for consumer_step in itertools.chain(pcoll_node.consumers, pcoll_node.side_input_consumers):
+      #     if consumer_step not in seen:
+      #       to_process.put(consumer_step)
+      #       seen.add(consumer_step)
 
     # Add fused stages to graph.
     for fused_stage in set(self.steps_to_fused_stages.values()):
@@ -901,11 +958,50 @@ class ExecutionGraphTranslator(object):
     #   print 'SKIPPING', original_step
     #   continue
     assert len(original_step.inputs) == 1
-    input_step = original_step.inputs[0].step
+    input_pcoll = original_step.inputs[0]
+    input_step = input_pcoll.step
+
+    # If a side input depends on a step in the current FusedStage, we need to
+    # do a fusion break and materialize before continuing.
+    input_fused_stage = self.steps_to_fused_stages[input_step]
+    do_fusion_break = False
+    for side_input_node in original_step.side_inputs:
+      side_input_step = side_input_node.step
+      for step in input_fused_stage.original_step_to_step:
+        if side_input_step.has_predecessor_step(step):
+          do_fusion_break = True
+          break
+
+    if do_fusion_break:
+      shuffle_dataset_id = self.next_shuffle_dataset_id
+      self.next_shuffle_dataset_id += 1
+      self.execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
+      # input_fused_stage.shuffle_dataset_ids.append(shuffle_dataset_id)
+      # TODO: should we have the element_coder on the pcoll instead for clarity
+      print 'INPUT STEP', input_step
+      print 'ORIGINAL STEP', original_step
+      write_stage = self._add_materialization_write(input_step, input_step.name + '/Write', input_pcoll, input_step.element_coder, shuffle_dataset_id)
+      finalize_stage = self._add_shuffle_finalize(shuffle_dataset_id, [write_stage])
+      fused_stage = self._add_materialization_read(input_step, input_step.name + '/Read', input_step.element_coder, shuffle_dataset_id, finalize_stage)
+    else:
+      fused_stage = input_fused_stage
+
     print 'input_step', input_step, type(input_step), original_step
-    fused_stage = self.steps_to_fused_stages[input_step]
-    fused_stage.add_step(original_step)
+    new_step = fused_stage.add_step(original_step)
     self.steps_to_fused_stages[original_step] = fused_stage
+
+    # Inject side inputs into new step.
+    side_input_sources = []
+    for i, side_input_pcoll in enumerate(original_step.side_inputs):
+      side_input_sources.append(operation_specs.WorkerSideInputSource(LaserSideInputSource(
+        self.pcoll_materialized_dataset_id[side_input_pcoll],
+        side_input_pcoll.step.element_coder,
+        LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END)
+        ), str(i)))
+      self.pcoll_materialization_finalization_steps[side_input_pcoll].add_dependent(fused_stage)
+      # TODO: do we copy these over in add_step?
+    new_step.side_input_sources = side_input_sources
+
     # TODO: add original step -> new step mapping.
     # TODO: add dependencies via WatermarkNode.
 
@@ -999,15 +1095,6 @@ class ExecutionGraphTranslator(object):
     finalize_stage = self._add_shuffle_finalize(shuffle_dataset_id, input_fused_stages)
 
     # Add read stage, dependent on shuffle finalization.
-    stage_name = 'S%02d' % self.next_stage_id
-    self.next_stage_id += 1
-    read_fused_stage = FusedStage(stage_name, self.execution_context)
-    self.execution_graph.add_stage(read_fused_stage)
-    read_step = ShuffleReadStep(original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id,
-        LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=False)
-    read_step.outputs[None] = PCollectionNode(read_step, None)
-    read_fused_stage.add_step(read_step, origin_step=original_step)
-    finalize_stage.add_dependent(read_fused_stage.input_watermark_node)
 
     read_fused_stage = self._add_materialization_read(original_step, original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id, finalize_stage)
 
@@ -1118,9 +1205,15 @@ class LaserRunner(PipelineRunner):
     transform = transform_node.transform
     output = transform_node.outputs[None]
     element_coder = self._get_coder(output)
+
+    # Conform to the _pardo_fn_data behavior.
+    side_input_labels = {}
+    for i, side_input in enumerate(transform_node.side_inputs):
+      side_input_labels[side_input] = str(i)
+
     pardo_fn_data = ParDoFnData(*DataflowRunner._pardo_fn_data(
             transform_node,
-            lambda side_input: self.side_input_labels[side_input]))  # TODO
+            lambda side_input: side_input_labels[side_input]))  # TODO
     print 'output_tags', transform.output_tags  # TODO once we have multiple outputs or whatever
     print 'pardo_fn_data', pardo_fn_data
     print 'node', transform_node
@@ -1146,8 +1239,8 @@ class LaserRunner(PipelineRunner):
     channel_manager = get_channel_manager()
     channel_manager.register_interface('master/shuffle', shuffle_worker)
 
-    node_manager = InProcessComputeNodeManager()
-    # node_manager = MultiProcessComputeNodeManager()
+    # node_manager = InProcessComputeNodeManager()
+    node_manager = MultiProcessComputeNodeManager()
     node_manager.start()
     work_manager = WorkManager(node_manager)
     watermark_manager = WatermarkManager()
@@ -1261,7 +1354,7 @@ class LaserWorker(WorkerInterface, threading.Thread):
         pr.disable()
         end_time = time.time()
         sortby = 'cumtime'
-        sortby = 'tottime'
+        # sortby = 'tottime'
         ps = pstats.Stats(pr).sort_stats(sortby)
         time_taken = end_time - start_time
         print '<<<<<<<<< WORKER DONE (%fs)' % time_taken, self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
@@ -1537,7 +1630,7 @@ class InProcessComputeNodeManager(ComputeNodeManager):
 
 
 class MultiProcessComputeNodeManager(ComputeNodeManager):
-  def __init__(self, num_nodes=8):
+  def __init__(self, num_nodes=16):
     self.num_nodes = num_nodes
     self.started = False
     self.channel_manager = get_channel_manager()
@@ -1661,6 +1754,7 @@ if __name__ == '__main__':
   from apache_beam import Create
   from apache_beam import Flatten
   from apache_beam import DoFn
+  from apache_beam.io import WriteToText
 
   #### WORDCOUNT SECTION
   p = Pipeline(runner=LaserRunner())
@@ -1672,19 +1766,20 @@ if __name__ == '__main__':
   # lines = p | ReadFromText('shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
   lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
-  lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
-  lines = (lines1, lines2) | Flatten()
-  # WORDCAP:
-  # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+  lines1 | WriteToText('mytmp')
+  # lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
+  # lines = (lines1, lines2) | Flatten()
+  # # WORDCAP:
+  # # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
 
-  # WORDCOUNT:
-  counts = (lines
-            | 'split' >> beam.FlatMap(lambda text_line: __import__('re').findall(r'[A-Za-z\']+', text_line))
-                          .with_output_types(unicode)
-            | 'pair_with_one' >> beam.Map(lambda x: (x, 1))
-            | 'group' >> beam.GroupByKey()
-            | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
-            | beam.Map(_print))
+  # # WORDCOUNT:
+  # paired = (lines
+  #           | 'split' >> beam.FlatMap(lambda text_line: __import__('re').findall(r'[A-Za-z\']+', text_line))
+  #                         .with_output_types(unicode)
+  #           | 'pair_with_one' >> beam.Map(lambda x: (x, 1)))
+  #           # | 'group' >> beam.GroupByKey()
+  #           # | 'count' >> beam.Map(lambda (word, ones): (word, sum(ones)))
+  # paired | beam.Map(_print)
 
   # #### BIGSHUFFLE SECTION
   # p = Pipeline(runner=LaserRunner())

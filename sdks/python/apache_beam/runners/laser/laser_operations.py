@@ -3,6 +3,7 @@ import logging
 import os
 
 from apache_beam.coders import coders
+from apache_beam.io import iobase
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.runners.laser.channels import get_channel_manager
@@ -83,10 +84,10 @@ class ShuffleWriteOperation(Operation):
       else:
         key = os.urandom(8)
         value = element
-      print 'K, V', key, value
+      # print 'K, V', key, value
       encoded_key = self.key_coder.encode(key)
       encoded_value = self.value_coder.encode(value)
-      print 'EK, EV', repr(encoded_key), repr(encoded_value)
+      # print 'EK, EV', repr(encoded_key), repr(encoded_value)
       # print 'ENCODED_KEY', repr(encoded_key)
       # print 'ENCODED_VALUE', repr(encoded_value)
 
@@ -129,7 +130,7 @@ class ShuffleReadOperation(Operation):
               coders.IterableCoder(element_coder.wrapped_value_coder)])
     self.element_coder = element_coder
     self.key_coder = element_coder.key_coder()
-    self.value_coder = coders.WindowedValueCoder(element_coder.value_coder().value_coder(), coders.GlobalWindowCoder())
+    self.value_coder = coders.WindowedValueCoder(element_coder.value_coder().value_coder(), coders.GlobalWindowCoder())  # TODO: hmm this coder is likely not correct.
     self.grouped = spec.grouped
     # self.value_coder = coders.VarIntCoder()
 
@@ -181,8 +182,8 @@ class ShuffleReadOperation(Operation):
           elements, continuation_token = self.shuffle_interface.read(
               self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
           for unused_encoded_key, encoded_value in elements:
-            print 'VAL CODER', self.value_coder, repr(encoded_value)
-            print 'VAL', repr(self.value_coder.decode(encoded_value))
+            # print 'VAL CODER', self.value_coder, repr(encoded_value)
+            # print 'VAL', repr(self.value_coder.decode(encoded_value))
             self.output(self.value_coder.decode(encoded_value))
           print "<<< CONTINUATION TOKEN", continuation_token
           if continuation_token is None:
@@ -199,4 +200,31 @@ class ShuffleReadOperation(Operation):
       pass
 
 
+class LaserSideInputSource(iobase.BoundedSource):
+  """Source for reading an (as-yet unwritten) set of in-memory encoded elements.
+  """
 
+  def __init__(self, dataset_id, coder, key_range):
+    self.dataset_id = dataset_id
+    self._coder = coder
+    self.key_range = key_range
+
+  def get_range_tracker(self, unused_start_position, unused_end_position):
+    return None
+
+  def read(self, unused_range_tracker):
+    channel_manager = get_channel_manager()
+    from apache_beam.runners.laser.laser_runner import ShuffleWorkerInterface
+    self.shuffle_interface = channel_manager.get_interface('master/shuffle', ShuffleWorkerInterface)
+    continuation_token = None
+    while True:
+      elements, continuation_token = self.shuffle_interface.read(
+          self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
+      for unused_encoded_key, encoded_value in elements:
+        print 'SIREAD', repr(encoded_value)
+        yield self._coder.decode(encoded_value)
+      if continuation_token is None:
+        break
+
+  def default_output_coder(self):
+    return self._coder
