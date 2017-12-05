@@ -15,20 +15,21 @@
  */
 package cz.seznam.euphoria.spark;
 
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
-import cz.seznam.euphoria.core.executor.graph.DAG;
-import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.operator.FlatMap;
+import cz.seznam.euphoria.core.client.operator.Join;
 import cz.seznam.euphoria.core.client.operator.Operator;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceStateByKey;
 import cz.seznam.euphoria.core.client.operator.Union;
 import cz.seznam.euphoria.core.executor.FlowUnfolder;
+import cz.seznam.euphoria.core.executor.graph.DAG;
+import cz.seznam.euphoria.core.executor.graph.Node;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.hadoop.output.DataSinkOutputFormat;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -51,114 +52,101 @@ import java.util.stream.Collectors;
 /**
  * Translates given {@link Flow} into Spark execution environment
  */
-public class SparkFlowTranslator {
-
-  private static class Translation<O extends Operator<?, ?>> {
-    final SparkOperatorTranslator<O> translator;
-    final UnaryPredicate<O> accept;
-
-    private Translation(
-            SparkOperatorTranslator<O> translator, UnaryPredicate<O> accept) {
-      this.translator = Objects.requireNonNull(translator);
-      this.accept = accept;
-    }
-
-    static <O extends Operator<?, ?>> void set(
-            Map<Class, Translation> idx,
-            Class<O> type, SparkOperatorTranslator<O> translator)
-    {
-      set(idx, type, translator, null);
-    }
-
-    static <O extends Operator<?, ?>> void set(
-            Map<Class, Translation> idx,
-            Class<O> type, SparkOperatorTranslator<O> translator, UnaryPredicate<O> accept)
-    {
-      idx.put(type, new Translation<>(translator, accept));
-    }
-  }
+class SparkFlowTranslator {
 
   /* mapping of Euphoria operators to corresponding Flink transformations */
-  private final Map<Class, Translation> translations = new IdentityHashMap<>();
+  private final Map<Class, List<Translation>> translations = new IdentityHashMap<>();
 
   private final JavaSparkContext sparkEnv;
   private final Settings settings;
   private final SparkAccumulatorFactory accumulatorFactory;
 
-  public SparkFlowTranslator(JavaSparkContext sparkEnv,
-                             Settings flowSettings,
-                             SparkAccumulatorFactory accumulatorFactory) {
+  SparkFlowTranslator(JavaSparkContext sparkEnv,
+                      Settings flowSettings,
+                      SparkAccumulatorFactory accumulatorFactory) {
     this.sparkEnv = Objects.requireNonNull(sparkEnv);
     this.settings = Objects.requireNonNull(flowSettings);
     this.accumulatorFactory = Objects.requireNonNull(accumulatorFactory);
 
-    // basic operators
-    Translation.set(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
-    Translation.set(translations, FlatMap.class, new FlatMapTranslator());
-    Translation.set(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(flowSettings));
-    Translation.set(translations, Union.class, new UnionTranslator());
+    // ~ basic operators
+    Translation.add(translations, FlowUnfolder.InputOperator.class, new InputTranslator());
+    Translation.add(translations, FlatMap.class, new FlatMapTranslator());
+    Translation.add(translations, ReduceStateByKey.class, new ReduceStateByKeyTranslator(settings));
+    Translation.add(translations, Union.class, new UnionTranslator());
 
-    // derived operators
-    Translation.set(translations, ReduceByKey.class, new ReduceByKeyTranslator(),
-            ReduceByKeyTranslator::wantTranslate);
+    // ~ derived operators
+    Translation.add(translations, ReduceByKey.class, new ReduceByKeyTranslator(),
+        ReduceByKeyTranslator::wantTranslate);
+
+    // ~ batch broadcast join for a very small left side
+    Translation.add(translations, Join.class, new BroadcastJoinTranslator(), o ->
+        o.getHints().contains(JoinHints.broadcastHashJoin())
+            && (o.getWindowing() == null || o.getWindowing() instanceof GlobalWindowing));
   }
 
   @SuppressWarnings("unchecked")
-  public List<DataSink<?>> translateInto(Flow flow) {
-    // transform flow to acyclic graph of supported operators
-    DAG<Operator<?, ?>> dag = flowToDag(flow);
+  List<DataSink<?>> translateInto(Flow flow) {
+    // ~ transform flow to direct acyclic graph of supported operators
+    final DAG<Operator<?, ?>> dag = flowToDag(flow);
 
-    SparkExecutorContext executorContext =
-            new SparkExecutorContext(sparkEnv, dag, accumulatorFactory, settings);
+    final SparkExecutorContext executorContext =
+        new SparkExecutorContext(sparkEnv, dag, accumulatorFactory, settings);
 
-    // translate each operator to proper Spark transformation
+    // ~ translate each operator to proper Spark transformation
     dag.traverse().map(Node::get).forEach(op -> {
-      Translation tx = translations.get(op.getClass());
-      if (tx == null) {
+      final List<Translation> txs = translations.get(op.getClass());
+      if (txs.isEmpty()) {
         throw new UnsupportedOperationException(
-                "Operator " + op.getClass().getSimpleName() + " not supported");
+            "Operator " + op.getClass().getSimpleName() + " not supported");
       }
       // ~ verify the flowToDag translation
-      Preconditions.checkState(
-              tx.accept == null || Boolean.TRUE.equals(tx.accept.apply(op)));
-
-      JavaRDD<?> out = tx.translator.translate(op, executorContext);
-
-      // save output of current operator to context
-      executorContext.setOutput(op, out);
+      Translation firstMatch = null;
+      for (Translation tx : txs) {
+        if (tx.accept == null || Boolean.TRUE.equals(tx.accept.apply(op))) {
+          firstMatch = tx;
+          break;
+        }
+      }
+      if (firstMatch != null) {
+        final JavaRDD<?> out = firstMatch.translator.translate(op, executorContext);
+        // ~ save output of current operator to context
+        executorContext.setOutput(op, out);
+      } else {
+        throw new IllegalStateException("No matching translation.");
+      }
     });
 
     // process all sinks in the DAG (leaf nodes)
     final List<DataSink<?>> sinks = new ArrayList<>();
     dag.getLeafs()
-            .stream()
-            .map(Node::get)
-            .filter(op -> op.output().getOutputSink() != null)
-            .forEach(op -> {
+        .stream()
+        .map(Node::get)
+        .filter(op -> op.output().getOutputSink() != null)
+        .forEach(op -> {
 
-              final DataSink<?> sink = op.output().getOutputSink();
-              sinks.add(sink);
-              JavaRDD<SparkElement> sparkOutput =
-                      Objects.requireNonNull((JavaRDD) executorContext.getOutput(op));
+          final DataSink<?> sink = op.output().getOutputSink();
+          sinks.add(sink);
+          JavaRDD<SparkElement> sparkOutput =
+              Objects.requireNonNull((JavaRDD) executorContext.getOutput(op));
 
-              // unwrap data from WindowedElement
-              JavaPairRDD<NullWritable, Object> unwrapped =
-                      sparkOutput.mapToPair(el -> new Tuple2<>(NullWritable.get(), el.getElement()));
+          // unwrap data from WindowedElement
+          JavaPairRDD<NullWritable, Object> unwrapped =
+              sparkOutput.mapToPair(el -> new Tuple2<>(NullWritable.get(), el.getElement()));
 
 
-              try {
-                Configuration conf =
-                    DataSinkOutputFormat.configure(new Configuration(), sink);
+          try {
+            Configuration conf =
+                DataSinkOutputFormat.configure(new Configuration(), sink);
 
-                conf.set(JobContext.OUTPUT_FORMAT_CLASS_ATTR,
-                        DataSinkOutputFormat.class.getName());
+            conf.set(JobContext.OUTPUT_FORMAT_CLASS_ATTR,
+                DataSinkOutputFormat.class.getName());
 
-                // FIXME blocking op
-                unwrapped.saveAsNewAPIHadoopDataset(conf);
-              } catch (IOException e) {
-                throw new RuntimeException(e);
-              }
-            });
+            // FIXME blocking op
+            unwrapped.saveAsNewAPIHadoopDataset(conf);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }
+        });
 
     return sinks;
   }
@@ -173,14 +161,14 @@ public class SparkFlowTranslator {
    * @param <O> the fixed operator type accepted
    */
   public static final class TranslateAcceptor<O>
-          implements UnaryPredicate<Operator<?, ?>> {
+      implements UnaryPredicate<Operator<?, ?>> {
 
     final Class<O> type;
     @Nullable
     final UnaryPredicate<O> accept;
 
     public TranslateAcceptor(Class<O> type) {
-      this (type, null);
+      this(type, null);
     }
 
     public TranslateAcceptor(Class<O> type, @Nullable UnaryPredicate<O> accept) {
@@ -191,7 +179,7 @@ public class SparkFlowTranslator {
     @Override
     public Boolean apply(Operator<?, ?> operator) {
       return type == operator.getClass()
-              && (accept == null || accept.apply(type.cast(operator)));
+          && (accept == null || accept.apply(type.cast(operator)));
     }
   }
 
@@ -202,21 +190,21 @@ public class SparkFlowTranslator {
    * operators to accept for direct translation, i.e. which to leave in
    * the resulting DAG without expanding them to their {@link Operator#getBasicOps()}.
    *
-     * @param flow the user defined flow to translate
+   * @param flow the user defined flow to translate
    *
    * @return a DAG representing the specified flow; never {@code null}
    *
    * @throws IllegalStateException if validation of the specified flow failed
    *          for some reason
    */
-  protected DAG<Operator<?, ?>> flowToDag(Flow flow) {
+  private DAG<Operator<?, ?>> flowToDag(Flow flow) {
     // ~ get acceptors for translation
-    Map<Class, Collection<TranslateAcceptor>> acceptors =
-            buildAcceptorsIndex(getAcceptors());
+    final Map<Class, Collection<TranslateAcceptor>> acceptors =
+        buildAcceptorsIndex(getAcceptors());
     // ~ now, unfold the flow based on the specified acceptors
-    return  FlowUnfolder.unfold(flow, operator -> {
+    return FlowUnfolder.unfold(flow, operator -> {
       // accept the operator if any of the specified acceptors says so
-      Collection<TranslateAcceptor> accs = acceptors.get(operator.getClass());
+      final Collection<TranslateAcceptor> accs = acceptors.get(operator.getClass());
       if (accs != null && !accs.isEmpty()) {
         for (TranslateAcceptor<?> acc : accs) {
           if (acc.apply(operator)) {
@@ -232,22 +220,50 @@ public class SparkFlowTranslator {
    * Helper method to build an index over the given acceptors by
    * {@link TranslateAcceptor#type}.
    */
-  private Map<Class, Collection<TranslateAcceptor>>
-  buildAcceptorsIndex(Collection<TranslateAcceptor> accs) {
-    IdentityHashMap<Class, Collection<TranslateAcceptor>> idx =
-            new IdentityHashMap<>(accs.size());
-    for (TranslateAcceptor<?> acc : accs) {
-      Collection<TranslateAcceptor> cac =
-              idx.computeIfAbsent(acc.type, k -> new ArrayList<>());
-      cac.add(acc);
+  private Map<Class, Collection<TranslateAcceptor>> buildAcceptorsIndex(
+      Collection<TranslateAcceptor> acceptors) {
+    final IdentityHashMap<Class, Collection<TranslateAcceptor>> idx =
+        new IdentityHashMap<>(acceptors.size());
+    for (TranslateAcceptor<?> acc : acceptors) {
+      idx.computeIfAbsent(acc.type, k -> new ArrayList<>()).add(acc);
     }
     return idx;
   }
 
   @SuppressWarnings("unchecked")
-  protected Collection<TranslateAcceptor> getAcceptors() {
+  private Collection<TranslateAcceptor> getAcceptors() {
     return translations.entrySet().stream()
-            .map(e -> new TranslateAcceptor(e.getKey(), e.getValue().accept))
-            .collect(Collectors.toList());
+        .flatMap((entry) -> entry.getValue()
+            .stream()
+            .map(translator -> new TranslateAcceptor(entry.getKey(), translator.accept)))
+        .collect(Collectors.toList());
   }
+
+  private static class Translation<O extends Operator<?, ?>> {
+
+    final SparkOperatorTranslator<O> translator;
+    final UnaryPredicate<O> accept;
+
+    private Translation(SparkOperatorTranslator<O> translator, UnaryPredicate<O> accept) {
+      this.translator = Objects.requireNonNull(translator);
+      this.accept = accept;
+    }
+
+    static <O extends Operator<?, ?>> void add(Map<Class, List<Translation>> idx,
+                                               Class<O> type,
+                                               SparkOperatorTranslator<O> translator) {
+      add(idx, type, translator, null);
+    }
+
+    static <O extends Operator<?, ?>> void add(Map<Class, List<Translation>> idx,
+                                               Class<O> type,
+                                               SparkOperatorTranslator<O> translator,
+                                               UnaryPredicate<O> accept) {
+      if (!idx.containsKey(type)) {
+        idx.put(type, new ArrayList<>());
+      }
+      idx.get(type).add(new Translation<>(translator, accept));
+    }
+  }
+
 }

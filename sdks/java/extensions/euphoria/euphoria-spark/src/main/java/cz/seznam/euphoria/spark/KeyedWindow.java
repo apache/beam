@@ -19,12 +19,12 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 import java.util.Objects;
 
-final class KeyedWindow<W extends Window, K> {
+public final class KeyedWindow<W extends Window, K> {
   private final W window;
   private final long timestamp;
   private final K key;
 
-  public KeyedWindow(W window, long timestamp, K key) {
+  KeyedWindow(W window, long timestamp, K key) {
     this.window = Objects.requireNonNull(window);
     this.timestamp = timestamp;
     this.key = key;
@@ -45,8 +45,8 @@ final class KeyedWindow<W extends Window, K> {
   @Override
   public boolean equals(Object o) {
     if (o instanceof KeyedWindow) {
-      KeyedWindow other = (KeyedWindow) o;
-      return window.equals(other.window) && Objects.equals(key, other.key);
+      final KeyedWindow other = (KeyedWindow) o;
+      return Objects.equals(window, other.window) && Objects.equals(key, other.key);
     }
     return false;
   }
