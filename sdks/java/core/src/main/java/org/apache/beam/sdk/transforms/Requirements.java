@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import com.google.common.collect.Sets;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.annotations.Experimental.Kind;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -57,5 +59,13 @@ public final class Requirements implements Serializable {
   /** Whether this is an empty set of requirements. */
   public boolean isEmpty() {
     return sideInputs.isEmpty();
+  }
+
+  public static Requirements union(Contextful... contextfuls) {
+    Set<PCollectionView<?>> sideInputs = Sets.newHashSet();
+    for (Contextful c : contextfuls) {
+      sideInputs.addAll(c.getRequirements().getSideInputs());
+    }
+    return requiresSideInputs(sideInputs);
   }
 }
