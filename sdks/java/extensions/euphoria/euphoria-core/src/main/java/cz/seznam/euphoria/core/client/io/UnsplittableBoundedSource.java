@@ -22,7 +22,8 @@
 package cz.seznam.euphoria.core.client.io;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
-import java.util.Arrays;
+
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -33,7 +34,7 @@ public abstract class UnsplittableBoundedSource<T> implements BoundedDataSource<
 
   @Override
   public List<BoundedDataSource<T>> split(long desiredSplitBytes) {
-    return Arrays.asList(this);
+    return Collections.singletonList(this);
   }
 
   @Override

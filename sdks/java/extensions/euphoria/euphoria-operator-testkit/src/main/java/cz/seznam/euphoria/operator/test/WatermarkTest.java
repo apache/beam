@@ -37,7 +37,7 @@ public class WatermarkTest extends AbstractOperatorTest {
   // ~ see https://github.com/seznam/euphoria/issues/119
   @Processing(Processing.Type.UNBOUNDED)
   @Test
-  public void innerJoinOnFastAndSlowInputs() {
+  public void JoinOnFastAndSlowInputs() {
     execute(new JoinTest.JoinTestCase<
         Pair<String, Long>,
         Pair<String, Long>,
@@ -64,7 +64,8 @@ public class WatermarkTest extends AbstractOperatorTest {
         Dataset<Pair<String, Triple<TimeInterval, String, String>>> joined =
             Join.of(left, right)
                 .by(p -> "", p -> "")
-                .using((Pair<String, Long> l, Pair<String, Long> r, Collector<Triple<TimeInterval, String, String>> c) ->
+                .using((Pair<String, Long> l, Pair<String, Long> r,
+                        Collector<Triple<TimeInterval, String, String>> c) ->
                     c.collect(Triple.of((TimeInterval) c.getWindow(), l.getFirst(), r.getFirst())))
                 .windowBy(Time.of(Duration.ofMillis(10)))
                 .output();

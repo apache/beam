@@ -20,9 +20,11 @@ import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.Optional;
 
 import static org.junit.Assert.*;
 
@@ -35,11 +37,12 @@ public class JoinTest {
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
     Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-            .of(left, right)
-            .by(String::length, String::length)
-            //TODO It's sad the Collector type must be explicitly stated :-(
-            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .output();
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .output();
 
     assertEquals(flow, joined.getFlow());
     assertEquals(1, flow.size());
@@ -51,7 +54,7 @@ public class JoinTest {
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
     assertNull(join.getWindowing());
-    assertFalse(join.outer);
+    assertEquals(Join.Type.INNER, join.getType());
   }
 
   @Test
@@ -61,13 +64,13 @@ public class JoinTest {
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
     Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-            .of(left, right)
-            .by(String::length, String::length)
-            .using((String l, String r, Collector<String> c) -> {
-              c.getCounter("my-counter").increment();
-              c.collect(l + r);
-            })
-            .output();
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          c.getCounter("my-counter").increment();
+          c.collect(l + r);
+        })
+        .output();
 
     assertEquals(flow, joined.getFlow());
     assertEquals(1, flow.size());
@@ -79,7 +82,7 @@ public class JoinTest {
     assertNotNull(join.rightKeyExtractor);
     assertEquals(joined, join.output());
     assertNull(join.getWindowing());
-    assertFalse(join.outer);
+    assertEquals(Join.Type.INNER, join.getType());
   }
 
   @Test
@@ -88,30 +91,68 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    Dataset<Pair<Integer, String>> joined = Join.of(left, right)
-            .by(String::length, String::length)
-            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .output();
+    Join.of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .output();
 
     Join join = (Join) flow.operators().iterator().next();
     assertEquals("Join", join.getName());
   }
 
   @Test
-  public void testBuild_OuterJoin() {
+  public void testBuild_LeftJoin() {
     Flow flow = Flow.create("TEST");
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-            .of(left, right)
-            .by(String::length, String::length)
-            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .outer()
-            .output();
+    LeftJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, Optional<String> r, Collector<String> c) -> {
+          // no-op
+        })
+        .output();
 
     Join join = (Join) flow.operators().iterator().next();
-    assertTrue(join.outer);
+    assertEquals(Join.Type.LEFT, join.getType());
+  }
+
+  @Test
+  public void testBuild_RightJoin() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    RightJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((Optional<String> l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertEquals(Join.Type.RIGHT, join.getType());
+  }
+
+  @Test
+  public void testBuild_FullJoin() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    FullJoin.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((Optional<String> l, Optional<String> r, Collector<String> c) ->
+            c.collect(l.orElse(null) + r.orElse(null)))
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertEquals(Join.Type.FULL, join.getType());
   }
 
   @Test
@@ -120,15 +161,85 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 1);
     Dataset<String> right = Util.createMockDataset(flow, 1);
 
-    Dataset<Pair<Integer, String>> joined = Join.named("Join1")
-            .of(left, right)
-            .by(String::length, String::length)
-            .using((String l, String r, Collector<String> c) -> c.collect(l + r))
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+    Join.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> c.collect(l + r))
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .output();
 
     Join join = (Join) flow.operators().iterator().next();
     assertTrue(join.getWindowing() instanceof Time);
   }
 
+  @Test
+  public void testBuild_Hints() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    Join.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .withHints(Sets.newHashSet(new TestHint(), new TestHint2(), new TestHint2()))
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertTrue(join.getHints().contains(new TestHint()));
+    assertTrue(join.getHints().contains(new TestHint2()));
+    assertEquals(2, join.getHints().size());
+  }
+
+  @Test
+  public void testBuild_Hints_afterWindowing() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 1);
+    Dataset<String> right = Util.createMockDataset(flow, 1);
+
+    Join.named("Join1")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .withHints(Sets.newHashSet(new TestHint(), new TestHint2(), new TestHint2()))
+        .output();
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertTrue(join.getHints().contains(new TestHint()));
+    assertTrue(join.getHints().contains(new TestHint2()));
+    assertEquals(2, join.getHints().size());
+    assertTrue(join.getWindowing() instanceof Time);
+  }
+
+  private static class TestHint implements JoinHint {
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof TestHint;
+    }
+  }
+
+  private static class TestHint2 implements JoinHint {
+
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return obj instanceof TestHint2;
+    }
+  }
 }

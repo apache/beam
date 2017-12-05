@@ -16,8 +16,8 @@
 package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Count;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.operator.Join;
@@ -34,6 +34,7 @@ import org.junit.runners.Parameterized;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Processing(Processing.Type.ALL)
@@ -140,12 +141,12 @@ public class JoinWindowEnforcementTest extends AbstractOperatorTest {
 
       @Override
       protected List<Object> getLeftInput() {
-        return Arrays.asList(new ArrayList<>());
+        return Collections.singletonList(new ArrayList<>());
       }
 
       @Override
       protected List<Object> getRightInput() {
-        return Arrays.asList(new ArrayList<>());
+        return Collections.singletonList(new ArrayList<>());
       }
     };
     Exception thrown = null;
