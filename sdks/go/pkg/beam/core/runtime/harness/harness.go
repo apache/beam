@@ -27,8 +27,10 @@ import (
 	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
+	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
@@ -54,7 +56,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 	defer conn.Close()
 
-	client, err := pb.NewBeamFnControlClient(conn).Control(ctx)
+	client, err := fnpb.NewBeamFnControlClient(conn).Control(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to connect to control service: %v", err)
 	}
@@ -64,7 +66,7 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	// Each ProcessBundle is a sub-graph of the original one.
 
 	var wg sync.WaitGroup
-	respc := make(chan *pb.InstructionResponse, 100)
+	respc := make(chan *fnpb.InstructionResponse, 100)
 
 	wg.Add(1)
 	go func() {
@@ -127,7 +129,7 @@ type control struct {
 	// TODO: running pipelines
 }
 
-func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequest) *pb.InstructionResponse {
+func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
 	id := req.GetInstructionId()
 	ctx = context.WithValue(ctx, instKey, id)
 
@@ -136,7 +138,22 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 		msg := req.GetRegister()
 
 		for _, desc := range msg.GetProcessBundleDescriptor() {
-			g, err := translate(desc)
+			var roots []string
+			for id, _ := range desc.GetTransforms() {
+				roots = append(roots, id)
+			}
+			p := &pb.Pipeline{
+				Components: &pb.Components{
+					Transforms:          desc.Transforms,
+					Pcollections:        desc.Pcollections,
+					Coders:              desc.Coders,
+					WindowingStrategies: desc.WindowingStrategies,
+					Environments:        desc.Environments,
+				},
+				RootTransformIds: roots,
+			}
+
+			g, err := graphx.Unmarshal(p)
 			if err != nil {
 				return fail(id, "Invalid bundle desc: %v", err)
 			}
@@ -144,10 +161,10 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 			log.Debugf(ctx, "Added subgraph %v:\n %v", desc.GetId(), g)
 		}
 
-		return &pb.InstructionResponse{
+		return &fnpb.InstructionResponse{
 			InstructionId: id,
-			Response: &pb.InstructionResponse_Register{
-				Register: &pb.RegisterResponse{},
+			Response: &fnpb.InstructionResponse_Register{
+				Register: &fnpb.RegisterResponse{},
 			},
 		}
 
@@ -175,10 +192,10 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 			return fail(id, "Execute failed: %v", err)
 		}
 
-		return &pb.InstructionResponse{
+		return &fnpb.InstructionResponse{
 			InstructionId: id,
-			Response: &pb.InstructionResponse_ProcessBundle{
-				ProcessBundle: &pb.ProcessBundleResponse{},
+			Response: &fnpb.InstructionResponse_ProcessBundle{
+				ProcessBundle: &fnpb.ProcessBundleResponse{},
 			},
 		}
 
@@ -187,10 +204,10 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 
 		log.Debugf(ctx, "PB Progress: %v", msg)
 
-		return &pb.InstructionResponse{
+		return &fnpb.InstructionResponse{
 			InstructionId: id,
-			Response: &pb.InstructionResponse_ProcessBundleProgress{
-				ProcessBundleProgress: &pb.ProcessBundleProgressResponse{},
+			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
+				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{},
 			},
 		}
 
@@ -199,10 +216,10 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 
 		log.Debugf(ctx, "PB Split: %v", msg)
 
-		return &pb.InstructionResponse{
+		return &fnpb.InstructionResponse{
 			InstructionId: id,
-			Response: &pb.InstructionResponse_ProcessBundleSplit{
-				ProcessBundleSplit: &pb.ProcessBundleSplitResponse{},
+			Response: &fnpb.InstructionResponse_ProcessBundleSplit{
+				ProcessBundleSplit: &fnpb.ProcessBundleSplitResponse{},
 			},
 		}
 
@@ -211,10 +228,10 @@ func (c *control) handleInstruction(ctx context.Context, req *pb.InstructionRequ
 	}
 }
 
-func fail(id, format string, args ...interface{}) *pb.InstructionResponse {
-	dummy := &pb.InstructionResponse_Register{Register: &pb.RegisterResponse{}}
+func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
+	dummy := &fnpb.InstructionResponse_Register{Register: &fnpb.RegisterResponse{}}
 
-	return &pb.InstructionResponse{
+	return &fnpb.InstructionResponse{
 		InstructionId: id,
 		Error:         fmt.Sprintf(format, args...),
 		Response:      dummy,
