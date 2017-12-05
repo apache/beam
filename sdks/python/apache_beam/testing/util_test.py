@@ -22,27 +22,54 @@ import unittest
 from apache_beam import Create
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_empty
 
 
 class UtilTest(unittest.TestCase):
 
-  def test_assert_that_passes(self):
+  def test_assert_that_equal_to_passes(self):
     with TestPipeline() as p:
       assert_that(p | Create([1, 2, 3]), equal_to([1, 2, 3]))
 
-  def test_assert_that_fails(self):
+  def test_assert_that_equal_to_fails(self):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([1, 10, 100]), equal_to([1, 2, 3]))
 
-  def test_assert_that_fails_on_empty_input(self):
+  def test_assert_that_equal_to_fails_on_empty_input(self):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([]), equal_to([1, 2, 3]))
 
-  def test_assert_that_fails_on_empty_expected(self):
+  def test_assert_that_contains_in_any_order_passes(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([5, 50]), contains_in_any_order(
+          [lambda x: x > 0, lambda x: x < 10]))
+
+  def test_assert_that_contains_in_any_order_fails(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([5, 50]), contains_in_any_order(
+            [lambda x: x > 0, lambda x: x < 0]))
+
+  def test_assert_that_contains_in_any_order_fails_on_empty_predicates(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([5, 50]), contains_in_any_order([]))
+
+  def test_assert_that_contains_in_any_order_fails_on_too_many_predicates(self):
+    with self.assertRaises(Exception):
+      with TestPipeline() as p:
+        assert_that(p | Create([5, 50]), contains_in_any_order(
+            [lambda x: x > 0, lambda x: x < 10, lambda x: x == 5]))
+
+  def test_assert_that_is_empty_passes(self):
+    with TestPipeline() as p:
+      assert_that(p | Create([]), is_empty())
+
+  def test_assert_that_is_empty_fails(self):
     with self.assertRaises(Exception):
       with TestPipeline() as p:
         assert_that(p | Create([1, 2, 3]), is_empty())

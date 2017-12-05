@@ -19,6 +19,7 @@
 
 from __future__ import absolute_import
 
+import copy
 import glob
 import tempfile
 
@@ -33,6 +34,7 @@ from apache_beam.utils.annotations import experimental
 
 __all__ = [
     'assert_that',
+    'contains_in_any_order',
     'equal_to',
     'is_empty',
     # open_shards is internal and has no backwards compatibility guarantees.
@@ -50,7 +52,6 @@ class BeamAssertException(Exception):
 # compare are PCollections for which there is no guaranteed order.
 # However the sorting does not go beyond top level therefore [1,2] and [2,1]
 # are considered equal and [[1,2]] and [[2,1]] are not.
-# TODO(silviuc): Add contains_in_any_order-style matchers.
 def equal_to(expected):
   expected = list(expected)
 
@@ -61,6 +62,46 @@ def equal_to(expected):
       raise BeamAssertException(
           'Failed assert: %r == %r' % (sorted_expected, sorted_actual))
   return _equal
+
+
+def contains_in_any_order(predicates):
+  """Create a matcher to check that an iterable maps to a list of predicates.
+
+  Args:
+    predicates: a list of predicate functions that take a value from the
+      iterable as argument and return True to indicate a match and False to
+      indicate a non-match.
+
+  Returns:
+    A matcher that operates on iterables and raises an error if any of the
+      following are true:
+      - the length of the list of predicates is not equal to the length of the
+      iterable.
+      - there isn't a way to create a one-to-one mapping from items i in the
+      iterable to predicates p such that p(i) == True for all i.
+  """
+  def _contains_in_any_order(all_items, all_predicates):
+    stack = [(all_items, all_predicates)]
+
+    # Perform a depth-first search to find a mapping from items in the
+    # iterable to predicates they satisfy.
+    while len(stack) > 0:
+      items, predicates = stack[0]
+      stack = stack[1:]
+      if items == []:
+        return predicates == []
+      for i, p in enumerate(predicates):
+        remaining_predicates = copy.copy(predicates)
+        del remaining_predicates[i]
+        if p(items[0]):
+          stack = [(items[1:], remaining_predicates)] + stack
+    return False
+
+  def _matcher(actual):
+    if not _contains_in_any_order(actual, predicates):
+      raise BeamAssertException('Failed assert: %r contains_in_any_order %r' %
+                                (actual, predicates))
+  return _matcher
 
 
 def is_empty():
