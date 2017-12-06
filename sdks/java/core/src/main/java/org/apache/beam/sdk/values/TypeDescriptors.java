@@ -291,6 +291,10 @@ public class TypeDescriptors {
     return typeDescriptor;
   }
 
+  public static TypeDescriptor<Void> voids() {
+    return new TypeDescriptor<Void>() {};
+  }
+
   /**
    * A helper interface for use with {@link #extractFromTypeParameters(Object, Class,
    * TypeVariableExtractor)}.
