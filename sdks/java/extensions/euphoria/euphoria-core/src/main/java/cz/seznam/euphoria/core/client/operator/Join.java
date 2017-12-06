@@ -35,7 +35,6 @@ import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.graph.DAG;
 import cz.seznam.euphoria.shadow.com.google.common.annotations.VisibleForTesting;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -454,8 +453,6 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
    *        thus, marking earlier - but actually still not too late time-sliding
    *        windows as late comers.</li>
    * </ul>
-   *
-   *
    */
   @Experimental
   private class EarlyEmittingJoinState

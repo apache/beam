@@ -28,22 +28,13 @@ public class JoinHints {
   }
 
   /**
-   * Brodcast left side to all executors
+   * Broadcasts optional join side to all executors. See {@link BroadcastHashJoinTranslator}
+   * for more details.
    */
   public static class BroadcastHashJoin implements JoinHint {
 
     private BroadcastHashJoin() {
 
-    }
-
-    @Override
-    public int hashCode() {
-      return 0;
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-      return obj instanceof BroadcastHashJoin;
     }
   }
 
