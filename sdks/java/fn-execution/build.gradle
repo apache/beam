@@ -24,6 +24,7 @@ description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
+  shadow project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub
