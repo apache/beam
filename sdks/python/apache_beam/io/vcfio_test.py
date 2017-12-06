@@ -194,11 +194,6 @@ class VcfSourceTest(unittest.TestCase):
             '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
             '1    1  '
         ],
-        # Missing "GT:GQ" format, but GQ is provided.
-        [
-            '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
-            '19	123	rs12345	T	C	50	q10	AF=0.2;NS=2	GT	1|0:48'
-        ],
         # GT is not an integer.
         [
             '#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample\n',
