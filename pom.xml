@@ -286,8 +286,6 @@
             <artifactId>reproducible-build-maven-plugin</artifactId>
           </plugin>
         </plugins>
-
-        <directory>${external.build.directory}</directory>
       </build>
     </profile>
 
@@ -2194,6 +2192,7 @@
         </executions>
       </plugin>
     </plugins>
+    <directory>${external.build.directory}</directory>
   </build>
 
   <reporting>
