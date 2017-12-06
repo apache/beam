@@ -33,7 +33,7 @@ import (
 const (
 	// Model constants
 
-	urnImpulse = "urn:beam:transform:impulse:v1" // to appear?
+	urnImpulse = "urn:beam:transform:impulse:v1"
 	urnParDo   = "urn:beam:transform:pardo:v1"
 	urnFlatten = "urn:beam:transform:flatten:v1"
 	urnGBK     = "urn:beam:transform:groupbykey:v1"
@@ -47,12 +47,14 @@ const (
 
 	// SDK constants
 
-	urnDoFn = "urn:beam:dofn:javasdk:0.1" // TODO: use "urn:beam:go:transform:dofn:v1"
+	// TODO: use "urn:beam:go:transform:dofn:v1" when the Dataflow runner
+	// uses the model pipeline and no longer falls back to Java.
+	urnDoFn = "urn:beam:dofn:javasdk:0.1"
 )
 
 // TODO(herohde) 11/6/2017: move some of the configuration into the graph during construction.
 
-// Options
+// Options for marshalling a graph into a model pipeline.
 type Options struct {
 	// ContainerImageURL is the default environment container image.
 	ContainerImageURL string
@@ -118,27 +120,28 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 		return id
 	}
 
-	var sub []string
+	var subtransforms []string
 	for _, edge := range s.Edges {
-		sub = append(sub, m.addMultiEdge(edge))
+		subtransforms = append(subtransforms, m.addMultiEdge(edge))
 	}
 	for _, tree := range s.Children {
-		sub = append(sub, m.addScopeTree(tree))
+		subtransforms = append(subtransforms, m.addScopeTree(tree))
 	}
 
 	// Compute the input/output for this scope:
-	//    inputs := U(input)\U(outputs)
-	//    outputs := U(output)\U(inputs)
+	//    inputs  := U(subinputs)\U(suboutputs)
+	//    outputs := U(suboutputs)\U(subinputs)
+	// where U is set union and \ is set subtraction.
 
 	in := make(map[string]bool)
 	out := make(map[string]bool)
-	for _, sid := range sub {
+	for _, sid := range subtransforms {
 		inout(m.transforms[sid], in, out)
 	}
 
 	transform := &pb.PTransform{
 		UniqueName:    s.Scope.Name,
-		Subtransforms: sub,
+		Subtransforms: subtransforms,
 		Inputs:        diff(in, out),
 		Outputs:       diff(out, in),
 	}
