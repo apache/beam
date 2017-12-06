@@ -16,6 +16,7 @@
 package cz.seznam.euphoria.spark;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.functional.UnaryPredicate;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -79,9 +80,8 @@ class SparkFlowTranslator {
         ReduceByKeyTranslator::wantTranslate);
 
     // ~ batch broadcast join for a very small left side
-    Translation.add(translations, Join.class, new BroadcastJoinTranslator(), o ->
-        o.getHints().contains(JoinHints.broadcastHashJoin())
-            && (o.getWindowing() == null || o.getWindowing() instanceof GlobalWindowing));
+    Translation.add(translations, Join.class, new BroadcastHashJoinTranslator(),
+        BroadcastHashJoinTranslator::wantTranslate);
   }
 
   @SuppressWarnings("unchecked")

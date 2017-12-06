@@ -19,6 +19,7 @@ package cz.seznam.euphoria.spark;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
+import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
@@ -39,7 +40,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-public class BroadcastJoinTranslator implements SparkOperatorTranslator<Join> {
+/**
+ * <p>
+ *   Broadcast hash join is a special case of Left or Right join, which does not require shuffle.
+ *   The optional side is loaded into memory and broadcasted to all executors. We can then use
+ *   map side join with lookups to in memory hash table on non-optional side.
+ * </p>
+ * <p>
+ *   In order to use this translator, you need to pass {@link JoinHints.BroadcastHashJoin} hint
+ *   to the {@link Join} operator.
+ * </p>
+ */
+public class BroadcastHashJoinTranslator implements SparkOperatorTranslator<Join> {
+
+  static boolean wantTranslate(Join o) {
+    return o.getHints().contains(JoinHints.broadcastHashJoin())
+        && (o.getType() == Join.Type.LEFT || o.getType() == Join.Type.RIGHT)
+        && !(o.getWindowing() instanceof MergingWindowing);
+  }
 
   @Override
   @SuppressWarnings("unchecked")
@@ -78,7 +96,7 @@ public class BroadcastJoinTranslator implements SparkOperatorTranslator<Join> {
 
         joined = leftPair.flatMapToPair(t -> {
           if (broadcast.getValue().containsKey(t._1)) {
-            return Iterables.transform(broadcast.getValue().get(t._1), (el) ->
+            return Iterables.transform(broadcast.getValue().get(t._1), el ->
                 new Tuple2<>(t._1, new Tuple2<>(opt(t._2), opt(el)))).iterator();
           } else {
             return Collections.singletonList(
@@ -98,7 +116,7 @@ public class BroadcastJoinTranslator implements SparkOperatorTranslator<Join> {
 
         joined = rightPair.flatMapToPair(t -> {
           if (broadcast.getValue().containsKey(t._1)) {
-            return Iterables.transform(broadcast.getValue().get(t._1), (el) ->
+            return Iterables.transform(broadcast.getValue().get(t._1), el ->
                 new Tuple2<>(t._1, new Tuple2<>(opt(el), opt(t._2)))).iterator();
           } else {
             return Collections.singletonList(
@@ -116,13 +134,13 @@ public class BroadcastJoinTranslator implements SparkOperatorTranslator<Join> {
 
     return joined.flatMap(new FlatMapFunctionWithCollector<>((t, collector) -> {
       // ~ both elements have exactly the same window
-      // we need to check for null values because of full outer join
+      // ~ we need to check for null values because we support both Left and Right joins
       final SparkElement first = t._2._1.orNull();
       final SparkElement second = t._2._2.orNull();
       final Window window = first == null ? second.getWindow() : first.getWindow();
       final long maxTimestamp = Math.max(
-          first == null ? 0L : first.getTimestamp(),
-          second == null ? 0L : second.getTimestamp());
+          first == null ? window.maxTimestamp() - 1 : first.getTimestamp(),
+          second == null ? window.maxTimestamp() - 1 : second.getTimestamp());
       collector.clear();
       collector.setWindow(window);
       operator.getJoiner().apply(
@@ -141,16 +159,15 @@ public class BroadcastJoinTranslator implements SparkOperatorTranslator<Join> {
   private static Map<KeyedWindow, List<SparkElement>> toBroadcast(
       List<Tuple2<KeyedWindow, SparkElement>> list) {
     final Map<KeyedWindow, List<SparkElement>> res = new HashMap<>();
-    list.forEach((t) -> {
-      final List<SparkElement> elements = res.computeIfAbsent(t._1, (k)
-          -> new ArrayList<>());
+    list.forEach(t -> {
+      final List<SparkElement> elements = res.computeIfAbsent(t._1, k -> new ArrayList<>());
       elements.add(t._2);
     });
     return res;
   }
 
-  private static class KeyExtractor implements PairFlatMapFunction<SparkElement, KeyedWindow,
-      SparkElement> {
+  private static class KeyExtractor
+      implements PairFlatMapFunction<SparkElement, KeyedWindow, SparkElement> {
 
     private final UnaryFunction keyExtractor;
     private final Windowing windowing;
@@ -165,10 +182,13 @@ public class BroadcastJoinTranslator implements SparkOperatorTranslator<Join> {
     @Override
     @SuppressWarnings("unchecked")
     public Iterator<Tuple2<KeyedWindow, SparkElement>> call(SparkElement se) throws Exception {
-      final Iterable<Window> windows = windowing.assignWindowsToElement(new SparkElement(se
-          .getWindow(),
-          se.getTimestamp(), left ? Either.left(se.getElement()) : Either.right(se.getElement())));
-      return Iterators.transform(windows.iterator(), (w) -> new Tuple2<>(
+      final Iterable<Window> windows = windowing.assignWindowsToElement(new SparkElement(
+          se.getWindow(),
+          se.getTimestamp(),
+          left
+              ? Either.left(se.getElement())
+              : Either.right(se.getElement())));
+      return Iterators.transform(windows.iterator(), w -> new Tuple2<>(
           new KeyedWindow<>(w, se.getTimestamp(), keyExtractor.apply(se.getElement())),
           new SparkElement(w, se.getTimestamp(), se.getElement())));
     }
