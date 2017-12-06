@@ -135,31 +135,6 @@ import org.slf4j.LoggerFactory;
  *         .withTableId("table"));
  * }</pre>
  *
- * <h3>Using local emulator</h3>
- *
- * <p>In order to use local emulator for Bigtable you should use:
- * <pre>{@code
- * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
- *
- * data.apply("write",
- *     BigtableIO.write()
- *         .withProjectId("project")
- *         .withInstanceId("instance")
- *         .withTableId("table")
- *         .withBigtableOptionsConfigurator(
- *            new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
- *              public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
- *                return input
- *                        .setUsePlaintextNegotiation(true)
- *                        .setCredentialOptions(CredentialOptions.nullCredential())
- *                        .setDataHost("127.0.0.1") // network interface where Bigtable is bound
- *                        .setInstanceAdminHost("127.0.0.1")
- *                        .setTableAdminHost("127.0.0.1")
- *                        .setPort(LOCAL_EMULATOR_PORT);
- *             }
- *         }));
- * }</pre>
- *
  * <h3>Experimental</h3>
  *
  * <p>This connector for Cloud Bigtable is considered experimental and may break or receive
@@ -460,22 +435,24 @@ public class BigtableIO {
           .withLabel("Table Row Filter"));
       }
 
-      builder.add(
-        DisplayData.item("bigtableOptionsConfiguratorProvided",
-          getBigtableOptionsConfigurator() != null));
+      builder.add(DisplayData.item("effectiveBigtableOptions",
+        effectiveUserProvidedBigtableOptions().build().toString())
+        .withLabel("Effective BigtableOptions resulted from configuration of given options"));
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(Read.class)
           .add("options", getBigtableOptions())
+          .add("effectiveOptions", effectiveUserProvidedBigtableOptions())
           .add("projectId", getProjectId())
           .add("instanceId", getInstanceId())
           .add("tableId", getTableId())
           .add("keyRange", getKeyRange())
           .add("filter", getRowFilter())
-          .add("bigtableOptionsConfiguratorProvided",
-            getBigtableOptionsConfigurator() != null)
+          .add("bigtableOptionsConfigurator",
+            getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
+              .getClass().getName())
           .toString();
     }
 
@@ -506,35 +483,41 @@ public class BigtableIO {
         return getBigtableService();
       }
 
-      BigtableOptions.Builder clonedOptions = getBigtableOptionsConfigurator() != null
-        ? getBigtableOptionsConfigurator().apply(userProvidedOptions())
-        : userProvidedOptions();
+      BigtableOptions.Builder bigtableOptions = effectiveUserProvidedBigtableOptions();
 
-      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
-      if (getInstanceId() != null) {
-        clonedOptions.setInstanceId(getInstanceId());
-      }
-      if (getProjectId() != null) {
-        clonedOptions.setProjectId(getProjectId());
-      }
+      bigtableOptions.setUserAgent(pipelineOptions.getUserAgent());
 
       if (getBigtableOptions() != null && getBigtableOptions().getCredentialOptions()
           .getCredentialType() == CredentialType.DefaultCredentials) {
-        clonedOptions.setCredentialOptions(
+        bigtableOptions.setCredentialOptions(
             CredentialOptions.credential(
                 pipelineOptions.as(GcpOptions.class).getGcpCredential()));
       }
 
       // Default option that should be forced
-      clonedOptions.setUseCachedDataPool(true);
+      bigtableOptions.setUseCachedDataPool(true);
 
-      return new BigtableServiceImpl(clonedOptions.build());
+      return new BigtableServiceImpl(bigtableOptions.build());
     }
 
-    private BigtableOptions.Builder userProvidedOptions() {
-      return getBigtableOptions() != null
+    private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
+      BigtableOptions.Builder effectiveOptions = getBigtableOptions() != null
         ? getBigtableOptions().toBuilder()
         : new BigtableOptions.Builder();
+
+      effectiveOptions = getBigtableOptionsConfigurator() != null
+        ? getBigtableOptionsConfigurator().apply(effectiveOptions)
+        : effectiveOptions;
+
+      if (getInstanceId() != null) {
+        effectiveOptions.setInstanceId(getInstanceId());
+      }
+
+      if (getProjectId() != null) {
+        effectiveOptions.setProjectId(getProjectId());
+      }
+
+      return effectiveOptions;
     }
   }
 
@@ -763,20 +746,22 @@ public class BigtableIO {
             .withLabel("Bigtable Instnace Id"));
       }
 
-      builder.add(
-        DisplayData.item("bigtableOptionsConfiguratorProvided",
-          getBigtableOptionsConfigurator() != null));
+      builder.add(DisplayData.item("effectiveBigtableOptions",
+        effectiveUserProvidedBigtableOptions().build().toString())
+        .withLabel("Effective BigtableOptions resulted from configuration of given options"));
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(Write.class)
           .add("options", getBigtableOptions())
+          .add("effectiveOptions", effectiveUserProvidedBigtableOptions())
           .add("tableId", getTableId())
           .add("projectId", getProjectId())
           .add("instanceId", getInstanceId())
-          .add("bigtableOptionsConfiguratorProvided",
-          getBigtableOptionsConfigurator() != null)
+          .add("bigtableOptionsConfigurator",
+          getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
+            .getClass().getName())
           .toString();
     }
 
@@ -794,40 +779,45 @@ public class BigtableIO {
         return getBigtableService();
       }
 
-      BigtableOptions.Builder clonedOptions = getBigtableOptionsConfigurator() != null
-        ? getBigtableOptionsConfigurator().apply(userProvidedOptions())
-        : userProvidedOptions();
+      BigtableOptions.Builder bigtableOptions = effectiveUserProvidedBigtableOptions();
 
-      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
-      if (getInstanceId() != null) {
-        clonedOptions.setInstanceId(getInstanceId());
-      }
-      if (getProjectId() != null) {
-        clonedOptions.setProjectId(getProjectId());
-      }
+      bigtableOptions.setUserAgent(pipelineOptions.getUserAgent());
 
       if (getBigtableOptions() != null && getBigtableOptions().getCredentialOptions()
         .getCredentialType() == CredentialType.DefaultCredentials) {
-        clonedOptions.setCredentialOptions(
+        bigtableOptions.setCredentialOptions(
           CredentialOptions.credential(
             pipelineOptions.as(GcpOptions.class).getGcpCredential()));
       }
 
       // Set useBulkApi to true for enabling bulk writes
-      clonedOptions
+      bigtableOptions
         .setUseCachedDataPool(true)
         .setBulkOptions(
-          userProvidedOptions().build().getBulkOptions().toBuilder()
+          effectiveUserProvidedBigtableOptions().build().getBulkOptions().toBuilder()
             .setUseBulkApi(true)
             .build());
 
-      return new BigtableServiceImpl(clonedOptions.build());
+      return new BigtableServiceImpl(bigtableOptions.build());
     }
 
-    private BigtableOptions.Builder userProvidedOptions() {
-      return getBigtableOptions() != null
+    private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
+      BigtableOptions.Builder effectiveOptions = getBigtableOptions() != null
         ? getBigtableOptions().toBuilder()
         : new BigtableOptions.Builder();
+
+      effectiveOptions = getBigtableOptionsConfigurator() != null
+        ? getBigtableOptionsConfigurator().apply(effectiveOptions)
+        : effectiveOptions;
+
+      if (getInstanceId() != null) {
+        effectiveOptions.setInstanceId(getInstanceId());
+      }
+      if (getProjectId() != null) {
+        effectiveOptions.setProjectId(getProjectId());
+      }
+
+      return effectiveOptions;
     }
 
     private class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
