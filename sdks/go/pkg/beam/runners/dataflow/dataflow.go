@@ -129,7 +129,7 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 			}),
 			Version: newMsg(version{
 				JobType: "FNAPI_BATCH",
-				Major:   "1",
+				Major:   "6",
 			}),
 			SdkPipelineOptions: newMsg(pipelineOptions{
 				DisplayData: findPipelineFlags(),
