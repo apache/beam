@@ -37,11 +37,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import org.apache.beam.fn.harness.fn.ThrowingFunction;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnControlGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -176,8 +176,7 @@ public class BeamFnControlClientTest {
   }
 
   private <ReqT, RespT> StreamObserver<RespT> createStreamForTest(
-      Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
-      StreamObserver<ReqT> handler) {
-    return clientFactory.apply(handler);
+      StreamObserverClientFactory<ReqT, RespT> clientFactory, StreamObserver<ReqT> handler) {
+    return clientFactory.outboundObserverFor(handler);
   }
 }
