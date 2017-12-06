@@ -219,7 +219,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
       DoFn<InputT, OutputT> doFn;
       TupleTag<OutputT> mainOutputTag;
-      Coder<InputT> inputCoder;
+      WindowedValueCoder<InputT> inputCoder;
       WindowingStrategy<InputT, ?> windowingStrategy;
 
       try {
@@ -235,7 +235,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         // There will only be one due to the check above.
         RunnerApi.PCollection mainInput = pCollections.get(
             Iterables.getOnlyElement(pTransform.getInputsMap().values()));
-        inputCoder = (Coder) rehydratedComponents.getCoder(mainInput.getCoderId());
+        inputCoder = (WindowedValueCoder<InputT>) rehydratedComponents.getCoder(
+            mainInput.getCoderId());
         windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
             mainInput.getWindowingStrategyId());
       } catch (InvalidProtocolBufferException exn) {
