@@ -35,6 +35,7 @@ import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
@@ -57,7 +58,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
       return ImmutableMap.of(
           ProcessBundleHandler.JAVA_SOURCE_URN, new Factory(),
-          ProcessBundleHandler.READ_URN, new Factory());
+          PTransformTranslation.READ_TRANSFORM_URN, new Factory());
     }
   }
 
@@ -135,9 +136,11 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         InputT boundedSource0 =
             (InputT) SerializableUtils.deserializeFromByteArray(bytes, definition.toString());
         boundedSource = boundedSource0;
-      } else {
+      } else if (definition.getUrn().equals(PTransformTranslation.READ_TRANSFORM_URN)) {
         ReadPayload readPayload = ReadPayload.parseFrom(definition.getPayload());
         boundedSource = (InputT) ReadTranslation.boundedSourceFromProto(readPayload);
+      } else {
+        throw new IllegalArgumentException("Unknown source URN: " + definition.getUrn());
       }
       runReadLoop(WindowedValue.valueInGlobalWindow(boundedSource));
     } catch (InvalidProtocolBufferException e) {

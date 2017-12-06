@@ -50,6 +50,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -68,7 +69,6 @@ public class ProcessBundleHandler {
 
   // TODO: What should the initial set of URNs be?
   private static final String DATA_INPUT_URN = "urn:org.apache.beam:source:runner:0.1";
-  public static final String READ_URN = "urn:beam:transform:read:v1";
   public static final String JAVA_SOURCE_URN = "urn:org.apache.beam:source:java:0.1";
 
   private static final Logger LOG = LoggerFactory.getLogger(ProcessBundleHandler.class);
@@ -236,7 +236,8 @@ public class ProcessBundleHandler {
         // TODO: Remove source as a root and have it be triggered by the Runner.
         if (!DATA_INPUT_URN.equals(entry.getValue().getSpec().getUrn())
             && !JAVA_SOURCE_URN.equals(entry.getValue().getSpec().getUrn())
-            && !READ_URN.equals(entry.getValue().getSpec().getUrn())) {
+            && !PTransformTranslation.READ_TRANSFORM_URN.equals(
+                entry.getValue().getSpec().getUrn())) {
           continue;
         }
 
