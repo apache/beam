@@ -1344,7 +1344,7 @@ public class DataflowRunnerTest implements Serializable {
         (WriteFiles<Object, Void, Object>)
             factory.getReplacementTransform(originalApplication).getTransform();
     assertThat(replacement, not(equalTo((Object) original)));
-    assertThat(replacement.getNumShards().get(), equalTo(expectedNumShards));
+    assertThat(replacement.getNumShardsProvider().get(), equalTo(expectedNumShards));
   }
 
   private static class TestSink extends FileBasedSink<Object, Void, Object> {
