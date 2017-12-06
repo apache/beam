@@ -27,7 +27,7 @@ __all__ = ['TestDataflowRunner']
 
 
 class TestDataflowRunner(DataflowRunner):
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Execute test pipeline and verify test matcher"""
     options = pipeline._options.view_as(TestOptions)
     on_success_matcher = options.on_success_matcher
@@ -36,7 +36,7 @@ class TestDataflowRunner(DataflowRunner):
     # send this option to remote executors.
     options.on_success_matcher = None
 
-    self.result = super(TestDataflowRunner, self).run(pipeline)
+    self.result = super(TestDataflowRunner, self).run_pipeline(pipeline)
     if self.result.has_job:
       project = pipeline._options.view_as(GoogleCloudOptions).project
       region_id = pipeline._options.view_as(GoogleCloudOptions).region

@@ -116,7 +116,41 @@ class PipelineRunner(object):
   materialized values in order to reduce footprint.
   """
 
-  def run(self, pipeline):
+  def run(self, graph, options=None):
+    """Run a pipeline or ptransform with the runner.
+
+    If graph is a PTransform object, run the single step by creating a pipeline
+    using this runner and the provided options.
+
+    If graph is a Pipeline object, runs the graph using this runner instead of
+    the graph's default runner, but keep the graph's PipelineOptions.
+
+    Args:
+      graph: a Pipeline or PTransform object
+
+    Returns:
+      None
+    """
+
+    # Local import avoids circular dependencies for importing modules
+    from apache_beam.pipeline import Pipeline
+    from apache_beam.transforms.ptransform import PTransform
+
+    if isinstance(graph, PTransform):
+      # Create a pipeline from this runner and the options provided,
+      # and run the ptransform as a standalone step.
+      from apache_beam.pipeline import Pipeline
+      p = Pipeline(runner=self, options=options)
+      p | graph
+      result = p.run()
+      result.wait_until_finish()
+      return result
+    elif isinstance(graph, Pipeline):
+      # Run the pipeline directly
+      return graph.run(runner=self)
+
+
+  def run_pipeline(self, pipeline):
     """Execute the entire pipeline or the sub-DAG reachable from a node."""
 
     # Imported here to avoid circular dependencies.
@@ -136,23 +170,6 @@ class PipelineRunner(object):
           raise
 
     pipeline.visit(RunVisitor(self))
-
-  def run_single_step(self, transform, options=None):
-    """Execute a single ptransform step as a pipeline.
-
-    Args:
-      transform: the ptransform to run on a pBegin
-      options: pipeline configuration options for the runner
-
-    Returns:
-      result from running transform from a pBegin
-    """
-    from apache_beam.pipeline import Pipeline
-    p = Pipeline(self, options=options)
-    p | transform
-    result = p.run()
-    result.wait_until_finish()
-    return result
 
   def apply(self, transform, input):
     """Runner callback for a pipeline.apply call.

@@ -47,7 +47,7 @@ class PythonRPCDirectRunner(PipelineRunner):
   def __init__(self):
     self._cache = None
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
 
     # Performing configured PTransform overrides.
