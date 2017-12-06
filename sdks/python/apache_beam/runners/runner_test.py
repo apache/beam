@@ -118,6 +118,66 @@ class RunnerTest(unittest.TestCase):
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
 
+  def test_single_step(self):
+    from apache_beam.metrics.metric import Metrics
+
+    class CreateAndScaleTransform(ptransform.PTransform):
+
+      def __init__(self, label=None, scalar=2):
+        super(CreateAndScaleTransform, self).__init__(label)
+        self._scalar=scalar
+
+      def expand(self, pbegin):
+        assert isinstance(pbegin, beam.pvalue.PBegin)
+        ret = (pbegin
+               | 'create' >> ptransform.Create([1, 2, 3, 4, 5])
+               | 'scale' >> beam.ParDo(ScaleDoFn(self._scalar)))
+        return ret
+
+    class ScaleDoFn(beam.DoFn):
+      def __init__(self, scalar):
+        self._scalar = scalar
+
+      def process(self, element):
+        transformed_element = element * self._scalar
+        counter = Metrics.counter(self.__class__, 'elements')
+        counter.inc()
+        sum_counter = Metrics.counter(self.__class__, 'sum_inputs')
+        sum_counter.inc(element)
+        sum_counter = Metrics.counter(self.__class__, 'sum_outputs')
+        sum_counter.inc(transformed_element)
+        return [transformed_element]
+
+    runner = DirectRunner()
+    result = runner.run_single_step(
+      CreateAndScaleTransform('create_and_scale'),
+      options=PipelineOptions(self.default_properties)
+    )
+
+    metrics = result.metrics().query()
+    namespace = '{}.{}'.format(ScaleDoFn.__module__,
+                               ScaleDoFn.__name__)
+    hc.assert_that(
+        metrics['counters'],
+        hc.contains_inanyorder(
+            MetricResult(
+                MetricKey('create_and_scale/scale',
+                          MetricName(namespace, 'elements')),
+                5, 5
+            ),
+            MetricResult(
+                MetricKey('create_and_scale/scale',
+                          MetricName(namespace, 'sum_inputs')),
+                15, 15
+            ),
+            MetricResult(
+                MetricKey('create_and_scale/scale',
+                          MetricName(namespace, 'sum_outputs')),
+                30, 30
+            )
+        )
+    )
+
 
 if __name__ == '__main__':
   unittest.main()
