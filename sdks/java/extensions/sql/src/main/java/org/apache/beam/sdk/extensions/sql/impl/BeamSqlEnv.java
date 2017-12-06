@@ -102,7 +102,7 @@ public class BeamSqlEnv implements Serializable{
         schema.add(tableName, new BeamCalciteTable(tables.get(tableName).getRowType()));
       }
     }
-    planner.getSourceTables().remove(targetTableName);
+    planner = new BeamQueryPlanner(schema);
   }
 
   /**
