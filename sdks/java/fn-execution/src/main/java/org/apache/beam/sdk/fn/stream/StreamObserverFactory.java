@@ -16,57 +16,57 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.function.Function;
-import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
-import org.apache.beam.sdk.fn.stream.AdvancingPhaser;
-import org.apache.beam.sdk.fn.stream.BufferingStreamObserver;
-import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
-import org.apache.beam.sdk.fn.stream.ForwardingClientResponseObserver;
-import org.apache.beam.sdk.options.ExperimentalOptions;
-import org.apache.beam.sdk.options.PipelineOptions;
 
 /**
- * Uses {@link PipelineOptions} to configure which underlying {@link StreamObserver} implementation
- * to use.
+ * Creates factories which determine an underlying {@link StreamObserver} implementation
+ * to use in to interact with fn execution APIs.
  */
 public abstract class StreamObserverFactory {
-  public static StreamObserverFactory fromOptions(PipelineOptions options) {
-    List<String> experiments = options.as(ExperimentalOptions.class).getExperiments();
-    if (experiments != null && experiments.contains("beam_fn_api_buffered_stream")) {
-      int bufferSize = Buffered.DEFAULT_BUFFER_SIZE;
-      for (String experiment : experiments) {
-        if (experiment.startsWith("beam_fn_api_buffered_stream_buffer_size=")) {
-          bufferSize = Integer.parseInt(
-              experiment.substring("beam_fn_api_buffered_stream_buffer_size=".length()));
-        }
-      }
-      return new Buffered(options.as(GcsOptions.class).getExecutorService(), bufferSize);
-    }
+  /**
+   * Create a buffering {@link StreamObserverFactory} with the specified {@link ExecutorService} and
+   * the default buffer size.
+   */
+  public static StreamObserverFactory buffered(ExecutorService executorService) {
+    return new Buffered(executorService, Buffered.DEFAULT_BUFFER_SIZE);
+  }
+
+  /**
+   * Create a buffering {@link StreamObserverFactory} with the specified {@link ExecutorService} and
+   * buffer size.
+   */
+  public static StreamObserverFactory buffered(
+      ExecutorService executorService, int bufferSize) {
+    return new Buffered(executorService, bufferSize);
+  }
+
+  /**
+   * Create the default {@link StreamObserverFactory}.
+   */
+  public static StreamObserverFactory direct() {
     return new Direct();
   }
 
   public abstract <ReqT, RespT> StreamObserver<RespT> from(
-      Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
+      StreamObserverClientFactory<ReqT, RespT> clientFactory,
       StreamObserver<ReqT> responseObserver);
 
   private static class Direct extends StreamObserverFactory {
 
     @Override
     public <ReqT, RespT> StreamObserver<RespT> from(
-        Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
+        StreamObserverClientFactory<ReqT, RespT> clientFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
-              clientFactory.apply(
+              clientFactory.outboundObserverFor(
                   ForwardingClientResponseObserver.<ReqT, RespT>create(
-                      inboundObserver, phaser::arrive));
+                      inboundObserver, StreamObserverFactory.arriveAtPhaserHandler(phaser)));
       return new DirectStreamObserver<>(phaser, outboundObserver);
     }
   }
@@ -83,17 +83,38 @@ public abstract class StreamObserverFactory {
 
     @Override
     public <ReqT, RespT> StreamObserver<RespT> from(
-        Function<StreamObserver<ReqT>, StreamObserver<RespT>> clientFactory,
+        StreamObserverClientFactory<ReqT, RespT> clientFactory,
         StreamObserver<ReqT> inboundObserver) {
       AdvancingPhaser phaser = new AdvancingPhaser(1);
       CallStreamObserver<RespT> outboundObserver =
           (CallStreamObserver<RespT>)
-              clientFactory.apply(
+              clientFactory.outboundObserverFor(
                   ForwardingClientResponseObserver.<ReqT, RespT>create(
-                      inboundObserver, phaser::arrive));
+                      inboundObserver, StreamObserverFactory.arriveAtPhaserHandler(phaser)));
       return new BufferingStreamObserver<>(
           phaser, outboundObserver, executorService, bufferSize);
     }
+  }
 
+  private static Runnable arriveAtPhaserHandler(final AdvancingPhaser phaser) {
+    return new Runnable() {
+      @Override
+      public void run() {
+        phaser.arrive();
+      }
+    };
+  }
+
+  /**
+   * A factory which creates {@link StreamObserver StreamObservers} based on the input stream
+   * observer.
+   *
+   * <p>For example, this could be used to
+   *
+   * @param <RequestT> The type of message sent to the inbound stream
+   * @param <ResponseT> They type of messages sent over the outbound stream
+   */
+  public interface StreamObserverClientFactory<RequestT, ResponseT> {
+    StreamObserver<ResponseT> outboundObserverFor(StreamObserver<RequestT> inboundObserver);
   }
 }
