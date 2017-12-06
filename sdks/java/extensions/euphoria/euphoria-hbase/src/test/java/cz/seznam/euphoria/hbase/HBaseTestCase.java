@@ -28,7 +28,9 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.junit.After;
@@ -97,6 +99,17 @@ public class HBaseTestCase {
     Put ret = new Put(bytes);
     ret.addColumn(family, bytes, stamp, bytes);
     return ret;
+  }
+
+  byte[] get(String key) {
+    try {
+      Get get = new Get(b(key));
+      get.addColumn(b("t"), b(key));
+      Result res = client.get(get);
+      return res.getColumnLatestCell(b("t"), b(key)).getValue();
+    } catch (IOException ex) {
+      throw new RuntimeException(ex);
+    }
   }
 
 }
