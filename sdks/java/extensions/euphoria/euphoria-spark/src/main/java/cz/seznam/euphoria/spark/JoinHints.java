@@ -15,33 +15,27 @@
  */
 package cz.seznam.euphoria.spark;
 
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
-import cz.seznam.euphoria.core.client.dataset.windowing.WindowedElement;
+import cz.seznam.euphoria.core.annotation.audience.Audience;
+import cz.seznam.euphoria.core.client.operator.JoinHint;
 
-public class SparkElement<W extends Window, T> implements WindowedElement<W, T> {
+@Audience(Audience.Type.CLIENT)
+public class JoinHints {
 
-  private W window;
-  private T element;
-  private long timestamp;
+  private static final BroadcastHashJoin BROADCAST_HASH_JOIN = new BroadcastHashJoin();
 
-  public SparkElement(W window, long timestamp, T element) {
-    this.window = window;
-    this.element = element;
-    this.timestamp = timestamp;
+  public static BroadcastHashJoin broadcastHashJoin() {
+    return BROADCAST_HASH_JOIN;
   }
 
-  @Override
-  public W getWindow() {
-    return window;
+  /**
+   * Broadcasts optional join side to all executors. See {@link BroadcastHashJoinTranslator}
+   * for more details.
+   */
+  public static class BroadcastHashJoin implements JoinHint {
+
+    private BroadcastHashJoin() {
+
+    }
   }
 
-  @Override
-  public long getTimestamp() {
-    return timestamp;
-  }
-
-  @Override
-  public T getElement() {
-    return element;
-  }
 }
