@@ -505,9 +505,9 @@ public class BigtableIO {
         ? getBigtableOptions().toBuilder()
         : new BigtableOptions.Builder();
 
-      effectiveOptions = getBigtableOptionsConfigurator() != null
-        ? getBigtableOptionsConfigurator().apply(effectiveOptions)
-        : effectiveOptions;
+      if (getBigtableOptionsConfigurator() != null) {
+        effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
+      }
 
       if (getInstanceId() != null) {
         effectiveOptions.setInstanceId(getInstanceId());
@@ -806,9 +806,9 @@ public class BigtableIO {
         ? getBigtableOptions().toBuilder()
         : new BigtableOptions.Builder();
 
-      effectiveOptions = getBigtableOptionsConfigurator() != null
-        ? getBigtableOptionsConfigurator().apply(effectiveOptions)
-        : effectiveOptions;
+      if (getBigtableOptionsConfigurator() != null) {
+        effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
+      }
 
       if (getInstanceId() != null) {
         effectiveOptions.setInstanceId(getInstanceId());
