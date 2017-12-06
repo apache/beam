@@ -260,9 +260,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           pTransformId,
           processBundleInstructionId,
           doFn,
-          WindowedValue.getFullCoder(
-              inputCoder,
-              windowingStrategy.getWindowFn().windowCoder()),
+          inputCoder,
           (Collection<ThrowingConsumer<WindowedValue<OutputT>>>) (Collection)
               tagToConsumer.get(mainOutputTag),
           tagToConsumer,
