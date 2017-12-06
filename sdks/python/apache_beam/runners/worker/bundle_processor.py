@@ -529,9 +529,10 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    def process(self, element, timestamp=beam.DoFn.TimestampParam,
+                window=beam.DoFn.WindowParam):
       new_windows = self.windowing.windowfn.assign(
-          WindowFn.AssignContext(timestamp, element=element))
+          WindowFn.AssignContext(timestamp, element=element, window=window))
       yield WindowedValue(element, timestamp, new_windows)
   from apache_beam.transforms.core import Windowing
   from apache_beam.transforms.window import WindowFn, WindowedValue
