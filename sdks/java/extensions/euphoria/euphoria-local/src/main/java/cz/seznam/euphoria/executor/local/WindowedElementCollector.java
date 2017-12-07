@@ -63,7 +63,7 @@ class WindowedElementCollector<T> implements Context, Collector<T> {
   }
 
   @Override
-  public Object getWindow() {
+  public Window<?> getWindow() {
     return window;
   }
 

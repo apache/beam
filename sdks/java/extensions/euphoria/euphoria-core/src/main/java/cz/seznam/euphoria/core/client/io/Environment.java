@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
 /**
  * Defines basic methods available in user defined functions.
@@ -34,7 +35,7 @@ public interface Environment {
    *          windowing strategy, otherwise the current window of
    *          this context
    */
-  Object getWindow();
+  Window<?> getWindow();
 
   // ---------------- Aggregator related methods ------------
 

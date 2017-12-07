@@ -17,6 +17,7 @@
 package cz.seznam.euphoria.hbase;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -134,6 +135,7 @@ public class HFileSinkTest extends HBaseTestCase {
             .withTable(table.getNameAsString())
             .withConfiguration(cluster.getConfiguration())
             .withOutputPath(new Path("file://" + tmp.getPath()))
+            .windowBy(GlobalWindowing.get(), w -> "global")
             .build()));
 
     new LocalExecutor().submit(flow).join();
@@ -141,11 +143,11 @@ public class HFileSinkTest extends HBaseTestCase {
     // we should not have success marker
     assertFalse(new File(tmp, "_SUCCESS").exists());
 
-    assertEquals(Arrays.asList("file:" + tmp.getPath()), loadedPaths);
+    assertEquals(Arrays.asList("file:" + tmp.getPath() + "/global"), loadedPaths);
 
     // validate that there are three files in directory `t`
-    assertTrue(new File(tmp, "t").exists());
-    assertTrue(new File(tmp, "t").isDirectory());
+    assertTrue(new File(tmp + "/global", "t").exists());
+    assertTrue(new File(tmp + "/global", "t").isDirectory());
 
     // validate that the data have been written to hbase
     data.forEach(s -> assertArrayEquals(b(s), get(s)));
