@@ -228,14 +228,15 @@ public class ReduceStateByKey<
 
   public static class DatasetBuilder5<
       IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
-      implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, OUT>>
-  {
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
-    private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final StateFactory<VALUE, OUT, STATE> stateFactory;
-    private final StateMerger<VALUE, OUT, STATE> stateMerger;
+      implements Builders.WindowBy<IN, DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>,
+      Builders.Output<Pair<KEY, OUT>> {
+
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, KEY> keyExtractor;
+    final UnaryFunction<IN, VALUE> valueExtractor;
+    final StateFactory<VALUE, OUT, STATE> stateFactory;
+    final StateMerger<VALUE, OUT, STATE> stateMerger;
 
     DatasetBuilder5(String name,
                     Dataset<IN> input,
@@ -269,16 +270,9 @@ public class ReduceStateByKey<
   }
 
   public static class DatasetBuilder6<
-          IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>,
-          W extends Window>
-      implements Builders.Output<Pair<KEY, OUT>> {
+      IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>, W extends Window>
+      extends DatasetBuilder5<IN, KEY, VALUE, OUT, STATE> {
 
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
-    private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final StateFactory<VALUE, OUT, STATE> stateFactory;
-    private final StateMerger<VALUE, OUT, STATE> stateMerger;
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -288,14 +282,8 @@ public class ReduceStateByKey<
                     UnaryFunction<IN, VALUE> valueExtractor,
                     StateFactory<VALUE, OUT, STATE> stateFactory,
                     StateMerger<VALUE, OUT, STATE> stateMerger,
-                    @Nullable Windowing<IN, W> windowing)
-    {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.stateFactory = Objects.requireNonNull(stateFactory);
-      this.stateMerger = Objects.requireNonNull(stateMerger);
+                    @Nullable Windowing<IN, W> windowing) {
+      super(name, input, keyExtractor, valueExtractor, stateFactory, stateMerger);
       this.windowing = windowing;
     }
 

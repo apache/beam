@@ -78,4 +78,19 @@ public class CountByKeyTest {
     assertTrue(count.getWindowing() instanceof Time);
   }
 
+  @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+
+    CountByKey.named("CountByKey1")
+        .of(dataset)
+        .keyBy(s -> s)
+        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
+
+    CountByKey count = (CountByKey) flow.operators().iterator().next();
+    assertTrue(count.getWindowing() instanceof Time);
+  }
+
 }

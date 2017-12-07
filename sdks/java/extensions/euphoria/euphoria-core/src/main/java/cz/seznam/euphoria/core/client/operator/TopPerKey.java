@@ -178,20 +178,22 @@ public class TopPerKey<
   }
 
   public static class WindowByBuilder<IN, K, V, S extends Comparable<S>>
-      implements Builders.WindowBy<IN>, Builders.Output<Triple<K, V, S>>
+      implements Builders.WindowBy<IN, WindowByBuilder<IN, K, V, S>>,
+      Builders.Output<Triple<K, V, S>>
   {
-    private String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, K> keyFn;
-    private final UnaryFunction<IN, V> valueFn;
-    private final UnaryFunction<IN, S> scoreFn;
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, K> keyFn;
+    final UnaryFunction<IN, V> valueFn;
+    final UnaryFunction<IN, S> scoreFn;
 
-    WindowByBuilder(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, K> keyFn,
-                    UnaryFunction<IN, V> valueFn,
-                    UnaryFunction<IN, S> scoreFn)
-    {
+    WindowByBuilder(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, K> keyFn,
+        UnaryFunction<IN, V> valueFn,
+        UnaryFunction<IN, S> scoreFn) {
+
       this.name = requireNonNull(name);
       this.input = requireNonNull(input);
       this.keyFn = requireNonNull(keyFn);
@@ -216,13 +218,8 @@ public class TopPerKey<
 
   public static class OutputBuilder<
       IN, K, V, S extends Comparable<S>, W extends Window>
-      implements Builders.Output<Triple<K, V, S>>
-  {
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, K> keyFn;
-    private final UnaryFunction<IN, V> valueFn;
-    private final UnaryFunction<IN, S> scoreFn;
+      extends WindowByBuilder<IN, K, V, S> {
+
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -233,11 +230,7 @@ public class TopPerKey<
                   UnaryFunction<IN, S> scoreFn,
                   @Nullable Windowing<IN, W> windowing) {
 
-      this.name = requireNonNull(name);
-      this.input = requireNonNull(input);
-      this.keyFn = requireNonNull(keyFn);
-      this.valueFn = requireNonNull(valueFn);
-      this.scoreFn = requireNonNull(scoreFn);
+      super(name, input, keyFn, valueFn, scoreFn);
       this.windowing = windowing;
     }
 

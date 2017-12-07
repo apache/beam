@@ -72,4 +72,17 @@ public class DistinctTest {
     assertTrue(distinct.getWindowing() instanceof Time);
   }
 
+  @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+
+    Distinct.of(dataset)
+        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
+
+    Distinct distinct = (Distinct) flow.operators().iterator().next();
+    assertTrue(distinct.getWindowing() instanceof Time);
+  }
+
 }
