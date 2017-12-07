@@ -16,7 +16,6 @@
 
 package cz.seznam.euphoria.hbase;
 
-import cz.seznam.euphoria.core.client.util.Pair;
 import java.io.IOException;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
@@ -83,13 +82,11 @@ public class HBaseTestCase {
     return new ImmutableBytesWritable(b(s));
   }
 
-  static Pair<ImmutableBytesWritable, Cell> kv(String s) {
+  static Cell kv(String s) {
     byte[] bytes = b(s);
     long stamp = System.currentTimeMillis();
     byte[] family = b("t");
-    return Pair.of(
-      ibw(s),
-      (Cell) new KeyValue(bytes, family, bytes, stamp, bytes));
+    return new KeyValue(bytes, family, bytes, stamp, bytes);
   }
 
   static Put put(String s) {

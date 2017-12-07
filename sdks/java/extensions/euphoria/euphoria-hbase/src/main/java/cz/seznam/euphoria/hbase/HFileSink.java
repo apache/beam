@@ -19,12 +19,19 @@ package cz.seznam.euphoria.hbase;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
+import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.VoidSink;
+import cz.seznam.euphoria.core.client.io.Writer;
+import cz.seznam.euphoria.core.client.operator.MapElements;
+import cz.seznam.euphoria.core.client.operator.OptionalMethodBuilder;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
+import cz.seznam.euphoria.hadoop.output.HadoopSink.HadoopWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
@@ -49,6 +56,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.hbase.client.Admin;
@@ -59,7 +67,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 /**
  * Sink to HBase using {@code HFileOutputFormat2}.
  */
-public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
+public class HFileSink implements DataSink<Cell> {
 
   private static final Logger LOG = LoggerFactory.getLogger(HFileSink.class);
 
@@ -71,13 +79,14 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     return new Builder();
   }
 
-  public static class Builder {
+  public static class Builder implements OptionalMethodBuilder<Builder> {
 
-    Configuration conf = HBaseConfiguration.create();
-    String table = null;
-    Path output = null;
-    boolean doBulkLoad = true;
-    List<Update<Job>> updaters = new ArrayList<>();
+    private Configuration conf = HBaseConfiguration.create();
+    private String table = null;
+    private Path output = null;
+    private boolean doBulkLoad = true;
+    private Windowing<Cell, ?> windowing = null;
+    private List<Update<Job>> updaters = new ArrayList<>();
 
     /**
      * Specify configuration to use.
@@ -111,6 +120,19 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     }
 
     /**
+     * Set windowing for the output.
+     * This is needed when persisting stream output, so that the results
+     * are available in some (preferably tumbling) windows.
+     * @param windowing windowing to use
+     * @return this
+     */
+    public Builder windowBy(Windowing<Cell, ?> windowing) {
+
+      this.windowing = windowing;
+      return this;
+    }
+
+    /**
      * Whether or not to compress output HFiles.
      * @param compress compression flag
      * @return this
@@ -138,7 +160,7 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
           "Specify output path by call to `withOutputPath`");
 
       updaters.add(j -> FileOutputFormat.setOutputPath(j, output));
-      return new HFileSink(table, doBulkLoad, conf, updaters);
+      return new HFileSink(table, doBulkLoad, windowing, conf, updaters);
     }
 
   }
@@ -146,22 +168,31 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
   private final String table;
   private final boolean doBulkLoad;
   private final byte[][] endKeys;
+  private final HadoopSink<ImmutableBytesWritable, Cell> rawSink;
+  @Nullable
+  private final Windowing<Cell, ?> windowing;
 
   @VisibleForTesting
   HFileSink(HFileSink clone) {
-    super(HFileOutputFormat2.class, clone.getConfiguration());
     this.table = clone.table;
     this.doBulkLoad = clone.doBulkLoad;
     this.endKeys = clone.endKeys;
+    this.windowing = clone.windowing;
+    this.rawSink = clone.rawSink;
   }
 
   HFileSink(
       String table, boolean doBulkLoad,
-      Configuration conf, List<Update<Job>> updaters) {
-    super(HFileOutputFormat2.class, toConf(updaters, conf));
+      Windowing<Cell, ?> windowing,
+      Configuration conf,
+      List<Update<Job>> updaters) {
+
+    conf = toConf(updaters, conf);
     this.table = table;
     this.doBulkLoad = doBulkLoad;
-    this.endKeys = getEndKeys(table, getConfiguration());
+    this.endKeys = getEndKeys(table, conf);
+    this.windowing = windowing;
+    this.rawSink = new HadoopSink<>(HFileOutputFormat2.class, conf);
   }
 
   private static Configuration toConf(List<Update<Job>> updaters, Configuration conf) {
@@ -182,8 +213,7 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
   }
 
   @Override
-  public boolean prepareDataset(
-      Dataset<Pair<ImmutableBytesWritable, Cell>> output) {
+  public boolean prepareDataset(Dataset<Cell> output) {
 
     // initialize this inside the `keyBy` or `reduceBy` function
     final AtomicReference<ByteBuffer[]> bufferedKeys = new AtomicReference<>();
@@ -191,10 +221,10 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     CellComparator comparator = new CellComparator();
 
     Dataset<Pair<Integer, String>> hfiles = ReduceByKey.of(output)
-        .keyBy(p -> toRegionIdUninitialized(bufferedKeys, endKeys, p.getFirst()))
+        .keyBy(c -> toRegionIdUninitialized(bufferedKeys, endKeys,
+            ByteBuffer.wrap(c.getRowArray(), c.getRowOffset(), c.getRowLength())))
         // FIXME: use raw byte arrays here and rawcomparators to sort it
         // reconstruct the cell afterwards
-        .valueBy(Pair::getSecond)
         .reduceBy((Stream<Cell> s, Collector<String> ctx) -> {
           // this is ugly and we should make it more clear with access to key
           // via #131
@@ -202,7 +232,8 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
           Cell first = iterator.next();
           int id = toRegionIdUninitialized(bufferedKeys, endKeys, ByteBuffer.wrap(
               first.getRowArray(), first.getRowOffset(), first.getRowLength()));
-          HadoopWriter<ImmutableBytesWritable, Cell> writer = HFileSink.this.openWriter(id);
+          HadoopWriter<ImmutableBytesWritable, Cell> writer;
+          writer = (HadoopWriter<ImmutableBytesWritable, Cell>) rawSink.openWriter(id);
           FileOutputCommitter committer = (FileOutputCommitter) writer.getOutputCommitter();
           ImmutableBytesWritable w = new ImmutableBytesWritable();
           try {
@@ -229,9 +260,10 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
           }
         })
         .withSortedValues(comparator::compare)
+        .applyIf(windowing != null, b -> b.windowBy(windowing))
         .output();
 
-    String outputDir = HFileSink.this.getConfiguration().get(FileOutputFormat.OUTDIR);
+    String outputDir = rawSink.getConfiguration().get(FileOutputFormat.OUTDIR);
 
     ReduceWindow.of(hfiles)
         .valueBy(Pair::getSecond)
@@ -250,7 +282,7 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
   private void moveTo(String p, Path outputDir) {
     try {
       Path source = new Path(outputDir, p);
-      FileSystem fs = source.getFileSystem(getConfiguration());
+      FileSystem fs = source.getFileSystem(rawSink.getConfiguration());
       for (FileStatus f : fs.listStatus(source)) {
         moveRecursively(fs, f.getPath(), outputDir);
         LOG.info("Moved {} to {}", f.getPath(), outputDir);
@@ -288,9 +320,9 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     if (doBulkLoad) {
       try {
         LOG.info("Bulk loading path {}", path);
-        LoadIncrementalHFiles load = new LoadIncrementalHFiles(getConfiguration());
+        LoadIncrementalHFiles load = new LoadIncrementalHFiles(rawSink.getConfiguration());
         TableName t = TableName.valueOf(table);
-        try (Connection conn = ConnectionFactory.createConnection(getConfiguration());
+        try (Connection conn = ConnectionFactory.createConnection(rawSink.getConfiguration());
             Table table = conn.getTable(t);
             RegionLocator regionLocator = conn.getRegionLocator(t);
             Admin admin = conn.getAdmin()) {
@@ -303,18 +335,6 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     } else {
       LOG.info("Skipping bulkloading by request.");
     }
-  }
-
-  private static int toRegionIdUninitialized(
-      AtomicReference<ByteBuffer[]> endKeys,
-      byte[][] bytesEndKeys,
-      ImmutableBytesWritable row) {
-
-    if (endKeys.get() == null) {
-      endKeys.set(initialize(bytesEndKeys));
-    }
-    return toRegionId(endKeys.get(), ByteBuffer.wrap(
-        row.get(), row.getOffset(), row.getLength()));
   }
 
   private static int toRegionIdUninitialized(
@@ -357,6 +377,37 @@ public class HFileSink extends HadoopSink<ImmutableBytesWritable, Cell> {
     } catch (IOException ex) {
       throw new RuntimeException(ex);
     }
+  }
+
+
+  // this is just a 'fake' sink, it delegates its functionality to `rawSink`.
+
+  @Override
+  public Writer<Cell> openWriter(int partitionId) {
+    throw new UnsupportedOperationException("Not supported.");
+  }
+
+  @Override
+  public void commit() throws IOException {
+    throw new UnsupportedOperationException("Not supported.");
+  }
+
+  @Override
+  public void rollback() throws IOException {
+    throw new UnsupportedOperationException("Not supported.");
+  }
+
+  /**
+   * Persist given dataset into this sink via given mapper.
+   * @param <T> input datatype
+   * @param input the input dataset
+   * @param mapper map function for transformation of <T> into {@link Cell}.
+   */
+  public <T> void persist(Dataset<T> input, UnaryFunction<T, Cell> mapper) {
+    MapElements.of(input)
+        .using(mapper)
+        .output()
+        .persist(this);
   }
 
 }
