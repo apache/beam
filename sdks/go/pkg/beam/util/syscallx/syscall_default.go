@@ -19,10 +19,10 @@ package syscallx
 
 // PhysicalMemorySize returns the total physical memory size.
 func PhysicalMemorySize() (uint64, error) {
-	return 0, UnsupportedErr
+	return 0, ErrUnsupported
 }
 
 // FreeDiskSpace returns the free disk space for a given path.
 func FreeDiskSpace(path string) (uint64, error) {
-	return 0, UnsupportedErr
+	return 0, ErrUnsupported
 }
