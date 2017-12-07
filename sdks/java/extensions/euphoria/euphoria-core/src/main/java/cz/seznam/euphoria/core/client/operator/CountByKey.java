@@ -70,10 +70,12 @@ public class CountByKey<IN, KEY, W extends Window>
   }
 
   public static class WindowingBuilder<IN, KEY>
-          implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, Long>> {
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
+      implements Builders.WindowBy<IN, WindowingBuilder<IN, KEY>>,
+      Builders.Output<Pair<KEY, Long>> {
+
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, KEY> keyExtractor;
 
     WindowingBuilder(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       this.name = Objects.requireNonNull(name);
@@ -94,11 +96,9 @@ public class CountByKey<IN, KEY, W extends Window>
   }
 
   public static class OutputBuilder<IN, KEY, W extends Window>
-          implements Builders.Output<Pair<KEY, Long>> {
+      extends WindowingBuilder<IN, KEY>
+      implements Builders.Output<Pair<KEY, Long>> {
 
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -107,9 +107,7 @@ public class CountByKey<IN, KEY, W extends Window>
                   UnaryFunction<IN, KEY> keyExtractor,
                   @Nullable Windowing<IN, W> windowing) {
 
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      super(name, input, keyExtractor);
       this.windowing = windowing;
     }
 

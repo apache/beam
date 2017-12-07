@@ -32,9 +32,9 @@ public class SumByKeyTest {
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
     Dataset<Pair<String, Long>> counted = SumByKey.named("SumByKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .output();
+        .of(dataset)
+        .keyBy(s -> s)
+        .output();
 
     assertEquals(flow, counted.getFlow());
     assertEquals(1, flow.size());
@@ -52,9 +52,9 @@ public class SumByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
-            .keyBy(s -> s)
-            .output();
+    SumByKey.of(dataset)
+        .keyBy(s -> s)
+        .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertEquals("SumByKey", sum.getName());
@@ -65,11 +65,26 @@ public class SumByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Pair<String, Long>> counted = SumByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+    SumByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .output();
+
+    SumByKey sum = (SumByKey) flow.operators().iterator().next();
+    assertTrue(sum.getWindowing() instanceof Time);
+  }
+
+  @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+
+    SumByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
 
     SumByKey sum = (SumByKey) flow.operators().iterator().next();
     assertTrue(sum.getWindowing() instanceof Time);

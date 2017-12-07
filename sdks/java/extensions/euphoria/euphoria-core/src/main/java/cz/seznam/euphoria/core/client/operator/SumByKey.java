@@ -81,12 +81,13 @@ public class SumByKey<IN, KEY, W extends Window>
     }
   }
   public static class ByBuilder2<IN, KEY>
-      implements Builders.WindowBy<IN>, Builders.Output<Pair<KEY, Long>>
-  {
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
-    private UnaryFunction<IN, Long> valueExtractor = e -> 1L;
+      implements Builders.WindowBy<IN, ByBuilder2<IN, KEY>>,
+      Builders.Output<Pair<KEY, Long>> {
+
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, KEY> keyExtractor;
+    UnaryFunction<IN, Long> valueExtractor = e -> 1L;
 
     ByBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       this.name = Objects.requireNonNull(name);
@@ -115,12 +116,7 @@ public class SumByKey<IN, KEY, W extends Window>
   }
 
   public static class OutputBuilder<IN, KEY, W extends Window>
-      implements Builders.Output<Pair<KEY, Long>>
-  {
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
-    private final UnaryFunction<IN, Long> valueExtractor;
+      extends ByBuilder2<IN, KEY> {
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -129,9 +125,8 @@ public class SumByKey<IN, KEY, W extends Window>
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
                   @Nullable Windowing<IN, W> windowing) {
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      
+      super(name, input, keyExtractor);
       this.valueExtractor = Objects.requireNonNull(valueExtractor);
       this.windowing = windowing;
     }

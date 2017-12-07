@@ -34,12 +34,12 @@ public class ReduceByKeyTest {
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
     Dataset<Pair<String, Long>> reduced = ReduceByKey.named("ReduceByKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .windowBy(windowing)
-            .output();
+        .of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .windowBy(windowing)
+        .output();
 
     assertEquals(flow, reduced.getFlow());
     assertEquals(1, flow.size());
@@ -83,11 +83,11 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .output();
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertEquals("ReduceByKey", reduce.getName());
@@ -98,11 +98,11 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .output();
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertNotNull(reduce.reducer);
@@ -114,12 +114,12 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .combineBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
@@ -131,13 +131,13 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .withSortedValues(Long::compare)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .withSortedValues(Long::compare)
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertNotNull(reduce.valueComparator);
@@ -148,15 +148,32 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
-            .withSortedValues(Long::compare)
-            .output();
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .withSortedValues(Long::compare)
+        .output();
 
     ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertNotNull(reduce.valueComparator);
+  }
+
+  @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .withSortedValues(Long::compare)
+        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertTrue(reduce.getWindowing() instanceof Time);
   }
 
 }
