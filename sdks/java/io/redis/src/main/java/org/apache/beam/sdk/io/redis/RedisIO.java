@@ -165,8 +165,7 @@ public class RedisIO {
       checkArgument(host != null, "host can not be null");
       checkArgument(port > 0, "port can not be negative or 0");
       return builder()
-          .setConnectionConfiguration(connectionConfiguration().withHost(host))
-          .setConnectionConfiguration(connectionConfiguration().withPort(port))
+          .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
           .build();
     }
 
@@ -230,8 +229,7 @@ public class RedisIO {
       checkArgument(host != null, "host can not be null");
       checkArgument(port > 0, "port can not be negative or 0");
       return builder()
-          .setConnectionConfiguration(connectionConfiguration().withHost(host))
-          .setConnectionConfiguration(connectionConfiguration().withPort(port))
+          .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
           .build();
     }
 
@@ -362,8 +360,7 @@ public class RedisIO {
       checkArgument(host != null, "host can not be null");
       checkArgument(port > 0, "port can not be negative or 0");
       return builder()
-          .setConnectionConfiguration(connectionConfiguration().withHost(host))
-          .setConnectionConfiguration(connectionConfiguration().withPort(port))
+          .setConnectionConfiguration(connectionConfiguration().withHost(host).withPort(port))
           .build();
     }
 
