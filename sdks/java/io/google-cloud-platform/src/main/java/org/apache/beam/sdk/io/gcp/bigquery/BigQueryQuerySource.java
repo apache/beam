@@ -58,7 +58,8 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       Boolean useLegacySql,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      String priority) {
     return new BigQueryQuerySource<T>(
         stepUuid,
         query,
@@ -66,13 +67,15 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         useLegacySql,
         bqServices,
         coder,
-        parseFn);
+        parseFn,
+        priority);
   }
 
   private final ValueProvider<String> query;
   private final Boolean flattenResults;
   private final Boolean useLegacySql;
   private transient AtomicReference<JobStatistics> dryRunJobStats;
+  private String priority;
 
   private BigQueryQuerySource(
       String stepUuid,
@@ -81,12 +84,14 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
       Boolean useLegacySql,
       BigQueryServices bqServices,
       Coder<T> coder,
-      SerializableFunction<SchemaAndRecord, T> parseFn) {
+      SerializableFunction<SchemaAndRecord, T> parseFn,
+      String priority) {
     super(stepUuid, bqServices, coder, parseFn);
     this.query = checkNotNull(query, "query");
     this.flattenResults = checkNotNull(flattenResults, "flattenResults");
     this.useLegacySql = checkNotNull(useLegacySql, "useLegacySql");
     this.dryRunJobStats = new AtomicReference<>();
+    this.priority = priority == null ? "BATCH" : priority;
   }
 
   @Override
@@ -181,7 +186,7 @@ class BigQueryQuerySource<T> extends BigQuerySourceBase<T> {
         .setAllowLargeResults(true)
         .setCreateDisposition("CREATE_IF_NEEDED")
         .setDestinationTable(destinationTable)
-        .setPriority("BATCH")
+        .setPriority(this.priority)
         .setWriteDisposition("WRITE_EMPTY");
 
     jobService.startQueryJob(jobRef, queryConfig);

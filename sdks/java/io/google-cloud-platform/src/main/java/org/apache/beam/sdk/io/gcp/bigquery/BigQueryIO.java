@@ -534,6 +534,7 @@ public class BigQueryIO {
       abstract Builder<T> setUseLegacySql(Boolean useLegacySql);
       abstract Builder<T> setWithTemplateCompatibility(Boolean useTemplateCompatibility);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
+      abstract Builder<T> setPriority(String priority);
       abstract TypedRead<T> build();
 
       abstract Builder<T> setParseFn(
@@ -554,6 +555,8 @@ public class BigQueryIO {
     abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
     @Nullable abstract Coder<T> getCoder();
+
+    @Nullable abstract String getPriority();
 
     @VisibleForTesting
     Coder<T> inferCoder(CoderRegistry coderRegistry) {
@@ -588,7 +591,8 @@ public class BigQueryIO {
                 getUseLegacySql(),
                 getBigQueryServices(),
                 coder,
-                getParseFn());
+                getParseFn(),
+                getPriority());
       }
       return source;
     }
