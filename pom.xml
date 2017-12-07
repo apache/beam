@@ -93,6 +93,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <external.build.directory>${project.basedir}/target</external.build.directory>
+    <external.createDependencyReducedPom>true</external.createDependencyReducedPom>
     <beam.javadoc_opts />
 
     <!-- Disable integration tests by default -->
@@ -1874,6 +1875,7 @@
               </goals>
               <configuration>
                 <shadeTestJar>true</shadeTestJar>
+                <createDependencyReducedPom>${external.createDependencyReducedPom}</createDependencyReducedPom>
                 <artifactSet>
                   <includes>
                     <include>com.google.guava:guava</include>
