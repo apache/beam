@@ -87,6 +87,7 @@ public class RedisIOTest {
 
     readPipeline.run();
   }
+
   @Test
   public void testConfiguration() {
     RedisIO.Write writeOp = RedisIO.write().withEndpoint("test", 111);
