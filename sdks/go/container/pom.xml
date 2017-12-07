@@ -20,20 +20,16 @@
 
   <parent>
     <groupId>org.apache.beam</groupId>
-    <artifactId>beam-sdks-parent</artifactId>
+    <artifactId>beam-sdks-go</artifactId>
     <version>2.3.0-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>beam-sdks-go</artifactId>
+  <artifactId>beam-sdks-go-container</artifactId>
 
   <packaging>pom</packaging>
 
-  <name>Apache Beam :: SDKs :: Go</name>
-
-  <modules>
-    <module>container</module>
-  </modules>
+  <name>Apache Beam :: SDKs :: Go :: Container</name>
 
   <properties>
     <!-- Add full path directory structure for 'go get' compatibility -->
@@ -48,32 +44,19 @@
         <artifactId>maven-resources-plugin</artifactId>
         <executions>
           <execution>
-            <id>copy-go-pkg-source</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>copy-resources</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>${go.source.dir}/pkg</outputDirectory>
-              <resources>
-                <resource>
-                  <directory>pkg</directory>
-                  <filtering>false</filtering>
-                </resource>
-              </resources>
-            </configuration>
-          </execution>
-          <execution>
             <id>copy-go-cmd-source</id>
             <phase>generate-sources</phase>
             <goals>
               <goal>copy-resources</goal>
             </goals>
             <configuration>
-              <outputDirectory>${go.source.dir}/cmd</outputDirectory>
+              <outputDirectory>${go.source.base}/github.com/apache/beam/cmd/boot</outputDirectory>
               <resources>
                 <resource>
-                  <directory>cmd</directory>
+                  <directory>.</directory>
+                  <includes>
+                    <include>*.go</include>
+                  </includes>
                   <filtering>false</filtering>
                 </resource>
               </resources>
@@ -82,24 +65,32 @@
         </executions>
       </plugin>
 
-      <!-- export pkg/ sources as zip for inclusion elsewhere -->
+      <!-- CAVEAT: for latest shared files, run mvn install in sdks/go -->
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <inherited>false</inherited>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <id>export-go-pkg-sources</id>
+            <id>copy-dependency</id>
             <phase>generate-sources</phase>
             <goals>
-              <goal>single</goal>
+              <goal>unpack</goal>
             </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>org.apache.beam</groupId>
+                  <artifactId>beam-sdks-go</artifactId>
+                  <version>${project.version}</version>
+                  <type>zip</type>
+                  <classifier>pkg-sources</classifier>
+                  <overWrite>true</overWrite>
+                  <outputDirectory>${go.source.dir}</outputDirectory>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
           </execution>
         </executions>
-        <configuration>
-          <descriptors>
-            <descriptor>descriptor.xml</descriptor>
-          </descriptors>
-        </configuration>
       </plugin>
 
       <plugin>
@@ -117,10 +108,6 @@
                 <package>google.golang.org/grpc</package>
                 <package>golang.org/x/oauth2/google</package>
                 <package>google.golang.org/api/storage/v1</package>
-                <package>github.com/spf13/cobra</package>
-                <package>cloud.google.com/go/bigquery</package>
-                <package>google.golang.org/api/googleapi</package>
-                <package>google.golang.org/api/dataflow/v1b3</package>
               </packages>
             </configuration>
           </execution>
@@ -132,9 +119,9 @@
             <phase>compile</phase>
             <configuration>
               <packages>
-                <package>github.com/apache/beam/sdks/go/cmd/beamctl</package>
+                <package>github.com/apache/beam/cmd/boot</package>
               </packages>
-              <resultName>beamctl</resultName>
+              <resultName>boot</resultName>
             </configuration>
           </execution>
           <execution>
@@ -145,26 +132,22 @@
             <phase>compile</phase>
             <configuration>
               <packages>
-                <package>github.com/apache/beam/sdks/go/cmd/beamctl</package>
+                <package>github.com/apache/beam/cmd/boot</package>
               </packages>
-              <resultName>linux_amd64/beamctl</resultName>
+              <resultName>linux_amd64/boot</resultName>
               <targetArch>amd64</targetArch>
               <targetOs>linux</targetOs>
             </configuration>
           </execution>
-          <execution>
-            <id>go-test</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-            <phase>test</phase>
-            <configuration>
-              <packages>
-                <folder>./...</folder>
-              </packages>
-            </configuration>
-          </execution>
         </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>com.spotify</groupId>
+        <artifactId>dockerfile-maven-plugin</artifactId>
+        <configuration>
+          <repository>${docker-repository-root}/go</repository>
+        </configuration>
       </plugin>
     </plugins>
   </build>
