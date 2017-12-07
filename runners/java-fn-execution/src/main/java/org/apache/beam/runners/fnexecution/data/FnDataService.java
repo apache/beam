@@ -47,8 +47,7 @@ public interface FnDataService {
   <T> InboundDataClient receive(
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> listener)
-      throws Exception;
+      FnDataReceiver<WindowedValue<T>> listener);
 
   /**
    * Creates a receiver to which you can write data values and have them sent over this data plane
@@ -61,5 +60,5 @@ public interface FnDataService {
    * <p>The returned receiver is not thread safe.
    */
   <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) throws Exception;
+      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder);
 }
