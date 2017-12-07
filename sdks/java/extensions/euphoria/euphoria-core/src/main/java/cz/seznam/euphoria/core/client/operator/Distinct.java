@@ -44,8 +44,7 @@ import java.util.Objects;
 )
 public class Distinct<IN, ELEM, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
-        IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>>
-{
+        IN, IN, IN, ELEM, ELEM, W, Distinct<IN, ELEM, W>> {
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -61,14 +60,14 @@ public class Distinct<IN, ELEM, W extends Window>
   }
 
   public static class WindowingBuilder<IN, ELEM>
-          implements Builders.WindowBy<IN>,
-                     Builders.Output<ELEM>,
-                     OptionalMethodBuilder<WindowingBuilder<IN, ELEM>>
-  {
-    private final String name;
-    private final Dataset<IN> input;
+      implements Builders.WindowBy<IN, WindowingBuilder<IN, ELEM>>,
+      Builders.Output<ELEM>,
+      OptionalMethodBuilder<WindowingBuilder<IN, ELEM>> {
+
+    final String name;
+    final Dataset<IN> input;
     @Nullable
-    private final UnaryFunction<IN, ELEM> mapper;
+    final UnaryFunction<IN, ELEM> mapper;
 
     WindowingBuilder(
         String name,
@@ -112,12 +111,9 @@ public class Distinct<IN, ELEM, W extends Window>
   }
 
   public static class OutputBuilder<IN, ELEM, W extends Window>
-      implements Builders.Output<ELEM>
-  {
-    private final String name;
-    private final Dataset<IN> input;
-    @Nullable
-    private final UnaryFunction<IN, ELEM> mapper;
+      extends WindowingBuilder<IN, ELEM>
+      implements Builders.Output<ELEM> {
+
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -126,9 +122,7 @@ public class Distinct<IN, ELEM, W extends Window>
                   @Nullable UnaryFunction<IN, ELEM> mapper,
                   @Nullable Windowing<IN, W> windowing) {
 
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.mapper = mapper;
+      super(name, input, mapper);
       this.windowing = windowing;
     }
 

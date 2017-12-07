@@ -39,13 +39,13 @@ public class ReduceStateByKeyTest {
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
     Dataset<Pair<String, Long>> reduced = ReduceStateByKey.named("ReduceStateByKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .stateFactory(WordCountState::new)
-            .mergeStatesBy(WordCountState::combine)
-            .windowBy(windowing)
-            .output();
+        .of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .stateFactory(WordCountState::new)
+        .mergeStatesBy(WordCountState::combine)
+        .windowBy(windowing)
+        .output();
 
     assertEquals(flow, reduced.getFlow());
     assertEquals(1, flow.size());
@@ -66,12 +66,12 @@ public class ReduceStateByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Pair<String, Long>> reduced = ReduceStateByKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .stateFactory(WordCountState::new)
-            .mergeStatesBy(WordCountState::combine)
-            .output();
+    ReduceStateByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .stateFactory(WordCountState::new)
+        .mergeStatesBy(WordCountState::combine)
+        .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     assertEquals("ReduceStateByKey", reduce.getName());
@@ -89,6 +89,23 @@ public class ReduceStateByKeyTest {
             .mergeStatesBy(WordCountState::combine)
             .windowBy(Time.of(Duration.ofHours(1)))
             .output();
+
+    ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
+    assertTrue(reduce.getWindowing() instanceof Time);
+  }
+
+  @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    ReduceStateByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .stateFactory(WordCountState::new)
+        .mergeStatesBy(WordCountState::combine)
+        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
 
     ReduceStateByKey reduce = (ReduceStateByKey) flow.operators().iterator().next();
     assertTrue(reduce.getWindowing() instanceof Time);
@@ -127,4 +144,5 @@ public class ReduceStateByKeyTest {
       sum.clear();
     }
   }
+
 }

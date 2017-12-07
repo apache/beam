@@ -225,8 +225,9 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
   public static class DatasetBuilder4<IN, KEY, VALUE, OUT>
-          implements Builders.OutputValues<KEY, OUT>, Builders.WindowBy<IN>,
-              OptionalMethodBuilder<DatasetBuilder4<IN, KEY, VALUE, OUT>> {
+      implements Builders.Output<Pair<KEY, OUT>>,
+          Builders.OutputValues<KEY, OUT>,
+          Builders.WindowBy<IN, DatasetBuilder4<IN, KEY, VALUE, OUT>> {
 
     final String name;
     final Dataset<IN> input;
@@ -272,12 +273,13 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   public static class SortableDatasetBuilder4<IN, KEY, VALUE, OUT>
       extends DatasetBuilder4<IN, KEY, VALUE, OUT> {
 
-    SortableDatasetBuilder4(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor,
-                    ReduceFunctor<VALUE, OUT> reducer,
-                    @Nullable BinaryFunction<VALUE, VALUE, Integer> valuesComparator) {
+    SortableDatasetBuilder4(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, VALUE> valueExtractor,
+        ReduceFunctor<VALUE, OUT> reducer,
+        @Nullable BinaryFunction<VALUE, VALUE, Integer> valuesComparator) {
 
       super(name, input, keyExtractor, valueExtractor, reducer, valuesComparator);
     }
@@ -302,32 +304,23 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
 
   public static class DatasetBuilder5<IN, KEY, VALUE, OUT, W extends Window>
+      extends DatasetBuilder4<IN, KEY, VALUE, OUT>
       implements Builders.OutputValues<KEY, OUT> {
-    private final String name;
-    private final Dataset<IN> input;
-    private final UnaryFunction<IN, KEY> keyExtractor;
-    private final UnaryFunction<IN, VALUE> valueExtractor;
-    private final ReduceFunctor<VALUE, OUT> reducer;
+
     @Nullable
     private final Windowing<IN, W> windowing;
-    @Nullable
-    private final BinaryFunction<VALUE, VALUE, Integer> valueComparator;
 
-    DatasetBuilder5(String name,
-                    Dataset<IN> input,
-                    UnaryFunction<IN, KEY> keyExtractor,
-                    UnaryFunction<IN, VALUE> valueExtractor,
-                    ReduceFunctor<VALUE, OUT> reducer,
-                    @Nullable Windowing<IN, W> windowing,
-                    @Nullable BinaryFunction<VALUE, VALUE, Integer> valueComparator) {
+    DatasetBuilder5(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, VALUE> valueExtractor,
+        ReduceFunctor<VALUE, OUT> reducer,
+        @Nullable Windowing<IN, W> windowing,
+        @Nullable BinaryFunction<VALUE, VALUE, Integer> valuesComparator) {
 
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.keyExtractor = Objects.requireNonNull(keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
-      this.reducer = Objects.requireNonNull(reducer);
+      super(name, input, keyExtractor, valueExtractor, reducer, valuesComparator);
       this.windowing = windowing;
-      this.valueComparator = valueComparator;
     }
 
     @Override
@@ -335,7 +328,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
       Flow flow = input.getFlow();
       ReduceByKey<IN, KEY, VALUE, OUT, W> reduce = new ReduceByKey<>(
               name, flow, input, keyExtractor, valueExtractor,
-              windowing, reducer, valueComparator);
+              windowing, reducer, valuesComparator);
       flow.add(reduce);
       return reduce.output();
     }
