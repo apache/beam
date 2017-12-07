@@ -87,6 +87,12 @@ public class RedisIOTest {
 
     readPipeline.run();
   }
+  @Test
+  public void testConfiguration() {
+    RedisIO.Write writeOp = RedisIO.write().withEndpoint("test", 111);
+    Assert.assertEquals(writeOp.connectionConfiguration().port(), 111);
+    Assert.assertEquals(writeOp.connectionConfiguration().host(), "test");
+  }
 
   @Test
   public void testWriteReadUsingSetMethod() throws Exception {
