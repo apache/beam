@@ -48,7 +48,7 @@ func init() {
 //     0 -> \x.x+1 -> \x.x+1 -> (N times) -> \x.min(x, 6)
 //
 // The single output will be a number between 1 and 6.
-func roll(ctx context.Context, s *beam.Scope) beam.PCollection {
+func roll(ctx context.Context, s beam.Scope) beam.PCollection {
 	num := rand.Intn(*real) + 1
 	log.Debugf(ctx, "Lucky number %v!", num)
 

@@ -44,7 +44,7 @@ func init() {
 //    })
 //
 // Here, "short" will contain "a" and "b" at runtime.
-func Include(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
 	s = s.Scope("filter.Include")
 
 	t := typex.SkipW(col.Type()).Type()
@@ -64,7 +64,7 @@ func Include(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollecti
 //    })
 //
 // Here, "long" will contain "long" and "alsolong" at runtime.
-func Exclude(s *beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
+func Exclude(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
 	s = s.Scope("filter.Exclude")
 
 	t := typex.SkipW(col.Type()).Type()

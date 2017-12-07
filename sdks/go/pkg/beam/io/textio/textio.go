@@ -34,7 +34,7 @@ func init() {
 
 // Read reads a set of file and returns the lines as a PCollection<string>. The
 // newlines are not part of the lines.
-func Read(s *beam.Scope, glob string) beam.PCollection {
+func Read(s beam.Scope, glob string) beam.PCollection {
 	s = s.Scope("textio.Read")
 
 	validateScheme(glob)
@@ -70,13 +70,13 @@ func newFileSystem(ctx context.Context, glob string) (FileSystem, error) {
 // ReadAll expands and reads the filename given as globs by the incoming
 // PCollection<string>. It returns the lines of all files as a single
 // PCollection<string>. The newlines are not part of the lines.
-func ReadAll(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func ReadAll(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("textio.ReadAll")
 
 	return read(s, col)
 }
 
-func read(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func read(s beam.Scope, col beam.PCollection) beam.PCollection {
 	files := beam.ParDo(s, expandFn, col)
 	return beam.ParDo(s, readFn, files)
 }
@@ -129,7 +129,7 @@ func readFn(ctx context.Context, filename string, emit func(string)) error {
 
 // Write writes a PCollection<string> to a file as separate lines. The
 // writer add a newline after each element.
-func Write(s *beam.Scope, filename string, col beam.PCollection) {
+func Write(s beam.Scope, filename string, col beam.PCollection) {
 	s = s.Scope("textio.Write")
 
 	validateScheme(filename)
@@ -182,7 +182,7 @@ func (w *writeFileFn) Teardown() error {
 
 // Immediate reads a local file at pipeline construction-time and embeds the
 // data into a I/O-free pipeline source. Should be used for small files only.
-func Immediate(s *beam.Scope, filename string) (beam.PCollection, error) {
+func Immediate(s beam.Scope, filename string) (beam.PCollection, error) {
 	s = s.Scope("textio.Immediate")
 
 	var data []interface{}

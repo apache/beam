@@ -71,7 +71,7 @@ type TornadoRow struct {
 
 // CountTornadoes computes the number of tornadoes pr month. It takes a
 // PCollection<WeatherDataRow> and returns a PCollection<TornadoRow>.
-func CountTornadoes(s *beam.Scope, rows beam.PCollection) beam.PCollection {
+func CountTornadoes(s beam.Scope, rows beam.PCollection) beam.PCollection {
 	s = s.Scope("CountTornadoes")
 
 	// row... => month...
