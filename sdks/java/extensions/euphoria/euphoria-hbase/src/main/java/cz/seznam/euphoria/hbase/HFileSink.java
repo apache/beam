@@ -19,6 +19,7 @@ package cz.seznam.euphoria.hbase;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
@@ -32,37 +33,38 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
 import cz.seznam.euphoria.hadoop.output.HadoopSink.HadoopWriter;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.CellComparator;
-import org.apache.hadoop.hbase.HBaseConfiguration;
-import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.Connection;
-import org.apache.hadoop.hbase.client.ConnectionFactory;
-import org.apache.hadoop.hbase.client.RegionLocator;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat2;
-import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellComparator;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HConstants;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.RegionLocator;
 import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.HFileOutputFormat2;
 import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Sink to HBase using {@code HFileOutputFormat2}.
@@ -86,7 +88,8 @@ public class HFileSink implements DataSink<Cell> {
     private Path output = null;
     private boolean doBulkLoad = true;
     private Windowing<Cell, ?> windowing = null;
-    private List<Update<Job>> updaters = new ArrayList<>();
+    private UnaryFunction<Window<?>, String> folderNaming = Object::toString;
+    private final List<Update<Job>> updaters = new ArrayList<>();
 
     /**
      * Specify configuration to use.
@@ -108,6 +111,27 @@ public class HFileSink implements DataSink<Cell> {
       return this;
     }
 
+    /**
+     * Set zookeeper quorum for the connection.
+     * @param quorum the quorum
+     * @return this
+     */
+    public Builder withZookeeperQuorum(String quorum) {
+      updaters.add(j -> j.getConfiguration().set(
+          HConstants.ZOOKEEPER_QUORUM, quorum));
+      return this;
+    }
+
+    /**
+     * Set parent znode for HBase zookeeper configuration.
+     * @param parent the parent znode
+     * @return this
+     */
+    public Builder withZnodeParent(String parent) {
+      updaters.add(j -> j.getConfiguration().set(
+          HConstants.ZOOKEEPER_ZNODE_PARENT, parent));
+      return this;
+    }
 
     /**
      * Specify output path.
@@ -127,8 +151,23 @@ public class HFileSink implements DataSink<Cell> {
      * @return this
      */
     public Builder windowBy(Windowing<Cell, ?> windowing) {
-
       this.windowing = windowing;
+      return this;
+    }
+
+    /**
+     * Set windowing to be applied before bulk loading and a function to
+     * convert window label to subfolder name.
+     * @param <W> type of window
+     * @param windowing the windowing to be applied
+     * @param folderNaming function to convert window label to string
+     * @return this
+     */
+    @SuppressWarnings("unchecked")
+    public <W extends Window<W>> Builder windowBy(
+        Windowing<Cell, W> windowing, UnaryFunction<W, String> folderNaming) {
+      this.windowing = windowing;
+      this.folderNaming = (UnaryFunction) folderNaming;
       return this;
     }
 
@@ -160,7 +199,8 @@ public class HFileSink implements DataSink<Cell> {
           "Specify output path by call to `withOutputPath`");
 
       updaters.add(j -> FileOutputFormat.setOutputPath(j, output));
-      return new HFileSink(table, doBulkLoad, windowing, conf, updaters);
+      return new HFileSink(
+          table, doBulkLoad, windowing, folderNaming, conf, updaters);
     }
 
   }
@@ -168,9 +208,10 @@ public class HFileSink implements DataSink<Cell> {
   private final String table;
   private final boolean doBulkLoad;
   private final byte[][] endKeys;
-  private final HadoopSink<ImmutableBytesWritable, Cell> rawSink;
   @Nullable
   private final Windowing<Cell, ?> windowing;
+  private final UnaryFunction<Window<?>, String> folderNaming;
+  private final HadoopSink<ImmutableBytesWritable, Cell> rawSink;
 
   @VisibleForTesting
   HFileSink(HFileSink clone) {
@@ -178,12 +219,14 @@ public class HFileSink implements DataSink<Cell> {
     this.doBulkLoad = clone.doBulkLoad;
     this.endKeys = clone.endKeys;
     this.windowing = clone.windowing;
+    this.folderNaming = clone.folderNaming;
     this.rawSink = clone.rawSink;
   }
 
   HFileSink(
       String table, boolean doBulkLoad,
       Windowing<Cell, ?> windowing,
+      UnaryFunction<Window<?>, String> folderNaming,
       Configuration conf,
       List<Update<Job>> updaters) {
 
@@ -192,6 +235,7 @@ public class HFileSink implements DataSink<Cell> {
     this.doBulkLoad = doBulkLoad;
     this.endKeys = getEndKeys(table, conf);
     this.windowing = windowing;
+    this.folderNaming = Objects.requireNonNull(folderNaming);
     this.rawSink = new HadoopSink<>(HFileOutputFormat2.class, conf);
   }
 
@@ -267,11 +311,11 @@ public class HFileSink implements DataSink<Cell> {
 
     ReduceWindow.of(hfiles)
         .valueBy(Pair::getSecond)
-        .reduceBy(s -> {
-          Path o = new Path(outputDir);
+        .reduceBy((Stream<String> s, Collector<Void> ctx) -> {
+          ctx.getWindow();
+          Path o = new Path(new Path(outputDir), folderNaming.apply(ctx.getWindow()));
           s.forEach(p -> moveTo(p, o));
           loadIncrementalHFiles(o);
-          return "";
         })
         .output()
         .persist(new VoidSink<>());
@@ -375,6 +419,7 @@ public class HFileSink implements DataSink<Cell> {
           .map(b -> b.slice().array())
           .toArray(byte[][]::new);
     } catch (IOException ex) {
+      LOG.error("Failed to get locations for table {}", table, ex);
       throw new RuntimeException(ex);
     }
   }
