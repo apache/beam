@@ -33,7 +33,7 @@ class StateSamplerTest(unittest.TestCase):
     try:
       # pylint: disable=global-variable-not-assigned
       global statesampler
-      from . import statesampler
+      from apache_beam.runners.worker import statesampler
     except ImportError:
       raise SkipTest('State sampler not compiled.')
     super(StateSamplerTest, self).setUp()
