@@ -463,11 +463,11 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
     }
 
     @Override
-    public Object getWindow() {
+    public Window<?> getWindow() {
       return window;
     }
 
-    public void setWindow(Window window) {
+    public void setWindow(Window<?> window) {
       this.window = window;
     }
 

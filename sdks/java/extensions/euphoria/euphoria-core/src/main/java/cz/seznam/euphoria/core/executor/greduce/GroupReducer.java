@@ -290,7 +290,7 @@ public class GroupReducer<WID extends Window, KEY, I> {
     }
 
     @Override
-    public Object getWindow() {
+    public Window<?> getWindow() {
       return window;
     }
 
