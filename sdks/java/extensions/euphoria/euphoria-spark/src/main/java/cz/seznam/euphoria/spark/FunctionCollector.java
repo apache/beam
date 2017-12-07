@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
 
@@ -27,7 +28,7 @@ import java.util.Objects;
 abstract class FunctionCollector<T> implements Context, Collector<T> {
 
   private final AccumulatorProvider accumulators;
-  private Object window;
+  private Window<?> window;
 
   public FunctionCollector(AccumulatorProvider accumulators) {
     this.accumulators = Objects.requireNonNull(accumulators);
@@ -37,11 +38,11 @@ abstract class FunctionCollector<T> implements Context, Collector<T> {
   public abstract void collect(T elem);
 
   @Override
-  public Object getWindow() {
+  public Window<?> getWindow() {
     return this.window;
   }
 
-  public void setWindow(Object window) {
+  public void setWindow(Window<?> window) {
     this.window = window;
   }
 

@@ -29,6 +29,7 @@ import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.mapreduce.TableOutputFormat;
 
 import java.io.IOException;
+import org.apache.hadoop.hbase.HConstants;
 
 /**
  * Direct sink to HBase using RPCs.
@@ -41,9 +42,10 @@ public class HBaseSink<T extends Mutation> implements DataSink<T> {
 
   public static class Builder {
 
-    Configuration conf = null;
-    String table = null;
-    String quorum = null;
+    private Configuration conf = null;
+    private String table = null;
+    private String quorum = null;
+    private String znodeParent = null;
 
     /**
      * Specify configuration to use.
@@ -70,8 +72,18 @@ public class HBaseSink<T extends Mutation> implements DataSink<T> {
      * @param quorum the zookeeper quorum
      * @return this
      */
-    public Builder withQuorum(String quorum) {
+    public Builder withZookeeperQuorum(String quorum) {
       this.quorum = quorum;
+      return this;
+    }
+
+    /**
+     * Set parent znode for HBase zookeeper configuration.
+     * @param parent the parent znode
+     * @return this
+     */
+    public Builder withZnodeParent(String parent) {
+      this.znodeParent = parent;
       return this;
     }
 
@@ -86,6 +98,9 @@ public class HBaseSink<T extends Mutation> implements DataSink<T> {
           : HBaseConfiguration.create(conf);
       if (quorum != null) {
         conf.set(TableOutputFormat.QUORUM_ADDRESS, quorum);
+      }
+      if (znodeParent != null) {
+        conf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, znodeParent);
       }
       conf.set(TableOutputFormat.OUTPUT_TABLE, table);
       return new HBaseSink<>(new WrapperSink<>(conf));

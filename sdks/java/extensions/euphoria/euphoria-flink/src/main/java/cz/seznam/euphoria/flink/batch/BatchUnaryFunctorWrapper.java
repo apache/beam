@@ -58,7 +58,7 @@ public class BatchUnaryFunctorWrapper<WID extends Window, IN, OUT>
               }
 
               @Override
-              public Object getWindow() {
+              public Window<?> getWindow() {
                 return value.getWindow();
               }
             });

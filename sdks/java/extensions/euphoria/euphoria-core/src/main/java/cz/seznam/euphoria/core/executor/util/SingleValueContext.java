@@ -19,6 +19,7 @@ import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.accumulators.Counter;
 import cz.seznam.euphoria.core.client.accumulators.Histogram;
 import cz.seznam.euphoria.core.client.accumulators.Timer;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.Context;
 import javax.annotation.Nullable;
@@ -63,7 +64,7 @@ public class SingleValueContext<T> implements Context, Collector<T> {
    * Retrieve window associated with the stored element.
    */
   @Override
-  public Object getWindow() throws UnsupportedOperationException {
+  public Window<?> getWindow() throws UnsupportedOperationException {
     if (wrap == null) {
       throw new UnsupportedOperationException(
           "The window is unknown in this context");
