@@ -124,7 +124,7 @@ public class ReduceWindow<
   }
 
   public static class OutputBuilder<T, VALUE, OUT>
-      implements Builders.WindowBy<T>, OptionalMethodBuilder<OutputBuilder<T, VALUE, OUT>> {
+      implements Builders.WindowBy<T, OutputBuilder<T, VALUE, OUT>> {
 
     final String name;
     final Dataset<T> input;

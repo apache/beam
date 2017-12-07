@@ -63,7 +63,13 @@ public class Builders {
     <KEY> Object keyBy(UnaryFunction<IN, KEY> keyExtractor);
   }
 
-  interface WindowBy<IN> {
+  /**
+   * Interface for builders of windowing.
+   * @param <IN> data type of the input elements
+   * @param <BUILDER> the builder
+   */
+  interface WindowBy<IN, BUILDER extends WindowBy<IN, BUILDER>>
+      extends OptionalMethodBuilder<BUILDER> {
 
     /**
      * Specifies the windowing strategy to be applied to the input dataset.
@@ -77,7 +83,8 @@ public class Builders {
      * @return the next builder to complete the setup of the
      *          {@link ReduceByKey} operator
      */
-    <W extends Window> Object windowBy(Windowing<IN, W> windowing);
+    <W extends Window> BUILDER windowBy(Windowing<IN, W> windowing);
+
   }
 
   public interface Output<T> {

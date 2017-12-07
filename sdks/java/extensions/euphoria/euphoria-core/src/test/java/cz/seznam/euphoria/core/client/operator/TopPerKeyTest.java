@@ -34,12 +34,12 @@ public class TopPerKeyTest {
 
     Time<String> windowing = Time.of(Duration.ofHours(1));
     Dataset<Triple<String, Long, Long>> result = TopPerKey.named("TopPerKey1")
-            .of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
-            .windowBy(windowing)
-            .output();
+        .of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .scoreBy(s -> 1L)
+        .windowBy(windowing)
+        .output();
 
     assertEquals(flow, result.getFlow());
     assertEquals(1, flow.size());
@@ -59,11 +59,11 @@ public class TopPerKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
-            .output();
+    TopPerKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .scoreBy(s -> 1L)
+        .output();
 
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
     assertEquals("TopPerKey", tpk.getName());
@@ -74,14 +74,30 @@ public class TopPerKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 3);
 
-    Dataset<Triple<String, Long, Long>> result = TopPerKey.of(dataset)
-            .keyBy(s -> s)
-            .valueBy(s -> 1L)
-            .scoreBy(s -> 1L)
-            .windowBy(Time.of(Duration.ofHours(1)))
-            .output();
+    TopPerKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .scoreBy(s -> 1L)
+        .windowBy(Time.of(Duration.ofHours(1)))
+        .output();
 
+    assertTrue(Iterables.getOnlyElement(flow.operators()) instanceof TopPerKey);
+  }
+
+  @Test
+  public void testWindow_applyIf() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 3);
+
+    TopPerKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .scoreBy(s -> 1L)
+        .applyIf(true, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
+    
     TopPerKey tpk = (TopPerKey) Iterables.getOnlyElement(flow.operators());
+    assertTrue(tpk.windowing instanceof Time);
   }
 
 }
