@@ -21,7 +21,6 @@ import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
 import java.io.File;
 import java.io.IOException;
@@ -38,7 +37,6 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.junit.After;
 import static org.junit.Assert.*;
 import org.junit.Before;
@@ -153,8 +151,7 @@ public class HFileSinkTest extends HBaseTestCase {
     data.forEach(s -> assertArrayEquals(b(s), get(s)));
   }
 
-  private DataSink<Pair<ImmutableBytesWritable, Cell>> traceLoading(
-      HFileSink wrap) {
+  private DataSink<Cell> traceLoading(HFileSink wrap) {
 
     return new TestedHFilesSink(wrap, loadedPaths);
   }
