@@ -42,7 +42,7 @@ var (
 	depth = flag.Int("depth", 3, "Depth of each tree")
 )
 
-func tree(s *beam.Scope, depth int) beam.PCollection {
+func tree(s beam.Scope, depth int) beam.PCollection {
 	if depth <= 0 {
 		return leaf(s)
 	}
@@ -54,7 +54,7 @@ func tree(s *beam.Scope, depth int) beam.PCollection {
 
 var count = 0
 
-func leaf(s *beam.Scope) beam.PCollection {
+func leaf(s beam.Scope) beam.PCollection {
 	count++
 	return beam.Create(s, count) // singleton PCollection<int>
 }

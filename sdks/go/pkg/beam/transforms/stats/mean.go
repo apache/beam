@@ -31,7 +31,7 @@ import (
 //    col := beam.Create(s, 1, 11, 7, 5, 10)
 //    mean := stats.Mean(s, col)   // PCollection<float64> with 6.8 as the only element.
 //
-func Mean(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func Mean(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Mean")
 
 	t := beam.ValidateNonCompositeType(col)
@@ -44,7 +44,7 @@ func Mean(s *beam.Scope, col beam.PCollection) beam.PCollection {
 // in a collection. It expects a PCollection<KV<A,B>> as input and returns a
 // PCollection<KV<A,float64>>. It can only be used for numbers, such as int,
 // uint16, float32, etc.
-func MeanPerKey(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func MeanPerKey(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.MeanPerKey")
 
 	_, t := beam.ValidateKVType(col)

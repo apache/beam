@@ -44,7 +44,10 @@ func ValidateNonCompositeType(col PCollection) typex.FullType {
 
 // validate validates and processes the input collection and options. Private convenience
 // function.
-func validate(col PCollection, opts []Option) ([]SideInput, map[string]reflect.Type, error) {
+func validate(s Scope, col PCollection, opts []Option) ([]SideInput, map[string]reflect.Type, error) {
+	if !s.IsValid() {
+		return nil, nil, fmt.Errorf("invalid scope")
+	}
 	if !col.IsValid() {
 		return nil, nil, fmt.Errorf("invalid main pcollection")
 	}

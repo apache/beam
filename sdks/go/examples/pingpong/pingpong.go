@@ -36,7 +36,7 @@ var (
 
 // stitch constructs two composite PTranformations that provide input to each other. It
 // is a (deliberately) complex DAG to show what kind of structures are possible.
-func stitch(s *beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
+func stitch(s beam.Scope, words beam.PCollection) (beam.PCollection, beam.PCollection) {
 	ping := s.Scope("ping")
 	pong := ping // s.Scope("pong")
 
@@ -74,7 +74,7 @@ func multiFn(word string, sample []string, small, big func(string)) error {
 	return nil
 }
 
-func subset(s *beam.Scope, a, b beam.PCollection) {
+func subset(s beam.Scope, a, b beam.PCollection) {
 	beam.ParDo0(s, subsetFn, beam.Impulse(s), beam.SideInput{Input: a}, beam.SideInput{Input: b})
 }
 
