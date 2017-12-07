@@ -493,6 +493,7 @@ class SimpleShuffleDataset(object):
       if self.finalized:
         raise Exception('Dataset already finalized.')
       if txn_id in self.committed_txns:
+        return # TODO
         raise Exception('Transaction already committed: %s.' % txn_id)
       if txn_id in self.uncommitted_items:
         self.items += self.uncommitted_items[txn_id]
@@ -564,19 +565,24 @@ class SimpleShuffleDataset(object):
     first_index = self._seek(lexicographic_range.start)
     one_past_last_index = self._seek(lexicographic_range.end)
     i = first_index
-    result = []
     if continuation_token:
       continuation_data = json.loads(continuation_token)
       continuation_index = continuation_data['start']
       assert first_index <= continuation_index < one_past_last_index
       i = continuation_index
+    result = []
+    last_key = None
     total_bytes_read = 0
     while i < one_past_last_index:
-      record = self.sorted_items[i]
-      record_size = len(record[0]) + len(record[1])
+      key, value = self.sorted_items[i]
+      if key != last_key:
+        result.append((0, key))
+        total_bytes_read += len(key)
+        last_key = key
+      result.append((1, value))
+      total_bytes_read += len(value)
+      record_size = len(key) + len(value)
       if total_bytes_read == 0 or total_bytes_read + record_size <= suggested_max_bytes:
-        result.append(record)
-        total_bytes_read += record_size
         i += 1
       else:
         break
@@ -645,8 +651,13 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
 
   # REMOTE METHOD
   def read(self, dataset_id, lexicographic_range, continuation_token, suggested_max_bytes):
-    return self.datasets[dataset_id].read(lexicographic_range, continuation_token,
+    start_time = time.time()
+    result = self.datasets[dataset_id].read(lexicographic_range, continuation_token,
         suggested_max_bytes=suggested_max_bytes)
+    elapsed_time = time.time() - start_time
+    print 'SimpleShuffleWorker.read took %fs.' % elapsed_time
+    return result
+
 
   # REMOTE METHOD
   def commit_transaction(self, dataset_id, txn_id):
@@ -781,7 +792,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     read_op = all_operations[0]
     split_read_ops = []
     READ_SPLIT_TARGET_SIZE = 16 * 1024 *  1024
-    # READ_SPLIT_TARGET_SIZE = 16 * 1024
+    # READ_SPLIT_TARGET_SIZE = 1 * 1024 * 1024 # TODO: tune
     if isinstance(read_op, operation_specs.WorkerRead):
       # split_source_bundles = [read_op.source]
       split_source_bundles = list(read_op.source.source.split(READ_SPLIT_TARGET_SIZE))
@@ -795,7 +806,8 @@ class FusedStage(Stage, CompositeWatermarkNode):
       key_range_summary = self.execution_context.shuffle_interface.summarize_key_range(read_op.dataset_id, read_op.key_range)
       dataset_size = key_range_summary.byte_count
       print 'DATASET SIZE', dataset_size, key_range_summary
-      split_count = max(1, int(round(dataset_size / READ_SPLIT_TARGET_SIZE)))
+      split_count = max(4, int(round(dataset_size / READ_SPLIT_TARGET_SIZE)))
+      # split_count = 1
       split_ranges = read_op.key_range.split(split_count)
       for split_range in split_ranges:
         new_read_op = operation_specs.LaserShuffleRead(
@@ -807,6 +819,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
         split_read_ops.append(new_read_op)
     else:
       raise Exception('First operation should be a read operation: %s.' % read_op)
+
 
     for removeme_i, split_read_op in enumerate(split_read_ops):
       ops = [split_read_op] + all_operations[1:]
@@ -830,7 +843,7 @@ class FusedStage(Stage, CompositeWatermarkNode):
     self.pending_work_item_ids.remove(work_item_id)
 
     # Commit shuffle transactions.
-    for dataset_id in self.shuffle_dataset_ids:
+    for dataset_id in set(self.shuffle_dataset_ids):
       # TODO: consider doing a 2-phase prepare-commit.
       self.execution_context.shuffle_interface.commit_transaction(dataset_id, work_item.transaction_id)
 
@@ -924,7 +937,7 @@ class ExecutionGraphTranslator(object):
           shuffle_dataset_id = self.next_shuffle_dataset_id
           self.next_shuffle_dataset_id += 1
           self.execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
-          write_stage = self._add_materialization_write(original_step, original_step.name + '/Write', output_pcoll, original_step.element_coder, shuffle_dataset_id)
+          write_stage = self._add_materialization_write(original_step, original_step.name + '/SIWrite', output_pcoll, original_step.element_coder, shuffle_dataset_id)
           finalize_stage = self._add_shuffle_finalize(shuffle_dataset_id, [write_stage])
           self.pcoll_materialized_dataset_id[output_pcoll] = shuffle_dataset_id
           self.pcoll_materialization_finalization_steps[output_pcoll] = finalize_stage
@@ -980,9 +993,9 @@ class ExecutionGraphTranslator(object):
       # TODO: should we have the element_coder on the pcoll instead for clarity
       print 'INPUT STEP', input_step
       print 'ORIGINAL STEP', original_step
-      write_stage = self._add_materialization_write(input_step, input_step.name + '/Write', input_pcoll, input_step.element_coder, shuffle_dataset_id)
+      write_stage = self._add_materialization_write(input_step, input_step.name + '/FBWrite', input_pcoll, input_step.element_coder, shuffle_dataset_id)
       finalize_stage = self._add_shuffle_finalize(shuffle_dataset_id, [write_stage])
-      fused_stage = self._add_materialization_read(input_step, input_step.name + '/Read', input_step.element_coder, shuffle_dataset_id, finalize_stage)
+      fused_stage = self._add_materialization_read(input_step, input_step.name + '/FBRead', input_step.element_coder, shuffle_dataset_id, finalize_stage)
     else:
       fused_stage = input_fused_stage
 
@@ -1015,7 +1028,7 @@ class ExecutionGraphTranslator(object):
     self.next_shuffle_dataset_id += 1
     self.execution_context.shuffle_interface.create_dataset(shuffle_dataset_id)
     print 'SHUFFLE CODER', original_step.shuffle_coder
-    shuffle_write_step = ShuffleWriteStep(original_step.name + '/Write', original_step.shuffle_coder, shuffle_dataset_id, grouped=True)
+    shuffle_write_step = ShuffleWriteStep(original_step.name + '/GBKWrite', original_step.shuffle_coder, shuffle_dataset_id, grouped=True)
     print 'STEP', shuffle_write_step
     shuffle_write_step.inputs.append(original_step.inputs[0])
     print 'BEHOLD my hallucinated shuffle step', shuffle_write_step, 'original', original_step
@@ -1033,7 +1046,7 @@ class ExecutionGraphTranslator(object):
     self.next_stage_id += 1
     read_fused_stage = FusedStage(stage_name, self.execution_context)
     self.execution_graph.add_stage(read_fused_stage)
-    read_step = ShuffleReadStep(original_step.name + '/Read', original_step.output_coder, shuffle_dataset_id,
+    read_step = ShuffleReadStep(original_step.name + '/GBKRead', original_step.output_coder, shuffle_dataset_id,
         LexicographicRange(LexicographicPosition.KEYSPACE_BEGINNING, LexicographicPosition.KEYSPACE_END), grouped=True)
     read_step.outputs[None] = PCollectionNode(read_step, None)
     read_fused_stage.add_step(read_step, origin_step=original_step)
@@ -1088,7 +1101,7 @@ class ExecutionGraphTranslator(object):
     input_fused_stages = []
     for input_pcoll in original_step.inputs:
       # TODO: we will have multiple /Write materializes, potentially.  Should they have different names?
-      fused_stage = self._add_materialization_write(original_step, original_step.name + '/Write', input_pcoll, original_step.element_coder, shuffle_dataset_id)
+      fused_stage = self._add_materialization_write(original_step, original_step.name + '/FlWrite', input_pcoll, original_step.element_coder, shuffle_dataset_id)
       input_fused_stages.append(fused_stage)
 
     # Add finalization stage,.
@@ -1096,7 +1109,7 @@ class ExecutionGraphTranslator(object):
 
     # Add read stage, dependent on shuffle finalization.
 
-    read_fused_stage = self._add_materialization_read(original_step, original_step.name + '/Read', original_step.element_coder, shuffle_dataset_id, finalize_stage)
+    read_fused_stage = self._add_materialization_read(original_step, original_step.name + '/FlRead', original_step.element_coder, shuffle_dataset_id, finalize_stage)
 
     # Output stage is the new read stage.
     self.steps_to_fused_stages[original_step] = read_fused_stage
@@ -1171,7 +1184,7 @@ class LaserRunner(PipelineRunner):
     if transform_node.inputs:
       element_coder = self._get_coder(transform_node.inputs[0])
     else:
-      element_coder = typecoders.registry.get_coder(object)
+      element_coder = self._get_coder(transform_node.outputs[None])
     step = FlattenStep(transform_node.full_label, element_coder)
     self.step_graph.add_step(transform_node, step)
 
@@ -1506,6 +1519,7 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
   # REMOTE METHOD
   def report_work_status(self, worker_id, work_item_id, new_status):
     # TODO: generation id / attempt number
+    start_time = time.time()
     with self.lock:
       # TODO: some validation
       work_item = self.work_items[work_item_id]
@@ -1532,6 +1546,8 @@ class WorkManager(WorkManagerInterface, threading.Thread):  # TODO: do we need a
       self.event_condition.notify()
     # worker = self.active_workers[worker_id]
     # del self.active_workers[worker_id]
+    elapsed_time = time.time() - start_time
+    print 'report_work_status %s, %s took %fs' % (worker_id, work_item_id, elapsed_time)
 
 
 
@@ -1630,7 +1646,7 @@ class InProcessComputeNodeManager(ComputeNodeManager):
 
 
 class MultiProcessComputeNodeManager(ComputeNodeManager):
-  def __init__(self, num_nodes=16):
+  def __init__(self, num_nodes=8):
     self.num_nodes = num_nodes
     self.started = False
     self.channel_manager = get_channel_manager()
@@ -1755,6 +1771,7 @@ if __name__ == '__main__':
   from apache_beam import Flatten
   from apache_beam import DoFn
   from apache_beam.io import WriteToText
+  from apache_beam.testing.util import assert_that, equal_to
 
   #### WORDCOUNT SECTION
   p = Pipeline(runner=LaserRunner())
@@ -1766,8 +1783,9 @@ if __name__ == '__main__':
   # lines = p | ReadFromText('shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
   lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
-  lines1 | WriteToText('mytmp')
   # lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
+  # lines1 | WriteToText('mytmp')
+  assert_that(lines1, equal_to([1, 2]))
   # lines = (lines1, lines2) | Flatten()
   # # WORDCAP:
   # # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)

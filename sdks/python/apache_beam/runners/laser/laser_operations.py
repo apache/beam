@@ -15,13 +15,16 @@ READ_BUFFER_SIZE = 8 * 1024 * 1024
 
 # key prefix hashing
 import hashlib
+import struct
+import zlib
 
-HASH_LENGTH = 8
+HASH_LENGTH = 4
 
 def prepend_key_hash(key):
-  h = hashlib.md5()
-  h.update(key)
-  hash_bytes = h.digest()[0:HASH_LENGTH]
+  # h = hashlib.md5()
+  # h.update(key)
+  # hash_bytes = h.digest()[0:HASH_LENGTH]
+  hash_bytes = struct.pack('<I', zlib.crc32(key) & 0xffffffff)
   return hash_bytes + key
 
 def strip_hash(hash_and_key):
@@ -92,8 +95,8 @@ class ShuffleWriteOperation(Operation):
       # print 'ENCODED_VALUE', repr(encoded_value)
 
       # print 'E', repr(encoded_key), repr(encoded_value)
-      # hashed_encoded_key = prepend_key_hash(encoded_key)
-      self.write_buffer.append((encoded_key, encoded_value))
+      hashed_encoded_key = prepend_key_hash(encoded_key)
+      self.write_buffer.append((hashed_encoded_key, encoded_value))
       self.buffer_bytes += len(encoded_key) + len(encoded_value)
       if self.buffer_bytes >= WRITE_BUFFER_SIZE:
         self._flush()
@@ -125,6 +128,7 @@ class ShuffleReadOperation(Operation):
     self.grouped = spec.grouped
     element_coder = spec.output_coders[0]
     if not self.grouped:
+      print 'EXISTING ELEMENT CODER', element_coder
       element_coder = coders.TupleCoder([
               coders.BytesCoder(),
               coders.IterableCoder(element_coder.wrapped_value_coder)])
@@ -143,7 +147,7 @@ class ShuffleReadOperation(Operation):
     with self.scoped_start_state:
       super(ShuffleReadOperation, self).start()
       has_active_key = False
-      current_encoded_key = None
+      current_key = None
       current_values = None
       continuation_token = None
       if self.grouped:
@@ -152,38 +156,46 @@ class ShuffleReadOperation(Operation):
           elements, continuation_token = self.shuffle_interface.read(
               self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
           # print '^^^^^^^^^^^^^^^^^^^^READ', elements, continuation_token
-          for element in elements:
-            # print 'ELE', element
-            # print 'KEY_CODER', self.key_coder
-            # print 'VALUE_CODER', self.value_coder
-            encoded_key, encoded_value = element
-            # encoded_key = strip_hash(hashed_encoded_key)
-            if has_active_key and current_encoded_key != encoded_key:
-              current_key = self.key_coder.decode(current_encoded_key)
-              # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)
-              self.output(_globally_windowed_value((current_key, current_values)))
-              has_active_key = False
-            if not has_active_key:
-              current_encoded_key = encoded_key
+          for record_type, encoded_object in elements:
+            if record_type == 0: # key
+              if has_active_key:
+                self.output(_globally_windowed_value((current_key, current_values)))
+              encoded_key = strip_hash(encoded_object)
+              current_key = self.key_coder.decode(encoded_key)
               current_values = []
               has_active_key = True
-            # print 'START TRY DECODE', self.value_coder, repr(encoded_value)
-            current_values.append(self.value_coder.decode(encoded_value))
+            elif record_type == 1: # value
+              current_values.append(self.value_coder.decode(encoded_object))
+          # for element in elements:
+          #   # print 'ELE', element
+          #   # print 'KEY_CODER', self.key_coder
+          #   # print 'VALUE_CODER', self.value_coder
+          #   hashed_encoded_key, encoded_value = element
+          #   encoded_key = strip_hash(hashed_encoded_key)
+          #   if has_active_key and current_encoded_key != encoded_key:
+          #     current_key = self.key_coder.decode(current_encoded_key)
+          #     # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)
+          #     self.output(_globally_windowed_value((current_key, current_values)))
+          #     has_active_key = False
+          #   if not has_active_key:
+          #     current_encoded_key = encoded_key
+          #     current_values = []
+          #     has_active_key = True
+          #   # print 'START TRY DECODE', self.value_coder, repr(encoded_value)
+          #   current_values.append(self.value_coder.decode(encoded_value))
           print "<<< CONTINUATION TOKEN", continuation_token
           if continuation_token is None:
             break
         if has_active_key:
-          current_key = self.key_coder.decode(current_encoded_key)
-          # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)
           self.output(_globally_windowed_value((current_key, current_values)))
       else:
         # Ungrouped read.
         while True:
           elements, continuation_token = self.shuffle_interface.read(
               self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
-          for unused_encoded_key, encoded_value in elements:
-            # print 'VAL CODER', self.value_coder, repr(encoded_value)
-            # print 'VAL', repr(self.value_coder.decode(encoded_value))
+          for record_type, encoded_value in elements:
+            if record_type != 1: # value
+              continue
             self.output(self.value_coder.decode(encoded_value))
           print "<<< CONTINUATION TOKEN", continuation_token
           if continuation_token is None:
@@ -220,7 +232,9 @@ class LaserSideInputSource(iobase.BoundedSource):
     while True:
       elements, continuation_token = self.shuffle_interface.read(
           self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
-      for unused_encoded_key, encoded_value in elements:
+      for record_type, encoded_value in elements:
+        if record_type != 1: # value
+          continue
         print 'SIREAD', repr(encoded_value)
         yield self._coder.decode(encoded_value)
       if continuation_token is None:

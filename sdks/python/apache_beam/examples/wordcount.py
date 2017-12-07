@@ -84,6 +84,7 @@ def run(argv=None):
   pipeline_options = PipelineOptions(pipeline_args)
   pipeline_options.view_as(SetupOptions).save_main_session = True
   from apache_beam.runners.laser.laser_runner import LaserRunner
+  from apache_beam.runners.portability.fn_api_runner import FnApiRunner
   p = beam.Pipeline(LaserRunner(), options=pipeline_options)
 
   # Read the text file[pattern] into a PCollection.

@@ -75,6 +75,7 @@ class ChannelManager(threading.Thread):
       link_index = self.addresses_to_link_indices[node_address]
       link = self.links[link_index]
     result = link.send_message(payload)
+    print 'send_call(%s, %s) returned' % (interface_address, method_name)
     return result
 
   def get_interface(self, interface_address, interface_cls):
@@ -195,10 +196,13 @@ class Channel(object):  # TODO: basechannel?
     assert isinstance(message_bytes, str)
     message_id = self.seq
     # TODO: long longs?
+    start_time = time.time()
     with self.lock:
       self.seq += 1
       self.pipe.send(struct.pack('<iii', TAG_MESSAGE, message_id, len(message_bytes)))
       self.pipe.send(message_bytes)
+      elapsed_time = time.time() - start_time
+      print 'sent %d bytes in %fs' % (len(message_bytes), elapsed_time)
       if wait_for_ack:
         self.ack_conds[message_id] = threading.Condition(self.lock)
         self.ack_conds[message_id].wait()
@@ -208,6 +212,8 @@ class Channel(object):  # TODO: basechannel?
           self.result_conds[message_id] = threading.Condition(self.lock)
           self.result_conds[message_id].wait()
           # print 'GOT RESULT...', self.results[message_id]
+          elapsed_time = time.time() - start_time
+          print 'got result in %fs' % (elapsed_time)
         return self.results[message_id]
     # return message_id
 
@@ -246,8 +252,9 @@ class Channel(object):  # TODO: basechannel?
         message_bytes = ''
         while len(message_bytes) < message_len:
           message_bytes += self.pipe.recv(message_len - len(message_bytes))
+        unpickled = pickle.loads(message_bytes)
         with self.lock:
-          self.results[message_id] = pickle.loads(message_bytes)
+          self.results[message_id] = unpickled
           cond = self.result_conds.get(message_id)
           if cond:
             cond.notify()
