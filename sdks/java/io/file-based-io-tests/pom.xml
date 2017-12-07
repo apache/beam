@@ -196,5 +196,11 @@
             <artifactId>beam-sdks-java-io-common</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 </project>
