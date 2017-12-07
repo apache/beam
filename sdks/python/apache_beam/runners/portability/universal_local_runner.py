@@ -340,7 +340,7 @@ class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
   def Logging(self, log_bundles, context=None):
     for log_bundle in log_bundles:
       for log_entry in log_bundle.log_entries:
-         logging.info('Worker: %s', str(log_entry).replace('\n', ' '))
+        logging.info('Worker: %s', str(log_entry).replace('\n', ' '))
     return iter([])
 
 
