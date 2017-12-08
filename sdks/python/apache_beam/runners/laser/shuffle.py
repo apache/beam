@@ -189,7 +189,7 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
 
   # REMOTE METHOD
   def delete_dataset(self, dataset_id):
-    de; self.datasets[dataset_id]
+    del self.datasets[dataset_id]
 
   # REMOTE METHOD
   def write(self, dataset_id, txn_id, kvs):
@@ -218,5 +218,29 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
   # REMOTE METHOD
   def finalize_dataset(self, dataset_id):
     self.datasets[dataset_id].finalize()
+
+
+
+from apache_beam.runners.laser.proto import laser_interfaces_pb2_grpc
+
+class ShuffleWorkerWrapper(laser_interfaces_pb2_grpc.ShuffleServiceServicer):
+  def __init__(self, shuffle_worker):
+    self.shuffle_worker = shuffle_worker
+
+  def CreateDataset(self, request, context):
+    self.shuffle_worker.create_dataset(request.dataset_id)
+    return laser_interfaces_pb2.CreateDatasetResponse()
+
+  def DeleteDataset(self, request, context):
+    self.shuffle_worker.delete_dataset(request.dataset_id)
+    return laser_interfaces_pb2.DeleteDatasetResponse()
+
+  def Write(self, request, context):
+    self.shuffle_worker.write(request.dataset_id)
+    return laser_interfaces_pb2.WriteResponse()
+
+
+
+
 
 
