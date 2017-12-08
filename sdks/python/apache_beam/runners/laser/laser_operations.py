@@ -7,6 +7,7 @@ from apache_beam.io import iobase
 from apache_beam.runners.worker.operations import Operation
 from apache_beam.transforms.window import GlobalWindows
 from apache_beam.runners.laser.channels import get_channel_manager
+from apache_beam.runners.laser.shuffle import ShuffleWorkerInterface
 
 
 WRITE_BUFFER_SIZE = 8 * 1024 * 1024
@@ -57,7 +58,6 @@ class ShuffleWriteOperation(Operation):
     # self.value_coder = coders.VarIntCoder()
 
     channel_manager = get_channel_manager()
-    from apache_beam.runners.laser.laser_runner import ShuffleWorkerInterface
     self.shuffle_interface = channel_manager.get_interface('master/shuffle', ShuffleWorkerInterface)
 
   def start(self):
@@ -139,7 +139,6 @@ class ShuffleReadOperation(Operation):
     # self.value_coder = coders.VarIntCoder()
 
     channel_manager = get_channel_manager()
-    from apache_beam.runners.laser.laser_runner import ShuffleWorkerInterface
     self.shuffle_interface = channel_manager.get_interface('master/shuffle', ShuffleWorkerInterface)
 
   def start(self):
@@ -226,7 +225,6 @@ class LaserSideInputSource(iobase.BoundedSource):
 
   def read(self, unused_range_tracker):
     channel_manager = get_channel_manager()
-    from apache_beam.runners.laser.laser_runner import ShuffleWorkerInterface
     self.shuffle_interface = channel_manager.get_interface('master/shuffle', ShuffleWorkerInterface)
     continuation_token = None
     while True:
