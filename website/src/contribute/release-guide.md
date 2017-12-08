@@ -117,7 +117,8 @@ Configure access to the [Apache Nexus repository](http://repository.apache.org/)
 
 #### Website development setup
 
-Get ready for updating the Beam website by following the [website development instructions]({{ site.baseurl }}/contribute/contribution-guide/#website).
+Prepare to update the Beam website by following the [website development
+instructions]({{ site.baseurl }}/contribute/website-contributions/).
 
 #### Register to PyPI
 
