@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package coder contains coder representation and utilities. Coders describe
+// how to serialize and deserialize pipeline data and may be provided by users.
 package coder
 
 import (
