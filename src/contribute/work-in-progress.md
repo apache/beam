@@ -19,7 +19,7 @@ The community regular tags good getting started tasks with the label `starter`. 
 
 ## Feature Branches
 
-Larger features with multiple active developers may be developed on a [feature branch]({{ site.baseurl }}/contribute/contribution-guide/#feature-branches) before being merged in the master branch. In particular, this is often used for initial development of new components like SDKs or runners.
+Larger features with multiple active developers may be developed on a [feature branch]({{ site.baseurl }}/contribute/feature-branches/) before being merged in the master branch. In particular, this is often used for initial development of new components like SDKs or runners.
 
 Current branches include:
 
