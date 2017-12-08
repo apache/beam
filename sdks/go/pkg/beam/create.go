@@ -36,7 +36,7 @@ func init() {
 // The returned PCollections can be used as any other PCollections. The values
 // are JSON-coded. Each runner may place limits on the sizes of the values and
 // Create should generally only be used for small collections.
-func Create(s *Scope, values ...interface{}) PCollection {
+func Create(s Scope, values ...interface{}) PCollection {
 	return Must(TryCreate(s, values...))
 }
 
@@ -45,7 +45,7 @@ func Create(s *Scope, values ...interface{}) PCollection {
 //
 //    list := []string{"a", "b", "c"}
 //    foo := beam.CreateList(s, list)  // foo : W<string>
-func CreateList(s *Scope, list interface{}) PCollection {
+func CreateList(s Scope, list interface{}) PCollection {
 	var ret []interface{}
 	val := reflect.ValueOf(list)
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
@@ -59,7 +59,7 @@ func CreateList(s *Scope, list interface{}) PCollection {
 
 // TryCreate inserts a fixed set of values into the pipeline. The values must
 // be of the same type.
-func TryCreate(s *Scope, values ...interface{}) (PCollection, error) {
+func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 	if len(values) == 0 {
 		return PCollection{}, fmt.Errorf("create has no values")
 	}

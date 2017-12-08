@@ -50,7 +50,7 @@ type PlaysRow struct {
 // PlaysForWords generates a string containing the list of play names
 // in which that word appears. It takes a PCollection<WordRow> and
 // returns a PCollection<PlaysRow>.
-func PlaysForWords(s *beam.Scope, rows beam.PCollection) beam.PCollection {
+func PlaysForWords(s beam.Scope, rows beam.PCollection) beam.PCollection {
 	s = s.Scope("PlaysForWords")
 
 	words := beam.ParDo(s, &extractFn{MinLength: *minLength}, rows)

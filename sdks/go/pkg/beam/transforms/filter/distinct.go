@@ -22,7 +22,7 @@ import (
 // Distinct removes all duplicates from a collection, under coder equality. It
 // expects a PCollection<T> as input and returns a PCollection<T> with
 // duplicates removed.
-func Distinct(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func Distinct(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("filter.Distinct")
 
 	pre := beam.ParDo(s, mapFn, col)

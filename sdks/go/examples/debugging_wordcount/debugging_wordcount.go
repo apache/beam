@@ -122,7 +122,7 @@ func formatFn(w string, c int) string {
 // CountWords is a composite transform that counts the words of an PCollection
 // of lines. It expects a PCollection of type string and returns a PCollection
 // of type KV<string,int>.
-func CountWords(s *beam.Scope, lines beam.PCollection) beam.PCollection {
+func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	s = s.Scope("CountWords")
 	col := beam.ParDo(s, extractFn, lines)
 	return stats.Count(s, col)

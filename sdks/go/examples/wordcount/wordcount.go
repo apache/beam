@@ -129,7 +129,7 @@ func formatFn(w string, c int) string {
 // of lines. It expects a PCollection of type string and returns a PCollection
 // of type KV<string,int>. The Beam type checker enforces these constraints
 // during pipeline construction.
-func CountWords(s *beam.Scope, lines beam.PCollection) beam.PCollection {
+func CountWords(s beam.Scope, lines beam.PCollection) beam.PCollection {
 	s = s.Scope("CountWords")
 
 	// Convert lines of text into individual words.
