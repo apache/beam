@@ -29,7 +29,7 @@ func init() {
 
 // Head returns the first "n" elements it sees, it doesn't enforce any logic
 // as to what elements they will be.
-func Head(s *beam.Scope, col beam.PCollection, n int) beam.PCollection {
+func Head(s beam.Scope, col beam.PCollection, n int) beam.PCollection {
 	s = s.Scope("debug.Head")
 
 	switch {

@@ -34,7 +34,7 @@ var (
 // Partition takes a PCollection<T> and a PartitionFn, uses the PartitionFn to
 // split the elements of the input PCollection into N partitions, and returns
 // a []PCollection<T> that bundles N PCollection<T>s containing the split elements.
-func Partition(s *Scope, n int, fn interface{}, col PCollection) []PCollection {
+func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 	s = s.Scope(fmt.Sprintf("Partition(%v)", n))
 
 	if n < 1 {

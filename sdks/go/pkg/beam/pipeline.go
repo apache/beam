@@ -30,14 +30,26 @@ type Scope struct {
 	real *graph.Graph
 }
 
-// Scope returns a sub-scope with the given name. The name provided may
-// be augmented to ensure uniqueness.
-func (s *Scope) Scope(name string) *Scope {
-	scope := s.real.NewScope(s.scope, name)
-	return &Scope{scope: scope, real: s.real}
+// IsValid returns true iff the Scope is valid. Any use of an invalid Scope
+// will result in a panic.
+func (s Scope) IsValid() bool {
+	return s.real != nil && s.scope != nil
 }
 
-func (s *Scope) String() string {
+// Scope returns a sub-scope with the given name. The name provided may
+// be augmented to ensure uniqueness.
+func (s Scope) Scope(name string) Scope {
+	if !s.IsValid() {
+		panic("Invalid Scope")
+	}
+	scope := s.real.NewScope(s.scope, name)
+	return Scope{scope: scope, real: s.real}
+}
+
+func (s Scope) String() string {
+	if !s.IsValid() {
+		return "<invalid>"
+	}
 	return s.scope.String()
 }
 
@@ -57,8 +69,8 @@ func NewPipeline() *Pipeline {
 }
 
 // Root returns the root scope of the pipeline.
-func (p *Pipeline) Root() *Scope {
-	return &Scope{scope: p.real.Root(), real: p.real}
+func (p *Pipeline) Root() Scope {
+	return Scope{scope: p.real.Root(), real: p.real}
 }
 
 // TODO(herohde) 11/13/2017: consider making Build return the model Pipeline proto

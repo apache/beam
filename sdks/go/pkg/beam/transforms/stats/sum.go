@@ -30,7 +30,7 @@ import (
 //    col := beam.Create(s, 1, 11, 7, 5, 10)
 //    sum := stats.Sum(s, col)   // PCollection<int> with 34 as the only element.
 //
-func Sum(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func Sum(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Sum")
 	return combine(s, findSumFn, col)
 }
@@ -38,7 +38,7 @@ func Sum(s *beam.Scope, col beam.PCollection) beam.PCollection {
 // SumPerKey returns the sum of the values per key in a PCollection<KV<A,B>> as
 // a PCollection<KV<A,B>>. It can only be used for value numbers, such as int,
 // uint16, float32, etc.
-func SumPerKey(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func SumPerKey(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.SumPerKey")
 	return combinePerKey(s, findSumFn, col)
 }

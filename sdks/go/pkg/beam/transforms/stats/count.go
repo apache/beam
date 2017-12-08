@@ -22,7 +22,7 @@ import (
 // Count counts the number of elements in a collection. It expects a
 // PCollection<T> as input and returns a PCollection<KV<T,int>>. T's encoding
 // must be a well-defined injection.
-func Count(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func Count(s beam.Scope, col beam.PCollection) beam.PCollection {
 	s = s.Scope("stats.Count")
 
 	pre := beam.ParDo(s, mapFn, col)

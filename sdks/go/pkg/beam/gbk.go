@@ -54,7 +54,7 @@ import (
 //
 // See CoGroupByKey for a way to group multiple input PCollections by a common
 // key at once.
-func GroupByKey(s *Scope, a PCollection) PCollection {
+func GroupByKey(s Scope, a PCollection) PCollection {
 	return Must(TryGroupByKey(s, a))
 }
 
@@ -63,7 +63,10 @@ func GroupByKey(s *Scope, a PCollection) PCollection {
 
 // TryGroupByKey inserts a GBK transform into the pipeline. Returns
 // an error on failure.
-func TryGroupByKey(s *Scope, a PCollection) (PCollection, error) {
+func TryGroupByKey(s Scope, a PCollection) (PCollection, error) {
+	if !s.IsValid() {
+		return PCollection{}, fmt.Errorf("invalid scope")
+	}
 	if !a.IsValid() {
 		return PCollection{}, fmt.Errorf("invalid pcollection to GBK")
 	}
@@ -77,12 +80,12 @@ func TryGroupByKey(s *Scope, a PCollection) (PCollection, error) {
 }
 
 // CoGroupByKey inserts a CoGBK transform into the pipeline.
-func CoGroupByKey(s *Scope, cols ...PCollection) PCollection {
+func CoGroupByKey(s Scope, cols ...PCollection) PCollection {
 	return Must(TryCoGroupByKey(s, cols...))
 }
 
 // TryCoGroupByKey inserts a CoGBK transform into the pipeline. Returns
 // an error on failure.
-func TryCoGroupByKey(s *Scope, cols ...PCollection) (PCollection, error) {
+func TryCoGroupByKey(s Scope, cols ...PCollection) (PCollection, error) {
 	panic("NYI")
 }

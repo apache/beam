@@ -71,7 +71,7 @@ func NewQualifiedTableName(s string) (QualifiedTableName, error) {
 // Read reads all rows from the given table. The table must have a schema
 // compatible with the given type, t, and Read returns a PCollection<t>. If the
 // table has more rows than t, then Read is implicitly a projection.
-func Read(s *beam.Scope, project, table string, t reflect.Type) beam.PCollection {
+func Read(s beam.Scope, project, table string, t reflect.Type) beam.PCollection {
 	mustParseTable(table)
 
 	s = s.Scope("bigquery.Read")
@@ -83,12 +83,12 @@ func Read(s *beam.Scope, project, table string, t reflect.Type) beam.PCollection
 
 // Query executes a query. The output must have a schema compatible with the given
 // type, t. It returns a PCollection<t>.
-func Query(s *beam.Scope, project, q string, t reflect.Type) beam.PCollection {
+func Query(s beam.Scope, project, q string, t reflect.Type) beam.PCollection {
 	s = s.Scope("bigquery.Query")
 	return query(s, project, q, t)
 }
 
-func query(s *beam.Scope, project, query string, t reflect.Type) beam.PCollection {
+func query(s beam.Scope, project, query string, t reflect.Type) beam.PCollection {
 	mustInferSchema(t)
 
 	imp := beam.Impulse(s)
@@ -155,7 +155,7 @@ func mustParseTable(table string) QualifiedTableName {
 
 // Write writes the elements of the given PCollection<T> to bigquery. T is required
 // to be the schema type.
-func Write(s *beam.Scope, project, table string, col beam.PCollection) {
+func Write(s beam.Scope, project, table string, col beam.PCollection) {
 	t := typex.SkipW(col.Type()).Type()
 	mustInferSchema(t)
 	qn := mustParseTable(table)

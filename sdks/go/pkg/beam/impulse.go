@@ -26,7 +26,7 @@ import (
 //
 // The purpose of Impulse is to trigger another transform, such as
 // ones that take all information as side inputs.
-func Impulse(s *Scope) PCollection {
+func Impulse(s Scope) PCollection {
 	return ImpulseValue(s, []byte{})
 }
 
@@ -35,7 +35,10 @@ func Impulse(s *Scope) PCollection {
 //
 //   foo := beam.ImpulseValue(s, []byte{})  // foo : W<[]byte>
 //
-func ImpulseValue(s *Scope, value []byte) PCollection {
+func ImpulseValue(s Scope, value []byte) PCollection {
+	if !s.IsValid() {
+		panic("Invalid scope")
+	}
 	edge := graph.NewImpulse(s.real, s.scope, value)
 	return PCollection{edge.Output[0].To}
 }

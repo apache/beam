@@ -32,13 +32,13 @@ func init() {
 }
 
 // Print prints out all data. Use with care.
-func Print(s *beam.Scope, col beam.PCollection) beam.PCollection {
+func Print(s beam.Scope, col beam.PCollection) beam.PCollection {
 	return Printf(s, "Elm: %v", col)
 }
 
 // Printf prints out all data with custom formatting. The given format string
 // is used as log.Printf(format, elm) for each element. Use with care.
-func Printf(s *beam.Scope, format string, col beam.PCollection) beam.PCollection {
+func Printf(s beam.Scope, format string, col beam.PCollection) beam.PCollection {
 	s = s.Scope("debug.Print")
 
 	switch {
@@ -84,7 +84,7 @@ func (f *printGBKFn) ProcessElement(ctx context.Context, x beam.X, iter func(*be
 }
 
 // Discard is a sink that discards all data.
-func Discard(s *beam.Scope, col beam.PCollection) {
+func Discard(s beam.Scope, col beam.PCollection) {
 	s = s.Scope("debug.Discard")
 	beam.ParDo0(s, discardFn, col)
 }

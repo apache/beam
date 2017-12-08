@@ -35,14 +35,17 @@ import (
 //
 // By default, the Coder of the output PCollection is the same as the Coder
 // of the first PCollection.
-func Flatten(s *Scope, cols ...PCollection) PCollection {
+func Flatten(s Scope, cols ...PCollection) PCollection {
 	return Must(TryFlatten(s, cols...))
 }
 
 // TryFlatten merges incoming PCollections of type 'A' to a single PCollection
 // of type 'A'. Returns an error indicating the set of PCollections that could
 // not be flattened.
-func TryFlatten(s *Scope, cols ...PCollection) (PCollection, error) {
+func TryFlatten(s Scope, cols ...PCollection) (PCollection, error) {
+	if !s.IsValid() {
+		return PCollection{}, fmt.Errorf("invalid scope")
+	}
 	for i, in := range cols {
 		if !in.IsValid() {
 			return PCollection{}, fmt.Errorf("invalid pcollection to flatten: index %v", i)

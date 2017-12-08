@@ -45,7 +45,7 @@ func init() {
 //    col := beam.Create(s, 1, 11, 7, 5, 10)
 //    top2 := stats.Largest(s, col, 2, less)  // PCollection<[]int> with [11, 10] as the only element.
 //
-func Largest(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.Largest(%v)", n))
 
 	t := beam.ValidateNonCompositeType(col)
@@ -58,7 +58,7 @@ func Largest(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.
 // The order is defined by the comparator, less : T x T -> bool. It returns a
 // single-element PCollection<KV<K,[]T>> with a slice of the N largest elements for
 // each key.
-func LargestPerKey(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.LargestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
@@ -76,7 +76,7 @@ func LargestPerKey(s *beam.Scope, col beam.PCollection, n int, less interface{})
 //    col := beam.Create(s, 1, 11, 7, 5, 10)
 //    bottom2 := stats.Smallest(s, col, 2, less)  // PCollection<[]int> with [1, 5] as the only element.
 //
-func Smallest(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.Smallest(%v)", n))
 
 	t := beam.ValidateNonCompositeType(col)
@@ -89,7 +89,7 @@ func Smallest(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam
 // The order is defined by the comparator, less : T x T -> bool. It returns a
 // single-element PCollection<KV<K,[]T>> with a slice of the N smallest elements for
 // each key.
-func SmallestPerKey(s *beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
+func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.PCollection {
 	s = s.Scope(fmt.Sprintf("top.SmallestPerKey(%v)", n))
 
 	_, t := beam.ValidateKVType(col)
