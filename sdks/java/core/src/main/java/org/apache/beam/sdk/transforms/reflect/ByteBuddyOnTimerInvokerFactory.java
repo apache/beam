@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 
+import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
+
 import com.google.common.base.CharMatcher;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -174,7 +176,7 @@ class ByteBuddyOnTimerInvokerFactory implements OnTimerInvokerFactory {
         (Class<? extends OnTimerInvoker<?, ?>>)
             unloaded
                 .load(
-                    ByteBuddyOnTimerInvokerFactory.class.getClassLoader(),
+                    findClassLoader(fnClass.getClassLoader()),
                     ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
