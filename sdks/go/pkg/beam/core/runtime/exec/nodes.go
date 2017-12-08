@@ -90,83 +90,8 @@ func (m *Multiplex) String() string {
 // NOTE(herohde) 5/1/2017: flatten is implicit in the execution model, so there
 // is no need for a separate unit.
 
-// Source is a simplified source. It emits all elements in one invocation.
-type Source struct {
-	UID  UnitID
-	Edge *graph.MultiEdge
-	Out  []Node
-}
-
-func (n *Source) ID() UnitID {
-	return n.UID
-}
-
 // TODO(herohde) 5/22/2017: Setup/StartBundle would be separate once we don't
 // use purely single-bundle processing.
-
-func (n *Source) Up(ctx context.Context) error {
-	if err := Up(ctx, n.Out...); err != nil {
-		return err
-	}
-	if err := n.invoke(ctx, n.Edge.DoFn.SetupFn()); err != nil {
-		return err
-	}
-	return n.invoke(ctx, n.Edge.DoFn.StartBundleFn())
-}
-
-func (n *Source) Process(ctx context.Context) error {
-	return n.invoke(ctx, n.Edge.DoFn.ProcessElementFn())
-}
-
-func (n *Source) invoke(ctx context.Context, fn *funcx.Fn) error {
-	if fn == nil {
-		return nil
-	}
-
-	// (1) Populate contexts
-
-	args := make([]reflect.Value, len(fn.Param))
-
-	if index, ok := fn.Context(); ok {
-		args[index] = reflect.ValueOf(ctx)
-	}
-
-	// NOTE: sources have no main or side input. We do not allow direct form to
-	// support "single value" sources.
-
-	// (2) Outputs
-
-	out := fn.Params(funcx.FnEmit)
-	if len(out) != len(n.Out) {
-		return fmt.Errorf("incorrect number of output nodes: %v, want %v", len(n.Out), len(out))
-	}
-	for i := 0; i < len(out); i++ {
-		param := fn.Param[out[i]]
-		args[out[i]] = makeEmit(ctx, param.T, n.Out[i])
-	}
-
-	// (3) Invoke
-
-	ret := fn.Fn.Call(args)
-	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		return fmt.Errorf("Source %v failed: %v", fn.Name, ret[index].Interface())
-	}
-	return nil
-}
-
-func (n *Source) Down(ctx context.Context) error {
-	if err := n.invoke(ctx, n.Edge.DoFn.FinishBundleFn()); err != nil {
-		return err
-	}
-	if err := n.invoke(ctx, n.Edge.DoFn.TeardownFn()); err != nil {
-		return err
-	}
-	return Down(ctx, n.Out...)
-}
-
-func (n *Source) String() string {
-	return fmt.Sprintf("Source[%v] Out:%v", path.Base(n.Edge.DoFn.Name()), IDs(n.Out...))
-}
 
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
 // to the State API. For now, just use Stream.
