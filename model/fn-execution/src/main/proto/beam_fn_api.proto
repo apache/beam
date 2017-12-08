@@ -707,23 +707,3 @@ service BeamFnLogging {
   ) {}
 }
 
-/*
- * Environment types
- */
-// A Docker container configuration for launching the SDK harness to execute
-// user specified functions.
-message DockerContainer {
-  // (Required) A pipeline level unique id which can be used as a reference to
-  // refer to this.
-  string id = 1;
-
-  // (Required) The Docker container URI
-  // For example "dataflow.gcr.io/v1beta3/java-batch:1.5.1"
-  string uri = 2;
-
-  // (Optional) Docker registry specification.
-  // If unspecified, the uri is expected to be able to be fetched without
-  // requiring additional configuration by a runner.
-  string registry_reference = 3;
-}
-
