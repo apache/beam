@@ -8,9 +8,6 @@ redirect_from: /contribution-guide/
 
 # Apache Beam Contribution Guide
 
-* TOC
-{:toc}
-
 The Apache Beam community welcomes contributions from anyone with a passion for
 data processing! Beam has many different opportunities for contributions --
 write new examples, add new user-facing libraries (new statistical libraries,
@@ -187,130 +184,8 @@ see instructions available in [Quickstart (Python)]({{ site.baseurl
 #### [Optional] IDE Setup
 
 Depending on your preferred development environment, you may need to prepare it
-to develop Beam code.
-
-##### IntelliJ
-
-###### Enable Annotation Processing
-
-To configure annotation processing in IntelliJ:
-
-1. Open Annotation Processors Settings dialog box by going to Settings ->
-   Build, Execution, Deployment -> Compiler -> Annotation Processors
-2. Select the following buttons:
-   * "Enable annotation processing"
-   * "Obtain processors from project classpath"
-   * "Store generated sources relative to: _Module content root_"
-3. Set the generated source directories to be equal to the Maven directories:
-   * Set "Production sources directory:" to `target/generated-sources/annotations`
-   * Set "Test sources directory:" to `target/generated-test-sources/test-annotations`
-4. Click "OK"
-
-###### Checkstyle
-
-IntelliJ supports checkstyle within the IDE using the Checkstyle-IDEA plugin.
-
-1. Install the "Checkstyle-IDEA" plugin from the IntelliJ plugin repository
-2. Configure the plugin by going to Settings -> Other Settings -> Checkstyle
-3. Set Checkstyle version to the same as in `/pom.xml` (e.g. 6.19)
-4. Set the "Scan Scope" to "Only Java sources (including tests)"
-5. In the "Configuration File" pane, add a new configuration using the plus icon:
-    1. Set the "Description" to "Beam"
-    2. Select "Use a local Checkstyle file", and point it to
-      `sdks/java/build-tools/src/main/resources/beam/checkstyle.xml` within
-      your repository
-    3. Check the box for "Store relative to project location", and click
-      "Next"
-    4. Configure the `checkstyle.suppressions.file` property value to
-      `suppressions.xml`, and click "Next", then "Finish"
-6. Select "Beam" as the only active configuration file, and click "Apply" and
-   "OK"
-7. Checkstyle will now give warnings in the editor for any Checkstyle
-   violations
-
-You can also scan an entire module by opening the Checkstyle tools window and
-clicking the "Check Module" button. The scan should report no errors.
-
-Note: Selecting "Check Project" may report some errors from the archetype
-modules as they are not configured for Checkstyle validation.
-
-###### Code Style
-IntelliJ supports code styles within the IDE. Use one of the following to
-ensure your code style matches the project's checkstyle enforcements.
-
-1. (Option 1) Configure IntelliJ to use `beam-codestyle.xml`
-    1. Go to Settings -> Code Style -> Java
-    2. Click the cogwheel icon next to 'Scheme' and select Import Scheme -> Eclipse XML Profile
-    3. Select `sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml`
-    4. Click "OK"
-    5. Click "Apply" and "OK"
-2. (Option 2) Install [Google Java Format
-   plugin](https://plugins.jetbrains.com/plugin/8527-google-java-format)
-
-##### Eclipse
-
-Use a recent Eclipse version that includes m2e. Currently we recommend Eclipse
-Neon. Start Eclipse with a fresh workspace in a separate directory from your
-checkout.
-
-###### Initial setup
-
-1. Install m2e-apt: Beam uses apt annotation processing to provide auto
-   generated code. One example is the usage of [Google
-   AutoValue](https://github.com/google/auto/tree/master/value). By default m2e
-   does not support this and you will see compile errors.
-
-	Help
-	-> Eclipse Marketplace
-	-> Search for "m2 apt"
-	-> Install m2e-apt 1.2 or higher
-
-2. Activate the apt processing
-
-	Window
-	-> Preferences
-	-> Maven
-	-> Annotation processing
-	-> Switch to Experimental: Delegate annotation processing ...
-	-> Ok
-
-3. Import the beam projects
-
-	File
-	-> Import...
-	-> Existing Maven Projects
-	-> Browse to the directory you cloned into and select "beam"
-	-> make sure all beam projects are selected
-	-> Finalize
-
-You now should have all the beam projects imported into eclipse and should see
-no compile errors.
-
-###### Checkstyle
-
-Eclipse supports checkstyle within the IDE using the Checkstyle plugin.
-
-1. Install the [Checkstyle
-   plugin](https://marketplace.eclipse.org/content/checkstyle-plug).
-2. Configure Checkstyle plugin by going to Preferences - Checkstyle.
-    1. Click "New..."
-    2. Select "External Configuration File" for type
-    3. Click "Browse..." and select
-       `sdks/java/build-tools/src/main/resources/beam/checkstyle.xml`
-    4. Enter "Beam Checks" under "Name:"
-    5. Click "OK", then "OK"
-
-###### Code Style
-
-Eclipse supports code styles within the IDE. Use one of the following to ensure
-your code style matches the project's checkstyle enforcements.
-
-1. (Option 1) Configure Eclipse to use `beam-codestyle.xml`
-    1. Go to Preferences -> Java -> Code Style -> Formatter
-    2. Click "Import..." and select
-       `sdks/java/build-tools/src/main/resources/beam/beam-codestyle.xml`
-    3. Click "Apply" and "OK"
-2. (Option 2) Install [Google Java Format plugin](https://github.com/google/google-java-format#eclipse)
+to develop Beam code. We have some collected tips for [IntelliJ]({{ site.baseurl }}/contribute/intellij)
+and [Eclipse]({{ site.baseurl }}/contribute/eclipse).
 
 ### Create a branch in your fork
 
@@ -427,10 +302,10 @@ using `@<GitHub-committer-username>`.
 
 ### Code Review and Revision
 
-During the code review process, don’t rebase your branch or otherwise modify
-published commits, since this can remove existing comment history and be
-confusing to the committer when reviewing. When you make a revision, always
-push it in a new commit.
+During the code review process, be careful about whether and when to rebase
+your branch or otherwise modify published commits, since this can remove
+existing comment history and be confusing to the committer when reviewing. When
+you make a revision, always push it in a new commit.
 
 Our GitHub mirror automatically provides pre-commit testing coverage using
 Jenkins. Please make sure those tests pass; the contribution cannot be merged
@@ -439,8 +314,10 @@ otherwise.
 ### LGTM
 
 Once the committer is happy with the change, they’ll respond with an LGTM
-(“*looks good to me!*”). At this point, the committer will take over, possibly
-make some additional touch ups, and merge your changes into the codebase.
+(“*looks good to me!*”). At this point, the committer may ask you to tidy
+up the commit history before they merge your changes into the codebase.
+This makes it easy for community to look through the history and understand how
+something came about, look for a candidate commit to roll back, etc.
 
 In the case the author is also a committer, either can merge the pull request.
 Just be sure to communicate clearly whose responsibility it is in this
@@ -466,128 +343,6 @@ healthy. A pull request becomes stale after its author fails to respond to
 actionable comments for 60 days.  Author of a closed pull request is welcome to
 reopen the same pull request again in the future. The associated JIRAs will be
 unassigned from the author but will stay open.
-
-## Commit (committers only)
-
-Once the code has been peer reviewed by a committer, the next step is for the
-committer to merge it into the [authoritative Apache
-repository](https://gitbox.apache.org/repos/asf/beam.git), not the read-only
-GitHub mirror. (In the case that the author is also a committer, it is
-acceptable for either the author of the change or committer who reviewed the
-change to do the merge. Just be explicit about whose job it is!)
-
-Pull requests should not be merged before the review has received an explicit
-LGTM from another committer. Exceptions to this rule may be made rarely, on a
-case-by-case basis only, in the committer’s discretion for situations such as
-build breakages.
-
-Committers should never commit anything without going through a pull request,
-since that would bypass test coverage and potentially cause the build to fail
-due to checkstyle, etc. In addition, pull requests ensure that changes are
-communicated properly and potential flaws or improvements can be spotted.
-**Always go through the pull request, even if you won’t wait for the code
-review.** Even then, comments can be provided in the pull requests after it has
-been merged to work on follow-ups.
-
-Committing is currently a manual process, but we are investigating tools to
-automate pieces of this process.
-
-### One-time Setup
-
-Add the Apache Git remote in your local clone, by running:
-
-    $ git remote add apache https://gitbox.apache.org/repos/asf/beam.git
-
-We recommend renaming the `origin` remote to `github`, to avoid confusion when
-dealing with this many remotes.
-
-    $ git remote rename origin github
-
-For the `github` remote, add an additional fetch reference, which will cause
-every pull request to be made available as a remote branch in your workspace.
-
-    $ git config --local --add remote.github.fetch \
-        '+refs/pull/*/head:refs/remotes/github/pr/*'
-
-You can confirm your configuration by running the following command.
-
-	$ git remote -v
-	apache	https://gitbox.apache.org/repos/asf/beam.git (fetch)
-	apache	https://gitbox.apache.org/repos/asf/beam.git (push)
-	github	https://github.com/apache/beam.git (fetch)
-	github	https://github.com/apache/beam.git (push)
-	<username>	git@github.com:<username>/beam.git (fetch)
-	<username>	git@github.com:<username>/beam.git (push)
-
-### Contributor License Agreement
-
-If you are merging a larger contribution, please make sure that the contributor
-has an ICLA on file with the Apache Secretary. You can view the list of
-committers [here](http://home.apache.org/phonebook.html?unix=committers), as
-well as [ICLA-signers who aren’t yet
-committers](http://home.apache.org/unlistedclas.html).
-
-For smaller contributions, however, this is not required. In this case, we rely
-on [clause five](http://www.apache.org/licenses/LICENSE-2.0#contributions) of
-the Apache License, Version 2.0, describing licensing of intentionally
-submitted contributions.
-
-### Tests
-
-Before merging, please make sure that Jenkins tests pass, as visible in the
-GitHub pull request. Do not merge the pull request otherwise.
-
-### Finishing touches
-
-At some point in the review process, you should take the pull request over and
-complete any outstanding work that is either minor, stylistic, or otherwise
-outside the expertise of the contributor.
-
-Fetch references from all remote repositories, and checkout the specific pull
-request branch.
-
-	$ git fetch --all
-	$ git checkout -b finish-pr-<pull-request-#> github/pr/<pull-request-#>
-
-At this point, you can commit any final touches to the pull request. For
-example, you should:
-
-* Rebase on current state of the target branch.
-* Fix typos.
-* Reorganize commits that are part of the pull request, such as squash them
-  into fewer commits that make sense for a historical perspective.
-
-You will often need the following command, assuming you’ll be merging changes
-into the `master` branch:
-
-    $ git rebase -i apache/master
-
-Please make sure to retain authorship of original commits to give proper credit
-to the contributor. You are welcome to change their commits slightly (e.g., fix
-a typo) and squash them, but more substantive changes should be a separate
-commit and review.
-
-### Merge process
-
-Once you are ready to merge, fetch all remotes, checkout the destination branch
-and merge the changes.
-
-	$ git fetch --all
-	$ git checkout apache/master
-	$ git merge --no-ff -m 'This closes #<pull-request-#>' finish-pr-<pull-request-#>
-
-Always use `--no-ff` option and the specific commit message "This closes #<pull
-request #>" -- it ensures proper marking in the tooling. It would be nice to
-include additional information in the merge commit message, such as the title
-and summary of the pull request.
-
-At this point, you want to ensure everything is right. Test it with `mvn
-verify`. Run `gitk` or `git log --graph,` etc. When you are happy with how it
-looks, push it. This is the point of no return -- proceed with caution.
-
-    $ git push apache HEAD:master
-
-Done. You can delete the local `finish-pr-<pull-request-#>` branch if you like.
 
 ## Granting more rights to a contributor
 
@@ -617,142 +372,4 @@ individual, and evaluates the overall impact across all the dimensions above.
 Nothing gives us greater joy than recognizing new committers or PMC members --
 that's the only way we can grow. If there’s ever any doubt about this topic,
 please email dev@ or private@ and we’ll gladly discuss.
-
-## Special Cases
-
-The directions above assume you are submitting code to the `beam` repository's
-`master` branch. In addition, there are a few other locations where code is
-maintained. Generally these follow the same
-*engage*-*design*-**code**-**review**-**commit** process as above, with some
-minor adjustments to commands.
-
-### Feature Branches
-
-Some larger features are developed on a feature branch before being merged into
-`master`. In particular, this is often used for initial development of new
-components like SDKs or runners.
-
-#### Developing
-
-To contribute code on a feature branch, use the same process as above, but
-replace `master` with the [name of the branch]({{ site.baseurl
-}}/contribute/work-in-progress/#feature-branches).
-
-Since feature branches are often used for new components, you may find that
-there is no [committer]({{ site.baseurl }}/contribute/team/) familiar with all
-the details of the new language or runner. In that case, consider asking
-someone else familiar with the technology to do an initial review before
-looping in a committer for a final review and merge.
-
-If you are working on a feature branch, you'll also want to frequently merge in
-changes from `master` in order to prevent life on the branch from deviating too
-far from reality.  Like all changes, this should be done via pull request. It
-is permitted for a committer to self-merge such a pull request if there are no
-conflicts or test failures. If there are any conflicts of tests that need
-fixing, then those should get a full review from another committer.
-
-#### Merging into Master
-
-In order for a feature branch to be merged into `master`, new components and
-major features should aim to meet the following guidelines.
-
-1. Have at least 2 contributors interested in maintaining it, and 1 committer
-   interested in supporting it
-2. Provide both end-user and developer-facing documentation
-3. Have at least a basic level of unit test coverage
-4. Run all existing applicable integration tests with other Beam components and
-   create additional tests as appropriate
-
-Additionally, ...
-
-A new runner should:
-
-1. Be able to handle a subset of the model that address a significant set of
-   use cases (aka. ‘traditional batch’ or ‘processing time streaming’)
-2. Update the capability matrix with the current status
-3. Add a webpage under `documentation/runners`
-
-A new SDK should:
-
-1. Provide the ability to construct graphs with all the basic building blocks
-   of the model (ParDo, GroupByKey, Window, Trigger, etc)
-2. Begin fleshing out the common composite transforms (Count, Join, etc) and IO
-   connectors (Text, Kafka, etc)
-3. Have at least one runner that can execute the complete model (may be a
-   direct runner)
-4. Provide integration tests for executing against current and future runners
-5. Add a webpage under `documentation/sdks`
-
-
-### Website
-
-The Beam website is in the [Beam Site GitHub
-mirror](https://github.com/apache/beam-site) repository in the `asf-site`
-branch (_not_ `master`).
-
-Issues are tracked in the
-[website](https://issues.apache.org/jira/browse/BEAM/component/12328906)
-component in JIRA.
-
-#### One-time Setup
-
-The [README file](https://github.com/apache/beam-site/blob/asf-site/README.md)
-in the website repository has more information on how to set up the required
-dependencies for your development environment.
-
-The general guidelines for cloning a repository can be adjusted to use the
-`asf-site` branch of `beam-site`:
-
-	$ git clone -b asf-site https://github.com/apache/beam-site.git
-	$ cd beam-site
-	$ git remote add <GitHub_user> git@github.com:<GitHub_user>/beam-site.git
-	$ git fetch --all
-	$ git checkout -b <my-branch> origin/asf-site
-
-#### Working on your change
-
-While you are working on your pull request, you can test and develop live by
-running the following command in the root folder of the website:
-
-	$ bundle exec jekyll serve --incremental
-
-Jekyll will start a webserver on port 4000. As you make changes to the content,
-Jekyll will rebuild it automatically.
-
-In addition, you can run the tests to valid your links using:
-
-	$ bundle exec rake test
-
-Both of these commands will cause the `content/` directory to be generated.
-Merging autogenerated content can get tricky, so please leave this directory
-out of your commits and pull request by doing:
-
-	$ git checkout -- content
-
-When you are ready, submit a pull request using the [Beam Site GitHub
-mirror](https://github.com/apache/beam-site), including the JIRA issue as
-usual.
-
-During review, committers will patch in your PR, generate the static
-`content/`, and review the changes.
-
-#### Committing website changes (committers only)
-
-Follow the same committer process as above, but using repository
-`apache/beam-site` and branch `asf-site` and
-`https://gitbox.apache.org/repos/asf/beam-site.git` as the address for `git
-remote add apache`.
-
-In addition, the committer is responsible for doing the final `bundle exec
-jekyll build` to generate the static content, so follow the instructions above
-to install `jekyll`.
-
-This command generates the `content/` directory. The committer should add and
-commit the content related to the PR.
-
-	$ git add content/<files related to the pr>
-	$ git commit -m "Regenerate website"
-
-Finally you should merge the changes into the `asf-site` branch and push them
-into the `apache` repository.
 
