@@ -259,7 +259,7 @@ class _TransformWatermarks(object):
       for encoded_key, state in self._keyed_states.iteritems():
         timers, had_realtime_timer = state.get_timers(
             watermark=self._input_watermark,
-            current_time=self._clock.time())
+            processing_time=self._clock.time())
         if had_realtime_timer:
           has_realtime_timer = True
         for expired in timers:
