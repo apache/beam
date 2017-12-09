@@ -36,7 +36,7 @@ class Clock(object):
 
 class RealClock(object):
   def time(self):
-    return int(time.time() * 1000)
+    return time.time()
 
 
 class TestClock(object):
