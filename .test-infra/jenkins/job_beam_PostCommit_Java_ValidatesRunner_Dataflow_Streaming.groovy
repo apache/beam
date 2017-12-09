@@ -20,10 +20,8 @@ import common_job_properties
 
 // This job runs the suite of ValidatesRunner tests against the Dataflow
 // runner.
-mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
-  description('Runs the ValidatesRunner suite on the Dataflow runner.')
-  previousNames('beam_PostCommit_Java_RunnableOnService_Dataflow')
-
+mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow_Streaming') {
+  description('Runs the ValidatesRunner suite on the Dataflow runner in streaming mode.')
 
   // Set common parameters.
   common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 120)
@@ -37,24 +35,24 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Dataflow') {
   // Allows triggering this build against pull requests.
   common_job_properties.enablePhraseTriggeringFromPullRequest(
     delegate,
-    'Google Cloud Dataflow Runner ValidatesRunner Tests',
-    'Run Dataflow ValidatesRunner')
+    'Google Cloud Dataflow Runner Streaming ValidatesRunner Tests',
+    'Run Dataflow ValidatesRunner Streaming')
 
   // Maven goals for this job.
   goals([
-      'clean',
-      'verify',
-      '--projects runners/google-cloud-dataflow-java',
-      '--batch-mode',
-      '--errors',
-      '--also-make',
-      '-DforkCount=0',
-      '-Ddataflow.skipStreamingITs=true',
-      '-Ddataflow.skipBatchITs=false',
-      '''-DvalidatesRunnerPipelineOptions='[
-            "--runner=TestDataflowRunner",
-            "--project=apache-beam-testing",
-            "--tempRoot=gs://temp-storage-for-validates-runner-tests/"
-          ]' '''
-   ].join(' '))
+    'clean',
+    'verify',
+    '--projects runners/google-cloud-dataflow-java',
+    '--batch-mode',
+    '--errors',
+    '--also-make',
+    '-DforkCount=0',
+    '-Ddataflow.skipStreamingITs=false',
+    '-Ddataflow.skipBatchITs=true',
+    '''-DvalidatesRunnerPipelineOptions='[
+        "--runner=TestDataflowRunner",
+        "--project=apache-beam-testing",
+        "--tempRoot=gs://temp-storage-for-validates-runner-tests/"
+    ]' '''
+  ].join(' '))
 }

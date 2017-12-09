@@ -36,6 +36,8 @@
     <dataflow.container_version>beam-master-20171113</dataflow.container_version>
     <dataflow.fnapi_environment_major_version>1</dataflow.fnapi_environment_major_version>
     <dataflow.legacy_environment_major_version>6</dataflow.legacy_environment_major_version>
+    <dataflow.skipStreamingITs>true</dataflow.skipStreamingITs>
+    <dataflow.skipBatchITs>false</dataflow.skipBatchITs>
   </properties>
 
   <profiles>
@@ -54,6 +56,15 @@
               <groupId>org.apache.maven.plugins</groupId>
               <artifactId>maven-surefire-plugin</artifactId>
               <executions>
+                <!--
+                  Runs all the ValidatesRunner tests on the DataflowRunner using the provided
+                  command line arguments, with an additional system property that forces the
+                  DataflowRunner into batch mode.
+
+                  Enabled by default in the validates-runner-tests profile. Use
+                  -Ddataflow.skipBatchITs=true to skip this (for example, to run only
+                  streaming tests)
+                -->
                 <execution>
                   <id>validates-runner-tests</id>
                   <phase>integration-test</phase>
@@ -61,7 +72,7 @@
                     <goal>test</goal>
                   </goals>
                   <configuration>
-                    <skip>false</skip>
+                    <skip>${dataflow.skipBatchITs}</skip>
                     <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
                     <parallel>all</parallel>
                     <threadCount>4</threadCount>
@@ -69,7 +80,41 @@
                       <dependency>org.apache.beam:beam-sdks-java-core</dependency>
                     </dependenciesToScan>
                     <systemPropertyVariables>
-                      <beamTestPipelineOptions>${validatesRunnerPipelineOptions}</beamTestPipelineOptions>
+                      <beamTestPipelineOptions>
+                        ${validatesRunnerPipelineOptions}
+                      </beamTestPipelineOptions>
+                      <beam.dataflow.forceStreaming>false</beam.dataflow.forceStreaming>
+                    </systemPropertyVariables>
+                  </configuration>
+                </execution>
+
+                <!--
+                  Runs all the ValidatesRunner tests on the DataflowRunner using the provided
+                  command line arguments, with an additional system property that forces the
+                  DataflowRunner into streaming mode.
+
+                  Skipped by default, use -Ddataflow.skipStreamingITs=false to enable. You may
+                  also want to use -Ddataflow.skipBatchITs=true to run only streaming tests.
+                -->
+                <execution>
+                  <id>streaming-validates-runner-tests</id>
+                  <phase>integration-test</phase>
+                  <goals>
+                    <goal>test</goal>
+                  </goals>
+                  <configuration>
+                    <skip>${dataflow.skipStreamingITs}</skip>
+                    <groups>org.apache.beam.sdk.testing.ValidatesRunner</groups>
+                    <parallel>all</parallel>
+                    <threadCount>4</threadCount>
+                    <dependenciesToScan>
+                      <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                    </dependenciesToScan>
+                    <systemPropertyVariables>
+                      <beamTestPipelineOptions>
+                        ${validatesRunnerPipelineOptions}
+                      </beamTestPipelineOptions>
+                      <beam.dataflow.forceStreaming>true</beam.dataflow.forceStreaming>
                     </systemPropertyVariables>
                   </configuration>
                 </execution>

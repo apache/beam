@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.RestoreSystemProperties;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -80,6 +82,8 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 public class TestDataflowRunnerTest {
   @Rule public ExpectedException expectedException = ExpectedException.none();
+  @Rule
+  public final RestoreSystemProperties restoreSystemProperties = new RestoreSystemProperties();
   @Mock private DataflowClient mockClient;
 
   private TestDataflowPipelineOptions options;
@@ -96,6 +100,22 @@ public class TestDataflowRunnerTest {
     options.setGcpCredential(new TestCredential());
     options.setRunner(TestDataflowRunner.class);
     options.setPathValidatorClass(NoopPathValidator.class);
+  }
+
+  @Test
+  public void testForceStreamingTrue() {
+    options.setStreaming(false);
+    System.setProperty(TestDataflowRunner.DATAFLOW_FORCE_STREAMING_PROPERTY, "true");
+    TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
+    assertThat(runner.getOptions().isStreaming(), is(true));
+  }
+
+  @Test
+  public void testForceStreamingFalse() {
+    options.setStreaming(false);
+    System.setProperty(TestDataflowRunner.DATAFLOW_FORCE_STREAMING_PROPERTY, "false");
+    TestDataflowRunner runner = TestDataflowRunner.fromOptions(options);
+    assertThat(runner.getOptions().isStreaming(), is(false));
   }
 
   @Test
