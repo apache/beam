@@ -111,7 +111,7 @@ def get_new_http():
   Returns:
     An initialized httplib2.Http instance.
   """
-
+  proxy_info = None
   for proxy_env_var in ['http_proxy', 'https_proxy']:
     if proxy_env_var in os.environ and os.environ[proxy_env_var]:
       proxy_info = proxy_info_from_environment_var(proxy_env_var)
