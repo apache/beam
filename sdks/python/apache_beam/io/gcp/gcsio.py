@@ -104,6 +104,7 @@ def proxy_info_from_environment_var(proxy_env_var):
     logging.warn("proxy_info_from_url requires a protocol, which is always "
                  "http or https.")
     proxy_url = proxy_protocol + '://' + proxy_url
+
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
 def get_new_http():
