@@ -1138,7 +1138,7 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP, current_time=None):
+  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP, processing_time=None):
     """Gets expired timers and reports if there
     are any realtime timers set per state.
 
@@ -1149,10 +1149,10 @@ class InMemoryUnmergedState(UnmergedState):
     has_realtime_timer = False
     for window, timers in list(self.timers.items()):
       for (name, time_domain), timestamp in list(timers.items()):
-        if time_domain == 'REAL_TIME':
-          time_marker = current_time
+        if time_domain == TimeDomain.REAL_TIME:
+          time_marker = processing_time
           has_realtime_timer = True
-        elif time_domain == 'WATERMARK':
+        elif time_domain == TimeDomain.WATERMARK:
           time_marker = watermark
         else:
           logging.error(
