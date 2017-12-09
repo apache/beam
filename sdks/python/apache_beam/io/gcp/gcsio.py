@@ -97,12 +97,12 @@ def proxy_info_from_environment_var(proxy_env_var):
     httplib2.ProxyInfo constructed from the environment string.
   """
   proxy_url = os.environ.get(proxy_env_var)
-  if not proxy_url or not proxy_env_var.lower().startswith('http'):
+  if not proxy_url or not proxy_env_var:
     return httplib2.ProxyInfo(httplib2.socks.PROXY_TYPE_HTTP, None, 0)
-    logging.warn("Ignoring proxy_env_var, incorrect format")
   proxy_protocol = proxy_env_var.lower().split('_')[0]
-  if not proxy_url.lower().startswith('http'):
-    logging.warn("proxy_info_from_url requires a protocol, which is always http or https.")
+  if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
+    logging.warn("proxy_info_from_url requires a protocol, which is always "
+                 "http or https.")
     proxy_url = proxy_protocol + '://' + proxy_url
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
