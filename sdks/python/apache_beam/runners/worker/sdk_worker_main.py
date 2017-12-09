@@ -48,11 +48,12 @@ class StatusServer(object):
 
     return lines
 
-  def start(self, STATUS_HTTP_PORT=0):
+  def start(self, status_http_port=0):
     """Executes the serving loop for the status server.
-    Keyword arguments:
-        STATUS_HTTP_PORT -- Binding port for the debug server.
-            Default is 0 which means any free unsecured port
+
+    Args:
+      status_http_port(int): Binding port for the debug server.
+        Default is 0 which means any free unsecured port
     """
 
     class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -72,7 +73,7 @@ class StatusServer(object):
         pass
 
     self.httpd = httpd = BaseHTTPServer.HTTPServer(
-        ('localhost', STATUS_HTTP_PORT), StatusHttpHandler)
+        ('localhost', status_http_port), StatusHttpHandler)
     logging.info('Status HTTP server running at %s:%s', httpd.server_name,
                  httpd.server_port)
 
