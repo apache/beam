@@ -1138,7 +1138,8 @@ class InMemoryUnmergedState(UnmergedState):
     if not self.state[window]:
       self.state.pop(window, None)
 
-  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP, processing_time=None):
+  def get_timers(self, clear=False, watermark=MAX_TIMESTAMP,
+                 processing_time=None):
     """Gets expired timers and reports if there
     are any realtime timers set per state.
 
