@@ -34,229 +34,233 @@ func Execute(ctx context.Context, p *beam.Pipeline) error {
 	log.Info(ctx, "Pipeline:")
 	log.Info(ctx, p)
 
-	list, _, err := p.Build()
+	edges, _, err := p.Build()
 	if err != nil {
 		return fmt.Errorf("invalid pipeline: %v", err)
 	}
-	return ExecuteInternal(ctx, nil, "", list)
-}
-
-// TODO(herohde) 4/29/2017: Cleaner separation of direct (vs other runners) and core exec.
-// How to bind in data manager (and state later).
-
-// ExecuteInternal executes the instructions using the supplied contexts and manager. It's exported to
-// support being called from in a remote worker configuration.
-func ExecuteInternal(ctx context.Context, mgr exec.DataManager, instID string, list []*graph.MultiEdge) error {
-	units, err := build(mgr, instID, list)
+	plan, err := Compile(edges)
 	if err != nil {
 		return fmt.Errorf("translation failed: %v", err)
 	}
 
-	log.Debug(ctx, "Execution units:")
-	for _, u := range units {
-		log.Debugf(ctx, "%v: %v", u.ID(), u)
+	if err = plan.Execute(ctx, "", nil); err != nil {
+		plan.Down(ctx) // ignore any teardown errors
+		return err
 	}
-	return exec.Execute(ctx, units)
+	return plan.Down(ctx)
 }
 
+// TODO(herohde) 4/29/2017: Cleaner separation of direct (vs other runners) and core exec. BEAM-3316?
+
+// Compile translates a pipeline to a multi-bundle execution plan.
+func Compile(edges []*graph.MultiEdge) (*exec.Plan, error) {
+	// (1) Preprocess graph structure to allow insertion of Multiplex,
+	// Flatten and Discard.
+
+	prev := make(map[int]int)      // nodeID -> #incoming
+	succ := make(map[int][]linkID) // nodeID -> []linkID
+	edgeMap := make(map[int]*graph.MultiEdge)
+
+	for _, edge := range edges {
+		edgeMap[edge.ID()] = edge
+		for i, in := range edge.Input {
+			from := in.From.ID()
+			succ[from] = append(succ[from], linkID{edge.ID(), i})
+		}
+		for _, out := range edge.Output {
+			to := out.To.ID()
+			prev[to]++
+		}
+	}
+
+	// (2) Constructs the plan units recursively.
+
+	b := &builder{
+		prev:  prev,
+		succ:  succ,
+		edges: edgeMap,
+		nodes: make(map[int]exec.Node),
+		links: make(map[linkID]exec.Node),
+		idgen: &exec.GenID{},
+	}
+
+	var roots []exec.Unit
+
+	for _, edge := range edges {
+		switch edge.Op {
+		case graph.Impulse:
+			out, err := b.makeNode(edge.Output[0].To.ID())
+			if err != nil {
+				return nil, err
+			}
+
+			u := &Impulse{UID: b.idgen.New(), Value: edge.Value, Out: out}
+			roots = append(roots, u)
+
+		case graph.DataSource:
+			out, err := b.makeNode(edge.Output[0].To.ID())
+			if err != nil {
+				return nil, err
+			}
+
+			u := &exec.DataSource{UID: b.idgen.New(), Edge: edge, Out: out}
+			roots = append(roots, u)
+
+		default:
+			// skip non-roots
+		}
+	}
+
+	return exec.NewPlan("plan", append(roots, b.units...))
+}
+
+// linkID represents an incoming data link to an Edge.
 type linkID struct {
 	to    int // graph.MultiEdge
 	input int // input index. If > 0, it's a side input.
 }
 
-func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec.Unit, error) {
-	// (1) Preprocess graph structure
+// builder is the recursive builder for non-root execution nodes.
+type builder struct {
+	prev  map[int]int              // nodeID -> #incoming
+	succ  map[int][]linkID         // nodeID -> []linkID
+	edges map[int]*graph.MultiEdge // edgeID -> Edge
 
-	succ := make(map[int][]linkID) // nodeID -> []linkID
-	for _, edge := range list {
-		for i, in := range edge.Input {
-			from := in.From.ID()
-			succ[from] = append(succ[from], linkID{edge.ID(), i})
-		}
-	}
+	nodes map[int]exec.Node    // nodeID -> Node (cache)
+	links map[linkID]exec.Node // linkID -> Node (cache)
 
-	next := make(map[linkID]exec.Node) // linkID -> Node
-	idgen := &exec.GenID{}
-
-	var units []exec.Unit
-	var aux []exec.Unit
-
-	// (2) Create units for each MultiEdge.
-
-	for _, edge := range list {
-		switch edge.Op {
-		case graph.Impulse:
-			unit := &Impulse{UID: idgen.New(), Edge: edge}
-			units = append(units, unit)
-
-		case graph.ParDo:
-			unit := &exec.ParDo{UID: idgen.New(), Edge: edge}
-			units = append(units, unit)
-
-			if len(edge.Input) > 1 {
-				// If side inputs are present, we need to buffer them and delay
-				// the main processing until all side input are available.
-
-				w := &Wait{UID: idgen.New(), need: len(edge.Input) - 1, next: unit}
-				aux = append(aux, w)
-				next[linkID{edge.ID(), 0}] = w
-
-				for i := 1; i < len(edge.Input); i++ {
-					b := &Buffer{UID: idgen.New(), next: w.ID(), read: unit.ID(), notify: w.notify}
-					unit.Side = append(unit.Side, b)
-					aux = append(aux, b)
-					next[linkID{edge.ID(), i}] = b
-				}
-			} else {
-				next[linkID{edge.ID(), 0}] = unit
-			}
-
-		case graph.Combine:
-			unit := &exec.Combine{UID: idgen.New(), Edge: edge}
-			units = append(units, unit)
-
-			if len(edge.Input) > 1 {
-				// If side inputs are present, we need to buffer them and delay
-				// the main processing until all side input are available.
-
-				w := &Wait{UID: idgen.New(), need: len(edge.Input) - 1, next: unit}
-				aux = append(aux, w)
-				next[linkID{edge.ID(), 0}] = w
-
-				for i := 1; i < len(edge.Input); i++ {
-					b := &Buffer{UID: idgen.New(), next: w.ID(), read: unit.ID(), notify: w.notify}
-					unit.Side = append(unit.Side, b)
-					aux = append(aux, b)
-					next[linkID{edge.ID(), i}] = b
-				}
-			} else {
-				next[linkID{edge.ID(), 0}] = unit
-			}
-
-		case graph.GBK:
-			unit := &GBK{UID: idgen.New(), Edge: edge}
-			units = append(units, unit)
-
-			next[linkID{edge.ID(), 0}] = unit
-
-		case graph.DataSource:
-			unit := &exec.DataSource{UID: idgen.New(), Edge: edge, InstID: instID, Source: mgr}
-			units = append(units, unit)
-
-		case graph.DataSink:
-			unit := &exec.DataSink{UID: idgen.New(), Edge: edge, InstID: instID, Sink: mgr}
-			units = append(units, unit)
-
-			next[linkID{edge.ID(), 0}] = unit
-
-		case graph.Flatten:
-			// nop
-
-		default:
-			return nil, fmt.Errorf("unexpected opcode: %v", edge)
-		}
-	}
-
-	// (3) Eliminate flatten
-
-	done := false
-	for !done {
-		done = true
-		for _, edge := range list {
-			switch edge.Op {
-			case graph.Flatten:
-				list := succ[edge.Output[0].To.ID()]
-				unit, ok := next[list[0]]
-				if !ok {
-					// Next is a flatten that is not yet processed. Iterate again.
-					done = false
-					continue
-				}
-				for i := range edge.Input {
-					next[linkID{edge.ID(), i}] = unit
-				}
-			}
-		}
-	}
-
-	// (4) Fixup output.
-
-	for _, unit := range units {
-		edge, ok := getEdge(unit)
-		if !ok {
-			continue
-		}
-
-		var out []exec.Node
-		for _, o := range edge.Output {
-			var n exec.Node
-
-			list := succ[o.To.ID()]
-			switch len(list) {
-			case 0:
-				// Insert discard to ensure that there are no loose ends
-				// in the execution graph.
-				n = &exec.Discard{UID: idgen.New()}
-				aux = append(aux, n)
-			case 1:
-				n = next[list[0]]
-			default:
-				// Insert multiplexer if fanout > 1.
-
-				var tmp []exec.Node
-				for _, elm := range list {
-					tmp = append(tmp, next[elm])
-				}
-				n = &exec.Multiplex{UID: idgen.New(), Out: tmp}
-				aux = append(aux, n)
-			}
-			out = append(out, n)
-		}
-		setOut(unit, out)
-	}
-	return append(units, aux...), nil
+	units []exec.Unit // result
+	idgen *exec.GenID
 }
 
-// TODO(herohde) 6/26/2017: get rid of the below functions. Maybe just add
-// methods on units?
-
-func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
-	switch unit.(type) {
-	case *exec.ParDo:
-		return unit.(*exec.ParDo).Edge, true
-	case *exec.Combine:
-		return unit.(*exec.Combine).Edge, true
-	case *GBK:
-		return unit.(*GBK).Edge, true
-	case *exec.DataSource:
-		return unit.(*exec.DataSource).Edge, true
-	case *exec.DataSink:
-		return unit.(*exec.DataSink).Edge, true
-	case *Impulse:
-		return unit.(*Impulse).Edge, true
-	default:
-		return nil, false
+func (b *builder) makeNodes(out []*graph.Outbound) ([]exec.Node, error) {
+	var ret []exec.Node
+	for _, o := range out {
+		n, err := b.makeNode(o.To.ID())
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, n)
 	}
+	return ret, nil
 }
 
-func setOut(unit exec.Unit, out []exec.Node) {
-	switch unit.(type) {
-	case *exec.ParDo:
-		unit.(*exec.ParDo).Out = out
-	case *exec.Combine:
-		unit.(*exec.Combine).Out = out
-	case *GBK:
-		if len(out) != 1 {
-			panic(fmt.Errorf("bad outputs for GBK: %v", out))
-		}
-		unit.(*GBK).Out = out[0]
-	case *exec.DataSource:
-		unit.(*exec.DataSource).Out = out[0]
-	case *exec.DataSink:
-		// nop
-	case *Impulse:
-		unit.(*Impulse).Out = out
-	default:
-		panic(fmt.Sprintf("Unit %v has no output", unit))
+func (b *builder) makeNode(id int) (exec.Node, error) {
+	if n, ok := b.nodes[id]; ok {
+		return n, nil
 	}
+
+	list := b.succ[id]
+
+	var u exec.Node
+	switch len(list) {
+	case 0:
+		// Discard.
+
+		u = &exec.Discard{UID: b.idgen.New()}
+
+	case 1:
+		return b.makeLink(list[0])
+
+	default:
+		// Multiplex.
+
+		out, err := b.makeLinks(list)
+		if err != nil {
+			return nil, err
+		}
+		u = &exec.Multiplex{UID: b.idgen.New(), Out: out}
+	}
+
+	if count := b.prev[id]; count > 1 {
+		// Guard node with Flatten, if needed.
+
+		b.units = append(b.units, u)
+		u = &exec.Flatten{UID: b.idgen.New(), N: count, Out: u}
+	}
+
+	b.nodes[id] = u
+	b.units = append(b.units, u)
+	return u, nil
+}
+
+func (b *builder) makeLinks(ids []linkID) ([]exec.Node, error) {
+	var ret []exec.Node
+	for _, id := range ids {
+		n, err := b.makeLink(id)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, n)
+	}
+	return ret, nil
+}
+
+func (b *builder) makeLink(id linkID) (exec.Node, error) {
+	if n, ok := b.links[id]; ok {
+		return n, nil
+	}
+
+	// Process all incoming links for the edge and cache them. It thus doesn't matter
+	// which exact link triggers the Node generation. The link caching is only needed
+	// to process ParDo side inputs.
+
+	edge := b.edges[id.to]
+
+	out, err := b.makeNodes(edge.Output)
+	if err != nil {
+		return nil, err
+	}
+
+	var u exec.Node
+	switch edge.Op {
+	case graph.ParDo:
+		pardo := &exec.ParDo{UID: b.idgen.New(), Edge: edge, Out: out}
+		if len(edge.Input) == 1 {
+			u = pardo
+			break
+		}
+
+		// ParDo w/ side input. We need to insert buffering and wait. We also need to
+		// ensure that we return the correct link node.
+
+		b.units = append(b.units, pardo)
+
+		w := &wait{UID: b.idgen.New(), need: len(edge.Input) - 1, next: pardo}
+		b.units = append(b.units, w)
+		b.links[linkID{edge.ID(), 0}] = w
+
+		for i := 1; i < len(edge.Input); i++ {
+			n := &buffer{uid: b.idgen.New(), next: w.ID(), read: pardo.ID(), notify: w.notify}
+			pardo.Side = append(pardo.Side, n)
+
+			b.units = append(b.units, n)
+			b.links[linkID{edge.ID(), i}] = n
+		}
+
+		return b.links[id], nil
+
+	case graph.Combine:
+		u = &exec.Combine{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+
+	case graph.GBK:
+		u = &GBK{UID: b.idgen.New(), Edge: edge, Out: out[0]}
+
+	case graph.Flatten:
+		u = &exec.Flatten{UID: b.idgen.New(), N: len(edge.Input), Out: out[0]}
+
+		for i := 0; i < len(edge.Input); i++ {
+			b.links[linkID{edge.ID(), i}] = u
+		}
+
+	case graph.DataSink:
+		u = &exec.DataSink{UID: b.idgen.New(), Edge: edge}
+
+	default:
+		return nil, fmt.Errorf("unexpected edge: %v", edge)
+	}
+
+	b.links[id] = u
+	b.units = append(b.units, u)
+	return u, nil
 }
