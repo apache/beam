@@ -35,7 +35,7 @@ type NamedScope struct {
 
 // ScopeTree is a convenient representation of the Scope-structure as a tree.
 // Each ScopeTree may also be a subtree of another ScopeTree. The tree structure
-// must respect the underlying Scope structure, i.e., if Scope 'a' has a parent
+// respects the underlying Scope structure, i.e., if Scope 'a' has a parent
 // 'b' then the ScopeTree for 'b' must have the ScopeTree for 'a' as a child.
 type ScopeTree struct {
 	// Scope is the named scope at the root of the (sub)tree.
