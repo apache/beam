@@ -61,9 +61,18 @@ public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
   @SuppressWarnings("unchecked")
   public SequenceFileSink(Class<K> keyType, Class<V> valueType,
                           String path, Configuration hadoopConfig) {
-    super((Class) SequenceFileOutputFormat.class, hadoopConfig);
-    hadoopConfig.set(FileOutputFormat.OUTDIR, path);
-    hadoopConfig.set(JobContext.OUTPUT_KEY_CLASS, keyType.getName());
-    hadoopConfig.set(JobContext.OUTPUT_VALUE_CLASS, valueType.getName());
+    super((Class) SequenceFileOutputFormat.class,
+        wrap(hadoopConfig, path, keyType.getName(), valueType.getName()));
+  }
+
+  private static Configuration wrap(Configuration conf,
+                                    String path,
+                                    String keyTypeName,
+                                    String valueTypeName) {
+    final Configuration wrap = new Configuration(conf);
+    wrap.set(FileOutputFormat.OUTDIR, path);
+    wrap.set(JobContext.OUTPUT_KEY_CLASS, keyTypeName);
+    wrap.set(JobContext.OUTPUT_VALUE_CLASS, valueTypeName);
+    return wrap;
   }
 }
