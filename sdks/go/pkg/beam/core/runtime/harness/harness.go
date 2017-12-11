@@ -26,12 +26,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 	fnpb "github.com/apache/beam/sdks/go/pkg/beam/model/fnexecution_v1"
 	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/runners/direct"
+	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc"
 )
@@ -81,8 +82,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}()
 
 	ctrl := &control{
-		graphs: make(map[string]*graph.Graph),
-		data:   &DataManager{},
+		plans: make(map[string]*exec.Plan),
+		data:  &DataManager{},
 	}
 
 	var cpuProfBuf bytes.Buffer
@@ -123,8 +124,8 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 }
 
 type control struct {
-	graphs map[string]*graph.Graph
-	data   *DataManager
+	plans map[string]*exec.Plan
+	data  *DataManager
 
 	// TODO: running pipelines
 }
@@ -157,8 +158,19 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			if err != nil {
 				return fail(id, "Invalid bundle desc: %v", err)
 			}
-			c.graphs[desc.GetId()] = g
 			log.Debugf(ctx, "Added subgraph %v:\n %v", desc.GetId(), g)
+
+			edges, _, err := g.Build()
+			if err != nil {
+				return fail(id, "invalid pipeline: %v", err)
+			}
+			plan, err := direct.Compile(edges)
+			if err != nil {
+				return fail(id, "translation failed: %v", err)
+			}
+			log.Debugf(ctx, "Plan %v: %v", desc.GetId(), plan)
+
+			c.plans[desc.GetId()] = plan
 		}
 
 		return &fnpb.InstructionResponse{
@@ -176,20 +188,15 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		log.Debugf(ctx, "PB: %v", msg)
 
 		ref := msg.GetProcessBundleDescriptorReference()
-		g, ok := c.graphs[ref]
+		plan, ok := c.plans[ref]
 		if !ok {
-			return fail(id, "Subgraph %v not found", ref)
+			return fail(id, "execution plan for %v not found", ref)
 		}
 
 		// TODO: Async execution. The below assumes serial bundle execution.
 
-		edges, _, err := g.Build()
-		if err != nil {
-			return fail(id, "Build failed: %v", err)
-		}
-
-		if err := direct.ExecuteInternal(ctx, c.data, id, edges); err != nil {
-			return fail(id, "Execute failed: %v", err)
+		if err := plan.Execute(ctx, id, c.data); err != nil {
+			return fail(id, "execute failed: %v", err)
 		}
 
 		return &fnpb.InstructionResponse{
@@ -242,17 +249,5 @@ func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
 // grpc.Dial succeeds.
 func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
-
-	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock(),
-		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(50 << 20))}
-
-	// TODO(wcn): Update this code to not use deprecated grpc.WithTimeout
-	if timeout > 0 {
-		opts = append(opts, grpc.WithTimeout(time.Duration(timeout)*time.Second))
-	}
-	conn, err := grpc.Dial(endpoint, opts...)
-	if err == nil {
-		return conn, nil
-	}
-	return nil, fmt.Errorf("failed to connect to %s after %v seconds", endpoint, timeout)
+	return grpcx.Dial(ctx, endpoint, timeout)
 }
