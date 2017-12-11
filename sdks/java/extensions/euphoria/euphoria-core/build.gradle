@@ -8,10 +8,19 @@ dependencies {
 }
 
 task testJar(type: Jar) {
-  baseName = "${project.name}-test"
   from sourceSets.test.output
+  classifier = 'test'
 }
 
 artifacts {
   testArtifact testJar
+}
+
+publishing {
+  publications {
+    mavenJavaTest(MavenPublication) {
+      from components.java
+      artifact testJar
+    }
+  }
 }
