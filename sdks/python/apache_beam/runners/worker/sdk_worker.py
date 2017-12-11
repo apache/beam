@@ -22,7 +22,6 @@ from __future__ import print_function
 
 import logging
 import Queue as queue
-import re
 import sys
 import threading
 import traceback
@@ -39,26 +38,8 @@ from apache_beam.runners.worker import data_plane
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, pipeline_options=None):
-    def _get_worker_count(pipeline_options):
-      pipeline_options = pipeline_options.get(
-          'options'
-      ) if pipeline_options and pipeline_options.has_key('options') else {}
-      experiments = pipeline_options.get(
-          'experiments'
-      ) if pipeline_options and pipeline_options.has_key('experiments') else []
-
-      experiments = experiments if experiments else []
-
-      for experiment in experiments:
-        # There should only be 1 match so returning from the loop
-        s = re.findall('^(worker_threads=[0-9]+)', experiment)
-        if len(s) > 0:
-          return int(s.pop()[len('worker_threads='):])
-
-      return 1
-
-    self._worker_count = _get_worker_count(pipeline_options)
+  def __init__(self, control_address, worker_count=1):
+    self._worker_count = worker_count
     self._worker_index = 0
     self._control_channel = grpc.insecure_channel(control_address)
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()

@@ -20,6 +20,7 @@ import BaseHTTPServer
 import json
 import logging
 import os
+import re
 import sys
 import threading
 import traceback
@@ -130,7 +131,7 @@ def main(unused_argv):
     assert not service_descriptor.oauth2_client_credentials_grant.url
     SdkHarness(
         control_address=service_descriptor.url,
-        pipeline_options=sdk_pipeline_options).run()
+        worker_count=_get_worker_count(sdk_pipeline_options)).run()
     logging.info('Python sdk harness exiting.')
   except:  # pylint: disable=broad-except
     logging.exception('Python sdk harness failed: ')
@@ -138,6 +139,39 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
+
+
+def _get_worker_count(pipeline_options):
+  """Extract worker count from the pipeline_options.
+
+  This defines how many SdkWorkers will be started in this Python process.
+  And each SdkWorker will have its own thread to process data. Name of the
+  experimental parameter is 'worker_threads'
+  Example Usage in the Command Line:
+    --experimental worker_threads=1
+
+  Note: worker_threads is an experimental flag and might not be available in
+  future releases.
+
+  Returns:
+    an int containing the worker_threads to use. Default is 1
+  """
+  pipeline_options = pipeline_options.get(
+      'options') if pipeline_options.has_key('options') else {}
+  experiments = pipeline_options.get(
+      'experiments'
+  ) if pipeline_options and pipeline_options.has_key('experiments') else []
+
+  experiments = experiments if experiments else []
+
+  for experiment in experiments:
+    # There should only be 1 match so returning from the loop
+    if re.match(r'worker_threads=', experiment):
+      return int(
+          re.match(r'worker_threads=(?P<worker_threads>.*)',
+                   experiment).group('worker_threads'))
+
+  return 1
 
 
 def _load_main_session(semi_persistent_directory):
