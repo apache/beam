@@ -122,41 +122,17 @@ import org.slf4j.LoggerFactory;
  * idempotent transformation to that row.
  *
  * <p>To configure a Cloud Bigtable sink, you must supply a table id, a project id, an instance id
- * and optionally and optionally a {@link BigtableOptions} to provide more specific connection
- * configuration, for example:
+ * and optionally a configuration function for {@link BigtableOptions} to provide more specific
+ * connection configuration, for example:
  *
  * <pre>{@code
  * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
  *
  * data.apply("write",
  *     BigtableIO.write()
- *         .setProjectId("project")
- *         .setInstanceId("instance")
+ *         .withProjectId("project")
+ *         .withInstanceId("instance")
  *         .withTableId("table"));
- * }</pre>
- *
- * <h3>Using local emulator</h3>
- *
- * <p>In order to use local emulator for Bigtable you should use:
- *
- * <pre>{@code
- * BigtableOptions.Builder optionsBuilder =
- *     new BigtableOptions.Builder()
- *         .setUsePlaintextNegotiation(true)
- *         .setCredentialOptions(CredentialOptions.nullCredential())
- *         .setDataHost("127.0.0.1") // network interface where Bigtable emulator is bound
- *         .setInstanceAdminHost("127.0.0.1")
- *         .setTableAdminHost("127.0.0.1")
- *         .setPort(LOCAL_EMULATOR_PORT))
- *
- * PCollection<KV<ByteString, Iterable<Mutation>>> data = ...;
- *
- * data.apply("write",
- *     BigtableIO.write()
- *         .withBigtableOptions(optionsBuilder)
- *         .setProjectId("project")
- *         .setInstanceId("instance")
- *         .withTableId("table");
  * }</pre>
  *
  * <h3>Experimental</h3>
@@ -239,11 +215,22 @@ public class BigtableIO {
     @Nullable
     abstract BigtableService getBigtableService();
 
-    /** Returns the Google Cloud Bigtable instance being read from, and other parameters. */
+    /**
+     * Returns the Google Cloud Bigtable instance being read from, and other parameters.
+     * @deprecated will be replaced by bigtable options configurator.
+     */
+    @Deprecated
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
 
     public abstract boolean getValidate();
+
+    /**
+     * Configurator of the effective Bigtable Options.
+     */
+    @Nullable
+    abstract SerializableFunction<BigtableOptions.Builder,
+      BigtableOptions.Builder> getBigtableOptionsConfigurator();
 
     abstract Builder toBuilder();
 
@@ -260,11 +247,16 @@ public class BigtableIO {
 
       abstract Builder setTableId(String tableId);
 
+      /** @deprecated will be replaced by bigtable options configurator. */
+      @Deprecated
       abstract Builder setBigtableOptions(BigtableOptions options);
 
       abstract Builder setBigtableService(BigtableService bigtableService);
 
       abstract Builder setValidate(boolean validate);
+
+      abstract Builder setBigtableOptionsConfigurator(
+        SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
 
       abstract Read build();
     }
@@ -302,7 +294,10 @@ public class BigtableIO {
      * indicated by {@link #withProjectId(String)}, and using any other specified customizations.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated will be replaced by bigtable options configurator.
      */
+    @Deprecated
     public Read withBigtableOptions(BigtableOptions options) {
       checkArgument(options != null, "options can not be null");
       return withBigtableOptions(options.toBuilder());
@@ -320,17 +315,29 @@ public class BigtableIO {
      * will have no effect on the returned {@link BigtableIO.Read}.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated will be replaced by bigtable options configurator.
      */
+    @Deprecated
     public Read withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       checkArgument(optionsBuilder != null, "optionsBuilder can not be null");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
-      BigtableOptions options = optionsBuilder.build();
+      return toBuilder().setBigtableOptions(optionsBuilder.build().toBuilder().build()).build();
+    }
 
-      BigtableOptions.Builder clonedBuilder = options.toBuilder()
-          .setUseCachedDataPool(true);
-      BigtableOptions clonedOptions = clonedBuilder.build();
-
-      return toBuilder().setBigtableOptions(clonedOptions).build();
+    /**
+     * Returns a new {@link BigtableIO.Read} that will read from the Cloud Bigtable instance
+     * with customized options provided by given configurator.
+     *
+     * <p>WARNING: instanceId and projectId should not be provided here and should be provided over
+     * {@link #withProjectId(String)} and {@link #withInstanceId(String)}.
+     *
+     * <p>Does not modify this object.
+     */
+    public Read withBigtableOptionsConfigurator(
+      SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
+      checkArgument(configurator != null, "configurator can not be null");
+      return toBuilder().setBigtableOptionsConfigurator(configurator).build();
     }
 
     /**
@@ -427,17 +434,25 @@ public class BigtableIO {
         builder.add(DisplayData.item("rowFilter", getRowFilter().toString())
           .withLabel("Table Row Filter"));
       }
+
+      builder.add(DisplayData.item("effectiveBigtableOptions",
+        effectiveUserProvidedBigtableOptions().build().toString())
+        .withLabel("Effective BigtableOptions resulted from configuration of given options"));
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(Read.class)
           .add("options", getBigtableOptions())
+          .add("effectiveOptions", effectiveUserProvidedBigtableOptions())
           .add("projectId", getProjectId())
           .add("instanceId", getInstanceId())
           .add("tableId", getTableId())
           .add("keyRange", getKeyRange())
           .add("filter", getRowFilter())
+          .add("bigtableOptionsConfigurator",
+            getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
+              .getClass().getName())
           .toString();
     }
 
@@ -468,25 +483,41 @@ public class BigtableIO {
         return getBigtableService();
       }
 
-      BigtableOptions.Builder clonedOptions = getBigtableOptions() != null
-          ? getBigtableOptions().toBuilder()
-          : new BigtableOptions.Builder();
+      BigtableOptions.Builder bigtableOptions = effectiveUserProvidedBigtableOptions();
 
-      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
-      if (getInstanceId() != null) {
-        clonedOptions.setInstanceId(getInstanceId());
-      }
-      if (getProjectId() != null) {
-        clonedOptions.setProjectId(getProjectId());
-      }
+      bigtableOptions.setUserAgent(pipelineOptions.getUserAgent());
 
       if (getBigtableOptions() != null && getBigtableOptions().getCredentialOptions()
           .getCredentialType() == CredentialType.DefaultCredentials) {
-        clonedOptions.setCredentialOptions(
+        bigtableOptions.setCredentialOptions(
             CredentialOptions.credential(
                 pipelineOptions.as(GcpOptions.class).getGcpCredential()));
       }
-      return new BigtableServiceImpl(clonedOptions.build());
+
+      // Default option that should be forced
+      bigtableOptions.setUseCachedDataPool(true);
+
+      return new BigtableServiceImpl(bigtableOptions.build());
+    }
+
+    private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
+      BigtableOptions.Builder effectiveOptions = getBigtableOptions() != null
+        ? getBigtableOptions().toBuilder()
+        : new BigtableOptions.Builder();
+
+      if (getBigtableOptionsConfigurator() != null) {
+        effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
+      }
+
+      if (getInstanceId() != null) {
+        effectiveOptions.setInstanceId(getInstanceId());
+      }
+
+      if (getProjectId() != null) {
+        effectiveOptions.setProjectId(getProjectId());
+      }
+
+      return effectiveOptions;
     }
   }
 
@@ -516,9 +547,20 @@ public class BigtableIO {
     @Nullable
     abstract BigtableService getBigtableService();
 
-    /** Returns the Google Cloud Bigtable instance being written to, and other parameters. */
+    /**
+     * Returns the Google Cloud Bigtable instance being written to, and other parameters.
+     * @deprecated will be replaced by bigtable options configurator.
+     */
+    @Deprecated
     @Nullable
     public abstract BigtableOptions getBigtableOptions();
+
+    /**
+     * Configurator of the effective Bigtable Options.
+     */
+    @Nullable
+    abstract SerializableFunction<BigtableOptions.Builder,
+      BigtableOptions.Builder> getBigtableOptionsConfigurator();
 
     abstract boolean getValidate();
 
@@ -533,11 +575,16 @@ public class BigtableIO {
 
       abstract Builder setTableId(String tableId);
 
+      /** @deprecated will be replaced by bigtable options configurator. */
+      @Deprecated
       abstract Builder setBigtableOptions(BigtableOptions options);
 
       abstract Builder setBigtableService(BigtableService bigtableService);
 
       abstract Builder setValidate(boolean validate);
+
+      abstract Builder setBigtableOptionsConfigurator(
+        SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> optionsConfigurator);
 
       abstract Write build();
     }
@@ -575,7 +622,10 @@ public class BigtableIO {
      * indicated by the given options, and using any other specified customizations.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated will be replaced by bigtable options configurator.
      */
+    @Deprecated
     public Write withBigtableOptions(BigtableOptions options) {
       return withBigtableOptions(options.toBuilder());
     }
@@ -592,21 +642,29 @@ public class BigtableIO {
      * will have no effect on the returned {@link BigtableIO.Write}.
      *
      * <p>Does not modify this object.
+     *
+     * @deprecated will be replaced by bigtable options configurator.
      */
+    @Deprecated
     public Write withBigtableOptions(BigtableOptions.Builder optionsBuilder) {
       checkArgument(optionsBuilder != null, "optionsBuilder can not be null");
       // TODO: is there a better way to clone a Builder? Want it to be immune from user changes.
-      BigtableOptions options = optionsBuilder.build();
+      return toBuilder().setBigtableOptions(optionsBuilder.build().toBuilder().build()).build();
+    }
 
-      // Set useBulkApi to true for enabling bulk writes
-      BigtableOptions.Builder clonedBuilder = options.toBuilder()
-          .setBulkOptions(
-              options.getBulkOptions().toBuilder()
-                  .setUseBulkApi(true)
-                  .build())
-          .setUseCachedDataPool(true);
-      BigtableOptions clonedOptions = clonedBuilder.build();
-      return toBuilder().setBigtableOptions(clonedOptions).build();
+    /**
+     * Returns a new {@link BigtableIO.Write} that will read from the Cloud Bigtable instance
+     * with customized options provided by given configurator.
+     *
+     * <p>WARNING: instanceId and projectId should not be provided here and should be provided over
+     * {@link #withProjectId(String)} and {@link #withInstanceId(String)}.
+     *
+     * <p>Does not modify this object.
+     */
+    public Write withBigtableOptionsConfigurator(
+      SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
+      checkArgument(configurator != null, "configurator can not be null");
+      return toBuilder().setBigtableOptionsConfigurator(configurator).build();
     }
 
     /** Disables validation that the table being written to exists. */
@@ -687,15 +745,23 @@ public class BigtableIO {
         builder.add(DisplayData.item("instanceId", getInstanceId())
             .withLabel("Bigtable Instnace Id"));
       }
+
+      builder.add(DisplayData.item("effectiveBigtableOptions",
+        effectiveUserProvidedBigtableOptions().build().toString())
+        .withLabel("Effective BigtableOptions resulted from configuration of given options"));
     }
 
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(Write.class)
           .add("options", getBigtableOptions())
+          .add("effectiveOptions", effectiveUserProvidedBigtableOptions())
           .add("tableId", getTableId())
           .add("projectId", getProjectId())
           .add("instanceId", getInstanceId())
+          .add("bigtableOptionsConfigurator",
+          getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
+            .getClass().getName())
           .toString();
     }
 
@@ -713,25 +779,45 @@ public class BigtableIO {
         return getBigtableService();
       }
 
-      BigtableOptions.Builder clonedOptions = getBigtableOptions() != null
-          ? getBigtableOptions().toBuilder()
-          : new BigtableOptions.Builder();
+      BigtableOptions.Builder bigtableOptions = effectiveUserProvidedBigtableOptions();
 
-      clonedOptions.setUserAgent(pipelineOptions.getUserAgent());
-      if (getInstanceId() != null) {
-        clonedOptions.setInstanceId(getInstanceId());
-      }
-      if (getProjectId() != null) {
-        clonedOptions.setProjectId(getProjectId());
-      }
+      bigtableOptions.setUserAgent(pipelineOptions.getUserAgent());
 
       if (getBigtableOptions() != null && getBigtableOptions().getCredentialOptions()
-          .getCredentialType() == CredentialType.DefaultCredentials) {
-        clonedOptions.setCredentialOptions(
-            CredentialOptions.credential(
-                pipelineOptions.as(GcpOptions.class).getGcpCredential()));
+        .getCredentialType() == CredentialType.DefaultCredentials) {
+        bigtableOptions.setCredentialOptions(
+          CredentialOptions.credential(
+            pipelineOptions.as(GcpOptions.class).getGcpCredential()));
       }
-      return new BigtableServiceImpl(clonedOptions.build());
+
+      // Set useBulkApi to true for enabling bulk writes
+      bigtableOptions
+        .setUseCachedDataPool(true)
+        .setBulkOptions(
+          effectiveUserProvidedBigtableOptions().build().getBulkOptions().toBuilder()
+            .setUseBulkApi(true)
+            .build());
+
+      return new BigtableServiceImpl(bigtableOptions.build());
+    }
+
+    private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
+      BigtableOptions.Builder effectiveOptions = getBigtableOptions() != null
+        ? getBigtableOptions().toBuilder()
+        : new BigtableOptions.Builder();
+
+      if (getBigtableOptionsConfigurator() != null) {
+        effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
+      }
+
+      if (getInstanceId() != null) {
+        effectiveOptions.setInstanceId(getInstanceId());
+      }
+      if (getProjectId() != null) {
+        effectiveOptions.setProjectId(getProjectId());
+      }
+
+      return effectiveOptions;
     }
 
     private class BigtableWriterFn extends DoFn<KV<ByteString, Iterable<Mutation>>, Void> {
