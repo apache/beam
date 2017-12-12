@@ -92,6 +92,11 @@ public final class SparkContextFactory {
         // set master if not set.
         conf.setMaster(contextOptions.getSparkMaster());
       }
+
+      if (contextOptions.getJarsForSparkContext().size() > 0) {
+        conf.setJars(contextOptions.getJarsForSparkContext().toArray(new String[0]));
+      }
+
       conf.setAppName(contextOptions.getAppName());
       // register immutable collections serializers because the SDK uses them.
       conf.set("spark.kryo.registrator", BeamSparkRunnerRegistrator.class.getName());

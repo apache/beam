@@ -18,6 +18,9 @@
 
 package org.apache.beam.runners.spark;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
@@ -101,4 +104,16 @@ public interface SparkPipelineOptions
   boolean getUsesProvidedSparkContext();
   void setUsesProvidedSparkContext(boolean value);
 
+  @Description("Jars for spark context")
+  @Default.InstanceFactory(SparkContextOptions.EmptyPathList.class)
+  List<String> getJarsForSparkContext();
+  void setJarsForSparkContext(List<String> jars);
+
+  /** Returns an empty path list, top avoid handling null. */
+  class EmptyPathList implements DefaultValueFactory<List<String>> {
+    @Override
+    public List<String> create(PipelineOptions options) {
+      return new ArrayList<>();
+    }
+  }
 }
