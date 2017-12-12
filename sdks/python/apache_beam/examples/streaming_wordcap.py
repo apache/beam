@@ -35,10 +35,10 @@ def run(argv=None):
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--input_topic', dest='input_topic', required=True,
-      help='Input PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+      help='Input PubSub topic with form "projects/<PROJECT>/topics/<TOPIC>".')
   parser.add_argument(
       '--output_topic', dest='output_topic', required=True,
-      help='Output PubSub topic of the form "/topics/<PROJECT>/<TOPIC>".')
+      help='Output PubSub topic with form "projects/<PROJECT>/topics/<TOPIC>".')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
   with beam.Pipeline(argv=pipeline_args) as p:
