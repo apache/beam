@@ -32,12 +32,13 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
@@ -83,11 +84,11 @@ public class BeamFnDataReadRunner<OutputT> {
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
-        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
 
@@ -98,7 +99,7 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.Coder coderSpec =
           coders.get(
               pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
-      Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers =
+      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
           (Collection) pCollectionIdsToConsumers.get(
               getOnlyElement(pTransform.getOutputsMap().values()));
 
@@ -132,7 +133,7 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory,
-      Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers)
+      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers)
           throws IOException {
     this.apiServiceDescriptor =
         BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getPayload()).getApiServiceDescriptor();

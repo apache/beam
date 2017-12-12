@@ -27,7 +27,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,7 +47,7 @@ public class MultiplexingFnDataReceiverTest {
     List<String> consumer = new ArrayList<>();
     FnDataReceiver<String> multiplexer =
         MultiplexingFnDataReceiver.forConsumers(
-            ImmutableList.<ThrowingConsumer<String>>of(consumer::add));
+            ImmutableList.<FnDataReceiver<String>>of(consumer::add));
 
     multiplexer.accept("foo");
     multiplexer.accept("bar");
@@ -61,7 +60,7 @@ public class MultiplexingFnDataReceiverTest {
     String message = "my_exception";
     FnDataReceiver<Integer> multiplexer =
         MultiplexingFnDataReceiver.forConsumers(
-            ImmutableList.<ThrowingConsumer<Integer>>of(
+            ImmutableList.<FnDataReceiver<Integer>>of(
                 (Integer i) -> {
                   if (i > 1) {
                     throw new Exception(message);
@@ -81,7 +80,7 @@ public class MultiplexingFnDataReceiverTest {
     Set<String> otherConsumer = new HashSet<>();
     FnDataReceiver<String> multiplexer =
         MultiplexingFnDataReceiver.forConsumers(
-            ImmutableList.<ThrowingConsumer<String>>of(consumer::add, otherConsumer::add));
+            ImmutableList.<FnDataReceiver<String>>of(consumer::add, otherConsumer::add));
 
     multiplexer.accept("foo");
     multiplexer.accept("bar");
@@ -97,7 +96,7 @@ public class MultiplexingFnDataReceiverTest {
     List<Integer> consumer = new ArrayList<>();
     FnDataReceiver<Integer> multiplexer =
         MultiplexingFnDataReceiver.forConsumers(
-            ImmutableList.<ThrowingConsumer<Integer>>of(
+            ImmutableList.<FnDataReceiver<Integer>>of(
                 consumer::add,
                 (Integer i) -> {
                   if (i > 1) {
