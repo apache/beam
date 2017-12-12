@@ -1955,7 +1955,7 @@
         <plugin>
           <groupId>com.spotify</groupId>
           <artifactId>dockerfile-maven-plugin</artifactId>
-          <version>1.3.5</version>
+          <version>1.3.6</version>
           <!-- no executions by default. Use build-containers profile -->
         </plugin>
 
