@@ -71,9 +71,10 @@ class SideInputReadCounter(TransformIoCounter):
   def check_step(self):
     """Update the current running step.
 
-    Due to the fusion optimization, user code may choose to emit the data structure
-    that holds side inputs (Iterable, Dict, or others). This call updates the current
-    step, to attribute the data consumption to the step that is responsible for it.
+    Due to the fusion optimization, user code may choose to emit the data
+    structure that holds side inputs (Iterable, Dict, or others). This call
+    updates the current step, to attribute the data consumption to the step
+    that is responsible for it.
     """
     current_state = self._state_sampler.current_state()
     operation_name = current_state.name.step_name
