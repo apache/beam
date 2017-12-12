@@ -20,31 +20,30 @@ package org.apache.beam.fn.harness.data;
 
 import com.google.common.collect.Iterables;
 import java.util.Collection;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A {@link FnDataReceiver} which forwards all received inputs to a collection of {@link
- * ThrowingConsumer consumers}.
+ * FnDataReceiver receivers}.
  */
 public class MultiplexingFnDataReceiver<T> implements FnDataReceiver<T> {
   public static <T> FnDataReceiver<T> forConsumers(
-      Collection<ThrowingConsumer<T>> consumers) {
+      Collection<FnDataReceiver<T>> consumers) {
     if (consumers.size() == 1) {
-      return Iterables.getOnlyElement(consumers)::accept;
+      return Iterables.getOnlyElement(consumers);
     }
     return new MultiplexingFnDataReceiver<>(consumers);
   }
 
-  private final Collection<ThrowingConsumer<T>> consumers;
+  private final Collection<FnDataReceiver<T>> consumers;
 
-  private MultiplexingFnDataReceiver(Collection<ThrowingConsumer<T>> consumers) {
+  private MultiplexingFnDataReceiver(Collection<FnDataReceiver<T>> consumers) {
     this.consumers = consumers;
   }
 
   @Override
   public void accept(T input) throws Exception {
-    for (ThrowingConsumer<T> consumer : consumers) {
+    for (FnDataReceiver<T> consumer : consumers) {
       consumer.accept(input);
     }
   }

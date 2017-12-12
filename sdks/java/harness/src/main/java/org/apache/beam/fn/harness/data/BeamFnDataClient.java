@@ -28,7 +28,7 @@ import org.apache.beam.sdk.util.WindowedValue;
 
 /**
  * The {@link BeamFnDataClient} is able to forward inbound elements to a {@link FnDataReceiver} and
- * is also a receiver of outbound elements. Callers can register themselves as receivers for inbound
+ * provide a receiver of outbound elements. Callers can register themselves as receivers for inbound
  * elements or can get a handle for a receiver of outbound elements.
  */
 public interface BeamFnDataClient {
