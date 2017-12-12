@@ -58,7 +58,7 @@ import java.util.Set;
 public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
     extends StateAwareWindowWiseOperator<Object, Either<LEFT, RIGHT>,
     Either<LEFT, RIGHT>, KEY, Pair<KEY, OUT>, W, Join<LEFT, RIGHT, KEY, OUT, W>>
-    implements HintAware<JoinHint> {
+    implements HintAware<JoinHint>, Builders.OutputValues<KEY, OUT> {
 
   public enum Type {
     INNER,
@@ -140,6 +140,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
 
   public static class WindowingBuilder<LEFT, RIGHT, KEY, OUT>
       implements Builders.OutputWithHint<Pair<KEY, OUT>, JoinHint>,
+      Builders.OutputValues<KEY, OUT>,
       OptionalMethodBuilder<WindowingBuilder<LEFT, RIGHT, KEY, OUT>> {
 
     private final String name;
@@ -185,7 +186,8 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   public static class HintBuilderOutput<LEFT, RIGHT, KEY, OUT, W extends Window>
-      implements Builders.OutputWithHint<Pair<KEY, OUT>, JoinHint> {
+      implements Builders.OutputWithHint<Pair<KEY, OUT>, JoinHint>,
+          Builders.OutputValues<KEY, OUT> {
 
     private final String name;
     private final Dataset<LEFT> left;
@@ -229,7 +231,7 @@ public class Join<LEFT, RIGHT, KEY, OUT, W extends Window>
   }
 
   public static class OutputBuilder<LEFT, RIGHT, KEY, OUT, W extends Window>
-      implements Builders.Output<Pair<KEY, OUT>> {
+      implements Builders.OutputValues<KEY, OUT> {
 
     private final String name;
     private final Dataset<LEFT> left;

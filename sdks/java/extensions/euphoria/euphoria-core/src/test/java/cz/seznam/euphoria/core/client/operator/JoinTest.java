@@ -58,6 +58,32 @@ public class JoinTest {
   }
 
   @Test
+  public void testBuild_OutputValues() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> left = Util.createMockDataset(flow, 2);
+    Dataset<String> right = Util.createMockDataset(flow, 3);
+
+    Dataset<String> joined = Join.named("JoinVals")
+        .of(left, right)
+        .by(String::length, String::length)
+        .using((String l, String r, Collector<String> c) -> {
+          // no-op
+        })
+        .outputValues();
+
+    assertEquals(flow, joined.getFlow());
+    assertEquals(2, flow.size());
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertEquals(flow, join.getFlow());
+    assertEquals("JoinVals", join.getName());
+    assertNotNull(join.leftKeyExtractor);
+    assertNotNull(join.rightKeyExtractor);
+    // FIXME: how to compare?
+    // assertEquals(joined, join.outputValues());
+  }
+
+  @Test
   public void testBuild_WithCounters() {
     Flow flow = Flow.create("TEST");
     Dataset<String> left = Util.createMockDataset(flow, 2);
