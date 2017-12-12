@@ -170,7 +170,7 @@
     <maven-exec-plugin.version>1.6.0</maven-exec-plugin.version>
     <maven-jar-plugin.version>3.0.2</maven-jar-plugin.version>
     <maven-javadoc-plugin.version>3.0.0-M1</maven-javadoc-plugin.version>
-    <maven-license-plugin.version>1.13</maven-license-plugin.version>
+    <maven-license-plugin.version>1.14</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.1.0</maven-shade-plugin.version>
     <reproducible-build-maven-plugin.version>0.4</reproducible-build-maven-plugin.version>
@@ -1523,7 +1523,7 @@
         <plugin>
           <groupId>org.codehaus.mojo</groupId>
           <artifactId>license-maven-plugin</artifactId>
-          <version>${maven-license-plugin.version}</version>
+          <version>${license-maven-plugin.version}</version>
           <configuration>
             <licenseMerges>
               <licenseMerge>The Apache Software License, version 2.0|Apache License, Version 2.0|Apache 2.0|Apache License 2.0|Apache|Apache-2.0|Apache License Version 2.0|Apache License Version 2|Apache Software License - Version 2.0|Apache 2.0 License|the Apache License, ASL Version 2.0|Apache v2|The Apache License, Version 2.0|http://www.apache.org/licenses/LICENSE-2.0.txt|ASL, version 2</licenseMerge>
