@@ -182,7 +182,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._last_uid += 1
     return str(self._last_uid)
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(False)
     return self.run_via_runner_api(pipeline.to_runner_api())
 
