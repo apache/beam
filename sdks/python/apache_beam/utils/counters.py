@@ -29,19 +29,18 @@ from collections import namedtuple
 from apache_beam.transforms import cy_combiners
 
 # Information identifying the IO being measured by a counter.
-IOTargetName = namedtuple('IOTargetName', ['side_input_step_name',
-                                           'side_input_index',
-                                           'original_shuffle_step_name'])
+IOTargetName = namedtuple('IOTargetName', ['requesting_step_name',
+                                           'input_index'])
 
 
 def side_input_id(step_name, input_index):
   """Create an IOTargetName that identifies the reading of a side input."""
-  return IOTargetName(step_name, input_index, None)
+  return IOTargetName(step_name, input_index)
 
 
 def shuffle_id(step_name):
   """Create an IOTargetName that identifies a GBK step."""
-  return IOTargetName(None, None, step_name)
+  return IOTargetName(step_name, None)
 
 
 _CounterName = namedtuple('_CounterName', ['name',
