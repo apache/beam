@@ -13,35 +13,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package graphx
+package graphx_test
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/window"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
-type symlookup bool
-
-func (s symlookup) Sym2Addr(name string) (uintptr, error) {
-	switch name {
-	case reflectx.FunctionName(dec):
-		return reflect.ValueOf(dec).Pointer(), nil
-	case reflectx.FunctionName(enc):
-		return reflect.ValueOf(enc).Pointer(), nil
-	default:
-		panic(fmt.Sprintf("bad name: %v", name))
-	}
-}
-
 func init() {
-	runtime.SymbolResolver = symlookup(false)
+	ptest.RegisterFn(dec)
+	ptest.RegisterFn(enc)
 }
 
 // TestMarshalUnmarshalCoders verifies that coders survive a proto roundtrip.
@@ -86,7 +74,7 @@ func TestMarshalUnmarshalCoders(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			coders, err := UnmarshalCoders(MarshalCoders([]*coder.Coder{test.c}))
+			coders, err := graphx.UnmarshalCoders(graphx.MarshalCoders([]*coder.Coder{test.c}))
 			if err != nil {
 				t.Fatalf("Unmarshal(Marshal(%v)) failed: %v", test.c, err)
 			}
