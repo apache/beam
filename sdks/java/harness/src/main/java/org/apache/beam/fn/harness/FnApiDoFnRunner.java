@@ -41,7 +41,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BagUserState;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
@@ -49,10 +48,13 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.ParDoTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
@@ -123,23 +125,23 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
-        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) {
 
       // For every output PCollection, create a map from output name to Consumer
-      ImmutableMap.Builder<String, Collection<ThrowingConsumer<WindowedValue<?>>>>
+      ImmutableMap.Builder<String, Collection<FnDataReceiver<WindowedValue<?>>>>
           outputMapBuilder = ImmutableMap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         outputMapBuilder.put(
             entry.getKey(),
             pCollectionIdsToConsumers.get(entry.getValue()));
       }
-      ImmutableMap<String, Collection<ThrowingConsumer<WindowedValue<?>>>> outputMap =
+      ImmutableMap<String, Collection<FnDataReceiver<WindowedValue<?>>>> outputMap =
           outputMapBuilder.build();
 
       // Get the DoFnInfo from the serialized blob.
@@ -158,16 +160,16 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           doFnInfo.getOutputMap());
 
       ImmutableMultimap.Builder<TupleTag<?>,
-          ThrowingConsumer<WindowedValue<?>>> tagToOutputMapBuilder =
+          FnDataReceiver<WindowedValue<?>>> tagToOutputMapBuilder =
           ImmutableMultimap.builder();
       for (Map.Entry<Long, TupleTag<?>> entry : doFnInfo.getOutputMap().entrySet()) {
         @SuppressWarnings({"unchecked", "rawtypes"})
-        Collection<ThrowingConsumer<WindowedValue<?>>> consumers =
+        Collection<FnDataReceiver<WindowedValue<?>>> consumers =
             outputMap.get(Long.toString(entry.getKey()));
         tagToOutputMapBuilder.putAll(entry.getValue(), consumers);
       }
 
-      ImmutableMultimap<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>> tagToOutputMap =
+      ImmutableMultimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToOutputMap =
           tagToOutputMapBuilder.build();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -180,7 +182,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           WindowedValue.getFullCoder(
               doFnInfo.getInputCoder(),
               doFnInfo.getWindowingStrategy().getWindowFn().windowCoder()),
-          (Collection<ThrowingConsumer<WindowedValue<OutputT>>>) (Collection)
+          (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
               tagToOutputMap.get(doFnInfo.getOutputMap().get(doFnInfo.getMainOutput())),
           tagToOutputMap,
           doFnInfo.getWindowingStrategy());
@@ -190,7 +192,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       for (String pcollectionId : pTransform.getInputsMap().values()) {
         pCollectionIdsToConsumers.put(
             pcollectionId,
-            (ThrowingConsumer) (ThrowingConsumer<WindowedValue<InputT>>) runner::processElement);
+            (FnDataReceiver) (FnDataReceiver<WindowedValue<InputT>>) runner::processElement);
       }
       addFinishFunction.accept(runner::finishBundle);
       return runner;
@@ -205,8 +207,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final Supplier<String> processBundleInstructionId;
   private final DoFn<InputT, OutputT> doFn;
   private final WindowedValueCoder<InputT> inputCoder;
-  private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> mainOutputConsumers;
-  private final Multimap<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>> outputMap;
+  private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
+  private final Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap;
   private final WindowingStrategy windowingStrategy;
   private final DoFnSignature doFnSignature;
   private final DoFnInvoker<InputT, OutputT> doFnInvoker;
@@ -243,8 +245,8 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       Supplier<String> processBundleInstructionId,
       DoFn<InputT, OutputT> doFn,
       WindowedValueCoder<InputT> inputCoder,
-      Collection<ThrowingConsumer<WindowedValue<OutputT>>> mainOutputConsumers,
-      Multimap<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>> outputMap,
+      Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers,
+      Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap,
       WindowingStrategy windowingStrategy) {
     this.pipelineOptions = pipelineOptions;
     this.beamFnStateClient = beamFnStateClient;
@@ -316,11 +318,11 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
    * Outputs the given element to the specified set of consumers wrapping any exceptions.
    */
   private <T> void outputTo(
-      Collection<ThrowingConsumer<WindowedValue<T>>> consumers,
+      Collection<FnDataReceiver<WindowedValue<T>>> consumers,
       WindowedValue<T> output) {
-    Iterator<ThrowingConsumer<WindowedValue<T>>> consumerIterator;
+    Iterator<FnDataReceiver<WindowedValue<T>>> consumerIterator;
     try {
-      for (ThrowingConsumer<WindowedValue<T>> consumer : consumers) {
+      for (FnDataReceiver<WindowedValue<T>> consumer : consumers) {
         consumer.accept(output);
       }
     } catch (Throwable t) {
@@ -492,7 +494,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public <T> void output(TupleTag<T> tag, T output) {
-      Collection<ThrowingConsumer<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
+      Collection<FnDataReceiver<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
       if (consumers == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
@@ -506,7 +508,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public <T> void outputWithTimestamp(TupleTag<T> tag, T output, Instant timestamp) {
-      Collection<ThrowingConsumer<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
+      Collection<FnDataReceiver<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
       if (consumers == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
@@ -622,7 +624,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
     @Override
     public <T> void output(TupleTag<T> tag, T output, Instant timestamp, BoundedWindow window) {
-      Collection<ThrowingConsumer<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
+      Collection<FnDataReceiver<WindowedValue<T>>> consumers = (Collection) outputMap.get(tag);
       if (consumers == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
