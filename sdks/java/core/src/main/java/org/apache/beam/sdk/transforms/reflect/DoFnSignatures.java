@@ -679,6 +679,8 @@ public class DoFnSignatures {
 
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
 
+    boolean requiresStableInput = m.isAnnotationPresent(DoFn.RequiresStableInput.class);
+
     @Nullable TypeDescriptor<? extends BoundedWindow> windowT = getWindowType(fnClass, m);
 
     List<DoFnSignature.Parameter> extraParameters = new ArrayList<>();
@@ -706,7 +708,8 @@ public class DoFnSignatures {
       extraParameters.add(parameter);
     }
 
-    return DoFnSignature.OnTimerMethod.create(m, timerId, windowT, extraParameters);
+    return DoFnSignature.OnTimerMethod.create(
+        m, timerId, requiresStableInput, windowT, extraParameters);
   }
 
   @VisibleForTesting
@@ -723,8 +726,9 @@ public class DoFnSignatures {
         "Must return void or %s",
         DoFn.ProcessContinuation.class.getSimpleName());
 
-
     MethodAnalysisContext methodContext = MethodAnalysisContext.create();
+
+    boolean requiresStableInput = m.isAnnotationPresent(DoFn.RequiresStableInput.class);
 
     Type[] params = m.getGenericParameterTypes();
 
@@ -763,6 +767,7 @@ public class DoFnSignatures {
     return DoFnSignature.ProcessElementMethod.create(
         m,
         methodContext.getExtraParameters(),
+        requiresStableInput,
         trackerT,
         windowT,
         DoFn.ProcessContinuation.class.equals(m.getReturnType()));
