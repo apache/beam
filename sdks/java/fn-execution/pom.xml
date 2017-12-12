@@ -45,6 +45,8 @@
       <artifactId>beam-model-fn-execution</artifactId>
     </dependency>
 
+      <!-- The Core SDK is used for utility code and concepts shared between runner and SDK. It
+      should not be used to refer to any user-defined functions. -->
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
@@ -79,6 +81,11 @@
     <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
     </dependency>
 
     <!-- Build dependencies -->

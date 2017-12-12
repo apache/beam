@@ -25,7 +25,7 @@ import java.io.IOException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
-import org.apache.beam.runners.fnexecution.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 
 /**
  * A high-level client for an SDK harness.

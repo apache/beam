@@ -20,6 +20,7 @@ package org.apache.beam.runners.fnexecution.data;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
 
