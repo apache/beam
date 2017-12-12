@@ -42,6 +42,7 @@ from apache_beam.transforms import core
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import counters
 from apache_beam.utils.windowed_value import WindowedValue
 
 # Allow some "pure mode" declarations.
@@ -294,7 +295,7 @@ class DoOperation(Operation):
     # Note that for each tag there could be several read operations in the
     # specification. This can happen for instance if the source has been
     # sharded into several files.
-    for side_tag, view_class, view_options in tags_and_types:
+    for i, (side_tag, view_class, view_options) in enumerate(tags_and_types):
       sources = []
       # Using the side_tag in the lambda below will trigger a pylint warning.
       # However in this case it is fine because the lambda is used right away
@@ -306,7 +307,13 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-      iterator_fn = sideinputs.get_iterator_fn_for_sources(sources)
+      si_counter = opcounters.SideInputReadCounter(
+          self.counter_factory,
+          self.state_sampler,
+          # Inputs are 1-indexed, so we add 1 to i in the side input id
+          counters.side_input_id(self.operation_name, i + 1))
+      iterator_fn = sideinputs.get_iterator_fn_for_sources(
+          sources, read_counter=si_counter)
 
       # Backwards compatibility for pre BEAM-733 SDKs.
       if isinstance(view_options, tuple):

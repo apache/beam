@@ -25,8 +25,75 @@ import math
 import random
 
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterName
 
 # This module is experimental. No backwards-compatibility guarantees.
+
+
+class TransformIoCounter(object):
+  """Class to track time and bytes consumed while reading from IO.
+
+  Examples of IO can be side inputs, shuffle, or streaming state.
+  """
+
+  def check_step(self):
+    pass
+
+  def __exit__(self, exc_type, exc_value, traceback):
+    pass
+
+  def __enter__(self):
+    pass
+
+  def add_bytes_read(self, n):
+    pass
+
+
+class SideInputReadCounter(TransformIoCounter):
+  """Tracks time and bytes consumed while reading from side inputs.
+
+  This class is designed to track consumption of side inputs across fused steps.
+  We represent a side input as a declaring step, and an input index, which are
+  represented as an io_target.
+  The declaring step is the step that originally receives the side input for
+  consumption, and the input index in which the declaring step receives the side
+  input that we want to identify.
+  Note that the declaring step originally receives the side input, but it may
+  not be the only step that spends time reading from this side input.
+  """
+
+  def __init__(self, counter_factory, state_sampler, io_target):
+    self._counter_factory = counter_factory
+    self._state_sampler = state_sampler
+    self.io_target = io_target
+    self.check_step()
+
+  def check_step(self):
+    """Update the current running step.
+
+    Due to the fusion optimization, user code may choose to emit the data structure
+    that holds side inputs (Iterable, Dict, or others). This call updates the current
+    step, to attribute the data consumption to the step that is responsible for it.
+    """
+    current_state = self._state_sampler.current_state()
+    operation_name = current_state.name.step_name
+    self.scoped_state = self._state_sampler.scoped_state(
+        operation_name, 'read-sideinput', io_target=self.io_target)
+    self.bytes_read_counter = self._counter_factory.get_counter(
+        CounterName('read-sideinput-byte-count',
+                    step_name=operation_name,
+                    io_target=self.io_target),
+        Counter.SUM)
+
+  def add_bytes_read(self, n):
+    if n > 0:
+      self.bytes_read_counter.update(n)
+
+  def __enter__(self):
+    self.scoped_state.__enter__()
+
+  def __exit__(self, exception_type, exception_value, traceback):
+    self.scoped_state.__exit__(exception_type, exception_value, traceback)
 
 
 class SumAccumulator(object):
