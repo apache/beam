@@ -20,6 +20,7 @@ import cz.seznam.euphoria.core.client.dataset.Dataset;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
+import cz.seznam.euphoria.core.client.util.Pair;
 
 import java.util.Set;
 
@@ -87,6 +88,22 @@ public class Builders {
      * @return the dataset representing the new operator's output
      */
     Dataset<T> output();
+  }
+
+  public interface OutputValues<K,V> extends Output<Pair<K, V>> {
+    /**
+     * Finalizes the operator and retrieves its output dataset.
+     * Using this output new operator {@link MapElements} is added
+     * to the flow to extract values from pairs.
+     *
+     * @return the dataset representing the new operator's output
+     */
+    default Dataset<V> outputValues() {
+      return MapElements
+          .of(this.output())
+          .using(Pair::getSecond)
+          .output();
+    }
   }
 
   public interface OutputWithHint<T, HINT extends Hint> extends Output<T> {
