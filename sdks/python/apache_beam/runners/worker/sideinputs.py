@@ -22,8 +22,10 @@ import logging
 import Queue
 import threading
 import traceback
+import types
 
 from apache_beam.io import iobase
+from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 
 # This module is experimental. No backwards-compatibility guarantees.
@@ -51,7 +53,8 @@ class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
 
   def __init__(self, sources,
-               max_reader_threads=MAX_SOURCE_READER_THREADS):
+               max_reader_threads=MAX_SOURCE_READER_THREADS,
+               read_counter=None):
     self.sources = sources
     self.num_reader_threads = min(max_reader_threads, len(self.sources))
 
@@ -68,8 +71,25 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
+    self.read_counter = read_counter or opcounters.TransformIoCounter()
+
     self.reader_threads = []
     self._start_reader_threads()
+
+  def add_byte_counter(self, reader):
+    """Adds byte counter to an Avro side input reader.
+
+    The NativeAvroSourceReader is used internally by Dataflow to fetch side
+    inputs in batch.
+    """
+
+    def decode_record(zelf, record):
+      self.read_counter.add_bytes_read(len(record))
+      return zelf.source.coder.decode(record)
+
+    if (self.read_counter and
+        reader.__class__.__name__ == 'NativeAvroSourceReader'):
+      reader.decode_record = types.MethodType(decode_record, reader)
 
   def _start_reader_threads(self):
     for _ in range(0, self.num_reader_threads):
@@ -96,6 +116,7 @@ class PrefetchingSourceSetIterable(object):
           else:
             # Native dataflow source.
             with source.reader() as reader:
+              self.add_byte_counter(reader)
               returns_windowed_values = reader.returns_windowed_values
               for value in reader:
                 if self.has_errored:
@@ -130,7 +151,14 @@ class PrefetchingSourceSetIterable(object):
     try:
       while True:
         try:
-          element = self.element_queue.get()
+          if self.element_queue.empty():
+            # We check the current step only when the Queue is empty because we
+            # will likely block waiting (if the queue is not empty, then we'll
+            # be able to get from it instantly). This allows us to limit how
+            # much we check the current step.
+            self.read_counter.check_step()
+          with self.read_counter:
+            element = self.element_queue.get()
           if element is READER_THREAD_IS_DONE_SENTINEL:
             num_readers_finished += 1
             if num_readers_finished == self.num_reader_threads:
@@ -153,11 +181,15 @@ class PrefetchingSourceSetIterable(object):
 
 
 def get_iterator_fn_for_sources(
-    sources, max_reader_threads=MAX_SOURCE_READER_THREADS):
+    sources,
+    max_reader_threads=MAX_SOURCE_READER_THREADS,
+    read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
     return iter(PrefetchingSourceSetIterable(
-        sources, max_reader_threads=max_reader_threads))
+        sources,
+        max_reader_threads=max_reader_threads,
+        read_counter=read_counter))
   return _inner
 
 
