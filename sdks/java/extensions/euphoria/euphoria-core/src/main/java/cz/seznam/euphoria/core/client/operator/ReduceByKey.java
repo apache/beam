@@ -77,7 +77,8 @@ import java.util.stream.StreamSupport;
 public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     extends StateAwareWindowWiseSingleInputOperator<
         IN, IN, IN, KEY, Pair<KEY, OUT>, W,
-        ReduceByKey<IN, KEY, VALUE, OUT, W>> {
+        ReduceByKey<IN, KEY, VALUE, OUT, W>>
+    implements Builders.OutputValues<KEY, OUT> {
 
   public static class OfBuilder implements Builders.Of {
     private final String name;
@@ -224,7 +225,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
   }
 
   public static class DatasetBuilder4<IN, KEY, VALUE, OUT>
-          implements Builders.Output<Pair<KEY, OUT>>, Builders.WindowBy<IN>,
+          implements Builders.OutputValues<KEY, OUT>, Builders.WindowBy<IN>,
               OptionalMethodBuilder<DatasetBuilder4<IN, KEY, VALUE, OUT>> {
 
     final String name;
@@ -301,7 +302,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
 
 
   public static class DatasetBuilder5<IN, KEY, VALUE, OUT, W extends Window>
-      implements Builders.Output<Pair<KEY, OUT>> {
+      implements Builders.OutputValues<KEY, OUT> {
     private final String name;
     private final Dataset<IN> input;
     private final UnaryFunction<IN, KEY> keyExtractor;
