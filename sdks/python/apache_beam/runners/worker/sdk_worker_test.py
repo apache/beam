@@ -70,44 +70,44 @@ class SdkWorkerTest(unittest.TestCase):
             }) for ix in range(size)
     ]
 
-  def _check_fn_registration_multi_request(self, request_count,
-                                           process_bundles_per_request):
-    requests = []
-    process_bundle_descriptors = []
+  def _check_fn_registration_multi_request(self, *args):
+    """Check the function registration calls to the sdk_harness.
 
-    for i in range(request_count):
-      pbd = self._get_process_bundles(i, process_bundles_per_request)
-      process_bundle_descriptors.extend(pbd)
-      requests.append(
-          beam_fn_api_pb2.InstructionRequest(
-              instruction_id=str(i),
-              register=beam_fn_api_pb2.RegisterRequest(
-                  process_bundle_descriptor=process_bundle_descriptors)))
+    Args:
+     tuple of request_count, number of process_bundles per request and workers counts to process the request.
+    """
+    for (request_count, process_bundles_per_request, worker_count) in args:
+      requests = []
+      process_bundle_descriptors = []
 
-    test_controller = BeamFnControlServicer(requests)
+      for i in range(request_count):
+        pbd = self._get_process_bundles(i, process_bundles_per_request)
+        process_bundle_descriptors.extend(pbd)
+        requests.append(
+            beam_fn_api_pb2.InstructionRequest(
+                instruction_id=str(i),
+                register=beam_fn_api_pb2.RegisterRequest(
+                    process_bundle_descriptor=process_bundle_descriptors)))
 
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-    beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
-        test_controller, server)
-    test_port = server.add_insecure_port("[::]:0")
-    server.start()
+      test_controller = BeamFnControlServicer(requests)
 
-    harness = sdk_worker.SdkHarness("localhost:%s" % test_port, worker_count=1)
-    harness.run()
+      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      beam_fn_api_pb2_grpc.add_BeamFnControlServicer_to_server(
+          test_controller, server)
+      test_port = server.add_insecure_port("[::]:0")
+      server.start()
 
-    for worker in harness.workers.queue:
-      self.assertEqual(worker.fns,
-                       {item.id: item
-                        for item in process_bundle_descriptors})
-    return harness
+      harness = sdk_worker.SdkHarness(
+          "localhost:%s" % test_port, worker_count=worker_count)
+      harness.run()
+
+      for worker in harness.workers.queue:
+        self.assertEqual(worker.fns,
+                         {item.id: item
+                          for item in process_bundle_descriptors})
 
   def test_fn_registration(self):
-    self._check_fn_registration_multi_request(
-        request_count=1, process_bundles_per_request=4)
-
-  def test_fn_registration_multiple_request(self):
-    self._check_fn_registration_multi_request(
-        request_count=4, process_bundles_per_request=4)
+    self._check_fn_registration_multi_request((1, 4, 1), (4, 4, 1), (4, 4, 2))
 
 
 if __name__ == "__main__":

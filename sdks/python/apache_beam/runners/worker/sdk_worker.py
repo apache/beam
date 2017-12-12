@@ -44,7 +44,11 @@ class SdkHarness(object):
     self._control_channel = grpc.insecure_channel(control_address)
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
     self.workers = queue.Queue()
-    # one thread is enough for getting the progress report
+    # one thread is enough for getting the progress report.
+    # Assumption:
+    # Progress report generation should not do IO or wait on other resources.
+    #  Without wait, having multiple threads will not improve performance and
+    #  will only add complexity.
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
     self._process_thread_pool = futures.ThreadPoolExecutor(
         max_workers=self._worker_count)
@@ -63,6 +67,14 @@ class SdkHarness(object):
       state_handler = GrpcStateHandler(
           beam_fn_api_pb2_grpc.BeamFnStateStub(self._control_channel))
       state_handler.start()
+      # SdkHarness manage function registration and share self._fns with all
+      # the workers. This is needed because function registration (register)
+      # and exceution(process_bundle) are send over different request and we
+      # do not really know which woker is going to process bundle
+      # for a function till we get process_bundle request. Moreover
+      # same function is reused by different process bundle calls and
+      # potentially get executed by different worker. Hence we need a
+      # centralized function list shared among all the workers.
       self.workers.put(
           SdkWorker(
               state_handler=state_handler,
