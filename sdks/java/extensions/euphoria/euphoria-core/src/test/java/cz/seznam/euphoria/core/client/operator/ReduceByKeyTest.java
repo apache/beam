@@ -59,7 +59,7 @@ public class ReduceByKeyTest {
     Flow flow = Flow.create("TEST");
     Dataset<String> dataset = Util.createMockDataset(flow, 2);
 
-    Dataset<Long> reduced = ReduceByKey.named("ReduceByKeyVals")
+    Dataset<Long> reduced = ReduceByKey.named("ReduceByKeyValues")
         .of(dataset)
         .keyBy(s -> s)
         .valueBy(s -> 1L)
@@ -68,6 +68,14 @@ public class ReduceByKeyTest {
 
     assertEquals(flow, reduced.getFlow());
     assertEquals(2, flow.size());
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertEquals(flow, reduce.getFlow());
+    assertEquals("ReduceByKeyValues", reduce.getName());
+    assertNotNull(reduce.getKeyExtractor());
+    assertNotNull(reduce.getValueExtractor());
+    assertNotNull(reduce.getReducer());
+    assertNull(reduce.getWindowing());
   }
 
   @Test
