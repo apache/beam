@@ -112,6 +112,44 @@ public class JoinTest extends AbstractOperatorTest {
 
   @Processing(Processing.Type.BOUNDED)
   @Test
+  public void batchJoinFullOuter_outputValues() {
+    execute(new JoinTestCase<Integer, Long, String>() {
+
+      @Override
+      protected Dataset<String> getOutput(
+          Dataset<Integer> left, Dataset<Long> right) {
+        return FullJoin.of(left, right)
+            .by(e -> e, e -> (int) (e % 10))
+            .using((Optional<Integer> l, Optional<Long> r, Collector<String> c) ->
+                c.collect(l.orElse(null) + "+" + r.orElse(null)))
+            .outputValues();
+      }
+
+      @Override
+      protected List<Integer> getLeftInput() {
+        return Arrays.asList(
+            1, 2, 3, 0,
+            4, 3, 2, 1);
+      }
+
+      @Override
+      protected List<Long> getRightInput() {
+        return Arrays.asList(
+            11L, 12L,
+            13L, 14L, 15L);
+      }
+
+      @Override
+      public List<String> getUnorderedOutput() {
+        return Arrays.asList(
+            "0+null", "2+12", "2+12", "4+14",
+            "1+11","1+11","3+13","3+13", "null+15");
+      }
+    });
+  }
+
+  @Processing(Processing.Type.BOUNDED)
+  @Test
   public void batchJoinLeftOuter() {
     execute(new JoinTestCase<Integer, Long, Pair<Integer, String>>() {
 
