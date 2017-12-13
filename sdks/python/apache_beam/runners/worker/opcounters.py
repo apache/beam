@@ -24,6 +24,7 @@ from __future__ import absolute_import
 import math
 import random
 
+from apache_beam.utils import counters
 from apache_beam.utils.counters import Counter
 from apache_beam.utils.counters import CounterName
 
@@ -62,10 +63,19 @@ class SideInputReadCounter(TransformIoCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler, io_target):
+  def __init__(self, counter_factory, state_sampler,
+               declaring_step, input_index):
+    """Create a side input read counter.
+
+    The side input is uniquely identified by (declaring_step, input_index);
+    where declaring_step is the step that receives the PCollectionView as a
+    side input, and input_index is the index of the PCView within the list of
+    inputs.
+    """
     self._counter_factory = counter_factory
     self._state_sampler = state_sampler
-    self.io_target = io_target
+    self.declaring_step = declaring_step
+    self.input_index = input_index
     self.check_step()
 
   def check_step(self):
@@ -79,11 +89,14 @@ class SideInputReadCounter(TransformIoCounter):
     current_state = self._state_sampler.current_state()
     operation_name = current_state.name.step_name
     self.scoped_state = self._state_sampler.scoped_state(
-        operation_name, 'read-sideinput', io_target=self.io_target)
+        self.declaring_step, 'read-sideinput',
+        io_target=counters.side_input_id(operation_name, self.input_index))
     self.bytes_read_counter = self._counter_factory.get_counter(
-        CounterName('read-sideinput-byte-count',
-                    step_name=operation_name,
-                    io_target=self.io_target),
+        CounterName(
+            'read-sideinput-byte-count',
+            step_name=self.declaring_step,
+            io_target=counters.side_input_id(
+                operation_name, self.input_index)),
         Counter.SUM)
 
   def add_bytes_read(self, n):
