@@ -73,14 +73,6 @@ public class JoinTest {
 
     assertEquals(flow, joined.getFlow());
     assertEquals(2, flow.size());
-
-    Join join = (Join) flow.operators().iterator().next();
-    assertEquals(flow, join.getFlow());
-    assertEquals("JoinVals", join.getName());
-    assertNotNull(join.leftKeyExtractor);
-    assertNotNull(join.rightKeyExtractor);
-    // FIXME: how to compare?
-    // assertEquals(joined, join.outputValues());
   }
 
   @Test

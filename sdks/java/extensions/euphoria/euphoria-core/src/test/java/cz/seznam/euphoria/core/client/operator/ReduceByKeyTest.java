@@ -66,16 +66,8 @@ public class ReduceByKeyTest {
         .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
         .outputValues();
 
-    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
     assertEquals(flow, reduced.getFlow());
     assertEquals(2, flow.size());
-
-    assertEquals("ReduceByKeyVals", reduce.getName());
-    assertNotNull(reduce.getKeyExtractor());
-    assertNotNull(reduce.valueExtractor);
-    assertNotNull(reduce.reducer);
-    // FIXME: how to compare?
-    // assertEquals(reduced, reduce.outputValues());
   }
 
   @Test
