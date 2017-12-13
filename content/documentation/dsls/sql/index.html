@@ -153,10 +153,6 @@
 
 <p>This page describes the implementation of Beam SQL, and how to simplify a Beam pipeline with DSL APIs.</p>
 
-<blockquote>
-  <p>Note: Beam SQL hasn’t been merged to master branch yet (being developed with branch <a href="https://github.com/apache/beam/tree/DSL_SQL">DSL_SQL</a>), but is coming soon.</p>
-</blockquote>
-
 <h2 id="overview">1. Overview</h2>
 
 <p>SQL is a well-adopted standard to process data with concise syntax. With DSL APIs (currently available only in Java), now <code class="highlighter-rouge">PCollection</code>s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage <a href="http://calcite.apache.org/">Apache Calcite</a> to parse and optimize SQL queries, then translate into a composite Beam <code class="highlighter-rouge">PTransform</code>. In this way, both SQL and normal Beam <code class="highlighter-rouge">PTransform</code>s can be mixed in the same pipeline.</p>
@@ -261,7 +257,7 @@ PCollection&lt;BeamRecord&gt; output = namesAndFoods.apply(
 
 <p>Both methods wrap the back-end details of parsing/validation/assembling, and deliver a Beam SDK style API that can express simple TABLE_FILTER queries up to complex queries containing JOIN/GROUP_BY etc.</p>
 
-<p><a href="https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a> in the code repository shows basic usage of both APIs.</p>
+<p><a href="https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java">BeamSqlExample</a> in the code repository shows basic usage of both APIs.</p>
 
 <h2 id="functionality">3. Functionality in Beam SQL</h2>
 <p>Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded <code class="highlighter-rouge">PCollection</code> as well. Here’s the supported SQL grammar supported in <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">BNF</a>-like form. An <code class="highlighter-rouge">UnsupportedOperationException</code> is thrown for unsupported features.</p>
