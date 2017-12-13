@@ -477,7 +477,6 @@ public class LocalExecutor implements Executor {
                 // end of the stream
                 writer.flush();
                 writer.commit();
-                writer.close();
                 // and terminate the thread
                 break;
               } else if (datum.isElement()) {

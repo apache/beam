@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.hadoop;
 
+import cz.seznam.euphoria.core.util.ExceptionUtils;
 import org.apache.hadoop.io.Writable;
 
 import java.io.IOException;
@@ -33,7 +34,7 @@ public class SerializableWritable<W extends Writable> implements Serializable {
     this.writable = writable;
   }
 
-  public W getWritable() {
+  public W get() {
     return writable;
   }
 
@@ -42,13 +43,12 @@ public class SerializableWritable<W extends Writable> implements Serializable {
     writable.write(oos);
   }
 
-  private void readObject(ObjectInputStream ois)
-          throws IOException, ClassNotFoundException,
-          InstantiationException, IllegalAccessException {
-    
-    @SuppressWarnings("unchecked")
-    Class<W> cls = (Class<W>) ois.readObject();
-    writable = cls.newInstance();
-    writable.readFields(ois);
+  @SuppressWarnings("unchecked")
+  private void readObject(ObjectInputStream ois) throws IOException {
+    ExceptionUtils.unchecked(() -> {
+      final Class<W> clazz = (Class<W>) ois.readObject();
+      writable = clazz.newInstance();
+      writable.readFields(ois);
+    });
   }
 }

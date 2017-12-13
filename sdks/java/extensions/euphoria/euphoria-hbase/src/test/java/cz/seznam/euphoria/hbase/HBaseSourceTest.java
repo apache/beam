@@ -25,24 +25,26 @@ import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.hbase.util.ResultUtil;
-import java.io.IOException;
-import java.util.Arrays;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.Collections;
+
+import static org.junit.Assert.assertEquals;
 
 /**
  * Integration utility for {@code HBaseSource}.
  */
 public class HBaseSourceTest extends HBaseTestCase {
 
-  HBaseSource source;
-  Flow flow;
+  private HBaseSource source;
+  private Flow flow;
 
   @Before
   @Override
@@ -75,8 +77,7 @@ public class HBaseSourceTest extends HBaseTestCase {
 
     new LocalExecutor().submit(flow).join();
 
-    assertEquals(Arrays.asList(kv), sink.getOutputs());
-
+    assertEquals(Collections.singletonList(kv), sink.getOutputs());
   }
 
 }

@@ -45,7 +45,7 @@ public class SerializableWritableTest {
     ObjectInputStream ois = new ObjectInputStream(bais);
 
     sw = (SerializableWritable<Configuration>) ois.readObject();
-    Configuration newConf = sw.getWritable();
+    Configuration newConf = sw.get();
 
     assertEquals(conf.get("key"), newConf.get("key"));
   }

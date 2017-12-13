@@ -25,7 +25,7 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
  * (binary) sequence files.
  */
 public class SequenceFileSource<K extends Writable, V extends Writable>
-    extends HadoopSource<K, V> {
+    extends HadoopFileSource<K, V> {
 
   /**
    * Convenience constructor invoking

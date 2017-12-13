@@ -25,7 +25,7 @@ import java.util.Objects;
 /**
  * A data source reading hadoop based inputs as a sequences of text lines.
  */
-public class HadoopTextFileSource extends HadoopSource<LongWritable, Text> {
+public class HadoopTextFileSource extends HadoopFileSource<LongWritable, Text> {
 
   /**
    * Convenience constructor invoking
