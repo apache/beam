@@ -504,4 +504,35 @@ public class BasicOperatorTest {
         Sets.newHashSet("2-three", "2-one", "2-two", "2-four"),
         Sets.newHashSet("1-one", "1-two", "1-three", "1-four"));
   }
+
+  @Test
+  public void testReduceOutputValues() throws Exception {
+    Flow flow = Flow.create("Test");
+
+    Dataset<String> input = flow.createInput(ListDataSource.bounded(asList(
+        "Ha", "E-a", "Ae", "B-e", "Dh", "Gi", "F-m", "D-n", "Eo", "Cp", "Fr", "A-s", "Bu", "C-z"
+    )));
+
+    Dataset<String> output = ReduceByKey
+        .of(input)
+        .keyBy(String::length)
+        // concat last characters
+        .reduceBy((Stream<String> words, Collector<String> collector) -> {
+          String result = words
+              .map(word -> word.substring(word.length() - 1))
+              .collect(Collectors.joining());
+          collector.collect(result);
+        })
+        // sort words with the same length
+        .withSortedValues(String::compareTo)
+        // only words without the length
+        .outputValues();
+
+    ListDataSink<String> out = ListDataSink.get();
+    output.persist(out);
+    executor.submit(flow).get();
+
+    DatasetAssert.unorderedEquals(out.getOutputs(),
+        "seznam", "euphoria");
+  }
 }
