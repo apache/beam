@@ -29,6 +29,5 @@ Current branches include:
 | [JStorm Runner]({{ site.baseurl }}/documentation/runners/jstorm) | [jstorm-runner](https://github.com/apache/beam/tree/jstorm-runner) | [runner-jstorm](https://issues.apache.org/jira/browse/BEAM/component/12332477) | [BEAM-1899](https://issues.apache.org/jira/browse/BEAM-1899) |
 | MapReduce Runner | [mr-runner](https://github.com/apache/beam/tree/mr-runner) | [runner-mapreduce](https://issues.apache.org/jira/browse/BEAM/component/12333013) | [BEAM-165](https://issues.apache.org/jira/browse/BEAM-165) |
 | Tez Runner | [tez-runner](https://github.com/apache/beam/tree/tez-runner) | [runner-tez](https://issues.apache.org/jira/browse/BEAM/component/12333014) | [BEAM-2709](https://issues.apache.org/jira/browse/BEAM-2709) |
-| Beam SQL DSL | [DSL_SQL](https://github.com/apache/beam/tree/DSL_SQL) | [dsl-sql](https://issues.apache.org/jira/browse/BEAM/component/12332480) | [BEAM-301](https://issues.apache.org/jira/browse/BEAM-301) |
 | Go SDK | [go-sdk](https://github.com/apache/beam/tree/go-sdk) | [sdk-go](https://issues.apache.org/jira/browse/BEAM/component/12333564) | [BEAM-2083](https://issues.apache.org/jira/browse/BEAM-2083) |
 {:.table}

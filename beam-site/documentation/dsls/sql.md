@@ -12,8 +12,6 @@ permalink: /documentation/dsls/sql/
 
 This page describes the implementation of Beam SQL, and how to simplify a Beam pipeline with DSL APIs.
 
-> Note: Beam SQL hasn't been merged to master branch yet (being developed with branch [DSL_SQL](https://github.com/apache/beam/tree/DSL_SQL)), but is coming soon.
-
 ## 1. Overview {#overview}
 
 SQL is a well-adopted standard to process data with concise syntax. With DSL APIs (currently available only in Java), now `PCollection`s can be queried with standard SQL statements, like a regular table. The DSL APIs leverage [Apache Calcite](http://calcite.apache.org/) to parse and optimize SQL queries, then translate into a composite Beam `PTransform`. In this way, both SQL and normal Beam `PTransform`s can be mixed in the same pipeline.
@@ -108,7 +106,7 @@ Once you have a `PCollection<BeamRecord>` in hand, you may use the `BeamSql` API
 
 Both methods wrap the back-end details of parsing/validation/assembling, and deliver a Beam SDK style API that can express simple TABLE_FILTER queries up to complex queries containing JOIN/GROUP_BY etc.
 
-[BeamSqlExample](https://github.com/apache/beam/blob/DSL_SQL/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java) in the code repository shows basic usage of both APIs.
+[BeamSqlExample](https://github.com/apache/beam/blob/master/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/example/BeamSqlExample.java) in the code repository shows basic usage of both APIs.
 
 ## 3. Functionality in Beam SQL {#functionality}
 Just as the unified model for both bounded and unbounded data in Beam, SQL DSL provides the same functionalities for bounded and unbounded `PCollection` as well. Here's the supported SQL grammar supported in [BNF](http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)-like form. An `UnsupportedOperationException` is thrown for unsupported features.
