@@ -57,6 +57,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -100,6 +101,39 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
             Pair.of(0, Sets.newHashSet(2, 4, 6)),
             Pair.of(1, Sets.newHashSet(1, 3, 5)),
             Pair.of(1, Sets.newHashSet(7, 9)));
+      }
+    });
+  }
+
+  /** Validates the output type upon a `.reduceBy` operation on windows of size one. */
+  @Test
+  public void testReductionType0_outputValues() {
+    execute(new AbstractTestCase<Integer, Set<Integer>>(
+        /* don't parallelize this test, because it doesn't work
+         * well with count windows */
+        1) {
+      @Override
+      protected List<Integer> getInput() {
+        return Arrays.asList(1, 2, 3, 4, 5, 6, 7, 9);
+      }
+
+      @Override
+      protected Dataset<Set<Integer>>
+      getOutput(Dataset<Integer> input) {
+        return ReduceByKey.of(input)
+            .keyBy(e -> e % 2)
+            .valueBy(e -> e)
+            .reduceBy(s -> s.collect(Collectors.toSet()))
+            .windowBy(Count.of(3))
+            .outputValues();
+      }
+
+      @Override
+      public List<Set<Integer>> getUnorderedOutput() {
+        return Arrays.asList(
+            Sets.newHashSet(2, 4, 6),
+            Sets.newHashSet(1, 3, 5),
+            Sets.newHashSet(7, 9));
       }
     });
   }
@@ -198,7 +232,7 @@ public class ReduceByKeyTest extends AbstractOperatorTest {
         assertNotNull(byKey.get(1));
         assertEquals(
             Sets.newHashSet(1, 4, 9, 7, 16),
-            byKey.get(1).stream().collect(Collectors.toSet()));
+            new HashSet<>(byKey.get(1)));
       }
 
       @Override

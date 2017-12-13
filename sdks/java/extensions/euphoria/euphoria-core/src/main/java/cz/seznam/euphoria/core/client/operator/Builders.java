@@ -90,7 +90,8 @@ public class Builders {
     Dataset<T> output();
   }
 
-  public interface OutputValues<K,V> extends Output<Pair<K, V>> {
+  public interface OutputValues<K, V> extends Output<Pair<K, V>> {
+
     /**
      * Finalizes the operator and retrieves its output dataset.
      * Using this output new operator {@link MapElements} is added
@@ -100,7 +101,8 @@ public class Builders {
      */
     default Dataset<V> outputValues() {
       return MapElements
-          .of(this.output())
+          .named("extract-values")
+          .of(output())
           .using(Pair::getSecond)
           .output();
     }

@@ -63,7 +63,7 @@ public class JoinTest {
     Dataset<String> left = Util.createMockDataset(flow, 2);
     Dataset<String> right = Util.createMockDataset(flow, 3);
 
-    Dataset<String> joined = Join.named("JoinVals")
+    Dataset<String> joined = Join.named("JoinValues")
         .of(left, right)
         .by(String::length, String::length)
         .using((String l, String r, Collector<String> c) -> {
@@ -73,6 +73,14 @@ public class JoinTest {
 
     assertEquals(flow, joined.getFlow());
     assertEquals(2, flow.size());
+
+    Join join = (Join) flow.operators().iterator().next();
+    assertEquals(flow, join.getFlow());
+    assertEquals("JoinValues", join.getName());
+    assertNotNull(join.getLeftKeyExtractor());
+    assertNotNull(join.getRightKeyExtractor());
+    assertNull(join.getWindowing());
+    assertEquals(Join.Type.INNER, join.getType());
   }
 
   @Test
