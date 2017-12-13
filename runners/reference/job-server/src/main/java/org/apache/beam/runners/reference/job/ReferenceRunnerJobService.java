@@ -18,8 +18,19 @@
 
 package org.apache.beam.runners.reference.job;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.ImmutableList;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.artifact.local.LocalFileSystemArtifactStagerService;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.CancelJobResponse;
@@ -28,26 +39,75 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
+import org.apache.beam.runners.fnexecution.FnService;
+import org.apache.beam.runners.fnexecution.GrpcFnServer;
+import org.apache.beam.runners.fnexecution.ServerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** The ReferenceRunner uses the portability framework to execute a Pipeline on a single machine. */
-public class ReferenceRunnerJobService extends JobServiceImplBase {
+public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
-  public static ReferenceRunnerJobService create() {
-    return new ReferenceRunnerJobService();
+  public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+    return new ReferenceRunnerJobService(
+        serverFactory, filesTempDirectory());
   }
 
-  private ReferenceRunnerJobService() {}
+  private final ServerFactory serverFactory;
+  private final Callable<Path> stagingPathSupplier;
+
+  private final ConcurrentMap<String, PreparingJob> unpreparedJobs;
+
+  private ReferenceRunnerJobService(
+      ServerFactory serverFactory, Callable<Path> stagingPathSupplier) {
+    this.serverFactory = serverFactory;
+    this.stagingPathSupplier = stagingPathSupplier;
+    unpreparedJobs = new ConcurrentHashMap<>();
+  }
+
+  public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
+    return new ReferenceRunnerJobService(serverFactory, supplier);
+  }
 
   @Override
   public void prepare(
       JobApi.PrepareJobRequest request,
       StreamObserver<JobApi.PrepareJobResponse> responseObserver) {
-    LOG.trace("{} {}", PrepareJobResponse.class.getSimpleName(), request);
-    System.err.println("Preparation Job Blah");
-    responseObserver.onError(Status.UNIMPLEMENTED.asException());
+    try {
+      LOG.trace("{} {}", PrepareJobResponse.class.getSimpleName(), request);
+
+      String preparationId = request.getJobName() + ThreadLocalRandom.current().nextInt();
+      GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
+          createArtifactStagingService(preparationId);
+      PreparingJob previous =
+          unpreparedJobs.putIfAbsent(
+              preparationId,
+              PreparingJob.builder()
+                  .setArtifactStagingServer(artifactStagingService)
+                  .setPipeline(request.getPipeline())
+                  .setOptions(request.getPipelineOptions())
+                  .build());
+      checkArgument(
+          previous == null, "Unexpected existing job with preparation ID %s", preparationId);
+
+      responseObserver.onNext(
+          PrepareJobResponse.newBuilder()
+              .setPreparationId(preparationId)
+              .setArtifactStagingEndpoint(artifactStagingService.getApiServiceDescriptor())
+              .build());
+      responseObserver.onCompleted();
+    } catch (Exception e) {
+      LOG.error("Could not prepare job with name {}", request.getJobName(), e);
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
+  }
+
+  private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService(
+      String preparationId) throws Exception {
+    LocalFileSystemArtifactStagerService service =
+        LocalFileSystemArtifactStagerService.withRootDirectory(stagingPathSupplier.call().toFile());
+    return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
   @Override
@@ -75,5 +135,24 @@ public class ReferenceRunnerJobService extends JobServiceImplBase {
         Status.NOT_FOUND
             .withDescription(String.format("Unknown Job ID %s", request.getJobId()))
             .asException());
+  }
+
+  @Override
+  public void close() throws Exception {
+    for (PreparingJob preparingJob : ImmutableList.copyOf(unpreparedJobs.values())) {
+      try {
+        preparingJob.close();
+      } catch (Exception e) {
+        LOG.warn("Exception while closing preparing job {}", preparingJob);
+      }
+    }
+  }
+
+  private static Callable<Path> filesTempDirectory() {
+    return new Callable<Path>() {
+      public Path call() throws IOException {
+        return Files.createTempDirectory("reference-runner-staging");
+      }
+    };
   }
 }

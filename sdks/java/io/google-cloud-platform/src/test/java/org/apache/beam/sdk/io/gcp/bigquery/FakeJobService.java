@@ -312,7 +312,14 @@ class FakeJobService implements JobService, Serializable {
       return new JobStatus().setState("FAILED").setErrorResult(new ErrorProto());
     }
     if (existingTable == null) {
-      existingTable = new Table().setTableReference(destination).setSchema(schema);
+      TableReference strippedDestination =
+          destination
+              .clone()
+              .setTableId(BigQueryHelpers.stripPartitionDecorator(destination.getTableId()));
+      existingTable =
+          new Table()
+              .setTableReference(strippedDestination)
+              .setSchema(schema);
       if (load.getTimePartitioning() != null) {
         existingTable = existingTable.setTimePartitioning(load.getTimePartitioning());
       }

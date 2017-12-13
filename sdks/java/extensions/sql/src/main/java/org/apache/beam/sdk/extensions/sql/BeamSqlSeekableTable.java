@@ -15,12 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.beam.sdk.extensions.sql;
+
+import java.io.Serializable;
+import java.util.List;
+import org.apache.beam.sdk.annotations.Experimental;
+import org.apache.beam.sdk.values.BeamRecord;
 
 /**
- * Provides utilities for a Beam runner to interact with a client using the Fn API.
+ * A seekable table converts a JOIN operator to an inline lookup.
+ * It's triggered by {@code SELECT * FROM FACT_TABLE JOIN LOOKUP_TABLE ON ...}.
  */
-@DefaultAnnotation(NonNull.class)
-package org.apache.beam.runners.core.fn;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.NonNull;
+@Experimental
+public interface BeamSqlSeekableTable extends Serializable{
+  /**
+   * return a list of {@code BeamRecord} with given key set.
+   */
+  List<BeamRecord> seekRecord(BeamRecord lookupSubRecord);
+}

@@ -96,6 +96,7 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   @Override
   public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
+    validateWholeTableReference(tableRef);
     synchronized (BigQueryIOTest.tables) {
       Map<String, TableContainer> dataset =
           BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
@@ -109,12 +110,13 @@ class FakeDatasetService implements DatasetService, Serializable {
     }
   }
 
-
-  @Override
-  public void createTable(Table table) throws IOException {
+  /**
+   * Validates a table reference for whole-table operations, such as create/delete/patch. Such
+   * operations do not support partition decorators.
+   */
+  private static void validateWholeTableReference(TableReference tableReference)
+      throws IOException {
     final Pattern tableRegexp = Pattern.compile("[-\\w]{1,1024}");
-
-    TableReference tableReference = table.getTableReference();
     if (!tableRegexp.matcher(tableReference.getTableId()).matches()) {
       throw new IOException(
           String.format(
@@ -123,6 +125,12 @@ class FakeDatasetService implements DatasetService, Serializable {
                   + " decorators cannot be used.",
               tableReference.getTableId()));
     }
+  }
+
+  @Override
+  public void createTable(Table table) throws IOException {
+    TableReference tableReference = table.getTableReference();
+    validateWholeTableReference(tableReference);
     synchronized (BigQueryIOTest.tables) {
       Map<String, TableContainer> dataset =
           BigQueryIOTest.tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
@@ -245,6 +253,7 @@ class FakeDatasetService implements DatasetService, Serializable {
   public Table patchTableDescription(TableReference tableReference,
                                      @Nullable String tableDescription)
       throws IOException, InterruptedException {
+    validateWholeTableReference(tableReference);
     synchronized (BigQueryIOTest.tables) {
       TableContainer tableContainer = getTableContainer(tableReference.getProjectId(),
           tableReference.getDatasetId(), tableReference.getTableId());

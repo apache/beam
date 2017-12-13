@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.fn.harness.stream;
+package org.apache.beam.sdk.fn.stream;
 
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -24,10 +24,8 @@ import static org.junit.Assert.assertThat;
 
 import io.grpc.stub.CallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import org.apache.beam.sdk.fn.stream.BufferingStreamObserver;
-import org.apache.beam.sdk.fn.stream.DirectStreamObserver;
-import org.apache.beam.sdk.fn.stream.ForwardingClientResponseObserver;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import java.util.concurrent.Executors;
+import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -49,39 +47,34 @@ public class StreamObserverFactoryTest {
   @Test
   public void testDefaultInstantiation() {
     StreamObserver<String> observer =
-        StreamObserverFactory.fromOptions(PipelineOptionsFactory.create())
-            .from(this::fakeFactory, mockRequestObserver);
+        StreamObserverFactory.direct().from(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(DirectStreamObserver.class));
   }
 
   @Test
   public void testBufferedStreamInstantiation() {
     StreamObserver<String> observer =
-        StreamObserverFactory.fromOptions(
-                PipelineOptionsFactory.fromArgs(
-                        new String[] {"--experiments=beam_fn_api_buffered_stream"})
-                    .create())
-            .from(this::fakeFactory, mockRequestObserver);
+        StreamObserverFactory.buffered(Executors.newSingleThreadExecutor())
+            .from(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
   }
 
   @Test
   public void testBufferedStreamWithLimitInstantiation() {
     StreamObserver<String> observer =
-        StreamObserverFactory.fromOptions(
-                PipelineOptionsFactory.fromArgs(
-                        new String[] {
-                          "--experiments=beam_fn_api_buffered_stream,"
-                          + "beam_fn_api_buffered_stream_buffer_size=1"
-                        })
-                    .create())
-            .from(this::fakeFactory, mockRequestObserver);
+        StreamObserverFactory.buffered(Executors.newSingleThreadExecutor(), 1)
+            .from(this.fakeFactory(), mockRequestObserver);
     assertThat(observer, instanceOf(BufferingStreamObserver.class));
     assertEquals(1, ((BufferingStreamObserver<String>) observer).getBufferSize());
   }
 
-  private StreamObserver<String> fakeFactory(StreamObserver<Integer> observer) {
-    assertThat(observer, instanceOf(ForwardingClientResponseObserver.class));
-    return mockResponseObserver;
+  private StreamObserverClientFactory<Integer, String> fakeFactory() {
+    return new StreamObserverClientFactory<Integer, String>() {
+      @Override
+      public StreamObserver<String> outboundObserverFor(StreamObserver<Integer> inboundObserver) {
+        assertThat(inboundObserver, instanceOf(ForwardingClientResponseObserver.class));
+        return mockResponseObserver;
+      }
+    };
   }
 }

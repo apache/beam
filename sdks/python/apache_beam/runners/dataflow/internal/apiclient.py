@@ -569,7 +569,7 @@ class DataflowApplicationClient(object):
     request.location = self.google_cloud_options.region
     request.job = dataflow.Job(requestedState=new_state)
 
-    self._client.projects_jobs.Update(request)
+    self._client.projects_locations_jobs.Update(request)
     return True
 
   @retry.with_exponential_backoff()  # Using retry defaults from utils/retry.py

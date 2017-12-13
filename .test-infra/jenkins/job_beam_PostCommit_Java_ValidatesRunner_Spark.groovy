@@ -25,7 +25,7 @@ mavenJob('beam_PostCommit_Java_ValidatesRunner_Spark') {
   previousNames('beam_PostCommit_Java_RunnableOnService_Spark')
 
   // Set common parameters.
-  common_job_properties.setTopLevelMainJobProperties(delegate)
+  common_job_properties.setTopLevelMainJobProperties(delegate, 'master', 120)
 
   // Set maven parameters.
   common_job_properties.setMavenConfig(delegate)

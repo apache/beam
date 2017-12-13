@@ -108,7 +108,7 @@ public class WordCountTest {
       .apply(ParDo.of(new ExtractWordsFn()))
       .apply(Count.<String>perElement())
       .apply(ParDo.of(new FormatAsStringFn()))
-      .apply("WriteCounts", TextIO.write().to(options.getOutput()).withNumShards(2))
+      .apply("WriteCounts", TextIO.write().to(options.getOutput()))
       ;
     p.run().waitUntilFinish();
   }

@@ -107,6 +107,26 @@
             </configuration>
           </execution>
           <execution>
+            <id>setup-compile-grpcio</id>
+            <phase>compile</phase>
+            <goals>
+              <goal>exec</goal>
+            </goals>
+            <configuration>
+              <executable>${python.pip.bin}</executable>
+              <arguments>
+                <argument>install</argument>
+                <argument>--user</argument>
+                <argument>--upgrade</argument>
+                <argument>--ignore-installed</argument>
+                <argument>grpcio-tools</argument>
+              </arguments>
+              <environmentVariables>
+                <PYTHONUSERBASE>${python.user.base}</PYTHONUSERBASE>
+              </environmentVariables>
+            </configuration>
+          </execution>
+          <execution>
             <id>setuptools-build</id>
             <phase>compile</phase>
             <goals>

@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
-import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +53,7 @@ public class BeamFnDataGrpcMultiplexer {
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   @VisibleForTesting
   final ConcurrentMap<
-          KV<String, BeamFnApi.Target>, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
+          LogicalEndpoint, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
@@ -83,10 +83,8 @@ public class BeamFnDataGrpcMultiplexer {
   }
 
   public CompletableFuture<Consumer<BeamFnApi.Elements.Data>> futureForKey(
-      KV<String, BeamFnApi.Target> key) {
-    return consumers.computeIfAbsent(
-        key,
-        (KV<String, BeamFnApi.Target> unused) -> new CompletableFuture<>());
+      LogicalEndpoint key) {
+    return consumers.computeIfAbsent(key, (LogicalEndpoint unused) -> new CompletableFuture<>());
   }
 
   /**
@@ -102,8 +100,8 @@ public class BeamFnDataGrpcMultiplexer {
     public void onNext(BeamFnApi.Elements value) {
       for (BeamFnApi.Elements.Data data : value.getDataList()) {
         try {
-          KV<String, BeamFnApi.Target> key =
-              KV.of(data.getInstructionReference(), data.getTarget());
+          LogicalEndpoint key =
+              LogicalEndpoint.of(data.getInstructionReference(), data.getTarget());
           CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = futureForKey(key);
           if (!consumer.isDone()) {
             LOG.debug("Received data for key {} without consumer ready. "
