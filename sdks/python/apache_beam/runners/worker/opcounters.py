@@ -63,9 +63,16 @@ class SideInputReadCounter(TransformIoCounter):
   not be the only step that spends time reading from this side input.
   """
 
-  def __init__(self, counter_factory, state_sampler,
-               declaring_step, input_index):
+  def __init__(self, counter_factory, state_sampler, declaring_step,
+               input_index):
     """Create a side input read counter.
+
+    Args:
+      counter_factory: A counters.CounterFactory to create byte counters.
+      state_sampler: A statesampler.StateSampler to transition into read states.
+      declaring_step: The step that directly receives the side input initially.
+      input_index: The index of the side input in the list of inputs of the
+        declaring step.
 
     The side input is uniquely identified by (declaring_step, input_index);
     where declaring_step is the step that receives the PCollectionView as a
@@ -89,14 +96,14 @@ class SideInputReadCounter(TransformIoCounter):
     current_state = self._state_sampler.current_state()
     operation_name = current_state.name.step_name
     self.scoped_state = self._state_sampler.scoped_state(
-        self.declaring_step, 'read-sideinput',
+        self.declaring_step,
+        'read-sideinput',
         io_target=counters.side_input_id(operation_name, self.input_index))
     self.bytes_read_counter = self._counter_factory.get_counter(
         CounterName(
             'read-sideinput-byte-count',
             step_name=self.declaring_step,
-            io_target=counters.side_input_id(
-                operation_name, self.input_index)),
+            io_target=counters.side_input_id(operation_name, self.input_index)),
         Counter.SUM)
 
   def add_bytes_read(self, n):
