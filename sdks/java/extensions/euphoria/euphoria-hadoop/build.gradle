@@ -3,5 +3,6 @@ dependencies {
   compileOnly "org.apache.hadoop:hadoop-common:${hadoopVersion}"
   compileOnly "org.apache.hadoop:hadoop-mapreduce-client-core:${hadoopVersion}"
   compile "com.esotericsoftware.kryo:kryo:${kryoVersion}"
+  testCompile project(':euphoria-local')
 }
 
