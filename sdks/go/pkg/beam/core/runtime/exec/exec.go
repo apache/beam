@@ -13,6 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package exec contains runtime plan representation and execution. A pipeline
+// must be translated to a runtime plan to be executed.
 package exec
 
 import (

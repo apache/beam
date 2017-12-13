@@ -54,7 +54,7 @@ func (p PCollection) IsValid() bool {
 
 // Type returns the full type 'A' of the elements. 'A' must be a concrete
 // Windowed Value type, such as W<int> or W<KV<int,string>>.
-func (p PCollection) Type() typex.FullType {
+func (p PCollection) Type() FullType {
 	if !p.IsValid() {
 		panic("Invalid PCollection")
 	}

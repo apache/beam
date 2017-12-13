@@ -89,10 +89,6 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 			unit := &Impulse{UID: idgen.New(), Edge: edge}
 			units = append(units, unit)
 
-		case graph.Source:
-			unit := &exec.Source{UID: idgen.New(), Edge: edge}
-			units = append(units, unit)
-
 		case graph.ParDo:
 			unit := &exec.ParDo{UID: idgen.New(), Edge: edge}
 			units = append(units, unit)
@@ -226,8 +222,6 @@ func build(mgr exec.DataManager, instID string, list []*graph.MultiEdge) ([]exec
 
 func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
 	switch unit.(type) {
-	case *exec.Source:
-		return unit.(*exec.Source).Edge, true
 	case *exec.ParDo:
 		return unit.(*exec.ParDo).Edge, true
 	case *exec.Combine:
@@ -247,8 +241,6 @@ func getEdge(unit exec.Unit) (*graph.MultiEdge, bool) {
 
 func setOut(unit exec.Unit, out []exec.Node) {
 	switch unit.(type) {
-	case *exec.Source:
-		unit.(*exec.Source).Out = out
 	case *exec.ParDo:
 		unit.(*exec.ParDo).Out = out
 	case *exec.Combine:

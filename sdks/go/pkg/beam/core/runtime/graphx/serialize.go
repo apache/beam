@@ -318,6 +318,14 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 	if s, ok := tryEncodeSpecial(t); ok {
 		return &v1.Type{Kind: v1.Type_SPECIAL, Special: s}, nil
 	}
+	if k, ok := runtime.TypeKey(t); ok {
+		if _, present := runtime.LookupType(k); present {
+			// External type. Serialize by key and lookup in registry
+			// on decoding side.
+
+			return &v1.Type{Kind: v1.Type_EXTERNAL, ExternalKey: k}, nil
+		}
+	}
 
 	// The supplied type isn't special, so apply the standard encodings.
 	switch t.Kind() {
@@ -354,15 +362,6 @@ func encodeType(t reflect.Type) (*v1.Type, error) {
 		return &v1.Type{Kind: v1.Type_SLICE, Element: elm}, nil
 
 	case reflect.Struct:
-		if k, ok := runtime.TypeKey(t); ok {
-			if _, present := runtime.LookupType(k); present {
-				// External type. Serialize by key and lookup in registry
-				// on decoding side.
-
-				return &v1.Type{Kind: v1.Type_EXTERNAL, ExternalKey: k}, nil
-			}
-		}
-
 		var fields []*v1.Type_StructField
 		for i := 0; i < t.NumField(); i++ {
 			f := t.Field(i)
