@@ -41,15 +41,15 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Stream;
-
-import static java.util.Arrays.asList;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import static java.util.Arrays.asList;
 import static java.util.stream.Collectors.toList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Test basic operator functionality and ability to compile.
