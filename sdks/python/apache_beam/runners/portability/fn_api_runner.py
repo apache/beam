@@ -745,10 +745,12 @@ class FnApiRunner(runner.PipelineRunner):
             state_key, elements_data, process_bundle.instruction_id)
 
     # Register and start running the bundle.
+    logging.debug('Register and start running the bundle')
     controller.control_handler.push(process_bundle_registration)
     controller.control_handler.push(process_bundle)
 
     # Wait for the bundle to finish.
+    logging.debug('Wait for the bundle to finish.')
     while True:
       result = controller.control_handler.pull()
       if result and result.instruction_id == process_bundle.instruction_id:
@@ -756,11 +758,14 @@ class FnApiRunner(runner.PipelineRunner):
           raise RuntimeError(result.error)
         break
 
-    # Gather all output data.
     expected_targets = [
         beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
                                name=output_name)
         for (transform_id, output_name), _ in data_output.items()]
+
+    # Gather all output data.
+    logging.debug('Gather all output data from %s.', expected_targets)
+
     for output in controller.data_plane_handler.input_elements(
         process_bundle.instruction_id, expected_targets):
       target_tuple = (
