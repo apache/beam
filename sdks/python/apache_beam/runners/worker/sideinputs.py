@@ -22,8 +22,8 @@ import logging
 import Queue
 import threading
 import traceback
-import types
 
+from apache_beam.coders import observable
 from apache_beam.io import iobase
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
@@ -52,7 +52,8 @@ _globally_windowed = window.GlobalWindows.windowed_value(None).with_value
 class PrefetchingSourceSetIterable(object):
   """Value iterator that reads concurrently from a set of sources."""
 
-  def __init__(self, sources,
+  def __init__(self,
+               sources,
                max_reader_threads=MAX_SOURCE_READER_THREADS,
                read_counter=None):
     self.sources = sources
@@ -77,19 +78,20 @@ class PrefetchingSourceSetIterable(object):
     self._start_reader_threads()
 
   def add_byte_counter(self, reader):
-    """Adds byte counter to an Avro side input reader.
+    """Adds byte counter observer to a side input reader.
 
-    The NativeAvroSourceReader is used internally by Dataflow to fetch side
-    inputs in batch.
+    Args:
+      reader: A reader that should inherit from ObservableMixin to have
+        bytes tracked.
     """
 
-    def decode_record(zelf, record):
-      self.read_counter.add_bytes_read(len(record))
-      return zelf.source.coder.decode(record)
+    def update_bytes_read(record, is_encoded=True):
+      # Observe records, and count bytes from encoded records.
+      if is_encoded:
+        self.read_counter.add_bytes_read(len(record))
 
-    if (self.read_counter and
-        reader.__class__.__name__ == 'NativeAvroSourceReader'):
-      reader.decode_record = types.MethodType(decode_record, reader)
+    if self.read_counter and isinstance(reader, observable.ObservableMixin):
+      reader.register_observer(update_bytes_read)
 
   def _start_reader_threads(self):
     for _ in range(0, self.num_reader_threads):
@@ -180,16 +182,17 @@ class PrefetchingSourceSetIterable(object):
         t.join()
 
 
-def get_iterator_fn_for_sources(
-    sources,
-    max_reader_threads=MAX_SOURCE_READER_THREADS,
-    read_counter=None):
+def get_iterator_fn_for_sources(sources,
+                                max_reader_threads=MAX_SOURCE_READER_THREADS,
+                                read_counter=None):
   """Returns callable that returns iterator over elements for given sources."""
   def _inner():
-    return iter(PrefetchingSourceSetIterable(
-        sources,
-        max_reader_threads=max_reader_threads,
-        read_counter=read_counter))
+    return iter(
+        PrefetchingSourceSetIterable(
+            sources,
+            max_reader_threads=max_reader_threads,
+            read_counter=read_counter))
+
   return _inner
 
 

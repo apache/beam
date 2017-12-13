@@ -21,6 +21,9 @@ import logging
 import time
 import unittest
 
+import mock
+
+from apache_beam.coders import observable
 from apache_beam.runners.worker import sideinputs
 
 
@@ -37,15 +40,18 @@ class FakeSource(object):
     return FakeSourceReader(self.items)
 
 
-class FakeSourceReader(object):
+class FakeSourceReader(observable.ObservableMixin):
 
   def __init__(self, items):
+    super(FakeSourceReader, self).__init__()
     self.items = items
     self.entered = False
     self.exited = False
 
   def __iter__(self):
-    return iter(self.items)
+    for item in self.items:
+      self.notify_observers(item, is_encoded=isinstance(item, bytes))
+      yield item
 
   def __enter__(self):
     self.entered = True
@@ -68,6 +74,18 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     iterator_fn = sideinputs.get_iterator_fn_for_sources(
         sources, max_reader_threads=2)
     assert list(strip_windows(iterator_fn())) == range(6)
+
+  def test_bytes_read_are_reported(self):
+    mock_read_counter = mock.MagicMock()
+    source_records = ['a', 'b', 'c', 'd']
+    sources = [
+        FakeSource(source_records),
+    ]
+    iterator_fn = sideinputs.get_iterator_fn_for_sources(
+        sources, max_reader_threads=3, read_counter=mock_read_counter)
+    assert list(strip_windows(iterator_fn())) == source_records
+    mock_read_counter.add_bytes_read.assert_has_calls(
+        [mock.call(len(r)) for r in source_records])
 
   def test_multiple_sources_iterator_fn(self):
     sources = [
