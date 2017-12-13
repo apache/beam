@@ -117,6 +117,7 @@ class GcsIO(object):
         credentials = auth.get_service_credentials()
         storage_client = storage.StorageV1(
             credentials=credentials,
+            get_credentials=False,
             http=httplib2.Http(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS))
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))

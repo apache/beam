@@ -123,6 +123,7 @@ def get_service_credentials():
       logging.debug('Connecting using Google Application Default '
                     'Credentials.')
       return credentials
-    except Exception:
-      logging.warning('Unable to find default credentials to use.')
-      raise
+    except Exception as e:
+      logging.warning(
+          'Unable to find default credentials to use: %s\n'
+          'Connecting anonymously.' % e)
