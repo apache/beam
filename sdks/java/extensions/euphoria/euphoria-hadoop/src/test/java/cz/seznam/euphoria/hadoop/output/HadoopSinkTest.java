@@ -13,28 +13,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package cz.seznam.euphoria.hadoop.input;
+package cz.seznam.euphoria.hadoop.output;
 
+import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
 import cz.seznam.euphoria.core.client.operator.MapElements;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
-import cz.seznam.euphoria.hadoop.output.HadoopSink;
-import cz.seznam.euphoria.hadoop.output.SequenceFileSink;
+import cz.seznam.euphoria.hadoop.HadoopUtils;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
-
-import static org.junit.Assert.*;
+import java.util.stream.Collectors;
 
 public class HadoopSinkTest {
 
@@ -42,7 +50,7 @@ public class HadoopSinkTest {
   public TemporaryFolder tmp = new TemporaryFolder();
 
   @Test
-  public void test() throws InterruptedException {
+  public void test() throws InterruptedException, IOException {
 
     final Flow flow = Flow.create();
 
@@ -64,12 +72,33 @@ public class HadoopSinkTest {
     final Executor executor = new LocalExecutor().setDefaultParallelism(4);
     executor.submit(flow).join();
 
-    final long numFiles = Arrays
+    final List<Pair<Text, LongWritable>> output = Arrays
         .stream(Objects.requireNonNull(tmp.getRoot().list()))
         .filter(file -> file.startsWith("part-r-"))
-        .count();
+        .flatMap(part -> ExceptionUtils.unchecked(() -> {
+          try (final SequenceFileRecordReader<Text, LongWritable> reader =
+                   new SequenceFileRecordReader<>()) {
+            final Path path = new Path(tmp.getRoot().getAbsolutePath() + "/" + part);
+            final TaskAttemptContext taskContext =
+                HadoopUtils.createTaskContext(new Configuration(), HadoopUtils.getJobID(), 0);
+            reader.initialize(
+                new FileSplit(path, 0L, Long.MAX_VALUE, new String[]{"localhost"}),
+                taskContext);
+            final List<Pair<Text, LongWritable>> result = new ArrayList<>();
+            while (reader.nextKeyValue()) {
+              result.add(Pair.of(reader.getCurrentKey(), reader.getCurrentValue()));
+            }
+            return result.stream();
+          }
+        }))
+        .collect(Collectors.toList());
 
-    assertEquals(4, numFiles);
+    DatasetAssert.unorderedEquals(Arrays.asList(
+        Pair.of(new Text("first"), new LongWritable(1L)),
+        Pair.of(new Text("second"), new LongWritable(2L)),
+        Pair.of(new Text("third"), new LongWritable(3L)),
+        Pair.of(new Text("fourth"), new LongWritable(3L))
+    ), output);
   }
 
 }

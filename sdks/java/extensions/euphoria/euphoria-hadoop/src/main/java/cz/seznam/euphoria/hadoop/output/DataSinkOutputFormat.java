@@ -59,7 +59,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
    */
   public static Configuration configure(Configuration conf, DataSink<?> sink)
       throws IOException {
-
     conf.set(DATA_SINK, toBase64(sink));
     return conf;
   }
@@ -86,7 +85,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
   }
 
   private static String toBase64(DataSink<?> sink) throws IOException {
-
     byte[] bytes = Serializer.toBytes(sink);
     return Base64.getEncoder().encodeToString(bytes);
   }
@@ -94,7 +92,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
   @SuppressWarnings("unchecked")
   private static <V> DataSink<V> fromBase64(String base64Bytes)
       throws IOException, ClassNotFoundException {
-
     byte[] bytes = Base64.getDecoder().decode(base64Bytes);
     return Serializer.fromBytes(bytes);
   }
@@ -109,7 +106,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
   @SuppressWarnings("unchecked")
   public RecordWriter<NullWritable, V> getRecordWriter(TaskAttemptContext tac)
       throws IOException, InterruptedException {
-
     instantiateWriter(tac);
     return new HadoopRecordWriter<>(writer);
   }
@@ -126,6 +122,7 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
       throws IOException, InterruptedException {
     
     instantiateSink(tac);
+
     return new OutputCommitter() {
 
       @Override
@@ -174,7 +171,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
 
     };
   }
-
 
   private void instantiateWriter(TaskAttemptContext tac) throws IOException {
     if (writer == null) {
