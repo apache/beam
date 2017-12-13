@@ -42,7 +42,6 @@ from apache_beam.transforms import core
 from apache_beam.transforms.combiners import PhasedCombineFnExecutor
 from apache_beam.transforms.combiners import curry_combine_fn
 from apache_beam.transforms.window import GlobalWindows
-from apache_beam.utils import counters
 from apache_beam.utils.windowed_value import WindowedValue
 
 # Allow some "pure mode" declarations.
@@ -310,8 +309,9 @@ class DoOperation(Operation):
       si_counter = opcounters.SideInputReadCounter(
           self.counter_factory,
           self.state_sampler,
+          declaring_step=self.operation_name,
           # Inputs are 1-indexed, so we add 1 to i in the side input id
-          counters.side_input_id(self.operation_name, i + 1))
+          input_index=i + 1)
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
