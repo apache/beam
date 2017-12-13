@@ -74,7 +74,8 @@ class SdkWorkerTest(unittest.TestCase):
     """Check the function registration calls to the sdk_harness.
 
     Args:
-     tuple of request_count, number of process_bundles per request and workers counts to process the request.
+     tuple of request_count, number of process_bundles per request and workers
+     counts to process the request.
     """
     for (request_count, process_bundles_per_request, worker_count) in args:
       requests = []
