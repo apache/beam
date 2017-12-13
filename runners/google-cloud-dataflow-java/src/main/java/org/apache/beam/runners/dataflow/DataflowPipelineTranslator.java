@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.runners.dataflow.DataflowRunner.hasExperiment;
 import static org.apache.beam.runners.dataflow.util.Structs.addBoolean;
 import static org.apache.beam.runners.dataflow.util.Structs.addDictionary;
 import static org.apache.beam.runners.dataflow.util.Structs.addList;
@@ -84,6 +85,7 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -349,7 +351,7 @@ public class DataflowPipelineTranslator {
         job.setLabels(options.getLabels());
       }
       if (options.isStreaming()
-          && !DataflowRunner.hasExperiment(options, "enable_windmill_service")) {
+          && !hasExperiment(options, "enable_windmill_service")) {
         // Use separate data disk for streaming.
         Disk disk = new Disk();
         disk.setDiskType(options.getWorkerDiskType());
@@ -447,11 +449,20 @@ public class DataflowPipelineTranslator {
     public void visitValue(PValue value, TransformHierarchy.Node producer) {
       LOG.debug("Checking translation of {}", value);
       // Primitive transforms are the only ones assigned step names.
-      if (producer.getTransform() instanceof CreateDataflowView) {
-        // CreateDataflowView produces a dummy output (as it must be a primitive transform) but
-        // in the Dataflow Job graph produces only the view and not the output PCollection.
+      if (producer.getTransform() instanceof CreateDataflowView
+          && !hasExperiment(options, "beam_fn_api")) {
+        // CreateDataflowView produces a dummy output (as it must be a primitive transform)
+        // but in the Dataflow Job graph produces only the view and not the output PCollection.
         asOutputReference(
             ((CreateDataflowView) producer.getTransform()).getView(),
+            producer.toAppliedPTransform(getPipeline()));
+        return;
+      } else if (producer.getTransform() instanceof View.CreatePCollectionView
+          && hasExperiment(options, "beam_fn_api")) {
+        // View.CreatePCollectionView produces a dummy output (as it must be a primitive transform)
+        // but in the Dataflow Job graph produces only the view and not the output PCollection.
+        asOutputReference(
+            ((View.CreatePCollectionView) producer.getTransform()).getView(),
             producer.toAppliedPTransform(getPipeline()));
         return;
       }
@@ -679,6 +690,24 @@ public class DataflowPipelineTranslator {
   ///////////////////////////////////////////////////////////////////////////
 
   static {
+    registerTransformTranslator(
+        View.CreatePCollectionView.class,
+        new TransformTranslator<View.CreatePCollectionView>() {
+          @Override
+          public void translate(View.CreatePCollectionView transform, TranslationContext context) {
+            translateTyped(transform, context);
+          }
+
+          private <ElemT, ViewT> void translateTyped(
+              View.CreatePCollectionView<ElemT, ViewT> transform, TranslationContext context) {
+            StepTranslationContext stepContext =
+                context.addStep(transform, "CollectionToSingleton");
+            PCollection<ElemT> input = context.getInput(transform);
+            stepContext.addInput(PropertyNames.PARALLEL_INPUT, input);
+            stepContext.addCollectionToSingletonOutput(input, transform.getView());
+          }
+        });
+
     registerTransformTranslator(
         CreateDataflowView.class,
         new TransformTranslator<CreateDataflowView>() {
