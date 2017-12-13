@@ -13,6 +13,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package runtime contains runtime hooks and utilities for pipeline options
+// and type registration. Most functionality done in init and hence is
+// available both during pipeline-submission and at runtime.
 package runtime
 
 var (

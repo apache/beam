@@ -181,17 +181,6 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			Element:  []string{url.QueryEscape(value)},
 		}, nil
 
-	case graph.Source:
-		fn, err := serializeFn(edge)
-		if err != nil {
-			return "", properties{}, err
-		}
-		return "ParallelRead", properties{
-			CustomSourceInputStep: newCustomSourceInputStep(fn),
-			UserName:              buildName(edge.Scope(), edge.DoFn.Name()),
-			Format:                "custom_source",
-		}, nil
-
 	case graph.ParDo:
 		fn, err := serializeFn(edge)
 		if err != nil {
@@ -225,11 +214,6 @@ func translateEdge(edge *graph.MultiEdge) (string, properties, error) {
 			UserName:                buildName(edge.Scope(), "group"), // TODO: user-defined
 			DisallowCombinerLifting: true,
 			SerializedFn:            sfn,
-		}, nil
-
-	case graph.Sink:
-		return "ParallelWrite", properties{
-		// TODO
 		}, nil
 
 	case graph.Flatten:

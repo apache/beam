@@ -63,6 +63,8 @@ var PipelineOptions = runtime.GlobalOptions
 // We forward typex types used in UserFn signatures to avoid having such code
 // depend on the typex package directly.
 
+type FullType = typex.FullType
+
 type T = typex.T
 type U = typex.U
 type V = typex.V

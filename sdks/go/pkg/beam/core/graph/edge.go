@@ -31,15 +31,14 @@ type Opcode string
 
 // Valid opcodes.
 const (
+	Impulse    Opcode = "Impulse"
 	ParDo      Opcode = "ParDo"
 	GBK        Opcode = "GBK" // TODO: Unify with CoGBK?
-	Source     Opcode = "Source"
-	Sink       Opcode = "Sink"
+	External   Opcode = "External"
 	Flatten    Opcode = "Flatten"
 	Combine    Opcode = "Combine"
 	DataSource Opcode = "DataSource"
 	DataSink   Opcode = "DataSink"
-	Impulse    Opcode = "Impulse"
 )
 
 // InputKind represents the role of the input and its shape.
@@ -143,6 +142,12 @@ type Target struct {
 	Name string
 }
 
+// Payload represents an external payload.
+type Payload struct {
+	URN  string
+	Data []byte
+}
+
 // TODO(herohde) 5/24/2017: how should we represent/obtain the coder for Combine
 // accumulator types? Coder registry? Assume JSON?
 
@@ -153,11 +158,12 @@ type MultiEdge struct {
 	parent *Scope
 
 	Op        Opcode
-	DoFn      *DoFn      // ParDo, Source.
-	CombineFn *CombineFn // Combine.
-	Port      *Port      // DataSource, DataSink.
-	Target    *Target    // DataSource, DataSink.
+	DoFn      *DoFn      // ParDo
+	CombineFn *CombineFn // Combine
+	Port      *Port      // DataSource, DataSink
+	Target    *Target    // DataSource, DataSink
 	Value     []byte     // Impulse
+	Payload   *Payload   // External
 
 	Input  []*Inbound
 	Output []*Outbound
@@ -246,19 +252,25 @@ func NewFlatten(g *Graph, s *Scope, in []*Node) (*MultiEdge, error) {
 	return edge, nil
 }
 
+// NewExternal inserts an External transform. The system makes no assumptions about
+// what this transform might do.
+func NewExternal(g *Graph, s *Scope, payload *Payload, in []*Node, out []typex.FullType) *MultiEdge {
+	edge := g.NewEdge(s)
+	edge.Op = External
+	edge.Payload = payload
+	for _, n := range in {
+		edge.Input = append(edge.Input, &Inbound{Kind: Main, From: n, Type: n.Type()})
+	}
+	for _, t := range out {
+		n := g.NewNode(t, inputWindow(in))
+		edge.Output = append(edge.Output, &Outbound{To: n, Type: t})
+	}
+	return edge
+}
+
 // NewParDo inserts a new ParDo edge into the graph.
 func NewParDo(g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {
 	return newDoFnNode(ParDo, g, s, u, in, typedefs)
-}
-
-// NewSource inserts a Source transform.
-func NewSource(g *Graph, s *Scope, u *DoFn, typedefs map[string]reflect.Type) (*MultiEdge, error) {
-	return newDoFnNode(Source, g, s, u, nil, typedefs)
-}
-
-// NewSink inserts a Sink transform.
-func NewSink(g *Graph, s *Scope, u *DoFn, in *Node) (*MultiEdge, error) {
-	return newDoFnNode(Sink, g, s, u, []*Node{in}, nil)
 }
 
 func newDoFnNode(op Opcode, g *Graph, s *Scope, u *DoFn, in []*Node, typedefs map[string]reflect.Type) (*MultiEdge, error) {

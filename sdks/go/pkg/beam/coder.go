@@ -42,7 +42,7 @@ func (c Coder) IsValid() bool {
 // Type returns the full type 'A' of elements the coder can encode and decode.
 // 'A' must be a concrete Windowed Value type, such as W<int> or
 // W<KV<int,string>>.
-func (c Coder) Type() typex.FullType {
+func (c Coder) Type() FullType {
 	if !c.IsValid() {
 		panic("Invalid Coder")
 	}
@@ -73,7 +73,7 @@ func UnwrapCoder(c Coder) *coder.Coder {
 }
 
 // NewCoder infers a Coder for any bound full type.
-func NewCoder(t typex.FullType) Coder {
+func NewCoder(t FullType) Coder {
 	c, err := inferCoder(t)
 	if err != nil {
 		panic(err) // for now
@@ -81,7 +81,7 @@ func NewCoder(t typex.FullType) Coder {
 	return Coder{c}
 }
 
-func inferCoder(t typex.FullType) (*coder.Coder, error) {
+func inferCoder(t FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
 		switch t.Type() {
@@ -122,7 +122,7 @@ func inferCoder(t typex.FullType) (*coder.Coder, error) {
 	}
 }
 
-func inferCoders(list []typex.FullType) ([]*coder.Coder, error) {
+func inferCoders(list []FullType) ([]*coder.Coder, error) {
 	var ret []*coder.Coder
 	for _, t := range list {
 		c, err := inferCoder(t)
@@ -148,7 +148,7 @@ func JSONEnc(in typex.T) ([]byte, error) {
 }
 
 // JSONDec decodes the supplied JSON into an instance of the supplied type.
-func JSONDec(t reflect.Type, in []byte) (typex.T, error) {
+func JSONDec(t reflect.Type, in []byte) (T, error) {
 	val := reflect.New(t)
 	if err := json.Unmarshal(in, val.Interface()); err != nil {
 		return nil, err
