@@ -606,8 +606,8 @@ class _ExecutorServiceParallelExecutor(object):
         one non-blocked TransformExecutor active."""
 
       watermark_manager = self._executor.evaluation_context._watermark_manager
-      _, any_unfired_timers = watermark_manager.extract_all_timers()
-      if any_unfired_timers:
+      _, any_unfired_realtime_timers = watermark_manager.extract_all_timers()
+      if any_unfired_realtime_timers:
         return True
 
       executors = self._executor.transform_executor_services.executors
