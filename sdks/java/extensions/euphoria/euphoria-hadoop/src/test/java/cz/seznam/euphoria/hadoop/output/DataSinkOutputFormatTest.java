@@ -50,7 +50,7 @@ public class DataSinkOutputFormatTest {
     @Override
     public void initialize() {
       if (isInitialized) {
-        throw new IllegalArgumentException("Already initialized.");
+        throw new IllegalStateException("Already initialized.");
       }
       isInitialized = true;
     }
@@ -113,8 +113,11 @@ public class DataSinkOutputFormatTest {
     final TaskAttemptContext cleanupContext =
         HadoopUtils.createCleanupTaskContext(conf, HadoopUtils.getJobID());
 
+    // check output specs and
     final DataSinkOutputFormat<Long> setupFormat = DataSinkOutputFormat.class.newInstance();
     setupFormat.checkOutputSpecs(setupContext);
+    setupFormat.getOutputCommitter(setupContext).setupJob(secondContext);
+    assertTrue(DummySink.isInitialized);
 
     // instantiate the output format
     final DataSinkOutputFormat<Long> firstFormat = DataSinkOutputFormat.class.newInstance();
