@@ -30,13 +30,16 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ReadPayload;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.runners.core.construction.ReadTranslation;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source.Reader;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -71,16 +74,16 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        Map<String, RunnerApi.PCollection> pCollections,
-        Map<String, RunnerApi.Coder> coders,
+        Map<String, PCollection> pCollections,
+        Map<String, Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) {
 
-      ImmutableList.Builder<ThrowingConsumer<WindowedValue<?>>> consumers = ImmutableList.builder();
+      ImmutableList.Builder<FnDataReceiver<WindowedValue<?>>> consumers = ImmutableList.builder();
       for (String pCollectionId : pTransform.getOutputsMap().values()) {
         consumers.addAll(pCollectionIdsToConsumers.get(pCollectionId));
       }
@@ -94,8 +97,8 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
       // TODO: Remove and replace with source being sent across gRPC port
       addStartFunction.accept(runner::start);
 
-      ThrowingConsumer runReadLoop =
-          (ThrowingConsumer<WindowedValue<InputT>>) runner::runReadLoop;
+      FnDataReceiver runReadLoop =
+          (FnDataReceiver<WindowedValue<InputT>>) runner::runReadLoop;
       for (String pCollectionId : pTransform.getInputsMap().values()) {
         pCollectionIdsToConsumers.put(
             pCollectionId,
@@ -108,12 +111,12 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
 
   private final PipelineOptions pipelineOptions;
   private final RunnerApi.FunctionSpec definition;
-  private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
+  private final Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers;
 
   BoundedSourceRunner(
       PipelineOptions pipelineOptions,
       RunnerApi.FunctionSpec definition,
-      Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers) {
+      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers) {
     this.pipelineOptions = pipelineOptions;
     this.definition = definition;
     this.consumers = consumers;
@@ -165,7 +168,7 @@ public class BoundedSourceRunner<InputT extends BoundedSource<OutputT>, OutputT>
         // TODO: Should this use the input window as the window for all the outputs?
         WindowedValue<OutputT> nextValue = WindowedValue.timestampedValueInGlobalWindow(
             reader.getCurrent(), reader.getCurrentTimestamp());
-        for (ThrowingConsumer<WindowedValue<OutputT>> consumer : consumers) {
+        for (FnDataReceiver<WindowedValue<OutputT>> consumer : consumers) {
           consumer.accept(nextValue);
         }
       } while (reader.advance());

@@ -175,6 +175,60 @@ public class WatchTest implements Serializable {
 
   @Test
   @Category({NeedsRunner.class, UsesSplittableParDo.class})
+  public void testMultiplePollsWithKeyExtractor() {
+    List<KV<Integer, String>> polls =
+        Arrays.asList(
+            KV.of(0, "0"),
+            KV.of(10, "10"),
+            KV.of(20, "20"),
+            KV.of(30, "30"),
+            KV.of(40, "40"),
+            KV.of(40, "40.1"),
+            KV.of(20, "20.1"),
+            KV.of(50, "50"),
+            KV.of(10, "10.1"),
+            KV.of(10, "10.2"),
+            KV.of(60, "60"),
+            KV.of(70, "70"),
+            KV.of(60, "60.1"),
+            KV.of(80, "80"),
+            KV.of(40, "40.2"),
+            KV.of(90, "90"),
+            KV.of(90, "90.1"));
+
+    List<Integer> expected = Arrays.asList(0, 10, 20, 30, 40, 50, 60, 70, 80, 90);
+
+    PCollection<Integer> res =
+        p.apply(Create.of("a"))
+            .apply(
+                Watch.growthOf(
+                        Contextful.<PollFn<String, KV<Integer, String>>>of(
+                            new TimedPollFn<String, KV<Integer, String>>(
+                                polls,
+                                standardSeconds(1) /* timeToOutputEverything */,
+                                standardSeconds(3) /* timeToDeclareOutputFinal */,
+                                standardSeconds(30) /* timeToFail */),
+                            Requirements.empty()),
+                        new SerializableFunction<KV<Integer, String>, Integer>() {
+                          @Override
+                          public Integer apply(KV<Integer, String> input) {
+                            return input.getKey();
+                          }
+                        })
+                    .withTerminationPerInput(Watch.Growth.<String>afterTotalOf(standardSeconds(5)))
+                    .withPollInterval(Duration.millis(100))
+                    .withOutputCoder(KvCoder.of(VarIntCoder.of(), StringUtf8Coder.of())))
+            .apply("Drop input", Values.<KV<Integer, String>>create())
+            .apply("Drop auxiliary string", Keys.<Integer>create());
+
+    PAssert.that(res).containsInAnyOrder(expected);
+
+    p.run();
+  }
+
+
+  @Test
+  @Category({NeedsRunner.class, UsesSplittableParDo.class})
   public void testMultiplePollsStopAfterTimeSinceNewOutput() {
     List<Integer> all = Arrays.asList(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
@@ -437,20 +491,23 @@ public class WatchTest implements Serializable {
     assertTrue(c.canStopPolling(now.plus(standardSeconds(12)), state));
   }
 
-  private static GrowthTracker<String, Integer> newTracker(GrowthState<String, Integer> state) {
-    return new GrowthTracker<>(StringUtf8Coder.of(), state, never());
+  private static GrowthTracker<String, String, Integer> newTracker(
+      GrowthState<String, String, Integer> state) {
+    return new GrowthTracker<>(
+        SerializableFunctions.<String>identity(), StringUtf8Coder.of(), state, never());
   }
 
-  private static GrowthTracker<String, Integer> newTracker() {
-    return newTracker(new GrowthState<String, Integer>(never().forNewInput(Instant.now(), null)));
+  private static GrowthTracker<String, String, Integer> newTracker() {
+    return newTracker(
+        new GrowthState<String, String, Integer>(never().forNewInput(Instant.now(), null)));
   }
 
   @Test
   public void testGrowthTrackerCheckpointEmpty() {
     // Checkpoint an empty tracker.
-    GrowthTracker<String, Integer> tracker = newTracker();
-    GrowthState<String, Integer> residual = tracker.checkpoint();
-    GrowthState<String, Integer> primary = tracker.currentRestriction();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
+    GrowthState<String, String, Integer> residual = tracker.checkpoint();
+    GrowthState<String, String, Integer> primary = tracker.currentRestriction();
     Watch.Growth.Never<String> condition = never();
     assertEquals(
         primary.toString(condition),
@@ -475,7 +532,7 @@ public class WatchTest implements Serializable {
   @Test
   public void testGrowthTrackerCheckpointNonEmpty() {
     Instant now = Instant.now();
-    GrowthTracker<String, Integer> tracker = newTracker();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
     tracker.addNewAsPending(
         PollResult.incomplete(
                 Arrays.asList(
@@ -493,8 +550,9 @@ public class WatchTest implements Serializable {
     assertTrue(tracker.hasPending());
     assertEquals(now.plus(standardSeconds(3)), tracker.getWatermark());
 
-    GrowthTracker<String, Integer> residualTracker = newTracker(tracker.checkpoint());
-    GrowthTracker<String, Integer> primaryTracker = newTracker(tracker.currentRestriction());
+    GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
+    GrowthTracker<String, String, Integer> primaryTracker =
+        newTracker(tracker.currentRestriction());
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
     assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
@@ -530,7 +588,7 @@ public class WatchTest implements Serializable {
   @Test
   public void testGrowthTrackerOutputFullyBeforeCheckpointIncomplete() {
     Instant now = Instant.now();
-    GrowthTracker<String, Integer> tracker = newTracker();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
     tracker.addNewAsPending(
         PollResult.incomplete(
                 Arrays.asList(
@@ -547,8 +605,9 @@ public class WatchTest implements Serializable {
     assertFalse(tracker.hasPending());
     assertEquals(now.plus(standardSeconds(7)), tracker.getWatermark());
 
-    GrowthTracker<String, Integer> residualTracker = newTracker(tracker.checkpoint());
-    GrowthTracker<String, Integer> primaryTracker = newTracker(tracker.currentRestriction());
+    GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
+    GrowthTracker<String, String, Integer> primaryTracker =
+        newTracker(tracker.currentRestriction());
 
     // Verify primary: should contain what the current tracker claimed, and nothing else.
     assertEquals(now.plus(standardSeconds(1)), primaryTracker.getWatermark());
@@ -582,7 +641,7 @@ public class WatchTest implements Serializable {
   @Test
   public void testGrowthTrackerPollAfterCheckpointIncompleteWithNewOutputs() {
     Instant now = Instant.now();
-    GrowthTracker<String, Integer> tracker = newTracker();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
     tracker.addNewAsPending(
         PollResult.incomplete(
                 Arrays.asList(
@@ -597,10 +656,10 @@ public class WatchTest implements Serializable {
     assertEquals("c", tracker.tryClaimNextPending().getValue());
     assertEquals("d", tracker.tryClaimNextPending().getValue());
 
-    GrowthState<String, Integer> checkpoint = tracker.checkpoint();
+    GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
     // Simulate resuming from the checkpoint and adding more elements.
     {
-      GrowthTracker<String, Integer> residualTracker = newTracker(checkpoint);
+      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
       residualTracker.addNewAsPending(
           PollResult.incomplete(
                   Arrays.asList(
@@ -623,7 +682,7 @@ public class WatchTest implements Serializable {
     }
     // Try same without an explicitly specified watermark.
     {
-      GrowthTracker<String, Integer> residualTracker = newTracker(checkpoint);
+      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
       residualTracker.addNewAsPending(
           PollResult.incomplete(
               Arrays.asList(
@@ -648,7 +707,7 @@ public class WatchTest implements Serializable {
   @Test
   public void testGrowthTrackerPollAfterCheckpointWithoutNewOutputs() {
     Instant now = Instant.now();
-    GrowthTracker<String, Integer> tracker = newTracker();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
     tracker.addNewAsPending(
         PollResult.incomplete(
                 Arrays.asList(
@@ -664,9 +723,9 @@ public class WatchTest implements Serializable {
     assertEquals("d", tracker.tryClaimNextPending().getValue());
 
     // Simulate resuming from the checkpoint but there are no new elements.
-    GrowthState<String, Integer> checkpoint = tracker.checkpoint();
+    GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
     {
-      GrowthTracker<String, Integer> residualTracker = newTracker(checkpoint);
+      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
       residualTracker.addNewAsPending(
           PollResult.incomplete(
                   Arrays.asList(
@@ -682,7 +741,7 @@ public class WatchTest implements Serializable {
     }
     // Try the same without an explicitly specified watermark
     {
-      GrowthTracker<String, Integer> residualTracker = newTracker(checkpoint);
+      GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
       residualTracker.addNewAsPending(
           PollResult.incomplete(
               Arrays.asList(
@@ -698,7 +757,7 @@ public class WatchTest implements Serializable {
   @Test
   public void testGrowthTrackerPollAfterCheckpointWithoutNewOutputsNoWatermark() {
     Instant now = Instant.now();
-    GrowthTracker<String, Integer> tracker = newTracker();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
     tracker.addNewAsPending(
         PollResult.incomplete(
             Arrays.asList(
@@ -713,8 +772,8 @@ public class WatchTest implements Serializable {
     assertEquals(now.plus(standardSeconds(1)), tracker.getWatermark());
 
     // Simulate resuming from the checkpoint but there are no new elements.
-    GrowthState<String, Integer> checkpoint = tracker.checkpoint();
-    GrowthTracker<String, Integer> residualTracker = newTracker(checkpoint);
+    GrowthState<String, String, Integer> checkpoint = tracker.checkpoint();
+    GrowthTracker<String, String, Integer> residualTracker = newTracker(checkpoint);
     residualTracker.addNewAsPending(
         PollResult.incomplete(
             Arrays.asList(
@@ -730,13 +789,13 @@ public class WatchTest implements Serializable {
   public void testGrowthTrackerRepeatedEmptyPollWatermark() {
     // Empty poll result with no watermark
     {
-      GrowthTracker<String, Integer> tracker = newTracker();
+      GrowthTracker<String, String, Integer> tracker = newTracker();
       tracker.addNewAsPending(
           PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList()));
       assertEquals(BoundedWindow.TIMESTAMP_MIN_VALUE, tracker.getWatermark());
 
       // Simulate resuming from the checkpoint but there are still no new elements.
-      GrowthTracker<String, Integer> residualTracker = newTracker(tracker.checkpoint());
+      GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
       tracker.addNewAsPending(
           PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList()));
       // No new elements and no explicit watermark supplied - still no watermark.
@@ -745,14 +804,14 @@ public class WatchTest implements Serializable {
     // Empty poll result with watermark
     {
       Instant now = Instant.now();
-      GrowthTracker<String, Integer> tracker = newTracker();
+      GrowthTracker<String, String, Integer> tracker = newTracker();
       tracker.addNewAsPending(
           PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList())
               .withWatermark(now));
       assertEquals(now, tracker.getWatermark());
 
       // Simulate resuming from the checkpoint but there are still no new elements.
-      GrowthTracker<String, Integer> residualTracker = newTracker(tracker.checkpoint());
+      GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
       tracker.addNewAsPending(
           PollResult.incomplete(Collections.<TimestampedValue<String>>emptyList()));
       // No new elements and no explicit watermark supplied - should keep old watermark.
@@ -763,7 +822,7 @@ public class WatchTest implements Serializable {
   @Test
   public void testGrowthTrackerOutputFullyBeforeCheckpointComplete() {
     Instant now = Instant.now();
-    GrowthTracker<String, Integer> tracker = newTracker();
+    GrowthTracker<String, String, Integer> tracker = newTracker();
     tracker.addNewAsPending(
         PollResult.complete(
             Arrays.asList(
@@ -779,7 +838,7 @@ public class WatchTest implements Serializable {
     assertFalse(tracker.hasPending());
     assertEquals(BoundedWindow.TIMESTAMP_MAX_VALUE, tracker.getWatermark());
 
-    GrowthTracker<String, Integer> residualTracker = newTracker(tracker.checkpoint());
+    GrowthTracker<String, String, Integer> residualTracker = newTracker(tracker.checkpoint());
 
     // Verify residual: should be empty, since output was final.
     residualTracker.checkDone();

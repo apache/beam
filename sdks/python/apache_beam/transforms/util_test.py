@@ -21,11 +21,24 @@ import time
 import unittest
 
 import apache_beam as beam
+from apache_beam.coders import coders
+from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.util import TestWindowedValue
 from apache_beam.testing.util import assert_that
+from apache_beam.testing.util import contains_in_any_order
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import util
 from apache_beam.transforms import window
+from apache_beam.transforms.window import GlobalWindow
+from apache_beam.transforms.window import GlobalWindows
+from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import Sessions
+from apache_beam.transforms.window import SlidingWindows
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils import timestamp
+from apache_beam.utils.windowed_value import WindowedValue
 
 
 class FakeClock(object):
@@ -106,3 +119,220 @@ class BatchElementsTest(unittest.TestCase):
       with batch_estimator.record_time(actual_sizes[-1]):
         clock.sleep(batch_duration(actual_sizes[-1]))
     self.assertEqual(expected_sizes, actual_sizes)
+
+
+class IdentityWindowTest(unittest.TestCase):
+
+  def test_window_preserved(self):
+    expected_timestamp = timestamp.Timestamp(5)
+    expected_window = window.IntervalWindow(1.0, 2.0)
+
+    class AddWindowDoFn(beam.DoFn):
+      def process(self, element):
+        yield WindowedValue(
+            element, expected_timestamp, [expected_window])
+
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_windows = [
+        TestWindowedValue(kv, expected_timestamp, [expected_window])
+        for kv in data]
+    before_identity = (pipeline
+                       | 'start' >> beam.Create(data)
+                       | 'add_windows' >> beam.ParDo(AddWindowDoFn()))
+    assert_that(before_identity, equal_to(expected_windows),
+                label='before_identity', reify_windows=True)
+    after_identity = (before_identity
+                      | 'window' >> beam.WindowInto(
+                          beam.transforms.util._IdentityWindowFn(
+                              coders.IntervalWindowCoder())))
+    assert_that(after_identity, equal_to(expected_windows),
+                label='after_identity', reify_windows=True)
+    pipeline.run()
+
+  def test_no_window_context_fails(self):
+    expected_timestamp = timestamp.Timestamp(5)
+    # Assuming the default window function is window.GlobalWindows.
+    expected_window = window.GlobalWindow()
+
+    class AddTimestampDoFn(beam.DoFn):
+      def process(self, element):
+        yield window.TimestampedValue(element, expected_timestamp)
+
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_windows = [
+        TestWindowedValue(kv, expected_timestamp, [expected_window])
+        for kv in data]
+    before_identity = (pipeline
+                       | 'start' >> beam.Create(data)
+                       | 'add_timestamps' >> beam.ParDo(AddTimestampDoFn()))
+    assert_that(before_identity, equal_to(expected_windows),
+                label='before_identity', reify_windows=True)
+    after_identity = (before_identity
+                      | 'window' >> beam.WindowInto(
+                          beam.transforms.util._IdentityWindowFn(
+                              coders.GlobalWindowCoder()))
+                      # This DoFn will return TimestampedValues, making
+                      # WindowFn.AssignContext passed to IdentityWindowFn
+                      # contain a window of None. IdentityWindowFn should
+                      # raise an exception.
+                      | 'add_timestamps2' >> beam.ParDo(AddTimestampDoFn()))
+    assert_that(after_identity, equal_to(expected_windows),
+                label='after_identity', reify_windows=True)
+    with self.assertRaisesRegexp(ValueError, r'window.*None.*add_timestamps2'):
+      pipeline.run()
+
+
+class ReshuffleTest(unittest.TestCase):
+
+  def test_reshuffle_contents_unchanged(self):
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+    result = (pipeline
+              | 'start' >> beam.Create(data)
+              | 'reshuffle' >> beam.Reshuffle())
+    assert_that(result, equal_to(data))
+    pipeline.run()
+
+  def test_reshuffle_after_gbk_contents_unchanged(self):
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+    expected_result = [(1, [1, 2, 3]), (2, [1, 2]), (3, [1])]
+
+    after_gbk = (pipeline
+                 | 'start' >> beam.Create(data)
+                 | 'group_by_key' >> beam.GroupByKey())
+    assert_that(after_gbk, equal_to(expected_result), label='after_gbk')
+    after_reshuffle = (after_gbk
+                       | 'reshuffle' >> beam.Reshuffle())
+    assert_that(after_reshuffle, equal_to(expected_result),
+                label='after_reshuffle')
+    pipeline.run()
+
+  def test_reshuffle_timestamps_unchanged(self):
+    pipeline = TestPipeline()
+    timestamp = 5
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 3)]
+    expected_result = [TestWindowedValue(v, timestamp, [GlobalWindow()])
+                       for v in data]
+    before_reshuffle = (pipeline
+                        | 'start' >> beam.Create(data)
+                        | 'add_timestamp' >> beam.Map(
+                            lambda v: beam.window.TimestampedValue(v,
+                                                                   timestamp)))
+    assert_that(before_reshuffle, equal_to(expected_result),
+                label='before_reshuffle', reify_windows=True)
+    after_reshuffle = (before_reshuffle
+                       | 'reshuffle' >> beam.Reshuffle())
+    assert_that(after_reshuffle, equal_to(expected_result),
+                label='after_reshuffle', reify_windows=True)
+    pipeline.run()
+
+  def test_reshuffle_windows_unchanged(self):
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_data = [TestWindowedValue(v, t, [w]) for (v, t, w) in
+                     [((1, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
+                      ((2, [2, 1]), 4.0, IntervalWindow(1.0, 4.0)),
+                      ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+                      ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    before_reshuffle = (pipeline
+                        | 'start' >> beam.Create(data)
+                        | 'add_timestamp' >> beam.Map(
+                            lambda v: beam.window.TimestampedValue(v, v[1]))
+                        | 'window' >> beam.WindowInto(Sessions(gap_size=2))
+                        | 'group_by_key' >> beam.GroupByKey())
+    assert_that(before_reshuffle, equal_to(expected_data),
+                label='before_reshuffle', reify_windows=True)
+    after_reshuffle = (before_reshuffle
+                       | 'reshuffle' >> beam.Reshuffle())
+    assert_that(after_reshuffle, equal_to(expected_data),
+                label='after reshuffle', reify_windows=True)
+    pipeline.run()
+
+  def test_reshuffle_window_fn_preserved(self):
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_windows = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+        ((1, 1), 1.0, IntervalWindow(1.0, 3.0)),
+        ((2, 1), 1.0, IntervalWindow(1.0, 3.0)),
+        ((3, 1), 1.0, IntervalWindow(1.0, 3.0)),
+        ((1, 2), 2.0, IntervalWindow(2.0, 4.0)),
+        ((2, 2), 2.0, IntervalWindow(2.0, 4.0)),
+        ((1, 4), 4.0, IntervalWindow(4.0, 6.0))]]
+    expected_merged_windows = [TestWindowedValue(v, t, [w]) for (v, t, w) in [
+        ((1, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((2, contains_in_any_order([2, 1])), 4.0, IntervalWindow(1.0, 4.0)),
+        ((3, [1]), 3.0, IntervalWindow(1.0, 3.0)),
+        ((1, [4]), 6.0, IntervalWindow(4.0, 6.0))]]
+    before_reshuffle = (pipeline
+                        | 'start' >> beam.Create(data)
+                        | 'add_timestamp' >> beam.Map(
+                            lambda v: TimestampedValue(v, v[1]))
+                        | 'window' >> beam.WindowInto(Sessions(gap_size=2)))
+    assert_that(before_reshuffle, equal_to(expected_windows),
+                label='before_reshuffle', reify_windows=True)
+    after_reshuffle = (before_reshuffle
+                       | 'reshuffle' >> beam.Reshuffle())
+    assert_that(after_reshuffle, equal_to(expected_windows),
+                label='after_reshuffle', reify_windows=True)
+    after_group = (after_reshuffle
+                   | 'group_by_key' >> beam.GroupByKey())
+    assert_that(after_group, equal_to(expected_merged_windows),
+                label='after_group', reify_windows=True)
+    pipeline.run()
+
+  def test_reshuffle_global_window(self):
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+    before_reshuffle = (pipeline
+                        | 'start' >> beam.Create(data)
+                        | 'window' >> beam.WindowInto(GlobalWindows())
+                        | 'group_by_key' >> beam.GroupByKey())
+    assert_that(before_reshuffle, equal_to(expected_data),
+                label='before_reshuffle')
+    after_reshuffle = (before_reshuffle
+                       | 'reshuffle' >> beam.Reshuffle())
+    assert_that(after_reshuffle, equal_to(expected_data),
+                label='after reshuffle')
+    pipeline.run()
+
+  def test_reshuffle_sliding_window(self):
+    pipeline = TestPipeline()
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    window_size = 2
+    expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])] * window_size
+    before_reshuffle = (pipeline
+                        | 'start' >> beam.Create(data)
+                        | 'window' >> beam.WindowInto(SlidingWindows(
+                            size=window_size, period=1))
+                        | 'group_by_key' >> beam.GroupByKey())
+    assert_that(before_reshuffle, equal_to(expected_data),
+                label='before_reshuffle')
+    after_reshuffle = (before_reshuffle
+                       | 'reshuffle' >> beam.Reshuffle())
+    # If Reshuffle applies the sliding window function a second time there
+    # should be extra values for each key.
+    assert_that(after_reshuffle, equal_to(expected_data),
+                label='after reshuffle')
+    pipeline.run()
+
+  def test_reshuffle_streaming_global_window(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    pipeline = TestPipeline(options=options)
+    data = [(1, 1), (2, 1), (3, 1), (1, 2), (2, 2), (1, 4)]
+    expected_data = [(1, [1, 2, 4]), (2, [1, 2]), (3, [1])]
+    before_reshuffle = (pipeline
+                        | 'start' >> beam.Create(data)
+                        | 'window' >> beam.WindowInto(GlobalWindows())
+                        | 'group_by_key' >> beam.GroupByKey())
+    assert_that(before_reshuffle, equal_to(expected_data),
+                label='before_reshuffle')
+    after_reshuffle = (before_reshuffle
+                       | 'reshuffle' >> beam.Reshuffle())
+    assert_that(after_reshuffle, equal_to(expected_data),
+                label='after reshuffle')
+    pipeline.run()

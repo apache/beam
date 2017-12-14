@@ -114,13 +114,21 @@ class WindowFn(urns.RunnerApiFn):
   class AssignContext(object):
     """Context passed to WindowFn.assign()."""
 
-    def __init__(self, timestamp, element=None):
+    def __init__(self, timestamp, element=None, window=None):
       self.timestamp = Timestamp.of(timestamp)
       self.element = element
+      self.window = window
 
   @abc.abstractmethod
   def assign(self, assign_context):
-    """Associates a timestamp to an element."""
+    """Associates windows to an element.
+
+    Arguments:
+      assign_context: Instance of AssignContext.
+
+    Returns:
+      An iterable of BoundedWindow.
+    """
     raise NotImplementedError
 
   class MergeContext(object):

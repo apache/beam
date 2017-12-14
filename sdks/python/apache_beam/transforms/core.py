@@ -1579,8 +1579,10 @@ class WindowInto(ParDo):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, timestamp=DoFn.TimestampParam):
-      context = WindowFn.AssignContext(timestamp, element=element)
+    def process(self, element, timestamp=DoFn.TimestampParam,
+                window=DoFn.WindowParam):
+      context = WindowFn.AssignContext(timestamp, element=element,
+                                       window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 

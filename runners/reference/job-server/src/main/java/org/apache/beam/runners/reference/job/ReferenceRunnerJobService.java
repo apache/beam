@@ -22,10 +22,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.ImmutableList;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -37,10 +39,12 @@ import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateRequest;
 import org.apache.beam.model.jobmanagement.v1.JobApi.GetJobStateResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PrepareJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobRequest;
+import org.apache.beam.model.jobmanagement.v1.JobApi.RunJobResponse;
 import org.apache.beam.model.jobmanagement.v1.JobServiceGrpc.JobServiceImplBase;
 import org.apache.beam.runners.fnexecution.FnService;
 import org.apache.beam.runners.fnexecution.GrpcFnServer;
 import org.apache.beam.runners.fnexecution.ServerFactory;
+import org.apache.beam.runners.reference.ReferenceRunner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,16 +52,25 @@ import org.slf4j.LoggerFactory;
 public class ReferenceRunnerJobService extends JobServiceImplBase implements FnService {
   private static final Logger LOG = LoggerFactory.getLogger(ReferenceRunnerJobService.class);
 
-  public static ReferenceRunnerJobService create(ServerFactory serverFactory) {
-    return new ReferenceRunnerJobService(serverFactory);
+  public static ReferenceRunnerJobService create(final ServerFactory serverFactory) {
+    return new ReferenceRunnerJobService(
+        serverFactory, filesTempDirectory());
   }
 
   private final ServerFactory serverFactory;
+  private final Callable<Path> stagingPathSupplier;
+
   private final ConcurrentMap<String, PreparingJob> unpreparedJobs;
 
-  private ReferenceRunnerJobService(ServerFactory serverFactory) {
+  private ReferenceRunnerJobService(
+      ServerFactory serverFactory, Callable<Path> stagingPathSupplier) {
     this.serverFactory = serverFactory;
+    this.stagingPathSupplier = stagingPathSupplier;
     unpreparedJobs = new ConcurrentHashMap<>();
+  }
+
+  public ReferenceRunnerJobService withStagingPathSupplier(Callable<Path> supplier) {
+    return new ReferenceRunnerJobService(serverFactory, supplier);
   }
 
   @Override
@@ -68,8 +81,9 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
       LOG.trace("{} {}", PrepareJobResponse.class.getSimpleName(), request);
 
       String preparationId = request.getJobName() + ThreadLocalRandom.current().nextInt();
+      Path tempDir = Files.createTempDirectory("reference-runner-staging");
       GrpcFnServer<LocalFileSystemArtifactStagerService> artifactStagingService =
-          createArtifactStagingService(preparationId);
+          createArtifactStagingService();
       PreparingJob previous =
           unpreparedJobs.putIfAbsent(
               preparationId,
@@ -77,6 +91,7 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
                   .setArtifactStagingServer(artifactStagingService)
                   .setPipeline(request.getPipeline())
                   .setOptions(request.getPipelineOptions())
+                  .setStagingLocation(tempDir)
                   .build());
       checkArgument(
           previous == null, "Unexpected existing job with preparation ID %s", preparationId);
@@ -93,22 +108,44 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
     }
   }
 
-  private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService(
-      String preparationId) throws IOException {
-    Path tempDir = Files.createTempDirectory("reference-runner-staging");
+  private GrpcFnServer<LocalFileSystemArtifactStagerService> createArtifactStagingService()
+      throws Exception {
     LocalFileSystemArtifactStagerService service =
-        LocalFileSystemArtifactStagerService.withRootDirectory(tempDir.toFile());
-    GrpcFnServer<LocalFileSystemArtifactStagerService> server =
-        GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
-    return server;
+        LocalFileSystemArtifactStagerService.withRootDirectory(stagingPathSupplier.call().toFile());
+    return GrpcFnServer.allocatePortAndCreateFor(service, serverFactory);
   }
 
   @Override
   public void run(
       JobApi.RunJobRequest request, StreamObserver<JobApi.RunJobResponse> responseObserver) {
-    LOG.trace("{} {}", RunJobRequest.class.getSimpleName(), request);
-    System.err.println("Run Job Blah");
-    responseObserver.onError(Status.UNIMPLEMENTED.asException());
+    try {
+      LOG.trace("{} {}", RunJobRequest.class.getSimpleName(), request);
+      String preparationId = request.getPreparationId();
+      PreparingJob preparingJob = unpreparedJobs.get(preparationId);
+      if (preparingJob == null) {
+        responseObserver.onError(
+            Status.INVALID_ARGUMENT
+                .withDescription(String.format("Unknown Preparation Id %s", preparationId))
+                .asException());
+        return;
+      }
+      try {
+        // Close any preparation-time only resources.
+        preparingJob.close();
+      } catch (Exception e) {
+        responseObserver.onError(e);
+      }
+      // TODO: Return a real java 'job handle'; this gets used in getState, cancel, etc
+      ReferenceRunner.run(
+          preparingJob.getPipeline(), preparingJob.getOptions(), preparingJob.getStagingLocation());
+      String jobId = preparingJob + Integer.toString(ThreadLocalRandom.current().nextInt());
+      responseObserver.onNext(RunJobResponse.newBuilder().setJobId(jobId).build());
+      responseObserver.onCompleted();
+    } catch (StatusRuntimeException e) {
+      responseObserver.onError(e);
+    } catch (Exception e) {
+      responseObserver.onError(Status.INTERNAL.withCause(e).asException());
+    }
   }
 
   @Override
@@ -139,5 +176,13 @@ public class ReferenceRunnerJobService extends JobServiceImplBase implements FnS
         LOG.warn("Exception while closing preparing job {}", preparingJob);
       }
     }
+  }
+
+  private static Callable<Path> filesTempDirectory() {
+    return new Callable<Path>() {
+      public Path call() throws IOException {
+        return Files.createTempDirectory("reference-runner-staging");
+      }
+    };
   }
 }

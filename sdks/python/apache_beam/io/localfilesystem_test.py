@@ -146,7 +146,7 @@ class LocalFileSystemTest(unittest.TestCase):
         error.exception.message.startswith('Match operation failed'))
     self.assertEqual(error.exception.exception_details.keys(), [None])
 
-  def test_match_directory(self):
+  def test_match_glob(self):
     path1 = os.path.join(self.tmpdir, 'f1')
     path2 = os.path.join(self.tmpdir, 'f2')
     open(path1, 'a').close()
