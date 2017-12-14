@@ -24,8 +24,8 @@ import unittest
 import mock
 
 from apache_beam.coders import observable
-from apache_beam.runners.worker import sideinputs
 from apache_beam.options.value_provider import RuntimeValueProvider
+from apache_beam.runners.worker import sideinputs
 
 
 def strip_windows(iterator):
