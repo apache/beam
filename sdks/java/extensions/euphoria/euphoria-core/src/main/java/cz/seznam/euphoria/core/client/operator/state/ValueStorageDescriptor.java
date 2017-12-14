@@ -35,6 +35,7 @@ public class ValueStorageDescriptor<T> extends StorageDescriptor {
     MergingValueStorageDescriptor(
         String name, Class<T> cls, T defVal,
         BinaryFunction<T, T, T> merger) {
+      
       super(name, cls, defVal);
       this.merger = merger;
     }
@@ -42,7 +43,8 @@ public class ValueStorageDescriptor<T> extends StorageDescriptor {
     @Override
     public BinaryFunction<ValueStorage<T>, ValueStorage<T>, Void> getMerger() {
       return (l, r) -> {
-        l.set(getValueMerger().apply(l.get(), r.get()));
+        l.set(merger.apply(l.get(), r.get()));
+        r.clear();
         return null;
       };
     }

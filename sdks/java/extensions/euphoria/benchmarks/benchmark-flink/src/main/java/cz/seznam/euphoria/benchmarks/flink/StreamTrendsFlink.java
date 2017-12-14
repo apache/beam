@@ -35,9 +35,10 @@ import org.apache.flink.util.Collector;
 
 import java.util.Date;
 import java.util.Iterator;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 
 public class StreamTrendsFlink {
-  
+
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
       System.err.println("Usage: " + StreamTrendsFlink.class + " <config-file>");
@@ -110,10 +111,15 @@ public class StreamTrendsFlink {
             .returns(new TypeHint<Tuple3<Long, String, Double>>(){});
 
     // print results
-    top.addSink(value -> {
-      Date now = new Date();
-      Date stamp = new Date(value.f0);
-      System.out.println(now + ": " + stamp + ", " + value.f1 + ", " + value.f2);
+    top.addSink(new SinkFunction<Tuple3<Long, String, Double>>() {
+      @Override
+      public void invoke(Tuple3<Long, String, Double> value, SinkFunction.Context context)
+          throws Exception {
+
+        Date now = new Date();
+        Date stamp = new Date(value.f0);
+        System.out.println(now + ": " + stamp + ", " + value.f1 + ", " + value.f2);
+      }
     }).setParallelism(1);
 
     env.execute();
@@ -127,7 +133,10 @@ public class StreamTrendsFlink {
   }
 
   @RequiredArgsConstructor
-  private static class TopAllWindow implements AllWindowFunction<Tuple2<String, Double>, Tuple3<Long, String, Double>, TimeWindow> {
+  private static class TopAllWindow
+      implements AllWindowFunction<
+          Tuple2<String, Double>, Tuple3<Long, String, Double>, TimeWindow> {
+
     @Override
     public void apply(TimeWindow window, Iterable<Tuple2<String, Double>> values,
                       Collector<Tuple3<Long, String, Double>> out) throws Exception {
@@ -146,14 +155,15 @@ public class StreamTrendsFlink {
   }
 
   @RequiredArgsConstructor
-  private static class Joiner 
-  implements FlatJoinFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, Tuple2<String, Double>> {
-    
+  private static class Joiner
+  implements FlatJoinFunction<Tuple2<
+      String, Integer>, Tuple2<String, Integer>, Tuple2<String, Double>> {
+
     private final long longInterval;
     private final long shortInterval;
     private final int smooth;
     private final double threshold;
-    
+
     @Override
     public void join(Tuple2<String, Integer> first, Tuple2<String, Integer> second,
         Collector<Tuple2<String, Double>> out) throws Exception {
