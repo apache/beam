@@ -16,35 +16,60 @@
 
 package cz.seznam.euphoria.core.util;
 
+/**
+ * Utils for easier exception handling.
+ */
 public class ExceptionUtils {
 
-  public static <T> T unchecked(SupplyingAction<T> action) {
+  /**
+   * Catches any exception thrown by provided {@link Supplier}
+   * and rethrows it as {@link RuntimeException}.
+   *
+   * @param supplier to provide value, that can throw checked exception
+   * @param <T> type of value the supplier returns
+   * @return supplied value
+   */
+  public static <T> T unchecked(Supplier<T> supplier) {
     try {
-      return action.perform();
+      return supplier.apply();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    } catch (RuntimeException e) {
+      // no need to wrap, it is already unchecked
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  public static <T> void unchecked(Action<T> action) {
+  /**
+   * Catches any exception thrown by provided {@link Action}
+   * and rethrows it as {@link RuntimeException}.
+   *
+   * @param action that can throw checked exception
+   */
+  public static void unchecked(Action action) {
     try {
-      action.perform();
+      action.apply();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    } catch (RuntimeException e) {
+      // no need to wrap, it is already unchecked
+      throw e;
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  public interface SupplyingAction<T> {
-    T perform() throws Exception;
+  @FunctionalInterface
+  public interface Supplier<T> {
+    T apply() throws Exception;
   }
 
-  public interface Action<T> {
-    void perform() throws Exception;
+  @FunctionalInterface
+  public interface Action {
+    void apply() throws Exception;
   }
 }
