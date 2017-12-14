@@ -93,8 +93,8 @@ public final class SparkContextFactory {
         conf.setMaster(contextOptions.getSparkMaster());
       }
 
-      if (contextOptions.getJarsForSparkContext().size() > 0) {
-        conf.setJars(contextOptions.getJarsForSparkContext().toArray(new String[0]));
+      if (contextOptions.getFilesToStage().size() > 0) {
+        conf.setJars(contextOptions.getFilesToStage().toArray(new String[0]));
       }
 
       conf.setAppName(contextOptions.getAppName());
