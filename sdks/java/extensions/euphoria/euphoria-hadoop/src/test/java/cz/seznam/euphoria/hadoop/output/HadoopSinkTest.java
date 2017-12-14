@@ -36,6 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,6 +53,8 @@ public class HadoopSinkTest {
   @Test
   public void test() throws InterruptedException, IOException {
 
+    final String outputDir = tmp.getRoot() + "/output";
+
     final Flow flow = Flow.create();
 
     final DataSource<Pair<Text, LongWritable>> source = ListDataSource.bounded(
@@ -61,7 +64,7 @@ public class HadoopSinkTest {
         Collections.singletonList(Pair.of(new Text("fourth"), new LongWritable(3L))));
 
     final HadoopSink<Text, LongWritable> sink =
-        new SequenceFileSink<>(Text.class, LongWritable.class, tmp.getRoot().getAbsolutePath());
+        new SequenceFileSink<>(Text.class, LongWritable.class, outputDir);
 
     MapElements
         .of(flow.createInput(source))
@@ -73,12 +76,12 @@ public class HadoopSinkTest {
     executor.submit(flow).join();
 
     final List<Pair<Text, LongWritable>> output = Arrays
-        .stream(Objects.requireNonNull(tmp.getRoot().list()))
+        .stream(Objects.requireNonNull(new File(outputDir).list()))
         .filter(file -> file.startsWith("part-r-"))
         .flatMap(part -> ExceptionUtils.unchecked(() -> {
           try (final SequenceFileRecordReader<Text, LongWritable> reader =
                    new SequenceFileRecordReader<>()) {
-            final Path path = new Path(tmp.getRoot().getAbsolutePath() + "/" + part);
+            final Path path = new Path(outputDir + "/" + part);
             final TaskAttemptContext taskContext =
                 HadoopUtils.createTaskContext(new Configuration(), HadoopUtils.getJobID(), 0);
             reader.initialize(
