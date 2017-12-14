@@ -252,14 +252,14 @@ The core of the release process is the build-vote-fix cycle. Each cycle produces
 Set up a few environment variables to simplify Maven commands that follow. This identifies the release candidate being built. Start with `RC_NUM` equal to `1` and increment it for each candidate.
 
     RC_NUM="1"
-    TAG="v${VERSION}-RC${RC_NUM}"
+    RC_TAG="v${VERSION}-RC${RC_NUM}"
 
 Use Maven release plugin to build the release artifacts, as follows:
 
     mvn release:prepare \
         -Dresume=false \
         -DreleaseVersion=${VERSION} \
-        -Dtag=${TAG} \
+        -Dtag=${RC_TAG} \
         -DupdateWorkingCopyVersions=false
 
 Use Maven release plugin to stage these artifacts on the Apache Nexus repository, as follows:
@@ -453,9 +453,11 @@ Copy the source release from the `dev` repository to the `release` repository at
 
 ### Git tag
 
-Create a new Git tag for the released version by copying the tag for the final release candidate, as follows:
+Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:
 
-    git tag -s “v${VERSION}” ${TAG}
+    VERSION_TAG="v${VERSION}"
+    git tag -s "$VERSION_TAG" "$RC_TAG"
+    git push github "$VERSION_TAG"
 
 ### Merge website pull request
 
