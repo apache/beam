@@ -35,6 +35,7 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -102,7 +103,8 @@ public class AvroIOIT {
             "Write Avro records to files",
             AvroIO.writeGenericRecords(AVRO_SCHEMA).to(filenamePrefix)
                 .withOutputFilenames().withSuffix(".avro"))
-        .getPerDestinationOutputFilenames().apply(Values.<String>create());
+        .getPerDestinationOutputFilenames().apply(Values.<String>create())
+        .apply(Reshuffle.<String>viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", AvroIO.readAllGenericRecords(AVRO_SCHEMA))
