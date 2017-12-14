@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.control.ProcessBundleHandler;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
