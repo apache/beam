@@ -193,7 +193,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
         }
         try {
           sink = fromBase64(sinkBytes);
-          sink.initialize();
         } catch (ClassNotFoundException ex) {
           throw new IOException(ex);
         }

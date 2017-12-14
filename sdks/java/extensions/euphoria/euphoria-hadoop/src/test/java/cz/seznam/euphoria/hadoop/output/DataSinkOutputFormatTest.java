@@ -45,6 +45,15 @@ public class DataSinkOutputFormatTest {
     static Map<Integer, List<Object>> outputs = new HashMap<>();
     static Map<Integer, List<Object>> committed = new HashMap<>();
     static boolean isCommitted = false;
+    static boolean isInitialized = false;
+
+    @Override
+    public void initialize() {
+      if (isInitialized) {
+        throw new IllegalArgumentException("Already initialized.");
+      }
+      isInitialized = true;
+    }
 
     @Override
     public Writer openWriter(int partitionId) {
