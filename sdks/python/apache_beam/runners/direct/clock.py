@@ -26,11 +26,11 @@ import time
 
 class Clock(object):
   def time(self):
-    """Returns the number of milliseconds since epoch."""
+    """Returns the number of seconds since epoch."""
     raise NotImplementedError()
 
   def advance_time(self, advance_by):
-    """Advances the clock by a number of miliseconds."""
+    """Advances the clock by a number of seconds."""
     raise NotImplementedError()
 
 
