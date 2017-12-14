@@ -51,9 +51,11 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
     ExceptionUtils.unchecked(() -> {
       final TaskAttemptContext setupContext =
           HadoopUtils.createSetupTaskContext(conf.get(), jobID.get());
-      newOutputFormatInstance()
-          .getOutputCommitter(setupContext)
-          .setupJob(setupContext);
+      final OutputFormat<K, V> outputFormat = newOutputFormatInstance();
+      // Check for validity of the output-specification for the job.
+      outputFormat.checkOutputSpecs(setupContext);
+      // Setup the job output.
+      outputFormat.getOutputCommitter(setupContext).setupJob(setupContext);
     });
   }
 
