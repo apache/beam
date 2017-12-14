@@ -485,10 +485,10 @@ class _TaggedReceivers(dict):
             or self._evaluation_context.has_cache)
     return self._undeclared_in_memory_tag_values
 
-  class NullReceiver(object):
+  class NullReceiver(common.Receiver):
     """Ignores undeclared outputs, default execution mode."""
 
-    def output(self, element):
+    def receive(self, element):
       pass
 
   class _InMemoryReceiver(common.Receiver):
