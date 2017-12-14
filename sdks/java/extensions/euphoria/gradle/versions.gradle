@@ -1,6 +1,6 @@
 ext {
   configVersion = '1.3.1'
-  flinkVersion = '1.2.1'
+  flinkVersion = '1.4.0'
   guavaVersion = '23.0'
   hadoopVersion = '2.7.4'
   hbaseVersion = '1.3.1'

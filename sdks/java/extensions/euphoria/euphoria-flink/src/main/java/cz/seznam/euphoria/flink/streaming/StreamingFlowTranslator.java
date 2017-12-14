@@ -128,7 +128,8 @@ public class StreamingFlowTranslator extends FlowTranslator {
               DataStream<?> flinkOutput =
                       Objects.requireNonNull(executorContext.getOutputStream(op));
 
-              flinkOutput.addSink(new DataSinkWrapper<>((DataSink) sink))
+              flinkOutput.addSink(new DataSinkWrapper<>(
+                  "output::" + op.getName(), (DataSink) sink))
                       .setParallelism(op.getParallelism());
             });
 
