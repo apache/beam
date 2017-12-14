@@ -30,7 +30,7 @@ import org.apache.beam.sdk.transforms.GroupByKey;
 import org.joda.time.Instant;
 
 /**
- * {@link Trigger Triggers} control when the elements for a specific key and window are output. As
+ * Triggers control when the elements for a specific key and window are output. As
  * elements arrive, they are put into one or more windows by a {@link Window} transform and its
  * associated {@link WindowFn}, and then passed to the associated {@link Trigger} to determine if
  * the {@link BoundedWindow Window's} contents should be output.
@@ -44,7 +44,7 @@ import org.joda.time.Instant;
  * output. When the root trigger finishes (indicating it will never fire again), the window is
  * closed and any new elements assigned to that window are discarded.
  *
- * <p>Several predefined {@link Trigger Triggers} are provided:
+ * <p>Several predefined triggers are provided:
  *
  * <ul>
  * <li> {@link AfterWatermark} for firing when the watermark passes a timestamp determined from
@@ -55,7 +55,7 @@ import org.joda.time.Instant;
  *     number of elements that have been assigned to the current pane.
  * </ul>
  *
- * <p>In addition, {@code Trigger}s can be combined in a variety of ways:
+ * <p>In addition, triggers can be combined in a variety of ways:
  *
  * <ul>
  * <li> {@link Repeatedly#forever} to create a trigger that executes forever. Any time its argument
@@ -221,7 +221,7 @@ public abstract class Trigger implements Serializable {
   /**
    * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
    *
-   * {@link Trigger Triggers} that are guaranteed to fire at most once should extend {@link
+   * <p>Triggers that are guaranteed to fire at most once should extend {@link
    * OnceTrigger} rather than the general {@link Trigger} class to indicate that behavior.
    */
   @Internal
