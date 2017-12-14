@@ -81,6 +81,14 @@ public class ParquetIO {
     return new AutoValue_ParquetIO_Read.Builder().build();
   }
 
+  /**
+   * Like {@link #read}, but reads each file in a {@link PCollection} of {@link org.apache.beam.sdk.io.FileIO.ReadableFile},
+   * which allows more flexible usage via different
+   */
+  public static ReadFiles() {
+    return new AutoValue_ParquetIO_ReadFiles.Builder().build();
+  }
+
   public static Write write() {
     return new AutoValue_ParquetIO_Write.Builder().build();
   }
