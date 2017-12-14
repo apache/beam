@@ -465,6 +465,10 @@ Merge the website pull request to [list the release]({{ site.baseurl }}/get-star
 
 In JIRA, inside [version management](https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions), hover over the current release and a settings menu will appear. Click `Release`, and select today’s date.
 
+### Recordkeeping with ASF
+
+Use reporter.apache.org to seed the information about the release into future project reports.
+
 ### Checklist to proceed to the next step
 
 * Maven artifacts released and indexed in the [Maven Central Repository](https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22)
@@ -473,6 +477,7 @@ In JIRA, inside [version management](https://issues.apache.org/jira/plugins/serv
 * Website pull request to [list the release]({{ site.baseurl }}/get-started/downloads/) and publish the [API reference manual]({{ site.baseurl }}/documentation/sdks/javadoc/) merged
 * Release tagged in the source code repository
 * Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)
+* Release version is listed at reporter.apache.org
 
 **********
 
@@ -487,10 +492,6 @@ Announce on the dev@ mailing list that the release has been finished.
 Announce on the release on the user@ mailing list, listing major improvements and contributions.
 
 Announce the release on the announce@apache.org mailing list.
-
-### Recordkeeping
-
-Use reporter.apache.org to seed the information about the release into future project reports.
 
 ### Beam blog
 
