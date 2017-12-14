@@ -58,7 +58,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   public void testWithDefaultBuffer() throws Exception {
     final Collection<BeamFnApi.Elements> values = new ArrayList<>();
     final AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
-    FnDataReceiver<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
             OUTPUT_LOCATION,
             CODER,
@@ -104,7 +104,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   public void testConfiguredBufferLimit() throws Exception {
     Collection<BeamFnApi.Elements> values = new ArrayList<>();
     AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
-    FnDataReceiver<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
             100,
             OUTPUT_LOCATION,

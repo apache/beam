@@ -37,9 +37,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -61,7 +61,7 @@ public class BoundedSourceRunnerTest {
   public void testRunReadLoopWithMultipleSources() throws Exception {
     List<WindowedValue<Long>> out1Values = new ArrayList<>();
     List<WindowedValue<Long>> out2Values = new ArrayList<>();
-    Collection<ThrowingConsumer<WindowedValue<Long>>> consumers =
+    Collection<FnDataReceiver<WindowedValue<Long>>> consumers =
         ImmutableList.of(out1Values::add, out2Values::add);
 
     BoundedSourceRunner<BoundedSource<Long>, Long> runner = new BoundedSourceRunner<>(
@@ -81,7 +81,7 @@ public class BoundedSourceRunnerTest {
   @Test
   public void testRunReadLoopWithEmptySource() throws Exception {
     List<WindowedValue<Long>> outValues = new ArrayList<>();
-    Collection<ThrowingConsumer<WindowedValue<Long>>> consumers =
+    Collection<FnDataReceiver<WindowedValue<Long>>> consumers =
         ImmutableList.of(outValues::add);
 
     BoundedSourceRunner<BoundedSource<Long>, Long> runner = new BoundedSourceRunner<>(
@@ -97,7 +97,7 @@ public class BoundedSourceRunnerTest {
   @Test
   public void testStart() throws Exception {
     List<WindowedValue<Long>> outValues = new ArrayList<>();
-    Collection<ThrowingConsumer<WindowedValue<Long>>> consumers =
+    Collection<FnDataReceiver<WindowedValue<Long>>> consumers =
         ImmutableList.of(outValues::add);
 
     ByteString encodedSource =
@@ -118,9 +118,9 @@ public class BoundedSourceRunnerTest {
   public void testCreatingAndProcessingSourceFromFactory() throws Exception {
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
-    Multimap<String, ThrowingConsumer<WindowedValue<?>>> consumers = HashMultimap.create();
+    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     consumers.put("outputPC",
-        (ThrowingConsumer) (ThrowingConsumer<WindowedValue<String>>) outputValues::add);
+        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
