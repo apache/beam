@@ -23,13 +23,12 @@ import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.TaskType;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
-import java.time.Clock;
 import java.util.Random;
 
 public class HadoopUtils {
 
   private static final JobID JOB_ID = new JobID(
-      Long.toString(Clock.systemDefaultZone().millis()),
+      Long.toString(System.currentTimeMillis()),
       new Random().nextInt(Integer.MAX_VALUE));
 
   /**
