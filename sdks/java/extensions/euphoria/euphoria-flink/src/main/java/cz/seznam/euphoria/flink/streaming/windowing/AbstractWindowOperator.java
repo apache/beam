@@ -18,6 +18,7 @@ package cz.seznam.euphoria.flink.streaming.windowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.MergingWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.functional.BinaryFunction;
 import cz.seznam.euphoria.flink.accumulators.AbstractCollector;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import cz.seznam.euphoria.core.client.operator.state.ListStorageDescriptor;
@@ -33,7 +34,6 @@ import cz.seznam.euphoria.core.client.triggers.TriggerContext;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
-import cz.seznam.euphoria.flink.storage.Descriptors;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import org.apache.flink.api.common.functions.RuntimeContext;
@@ -45,6 +45,7 @@ import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.api.java.typeutils.runtime.TupleSerializer;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
+import org.apache.flink.runtime.state.internal.InternalMergingState;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.HeapInternalTimerService;
 import org.apache.flink.streaming.api.operators.InternalTimer;
@@ -57,9 +58,11 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import org.apache.flink.api.java.ExecutionEnvironment;
+import org.apache.flink.runtime.state.KeyedStateBackend;
 
 public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
         extends AbstractStreamOperator<StreamingElement<WID, Pair<?, ?>>>
@@ -416,18 +419,52 @@ public abstract class AbstractWindowOperator<I, KEY, WID extends Window>
         }
 
         if (!mergedWindows.isEmpty()) {
-          if (descriptor instanceof ValueStorageDescriptor.MergingValueStorageDescriptor) {
-            getKeyedStateBackend().mergePartitionedStates(window,
-                    mergedWindows,
-                    windowSerializer,
-                    Descriptors.from((ValueStorageDescriptor.MergingValueStorageDescriptor) descriptor));
-            return;
+          KeyedStateBackend<Object> backend = getKeyedStateBackend();
+          if (backend instanceof InternalMergingState) {
+            ((InternalMergingState) getKeyedStateBackend()).mergeNamespaces(window,
+                    mergedWindows);
+          } else if (descriptor instanceof ValueStorageDescriptor.MergingValueStorageDescriptor) {
+            // we have to manually merge
+            ValueStorageDescriptor.MergingValueStorageDescriptor d;
+            d = (ValueStorageDescriptor.MergingValueStorageDescriptor) descriptor;
+
+            WindowedStorageProvider<?> storageProvider;
+            storageProvider = (WindowedStorageProvider) AbstractWindowOperator
+                .this.stateContext.getStorageProvider();
+
+            BinaryFunction merger = d.getValueMerger();
+            Iterator<WID> iterator = mergedWindows.iterator();
+            WID first = iterator.next();
+            Object val = purgeValueFromStorage(storageProvider, first, d);
+            while (iterator.hasNext()) {
+              WID w = iterator.next();
+              Object second = purgeValueFromStorage(storageProvider, w, d);
+              val = merger.apply(val, second);
+            }
+            storageProvider.setWindow(window);
+            storageProvider.getValueStorage(d).set(val);
+          } else {
+            throw new IllegalStateException(
+                "Unsupported merging operation with descriptor " + descriptor);
           }
+          return;
         }
       } catch (Exception e) {
         throw new RuntimeException(e);
       }
       throw new UnsupportedOperationException(descriptor + " is not supported for merging yet!");
+    }
+
+    private Object purgeValueFromStorage(
+        WindowedStorageProvider<?> provider,
+        Window<?> window,
+        ValueStorageDescriptor<?> descriptor) {
+
+      provider.setWindow(window);
+      ValueStorage<?> storage = provider.getValueStorage(descriptor);
+      Object ret = storage.get();
+      storage.clear();
+      return ret;
     }
 
     private void onMerge(Iterable<WID> mergedWindows) {

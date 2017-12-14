@@ -29,14 +29,13 @@ import org.apache.flink.streaming.api.functions.timestamps.BoundedOutOfOrderness
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer010;
 import org.apache.flink.streaming.util.serialization.DeserializationSchema;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.Properties;
 import java.util.UUID;
+import org.apache.flink.api.java.io.TextInputFormat;
+import org.apache.flink.core.fs.Path;
 
 class Util {
 
@@ -61,9 +60,7 @@ class Util {
   static DataSet<Tuple2<Long, String>> getHdfsSource(ExecutionEnvironment env, URI inputPath)
   throws IOException {
     SearchEventsParser parser = new SearchEventsParser();
-    return env.readHadoopFile(new TextInputFormat(), LongWritable.class, Text.class, inputPath.toString())
-            .map(t -> t.f1.toString())
-            .returns(TypeInformation.of(String.class))
+    return env.readFile(new TextInputFormat(new Path(inputPath)), inputPath.toString())
             .map(parser::parse)
             .filter(q -> q != null && q.query != null && !q.query.isEmpty())
             .map(q -> Tuple2.of(q.timestamp, q.query))

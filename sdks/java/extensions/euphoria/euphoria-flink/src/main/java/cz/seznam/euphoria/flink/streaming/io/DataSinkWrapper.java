@@ -18,21 +18,27 @@ package cz.seznam.euphoria.flink.streaming.io;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.flink.streaming.StreamingElement;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
 import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.checkpoint.Checkpointed;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 
-import java.io.Serializable;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 
 public class DataSinkWrapper<T>
     extends RichSinkFunction<StreamingElement<?, T>>
-    implements Checkpointed {
+    implements CheckpointedFunction {
 
-  private DataSink<T> dataSink;
+  private final String storageName;
+  private final DataSink<T> dataSink;
   private Writer<T> writer;
+  private transient ListState<Writer<T>> state;
 
-  public DataSinkWrapper(DataSink<T> dataSink) {
+  public DataSinkWrapper(String storageName, DataSink<T> dataSink) {
+    this.storageName = storageName;
     this.dataSink = dataSink;
   }
 
@@ -61,14 +67,17 @@ public class DataSinkWrapper<T>
   }
 
   @Override
-  public Serializable snapshotState(long l, long l1) throws Exception {
+  public void snapshotState(FunctionSnapshotContext fsc) throws Exception {
     writer.flush();
-    return dataSink;
+    state.clear();
+    state.add(writer);
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  public void restoreState(Serializable t) throws Exception {
-    this.dataSink = (DataSink) t;
+  public void initializeState(FunctionInitializationContext fic) throws Exception {
+    state = (ListState) fic.getOperatorStateStore()
+        .getSerializableListState(storageName);
+    writer = Iterables.getOnlyElement(state.get(), this.writer);
   }
 }

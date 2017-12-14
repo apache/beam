@@ -18,7 +18,7 @@ package cz.seznam.euphoria.flink.storage;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import org.apache.flink.api.common.state.ReducingState;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 
 public class FlinkReducingValueStorage<T, W extends Window> implements ValueStorage<T> {
 
@@ -67,6 +67,6 @@ public class FlinkReducingValueStorage<T, W extends Window> implements ValueStor
    */
   @SuppressWarnings("unchecked")
   private void setNamespace() {
-    ((KvState) state).setCurrentNamespace(window);
+    ((InternalKvState) state).setCurrentNamespace(window);
   }
 }

@@ -18,7 +18,7 @@ package cz.seznam.euphoria.flink.storage;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.operator.state.ListStorage;
 import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.runtime.state.KvState;
+import org.apache.flink.runtime.state.internal.InternalKvState;
 
 import java.util.Collections;
 
@@ -47,8 +47,8 @@ public class FlinkListStorage<T, W extends Window> implements ListStorage<T> {
 
   @Override
   public Iterable<T> get() {
-    setNamespace();
     try {
+      setNamespace();
       Iterable<T> optional = state.get();
       if (optional == null) {
         return Collections.emptyList();
@@ -71,6 +71,6 @@ public class FlinkListStorage<T, W extends Window> implements ListStorage<T> {
    */
   @SuppressWarnings("unchecked")
   private void setNamespace() {
-    ((KvState) state).setCurrentNamespace(window);
+    ((InternalKvState) state).setCurrentNamespace(window);
   }
 }
