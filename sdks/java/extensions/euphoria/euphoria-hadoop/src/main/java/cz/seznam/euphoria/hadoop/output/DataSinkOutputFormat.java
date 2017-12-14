@@ -21,6 +21,8 @@ import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.hadoop.utils.Serializer;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -30,14 +32,16 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 
 /**
- * {@code OutputFormat} created from {@code DataSink}.
+ * {@link OutputFormat} created from {@link DataSink}.
  * Because of the hadoop output format contract, we need to be able to
- * instantiate the format from {@code Class} object, therefore we
- * need to serialize the underlying {@code DataSink} to bytes and
+ * instantiate the format from {@link Class} object, therefore we
+ * need to serialize the underlying {@link DataSink} to bytes and
  * store in to configuration.
  *
  * @param <V> the type of the elements written through this output format
@@ -57,8 +61,7 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
    *
    * @throws IOException if serializing the given data sink fails for some reason
    */
-  public static Configuration configure(Configuration conf, DataSink<?> sink)
-      throws IOException {
+  public static Configuration configure(Configuration conf, DataSink<?> sink) throws IOException {
     conf.set(DATA_SINK, toBase64(sink));
     return conf;
   }
@@ -67,7 +70,6 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
 
     private final Writer<V> writer;
 
-    @SuppressWarnings("unchecked")
     HadoopRecordWriter(Writer<V> writer) {
       this.writer = writer;
     }
@@ -89,50 +91,48 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
     return Base64.getEncoder().encodeToString(bytes);
   }
 
-  @SuppressWarnings("unchecked")
   private static <V> DataSink<V> fromBase64(String base64Bytes)
       throws IOException, ClassNotFoundException {
     byte[] bytes = Base64.getDecoder().decode(base64Bytes);
     return Serializer.fromBytes(bytes);
   }
 
-  // instance of the data sink
-  private DataSink<V> sink;
-  // the single writer per output format instance and thread
   @Nullable
-  private Writer<V> writer;
+  @GuardedBy("lock")
+  private DataSink<V> sink;
+
+  @GuardedBy("lock")
+  private Map<TaskAttemptID, Writer<V>> writers = new HashMap<>();
+
+  private final Object lock = new Object();
 
   @Override
-  @SuppressWarnings("unchecked")
   public RecordWriter<NullWritable, V> getRecordWriter(TaskAttemptContext tac)
       throws IOException, InterruptedException {
-    instantiateWriter(tac);
-    return new HadoopRecordWriter<>(writer);
+    return new HadoopRecordWriter<>(getWriter(tac));
   }
 
   @Override
-  public void checkOutputSpecs(JobContext jc)
-      throws IOException, InterruptedException {
-    // just try to get the sink
-    instantiateSink(jc);
+  public void checkOutputSpecs(JobContext jc) throws IOException, InterruptedException {
+
   }
 
   @Override
   public OutputCommitter getOutputCommitter(TaskAttemptContext tac)
       throws IOException, InterruptedException {
     
-    instantiateSink(tac);
-
     return new OutputCommitter() {
+
+      private Writer<V> innerWriter;
 
       @Override
       public void setupJob(JobContext jc) throws IOException {
-        instantiateSink(jc);
+        getSink(jc).initialize();
       }
 
       @Override
       public void setupTask(TaskAttemptContext tac) throws IOException {
-        instantiateWriter(tac);
+        innerWriter = getWriter(tac);
       }
 
       @Override
@@ -142,57 +142,63 @@ public class DataSinkOutputFormat<V> extends OutputFormat<NullWritable, V> {
 
       @Override
       public void commitTask(TaskAttemptContext tac) throws IOException {
-        if (writer != null) {
-          writer.commit();
-          writer.close();
+        if (innerWriter != null) {
+          innerWriter.commit();
+          innerWriter.close();
         }
       }
 
       @Override
       public void abortTask(TaskAttemptContext tac) throws IOException {
-        if (writer != null) {
-          writer.rollback();
-          writer.close();
+        if (innerWriter != null) {
+          innerWriter.rollback();
+          innerWriter.close();
         }
       }
 
       @Override
       public void commitJob(JobContext jobContext) throws IOException {
         super.commitJob(jobContext);
-        sink.commit();
+        getSink(jobContext).commit();
       }
 
       @Override
       public void abortJob(JobContext jobContext, JobStatus.State state)
           throws IOException {        
         super.abortJob(jobContext, state);
-        sink.rollback();
+        getSink(jobContext).rollback();
       }
 
     };
   }
 
-  private void instantiateWriter(TaskAttemptContext tac) throws IOException {
-    if (writer == null) {
-      instantiateSink(tac);
-      writer = sink.openWriter(tac.getTaskAttemptID().getTaskID().getId());
+  private Writer<V> getWriter(TaskAttemptContext tac) throws IOException {
+    synchronized (lock) {
+      final TaskAttemptID tai = tac.getTaskAttemptID();
+      if (!writers.containsKey(tai)) {
+        writers.put(tai, getSink(tac).openWriter(tai.getTaskID().getId()));
+      }
+      return writers.get(tai);
     }
   }
 
-  private void instantiateSink(JobContext jc) throws IOException {
-    if (sink == null) {
-      String sinkBytes = jc.getConfiguration().get(DATA_SINK, null);
-      if (sinkBytes == null) {
-        throw new IllegalStateException(
-            "Invalid output spec, call `DataSinkOutputFormat#configure` before passing "
-                + " the configuration to output");
+  private DataSink<V> getSink(JobContext jc) throws IOException {
+    synchronized (lock) {
+      if (sink == null) {
+        String sinkBytes = jc.getConfiguration().get(DATA_SINK, null);
+        if (sinkBytes == null) {
+          throw new IllegalStateException(
+              "Invalid output spec, call `DataSinkOutputFormat#configure` before passing "
+                  + " the configuration to output");
+        }
+        try {
+          sink = fromBase64(sinkBytes);
+          sink.initialize();
+        } catch (ClassNotFoundException ex) {
+          throw new IOException(ex);
+        }
       }
-      try {
-        sink = fromBase64(sinkBytes);
-        sink.initialize();
-      } catch (ClassNotFoundException ex) {
-        throw new IOException(ex);
-      }
+      return sink;
     }
   }
 
