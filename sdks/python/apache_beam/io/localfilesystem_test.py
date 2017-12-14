@@ -156,7 +156,7 @@ class LocalFileSystemTest(unittest.TestCase):
     path = os.path.join(self.tmpdir, '*')
     result = self.fs.match([path])[0]
     files = [f.path for f in result.metadata_list]
-    self.assertEqual(files, [path1, path2])
+    self.assertItemsEqual(files, [path1, path2])
 
   def test_match_directory(self):
     result = self.fs.match([self.tmpdir])[0]
