@@ -17,7 +17,7 @@ logos:
   url: https://cloud.google.com/dataflow/
 - title: Gearpump
   image_url: /images/logo_gearpump.png
-  url: http://gearpump.apache.org/  
+  url: http://gearpump.apache.org/
 
 pillars:
 - title: Unified
@@ -48,6 +48,7 @@ cards:
           </div>
           <div class="hero__ctas hero__ctas--first">
             <a class="button button--primary" href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Learn more</a>
+            <a class="button button--primary" href="{{'/get-started/downloads/'|prepend:site.baseurl}}">Download Beam SDK {{ site.release_latest }}</a>
           </div>
           <div class="hero__ctas">
             <a class="button" href="{{'/get-started/quickstart-java/'|prepend:site.baseurl}}">Java Quickstart</a>
@@ -147,6 +148,7 @@ cards:
   </div>
   <div class="ctas__ctas ctas__ctas--top">
   <a class="button button--primary" href="{{'/get-started/beam-overview/'|prepend:site.baseurl}}">Learn more</a>
+  <a class="button button--primary" href="{{'/get-started/downloads/'|prepend:site.baseurl}}">Download Beam SDK {{ site.release_latest }}</a>
   </div>
   <div class="ctas__ctas">
   <a class="button" href="{{'/get-started/quickstart-java/'|prepend:site.baseurl}}">Java Quickstart</a>
