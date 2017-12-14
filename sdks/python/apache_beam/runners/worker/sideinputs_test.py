@@ -25,6 +25,7 @@ import mock
 
 from apache_beam.coders import observable
 from apache_beam.runners.worker import sideinputs
+from apache_beam.options.value_provider import RuntimeValueProvider
 
 
 def strip_windows(iterator):
@@ -75,7 +76,20 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
         sources, max_reader_threads=2)
     assert list(strip_windows(iterator_fn())) == range(6)
 
+  def test_bytes_read_behind_experiment(self):
+    mock_read_counter = mock.MagicMock()
+    source_records = ['a', 'b', 'c', 'd']
+    sources = [
+        FakeSource(source_records),
+    ]
+    iterator_fn = sideinputs.get_iterator_fn_for_sources(
+        sources, max_reader_threads=3, read_counter=mock_read_counter)
+    assert list(strip_windows(iterator_fn())) == source_records
+    mock_read_counter.add_bytes_read.assert_not_called()
+
   def test_bytes_read_are_reported(self):
+    RuntimeValueProvider.set_runtime_options(
+        {'experiments': 'sideinput_io_metrics,other'})
     mock_read_counter = mock.MagicMock()
     source_records = ['a', 'b', 'c', 'd']
     sources = [
@@ -86,6 +100,9 @@ class PrefetchingSourceIteratorTest(unittest.TestCase):
     assert list(strip_windows(iterator_fn())) == source_records
     mock_read_counter.add_bytes_read.assert_has_calls(
         [mock.call(len(r)) for r in source_records])
+
+    # Remove runtime options from the runtime value provider.
+    RuntimeValueProvider.set_runtime_options({})
 
   def test_multiple_sources_iterator_fn(self):
     sources = [

@@ -25,6 +25,7 @@ import traceback
 
 from apache_beam.coders import observable
 from apache_beam.io import iobase
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.runners.worker import opcounters
 from apache_beam.transforms import window
 
@@ -72,7 +73,13 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
-    self.read_counter = read_counter or opcounters.TransformIoCounter()
+    # The tracking of time spend reading and bytes read from side inputs is kept
+    # behind an experiment flag to test performance impact.
+    experiments = RuntimeValueProvider('experiments', str, '').get().split(',')
+    if 'sideinput_io_metrics' in experiments:
+      self.read_counter = read_counter or opcounters.TransformIoCounter()
+    else:
+      self.read_counter = opcounters.TransformIoCounter()
 
     self.reader_threads = []
     self._start_reader_threads()
