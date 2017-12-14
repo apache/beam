@@ -57,7 +57,6 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
-    server.start();
   }
 
   /**

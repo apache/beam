@@ -43,12 +43,15 @@ public class InProcessServerFactory extends ServerFactory {
       throws IOException {
     String name = String.format("InProcessServer_%s", serviceNameUniqifier.getAndIncrement());
     builder.setUrl(name);
-    return InProcessServerBuilder.forName(name).addService(service).build();
+    return InProcessServerBuilder.forName(name).addService(service).build().start();
   }
 
   @Override
-  public Server create(
-      BindableService service, ApiServiceDescriptor serviceDescriptor) throws IOException {
-    return InProcessServerBuilder.forName(serviceDescriptor.getUrl()).addService(service).build();
+  public Server create(BindableService service, ApiServiceDescriptor serviceDescriptor)
+      throws IOException {
+    return InProcessServerBuilder.forName(serviceDescriptor.getUrl())
+        .addService(service)
+        .build()
+        .start();
   }
 }
