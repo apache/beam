@@ -43,7 +43,6 @@ public interface FlinkPipelineOptions
    */
   @Description("Jar-Files to send to all workers and put on the classpath. "
       + "The default value is all files from the classpath.")
-  @JsonIgnore
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
 
