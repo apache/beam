@@ -28,12 +28,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Target;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.fn.test.TestStreams;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -60,7 +60,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   public void testWithDefaultBuffer() throws Exception {
     Collection<BeamFnApi.Elements> values = new ArrayList<>();
     AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
-    CloseableThrowingConsumer<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         new BeamFnDataBufferingOutboundObserver<>(
         PipelineOptionsFactory.create(),
         OUTPUT_LOCATION,
@@ -99,7 +99,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   public void testExperimentConfiguresBufferLimit() throws Exception {
     Collection<BeamFnApi.Elements> values = new ArrayList<>();
     AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
-    CloseableThrowingConsumer<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         new BeamFnDataBufferingOutboundObserver<>(
         PipelineOptionsFactory.fromArgs(
             new String[] { "--experiments=beam_fn_api_data_buffer_limit=100" }).create(),

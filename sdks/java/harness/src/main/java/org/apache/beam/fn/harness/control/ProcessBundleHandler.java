@@ -39,7 +39,6 @@ import java.util.function.Supplier;
 import org.apache.beam.fn.harness.PTransformRunnerFactory;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.fn.harness.state.BeamFnStateGrpcClientCache;
@@ -50,6 +49,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest.Builder;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -128,11 +131,11 @@ public class ProcessBundleHandler {
           BeamFnDataClient beamFnDataClient,
           BeamFnStateClient beanFnStateClient,
           String pTransformId,
-          RunnerApi.PTransform pTransform,
+          PTransform pTransform,
           Supplier<String> processBundleInstructionId,
-          Map<String, RunnerApi.PCollection> pCollections,
-          Map<String, RunnerApi.Coder> coders,
-          Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+          Map<String, PCollection> pCollections,
+          Map<String, Coder> coders,
+          Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
           Consumer<ThrowingRunnable> addStartFunction,
           Consumer<ThrowingRunnable> addFinishFunction) {
         throw new IllegalStateException(String.format(
@@ -150,7 +153,7 @@ public class ProcessBundleHandler {
       Supplier<String> processBundleInstructionId,
       BeamFnApi.ProcessBundleDescriptor processBundleDescriptor,
       Multimap<String, String> pCollectionIdsToConsumingPTransforms,
-      Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
 
@@ -205,7 +208,7 @@ public class ProcessBundleHandler {
 
     Multimap<String, String> pCollectionIdsToConsumingPTransforms = HashMultimap.create();
     Multimap<String,
-        ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers =
+        FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers =
         HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();

@@ -49,6 +49,10 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateResponse;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -108,11 +112,11 @@ public class ProcessBundleHandlerTest {
           BeamFnDataClient beamFnDataClient,
           BeamFnStateClient beamFnStateClient,
           String pTransformId,
-          RunnerApi.PTransform pTransform,
+          PTransform pTransform,
           Supplier<String> processBundleInstructionId,
-          Map<String, RunnerApi.PCollection> pCollections,
-          Map<String, RunnerApi.Coder> coders,
-          Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+          Map<String, PCollection> pCollections,
+          Map<String, Coder> coders,
+          Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
           Consumer<ThrowingRunnable> addStartFunction,
           Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
 
@@ -172,11 +176,11 @@ public class ProcessBundleHandlerTest {
               BeamFnDataClient beamFnDataClient,
               BeamFnStateClient beamFnStateClient,
               String pTransformId,
-              RunnerApi.PTransform pTransform,
+              PTransform pTransform,
               Supplier<String> processBundleInstructionId,
-              Map<String, RunnerApi.PCollection> pCollections,
-              Map<String, RunnerApi.Coder> coders,
-              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Map<String, PCollection> pCollections,
+              Map<String, Coder> coders,
+              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
             thrown.expect(IllegalStateException.class);
@@ -212,11 +216,11 @@ public class ProcessBundleHandlerTest {
               BeamFnDataClient beamFnDataClient,
               BeamFnStateClient beamFnStateClient,
               String pTransformId,
-              RunnerApi.PTransform pTransform,
+              PTransform pTransform,
               Supplier<String> processBundleInstructionId,
-              Map<String, RunnerApi.PCollection> pCollections,
-              Map<String, RunnerApi.Coder> coders,
-              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Map<String, PCollection> pCollections,
+              Map<String, Coder> coders,
+              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
             thrown.expect(IllegalStateException.class);
@@ -253,11 +257,11 @@ public class ProcessBundleHandlerTest {
               BeamFnDataClient beamFnDataClient,
               BeamFnStateClient beamFnStateClient,
               String pTransformId,
-              RunnerApi.PTransform pTransform,
+              PTransform pTransform,
               Supplier<String> processBundleInstructionId,
-              Map<String, RunnerApi.PCollection> pCollections,
-              Map<String, RunnerApi.Coder> coders,
-              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Map<String, PCollection> pCollections,
+              Map<String, Coder> coders,
+              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
             thrown.expect(IllegalStateException.class);
@@ -330,11 +334,11 @@ public class ProcessBundleHandlerTest {
               BeamFnDataClient beamFnDataClient,
               BeamFnStateClient beamFnStateClient,
               String pTransformId,
-              RunnerApi.PTransform pTransform,
+              PTransform pTransform,
               Supplier<String> processBundleInstructionId,
-              Map<String, RunnerApi.PCollection> pCollections,
-              Map<String, RunnerApi.Coder> coders,
-              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Map<String, PCollection> pCollections,
+              Map<String, Coder> coders,
+              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
             addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
@@ -380,11 +384,11 @@ public class ProcessBundleHandlerTest {
               BeamFnDataClient beamFnDataClient,
               BeamFnStateClient beamFnStateClient,
               String pTransformId,
-              RunnerApi.PTransform pTransform,
+              PTransform pTransform,
               Supplier<String> processBundleInstructionId,
-              Map<String, RunnerApi.PCollection> pCollections,
-              Map<String, RunnerApi.Coder> coders,
-              Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+              Map<String, PCollection> pCollections,
+              Map<String, Coder> coders,
+              Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
               Consumer<ThrowingRunnable> addStartFunction,
               Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
             addStartFunction.accept(() -> doStateCalls(beamFnStateClient));
