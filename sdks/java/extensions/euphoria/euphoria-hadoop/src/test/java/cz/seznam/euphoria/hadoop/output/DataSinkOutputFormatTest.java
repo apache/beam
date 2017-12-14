@@ -17,25 +17,22 @@ package cz.seznam.euphoria.hadoop.output;
 
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
+import cz.seznam.euphoria.hadoop.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.apache.hadoop.mapreduce.TaskID;
 import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 /**
  * Verify the bridge between hadoop {@code OutputFormat} and {@code DataSink}.
@@ -55,6 +52,7 @@ public class DataSinkOutputFormatTest {
       outputs.put(partitionId, output);
       return new Writer() {
         List<Object> listOutput = output;
+
         @Override
         public void write(Object elem) throws IOException {
           listOutput.add(elem);
@@ -85,66 +83,65 @@ public class DataSinkOutputFormatTest {
 
   }
 
-  @Test
-  @SuppressWarnings("unchecked")
   /**
    * Test that {@code ListDataSink} can be used in place of hadoop {@code OutputFormat}.
-   **/
+   */
+  @Test
+  @SuppressWarnings("unchecked")
   public void testDataSink() throws Exception {
-    DummySink sink = new DummySink();
-    Configuration conf = new Configuration();
+    final DummySink sink = new DummySink();
+    final Configuration conf = new Configuration();
+
     DataSinkOutputFormat.configure(conf, sink);
 
     // mock the instances we will need
-    TaskAttemptContext first = mockContext(conf, 0);
-    TaskAttemptContext second = mockContext(conf, 1);
+    final TaskAttemptContext setupContext =
+        HadoopUtils.createSetupTaskContext(conf, HadoopUtils.getJobID());
+    final TaskAttemptContext firstContext =
+        HadoopUtils.createTaskContext(conf, HadoopUtils.getJobID(), 0);
+    final TaskAttemptContext secondContext =
+        HadoopUtils.createTaskContext(conf, HadoopUtils.getJobID(), 1);
+    final TaskAttemptContext cleanupContext =
+        HadoopUtils.createCleanupTaskContext(conf, HadoopUtils.getJobID());
+
+    final DataSinkOutputFormat<Long> setupFormat = DataSinkOutputFormat.class.newInstance();
+    setupFormat.checkOutputSpecs(setupContext);
 
     // instantiate the output format
-    DataSinkOutputFormat<Long> format = DataSinkOutputFormat.class.newInstance();
-
-    // validate
-    format.checkOutputSpecs(first);
+    final DataSinkOutputFormat<Long> firstFormat = DataSinkOutputFormat.class.newInstance();
 
     // create record writer for the first partition
-    RecordWriter<NullWritable, Long> writer = format.getRecordWriter(first);
-    writer.write(NullWritable.get(), 2L);
-    writer.close(first);
-    format.getOutputCommitter(first).commitTask(first);
+    final RecordWriter<NullWritable, Long> firstWriter = firstFormat.getRecordWriter(firstContext);
+    final OutputCommitter firstCommitter = firstFormat.getOutputCommitter(firstContext);
+    firstCommitter.setupTask(firstContext);
+    firstWriter.write(NullWritable.get(), 2L);
+    firstWriter.close(firstContext);
+    firstCommitter.commitTask(firstContext);
 
     // now the second partition, we need to create new instance of output format
-    format = DataSinkOutputFormat.class.newInstance();
-    // validate
-    format.checkOutputSpecs(second);
+    final DataSinkOutputFormat<Long> secondFormat = DataSinkOutputFormat.class.newInstance();
 
     // create record writer for the second partition
-    writer = format.getRecordWriter(second);
-    writer.write(NullWritable.get(), 4L);
-    writer.close(second);
-    OutputCommitter committer = format.getOutputCommitter(second);
-    committer.commitTask(second);
+    final RecordWriter<NullWritable, Long> secondWriter = secondFormat.getRecordWriter(secondContext);
+    final OutputCommitter secondCommitter = secondFormat.getOutputCommitter(secondContext);
+    secondCommitter.setupTask(secondContext);
+    secondWriter.write(NullWritable.get(), 4L);
+    secondWriter.close(secondContext);
+    secondCommitter.commitTask(secondContext);
 
     // and now validate what was written
     assertFalse(DummySink.isCommitted);
 
-    committer.commitJob(second);
+    final DataSinkOutputFormat<Long> cleanupFormat = DataSinkOutputFormat.class.newInstance();
+    cleanupFormat.checkOutputSpecs(cleanupContext);
+    cleanupFormat.getOutputCommitter(cleanupContext).commitJob(cleanupContext);
+
     assertTrue(DummySink.isCommitted);
 
     assertTrue(DummySink.outputs.isEmpty());
     assertEquals(2, DummySink.committed.size());
 
-    assertEquals(Arrays.asList(2L), DummySink.committed.get(0));
-    assertEquals(Arrays.asList(4L), DummySink.committed.get(1));
+    assertEquals(Collections.singletonList(2L), DummySink.committed.get(0));
+    assertEquals(Collections.singletonList(4L), DummySink.committed.get(1));
   }
-
-  private TaskAttemptContext mockContext(Configuration conf, int taskId) {
-    TaskAttemptContext ret = mock(TaskAttemptContext.class);
-    TaskAttemptID mockAttemptId = mock(TaskAttemptID.class);
-    TaskID mockTaskId = mock(TaskID.class);
-    when(ret.getConfiguration()).thenReturn(conf);
-    when(ret.getTaskAttemptID()).thenReturn(mockAttemptId);
-    when(mockAttemptId.getTaskID()).thenReturn(mockTaskId);
-    when(mockTaskId.getId()).thenReturn(taskId);
-    return ret;
-  }
-
 }
