@@ -215,7 +215,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         Map<String, RunnerApi.PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
         Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) {
 
@@ -247,13 +247,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         throw new IllegalArgumentException("Malformed ParDoPayload", exn);
       }
 
-      ImmutableMultimap.Builder<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>>
+      ImmutableMultimap.Builder<TupleTag<?>, FnDataReceiver<WindowedValue<?>>>
           tagToConsumerBuilder = ImmutableMultimap.builder();
       for (Map.Entry<String, String> entry : pTransform.getOutputsMap().entrySet()) {
         tagToConsumerBuilder.putAll(
             new TupleTag<>(entry.getKey()), pCollectionIdsToConsumers.get(entry.getValue()));
       }
-      Multimap<TupleTag<?>, ThrowingConsumer<WindowedValue<?>>> tagToConsumer =
+      Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> tagToConsumer =
           tagToConsumerBuilder.build();
 
       @SuppressWarnings({"unchecked", "rawtypes"})
@@ -264,7 +264,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           processBundleInstructionId,
           doFn,
           inputCoder,
-          (Collection<ThrowingConsumer<WindowedValue<OutputT>>>) (Collection)
+          (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
               tagToConsumer.get(mainOutputTag),
           tagToConsumer,
           windowingStrategy);
@@ -279,7 +279,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       RunnerApi.PTransform pTransform,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction,
-      Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers) {
+      Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers) {
     // Register the appropriate handlers.
     addStartFunction.accept(runner::startBundle);
     for (String pcollectionId : pTransform.getInputsMap().values()) {
