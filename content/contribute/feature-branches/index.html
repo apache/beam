@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Docker Images</title>
+  <title>Beam Feature Branches</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -15,7 +15,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/docker-images/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/feature-branches/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -145,204 +145,104 @@
         
 
 <ul class="nav">
-  <li><a href="#file-based-image">File based image</a>
+  <li><a href="#establishing-a-feature-branch">Establishing a feature branch</a></li>
+  <li><a href="#developing-on-a-feature-branch">Developing on a feature branch</a></li>
+  <li><a href="#merging-into-master">Merging into <code class="highlighter-rouge">master</code></a>
     <ul>
-      <li><a href="#configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</a></li>
-      <li><a href="#testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</a></li>
-      <li><a href="#performance-improvements">Performance improvements</a></li>
+      <li><a href="#merging-a-new-runner-into-master">Merging a new runner into <code class="highlighter-rouge">master</code></a></li>
+      <li><a href="#merging-a-new-sdk-into-master">Merging a new SDK into <code class="highlighter-rouge">master</code></a></li>
     </ul>
   </li>
-  <li><a href="#git-based-image">Git based image</a></li>
-  <li><a href="#release-image">Release image</a></li>
 </ul>
 
 
       </nav>
 
       <div class="body__contained body__section-nav">
-        <h1 id="docker-images">Docker Images</h1>
+        <h1 id="feature-branches">Feature Branches</h1>
 
-<p>Docker images allow to create a reproducible environment to build and test
-Beam. You can use the docker images by using the provided <a href="https://github.com/apache/beam/tree/master/sdks/java/build-tools/src/main/resources/docker">Docker scripts</a>.</p>
+<p>Some larger features are developed on a feature branch before being merged into
+<code class="highlighter-rouge">master</code>. In particular, this is often used for initial development of new
+components like SDKs or runners.</p>
 
-<p>In this directory you will find scripts to build and run docker images for
-different purposes:</p>
+<p>We expect the work on a feature branch to be <em>incomplete</em>, but it must not
+be lower quality. Code reviews for feature branches must have the same
+standards as code reviews for <code class="highlighter-rouge">master</code>. Once a feature branch is ready for
+merge to <code class="highlighter-rouge">master</code>, the set of changes will be too large to review in its
+entirety. Because of this, the code reviews during development must be
+thorough and trustworthy.</p>
 
-<ul>
-  <li>
-    <p><a href="#file-based-image">file</a>: Create a Docker container from a Beam source code .zip file
-in a given environment. It is useful to test a specific version of Beam,
-for example to validate a release vote.</p>
-  </li>
-  <li>
-    <p><a href="#git-based-image">git</a>: Same as file but the Beam source code comes from the git repository,
-you can choose a given branch/tag/pull-request. Useful to test in a specific
-environment.</p>
-  </li>
-  <li>
-    <p><a href="#release-image">release</a>: It builds an end-user distribution of the latest version of Beam
-and its dependencies. Useful for end-users who want to have a ready to use
-container with Beam (Python only for the moment).</p>
-  </li>
-</ul>
+<h2 id="establishing-a-feature-branch">Establishing a feature branch</h2>
 
-<h2 id="file-based-image">File based image</h2>
+<p>If your project is large enough to need a feature branch, there should
+be a discussion on the mailing list. The first step is to <a href="/contribute/contribution-guide/#engage">engage</a> there to raise awareness
+that you want to start a large project. Almost any project should be accepted
+– there is no real cost to letting a feature branch exist – but you may find
+other interested contributors or gain other advice from the community.</p>
 
-<p>If you want to build a container with a ready JDK 8 environment to test Beam:</p>
+<p>After the community discussion, a committer must create your feature branch.
+Any committer can do create the branch through the GitHub UIs or by pushing
+directly to GitHub or ASF’s gitbox.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cd file/openjdk8
-docker build -t beam:openjdk8 .
-</code></pre>
-</div>
+<h2 id="developing-on-a-feature-branch">Developing on a feature branch</h2>
 
-<p>If you want to build a container with JDK 7:</p>
+<p>To contribute code on a feature branch, use the same process as in the
+<a href="/contribute/contribution-guide/">Contribution Guide</a>, but
+replace <code class="highlighter-rouge">master</code> with the name of the feature branch.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cd file/openjdk7
-docker build -t beam:openjdk7 .
-</code></pre>
-</div>
+<p>Since feature branches are often used for new components, you may find that
+there is no <a href="/contribute/team/">committer</a> familiar with all
+the details of the new language or runner. In that case, consider asking
+someone else familiar with the technology to do an initial review before
+looping in a committer for a final review and merge.</p>
 
-<p>When you run the image it downloads the specific version of Beam given the
-environment variables. By default it downloads the source code of the latest
-master. If you want to download the latest master and execute the tests:</p>
+<p>If you are working on a feature branch, you’ll also want to frequently merge in
+changes from <code class="highlighter-rouge">master</code>. This prevents the feature branch from
+deviating too far from the current state of <code class="highlighter-rouge">master</code>. Like all changes, this
+should be done via pull request. A committer may self-merge such a pull request
+if there are no conflicts or test failures. If there are any conflicts or tests
+that need fixing, then those should get a full review from another committer.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -it beam:openjdk8 mvn clean verify -Prelease
-</code></pre>
-</div>
+<h2 id="merging-into-master">Merging into <code class="highlighter-rouge">master</code></h2>
 
-<p>If you want to have an interactive session you can run a bash prompt:</p>
+<p>To merge a feature branch into <code class="highlighter-rouge">master</code>, new components and major features
+should meet the following guidelines.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
+<ol>
+  <li>Have at least 2 contributors interested in maintaining it, and 1 committer
+interested in supporting it</li>
+  <li>Provide both end-user and developer-facing documentation</li>
+  <li>Have at least a basic level of unit test coverage</li>
+  <li>Run all existing applicable integration tests with other Beam components and
+create additional tests as appropriate</li>
+</ol>
 
-<p>Inside the container you can test a specific module by running Maven. You
-have to change MODULE_PATH for the given module path. For example to test
-HBaseIO you should write its path <code class="highlighter-rouge">sdks/java/io/hbase</code> in the place of
-MODULE_PATH:</p>
+<h3 id="merging-a-new-runner-into-master">Merging a new runner into <code class="highlighter-rouge">master</code></h3>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn --projects MODULE_PATH clean verify -Prelease
-</code></pre>
-</div>
+<p>A new runner should:</p>
 
-<h3 id="configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</h3>
+<ol>
+  <li>Be able to handle a subset of the model that addresses a significant set of
+use cases, such as ‘traditional batch’ or ‘processing time streaming’.</li>
+  <li>Update the capability matrix with the current status</li>
+  <li>Add a webpage under <code class="highlighter-rouge">documentation/runners</code></li>
+</ol>
 
-<p>You can run different versions of Beam by passing the specific environment
-variables:</p>
+<h3 id="merging-a-new-sdk-into-master">Merging a new SDK into <code class="highlighter-rouge">master</code></h3>
 
-<p><code class="highlighter-rouge">URL</code>: The URL with the file containing the specific source code.<br />
-<code class="highlighter-rouge">SRC_FILE</code>: The downloaded file name.<br />
-<code class="highlighter-rouge">SRC_DIR</code>: The name of the directory inside of the zip file.</p>
+<p>A new SDK should:</p>
 
-<p>For example to run a Docker container with the exact code of the release 2.0.0:</p>
+<ol>
+  <li>Provide the ability to construct graphs with all the basic building blocks
+of the model (ParDo, GroupByKey, Window, Trigger, etc)</li>
+  <li>Begin fleshing out the common composite transforms (Count, Join, etc) and I/O
+connectors (Text, Kafka, etc)</li>
+  <li>Have at least one runner that can execute the complete model (may be a
+direct runner)</li>
+  <li>Provide integration tests for executing against current and future runners</li>
+  <li>Add a webpage under <code class="highlighter-rouge">documentation/sdks</code></li>
+</ol>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e URL="https://www.apache.org/dyn/closer.cgi?filename=beam/2.0.0/apache-beam-2.0.0-source-release.zip&amp;action=download" \
-  -e SRC_FILE="apache-beam-2.0.0-source-release.zip" \
-  -e SRC_DIR="apache-beam-2.0.0" \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>If you want to run a container with a specific version e.g. 2.1.0-RC1:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e URL="https://github.com/apache/beam/archive/v2.1.0-RC1.zip" \
-  -e SRC_FILE="v2.1.0-RC1.zip" \
-  -e SRC_DIR="beam-2.1.0-RC1" \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p><em>Notice that SRC_FILE is different from SRC_DIR because github replaces the ‘v’
-character in the internal name of the zip</em>.</p>
-
-<p>To run a container with the source code during a vote:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e URL="https://dist.apache.org/repos/dist/dev/beam/2.1.0/apache-beam-2.1.0-source-release.zip" \
-  -e SRC_FILE="apache-beam-2.1.0-source-release.zip" \
-  -e SRC_DIR="apache-beam-2.1.0" \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<h3 id="testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</h3>
-
-<p>You can also overwrite the volume containing the source code of Beam from a
-directory in your host machine. This is useful to test your code with different
-versions of Java.</p>
-
-<p>If you have the code in the ~/workspace/beam directory and you want to quickly
-test it with Beam on Java 7 you can do:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/workspace/beam:/home/user/beam -it beam:openjdk7 /bin/bash
-</code></pre>
-</div>
-
-<h3 id="performance-improvements">Performance improvements</h3>
-
-<p>The docker image does <strong>not</strong> contain the Java dependencies and this could make
-the execution of the commands in the image take more time than expected. One way
-to speed this up is by mounting a directory with the dependencies as a Docker
-volume. The following command shows how to mount the host machine directory
-for Maven dependencies <code class="highlighter-rouge">~/.m2</code> in the container:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/.m2:/home/user/.m2 -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>You can also use an empty directory instead of <code class="highlighter-rouge">~/.m2</code> if you want to create a
-different environment from the local one to share it between runs.</p>
-
-<p><strong>Maven Improvements:</strong></p>
-
-<p>You can also speed the execution by adding environment variables to Maven, for
-example the MAVEN_OPTS environment variable may speed up compilation:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e MAVEN_OPTS='-client -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xverify:none' \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>Maven does not execute on multiple cores by default; to do this you have to
-enable the threading execution:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn --threads 1C ...
-</code></pre>
-</div>
-
-<h2 id="git-based-image">Git based image</h2>
-
-<p>It creates a docker container with a cloned version of the git repository, its
-branches and all the pull-requests. When it is run, it updates and checks out
-the specified branch/tag/pull-request.</p>
-
-<p>You can choose the branch to execute via the environment variable:</p>
-
-<p><code class="highlighter-rouge">BRANCH</code>: The name of the specific branch, tag or pr to check out.</p>
-
-<p>By default it checks out master from the github repo, but if you want to check
-a specific pull request <code class="highlighter-rouge">ID</code> you can build the image like this (you must change
-<code class="highlighter-rouge">ID</code> for the number):</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd git/openjdk8
-docker build -t beam:git .
-docker run -e BRANCH=pr/ID -it beam:git /bin/bash
-</code></pre>
-</div>
-
-<h2 id="release-image">Release image</h2>
-
-<p>The release image is a container with the needed requirements to run Beam out of
-the box in a container, or to submit a pipeline to execute on Google Cloud
-Dataflow. To build it run:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd release/python2
-docker build -t beam:python2 .
-</code></pre>
-</div>
 
       </div>
     </div>

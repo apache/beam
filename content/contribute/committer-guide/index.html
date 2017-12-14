@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beam Docker Images</title>
+  <title>Beam Committer Guide</title>
   <meta name="description" content="Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.
 ">
   <link href="https://fonts.googleapis.com/css?family=Roboto:100,300,400" rel="stylesheet">
@@ -15,7 +15,7 @@
   <script src="/js/fix-menu.js"></script>
   <script src="/js/section-nav.js"></script>
   <script src="/js/page-nav.js"></script>
-  <link rel="canonical" href="https://beam.apache.org/contribute/docker-images/" data-proofer-ignore>
+  <link rel="canonical" href="https://beam.apache.org/contribute/committer-guide/" data-proofer-ignore>
   <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
   <link rel="alternate" type="application/rss+xml" title="Apache Beam" href="https://beam.apache.org/feed.xml">
   <script>
@@ -145,204 +145,103 @@
         
 
 <ul class="nav">
-  <li><a href="#file-based-image">File based image</a>
-    <ul>
-      <li><a href="#configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</a></li>
-      <li><a href="#testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</a></li>
-      <li><a href="#performance-improvements">Performance improvements</a></li>
-    </ul>
-  </li>
-  <li><a href="#git-based-image">Git based image</a></li>
-  <li><a href="#release-image">Release image</a></li>
+  <li><a href="#always-get-to-lgtm-looks-good-to-me">Always get to LGTM (“Looks good to me!”)</a></li>
+  <li><a href="#contributor-license-agreement">Contributor License Agreement</a></li>
+  <li><a href="#tests">Tests</a></li>
+  <li><a href="#finishing-touches">Finishing touches</a></li>
+  <li><a href="#merging-it">Merging it!</a></li>
 </ul>
 
 
       </nav>
 
       <div class="body__contained body__section-nav">
-        <h1 id="docker-images">Docker Images</h1>
+        <h1 id="committer-guide">Committer Guide</h1>
 
-<p>Docker images allow to create a reproducible environment to build and test
-Beam. You can use the docker images by using the provided <a href="https://github.com/apache/beam/tree/master/sdks/java/build-tools/src/main/resources/docker">Docker scripts</a>.</p>
+<p>This guide is for
+<a href="https://www.apache.org/foundation/how-it-works.html#committers">committers</a>
+and covers Beam’s guidelines for reviewing and merging code.</p>
 
-<p>In this directory you will find scripts to build and run docker images for
-different purposes:</p>
+<h2 id="always-get-to-lgtm-looks-good-to-me">Always get to LGTM (“Looks good to me!”)</h2>
 
-<ul>
-  <li>
-    <p><a href="#file-based-image">file</a>: Create a Docker container from a Beam source code .zip file
-in a given environment. It is useful to test a specific version of Beam,
-for example to validate a release vote.</p>
-  </li>
-  <li>
-    <p><a href="#git-based-image">git</a>: Same as file but the Beam source code comes from the git repository,
-you can choose a given branch/tag/pull-request. Useful to test in a specific
-environment.</p>
-  </li>
-  <li>
-    <p><a href="#release-image">release</a>: It builds an end-user distribution of the latest version of Beam
-and its dependencies. Useful for end-users who want to have a ready to use
-container with Beam (Python only for the moment).</p>
-  </li>
-</ul>
+<p>After a pull request goes through rounds of reviews and revisions, it will
+become ready for merge. A committer (who is <em>not</em> the author of the code)
+should signal this either by GitHub “approval” or by a comment such as “Looks
+good to me!” (LGTM). Any committer can then merge the pull request. It is fine
+for a committer to self-merge if another committer has reviewed the code and
+approved it, just be sure to be explicit about whose job it is!</p>
 
-<h2 id="file-based-image">File based image</h2>
+<p>Pull requests should not be merged before the review has received an explicit
+LGTM from another committer. Exceptions to this rule are rare and made on a
+case-by-case basis. A committer may use their discretion for situations such as
+build breaks. In this case, you should still seek a review on the pull request!
+A common acronym you may see is “TBR” – “to be reviewed”.</p>
 
-<p>If you want to build a container with a ready JDK 8 environment to test Beam:</p>
+<p>Committers should never commit anything without going through a pull request,
+because that bypasses test coverage and could potentially cause the build to
+fail. In addition, pull requests ensure that changes are communicated properly
+and potential flaws or improvements can be spotted.  <strong>Always go through a pull
+request, even if you won’t wait for the code review.</strong> Even then, reviewers
+can provide comments in the pull request after the merge happens, for use
+in follow-up pull requests.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cd file/openjdk8
-docker build -t beam:openjdk8 .
+<h2 id="contributor-license-agreement">Contributor License Agreement</h2>
+
+<p>If you are merging a larger contribution, please make sure that the contributor
+has an ICLA on file with the Apache Secretary. You can view the list of
+committers <a href="http://home.apache.org/phonebook.html?unix=committers">here</a>, as
+well as <a href="http://home.apache.org/unlistedclas.html">ICLA-signers who aren’t yet
+committers</a>.</p>
+
+<p>For smaller contributions, however, this is not required. In this case, we rely
+on <a href="http://www.apache.org/licenses/LICENSE-2.0#contributions">clause five</a> of
+the Apache License, Version 2.0, describing licensing of intentionally
+submitted contributions.</p>
+
+<h2 id="tests">Tests</h2>
+
+<p>Before merging, please make sure that Jenkins tests pass, as visible in the
+GitHub pull request. Do not merge the pull request if there are test failures.</p>
+
+<p>If the pull request contains changes that call for extra test coverage, you can
+ask Jenkins to run an extended test suite. For example, if the pull request
+modifies a runner, you can run the full <code class="highlighter-rouge">ValidatesRunner</code> suite with a comment
+such as “Run Spark ValidatesRunner”. You can run the examples and some IO
+integration tests with “Run Java PostCommit”.</p>
+
+<h2 id="finishing-touches">Finishing touches</h2>
+
+<p>At some point in the review process, the change to the codebase will be 
+complete. However, the pull request may have a collection of review-related
+commits that are not meaningful to preserve in the history. The reviewer should
+give the LGTM and then request that the author of the pull request rebase,
+squash, split, etc, the commits, so that the history is most useful. Favor
+commits that do just one thing. The commit is the smallest unit of easy
+rollback; it is easy to roll back many commits, or a whole pull request, but
+harder to roll back part of a commit.</p>
+
+<h2 id="merging-it">Merging it!</h2>
+
+<p>After all the tests pass, there should be a green merge button at the bottom of
+the pull request.  There are multiple choices and you should choose “Merge pull
+request” (the default). This preserves the commit history and adds a merge
+commit, so be sure the commit history has been curated appropriately.</p>
+
+<p>Do <em>not</em> use the default GitHub commit message, which looks like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>Merge pull request #1234 from some_user/transient_branch_name
+
+[BEAM-7873] Fix the foo bizzle bazzle
 </code></pre>
 </div>
 
-<p>If you want to build a container with JDK 7:</p>
+<p>Instead, pull it all into the subject line:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cd file/openjdk7
-docker build -t beam:openjdk7 .
+<div class="highlighter-rouge"><pre class="highlight"><code>Merge pull request #1234: [BEAM-7873] Fix the foo bizzle bazzle
 </code></pre>
 </div>
 
-<p>When you run the image it downloads the specific version of Beam given the
-environment variables. By default it downloads the source code of the latest
-master. If you want to download the latest master and execute the tests:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -it beam:openjdk8 mvn clean verify -Prelease
-</code></pre>
-</div>
-
-<p>If you want to have an interactive session you can run a bash prompt:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>Inside the container you can test a specific module by running Maven. You
-have to change MODULE_PATH for the given module path. For example to test
-HBaseIO you should write its path <code class="highlighter-rouge">sdks/java/io/hbase</code> in the place of
-MODULE_PATH:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn --projects MODULE_PATH clean verify -Prelease
-</code></pre>
-</div>
-
-<h3 id="configuring-the-runtime-via-the-environment-variables">Configuring the runtime via the environment variables</h3>
-
-<p>You can run different versions of Beam by passing the specific environment
-variables:</p>
-
-<p><code class="highlighter-rouge">URL</code>: The URL with the file containing the specific source code.<br />
-<code class="highlighter-rouge">SRC_FILE</code>: The downloaded file name.<br />
-<code class="highlighter-rouge">SRC_DIR</code>: The name of the directory inside of the zip file.</p>
-
-<p>For example to run a Docker container with the exact code of the release 2.0.0:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e URL="https://www.apache.org/dyn/closer.cgi?filename=beam/2.0.0/apache-beam-2.0.0-source-release.zip&amp;action=download" \
-  -e SRC_FILE="apache-beam-2.0.0-source-release.zip" \
-  -e SRC_DIR="apache-beam-2.0.0" \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>If you want to run a container with a specific version e.g. 2.1.0-RC1:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e URL="https://github.com/apache/beam/archive/v2.1.0-RC1.zip" \
-  -e SRC_FILE="v2.1.0-RC1.zip" \
-  -e SRC_DIR="beam-2.1.0-RC1" \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p><em>Notice that SRC_FILE is different from SRC_DIR because github replaces the ‘v’
-character in the internal name of the zip</em>.</p>
-
-<p>To run a container with the source code during a vote:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e URL="https://dist.apache.org/repos/dist/dev/beam/2.1.0/apache-beam-2.1.0-source-release.zip" \
-  -e SRC_FILE="apache-beam-2.1.0-source-release.zip" \
-  -e SRC_DIR="apache-beam-2.1.0" \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<h3 id="testing-in-an-specific-environment-with-your-own-source">Testing in an specific environment with your own source</h3>
-
-<p>You can also overwrite the volume containing the source code of Beam from a
-directory in your host machine. This is useful to test your code with different
-versions of Java.</p>
-
-<p>If you have the code in the ~/workspace/beam directory and you want to quickly
-test it with Beam on Java 7 you can do:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/workspace/beam:/home/user/beam -it beam:openjdk7 /bin/bash
-</code></pre>
-</div>
-
-<h3 id="performance-improvements">Performance improvements</h3>
-
-<p>The docker image does <strong>not</strong> contain the Java dependencies and this could make
-the execution of the commands in the image take more time than expected. One way
-to speed this up is by mounting a directory with the dependencies as a Docker
-volume. The following command shows how to mount the host machine directory
-for Maven dependencies <code class="highlighter-rouge">~/.m2</code> in the container:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/.m2:/home/user/.m2 -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>You can also use an empty directory instead of <code class="highlighter-rouge">~/.m2</code> if you want to create a
-different environment from the local one to share it between runs.</p>
-
-<p><strong>Maven Improvements:</strong></p>
-
-<p>You can also speed the execution by adding environment variables to Maven, for
-example the MAVEN_OPTS environment variable may speed up compilation:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run \
-  -e MAVEN_OPTS='-client -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Xverify:none' \
-  -it beam:openjdk8 /bin/bash
-</code></pre>
-</div>
-
-<p>Maven does not execute on multiple cores by default; to do this you have to
-enable the threading execution:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>mvn --threads 1C ...
-</code></pre>
-</div>
-
-<h2 id="git-based-image">Git based image</h2>
-
-<p>It creates a docker container with a cloned version of the git repository, its
-branches and all the pull-requests. When it is run, it updates and checks out
-the specified branch/tag/pull-request.</p>
-
-<p>You can choose the branch to execute via the environment variable:</p>
-
-<p><code class="highlighter-rouge">BRANCH</code>: The name of the specific branch, tag or pr to check out.</p>
-
-<p>By default it checks out master from the github repo, but if you want to check
-a specific pull request <code class="highlighter-rouge">ID</code> you can build the image like this (you must change
-<code class="highlighter-rouge">ID</code> for the number):</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd git/openjdk8
-docker build -t beam:git .
-docker run -e BRANCH=pr/ID -it beam:git /bin/bash
-</code></pre>
-</div>
-
-<h2 id="release-image">Release image</h2>
-
-<p>The release image is a container with the needed requirements to run Beam out of
-the box in a container, or to submit a pipeline to execute on Google Cloud
-Dataflow. To build it run:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd release/python2
-docker build -t beam:python2 .
-</code></pre>
-</div>
+<p>If you have comments to add, put them in the body of the commit message.</p>
 
       </div>
     </div>
