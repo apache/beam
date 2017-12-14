@@ -175,13 +175,13 @@
       <li><a href="#git-tag">Git tag</a></li>
       <li><a href="#merge-website-pull-request">Merge website pull request</a></li>
       <li><a href="#mark-the-version-as-released-in-jira">Mark the version as released in JIRA</a></li>
+      <li><a href="#recordkeeping-with-asf">Recordkeeping with ASF</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-4">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
   <li><a href="#promote-the-release">Promote the release</a>
     <ul>
       <li><a href="#apache-mailing-lists">Apache mailing lists</a></li>
-      <li><a href="#recordkeeping">Recordkeeping</a></li>
       <li><a href="#beam-blog">Beam blog</a></li>
       <li><a href="#social-media">Social media</a></li>
       <li><a href="#checklist-to-declare-the-process-completed">Checklist to declare the process completed</a></li>
@@ -250,12 +250,12 @@
       <li><a href="#git-tag" id="markdown-toc-git-tag">Git tag</a></li>
       <li><a href="#merge-website-pull-request" id="markdown-toc-merge-website-pull-request">Merge website pull request</a></li>
       <li><a href="#mark-the-version-as-released-in-jira" id="markdown-toc-mark-the-version-as-released-in-jira">Mark the version as released in JIRA</a></li>
+      <li><a href="#recordkeeping-with-asf" id="markdown-toc-recordkeeping-with-asf">Recordkeeping with ASF</a></li>
       <li><a href="#checklist-to-proceed-to-the-next-step-4" id="markdown-toc-checklist-to-proceed-to-the-next-step-4">Checklist to proceed to the next step</a></li>
     </ul>
   </li>
   <li><a href="#promote-the-release" id="markdown-toc-promote-the-release">Promote the release</a>    <ul>
       <li><a href="#apache-mailing-lists" id="markdown-toc-apache-mailing-lists">Apache mailing lists</a></li>
-      <li><a href="#recordkeeping" id="markdown-toc-recordkeeping">Recordkeeping</a></li>
       <li><a href="#beam-blog" id="markdown-toc-beam-blog">Beam blog</a></li>
       <li><a href="#social-media" id="markdown-toc-social-media">Social media</a></li>
       <li><a href="#checklist-to-declare-the-process-completed" id="markdown-toc-checklist-to-declare-the-process-completed">Checklist to declare the process completed</a></li>
@@ -549,7 +549,7 @@ DEVELOPMENT_VERSION="${NEXT_VERSION}-SNAPSHOT"
 <p>Set up a few environment variables to simplify Maven commands that follow. This identifies the release candidate being built. Start with <code class="highlighter-rouge">RC_NUM</code> equal to <code class="highlighter-rouge">1</code> and increment it for each candidate.</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>RC_NUM="1"
-TAG="v${VERSION}-RC${RC_NUM}"
+RC_TAG="v${VERSION}-RC${RC_NUM}"
 </code></pre>
 </div>
 
@@ -558,7 +558,7 @@ TAG="v${VERSION}-RC${RC_NUM}"
 <div class="highlighter-rouge"><pre class="highlight"><code>mvn release:prepare \
     -Dresume=false \
     -DreleaseVersion=${VERSION} \
-    -Dtag=${TAG} \
+    -Dtag=${RC_TAG} \
     -DupdateWorkingCopyVersions=false
 </code></pre>
 </div>
@@ -793,9 +793,11 @@ Thanks everyone!
 
 <h3 id="git-tag">Git tag</h3>
 
-<p>Create a new Git tag for the released version by copying the tag for the final release candidate, as follows:</p>
+<p>Create and push a new signed tag for the released version by copying the tag for the final release candidate, as follows:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>git tag -s “v${VERSION}” ${TAG}
+<div class="highlighter-rouge"><pre class="highlight"><code>VERSION_TAG="v${VERSION}"
+git tag -s "$VERSION_TAG" "$RC_TAG"
+git push github "$VERSION_TAG"
 </code></pre>
 </div>
 
@@ -807,6 +809,10 @@ Thanks everyone!
 
 <p>In JIRA, inside <a href="https://issues.apache.org/jira/plugins/servlet/project-config/BEAM/versions">version management</a>, hover over the current release and a settings menu will appear. Click <code class="highlighter-rouge">Release</code>, and select today’s date.</p>
 
+<h3 id="recordkeeping-with-asf">Recordkeeping with ASF</h3>
+
+<p>Use reporter.apache.org to seed the information about the release into future project reports.</p>
+
 <h3 id="checklist-to-proceed-to-the-next-step-4">Checklist to proceed to the next step</h3>
 
 <ul>
@@ -816,6 +822,7 @@ Thanks everyone!
   <li>Website pull request to <a href="/get-started/downloads/">list the release</a> and publish the <a href="/documentation/sdks/javadoc/">API reference manual</a> merged</li>
   <li>Release tagged in the source code repository</li>
   <li>Release version finalized in JIRA. (Note: Not all committers have administrator access to JIRA. If you end up getting permissions errors ask on the mailing list for assistance.)</li>
+  <li>Release version is listed at reporter.apache.org</li>
 </ul>
 
 <hr />
@@ -831,10 +838,6 @@ Thanks everyone!
 <p>Announce on the release on the user@ mailing list, listing major improvements and contributions.</p>
 
 <p>Announce the release on the announce@apache.org mailing list.</p>
-
-<h3 id="recordkeeping">Recordkeeping</h3>
-
-<p>Use reporter.apache.org to seed the information about the release into future project reports.</p>
 
 <h3 id="beam-blog">Beam blog</h3>
 
