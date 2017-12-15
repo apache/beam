@@ -16,13 +16,12 @@
 package symtab
 
 import (
-	"bytes"
 	"debug/dwarf"
 	"debug/elf"
 	"debug/macho"
 	"debug/pe"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // SymbolTable allows for mapping between symbols and their addresses.
@@ -33,14 +32,13 @@ type SymbolTable struct {
 // New creates a new symbol table based on the debug info
 // read from the specified file.
 func New(filename string) (*SymbolTable, error) {
-	b, err := ioutil.ReadFile(filename)
+	f, err := os.Open(filename)
 	if err != nil {
 		return nil, err
 	}
-	r := bytes.NewReader(b)
 
 	// First try ELF
-	ef, err := elf.NewFile(r)
+	ef, err := elf.NewFile(f)
 	if err == nil {
 		d, err := ef.DWARF()
 		if err != nil {
@@ -50,7 +48,7 @@ func New(filename string) (*SymbolTable, error) {
 	}
 
 	// then Mach-O
-	mf, err := macho.NewFile(r)
+	mf, err := macho.NewFile(f)
 	if err == nil {
 		d, err := mf.DWARF()
 		if err != nil {
@@ -60,7 +58,7 @@ func New(filename string) (*SymbolTable, error) {
 	}
 
 	// finally try Windows PE format
-	pf, err := pe.NewFile(r)
+	pf, err := pe.NewFile(f)
 	if err == nil {
 		d, err := pf.DWARF()
 		if err != nil {
