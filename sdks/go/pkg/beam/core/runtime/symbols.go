@@ -17,6 +17,7 @@ package runtime
 
 import (
 	"os"
+	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/symtab"
 )
@@ -26,6 +27,7 @@ import (
 // SymbolResolution is the interface that should be implemented
 // in order to override the default behavior for symbol resolution.
 type SymbolResolution interface {
+	// Sym2Addr returns the address pointer for a given symbol.
 	Sym2Addr(string) (uintptr, error)
 }
 
@@ -37,19 +39,47 @@ type SymbolResolution interface {
 var SymbolResolver SymbolResolution
 
 func init() {
-	var err error
 	// First try the Linux location, since it's the most reliable.
-	SymbolResolver, err = symtab.New("/proc/self/exe")
-	if err == nil {
+	if r, err := symtab.New("/proc/self/exe"); err == nil {
+		SymbolResolver = NewSymbolCache(r)
 		return
 	}
 	// For other OS's this works in most cases we need. If it doesn't, log
 	// an error and keep going.
-	SymbolResolver, err = symtab.New(os.Args[0])
-	if err == nil {
+	if r, err := symtab.New(os.Args[0]); err == nil {
+		SymbolResolver = NewSymbolCache(r)
 		return
 	}
 	SymbolResolver = panicResolver(false)
+}
+
+// SymbolCache added a caching layer over any SymbolResolution.
+type SymbolCache struct {
+	resolver SymbolResolution
+	cache    map[string]uintptr
+	mu       sync.Mutex
+}
+
+// NewSymbolCache adds caching to the given symbol resolver.
+func NewSymbolCache(r SymbolResolution) SymbolResolution {
+	return &SymbolCache{resolver: r, cache: make(map[string]uintptr)}
+}
+
+func (c *SymbolCache) Sym2Addr(sym string) (uintptr, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if p, exists := c.cache[sym]; exists {
+		return p, nil
+	}
+
+	p, err := c.resolver.Sym2Addr(sym)
+	if err != nil {
+		return 0, err
+	}
+
+	c.cache[sym] = p
+	return p, nil
 }
 
 type panicResolver bool
