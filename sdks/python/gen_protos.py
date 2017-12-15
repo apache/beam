@@ -31,8 +31,9 @@ import sys
 import time
 import warnings
 
-
-GRPC_TOOLS = 'grpcio-tools>=1.3.5'
+# grpcio 1.8.1 requires protobuf >= 3.5
+# TODO(BEAM-3357): Remove the upper bound.
+GRPC_TOOLS = 'grpcio-tools>=1.3.5,<=1.7.3'
 
 BEAM_PROTO_PATHS = [
   os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
