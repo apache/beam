@@ -902,8 +902,11 @@ class FnApiRunner(runner.PipelineRunner):
       self.data_server.start()
       self.control_server.start()
 
-      self.worker = (self.sdk_harness_factory or sdk_worker.SdkHarness)(
-          'localhost:%s' % self.control_port)
+      self.worker = self.sdk_harness_factory(
+          'localhost:%s' % self.control_port
+      ) if self.sdk_harness_factory else sdk_worker.SdkHarness(
+          'localhost:%s' % self.control_port, worker_count=1)
+
       self.worker_thread = threading.Thread(
           name='run_worker', target=self.worker.run)
       logging.info('starting worker')

@@ -38,7 +38,7 @@ from apache_beam.runners.worker import data_plane
 class SdkHarness(object):
   REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address, worker_count=1):
+  def __init__(self, control_address, worker_count):
     self._worker_count = worker_count
     self._worker_index = 0
     self._control_channel = grpc.insecure_channel(control_address)
