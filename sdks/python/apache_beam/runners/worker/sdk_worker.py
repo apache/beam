@@ -14,14 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """SDK harness for executing Python Fns via the Fn API."""
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import functools
 import logging
 import Queue as queue
 import sys
@@ -38,27 +36,54 @@ from apache_beam.runners.worker import data_plane
 
 
 class SdkHarness(object):
+  REQUEST_METHOD_PREFIX = '_request_'
 
-  def __init__(self, control_address):
+  def __init__(self, control_address, worker_count):
+    self._worker_count = worker_count
+    self._worker_index = 0
     self._control_channel = grpc.insecure_channel(control_address)
     self._data_channel_factory = data_plane.GrpcClientDataChannelFactory()
-    # TODO: Ensure thread safety to run with more than 1 thread.
-    self._default_work_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+    self.workers = queue.Queue()
+    # one thread is enough for getting the progress report.
+    # Assumption:
+    # Progress report generation should not do IO or wait on other resources.
+    #  Without wait, having multiple threads will not improve performance and
+    #  will only add complexity.
     self._progress_thread_pool = futures.ThreadPoolExecutor(max_workers=1)
+    self._process_thread_pool = futures.ThreadPoolExecutor(
+        max_workers=self._worker_count)
+    self._instruction_id_vs_worker = {}
+    self._fns = {}
+    self._responses = queue.Queue()
+    self._process_bundle_queue = queue.Queue()
+    logging.info('Initializing SDKHarness with %s workers.', self._worker_count)
 
   def run(self):
     control_stub = beam_fn_api_pb2_grpc.BeamFnControlStub(self._control_channel)
-    state_stub = beam_fn_api_pb2_grpc.BeamFnStateStub(self._control_channel)
-    state_handler = GrpcStateHandler(state_stub)
-    state_handler.start()
-    self.worker = SdkWorker(state_handler, self._data_channel_factory)
-
-    responses = queue.Queue()
     no_more_work = object()
+
+    # Create workers
+    for _ in range(self._worker_count):
+      state_handler = GrpcStateHandler(
+          beam_fn_api_pb2_grpc.BeamFnStateStub(self._control_channel))
+      state_handler.start()
+      # SdkHarness manage function registration and share self._fns with all
+      # the workers. This is needed because function registration (register)
+      # and exceution(process_bundle) are send over different request and we
+      # do not really know which woker is going to process bundle
+      # for a function till we get process_bundle request. Moreover
+      # same function is reused by different process bundle calls and
+      # potentially get executed by different worker. Hence we need a
+      # centralized function list shared among all the workers.
+      self.workers.put(
+          SdkWorker(
+              state_handler=state_handler,
+              data_channel_factory=self._data_channel_factory,
+              fns=self._fns))
 
     def get_responses():
       while True:
-        response = responses.get()
+        response = self._responses.get()
         if response is no_more_work:
           return
         yield response
@@ -66,54 +91,86 @@ class SdkHarness(object):
     for work_request in control_stub.Control(get_responses()):
       logging.info('Got work %s', work_request.instruction_id)
       request_type = work_request.WhichOneof('request')
-      # WhichOneOf returns the name of the set field as a single string
-      if request_type in ['process_bundle_progress']:
-        thread_pool = self._progress_thread_pool
-      else:
-        thread_pool = self._default_work_thread_pool
+      # Name spacing the request method with 'request_'. The called method
+      # will be like self.request_register(request)
+      getattr(self, SdkHarness.REQUEST_METHOD_PREFIX + request_type)(
+          work_request)
 
-      # Need this wrapper to capture the original stack trace.
-      def do_instruction(request):
-        try:
-          return self.worker.do_instruction(request)
-        except Exception as e:  # pylint: disable=broad-except
-          traceback_str = traceback.format_exc(e)
-          raise Exception("Error processing request. Original traceback "
-                          "is\n%s\n" % traceback_str)
-
-      def handle_response(request, response_future):
-        try:
-          response = response_future.result()
-        except Exception as e:  # pylint: disable=broad-except
-          logging.error(
-              'Error processing instruction %s',
-              request.instruction_id,
-              exc_info=True)
-          response = beam_fn_api_pb2.InstructionResponse(
-              instruction_id=request.instruction_id,
-              error=str(e))
-        responses.put(response)
-
-      thread_pool.submit(do_instruction, work_request).add_done_callback(
-          functools.partial(handle_response, work_request))
-
-    logging.info("No more requests from control plane")
-    logging.info("SDK Harness waiting for in-flight requests to complete")
+    logging.info('No more requests from control plane')
+    logging.info('SDK Harness waiting for in-flight requests to complete')
     # Wait until existing requests are processed.
     self._progress_thread_pool.shutdown()
-    self._default_work_thread_pool.shutdown()
+    self._process_thread_pool.shutdown()
     # get_responses may be blocked on responses.get(), but we need to return
     # control to its caller.
-    responses.put(no_more_work)
+    self._responses.put(no_more_work)
     self._data_channel_factory.close()
-    state_handler.done()
+    # Stop all the workers and clean all the associated resources
+    for worker in self.workers.queue:
+      worker.state_handler.done()
     logging.info('Done consuming work.')
+
+  def _execute(self, task, request):
+    try:
+      response = task()
+    except Exception as e:  # pylint: disable=broad-except
+      traceback.print_exc(file=sys.stderr)
+      logging.error(
+          'Error processing instruction %s. Original traceback is\n%s\n',
+          request.instruction_id,
+          traceback.format_exc(e),
+          exc_info=True)
+      response = beam_fn_api_pb2.InstructionResponse(
+          instruction_id=request.instruction_id, error=str(e))
+    self._responses.put(response)
+
+  def _request_register(self, request):
+
+    def task():
+      for process_bundle_descriptor in getattr(
+          request, request.WhichOneof('request')).process_bundle_descriptor:
+        self._fns[process_bundle_descriptor.id] = process_bundle_descriptor
+
+      return beam_fn_api_pb2.InstructionResponse(
+          instruction_id=request.instruction_id,
+          register=beam_fn_api_pb2.RegisterResponse())
+
+    self._execute(task, request)
+
+  def _request_process_bundle(self, request):
+
+    def task():
+      # Take the free worker. Wait till a worker is free.
+      worker = self.workers.get()
+      # Get the first work item in the queue
+      work = self._process_bundle_queue.get()
+      # add the instuction_id vs worker map for progress reporting lookup
+      self._instruction_id_vs_worker[work.instruction_id] = worker
+      try:
+        self._execute(lambda: worker.do_instruction(work), work)
+      finally:
+        # Delete the instruction_id <-> worker mapping
+        self._instruction_id_vs_worker.pop(work.instruction_id, None)
+        # Put the worker back in the free worker pool
+        self.workers.put(worker)
+
+    # Create a task for each process_bundle request and schedule it
+    self._process_bundle_queue.put(request)
+    self._process_thread_pool.submit(task)
+
+  def _request_process_bundle_progress(self, request):
+    worker = self._instruction_id_vs_worker[request.instruction_id]
+
+    def task():
+      self._execute(lambda: worker.do_instruction(request), request)
+
+    self._progress_thread_pool.submit(task)
 
 
 class SdkWorker(object):
 
-  def __init__(self, state_handler, data_channel_factory):
-    self.fns = {}
+  def __init__(self, state_handler, data_channel_factory, fns):
+    self.fns = fns
     self.state_handler = state_handler
     self.data_channel_factory = data_channel_factory
     self.bundle_processors = {}
@@ -122,8 +179,8 @@ class SdkWorker(object):
     request_type = request.WhichOneof('request')
     if request_type:
       # E.g. if register is set, this will call self.register(request.register))
-      return getattr(self, request_type)(
-          getattr(request, request_type), request.instruction_id)
+      return getattr(self, request_type)(getattr(request, request_type),
+                                         request.instruction_id)
     else:
       raise NotImplementedError
 
@@ -138,8 +195,7 @@ class SdkWorker(object):
     self.bundle_processors[
         instruction_id] = processor = bundle_processor.BundleProcessor(
             self.fns[request.process_bundle_descriptor_reference],
-            self.state_handler,
-            self.data_channel_factory)
+            self.state_handler, self.data_channel_factory)
     try:
       processor.process_bundle(instruction_id)
     finally:
@@ -176,6 +232,7 @@ class GrpcStateHandler(object):
         if request is self._DONE or self._done:
           break
         yield request
+
     responses = self._state_stub.State(request_iter())
 
     def pull_responses():
@@ -187,6 +244,7 @@ class GrpcStateHandler(object):
       except:  # pylint: disable=bare-except
         self._exc_info = sys.exc_info()
         raise
+
     reader = threading.Thread(target=pull_responses, name='read_state')
     reader.daemon = True
     reader.start()
@@ -239,6 +297,7 @@ class GrpcStateHandler(object):
 class _Future(object):
   """A simple future object to implement blocking requests.
   """
+
   def __init__(self):
     self._event = threading.Event()
 
