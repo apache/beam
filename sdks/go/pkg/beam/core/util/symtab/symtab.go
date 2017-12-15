@@ -37,6 +37,10 @@ func New(filename string) (*SymbolTable, error) {
 		return nil, err
 	}
 
+	// The interface contract for the xxx.NewFile() methods takes an
+	// io.ReaderAt which suggests the Reader needs to stay alive for the duration
+	// of the symbol table.
+
 	// First try ELF
 	ef, err := elf.NewFile(f)
 	if err == nil {
