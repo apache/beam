@@ -42,7 +42,8 @@ func New(filename string) (*SymbolTable, error) {
 	if err == nil {
 		d, err := ef.DWARF()
 		if err != nil {
-			return nil, err
+			f.Close()
+			return nil, fmt.Errorf("No working DWARF: %v", err)
 		}
 		return &SymbolTable{d}, nil
 	}
@@ -52,6 +53,7 @@ func New(filename string) (*SymbolTable, error) {
 	if err == nil {
 		d, err := mf.DWARF()
 		if err != nil {
+			f.Close()
 			return nil, fmt.Errorf("No working DWARF: %v", err)
 		}
 		return &SymbolTable{d}, nil
@@ -62,12 +64,14 @@ func New(filename string) (*SymbolTable, error) {
 	if err == nil {
 		d, err := pf.DWARF()
 		if err != nil {
-			return nil, err
+			f.Close()
+			return nil, fmt.Errorf("No working DWARF: %v", err)
 		}
 		return &SymbolTable{d}, nil
 	}
 
 	// Give up, we don't recognize it
+	f.Close()
 	return nil, fmt.Errorf("Unknown file format")
 }
 
