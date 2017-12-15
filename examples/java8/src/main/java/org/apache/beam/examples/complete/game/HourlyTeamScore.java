@@ -20,6 +20,7 @@ package org.apache.beam.examples.complete.game;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
+import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToText;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.TextIO;
@@ -73,9 +74,6 @@ import org.joda.time.format.DateTimeFormatter;
  */
 public class HourlyTeamScore extends UserScore {
 
-  private static DateTimeFormatter fmt =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
   private static DateTimeFormatter minFmt =
       DateTimeFormat.forPattern("yyyy-MM-dd-HH-mm")
           .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
@@ -121,7 +119,7 @@ public class HourlyTeamScore extends UserScore {
         "window_start",
         (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
-              return fmt.print(window.start());
+              return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             });
     return config;
   }

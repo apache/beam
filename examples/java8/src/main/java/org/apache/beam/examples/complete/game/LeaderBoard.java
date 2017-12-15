@@ -20,9 +20,9 @@ package org.apache.beam.examples.complete.game;
 import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
 import org.apache.beam.examples.common.ExampleOptions;
 import org.apache.beam.examples.common.ExampleUtils;
+import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
@@ -45,11 +45,8 @@ import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 /**
  * This class is the third in a series of four pipelines that tell a story in a 'gaming' domain,
@@ -92,11 +89,6 @@ import org.joda.time.format.DateTimeFormatter;
  */
 public class LeaderBoard extends HourlyTeamScore {
 
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp_ms";
-
-  private static DateTimeFormatter fmt =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
   static final Duration FIVE_MINUTES = Duration.standardMinutes(5);
   static final Duration TEN_MINUTES = Duration.standardMinutes(10);
 
@@ -155,12 +147,12 @@ public class LeaderBoard extends HourlyTeamScore {
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
-              return fmt.print(window.start());
+              return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> fmt.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     tableConfigure.put(
         "timing",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
@@ -201,7 +193,7 @@ public class LeaderBoard extends HourlyTeamScore {
     tableConfigure.put(
         "processing_time",
         new WriteToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> fmt.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -218,7 +210,8 @@ public class LeaderBoard extends HourlyTeamScore {
     // data elements, and parse the data.
     PCollection<GameActionInfo> gameEvents = pipeline
         .apply(PubsubIO.readStrings()
-            .withTimestampAttribute(TIMESTAMP_ATTRIBUTE).fromTopic(options.getTopic()))
+            .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
+            .fromTopic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     gameEvents
