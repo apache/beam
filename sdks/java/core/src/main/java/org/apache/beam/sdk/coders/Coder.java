@@ -59,9 +59,9 @@ public abstract class Coder<T> implements Serializable {
   /**
    * The context in which encoding or decoding is being done.
    *
-   * @deprecated To implement a coder, do not use any {@code Context}. Just implement only those
-   * abstract methods which do not accept a {@code Context} and leave the default implementations
-   * for methods accepting a {@code Context}.
+   * @deprecated To implement a coder, do not use any {@link Context}. Just implement only those
+   * abstract methods which do not accept a {@link Context} and leave the default implementations
+   * for methods accepting a {@link Context}.
    */
   @Deprecated
   @Experimental(Kind.CODER_CONTEXT)
