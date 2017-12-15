@@ -88,6 +88,7 @@ public class BeamFnDataReadRunner<OutputT> {
         Supplier<String> processBundleInstructionId,
         Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
         Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) throws IOException {

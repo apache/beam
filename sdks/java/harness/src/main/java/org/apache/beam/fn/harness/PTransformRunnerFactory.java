@@ -52,6 +52,7 @@ public interface PTransformRunnerFactory<T> {
    *     id.
    * @param pCollections A mapping from PCollection id to PCollection definition.
    * @param coders A mapping from coder id to coder definition.
+   * @param windowingStrategies
    * @param pCollectionIdsToConsumers A mapping from PCollection id to a collection of consumers.
    *     Note that if this handler is a consumer, it should register itself within this multimap
    *     under the appropriate PCollection ids. Also note that all output consumers needed by this
@@ -69,6 +70,7 @@ public interface PTransformRunnerFactory<T> {
       Supplier<String> processBundleInstructionId,
       Map<String, PCollection> pCollections,
       Map<String, Coder> coders,
+      Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
       Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
       Consumer<ThrowingRunnable> addStartFunction,
       Consumer<ThrowingRunnable> addFinishFunction)

@@ -115,7 +115,7 @@ public class BeamFnLoggingClient implements AutoCloseable {
     logManager.reset();
     Logger rootLogger = logManager.getLogger(ROOT_LOGGER_NAME);
     for (Handler handler : rootLogger.getHandlers()) {
-      rootLogger.removeHandler(handler);
+      //rootLogger.removeHandler(handler);
     }
 
     // Use the passed in logging options to configure the various logger levels.

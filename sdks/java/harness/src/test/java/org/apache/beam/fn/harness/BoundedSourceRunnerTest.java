@@ -28,15 +28,16 @@ import static org.junit.Assert.fail;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
+import org.apache.beam.fn.harness.control.ProcessBundleHandler;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
@@ -105,7 +106,8 @@ public class BoundedSourceRunnerTest {
 
     BoundedSourceRunner<BoundedSource<Long>, Long> runner = new BoundedSourceRunner<>(
         PipelineOptionsFactory.create(),
-        RunnerApi.FunctionSpec.newBuilder().setPayload(encodedSource).build(),
+        RunnerApi.FunctionSpec.newBuilder()
+            .setUrn(ProcessBundleHandler.JAVA_SOURCE_URN).setPayload(encodedSource).build(),
         consumers);
 
     runner.start();
@@ -144,8 +146,9 @@ public class BoundedSourceRunnerTest {
         "pTransformId",
         pTransform,
         Suppliers.ofInstance("57L")::get,
-        ImmutableMap.of(),
-        ImmutableMap.of(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);

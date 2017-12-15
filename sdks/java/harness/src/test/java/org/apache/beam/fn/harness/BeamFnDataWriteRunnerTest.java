@@ -135,6 +135,7 @@ public class BeamFnDataWriteRunnerTest {
         ImmutableMap.of("inputPC",
             RunnerApi.PCollection.newBuilder().setCoderId(CODER_ID).build()),
         COMPONENTS.getCodersMap(),
+        COMPONENTS.getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
