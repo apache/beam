@@ -852,6 +852,7 @@ public class PubsubIO {
      */
     public class PubsubBoundedWriter extends DoFn<T, Void> {
       private static final int MAX_PUBLISH_BATCH_SIZE = 1000;
+      private static final int MAX_PUBLISH_BYTE_SIZE = 1024 * 1024 * 10;
 
       private transient List<OutgoingMessage> output;
       private transient PubsubClient pubsubClient;
@@ -874,8 +875,9 @@ public class PubsubIO {
         payload = message.getPayload();
         Map<String, String> attributes = message.getAttributeMap();
 
-        boolean shouldPublish = output.size() == MAX_PUBLISH_BATCH_SIZE ||
-                currentByteSize + message.getMessageByteSize() >= MAX_PUBLISH_BYTE_SIZE;
+        boolean shouldPublish =
+            output.size() == MAX_PUBLISH_BATCH_SIZE
+                || currentByteSize + message.getMessageByteSize() > MAX_PUBLISH_BYTE_SIZE;
 
         if (shouldPublish) {
           publish();

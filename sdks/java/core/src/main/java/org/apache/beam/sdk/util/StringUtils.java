@@ -146,7 +146,7 @@ public class StringUtils {
 
   public static int getTotalSizeInBytes(Collection<String> list) {
     int out = 0;
-    for (String s: list) {
+    for (String s : list) {
       out += getStringByteSize(s);
     }
     return out;
