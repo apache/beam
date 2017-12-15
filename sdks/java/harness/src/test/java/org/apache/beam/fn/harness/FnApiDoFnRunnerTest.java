@@ -36,6 +36,7 @@ import com.google.common.collect.Multimap;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.ServiceLoader;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
@@ -149,8 +150,9 @@ public class FnApiDoFnRunnerTest {
         pTransformId,
         pTransform,
         Suppliers.ofInstance("57L")::get,
-        ImmutableMap.of(),
-        ImmutableMap.of(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
@@ -317,8 +319,9 @@ public class FnApiDoFnRunnerTest {
         TEST_PTRANSFORM_ID,
         pTransform,
         Suppliers.ofInstance("57L")::get,
-        ImmutableMap.of(),
-        ImmutableMap.of(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
+        Collections.emptyMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
