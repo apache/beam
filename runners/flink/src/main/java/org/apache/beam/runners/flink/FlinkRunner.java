@@ -17,7 +17,7 @@
  */
 package org.apache.beam.runners.flink;
 
-import static org.apache.beam.sdk.util.PipelineUtils.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.base.Joiner;
 import java.util.ArrayList;

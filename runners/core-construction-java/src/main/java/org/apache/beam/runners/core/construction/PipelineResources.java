@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.construction;
 
 import java.io.File;
 import java.net.URISyntaxException;
@@ -24,10 +24,8 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Utilities for working with Pipelines.
- */
-public class PipelineUtils {
+/** Utilities for working with classpath resources for pipelines. */
+public class PipelineResources {
 
   /**
    * Attempts to detect all the resources the class loader has access to. This does not recurse

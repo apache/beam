@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.runners.core.construction;
 
 import static org.junit.Assert.assertEquals;
 
@@ -32,10 +32,10 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /**
- * Tests for PipelineUtils.
+ * Tests for PipelineResources.
  */
 @RunWith(JUnit4.class)
-public class PipelineUtilsTest {
+public class PipelineResourcesTest {
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public transient ExpectedException thrown = ExpectedException.none();
@@ -50,7 +50,7 @@ public class PipelineUtilsTest {
     });
 
     assertEquals(ImmutableList.of(file.getAbsolutePath(), file2.getAbsolutePath()),
-        PipelineUtils.detectClassPathResourcesToStage(classLoader));
+        PipelineResources.detectClassPathResourcesToStage(classLoader));
   }
 
   @Test
@@ -59,7 +59,7 @@ public class PipelineUtilsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to use ClassLoader to detect classpath elements.");
 
-    PipelineUtils.detectClassPathResourcesToStage(mockClassLoader);
+    PipelineResources.detectClassPathResourcesToStage(mockClassLoader);
   }
 
   @Test
@@ -71,6 +71,6 @@ public class PipelineUtilsTest {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Unable to convert url (" + url + ") to file.");
 
-    PipelineUtils.detectClassPathResourcesToStage(classLoader);
+    PipelineResources.detectClassPathResourcesToStage(classLoader);
   }
 }
