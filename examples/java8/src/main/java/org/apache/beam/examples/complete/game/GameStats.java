@@ -19,8 +19,8 @@ package org.apache.beam.examples.complete.game;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimeZone;
 import org.apache.beam.examples.common.ExampleUtils;
+import org.apache.beam.examples.complete.game.utils.GameConstants;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -50,11 +50,8 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptors;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,14 +90,8 @@ import org.slf4j.LoggerFactory;
  */
 public class GameStats extends LeaderBoard {
 
-  private static final String TIMESTAMP_ATTRIBUTE = "timestamp_ms";
-
-  private static DateTimeFormatter fmt =
-      DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss.SSS")
-          .withZone(DateTimeZone.forTimeZone(TimeZone.getTimeZone("PST")));
-
   /**
-   * Filter out all but those users with a high clickrate, which we will consider as 'spammy' uesrs.
+   * Filter out all users but those with a high clickrate, which we will consider as 'spammy' users.
    * We do this by finding the mean total score per user, then using that information as a side
    * input to filter out all but those user scores that are larger than
    * {@code (mean * SCORE_WEIGHT)}.
@@ -208,12 +199,12 @@ public class GameStats extends LeaderBoard {
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
-              return fmt.print(window.start());
+              return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",
         new WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>(
-            "STRING", (c, w) -> fmt.print(Instant.now())));
+            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -232,7 +223,7 @@ public class GameStats extends LeaderBoard {
             "STRING",
             (c, w) -> {
               IntervalWindow window = (IntervalWindow) w;
-              return fmt.print(window.start());
+              return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
         "mean_duration",
@@ -253,7 +244,8 @@ public class GameStats extends LeaderBoard {
     // Read Events from Pub/Sub using custom timestamps
     PCollection<GameActionInfo> rawEvents = pipeline
         .apply(PubsubIO.readStrings()
-            .withTimestampAttribute(TIMESTAMP_ATTRIBUTE).fromTopic(options.getTopic()))
+            .withTimestampAttribute(GameConstants.TIMESTAMP_ATTRIBUTE)
+            .fromTopic(options.getTopic()))
         .apply("ParseGameEvent", ParDo.of(new ParseEventFn()));
 
     // Extract username/score pairs from the event stream
