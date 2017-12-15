@@ -18,8 +18,10 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.StringUtils.getStringByteSize;
 import static org.apache.beam.sdk.util.StringUtils.getTotalSizeInBytes;
 
+import com.google.common.base.Preconditions;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -31,12 +33,11 @@ public class PubsubMessage {
 
   private byte[] message;
   private Map<String, String> attributes;
-  public static final int MAX_PUBLISH_BYTE_SIZE = 10485760;
-
 
   public PubsubMessage(byte[] payload, Map<String, String> attributes) {
     this.message = payload;
     this.attributes = attributes;
+    PubsubValidator.validate(this);
   }
 
   /** Returns the main PubSub message. */
@@ -62,5 +63,49 @@ public class PubsubMessage {
 
   int getAttributeMapByteSize() {
     return getTotalSizeInBytes(attributes.values()) + getTotalSizeInBytes(attributes.keySet());
+  }
+
+  static class PubsubValidator {
+    public static final int MAX_PUBLISH_BYTE_SIZE = 10485760;
+    private static final String MAX_MSG_SIZE_ERROR_MESSAGE =
+      String.format("Total size of PubsubMessage must be <= %d bytes", MAX_PUBLISH_BYTE_SIZE);
+
+    protected static final int MAX_ATTRIBUTE_KEY_SIZE = 256;
+    protected static final int MAX_ATTRIBUTE_VALUE_SIZE = 1000;
+    private static final String ATTR_ERROR_MESSAGE =
+      String.format("PubsubMessage contains an attribute that exceeds the PubSub quota. " +
+        "Keys must be <= %d bytes, Values must be <= %d bytes.",
+        MAX_ATTRIBUTE_KEY_SIZE,
+        MAX_ATTRIBUTE_VALUE_SIZE);
+
+    protected static final int MAX_MSG_ATTRIBUTES = 100;
+    private static final String MAX_MSG_ATTRIBUTES_ERROR_MESSAGE =
+      String.format("PubsubMessage contains too many attributes, " +
+        "maximum allowed is %d messages.",
+        MAX_MSG_ATTRIBUTES);
+
+    static void validate(PubsubMessage message) {
+      Preconditions.checkState(message.message.length <= MAX_PUBLISH_BYTE_SIZE,
+              MAX_MSG_SIZE_ERROR_MESSAGE +
+        String.format(", got %d bytes", message.message.length));
+
+      Preconditions.checkState(message.attributes.size() <= MAX_MSG_ATTRIBUTES,
+        MAX_MSG_ATTRIBUTES_ERROR_MESSAGE);
+
+      Preconditions.checkState(hasValidAttributes(message.attributes), ATTR_ERROR_MESSAGE);
+    }
+
+    static boolean isInvalidAttribute(Map.Entry<String, String> entry) {
+      return getStringByteSize(entry.getKey()) > MAX_ATTRIBUTE_KEY_SIZE ||
+        getStringByteSize(entry.getValue()) > MAX_ATTRIBUTE_VALUE_SIZE;
+    }
+    static boolean hasValidAttributes(Map<String, String> attributes) {
+      for (Map.Entry<String, String> entry : attributes.entrySet()) {
+        if (isInvalidAttribute(entry)) {
+          return false;
+        }
+      }
+      return true;
+    }
   }
 }

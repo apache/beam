@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static com.google.common.base.Preconditions.checkState;
-import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.MAX_PUBLISH_BYTE_SIZE;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubMessage.PubsubValidator.MAX_PUBLISH_BYTE_SIZE;
 
 import com.google.auto.value.AutoValue;
