@@ -24,6 +24,7 @@ import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
@@ -45,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BeamFnDataGrpcMultiplexer {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataGrpcMultiplexer.class);
-  private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
+  @Nullable private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ConcurrentMap<
@@ -53,7 +54,7 @@ public class BeamFnDataGrpcMultiplexer {
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
-      Endpoints.ApiServiceDescriptor apiServiceDescriptor,
+      @Nullable Endpoints.ApiServiceDescriptor apiServiceDescriptor,
       StreamObserverClientFactory<BeamFnApi.Elements, BeamFnApi.Elements> outboundObserverFactory) {
     this.apiServiceDescriptor = apiServiceDescriptor;
     this.consumers = new ConcurrentHashMap<>();
@@ -148,12 +149,17 @@ public class BeamFnDataGrpcMultiplexer {
 
     @Override
     public void onError(Throwable t) {
-      LOG.error("Failed to handle for {}", apiServiceDescriptor, t);
+      LOG.error(
+          "Failed to handle for {}",
+          apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor,
+          t);
     }
 
     @Override
     public void onCompleted() {
-      LOG.warn("Hanged up for {}.", apiServiceDescriptor);
+      LOG.warn(
+          "Hanged up for {}.",
+          apiServiceDescriptor == null ? "unknown endpoint" : apiServiceDescriptor);
     }
   }
 }
