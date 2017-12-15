@@ -258,7 +258,8 @@ While the majority of commits is still provided by a single organization, it is 
 
 Finally, the contributor diversity has increased significantly. Over each of the last three months, no organization has had more than ~50% of the unique contributors per month. (Assumptions: commits to master branch of the main repository, excludes merge commits, best effort to identify unique contributors).
 
-![Alt text]({{ "/images/contribution-diversity.png" | prepend: site.baseurl }} "Contributor Diversity")
+![Contributor diversity graph](
+  {{ "/images/contribution-diversity.png" | prepend: site.baseurl }})
 
 ## Dependency analysis
 This section analyses project's direct and transitive dependencies to ensure compliance with Apache Software Foundation's policies and guidelines.
