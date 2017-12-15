@@ -15,23 +15,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.core.fn;
 
-import java.io.Closeable;
+package org.apache.beam.sdk.fn.data;
+
+import com.google.auto.value.AutoValue;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 
 /**
- * A receiver of streamed data.
- *
- * <p>Provide a {@link FnDataReceiver} and target to a {@link FnDataService} to listen for incoming
- * data.
- *
- * <p>Register a target with a {@link FnDataService} to gain a {@link FnDataReceiver} to which you
- * may write outgoing data.
- *
- * @deprecated Runners should depend on the beam-runners-java-fn-execution module for this
- *     functionality.
+ * A logical endpoint is a pair of an instruction ID corresponding to the {@link
+ * BeamFnApi.ProcessBundleRequest} and the {@link BeamFnApi.Target} within the processing graph.
+ * This enables the same Data Service or Data Client to be re-used across multiple bundles.
  */
-@Deprecated
-public interface FnDataReceiver<T> extends Closeable {
-  void accept(T input) throws Exception;
+@AutoValue
+public abstract class LogicalEndpoint {
+
+  public abstract String getInstructionId();
+
+  public abstract BeamFnApi.Target getTarget();
+
+  public static LogicalEndpoint of(String instructionId, BeamFnApi.Target target) {
+    return new AutoValue_LogicalEndpoint(instructionId, target);
+  }
 }

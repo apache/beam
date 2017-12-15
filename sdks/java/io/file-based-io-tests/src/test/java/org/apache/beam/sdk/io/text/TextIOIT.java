@@ -19,33 +19,22 @@
 package org.apache.beam.sdk.io.text;
 
 import static org.apache.beam.sdk.io.Compression.AUTO;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampToPrefix;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
+import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
-import com.google.common.base.Function;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-
-import java.io.IOException;
 import java.text.ParseException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Map;
-
 import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
+import org.apache.beam.sdk.io.common.FileBasedIOITHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
-import org.apache.beam.sdk.io.fs.MatchResult;
-import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -64,14 +53,14 @@ import org.junit.runners.JUnit4;
  *  -Dit.test=org.apache.beam.sdk.io.text.TextIOIT
  *  -DintegrationTestPipelineOptions='[
  *  "--numberOfRecords=100000",
- *  "--filenamePrefix=TEXTIOIT"
+ *  "--filenamePrefix=output_file_path",
  *  "--compressionType=GZIP"
  *  ]'
  * </pre>
  * </p>
  * <p>Please see 'sdks/java/io/file-based-io-tests/pom.xml' for instructions regarding
  * running this test using Beam performance testing framework.</p>
- * */
+ */
 @RunWith(JUnit4.class)
 public class TextIOIT {
 
@@ -84,26 +73,11 @@ public class TextIOIT {
 
   @BeforeClass
   public static void setup() throws ParseException {
-    PipelineOptionsFactory.register(IOTestPipelineOptions.class);
-    IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
-        .as(IOTestPipelineOptions.class);
+    IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();
-    filenamePrefix = appendTimestamp(options.getFilenamePrefix());
-    compressionType = parseCompressionType(options.getCompressionType());
-  }
-
-  private static Compression parseCompressionType(String compressionType) {
-    try {
-      return Compression.valueOf(compressionType.toUpperCase());
-    } catch (IllegalArgumentException ex) {
-      throw new IllegalArgumentException(
-          String.format("Unsupported compression type: %s", compressionType));
-    }
-  }
-
-  private static String appendTimestamp(String filenamePrefix) {
-    return String.format("%s_%s", filenamePrefix, new Date().getTime());
+    filenamePrefix = appendTimestampToPrefix(options.getFilenamePrefix());
+    compressionType = Compression.valueOf(options.getCompressionType());
   }
 
   @Test
@@ -116,9 +90,11 @@ public class TextIOIT {
 
     PCollection<String> testFilenames = pipeline
         .apply("Generate sequence", GenerateSequence.from(0).to(numberOfTextLines))
-        .apply("Produce text lines", ParDo.of(new DeterministicallyConstructTestTextLineFn()))
+        .apply("Produce text lines",
+            ParDo.of(new FileBasedIOITHelper.DeterministicallyConstructTestTextLineFn()))
         .apply("Write content to files", write)
-        .getPerDestinationOutputFilenames().apply(Values.<String>create());
+        .getPerDestinationOutputFilenames().apply(Values.<String>create())
+        .apply(Reshuffle.<String>viaRandomKey());
 
     PCollection<String> consolidatedHashcode = testFilenames
         .apply("Read all files", TextIO.readAll().withCompression(AUTO))
@@ -127,53 +103,9 @@ public class TextIOIT {
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);
 
-    testFilenames.apply("Delete test files", ParDo.of(new DeleteFileFn())
+    testFilenames.apply("Delete test files", ParDo.of(new FileBasedIOITHelper.DeleteFileFn())
         .withSideInputs(consolidatedHashcode.apply(View.<String>asSingleton())));
 
     pipeline.run().waitUntilFinish();
-  }
-
-  private static String getExpectedHashForLineCount(Long lineCount) {
-    Map<Long, String> expectedHashes = ImmutableMap.of(
-        100_000L, "4c8bb3b99dcc59459b20fefba400d446",
-        1_000_000L, "9796db06e7a7960f974d5a91164afff1",
-        100_000_000L, "6ce05f456e2fdc846ded2abd0ec1de95"
-    );
-
-    String hash = expectedHashes.get(lineCount);
-    if (hash == null) {
-      throw new UnsupportedOperationException(
-          String.format("No hash for that line count: %s", lineCount));
-    }
-    return hash;
-  }
-
-  private static class DeterministicallyConstructTestTextLineFn extends DoFn<Long, String> {
-
-    @ProcessElement
-    public void processElement(ProcessContext c) {
-      c.output(String.format("IO IT Test line of text. Line seed: %s", c.element()));
-    }
-  }
-
-  private static class DeleteFileFn extends DoFn<String, Void> {
-
-    @ProcessElement
-    public void processElement(ProcessContext c) throws IOException {
-      MatchResult match = Iterables
-          .getOnlyElement(FileSystems.match(Collections.singletonList(c.element())));
-      FileSystems.delete(toResourceIds(match));
-    }
-
-    private Collection<ResourceId> toResourceIds(MatchResult match) throws IOException {
-      return FluentIterable.from(match.metadata())
-          .transform(new Function<MatchResult.Metadata, ResourceId>() {
-
-            @Override
-            public ResourceId apply(MatchResult.Metadata metadata) {
-              return metadata.resourceId();
-            }
-          }).toList();
-    }
   }
 }

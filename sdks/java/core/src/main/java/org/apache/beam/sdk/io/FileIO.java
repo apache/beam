@@ -33,13 +33,17 @@ import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.transforms.Contextful;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Requirements;
 import org.apache.beam.sdk.transforms.Reshuffle;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.Watch;
+import org.apache.beam.sdk.transforms.Watch.Growth.PollFn;
 import org.apache.beam.sdk.transforms.Watch.Growth.TerminationCondition;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
@@ -69,6 +73,11 @@ public class FileIO {
    * <p>By default, a filepattern matching no resources is treated according to {@link
    * EmptyMatchTreatment#DISALLOW}. To configure this behavior, use {@link
    * Match#withEmptyMatchTreatment}.
+   *
+   * <p>Returned {@link MatchResult.Metadata} are deduplicated by filename. For example, if this
+   * transform observes a file with the same name several times with different metadata (e.g.
+   * because the file is growing), it will emit the metadata the first time this file is observed,
+   * and will ignore future changes to this file.
    */
   public static Match match() {
     return new AutoValue_FileIO_Match.Builder()
@@ -317,13 +326,17 @@ public class FileIO {
             "Match filepatterns",
             ParDo.of(new MatchFn(getConfiguration().getEmptyMatchTreatment())));
       } else {
-        res = input
-            .apply(
-                "Continuously match filepatterns",
-                Watch.growthOf(new MatchPollFn())
-                    .withPollInterval(getConfiguration().getWatchInterval())
-                    .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
-            .apply(Values.<MatchResult.Metadata>create());
+        res =
+            input
+                .apply(
+                    "Continuously match filepatterns",
+                    Watch.growthOf(
+                            Contextful.<PollFn<String, MatchResult.Metadata>>of(
+                                new MatchPollFn(), Requirements.empty()),
+                            new ExtractFilenameFn())
+                        .withPollInterval(getConfiguration().getWatchInterval())
+                        .withTerminationPerInput(getConfiguration().getWatchTerminationCondition()))
+                .apply(Values.<MatchResult.Metadata>create());
       }
       return res.apply(Reshuffle.<MatchResult.Metadata>viaRandomKey());
     }
@@ -346,12 +359,20 @@ public class FileIO {
       }
     }
 
-    private static class MatchPollFn extends Watch.Growth.PollFn<String, MatchResult.Metadata> {
+    private static class MatchPollFn extends PollFn<String, MatchResult.Metadata> {
       @Override
       public Watch.Growth.PollResult<MatchResult.Metadata> apply(String element, Context c)
           throws Exception {
         return Watch.Growth.PollResult.incomplete(
             Instant.now(), FileSystems.match(element, EmptyMatchTreatment.ALLOW).metadata());
+      }
+    }
+
+    private static class ExtractFilenameFn
+        implements SerializableFunction<MatchResult.Metadata, String> {
+      @Override
+      public String apply(MatchResult.Metadata input) {
+        return input.resourceId().toString();
       }
     }
   }

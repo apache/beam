@@ -22,6 +22,7 @@ from __future__ import absolute_import
 
 import collections
 import contextlib
+import random
 import time
 
 from apache_beam import typehints
@@ -29,12 +30,20 @@ from apache_beam.metrics import Metrics
 from apache_beam.transforms import window
 from apache_beam.transforms.core import CombinePerKey
 from apache_beam.transforms.core import DoFn
+from apache_beam.transforms.core import FlatMap
 from apache_beam.transforms.core import Flatten
 from apache_beam.transforms.core import GroupByKey
 from apache_beam.transforms.core import Map
 from apache_beam.transforms.core import ParDo
+from apache_beam.transforms.core import WindowInto
 from apache_beam.transforms.ptransform import PTransform
 from apache_beam.transforms.ptransform import ptransform_fn
+from apache_beam.transforms.trigger import AccumulationMode
+from apache_beam.transforms.trigger import AfterCount
+from apache_beam.transforms.window import NonMergingWindowFn
+from apache_beam.transforms.window import TimestampCombiner
+from apache_beam.transforms.window import TimestampedValue
+from apache_beam.utils import urns
 from apache_beam.utils import windowed_value
 
 __all__ = [
@@ -43,10 +52,12 @@ __all__ = [
     'Keys',
     'KvSwap',
     'RemoveDuplicates',
+    'Reshuffle',
     'Values',
     ]
 
-
+K = typehints.TypeVariable('K')
+V = typehints.TypeVariable('V')
 T = typehints.TypeVariable('T')
 
 
@@ -423,3 +434,102 @@ class BatchElements(PTransform):
           self._batch_size_estimator))
     else:
       return pcoll | ParDo(_WindowAwareBatchingDoFn(self._batch_size_estimator))
+
+
+class _IdentityWindowFn(NonMergingWindowFn):
+  """Windowing function that preserves existing windows.
+
+  To be used internally with the Reshuffle transform.
+  Will raise an exception when used after DoFns that return TimestampedValue
+  elements.
+  """
+
+  def __init__(self, window_coder):
+    """Create a new WindowFn with compatible coder.
+    To be applied to PCollections with windows that are compatible with the
+    given coder.
+
+    Arguments:
+      window_coder: coders.Coder object to be used on windows.
+    """
+    super(_IdentityWindowFn, self).__init__()
+    if window_coder is None:
+      raise ValueError('window_coder should not be None')
+    self._window_coder = window_coder
+
+  def assign(self, assign_context):
+    if assign_context.window is None:
+      raise ValueError(
+          'assign_context.window should not be None. '
+          'This might be due to a DoFn returning a TimestampedValue.')
+    return [assign_context.window]
+
+  def get_window_coder(self):
+    return self._window_coder
+
+  def to_runner_api_parameter(self, unused_context):
+    pass  # Overridden by register_pickle_urn below.
+
+  urns.RunnerApiFn.register_pickle_urn(urns.RESHUFFLE_TRANSFORM)
+
+
+@typehints.with_input_types(typehints.KV[K, V])
+@typehints.with_output_types(typehints.KV[K, V])
+class ReshufflePerKey(PTransform):
+  """PTransform that returns a PCollection equivalent to its input,
+  but operationally provides some of the side effects of a GroupByKey,
+  in particular preventing fusion of the surrounding transforms,
+  checkpointing, and deduplication by id.
+
+  ReshufflePerKey is experimental. No backwards compatibility guarantees.
+  """
+
+  def expand(self, pcoll):
+    class ReifyTimestamps(DoFn):
+      def process(self, element, timestamp=DoFn.TimestampParam):
+        yield element[0], TimestampedValue(element[1], timestamp)
+
+    class RestoreTimestamps(DoFn):
+      def process(self, element, window=DoFn.WindowParam):
+        # Pass the current window since _IdentityWindowFn wouldn't know how
+        # to generate it.
+        yield windowed_value.WindowedValue(
+            (element[0], element[1].value), element[1].timestamp, [window])
+
+    windowing_saved = pcoll.windowing
+    result = (pcoll
+              | ParDo(ReifyTimestamps())
+              | 'IdentityWindow' >> WindowInto(
+                  _IdentityWindowFn(
+                      windowing_saved.windowfn.get_window_coder()),
+                  trigger=AfterCount(1),
+                  accumulation_mode=AccumulationMode.DISCARDING,
+                  timestamp_combiner=TimestampCombiner.OUTPUT_AT_EARLIEST,
+                  )
+              | GroupByKey()
+              | 'ExpandIterable' >> FlatMap(
+                  lambda e: [(e[0], value) for value in e[1]])
+              | ParDo(RestoreTimestamps()))
+    result._windowing = windowing_saved
+    return result
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(T)
+class Reshuffle(PTransform):
+  """PTransform that returns a PCollection equivalent to its input,
+  but operationally provides some of the side effects of a GroupByKey,
+  in particular preventing fusion of the surrounding transforms,
+  checkpointing, and deduplication by id.
+
+  Reshuffle adds a temporary random key to each element, performs a
+  ReshufflePerKey, and finally removes the temporary key.
+
+  Reshuffle is experimental. No backwards compatibility guarantees.
+  """
+
+  def expand(self, pcoll):
+    return (pcoll
+            | 'AddRandomKeys' >> Map(lambda t: (random.getrandbits(32), t))
+            | ReshufflePerKey()
+            | 'RemoveRandomKeys' >> Map(lambda t: t[1]))

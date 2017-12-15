@@ -64,6 +64,7 @@ public class WriteFilesTranslationTest {
     public static Iterable<WriteFiles<Object, Void, Object>> data() {
       return ImmutableList.of(
           WriteFiles.to(new DummySink()),
+          WriteFiles.to(new DummySink()).withWindowedWrites(),
           WriteFiles.to(new DummySink()).withNumShards(17),
           WriteFiles.to(new DummySink()).withWindowedWrites().withNumShards(42));
     }
@@ -80,9 +81,11 @@ public class WriteFilesTranslationTest {
 
       assertThat(
           payload.getRunnerDeterminedSharding(),
-          equalTo(writeFiles.getNumShards() == null && writeFiles.getSharding() == null));
+          equalTo(
+              writeFiles.getNumShardsProvider() == null
+                  && writeFiles.getComputeNumShards() == null));
 
-      assertThat(payload.getWindowedWrites(), equalTo(writeFiles.isWindowedWrites()));
+      assertThat(payload.getWindowedWrites(), equalTo(writeFiles.getWindowedWrites()));
 
       assertThat(
           (FileBasedSink<String, Void, String>)
@@ -102,11 +105,13 @@ public class WriteFilesTranslationTest {
 
       assertThat(
           WriteFilesTranslation.isRunnerDeterminedSharding(appliedPTransform),
-          equalTo(writeFiles.getNumShards() == null && writeFiles.getSharding() == null));
+          equalTo(
+              writeFiles.getNumShardsProvider() == null
+                  && writeFiles.getComputeNumShards() == null));
 
       assertThat(
           WriteFilesTranslation.isWindowedWrites(appliedPTransform),
-          equalTo(writeFiles.isWindowedWrites()));
+          equalTo(writeFiles.getWindowedWrites()));
       assertThat(
           WriteFilesTranslation.<String, Void, String>getSink(appliedPTransform),
           equalTo(writeFiles.getSink()));

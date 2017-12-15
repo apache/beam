@@ -118,10 +118,6 @@ REQUIRED_SETUP_PACKAGES = [
 
 REQUIRED_TEST_PACKAGES = [
     'pyhamcrest>=1.9,<2.0',
-    # Six required by nose plugins management.
-    # Six 1.11.0 incompatible with apitools.
-    # TODO(BEAM-2964): Remove the upper bound.
-    'six>=1.9,<1.11',
     ]
 
 GCP_REQUIREMENTS = [

@@ -78,9 +78,6 @@ class ConsumerSet(Receiver):
     self.output_index = output_index
     self.coder = coder
 
-  def output(self, windowed_value):  # For old SDKs.
-    self.receive(windowed_value)
-
   def receive(self, windowed_value):
     self.update_counters_start(windowed_value)
     for consumer in self.consumers:
@@ -326,9 +323,6 @@ class DoOperation(Operation):
       state = common.DoFnState(self.counter_factory)
       state.step_name = self.step_name
 
-      # TODO(silviuc): What is the proper label here? PCollection being
-      # processed?
-      context = common.DoFnContext('label', state=state)
       # Tag to output index map used to dispatch the side output values emitted
       # by the DoFn function to the appropriate receivers. The main output is
       # tagged with None and is associated with its corresponding index.
@@ -352,9 +346,12 @@ class DoOperation(Operation):
           self.side_input_maps = []
 
       self.dofn_runner = common.DoFnRunner(
-          fn, args, kwargs, self.side_input_maps,
-          window_fn, context, self.tagged_receivers,
-          logger, self.step_name,
+          fn, args, kwargs, self.side_input_maps, window_fn,
+          tagged_receivers=self.tagged_receivers,
+          step_name=self.step_name,
+          logging_context=logger.PerThreadLoggingContext(
+              step_name=self.step_name),
+          state=state,
           scoped_metrics_container=self.scoped_metrics_container)
       self.dofn_receiver = (self.dofn_runner
                             if isinstance(self.dofn_runner, Receiver)

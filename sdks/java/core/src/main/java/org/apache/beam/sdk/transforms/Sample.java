@@ -38,14 +38,25 @@ import org.apache.beam.sdk.values.PCollection;
  * {@code PCollection}, or samples of the values associated with each
  * key in a {@code PCollection} of {@code KV}s.
  *
+ * {@link #fixedSizeGlobally(int)} and {@link #fixedSizePerKey(int)} compute uniformly random
+ * samples. {@link #any(long)} is faster, but provides no uniformity guarantees.
+ *
  * <p>{@link #combineFn} can also be used manually, in combination with state and with the
  * {@link Combine} transform.
  */
 public class Sample {
 
-  /** Returns a {@link CombineFn} that computes a fixed-sized sample of its inputs. */
+  /** Returns a {@link CombineFn} that computes a fixed-sized uniform sample of its inputs. */
   public static <T> CombineFn<T, ?, Iterable<T>> combineFn(int sampleSize) {
     return new FixedSizedSampleFn<>(sampleSize);
+  }
+
+  /**
+   * Returns a {@link CombineFn} that computes a fixed-sized potentially non-uniform sample of its
+   * inputs.
+   */
+  public static <T> CombineFn<T, ?, Iterable<T>> anyCombineFn(int sampleSize) {
+    return new SampleAnyCombineFn<>(sampleSize);
   }
 
   /**
@@ -233,10 +244,10 @@ public class Sample {
       List<T> res = iter.next();
       while (iter.hasNext()) {
         for (T t : iter.next()) {
-          res.add(t);
           if (res.size() >= limit) {
             return res;
           }
+          res.add(t);
         }
       }
       return res;
