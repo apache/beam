@@ -62,14 +62,13 @@ class TempDir(object):
     Returns:
       The name of the temporary file created.
     """
-    f = tempfile.NamedTemporaryFile(delete=False,
-                                    dir=self._tempdir,
-                                    suffix=suffix)
-    if lines:
-      for line in lines:
-        f.write(line)
+    with tempfile.NamedTemporaryFile(
+        delete=False, dir=self._tempdir, suffix=suffix) as f:
+      if lines:
+        for line in lines:
+          f.write(line)
 
-    return f.name
+      return f.name
 
 
 def compute_hash(content, hashing_alg=DEFAULT_HASHING_ALG):

@@ -15,13 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.fnexecution.data;
-
-import java.io.Closeable;
+package org.apache.beam.sdk.fn.data;
 
 /**
  * A receiver of streamed data.
  */
-public interface FnDataReceiver<T> extends Closeable {
+public interface FnDataReceiver<T> {
   void accept(T input) throws Exception;
 }

@@ -18,17 +18,69 @@
 
 package org.apache.beam.sdk.transforms;
 
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.joda.time.Duration;
 
-/** {@link PTransform PTransforms} for reifying the timestamp, window and pane of values. */
+/**
+ * {@link PTransform PTransforms} for converting between explicit and implicit form of various Beam
+ * values.
+ */
 public class Reify {
+  private static class ReifyView<K, V>
+  extends PTransform<PCollection<K>, PCollection<KV<K, V>>> {
+    private final PCollectionView<V> view;
+    private final Coder<V> coder;
+
+    private ReifyView(PCollectionView<V> view, Coder<V> coder) {
+      this.view = view;
+      this.coder = coder;
+    }
+
+    @Override
+    public PCollection<KV<K, V>> expand(PCollection<K> input) {
+      return input
+          .apply(
+              ParDo.of(
+                      new DoFn<K, KV<K, V>>() {
+                        @ProcessElement
+                        public void process(ProcessContext c) {
+                          c.output(KV.of(c.element(), c.sideInput(view)));
+                        }
+                      })
+                  .withSideInputs(view))
+          .setCoder(KvCoder.of(input.getCoder(), coder));
+    }
+  }
+
+  private static class ReifyViewInGlobalWindow<V>
+  extends PTransform<PBegin, PCollection<V>> {
+    private final PCollectionView<V> view;
+    private final Coder<V> coder;
+
+    private ReifyViewInGlobalWindow(PCollectionView<V> view, Coder<V> coder) {
+      this.view = view;
+      this.coder = coder;
+    }
+
+    @Override
+    public PCollection<V> expand(PBegin input) {
+      return input
+          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+          .apply(Reify.<Void, V>viewAsValues(view, coder))
+          .apply(Values.<V>create());
+    }
+  }
+
   /** Private implementation of {@link #windows()}. */
   private static class Window<T>
       extends PTransform<PCollection<T>, PCollection<ValueInSingleWindow<T>>> {
@@ -184,9 +236,28 @@ public class Reify {
     return new WindowInValue<>();
   }
 
+  /** Extracts the timestamps from each value in a {@link KV}. */
   public static <K, V>
       PTransform<PCollection<KV<K, TimestampedValue<V>>>, PCollection<KV<K, V>>>
           extractTimestampsFromValues() {
     return new ExtractTimestampsFromValues<>();
+  }
+
+  /**
+   * Pairs each element in a collection with the value of a side input associated with the element's
+   * window.
+   */
+  public static <K, V> PTransform<PCollection<K>, PCollection<KV<K, V>>> viewAsValues(
+      PCollectionView<V> view, Coder<V> coder) {
+    return new ReifyView<>(view, coder);
+  }
+
+  /**
+   * Returns a {@link PCollection} consisting of a single element, containing the value of the given
+   * view in the global window.
+   */
+  public static <K, V> PTransform<PBegin, PCollection<V>> viewInGlobalWindow(
+      PCollectionView<V> view, Coder<V> coder) {
+    return new ReifyViewInGlobalWindow<>(view, coder);
   }
 }

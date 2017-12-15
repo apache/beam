@@ -14,20 +14,70 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
 """SDK Fn Harness entry point."""
 
+import BaseHTTPServer
+import json
 import logging
 import os
 import sys
+import threading
+import traceback
 
 from google.protobuf import text_format
 
+from apache_beam.internal import pickler
 from apache_beam.portability.api import endpoints_pb2
+from apache_beam.runners.dataflow.internal import names
 from apache_beam.runners.worker.log_handler import FnApiLogRecordHandler
 from apache_beam.runners.worker.sdk_worker import SdkHarness
 
 # This module is experimental. No backwards-compatibility guarantees.
+
+
+class StatusServer(object):
+
+  @classmethod
+  def get_thread_dump(cls):
+    lines = []
+    frames = sys._current_frames()  # pylint: disable=protected-access
+
+    for t in threading.enumerate():
+      lines.append('--- Thread #%s name: %s ---\n' % (t.ident, t.name))
+      lines.append(''.join(traceback.format_stack(frames[t.ident])))
+
+    return lines
+
+  def start(self, status_http_port=0):
+    """Executes the serving loop for the status server.
+
+    Args:
+      status_http_port(int): Binding port for the debug server.
+        Default is 0 which means any free unsecured port
+    """
+
+    class StatusHttpHandler(BaseHTTPServer.BaseHTTPRequestHandler):
+      """HTTP handler for serving stacktraces of all threads."""
+
+      def do_GET(self):  # pylint: disable=invalid-name
+        """Return all thread stacktraces information for GET request."""
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/plain')
+        self.end_headers()
+
+        for line in StatusServer.get_thread_dump():
+          self.wfile.write(line)
+
+      def log_message(self, f, *args):
+        """Do not log any messages."""
+        pass
+
+    self.httpd = httpd = BaseHTTPServer.HTTPServer(
+        ('localhost', status_http_port), StatusHttpHandler)
+    logging.info('Status HTTP server running at %s:%s', httpd.server_name,
+                 httpd.server_port)
+
+    httpd.serve_forever()
 
 
 def main(unused_argv):
@@ -45,8 +95,34 @@ def main(unused_argv):
   else:
     fn_log_handler = None
 
+  # Start status HTTP server thread.
+  thread = threading.Thread(target=StatusServer().start)
+  thread.daemon = True
+  thread.setName('status-server-demon')
+  thread.start()
+
+  if 'PIPELINE_OPTIONS' in os.environ:
+    sdk_pipeline_options = json.loads(os.environ['PIPELINE_OPTIONS'])
+  else:
+    sdk_pipeline_options = {}
+
+  if 'SEMI_PERSISTENT_DIRECTORY' in os.environ:
+    semi_persistent_directory = os.environ['SEMI_PERSISTENT_DIRECTORY']
+  else:
+    semi_persistent_directory = None
+
+  logging.info('semi_persistent_directory: %s', semi_persistent_directory)
+
   try:
-    logging.info('Python sdk harness started.')
+    _load_main_session(semi_persistent_directory)
+  except Exception:  # pylint: disable=broad-except
+    exception_details = traceback.format_exc()
+    logging.error(
+        'Could not load main session: %s', exception_details, exc_info=True)
+
+  try:
+    logging.info('Python sdk harness started with pipeline_options: %s',
+                 sdk_pipeline_options)
     service_descriptor = endpoints_pb2.ApiServiceDescriptor()
     text_format.Merge(os.environ['CONTROL_API_SERVICE_DESCRIPTOR'],
                       service_descriptor)
@@ -60,6 +136,23 @@ def main(unused_argv):
   finally:
     if fn_log_handler:
       fn_log_handler.close()
+
+
+def _load_main_session(semi_persistent_directory):
+  """Loads a pickled main session from the path specified."""
+  if semi_persistent_directory:
+    session_file = os.path.join(semi_persistent_directory, 'staged',
+                                names.PICKLED_MAIN_SESSION_FILE)
+    if os.path.isfile(session_file):
+      pickler.load_session(session_file)
+    else:
+      logging.warning(
+          'No session file found: %s. Functions defined in __main__ '
+          '(interactive session) may fail.', session_file)
+  else:
+    logging.warning(
+        'No semi_persistent_directory found: Functions defined in __main__ '
+        '(interactive session) may fail.')
 
 
 if __name__ == '__main__':

@@ -92,6 +92,7 @@
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <external.build.directory>${project.basedir}/target</external.build.directory>
     <beam.javadoc_opts />
 
     <!-- Disable integration tests by default -->
@@ -691,6 +692,12 @@
       <dependency>
         <groupId>org.apache.beam</groupId>
         <artifactId>beam-runners-java-fn-execution</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.beam</groupId>
+        <artifactId>beam-runners-reference-java</artifactId>
         <version>${project.version}</version>
       </dependency>
 
@@ -1448,7 +1455,7 @@
         <plugin>
           <groupId>org.xolstice.maven.plugins</groupId>
           <artifactId>protobuf-maven-plugin</artifactId>
-          <version>0.5.0</version>
+          <version>0.5.1</version>
         </plugin>
 
         <plugin>
@@ -2194,6 +2201,7 @@
         </executions>
       </plugin>
     </plugins>
+    <directory>${external.build.directory}</directory>
   </build>
 
   <reporting>

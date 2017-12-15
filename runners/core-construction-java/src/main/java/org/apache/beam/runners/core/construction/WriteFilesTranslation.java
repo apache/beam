@@ -85,12 +85,13 @@ public class WriteFilesTranslation {
 
           @Override
           public boolean isWindowedWrites() {
-            return transform.isWindowedWrites();
+            return transform.getWindowedWrites();
           }
 
           @Override
           public boolean isRunnerDeterminedSharding() {
-            return transform.getNumShards() == null && transform.getSharding() == null;
+            return transform.getNumShardsProvider() == null
+                && transform.getComputeNumShards() == null;
           }
         },
         components);
@@ -302,7 +303,7 @@ public class WriteFilesTranslation {
     public Map<Class<? extends PTransform>, TransformPayloadTranslator>
         getTransformPayloadTranslators() {
       return Collections.<Class<? extends PTransform>, TransformPayloadTranslator>singletonMap(
-          WriteFiles.class, new WriteFilesTranslator());
+          WriteFiles.CONCRETE_CLASS, new WriteFilesTranslator());
     }
 
     @Override

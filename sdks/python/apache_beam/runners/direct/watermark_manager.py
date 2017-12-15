@@ -39,7 +39,7 @@ class WatermarkManager(object):
 
   def __init__(self, clock, root_transforms, value_to_consumers,
                transform_keyed_states):
-    self._clock = clock  # processing time clock
+    self._clock = clock
     self._root_transforms = root_transforms
     self._value_to_consumers = value_to_consumers
     self._transform_keyed_states = transform_keyed_states
@@ -143,13 +143,18 @@ class WatermarkManager(object):
             for consumer in consumers:
               self._refresh_watermarks(consumer)
 
-  def extract_fired_timers(self):
+  def extract_all_timers(self):
+    """Extracts fired timers for all transforms
+    and reports if there are any timers set."""
     all_timers = []
+    has_realtime_timer = False
     for applied_ptransform, tw in self._transform_to_watermarks.iteritems():
-      fired_timers = tw.extract_fired_timers()
+      fired_timers, had_realtime_timer = tw.extract_transform_timers()
       if fired_timers:
         all_timers.append((applied_ptransform, fired_timers))
-    return all_timers
+      if had_realtime_timer:
+        has_realtime_timer = True
+    return all_timers, has_realtime_timer
 
 
 class _TransformWatermarks(object):
@@ -246,17 +251,20 @@ class _TransformWatermarks(object):
   def synchronized_processing_output_time(self):
     return self._clock.time()
 
-  def extract_fired_timers(self):
+  def extract_transform_timers(self):
+    """Extracts fired timers and reports of any timers set per transform."""
     with self._lock:
-      if self._fired_timers:
-        return False
-
       fired_timers = []
+      has_realtime_timer = False
       for encoded_key, state in self._keyed_states.iteritems():
-        timers = state.get_timers(watermark=self._input_watermark)
+        timers, had_realtime_timer = state.get_timers(
+            watermark=self._input_watermark,
+            processing_time=self._clock.time())
+        if had_realtime_timer:
+          has_realtime_timer = True
         for expired in timers:
           window, (name, time_domain, timestamp) = expired
           fired_timers.append(
               TimerFiring(encoded_key, window, name, time_domain, timestamp))
       self._fired_timers.update(fired_timers)
-      return fired_timers
+      return fired_timers, has_realtime_timer

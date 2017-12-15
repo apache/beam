@@ -568,6 +568,29 @@ public abstract class DoFn<InputT, OutputT> implements Serializable, HasDisplayD
   public @interface ProcessElement {}
 
   /**
+   * <b><i>Experimental - no backwards compatibility guarantees. The exact name or usage of this
+   * feature may change.</i></b>
+   *
+   * <p>Annotation that may be added to a {@link ProcessElement} or {@link OnTimer} method to
+   * indicate that the runner must ensure that the observable contents of the input {@link
+   * PCollection} or mutable state must be stable upon retries.
+   *
+   * <p>This is important for sinks, which must ensure exactly-once semantics when writing to a
+   * storage medium outside of your pipeline. A general pattern for a basic sink is to write a
+   * {@link DoFn} that can perform an idempotent write, and annotate that it requires stable input.
+   * Combined, these allow the write to be freely retried until success.
+   *
+   * <p>An example of an unstable input would be anything computed using nondeterministic logic. In
+   * Beam, any user-defined function is permitted to be nondeterministic, and any {@link
+   * PCollection} is permitted to be recomputed in any manner.
+   */
+  @Documented
+  @Experimental
+  @Retention(RetentionPolicy.RUNTIME)
+  @Target(ElementType.METHOD)
+  public @interface RequiresStableInput {}
+
+  /**
    * Annotation for the method to use to finish processing a batch of elements.
    * The method annotated with this must satisfy the following constraints:
    * <ul>

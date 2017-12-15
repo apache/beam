@@ -37,6 +37,7 @@
     <integrationTestPipelineOptions />
     <pkbBeamRunnerProfile />
     <pkbBeamRunnerOption />
+    <pkbExtraProperties />
   </properties>
 
   <modules>
