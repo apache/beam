@@ -19,19 +19,23 @@ package org.apache.beam.sdk.io.gcp.spanner;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.Key;
 import com.google.cloud.spanner.KeyRange;
 import com.google.cloud.spanner.KeySet;
 import com.google.cloud.spanner.Mutation;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSets;
+import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Statement;
 import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.Type;
@@ -45,6 +49,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.testing.NeedsRunner;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -348,6 +353,44 @@ public class SpannerIOWriteTest implements Serializable {
         batch(m(3L), m(4L), m(5L)),
         batch(m(6L), m(7L), m(8L), m(9L), m(10L))
     );
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void reportFailures() throws Exception {
+    PCollection<MutationGroup> mutations = pipeline
+        .apply(Create.of(
+            g(m(1L)), g(m(2L)), g(m(3L)), g(m(4L)),  g(m(5L)),
+            g(m(6L)), g(m(7L)), g(m(8L)), g(m(9L)),  g(m(10L)))
+        );
+
+    when(serviceFactory.mockDatabaseClient().writeAtLeastOnce(any()))
+        .thenAnswer(invocationOnMock -> {
+          throw SpannerExceptionFactory.newSpannerException(ErrorCode.ALREADY_EXISTS, "oops");
+        });
+
+    SpannerWriteResult result = mutations.apply(SpannerIO.write()
+        .withProjectId("test-project")
+        .withInstanceId("test-instance")
+        .withDatabaseId("test-database")
+        .withServiceFactory(serviceFactory)
+        .withBatchSizeBytes(1000000000)
+        .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
+        .withSampler(fakeSampler(m(2L), m(5L), m(10L)))
+        .grouped());
+    PAssert.that(result.getFailedMutations()).satisfies(m -> {
+      assertEquals(10, Iterables.size(m));
+      return null;
+    });
+    pipeline.run();
+
+    verifyBatches(
+        batch(m(1L), m(2L)),
+        batch(m(3L), m(4L), m(5L)),
+        batch(m(6L), m(7L), m(8L), m(9L), m(10L)),
+        // Mutations were also retried individually.
+        batch(m(1L)), batch(m(2L)),batch(m(3L)),batch(m(4L)),batch(m(5L)),
+        batch(m(6L)), batch(m(7L)),batch(m(8L)),batch(m(9L)),batch(m(10L)));
   }
 
   @Test
