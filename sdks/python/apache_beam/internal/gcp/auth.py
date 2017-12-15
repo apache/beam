@@ -126,4 +126,5 @@ def get_service_credentials():
     except Exception as e:
       logging.warning(
           'Unable to find default credentials to use: %s\n'
-          'Connecting anonymously.' % e)
+          'Connecting anonymously.', e)
+      return None
