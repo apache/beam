@@ -17,7 +17,8 @@ or participate on the documentation effort.
 
 We use a review-then-commit workflow in Beam for all contributions.
 
-![Alt text]({{ "/images/contribution-guide-1.png" | prepend: site.baseurl }} "Workflow image")
+![The Beam contribution workflow has 5 steps: engage, design, code, review, and commit.](
+  {{ "/images/contribution-guide-1.png" | prepend: site.baseurl }})
 
 **For larger contributions or those that affect multiple components:**
 

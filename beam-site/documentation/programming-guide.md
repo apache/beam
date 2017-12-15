@@ -467,9 +467,13 @@ you can chain transforms to create a sequential pipeline, like this one:
               | [Third Transform])
 ```
 
-The resulting workflow graph of the above pipeline looks like this:
+The resulting workflow graph of the above pipeline looks like this.
 
-[Sequential Graph Graphic]
+![This linear pipeline starts with one input collection, sequentially applies
+  three transforms, and ends with one output collection.](
+  {{ "/images/design-your-pipeline-linear.png" | prepend: site.baseurl }})
+
+*Figure: A linear pipeline with three sequential transforms.*
 
 However, note that a transform *does not consume or otherwise alter* the input
 collection--remember that a `PCollection` is immutable by definition. This means
@@ -485,9 +489,14 @@ a branching pipeline, like so:
 [Output PCollection 2] = [Input PCollection] | [Transform 2]
 ```
 
-The resulting workflow graph from the branching pipeline above looks like this:
+The resulting workflow graph from the branching pipeline above looks like this.
 
-[Branching Graph Graphic]
+![This pipeline applies two transforms to a single input collection. Each
+  transform produces an output collection.](
+  {{ "/images/design-your-pipeline-multiple-pcollections.png" | prepend: site.baseurl }})
+
+*Figure: A branching pipeline. Two transforms are applied to a single
+PCollection of database table rows.*
 
 You can also build your own [composite transforms](#composite-transforms) that
 nest multiple sub-steps inside a single, larger transform. Composite transforms

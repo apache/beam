@@ -11,9 +11,6 @@ The Beam model allows runners to execute your pipeline in different ways. You
 may observe various effects as a result of the runner’s choices. This page
 describes these effects so you can better understand how Beam pipelines execute.
 
-* toc
-{:toc}
-
 ## Processing of elements
 
 The serialization and communication of elements between machines is one of the
@@ -78,27 +75,28 @@ in parallel, and how transforms are retried when failures occur.
 When executing a single `ParDo`, a runner might divide an example input
 collection of nine elements into two bundles as shown in figure 1.
 
-![bundling]({{ site.baseurl }}/images/execution_model_bundling.svg)
+![Bundle A contains five elements. Bundle B contains four elements.](
+  {{ "/images/execution_model_bundling.svg" | prepend: site.baseurl }})
 
-**Figure 1:** A runner divides an input collection with nine elements
-into two bundles.
+*Figure 1: A runner divides an input collection into two bundles.*
 
 When the `ParDo` executes, workers may process the two bundles in parallel as
 shown in figure 2.
 
-![bundling_gantt]({{ site.baseurl }}/images/execution_model_bundling_gantt.svg)
+![Two workers process the two bundles in parallel. Worker one processes bundle
+  A. Worker two processes bundle B.](
+  {{ "/images/execution_model_bundling_gantt.svg" | prepend: site.baseurl }})
 
-**Figure 2:** Two workers process the two bundles in parallel. The elements in
-each bundle are processed in sequence.
+*Figure 2: Two workers process the two bundles in parallel.*
 
 Since elements cannot be split, the maximum parallelism for a transform depends
-on the number of elements in the collection. In our example, the input
-collection has nine elements, so the maximum parallelism is nine.
+on the number of elements in the collection. In figure 3, the input collection
+has nine elements, so the maximum parallelism is nine.
 
-![bundling_gantt_max]({{ site.baseurl }}/images/execution_model_bundling_gantt_max.svg)
+![Nine workers process a nine element input collection in parallel.](
+  {{ "/images/execution_model_bundling_gantt_max.svg" | prepend: site.baseurl }})
 
-**Figure 3:** The maximum parallelism is nine, as there are nine elements in the
-input collection.
+*Figure 3: Nine workers process a nine element input collection in parallel.*
 
 Note: Splittable ParDo allows splitting the processing of a single input across
 multiple bundles. This feature is a work in progress.
@@ -111,9 +109,11 @@ output elements without altering the bundling. In figure 4, `ParDo1` and
 `ParDo2` are _dependently parallel_ if the output of `ParDo1` for a given
 element must be processed on the same worker.
 
-![bundling_multi]({{ site.baseurl }}/images/execution_model_bundling_multi.svg)
+![ParDo1 processes an input collection that contains bundles A and B. ParDo2 then
+  processes the output collection from ParDo1, which contains bundles C and D.](
+  {{ "/images/execution_model_bundling_multi.svg" | prepend: site.baseurl }})
 
-**Figure 4:** Two transforms in sequence and their corresponding input collections.
+*Figure 4: Two transforms in sequence and their corresponding input collections.*
 
 Figure 5 shows how these dependently parallel transforms might execute. The
 first worker executes `ParDo1` on the elements in bundle A (which results in
@@ -121,9 +121,11 @@ bundle C), and then executes `ParDo2` on the elements in bundle C. Similarly,
 the second worker executes `ParDo1` on the elements in bundle B (which results
 in bundle D), and then executes `ParDo2` on the elements in bundle D.
 
-![bundling_multi_gantt.svg]({{ site.baseurl }}/images/execution_model_bundling_multi_gantt.svg)
+![Worker one executes ParDo1 on bundle A and Pardo2 on bundle C. Worker two
+  executes ParDo1 on bundle B and ParDo2 on bundle D.](
+  {{ "/images/execution_model_bundling_multi_gantt.svg" | prepend: site.baseurl }})
 
-**Figure 5:** Two workers execute dependently parallel ParDo transforms.
+*Figure 5: Two workers execute dependently parallel ParDo transforms.*
 
 Executing transforms this way allows a runner to avoid redistributing elements
 between workers, which saves on communication costs. However, the maximum parallelism
@@ -147,12 +149,14 @@ there is one element still awaiting processing.
 We see that the runner retries all elements in bundle B and the processing
 completes successfully the second time. Note that the retry does not necessarily
 happen on the same worker as the original processing attempt, as shown in the
-diagram.
+figure.
 
-![failure_retry]({{ site.baseurl }}/images/execution_model_failure_retry.svg)
+![Worker two fails to process an element in bundle B. Worker one finishes
+  processing bundle A and then successfully retries to execute bundle B.](
+  {{ "/images/execution_model_failure_retry.svg" | prepend: site.baseurl }})
 
-**Figure 6:** The processing of an element within bundle B fails, and another worker
-retries the entire bundle.
+*Figure 6: The processing of an element within bundle B fails, and another worker
+retries the entire bundle.*
 
 Because we encountered a failure while processing an element in the input
 bundle, we had to reprocess _all_ of the elements in the input bundle. This means
@@ -176,10 +180,12 @@ the output of `ParDo2`. Because the runner was executing `ParDo1` and `ParDo2`
 together, the output bundle from `ParDo1` must also be thrown away, and all
 elements in the input bundle must be retried. These two `ParDo`s are co-failing.
 
-![bundling_coupled failure]({{ site.baseurl }}/images/execution_model_bundling_coupled_failure.svg)
+![Worker two fails to process en element in bundle D, so all elements in both
+  bundle B and bundle D must be retried.](
+  {{ "/images/execution_model_bundling_coupled_failure.svg" | prepend: site.baseurl }})
 
-**Figure 7:** Processing of an element within bundle D fails, so all elements in
-the input bundle are retried.
+*Figure 7: Processing of an element within bundle D fails, so all elements in
+the input bundle are retried.*
 
 Note that the retry does not necessarily have the same processing time as the
 original attempt, as shown in the diagram.
