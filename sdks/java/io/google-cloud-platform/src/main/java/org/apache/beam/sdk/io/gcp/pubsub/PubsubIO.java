@@ -37,10 +37,12 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Read;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.OutgoingMessage;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.ProjectPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -436,7 +438,8 @@ public class PubsubIO {
 
    /** Returns A {@link PTransform} that continuously reads from a Google Cloud Pub/Sub stream. */
   private static <T> Read<T> read() {
-    return new AutoValue_PubsubIO_Read.Builder<T>().setNeedsAttributes(false).build();
+    return new AutoValue_PubsubIO_Read.Builder<T>().setNeedsAttributes(false).setValidate(true)
+        .build();
   }
 
   /**
@@ -500,7 +503,7 @@ public class PubsubIO {
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
   private static <T> Write<T> write() {
-    return new AutoValue_PubsubIO_Write.Builder<T>().build();
+    return new AutoValue_PubsubIO_Write.Builder<T>().setValidate(true).build();
   }
 
   /** Returns A {@link PTransform} that writes to a Google Cloud Pub/Sub stream. */
@@ -556,6 +559,8 @@ public class PubsubIO {
     @Nullable
     abstract Coder<T> getCoder();
 
+    abstract boolean getValidate();
+
     /** User function for parsing PubsubMessage object. */
     @Nullable
     abstract SimpleFunction<PubsubMessage, T> getParseFn();
@@ -576,11 +581,20 @@ public class PubsubIO {
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
+      abstract Builder<T> setValidate(boolean validate);
+
       abstract Builder<T> setParseFn(SimpleFunction<PubsubMessage, T> parseFn);
 
       abstract Builder<T> setNeedsAttributes(boolean needsAttributes);
 
       abstract Read<T> build();
+    }
+
+    /**
+     * Disable validation that the topic exists prior to pipeline submission.
+     */
+    public Read withoutValidation() {
+      return toBuilder().setValidate(false).build();
     }
 
     /**
@@ -734,6 +748,20 @@ public class PubsubIO {
     }
 
     @Override
+    public void validate(PipelineOptions options) {
+      if (getValidate() && getTopicProvider() != null) {
+        PubsubOptions pubsubOpts = options.as(PubsubOptions.class);
+        try (PubsubClient pubsubClient = FACTORY.newClient(getTimestampAttribute(),
+            getIdAttribute(), pubsubOpts)) {
+          PubsubTopic pubsubTopic = getTopicProvider().get();
+          PubsubHelpers.validateTopicExists(pubsubClient, pubsubTopic.project, pubsubTopic.topic);
+        } catch (IOException ie) {
+          throw new RuntimeException("Was not able to validate options: ", ie);
+        }
+      }
+    }
+
+    @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       populateCommonDisplayData(
@@ -763,6 +791,8 @@ public class PubsubIO {
     @Nullable
     abstract String getIdAttribute();
 
+    abstract boolean getValidate();
+
     /** The format function for input PubsubMessage objects. */
     @Nullable
     abstract SimpleFunction<T, PubsubMessage> getFormatFn();
@@ -778,6 +808,8 @@ public class PubsubIO {
       abstract Builder<T> setIdAttribute(String idAttribute);
 
       abstract Builder<T> setFormatFn(SimpleFunction<T, PubsubMessage> formatFn);
+
+      abstract Builder<T> setValidate(boolean validate);
 
       abstract Write<T> build();
     }
@@ -828,6 +860,13 @@ public class PubsubIO {
     }
 
     /**
+     * Disable validation that the topic exists prior to pipeline submission.
+     */
+    public Write<T> withoutValidation() {
+      return toBuilder().setValidate(false).build();
+    }
+
+    /**
      * Used to write a PubSub message together with PubSub attributes. The user-supplied format
      * function translates the input type T to a PubsubMessage object, which is used by the sink
      * to separately set the PubSub message's payload and attributes.
@@ -854,6 +893,20 @@ public class PubsubIO {
               100 /* numShards */));
       }
       throw new RuntimeException(); // cases are exhaustive.
+    }
+
+    @Override
+    public void validate(PipelineOptions options) {
+      if (getValidate() && getTopicProvider() != null) {
+        PubsubOptions pubsubOpts = options.as(PubsubOptions.class);
+        try (PubsubClient pubsubClient = FACTORY.newClient(getTimestampAttribute(),
+            getIdAttribute(), pubsubOpts)) {
+          PubsubTopic pubsubTopic = getTopicProvider().get();
+          PubsubHelpers.validateTopicExists(pubsubClient, pubsubTopic.project, pubsubTopic.topic);
+        } catch (IOException ie) {
+          throw new RuntimeException("Was not able to validate options: ", ie);
+        }
+      }
     }
 
     @Override

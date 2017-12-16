@@ -296,6 +296,18 @@ abstract class PubsubClient implements Closeable {
     return new TopicPath(String.format("projects/%s/topics/%s", projectId, topicName));
   }
 
+  boolean topicExistsInProject(String projectId, String topicName) throws IOException {
+    if (projectId == null) {
+      throw new IllegalArgumentException("projectId must not be null");
+    }
+    if (topicName == null) {
+      throw new IllegalArgumentException("topicName must not be null");
+    }
+    boolean topicExists = listTopics(projectPathFromId(projectId))
+        .contains(topicPathFromName(projectId, topicName));
+    return topicExists;
+  }
+
   /**
    * A message to be sent to Pubsub.
    *
