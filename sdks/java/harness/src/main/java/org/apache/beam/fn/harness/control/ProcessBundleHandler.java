@@ -52,7 +52,6 @@ import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -126,28 +125,8 @@ public class ProcessBundleHandler {
     this.beamFnDataClient = beamFnDataClient;
     this.beamFnStateGrpcClientCache = beamFnStateGrpcClientCache;
     this.urnToPTransformRunnerFactoryMap = urnToPTransformRunnerFactoryMap;
-    this.defaultPTransformRunnerFactory = new PTransformRunnerFactory<Object>() {
-      @Override
-      public Object createRunnerForPTransform(
-          PipelineOptions pipelineOptions,
-          BeamFnDataClient beamFnDataClient,
-          BeamFnStateClient beanFnStateClient,
-          String pTransformId,
-          PTransform pTransform,
-          Supplier<String> processBundleInstructionId,
-          Map<String, PCollection> pCollections,
-          Map<String, Coder> coders,
-          Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
-          Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
-          Consumer<ThrowingRunnable> addStartFunction,
-          Consumer<ThrowingRunnable> addFinishFunction) {
-        throw new IllegalStateException(String.format(
-            "No factory registered for %s, known factories %s, whole transform was: %s",
-            pTransform.getSpec().getUrn(),
-            urnToPTransformRunnerFactoryMap.keySet(),
-            TextFormat.printToString(pTransform)));
-      }
-    };
+    this.defaultPTransformRunnerFactory =
+        new UnknownPTransformRunnerFactory(urnToPTransformRunnerFactoryMap.keySet());
   }
 
   private void createRunnerAndConsumersForPTransformRecursively(
@@ -345,5 +324,35 @@ public class ProcessBundleHandler {
   }
 
   private abstract class HandleStateCallsForBundle implements AutoCloseable, BeamFnStateClient {
+  }
+
+  private static class UnknownPTransformRunnerFactory implements PTransformRunnerFactory<Object> {
+    private final Set<String> knownUrns;
+
+    private UnknownPTransformRunnerFactory(Set<String> knownUrns) {
+      this.knownUrns = knownUrns;
+    }
+
+    @Override
+    public Object createRunnerForPTransform(
+        PipelineOptions pipelineOptions,
+        BeamFnDataClient beamFnDataClient,
+        BeamFnStateClient beamFnStateClient,
+        String pTransformId,
+        RunnerApi.PTransform pTransform,
+        Supplier<String> processBundleInstructionId,
+        Map<String, PCollection> pCollections,
+        Map<String, Coder> coders,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Consumer<ThrowingRunnable> addStartFunction,
+        Consumer<ThrowingRunnable> addFinishFunction) {
+      String message =
+          String.format(
+              "No factory registered for %s, known factories %s",
+              pTransform.getSpec().getUrn(), knownUrns);
+      LOG.error(message);
+      throw new IllegalStateException(message);
+    }
   }
 }
