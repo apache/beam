@@ -107,6 +107,7 @@ def proxy_info_from_environment_var(proxy_env_var):
 
   return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
 
+
 def get_new_http():
   """Creates and returns a new httplib2.Http instance.
   Returns:
@@ -121,6 +122,7 @@ def get_new_http():
   # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
   return httplib2.Http(proxy_info=proxy_info,
                        timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
+
 
 def parse_gcs_path(gcs_path):
   """Return the bucket and object names of the given gs:// path."""
