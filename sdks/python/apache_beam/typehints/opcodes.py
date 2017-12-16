@@ -265,7 +265,7 @@ build_map = push_value(Dict[Any, Any])
 
 
 def load_attr(state, arg):
-  """Replaces the top of the stack, TOS, with with
+  """Replaces the top of the stack, TOS, with
   getattr(TOS, co_names[arg])
   """
   o = state.stack.pop()
@@ -273,7 +273,8 @@ def load_attr(state, arg):
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
   elif (inspect.isclass(o) and
-        isinstance(getattr(o, name), (types.MethodType, types.FunctionType))):
+        isinstance(getattr(o, name, None),
+                   (types.MethodType, types.FunctionType))):
     # TODO(luke-zhu): Support other callable objects
     if sys.version_info[0] == 2:
       func = getattr(o, name).__func__

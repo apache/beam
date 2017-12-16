@@ -48,11 +48,8 @@ def instance_to_type(o):
   if o is None:
     return type(None)
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
-    try:
-      if t == types.InstanceType: # For old-style classes
-        return o.__class__
-    except AttributeError: # Python 3 has no instance type
-      pass
+    if sys.version_info[0] == 2 and t == types.InstanceType:
+      return o.__class__
     if t == BoundMethod:
       return types.MethodType
     return t
