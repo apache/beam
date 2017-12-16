@@ -122,7 +122,7 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
   /** This operator can be implemented using FlatMap. */
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
-    return DAG.of(new FlatMap<IN, IN>(getName(), getFlow(), input,
+    return DAG.of(new FlatMap<>(getName(), getFlow(), input,
         (elem, collector) -> {
           if (predicate.apply(elem)) {
             collector.collect(elem);

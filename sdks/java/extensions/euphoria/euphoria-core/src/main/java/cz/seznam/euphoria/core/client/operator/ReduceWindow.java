@@ -81,6 +81,14 @@ public class ReduceWindow<
         ReduceFunction<T, OUT> reducer) {
 
       return new SortableOutputBuilder<>(
+          name, input, e -> e, (Stream<T> s, Collector<OUT> c) -> {
+            c.collect(reducer.apply(s));
+          }, null);
+    }
+    public <OUT> SortableOutputBuilder<T, T, OUT> reduceBy(
+        ReduceFunctor<T, OUT> reducer) {
+
+      return new SortableOutputBuilder<>(
           name, input, e -> e, reducer, null);
     }
     public OutputBuilder<T, T, T> combineBy(
@@ -193,22 +201,11 @@ public class ReduceWindow<
         String name,
         Dataset<T> input,
         UnaryFunction<T, VALUE> valueExtractor,
-        ReduceFunction<VALUE, OUT> reducer,
-        @Nullable Windowing<T, ?> windowing) {
-
-      super(name, input, valueExtractor, reducer, windowing, null);
-    }
-
-    public SortableOutputBuilder(
-        String name,
-        Dataset<T> input,
-        UnaryFunction<T, VALUE> valueExtractor,
         ReduceFunctor<VALUE, OUT> reducer,
         @Nullable Windowing<T, ?> windowing) {
 
       super(name, input, valueExtractor, reducer, windowing, null);
     }
-
 
     /**
      * Sort values going to `reduceBy` function by given comparator.
@@ -279,19 +276,42 @@ public class ReduceWindow<
     return reducer;
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public DAG<Operator<?, ?>> getBasicOps() {
     // implement this operator via `ReduceByKey`
-    ReduceByKey<IN, Byte, VALUE, OUT, W> reduceByKey;
-    reduceByKey = new ReduceByKey<>(
-        getName() + "::ReduceByKey", getFlow(), input,
-        getKeyExtractor(), valueExtractor,
-        windowing, reducer, valueComparator);
-    Dataset<Pair<Byte, OUT>> output = reduceByKey.output();
+    final ReduceByKey rbk;
+    final DAG<Operator<?, ?>> dag = DAG.empty();
+    if (windowing != null) {
+      rbk = new ReduceByKey<>(
+          getName() + "::ReduceByKey", getFlow(), input,
+          getKeyExtractor(), valueExtractor,
+          windowing, reducer, valueComparator);
+      dag.add(rbk);
+    } else {
+      // otherwise we use attached windowing, therefore
+      // we already know the window lables and can do group-by these
+      // labels to increase parallelism
+      FlatMap<IN, Pair<Window<?>, IN>> map = new FlatMap<>(getName() + "::window-to-key",
+          getFlow(),
+          input,
+          (IN in, Collector<Pair<Window<?>, IN>> c) -> {
+            c.collect(Pair.of(c.getWindow(), in));
+          },
+          null);
+      rbk = new ReduceByKey<>(
+          getName() + "::ReduceByKey::attached", getFlow(), map.output(),
+          Pair::getFirst, p -> valueExtractor.apply(p.getSecond()),
+          null, reducer, valueComparator);
+      dag.add(map);
+      dag.add(rbk);
+    }
 
-    MapElements<Pair<Byte, OUT>, OUT> format = new MapElements<>(
-        getName() + "::MapElements", getFlow(), output, Pair::getSecond);
+    MapElements<Pair<Object, OUT>, OUT> format = new MapElements<Pair<Object, OUT>, OUT>(
+        getName() + "::MapElements", getFlow(),
+        (Dataset) rbk.output(), Pair::getSecond);
 
-    return DAG.of(reduceByKey, format);
+    dag.add(format);
+    return dag;
   }
 }
