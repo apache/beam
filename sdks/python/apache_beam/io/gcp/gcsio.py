@@ -154,8 +154,8 @@ class GcsIO(object):
         credentials = auth.get_service_credentials()
         storage_client = storage.StorageV1(
             credentials=credentials,
-            http=get_new_http())
             get_credentials=False,
+            http=get_new_http())
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))
         local_state.gcsio_instance.client = storage_client
