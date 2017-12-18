@@ -23,10 +23,26 @@ import cz.seznam.euphoria.executor.local.LocalExecutor;
 
 import java.util.List;
 
+/**
+ * Abstract test class for user's {@link Flow} testing.
+ *
+ * @param <OUT> type of output dataset
+ */
 public abstract class AbstractFlowTest<OUT> {
 
+  /**
+   * This method describes how the final dataset should look like.
+   *
+   * @return expected output
+   */
   protected abstract List<OUT> getOutput();
 
+  /**
+   * Creates input using provided {@link Flow} and creates output dataset.
+   *
+   * @param flow to lift inputs from
+   * @return output dataset
+   */
   protected abstract Dataset<OUT> buildFlow(Flow flow);
 
   public void execute() {
