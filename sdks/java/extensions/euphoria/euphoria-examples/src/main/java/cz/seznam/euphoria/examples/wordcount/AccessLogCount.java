@@ -82,16 +82,17 @@ public class AccessLogCount {
     final String inputPath = args[1];
 
     // As with the {@code SimpleWordCount} we define a source to read data from ...
-    DataSource<String> dataSource = new SimpleHadoopTextFileSource(inputPath);
+    final DataSource<String> source = new SimpleHadoopTextFileSource(inputPath);
+
     // ... and a sink to write the business logic's output to. In this particular
     // case we use a sink that eventually writes out the data to the executors
     // standard output. This is rarely useful in production environments but
     // is handy in local executions.
-    DataSink<String> dataSink = new StdoutSink<>();
+    final DataSink<String> sink = new StdoutSink<>();
 
     //  We start by allocating a new flow, a container to encapsulates the
     // chain of transformations.
-    Flow flow = Flow.create("Access log processor");
+    final Flow flow = Flow.create("Access log processor");
 
     // From the data source describing the actual input data location and
     // physical form, we create an abstract data set to be processed in the
@@ -100,7 +101,21 @@ public class AccessLogCount {
     // As in other examples, reading the actual input source is deferred
     // until the flow's execution. The data itself is _not_ touched at this
     // point in time yet.
-    Dataset<String> input = flow.createInput(dataSource);
+    final Dataset<String> input = flow.createInput(source);
+
+    // Build flow, that transforms our input to final dataset.
+    final Dataset<String> output = buildFlow(input);
+
+    // Persist final output to data sink.
+    output.persist(sink);
+
+    // Finally, we allocate an executor and submit our flow for execution on it.
+    final Executor executor = Executors.createExecutor(executorName);
+
+    executor.submit(flow).get();
+  }
+
+  static Dataset<String> buildFlow(Dataset<String> lines) {
 
     // We assume the actual input data to have a particular format; in this
     // case, each element is expected to be a log line from the Apache's access
@@ -119,10 +134,10 @@ public class AccessLogCount {
     // `SimpleDateFormat` to make this point. In a read-world program you
     // would probably hand out to `DateTimeFormatter` which can be safely
     // be re-used across threads.)
-    Dataset<LogLine> parsed = MapElements.named("LOG-PARSER")
-            .of(input)
-            .using(LogParser::parseLine)
-            .output();
+    final Dataset<LogLine> parsed = MapElements.named("LOG-PARSER")
+        .of(lines)
+        .using(LogParser::parseLine)
+        .output();
 
     // Since our log lines represent events which happened at a particular
     // point in time, we want our system to treat them as such, no matter in
@@ -131,7 +146,7 @@ public class AccessLogCount {
     // We do so by applying a so-called event-time-extractor function. As of
     // this moment, euphoria will treat the element as if it happended in the
     // corresponding time since it gets to know the timestamp the event occurred.
-    parsed = AssignEventTime.of(parsed)
+    final Dataset<LogLine> parsedWithEventTime = AssignEventTime.of(parsed)
         .using(line -> line.getDate().getTime())
         .output();
 
@@ -176,13 +191,13 @@ public class AccessLogCount {
     // "filled" at which point the windows data can be processed, calculated,
     // and the corresponding results emitted. This makes endless stream
     // processing work.
-    Dataset<Pair<String, Long>> aggregated = ReduceByKey.named("AGGREGATE")
-            .of(parsed)
-            .keyBy(LogLine::getIp)
-            .valueBy(line -> 1L)
-            .combineBy(Sums.ofLongs())
-            .windowBy(Time.of(Duration.ofDays(1)))
-            .output();
+    final Dataset<Pair<String, Long>> aggregated = ReduceByKey.named("AGGREGATE")
+        .of(parsedWithEventTime)
+        .keyBy(LogLine::getIp)
+        .valueBy(line -> 1L)
+        .combineBy(Sums.ofLongs())
+        .windowBy(Time.of(Duration.ofDays(1)))
+        .output();
 
     // At the final stage of our flow, we nicely format the previously emitted
     // results before persisting them to a given data sink, e.g. external storage.
@@ -192,26 +207,23 @@ public class AccessLogCount {
     // number of its occurrences (within a window.) The window information
     // itself - if desired - can be accessed from the `FlatMap`'s context
     // parameter as demonstrated below.
-    FlatMap.named("FORMAT-OUTPUT")
-            .of(aggregated)
-            .using(((Pair<String, Long> elem, Collector<String> context) -> {
-              Date d = new Date(((TimeInterval) context.getWindow()).getStartMillis());
+    return FlatMap.named("FORMAT-OUTPUT")
+        .of(aggregated)
+        .using(((Pair<String, Long> elem, Collector<String> context) -> {
+          Date d = new Date(((TimeInterval) context.getWindow()).getStartMillis());
 
-              SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy", Locale.ENGLISH);
-              context.collect(sdf.format(d) + "\t" + elem.getFirst() + "\t" + elem.getSecond());
-            }))
-            .output()
-            .persist(dataSink);
-
-    // Finally, we allocate an executor and submit our flow for execution on it.
-    Executor executor = Executors.createExecutor(executorName);
-    executor.submit(flow).get();
+          SimpleDateFormat sdf = new SimpleDateFormat("dd/MMM/yyyy", Locale.ENGLISH);
+          context.collect(sdf.format(d) + "\t" + elem.getFirst() + "\t" + elem.getSecond());
+        }))
+        .output();
   }
 
   private static class LogParser {
-    private static Pattern pattern = Pattern.compile("^([[0-9a-zA-z-].]+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\].*");
 
-    public static LogLine parseLine(String line) {
+    private static Pattern pattern = Pattern.compile(
+        "^([[0-9a-zA-z-].]+) (\\S+) (\\S+) \\[([\\w:/]+\\s[+\\-]\\d{4})\\].*");
+
+    static LogLine parseLine(String line) {
 
       Matcher matcher = pattern.matcher(line);
       if (matcher.matches()) {
@@ -236,19 +248,20 @@ public class AccessLogCount {
   }
 
   private static class LogLine {
+
     private final String ip;
     private final Date date;
 
-    public LogLine(String ip, Date date) {
+    LogLine(String ip, Date date) {
       this.ip = ip;
       this.date = date;
     }
 
-    public String getIp() {
+    String getIp() {
       return ip;
     }
 
-    public Date getDate() {
+    Date getDate() {
       return date;
     }
   }
