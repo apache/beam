@@ -4,4 +4,5 @@ dependencies {
   compile project(':euphoria-flink')
   compile project(':euphoria-spark')
   compile project(':euphoria-local')
+  testCompile project(':euphoria-testing')
 }
