@@ -72,15 +72,15 @@ public class SimpleWordCount {
       System.exit(1);
     }
     final String executorName = args[0];
-    final String input = args[1];
-    final String output = args[2];
+    final String inputPath = args[1];
+    final String outputPath = args[2];
 
     // Define a source of data to read text lines from.  We utilize an
     // already predefined DataSource implementations hiding some of
     // implementation details.  Note that at this point in time the data
     // is not read.  The source files will be opened and read in a distributed
     // manner only when the "WordCount" flow is submitted for execution.
-    DataSource<String> inSource = new SimpleHadoopTextFileSource(input);
+    final DataSource<String> source = new SimpleHadoopTextFileSource(inputPath);
 
     // Define a sink where to write the program's final results to.  As with
     // the above defined source, no resources are opened for writing yet.
@@ -88,11 +88,40 @@ public class SimpleWordCount {
     // instructed to open writers to the final, physical destination.  Here,
     // we utilize an already predefined DataSink which simply writes a string
     // on its own line.
-    DataSink<String> outSink = new SimpleHadoopTextFileSink<>(output);
+    final DataSink<String> sink = new SimpleHadoopTextFileSink<>(outputPath);
+
+    // The first step in building a euphoria flow is creating a ...
+    // well, a `Flow` object. It is a container encapsulating a chain
+    // of transformations. Within a program we can have many flows. Though,
+    // these all will be independent. Dependencies between operation
+    // can be expressed only within a single flow.
+    //
+    // It is usually good practice to give each flow within a program a
+    // unique name to make it easier to distinguish corresponding statistics
+    // or otherwise displayed information from other flow which may be
+    // potentially part of the program.
+    final Flow flow = Flow.create(SimpleWordCount.class.getSimpleName());
+
+    // Given a data source we lift this source up into an abstract data
+    // set. A data set is the input and output of operators. While a source
+    // describes a particular source a data set is abstracting from this
+    // particular notion. It can be literally thought of as a "set of data"
+    // (without the notion of uniqueness of elements.)
+    //
+    // Note: we ask the flow to do this lifting. The new data set will
+    // automatically be associated with the flow. All operators processing
+    // this data set will also become automatically associated with the
+    // flow. Using the data set (or an operator) associated with a flow
+    // in a different flow, is considered an error and will lead to
+    // exceptions before the flow is even executed.
+    final Dataset<String> input = flow.createInput(source);
 
     // Construct a flow which we'll later submit for execution. For the sake
     // of readability we've moved the definition into its own method.
-    Flow flow = buildFlow(inSource, outSink);
+    final Dataset<String> output = buildFlow(input);
+
+    // Persist final dataset to sink.
+    output.persist(sink);
 
     // Allocate an executor by the specified name.
     Executor executor = Executors.createExecutor(executorName);
@@ -111,37 +140,11 @@ public class SimpleWordCount {
   /**
    * This method defines the executor independent business logic of the program.
    *
-   * @param input the source to read lines of text from
-   * @param output the sink to write the output of the business logic to
+   * @param lines lines of text
    *
-   * @return a flow, a unit to be executed on a specific executor
+   * @return output dataset, containing words with its count
    */
-  private static Flow buildFlow(DataSource<String> input, DataSink<String> output) {
-    // The first step in building a euphoria flow is creating a ...
-    // well, a `Flow` object. It is a container encapsulating a chain
-    // of transformations. Within a program we can have many flows. Though,
-    // these all will be independent. Dependencies between operation
-    // can be expressed only within a single flow.
-    //
-    // It is usually good practice to give each flow within a program a
-    // unique name to make it easier to distinguish corresponding statistics
-    // or otherwise displayed information from other flow which may be
-    // potentially part of the program.
-    Flow flow = Flow.create(SimpleWordCount.class.getSimpleName());
-
-    // Given a data source we lift this source up into an abstract data
-    // set. A data set is the input and output of operators. While a source
-    // describes a particular source a data set is abstracting from this
-    // particular notion. It can be literally thought of as a "set of data"
-    // (without the notion of uniqueness of elements.)
-    //
-    // Note: we ask the flow to do this lifting. The new data set will
-    // automatically be associated with the flow. All operators processing
-    // this data set will also become automatically associated with the
-    // flow. Using the data set (or an operator) associated with a flow
-    // in a different flow, is considered an error and will lead to
-    // exceptions before the flow is even executed.
-    Dataset<String> lines = flow.createInput(input);
+  static Dataset<String> buildFlow(Dataset<String> lines) {
 
     // In the next step we want to chop up the data set of strings into a
     // data set of words. Using the `FlatMap` operator we can process each
@@ -155,10 +158,10 @@ public class SimpleWordCount {
     // It processes one input element at a time and allows user code to emit
     // zero, one, or more output elements. We use it here to chop up a long
     // string into individual words and emit each individually instead.
-    Dataset<String> words = FlatMap.named("TOKENIZER")
+    final Dataset<String> words = FlatMap.named("TOKENIZER")
             .of(lines)
             .using((String line, Collector<String> c) ->
-                SPLIT_RE.splitAsStream(line).forEachOrdered(c::collect))
+                SPLIT_RE.splitAsStream(line).forEach(c::collect))
             .output();
 
     // Given the "words" data set, we want to reduce it to a collection
@@ -172,9 +175,9 @@ public class SimpleWordCount {
     // defined function to these values. The result of this user defined
     // function is then emitted to the output along with its corresponding
     // key.
-    Dataset<Pair<String, Long>> counted = ReduceByKey.named("REDUCE")
+    final Dataset<Pair<String, Long>> counted = ReduceByKey.named("REDUCE")
         .of(words)
-        .keyBy(e -> e)
+        .keyBy(String::toLowerCase)
         .valueBy(e -> 1L)
         .combineBy(Sums.ofLongs())
         .output();
@@ -187,12 +190,9 @@ public class SimpleWordCount {
     // Note: a flow without any call to `.persist()` is meaningless as
     // such a flow would never produces anything. Executors are free to
     // reject such flows.
-    MapElements.named("FORMAT")
+    return MapElements.named("FORMAT")
         .of(counted)
-        .using(p -> p.getFirst() + "\t" + p.getSecond())
-        .output()
-        .persist(output);
-
-    return flow;
+        .using(p -> p.getFirst() + ":" + p.getSecond())
+        .output();
   }
 }
