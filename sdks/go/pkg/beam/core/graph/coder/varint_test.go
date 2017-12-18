@@ -17,9 +17,10 @@ package coder
 
 import (
 	"bytes"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 	"reflect"
 	"testing"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func TestEncodeDecodeVarUint64(t *testing.T) {

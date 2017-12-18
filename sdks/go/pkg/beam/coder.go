@@ -98,10 +98,8 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			}
 			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 		case reflectx.String, reflectx.ByteSlice:
-			// The type conversions here are very conservative. We handle bytes/strings
-			// equivalently because they are essentially equivalent in the language.
-			// Notably, we do not (currently) support equivalences in numeric data types
-			// due to risks around inadvertent widening or narrowing of data.
+			// We handle bytes/strings equivalently because they are essentially
+			// equivalent in the language. We generally infer exact coders only.
 			return &coder.Coder{Kind: coder.Bytes}, nil
 		default:
 			c, err := newJSONCoder(t.Type())
