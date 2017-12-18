@@ -38,7 +38,7 @@ def grpc_google_common_protos = "0.1.9"
 def hamcrest_version = "1.3"
 def hadoop_version = "2.7.3"
 def jackson_version = "2.8.9"
-def spark_version = "1.6.3"
+def spark_version = "2.2.1"
 def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
@@ -121,10 +121,10 @@ ext.library = [
     jackson_core: "com.fasterxml.jackson.core:jackson-core:$jackson_version",
     jackson_databind: "com.fasterxml.jackson.core:jackson-databind:$jackson_version",
     jackson_dataformat_yaml: "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jackson_version",
-    jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.10:$jackson_version",
+    jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
-    kafka_clients: "org.apache.kafka:kafka-clients:0.10.1.0",
+    kafka_clients: "org.apache.kafka:kafka-clients:0.11.0.1",
     malhar_library: "org.apache.apex:malhar-library:$apex_malhar_version",
     mockito_core: "org.mockito:mockito-core:1.9.5",
     netty_handler: "io.netty:netty-handler:$netty_version",
@@ -139,9 +139,9 @@ ext.library = [
     slf4j_jdk14: "org.slf4j:slf4j-jdk14:1.7.25",
     slf4j_log4j12: "org.slf4j:slf4j-log4j12:1.7.25",
     snappy_java: "org.xerial.snappy:snappy-java:1.1.4",
-    spark_core: "org.apache.spark:spark-core_2.10:$spark_version",
-    spark_network_common: "org.apache.spark:spark-network-common_2.10:$spark_version",
-    spark_streaming: "org.apache.spark:spark-streaming_2.10:$spark_version",
+    spark_core: "org.apache.spark:spark-core_2.11:$spark_version",
+    spark_network_common: "org.apache.spark:spark-network-common_2.11:$spark_version",
+    spark_streaming: "org.apache.spark:spark-streaming_2.11:$spark_version",
     stax2_api: "org.codehaus.woodstox:stax2-api:3.1.4",
     woodstox_core_asl: "org.codehaus.woodstox:woodstox-core-asl:4.4.1",
   ],

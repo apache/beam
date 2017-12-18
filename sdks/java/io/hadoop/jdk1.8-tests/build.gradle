@@ -50,6 +50,7 @@ dependencies {
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-parent:beam-sdks-java-io-hadoop-input-format", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow "org.elasticsearch:elasticsearch-hadoop:$elastic_search_version"
+  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
   shadow library.java.commons_io_2x
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core

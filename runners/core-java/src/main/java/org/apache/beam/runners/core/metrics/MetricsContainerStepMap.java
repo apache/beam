@@ -77,6 +77,25 @@ public class MetricsContainerStepMap implements Serializable {
     getContainer(step).update(container);
   }
 
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    MetricsContainerStepMap that = (MetricsContainerStepMap) o;
+
+    return metricsContainers.equals(that.metricsContainers);
+  }
+
+  @Override
+  public int hashCode() {
+    return metricsContainers.hashCode();
+  }
+
   /**
    * Returns {@link MetricResults} based on given
    * {@link MetricsContainerStepMap MetricsContainerStepMaps} of attempted and committed metrics.
