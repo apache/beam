@@ -88,7 +88,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
     this.coder = coder;
     this.outboundObserver = outboundObserver;
     this.bufferedElements = ByteString.newOutput();
-    this.closed = False;
+    this.closed = false;
   }
 
   @Override
