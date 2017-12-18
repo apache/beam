@@ -371,7 +371,7 @@ class FnApiRunner(runner.PipelineRunner):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
                       payload=param))],
-              downstream_side_inputs=frozenset(),
+              downstream_side_inputs=stage.downstream_side_inputs,
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
         else:
           yield stage
@@ -440,7 +440,7 @@ class FnApiRunner(runner.PipelineRunner):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
                       payload=param))],
-              downstream_side_inputs=frozenset(),
+              downstream_side_inputs=stage.downstream_side_inputs,
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
         else:
