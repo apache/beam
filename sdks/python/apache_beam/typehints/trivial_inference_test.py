@@ -72,6 +72,17 @@ class TrivialInferenceTest(unittest.TestCase):
       return None
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
+  def testSimpleList(self):
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: [1, 2],
+        [typehints.Tuple[int, ...]])
+
+    self.assertReturnType(
+        typehints.List[typehints.Any],
+        lambda xs: list(xs), # List is a disallowed builtin
+        [typehints.Tuple[int, ...]])
+
   def testListComprehension(self):
     self.assertReturnType(
         typehints.List[int],
@@ -97,6 +108,12 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(typehints.Iterable[int], foo, [int, int])
     self.assertReturnType(
         typehints.Iterable[typehints.Union[int, float]], foo, [int, float])
+
+  def testGeneratorComprehension(self):
+    self.assertReturnType(
+        typehints.Iterable[int],
+        lambda xs: (x for x in xs),
+        [typehints.Tuple[int, ...]])
 
   def testBinOp(self):
     self.assertReturnType(int, lambda a, b: a + b, [int, int])
@@ -130,7 +147,6 @@ class TrivialInferenceTest(unittest.TestCase):
   def testMethod(self):
 
     class A(object):
-
       def m(self, x):
         return x
 
