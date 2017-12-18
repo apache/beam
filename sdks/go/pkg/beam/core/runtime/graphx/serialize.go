@@ -720,6 +720,7 @@ type CoderRef struct {
 const (
 	WindowedValueType = "kind:windowed_value"
 	BytesType         = "kind:bytes"
+	VarIntType        = "kind:varint"
 	GlobalWindowType  = "kind:global_window"
 	streamType        = "kind:stream"
 	pairType          = "kind:pair"
@@ -796,6 +797,9 @@ func EncodeCoderRef(c *coder.Coder) (*CoderRef, error) {
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
 		return &CoderRef{Type: BytesType}, nil
 
+	case coder.VarInt:
+		return &CoderRef{Type: VarIntType}, nil
+
 	default:
 		return nil, fmt.Errorf("bad coder kind: %v", c.Kind)
 	}
@@ -806,6 +810,9 @@ func DecodeCoderRef(c *CoderRef) (*coder.Coder, error) {
 	switch c.Type {
 	case BytesType:
 		return coder.NewBytes(), nil
+
+	case VarIntType:
+		return coder.NewVarInt(), nil
 
 	case pairType:
 		if len(c.Components) != 2 {
