@@ -21,8 +21,10 @@ import random
 import unittest
 
 from apache_beam import coders
+from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker.opcounters import OperationCounters
 from apache_beam.transforms.window import GlobalWindows
+from apache_beam.utils import counters
 from apache_beam.utils.counters import CounterFactory
 
 # Classes to test that we can handle a variety of objects.
@@ -39,6 +41,23 @@ class ObjectThatDoesNotImplementLen(object):
 
   def __init__(self):
     pass
+
+
+class TransformIoCounterTest(unittest.TestCase):
+
+  def test_basic_counters(self):
+    counter_factory = CounterFactory()
+    sampler = statesampler.StateSampler('basic', counter_factory)
+
+    counter = opcounters.SideInputReadCounter(counter_factory, sampler,
+                                              declaring_step='step1',
+                                              input_index=1)
+    with sampler.scoped_state('step2', 'statea'):
+      with counter:
+        counter.add_bytes_read(100)
+        sleep(1)
+
+    self.assertEqual(counter_factory.get_counters(), [])
 
 
 class OperationCountersTest(unittest.TestCase):
