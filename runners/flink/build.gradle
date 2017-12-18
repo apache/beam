@@ -39,7 +39,7 @@ test {
   }
 }
 
-def flink_version = "1.3.0"
+def flink_version = "1.4.0"
 
 dependencies {
   compile library.java.guava
