@@ -33,12 +33,13 @@ import (
 const (
 	// Model constants
 
-	urnImpulse = "urn:beam:transform:impulse:v1"
-	urnParDo   = "urn:beam:transform:pardo:v1"
-	urnFlatten = "urn:beam:transform:flatten:v1"
-	urnGBK     = "urn:beam:transform:groupbykey:v1"
-	urnCombine = "urn:beam:transform:combine:v1"
-	urnWindow  = "urn:beam:transform:window:v1"
+	urnImpulse  = "urn:beam:transform:impulse:v1"
+	urnParDo    = "urn:beam:transform:pardo:v1"
+	urnFlatten  = "urn:beam:transform:flatten:v1"
+	urnGBK      = "urn:beam:transform:groupbykey:v1"
+	urnCombine  = "urn:beam:transform:combine:v1"
+	urnWindow   = "urn:beam:transform:window:v1"
+	urnExternal = "urn:beam:transform:external:v1"
 
 	urnDataSource = "urn:org.apache.beam:source:runner:0.1"
 	urnDataSink   = "urn:org.apache.beam:sink:runner:0.1"
@@ -237,6 +238,9 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 
 	case graph.GBK:
 		return &pb.FunctionSpec{Urn: urnGBK}
+
+	case graph.External:
+		return &pb.FunctionSpec{Urn: urnExternal}
 
 	default:
 		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Op))
