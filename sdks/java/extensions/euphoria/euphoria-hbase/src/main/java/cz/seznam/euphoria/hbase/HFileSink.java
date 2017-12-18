@@ -401,7 +401,7 @@ public class HFileSink implements DataSink<Cell> {
    * Persist given dataset into this sink via given mapper.
    * @param <T> input datatype
    * @param input the input dataset
-   * @param mapper map function for transformation of <T> into {@link Cell}.
+   * @param mapper map function for transformation of input value into {@link Cell}.
    */
   public <T> void persist(Dataset<T> input, UnaryFunction<T, Cell> mapper) {
     MapElements.of(input)
