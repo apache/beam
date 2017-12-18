@@ -60,7 +60,7 @@ func setupDiagnosticRecording() error {
 
 	var err error
 
-	storagePath := runtime.GlobalOptions.Get("storage_path")
+	storagePath = runtime.GlobalOptions.Get("storage_path")
 	// Any form of recording requires the destination directory to exist.
 	if err = os.MkdirAll(storagePath, 0755); err != nil {
 		return fmt.Errorf("Unable to create session directory: %v", err)
