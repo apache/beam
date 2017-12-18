@@ -38,8 +38,6 @@ job('beam_PostRelease_NightlySnapshot') {
                 'Repository URL to install from')
   }
 
-  wrappers {
-
   // This is a post-commit job that runs once per day, not for every push.
   common_job_properties.setPostCommit(
       delegate,
@@ -49,6 +47,6 @@ job('beam_PostRelease_NightlySnapshot') {
 
   steps {
     // Run a quickstart from https://beam.apache.org/get-started/quickstart-java/
-    shell('cd ' + common_job_properties.checkoutDir + '/release && groovy quickstart-java-direct.groovy ')
+    shell('cd ' + common_job_properties.checkoutDir + '/release && groovy quickstart-java-direct.groovy')
   }
 }
