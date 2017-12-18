@@ -65,7 +65,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.10</artifactId>
+          <artifactId>beam-runners-flink_2.11</artifactId>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
@@ -81,13 +81,13 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.10</artifactId>
+          <artifactId>spark-streaming_2.11</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-core_2.10</artifactId>
+          <artifactId>spark-core_2.11</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
