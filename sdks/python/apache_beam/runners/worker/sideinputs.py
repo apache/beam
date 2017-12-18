@@ -92,10 +92,10 @@ class PrefetchingSourceSetIterable(object):
         bytes tracked.
     """
 
-    def update_bytes_read(record, is_encoded=True):
-      # Observe records, and count bytes from encoded records.
-      if is_encoded:
-        self.read_counter.add_bytes_read(len(record))
+    def update_bytes_read(record_size, is_record_size=False, **kwargs):
+      # Let the reader report block size.
+      if is_record_size:
+        self.read_counter.add_bytes_read(record_size)
 
     if self.read_counter and isinstance(reader, observable.ObservableMixin):
       reader.register_observer(update_bytes_read)
