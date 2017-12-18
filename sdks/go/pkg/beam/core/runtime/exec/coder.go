@@ -78,6 +78,12 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 		_, err := w.Write(data)
 		return err
 
+	case coder.VarInt:
+		// Encoding: beam varint
+
+		n := reflectx.UnderlyingType(val.Elm).Convert(reflectx.Int32).Interface().(int32)
+		return coder.EncodeVarInt(n, w)
+
 	case coder.Custom:
 		enc := c.Custom.Enc
 
@@ -134,6 +140,15 @@ func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 			return FullValue{}, err
 		}
 		return FullValue{Elm: reflect.ValueOf(data)}, nil
+
+	case coder.VarInt:
+		// Encoding: beam varint
+
+		n, err := coder.DecodeVarInt(r)
+		if err != nil {
+			return FullValue{}, err
+		}
+		return FullValue{Elm: reflect.ValueOf(n)}, nil
 
 	case coder.Custom:
 		dec := c.Custom.Dec

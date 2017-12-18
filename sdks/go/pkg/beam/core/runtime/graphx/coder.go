@@ -136,6 +136,9 @@ func (b *CoderUnmarshaller) makeCoder(c *pb.Coder) (*coder.Coder, error) {
 	case urnBytesCoder:
 		return coder.NewBytes(), nil
 
+	case urnVarIntCoder:
+		return coder.NewVarInt(), nil
+
 	case urnKVCoder:
 		if len(components) != 2 {
 			return nil, fmt.Errorf("bad pair: %v", c)
@@ -297,6 +300,9 @@ func (b *CoderMarshaller) Add(c *coder.Coder) string {
 	case coder.Bytes:
 		// TODO(herohde) 6/27/2017: add length-prefix and not assume nested by context?
 		return b.internBuiltInCoder(urnBytesCoder)
+
+	case coder.VarInt:
+		return b.internBuiltInCoder(urnVarIntCoder)
 
 	default:
 		panic(fmt.Sprintf("Unexpected coder kind: %v", c.Kind))
