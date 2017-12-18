@@ -243,7 +243,8 @@ func fail(id, format string, args ...interface{}) *fnpb.InstructionResponse {
 func dial(ctx context.Context, endpoint string, timeout time.Duration) (*grpc.ClientConn, error) {
 	log.Infof(ctx, "Connecting via grpc @ %s ...", endpoint)
 
-	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock()}
+	opts := []grpc.DialOption{grpc.WithInsecure(), grpc.WithBlock(),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(50 << 20))}
 
 	// TODO(wcn): Update this code to not use deprecated grpc.WithTimeout
 	if timeout > 0 {
