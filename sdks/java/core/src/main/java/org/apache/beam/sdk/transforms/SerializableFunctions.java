@@ -18,10 +18,22 @@
 
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.SerializableUtils;
 
 /** Useful {@link SerializableFunction} overrides. */
 public class SerializableFunctions {
+  public static <InT, OutT extends Serializable> SerializableFunction<InT, OutT> clonesOf(
+      final OutT base) {
+    return new SerializableFunction<InT, OutT>() {
+      @Override
+      public OutT apply(InT input) {
+        return SerializableUtils.clone(base);
+      }
+    };
+  }
+
   private static class Identity<T> implements SerializableFunction<T, T> {
     @Override
     public T apply(T input) {

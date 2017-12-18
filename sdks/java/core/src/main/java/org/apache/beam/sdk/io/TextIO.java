@@ -1169,7 +1169,7 @@ public class TextIO {
   //////////////////////////////////////////////////////////////////////////////
 
   /**
-   * Creates a {@link Sink} that writes newline-delimited strings, for use with {@link
+   * Creates a {@link Sink} that writes newline-delimited strings in UTF-8, for use with {@link
    * FileIO#write}.
    */
   public static Sink sink() {
