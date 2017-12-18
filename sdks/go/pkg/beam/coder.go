@@ -85,18 +85,29 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 	switch t.Class() {
 	case typex.Concrete, typex.Container:
 		switch t.Type() {
-		// The type conversions here are very conservative. We handle bytes/strings
-		// equivalently because they are essentially equivalent in the language.
-		// Notably, we do not (currently) support equivalences in numeric data types
-		// due to risks around inadvertent widening or narrowing of data.
+		case reflectx.Int, reflectx.Int8, reflectx.Int16, reflectx.Int32, reflectx.Int64:
+			c, err := coder.NewVarIntZ(t.Type())
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
+		case reflectx.Uint, reflectx.Uint8, reflectx.Uint16, reflectx.Uint32, reflectx.Uint64:
+			c, err := coder.NewVarUintZ(t.Type())
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 		case reflectx.String, reflectx.ByteSlice:
+			// We handle bytes/strings equivalently because they are essentially
+			// equivalent in the language. We generally infer exact coders only.
 			return &coder.Coder{Kind: coder.Bytes}, nil
+		default:
+			c, err := newJSONCoder(t.Type())
+			if err != nil {
+				return nil, err
+			}
+			return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 		}
-		c, err := newJSONCoder(t.Type())
-		if err != nil {
-			return nil, err
-		}
-		return &coder.Coder{Kind: coder.Custom, T: t, Custom: c}, nil
 
 	case typex.Composite:
 		c, err := inferCoders(t.Components())
