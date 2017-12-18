@@ -122,7 +122,8 @@ type Kind string
 // documents the usage of coders in the Beam environment.
 const (
 	Custom        Kind = "Custom" // Implicitly length-prefixed
-	Bytes         Kind = "bytes"  // Implicitly length-prefixed
+	Bytes         Kind = "bytes"  // Implicitly length-prefixed as part of the encoding
+	VarInt        Kind = "varint"
 	WindowedValue Kind = "W"
 	KV            Kind = "KV"
 	GBK           Kind = "GBK"
@@ -197,6 +198,11 @@ func (c *Coder) String() string {
 // is always nested, for now.
 func NewBytes() *Coder {
 	return &Coder{Kind: Bytes, T: typex.New(reflectx.ByteSlice)}
+}
+
+// NewVarInt returns a new int32 coder using the built-in scheme.
+func NewVarInt() *Coder {
+	return &Coder{Kind: VarInt, T: typex.New(reflectx.Int32)}
 }
 
 // Convenience methods to operate through the top-level WindowedValue.
