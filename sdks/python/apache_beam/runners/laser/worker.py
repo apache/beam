@@ -79,7 +79,7 @@ class LaserWorker(WorkerInterface, threading.Thread):
         ps = pstats.Stats(pr).sort_stats(sortby)
         time_taken = end_time - start_time
         print '<<<<<<<<< WORKER DONE (%fs)' % time_taken, self.worker_id, 'EXECUTING WORK ITEM', work_item.id, work_item.map_task
-        ps.print_stats()
+        # ps.print_stats()
       except Exception as e:
         print 'Exception while processing work:', e
         import traceback

@@ -62,7 +62,7 @@ class ShuffleWriteOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      self.write_buffer = []
+      self.write_buffer = {}
       self.buffer_bytes = 0
       return
       super(ShuffleWriteOperation, self).start()
@@ -96,8 +96,11 @@ class ShuffleWriteOperation(Operation):
 
       # print 'E', repr(encoded_key), repr(encoded_value)
       hashed_encoded_key = prepend_key_hash(encoded_key)
-      self.write_buffer.append((hashed_encoded_key, encoded_value))
-      self.buffer_bytes += len(encoded_key) + len(encoded_value)
+      if hashed_encoded_key not in self.write_buffer:
+        self.write_buffer[hashed_encoded_key] = []
+        self.buffer_bytes += len(hashed_encoded_key)
+      self.write_buffer[hashed_encoded_key].append(encoded_value)
+      self.buffer_bytes += len(encoded_value)
       if self.buffer_bytes >= WRITE_BUFFER_SIZE:
         self._flush()
 
@@ -108,8 +111,9 @@ class ShuffleWriteOperation(Operation):
       print 'KEY CODER', self.key_coder
       print 'VALUE CODER', self.value_coder
       # print 'ELEMENT CODER', self.element_coder
-      self.shuffle_interface.write(self.dataset_id, self.transaction_id, self.write_buffer)
-      self.write_buffer = []
+      kvs = self.write_buffer.items()
+      self.shuffle_interface.write(self.dataset_id, self.transaction_id, kvs)
+      self.write_buffer = {}
       self.buffer_bytes = 0
 
 
@@ -146,7 +150,7 @@ class ShuffleReadOperation(Operation):
     with self.scoped_start_state:
       super(ShuffleReadOperation, self).start()
       has_active_key = False
-      current_key = None
+      hashed_encoded_current_key = None
       current_values = None
       continuation_token = None
       if self.grouped:
@@ -155,47 +159,61 @@ class ShuffleReadOperation(Operation):
           elements, continuation_token = self.shuffle_interface.read(
               self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
           # print '^^^^^^^^^^^^^^^^^^^^READ', elements, continuation_token
-          for record_type, encoded_object in elements:
-            if record_type == 0: # key
+          for hashed_encoded_key, encoded_values in elements:
+            if hashed_encoded_key != hashed_encoded_current_key:
               if has_active_key:
-                self.output(_globally_windowed_value((current_key, current_values)))
-              encoded_key = strip_hash(encoded_object)
-              current_key = self.key_coder.decode(encoded_key)
+                encoded_current_key = strip_hash(hashed_encoded_current_key)
+                self.output(_globally_windowed_value((self.key_coder.decode(encoded_current_key), current_values)))
+              has_active_key = False
+            if not has_active_key:
+              hashed_encoded_current_key = hashed_encoded_key
               current_values = []
               has_active_key = True
-            elif record_type == 1: # value
-              current_values.append(self.value_coder.decode(encoded_object))
-          # for element in elements:
-          #   # print 'ELE', element
-          #   # print 'KEY_CODER', self.key_coder
-          #   # print 'VALUE_CODER', self.value_coder
-          #   hashed_encoded_key, encoded_value = element
-          #   encoded_key = strip_hash(hashed_encoded_key)
-          #   if has_active_key and current_encoded_key != encoded_key:
-          #     current_key = self.key_coder.decode(current_encoded_key)
-          #     # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)
-          #     self.output(_globally_windowed_value((current_key, current_values)))
-          #     has_active_key = False
-          #   if not has_active_key:
-          #     current_encoded_key = encoded_key
+            for encoded_value in encoded_values:
+              current_values.append(self.value_coder.decode(encoded_value))
+          # # print '^^^^^^^^^^^^^^^^^^^^READ', elements, continuation_token
+          # for encoded_key, encoded_values in elements:
+          #   if encoded_key != current_key:
+          #   if record_type == 0: # key
+          #     if has_active_key:
+          #       self.output(_globally_windowed_value((current_key, current_values)))
+          #     encoded_key = strip_hash(encoded_object)
+          #     current_key = self.key_coder.decode(encoded_key)
           #     current_values = []
           #     has_active_key = True
-          #   # print 'START TRY DECODE', self.value_coder, repr(encoded_value)
-          #   current_values.append(self.value_coder.decode(encoded_value))
+          #   elif record_type == 1: # value
+          #     current_values.append(self.value_coder.decode(encoded_object))
+          # # for element in elements:
+          # #   # print 'ELE', element
+          # #   # print 'KEY_CODER', self.key_coder
+          # #   # print 'VALUE_CODER', self.value_coder
+          # #   hashed_encoded_key, encoded_value = element
+          # #   encoded_key = strip_hash(hashed_encoded_key)
+          # #   if has_active_key and current_encoded_key != encoded_key:
+          # #     current_key = self.key_coder.decode(current_encoded_key)
+          # #     # print '^^^^^^^^^^^^^^^^^^^^OUT', (current_key, current_values)
+          # #     self.output(_globally_windowed_value((current_key, current_values)))
+          # #     has_active_key = False
+          # #   if not has_active_key:
+          # #     current_encoded_key = encoded_key
+          # #     current_values = []
+          # #     has_active_key = True
+          # #   # print 'START TRY DECODE', self.value_coder, repr(encoded_value)
+          # #   current_values.append(self.value_coder.decode(encoded_value))
           print "<<< CONTINUATION TOKEN", continuation_token
           if continuation_token is None:
             break
         if has_active_key:
-          self.output(_globally_windowed_value((current_key, current_values)))
+          encoded_current_key = strip_hash(hashed_encoded_current_key)
+          self.output(_globally_windowed_value((self.key_coder.decode(encoded_current_key), current_values)))
       else:
         # Ungrouped read.
         while True:
           elements, continuation_token = self.shuffle_interface.read(
               self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
-          for record_type, encoded_value in elements:
-            if record_type != 1: # value
-              continue
-            self.output(self.value_coder.decode(encoded_value))
+          for unused_encoded_key, encoded_values in elements:
+            for encoded_value in encoded_values:
+              self.output(self.value_coder.decode(encoded_value))
           print "<<< CONTINUATION TOKEN", continuation_token
           if continuation_token is None:
             break
@@ -230,11 +248,10 @@ class LaserSideInputSource(iobase.BoundedSource):
     while True:
       elements, continuation_token = self.shuffle_interface.read(
           self.dataset_id, self.key_range, continuation_token, READ_BUFFER_SIZE)
-      for record_type, encoded_value in elements:
-        if record_type != 1: # value
-          continue
-        print 'SIREAD', repr(encoded_value)
-        yield self._coder.decode(encoded_value)
+      for unused_encoded_key, encoded_values in elements:
+        for encoded_value in encoded_values:
+          print 'SIREAD', repr(encoded_value)
+          yield self._coder.decode(encoded_value)
       if continuation_token is None:
         break
 

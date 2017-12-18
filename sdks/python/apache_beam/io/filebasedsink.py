@@ -182,6 +182,7 @@ class FileBasedSink(iobase.Sink):
     file_path_prefix = self.file_path_prefix.get()
     file_name_suffix = self.file_name_suffix.get()
     writer_results = sorted(writer_results)
+    print '***************writer_results', writer_results
     num_shards = len(writer_results)
     min_threads = min(num_shards, FileBasedSink._MAX_RENAME_THREADS)
     num_threads = max(1, min_threads)
@@ -203,6 +204,8 @@ class FileBasedSink(iobase.Sink):
     destination_file_batch = [destination_files[i:i + chunk_size]
                               for i in xrange(0, len(destination_files),
                                               chunk_size)]
+    print '***************source_file_batch', source_file_batch
+    print '***************destination_file_batch', destination_file_batch
 
     logging.info(
         'Starting finalize_write threads with num_shards: %d, '

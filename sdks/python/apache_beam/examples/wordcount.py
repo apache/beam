@@ -86,6 +86,10 @@ def run(argv=None):
   from apache_beam.runners.laser.laser_runner import LaserRunner
   from apache_beam.runners.portability.fn_api_runner import FnApiRunner
   p = beam.Pipeline(LaserRunner(), options=pipeline_options)
+  def _print(x):
+    import time
+    # time.sleep(4)
+    print 'PRRRINT:', x
 
   # Read the text file[pattern] into a PCollection.
   lines = p | 'read' >> ReadFromText(known_args.input)
@@ -100,6 +104,8 @@ def run(argv=None):
 
   # Format the counts into a PCollection of strings.
   output = counts | 'format' >> beam.Map(lambda (word, c): '%s: %s' % (word, c))
+
+  # output | beam.Map(_print)
 
   # Write the output using a "Write" transform that has side effects.
   # pylint: disable=expression-not-assigned

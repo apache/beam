@@ -23,8 +23,6 @@ graph of transformations belonging to a pipeline on the local machine.
 
 # from __future__ import absolute_import
 
-import cProfile
-import pstats
 import cPickle as pickle
 import itertools
 import json
@@ -78,6 +76,7 @@ from apache_beam.runners.laser.compute_node import MultiProcessComputeNodeManage
 from apache_beam.runners.laser.graph import CompositeWatermarkNode
 from apache_beam.runners.laser.graph import StepGraph
 from apache_beam.runners.laser.graph import ParDoStep
+from apache_beam.runners.laser.graph import FlattenStep
 from apache_beam.runners.laser.graph import GroupByKeyOnlyStep
 from apache_beam.runners.laser.graph import ReadStep
 from apache_beam.runners.laser.graph import ParDoFnData
@@ -441,12 +440,12 @@ if __name__ == '__main__':
   # lines = p | ReadFromText('shakespeare/*.txt')
   # lines = p | ReadFromText('data/*.txt')
   lines1 = p | "lines1" >> Create(['a', 'a', 'b' ,'a c'])
-  # lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
+  lines2 = p | "lines2" >> Create(['D', 'eee', 'FFFFFfff' ,'gggGGGGGGGGGGGG'])
   # lines1 | WriteToText('mytmp')
-  assert_that(lines1, equal_to([1, 2]))
-  # lines = (lines1, lines2) | Flatten()
+  # assert_that(lines1, equal_to([1, 2]))
+  lines = (lines1, lines2) | Flatten()
   # # WORDCAP:
-  # # lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
+  lines | beam.Map(lambda x: x.upper()) | beam.Map(_print)
 
   # # WORDCOUNT:
   # paired = (lines

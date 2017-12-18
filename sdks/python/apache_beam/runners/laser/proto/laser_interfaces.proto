@@ -17,15 +17,15 @@ message DeleteDatasetRequest {
 
 message DeleteDatasetResponse { }
 
-message KV {
+message KeyValues {
   string key = 1;
-  string value = 2;
+  repeated string value = 2;
 }
 
 message WriteRequest {
   int32 dataset_id = 1;
   int32 transaction_id = 2;
-  repeated KV kvs = 3;
+  repeated KeyValues kvs = 3;
 }
 
 message WriteResponse { }
@@ -46,10 +46,28 @@ message LexicographicRange {
 }
 
 
+message ReadRequest {
+  int32 dataset_id = 1;
+  LexicographicRange lexicographic_range = 2;
+  string continuation_token = 3;
+  int32 suggested_max_bytes = 4;  // TODO: make this a streaming RPC so we don't need to care about this buffer.
+}
+
+message ReadResponse {
+  repeated KeyValues kvs = 1; 
+  string continuation_token = 2;
+}
+
 
 service ShuffleService {
   rpc CreateDataset(CreateDatasetRequest) returns (CreateDatasetResponse);
   rpc DeleteDataset(DeleteDatasetRequest) returns (DeleteDatasetResponse);
   rpc Write(WriteRequest) returns (WriteResponse);
 }
+
+message FinalizeDatasetRequest {
+  int32 dataset_id = 1;
+}
+
+message FinalizeDatasetResponse { }
 

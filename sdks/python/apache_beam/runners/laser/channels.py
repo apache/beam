@@ -67,13 +67,16 @@ class ChannelManager(threading.Thread):
     return interface_obj
 
   def _send_call(self, interface_address, method_name, args):
+    start_time = time.time()
     payload = pickle.dumps((interface_address, method_name, args))
+    print 'pickle send took %fs' % (time.time() - start_time)
     node_address, interface_name = interface_address.rsplit('/', 1)
     with self.lock:
       if node_address not in self.addresses_to_link_indices:
         raise InterfaceNotReadyException()
       link_index = self.addresses_to_link_indices[node_address]
       link = self.links[link_index]
+    print 'payload has size', len(payload)
     result = link.send_message(payload)
     print 'send_call(%s, %s) returned' % (interface_address, method_name)
     return result
@@ -234,7 +237,9 @@ class Channel(object):  # TODO: basechannel?
         with self.lock:
           self.pipe.send(struct.pack('<ii', TAG_MESSAGE_ACK, message_id))
         return_val = self._process_received_message(message_id, message_bytes)
+        start_time = time.time()
         return_bytes = pickle.dumps(return_val)
+        print 'pickle response took %fs (%d bytes)' % (time.time() - start_time, len(return_bytes))
         with self.lock:
           self.pipe.send(struct.pack('<iii', TAG_MESSAGE_RESULT, message_id, len(return_bytes)))
           self.pipe.send(return_bytes)

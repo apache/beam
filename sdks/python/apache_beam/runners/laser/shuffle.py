@@ -1,4 +1,5 @@
 
+import collections
 import json
 import threading
 import time
@@ -28,11 +29,13 @@ class SimpleShuffleDataset(object):
       if txn_id in self.committed_txns:
         raise Exception('Can\'t write to already committed transaction: %s.' % txn_id)
       if txn_id not in self.uncommitted_items:
-        self.uncommitted_items[txn_id] = []
-      for key, value in kvs:
-        assert isinstance(key, str)
-        assert isinstance(value, str)
-        self.uncommitted_items[txn_id].append((key, value))
+        self.uncommitted_items[txn_id] = collections.defaultdict(list)
+      for key, values in kvs:
+        # assert isinstance(key, str)
+        buffered_values = self.uncommitted_items[txn_id][key]
+        for value in values:
+          # assert isinstance(value, str)
+          buffered_values.append(value)
 
 
   def commit_transaction(self, txn_id):
@@ -43,7 +46,10 @@ class SimpleShuffleDataset(object):
         return # TODO
         raise Exception('Transaction already committed: %s.' % txn_id)
       if txn_id in self.uncommitted_items:
-        self.items += self.uncommitted_items[txn_id]
+        for key, values in self.uncommitted_items[txn_id].iteritems():
+          for value in values:
+            # print 'APPEND', (key, value)
+            self.items.append((key, value))
         del self.uncommitted_items[txn_id]
       self.committed_txns.add(txn_id)
     print 'DONE COMMIT TRANSACTION', txn_id
@@ -118,21 +124,28 @@ class SimpleShuffleDataset(object):
       assert first_index <= continuation_index < one_past_last_index
       i = continuation_index
     result = []
-    last_key = None
+    current_key = None
+    current_values = []
     total_bytes_read = 0
     while i < one_past_last_index:
       key, value = self.sorted_items[i]
-      if key != last_key:
-        result.append((0, key))
+      if key != current_key:
+        # print 'RESULT', (current_key, current_values)
+        if current_values:
+          result.append((current_key, current_values))
         total_bytes_read += len(key)
-        last_key = key
-      result.append((1, value))
+        current_key = key
+        current_values = []
+      current_values.append(value)
       total_bytes_read += len(value)
       record_size = len(key) + len(value)
       if total_bytes_read == 0 or total_bytes_read + record_size <= suggested_max_bytes:
         i += 1
       else:
         break
+    if current_values:
+      # print 'RESULT', (current_key, current_values)
+      result.append((current_key, current_values))
     new_continuation_token = None
     if i < one_past_last_index:
       new_continuation_token = json.dumps({'start': i})
@@ -221,26 +234,42 @@ class SimpleShuffleWorker(ShuffleWorkerInterface):
 
 
 
-from apache_beam.runners.laser.proto import laser_interfaces_pb2_grpc
+# from apache_beam.runners.laser.proto import laser_interfaces_pb2_grpc
 
-class ShuffleWorkerWrapper(laser_interfaces_pb2_grpc.ShuffleServiceServicer):
-  def __init__(self, shuffle_worker):
-    self.shuffle_worker = shuffle_worker
+# class ShuffleWorkerServerWrapper(laser_interfaces_pb2_grpc.ShuffleServiceServicer):
+#   def __init__(self, shuffle_worker):
+#     self.shuffle_worker = shuffle_worker
 
-  def CreateDataset(self, request, context):
-    self.shuffle_worker.create_dataset(request.dataset_id)
-    return laser_interfaces_pb2.CreateDatasetResponse()
+#   def CreateDataset(self, request, context=None):
+#     self.shuffle_worker.create_dataset(request.dataset_id)
+#     return laser_interfaces_pb2.CreateDatasetResponse()
 
-  def DeleteDataset(self, request, context):
-    self.shuffle_worker.delete_dataset(request.dataset_id)
-    return laser_interfaces_pb2.DeleteDatasetResponse()
+#   def DeleteDataset(self, request, context=None):
+#     self.shuffle_worker.delete_dataset(request.dataset_id)
+#     return laser_interfaces_pb2.DeleteDatasetResponse()
 
-  def Write(self, request, context):
-    self.shuffle_worker.write(request.dataset_id)
-    return laser_interfaces_pb2.WriteResponse()
+#   def Write(self, request, context=None):
+#     # kvs = list(for obj in request.kvs)
+#     self.shuffle_worker.write(request.dataset_id, request.transaction_id, kvs)
+#     return laser_interfaces_pb2.WriteResponse()
+
+#   def Read(self, request, context=None):
+#     self.shuffle_worker.write(request.dataset_id)
+#     return laser_interfaces_pb2.ReadResponse()
 
 
+# class ShuffleWorkerClientWrapper(ShuffleWorkerInterface):
 
+#   def __init__(self, grpc_service):
+#     self.grpc_service = grpc_service
+  
+#   def create_dataset(self, dataset_id):
+#     self.grpc_service.CreateDataset(laser_interfaces_pb2.CreateDatasetRequest(dataset_id))
+  
+#   def delete_dataset(self, dataset_id):
+#     self.grpc_service.DeleteDataset(laser_interfaces_pb2.DeleteDatasetRequest(dataset_id))
+
+#   # def write(self, )
 
 
 
