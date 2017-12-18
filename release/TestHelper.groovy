@@ -110,6 +110,7 @@ class TestHelper {
      def m2 = new File(var.startDir, ".m2/repository")
      m2.mkdirs()
      def settings = new File(var.startDir, "settings.xml")
+     def repo = System.env.snapshot_repository ?: "https://repository.apache.org/content/repositories/snapshots"
      settings.write """
        <settings>
          <localRepository>${m2.absolutePath}</localRepository>
@@ -119,7 +120,7 @@ class TestHelper {
                  <repositories>
                    <repository>
                      <id>apache.snapshots</id>
-                     <url>https://repository.apache.org/content/repositories/snapshots</url>
+                     <url>${repo}</url>
                    </repository>
                  </repositories>
                </profile>
