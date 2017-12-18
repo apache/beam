@@ -1,0 +1,60 @@
+#
+#    Licensed to the Apache Software Foundation (ASF) under one or more
+#    contributor license agreements.  See the NOTICE file distributed with
+#    this work for additional information regarding copyright ownership.
+#    The ASF licenses this file to You under the Apache License, Version 2.0
+#    (the "License"); you may not use this file except in compliance with
+#    the License.  You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+version: '3'
+
+services:
+  # HDFS namenode.
+  namenode:
+    image: uhopper/hadoop-namenode:2.8.1
+    hostname: namenode
+    environment:
+      - CLUSTER_NAME=test
+    networks:
+      - test_net
+
+  # HDFS datanode.
+  datanode:
+    image: uhopper/hadoop-datanode:2.8.1
+    hostname: datanode
+    environment:
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    networks:
+      - test_net
+    depends_on:
+      - "namenode"
+
+  # Integration test.
+  test:
+    build: .
+    networks:
+      - test_net
+    dns:
+      # Order matters. The first server on the list is available on GCE VMs. It
+      # is used to resolve the server used for refreshing credentials (used for
+      # reading input from GCS). If not running in a GCE VM, the client defaults
+      # to anonymous access which should work as well.
+      - 169.254.169.254
+      - 8.8.8.8
+      - 8.8.4.4
+    depends_on:
+      - "namenode"
+      - "datanode"
+
+networks:
+  test_net:
