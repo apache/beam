@@ -151,16 +151,17 @@ import org.slf4j.LoggerFactory;
  *       so the number of shards will vary based on runner behavior, though at least 1 shard will
  *       always be produced for every non-empty pane. Note that setting a fixed number of shards can
  *       hurt performance: it adds an additional {@link GroupByKey} to the pipeline. However, it is
- *       required to set it when writing an unbounded {@link PCollection}.
+ *       required to set it when writing an unbounded {@link PCollection} due to <a
+ *       href="https://issues.apache.org/jira/browse/BEAM-1438">BEAM-1438</a> and similar behavior
+ *       in other runners.
  *   <li><b>How the shards are named:</b> This is controlled by a {@link Write.FileNaming}:
  *       filenames can depend on a variety of inputs, e.g. the window, the pane, total number of
- *       shards and the current file's shard index, etc. Controlling the file naming is described in
- *       the section <i>File naming</i> below.
- *   <li><b>Which elements go into which shard:</b> It is not possible to control this - elements
- *       within a window get distributed into different shards created for that window arbitrarily,
- *       though {@link FileIO.Write} attempts to make shards approximately evenly sized. For more
- *       control over which elements go into which files, consider using <i>dynamic destinations</i>
- *       (see below).
+ *       shards, the current file's shard index, and compression. Controlling the file naming is
+ *       described in the section <i>File naming</i> below.
+ *   <li><b>Which elements go into which shard:</b> Elements within a pane get distributed into
+ *       different shards created for that pane arbitrarily, though {@link FileIO.Write} attempts to
+ *       make shards approximately evenly sized. For more control over which elements go into which
+ *       files, consider using <i>dynamic destinations</i> (see below).
  *   <li><b>How a given set of elements is written to a shard:</b> This is controlled by the {@link
  *       Sink}, e.g. {@link AvroIO#sink} will generate Avro files. The {@link Sink} controls the
  *       format of a single file: how to open a file, how to write each element to it, and how to
@@ -177,7 +178,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>The names of generated files are produced by a {@link Write.FileNaming}. The default naming
  * strategy is to name files in the format: {@code
- * $prefix-$start-$end-$pane-$shard-of-$numShards$suffix}, where:
+ * $prefix-$start-$end-$pane-$shard-of-$numShards$suffix$compressionSuffix}, where:
  *
  * <ul>
  *   <li>$prefix is set by {@link Write#withPrefix}, the default is "output".
@@ -189,9 +190,11 @@ import org.slf4j.LoggerFactory;
  *       written for the current pane. Both are formatted using 5 digits (or more if necessary
  *       according to $numShards) and zero-padded.
  *   <li>$suffix is set by {@link Write#withSuffix}, the default is empty.
+ *   <li>$compressionSuffix is based on the default extension for the chosen
+ *   {@link Write#withCompression compression type}.
  * </ul>
  *
- * <p>For example: {@code data-2017-12-01T19:00:00Z-2017-12-01T20:00:00Z-2-00010-of-00050.txt}
+ * <p>For example: {@code data-2017-12-01T19:00:00Z-2017-12-01T20:00:00Z-2-00010-of-00050.txt.gz}
  *
  * <p>Alternatively, one can specify a custom naming strategy using {@link
  * Write#withNaming(Write.FileNaming)}.
@@ -728,18 +731,21 @@ public class FileIO {
 
   /**
    * Specifies how to write elements to individual files in {@link FileIO#write} and {@link
-   * FileIO#writeDynamic}.
+   * FileIO#writeDynamic}. A new instance of {@link Sink} is created for every file being written.
    */
   public interface Sink<ElementT> extends Serializable {
-    /** Initializes writing to the given channel. */
+    /**
+     * Initializes writing to the given channel. Will be invoked once on a given {@link Sink}
+     * instance.
+     */
     void open(WritableByteChannel channel) throws IOException;
 
-    /** Appends a single element to the file. */
+    /** Appends a single element to the file. May be invoked zero or more times. */
     void write(ElementT element) throws IOException;
 
     /**
      * Flushes the buffered state (if any) before the channel is closed. Does not need to close the
-     * channel.
+     * channel. Will be invoked once.
      */
     void flush() throws IOException;
   }
@@ -946,8 +952,9 @@ public class FileIO {
     }
 
     /**
-     * Specifies how create a {@link Sink} for a particular destination and how to map the element
-     * type to the sink's output type.
+     * Specifies how to create a {@link Sink} for a particular destination and how to map the
+     * element type to the sink's output type. The sink function must create a new {@link Sink}
+     * instance every time it is called.
      */
     public <OutputT> Write<DestinationT, UserT> via(
         Contextful<Fn<UserT, OutputT>> outputFn,
@@ -964,17 +971,18 @@ public class FileIO {
      * destinations.
      */
     public <OutputT> Write<DestinationT, UserT> via(
-        Contextful<Fn<UserT, OutputT>> outputFn, Sink<OutputT> sink) {
+        Contextful<Fn<UserT, OutputT>> outputFn, final Sink<OutputT> sink) {
       checkArgument(sink != null, "sink can not be null");
       checkArgument(outputFn != null, "outputFn can not be null");
       return via(
           outputFn,
-          fn(SerializableFunctions.<DestinationT, Sink<OutputT>>constant(sink)));
+          fn(SerializableFunctions.<DestinationT, Sink<OutputT>>clonesOf(sink)));
     }
 
     /**
-     * Like {@link #via(Contextful, Contextful)}, but the output type of the
-     * sink is the same as the type of the input collection.
+     * Like {@link #via(Contextful, Contextful)}, but the output type of the sink is the same as the
+     * type of the input collection. The sink function must create a new {@link Sink} instance every
+     * time it is called.
      */
     public Write<DestinationT, UserT> via(Contextful<Fn<DestinationT, Sink<UserT>>> sinkFn) {
       checkArgument(sinkFn != null, "sinkFn can not be null");
@@ -989,7 +997,7 @@ public class FileIO {
      */
     public Write<DestinationT, UserT> via(Sink<UserT> sink) {
       checkArgument(sink != null, "sink can not be null");
-      return via(fn(SerializableFunctions.<DestinationT, Sink<UserT>>constant(sink)));
+      return via(fn(SerializableFunctions.<DestinationT, Sink<UserT>>clonesOf(sink)));
     }
 
     /**
@@ -1224,6 +1232,10 @@ public class FileIO {
             constantFileNaming = relativeFileNaming(getOutputDirectory(), constantFileNaming);
           }
         } else {
+          checkArgument(
+              getFilenamePrefix() == null, ".to(FileNaming) is incompatible with .withSuffix()");
+          checkArgument(
+              getFilenameSuffix() == null, ".to(FileNaming) is incompatible with .withPrefix()");
           constantFileNaming = getConstantFileNaming();
         }
         fileNamingFn =
