@@ -26,7 +26,7 @@ t = new TestHelper()
 t.describe 'Run Apache Beam Java SDK Quickstart - Direct'
 
   t.it 'Gets the WordCount Code'
-    ver = "2.3.0-SNAPSHOT"
+    ver = System.env.snapshot_version ?: "2.3.0-SNAPSHOT"
 
     // Generate a maven project from the snapshot repository
     t.run """mvn archetype:generate \
