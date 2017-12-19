@@ -150,11 +150,19 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 
 def binary_subscr(state, unused_arg):
-  tos = state.stack.pop()
-  if tos in (str, six.text_type):
-    out = tos
+  index = state.stack.pop()
+  base = state.stack.pop()
+  if base in (str, six.text_type):
+    out = base
+  elif (isinstance(index, Const) and isinstance(index.value, int)
+      and isinstance(base, typehints.TupleHint.TupleConstraint)):
+    const_index = index.value
+    if -len(base.tuple_types) < const_index < len(base.tuple_types):
+      out = base.tuple_types[const_index]
+    else:
+      out = element_type(base)
   else:
-    out = element_type(tos)
+    out = element_type(base)
   state.stack.append(out)
 
 
@@ -193,8 +201,9 @@ print_newline = nop
 # break_loop
 # continue_loop
 def list_append(state, arg):
+  new_element_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
-                                 Const.unwrap(state.stack.pop())]]
+                                 new_element_type]]
 
 
 load_locals = push_value(Dict[str, Any])
