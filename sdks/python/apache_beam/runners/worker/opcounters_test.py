@@ -18,7 +18,10 @@
 import logging
 import math
 import random
+from time import sleep
 import unittest
+
+from nose.plugins.skip import SkipTest
 
 from apache_beam import coders
 from apache_beam.runners.worker import opcounters
@@ -45,19 +48,55 @@ class ObjectThatDoesNotImplementLen(object):
 
 class TransformIoCounterTest(unittest.TestCase):
 
+  def setUp(self):
+    try:
+      # pylint: disable=global-variable-not-assigned
+      global statesampler
+      from apache_beam.runners.worker import statesampler
+    except ImportError:
+      raise SkipTest('State sampler not compiled.')
+    super(TransformIoCounterTest, self).setUp()
+
   def test_basic_counters(self):
     counter_factory = CounterFactory()
-    sampler = statesampler.StateSampler('basic', counter_factory)
+    sampler = statesampler.StateSampler('stage1', counter_factory)
+    sampler.start()
 
-    counter = opcounters.SideInputReadCounter(counter_factory, sampler,
-                                              declaring_step='step1',
-                                              input_index=1)
-    with sampler.scoped_state('step2', 'statea'):
+    with sampler.scoped_state('step1', 'stateA'):
+      counter = opcounters.SideInputReadCounter(counter_factory, sampler,
+                                                declaring_step='step1',
+                                                input_index=1)
+    with sampler.scoped_state('step2', 'stateB'):
       with counter:
-        counter.add_bytes_read(100)
-        sleep(1)
+        counter.add_bytes_read(10)
+        sleep(0.3)
 
-    self.assertEqual(counter_factory.get_counters(), [])
+      counter.check_step()
+
+    sampler.stop()
+    sampler.commit_counters()
+
+    actual_counter_names = set([c.name for c in counter_factory.get_counters()])
+    expected_counter_names = set([
+        # Counter names for STEP 1
+        counters.CounterName('read-sideinput-msecs',
+                             stage_name='stage1',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step1', 1)),
+        counters.CounterName('read-sideinput-byte-count',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step1', 1)),
+
+        # Counter names for STEP 2
+        counters.CounterName('read-sideinput-msecs',
+                             stage_name='stage1',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step2', 1)),
+        counters.CounterName('read-sideinput-byte-count',
+                             step_name='step1',
+                             io_target=counters.side_input_id('step2', 1)),
+    ])
+    self.assertTrue(actual_counter_names.issuperset(expected_counter_names))
 
 
 class OperationCountersTest(unittest.TestCase):
