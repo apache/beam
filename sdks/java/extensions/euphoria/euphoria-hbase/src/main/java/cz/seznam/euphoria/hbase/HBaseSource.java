@@ -16,6 +16,8 @@
 package cz.seznam.euphoria.hbase;
 
 import cz.seznam.euphoria.core.client.functional.VoidFunction;
+import cz.seznam.euphoria.core.client.io.BoundedDataSource;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.input.HadoopSource;
 import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
@@ -64,7 +67,9 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
     private Configuration conf = HBaseConfiguration.create();
     private final List<ScanUpdate> scanUpdaters = new ArrayList<>();
     private String table = null;
+    private String quorum = null;
     private VoidFunction<Scan> scanFactory = Scan::new;
+    private String znodeParent = null;
 
     /**
      * Specify configuration to use.
@@ -83,6 +88,26 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
      */
     public Builder withTable(String table) {
       this.table = table;
+      return this;
+    }
+
+    /**
+     * Specify zookeeper quorum.
+     * @param quorum the quorum to use
+     * @return this
+     */
+    public Builder withZookeeperQuorum(String quorum) {
+      this.quorum = quorum;
+      return this;
+    }
+
+    /**
+     * Set parent znode for HBase zookeeper configuration.
+     * @param parent the parent znode
+     * @return this
+     */
+    public Builder withZnodeParent(String parent) {
+      this.znodeParent = parent;
       return this;
     }
 
@@ -257,6 +282,13 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
     public HBaseSource build() {
       Preconditions.checkArgument(
           table != null, "Please specify source table by call to `usingTable`");
+      conf = new Configuration(conf);
+      if (quorum != null) {
+        conf.set(HConstants.ZOOKEEPER_QUORUM, quorum);
+      }
+      if (znodeParent != null) {
+        conf.set(HConstants.ZOOKEEPER_ZNODE_PARENT, znodeParent);
+      }
       return new HBaseSource(conf, table, scanFactory, scanUpdaters);
     }
 
