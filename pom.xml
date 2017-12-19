@@ -185,6 +185,8 @@
     <compiler.default.exclude>nothing</compiler.default.exclude>
     <gax-grpc.version>0.20.0</gax-grpc.version>
     <jaxb-api.version>2.2.12</jaxb-api.version>
+    <apache-httpclient.version>4.5.2</apache-httpclient.version>
+    <apache-httpcore.version>4.4.5</apache-httpcore.version>
 
     <!-- standard binary for kubectl -->
     <kubectl>kubectl</kubectl>
@@ -1489,6 +1491,19 @@
         <groupId>javax.xml.bind</groupId>
         <artifactId>jaxb-api</artifactId>
         <version>${jaxb-api.version}</version>
+      </dependency>
+
+
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>${apache-httpclient.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpcore</artifactId>
+        <version>${apache-httpcore.version}</version>
       </dependency>
 
     </dependencies>
