@@ -97,8 +97,8 @@ def proxy_info_from_environment_var(proxy_env_var):
     httplib2.ProxyInfo constructed from the environment string.
   """
   proxy_url = os.environ.get(proxy_env_var)
-  if not proxy_url or not proxy_env_var:
-    return httplib2.ProxyInfo(httplib2.socks.PROXY_TYPE_HTTP, None, 0)
+  if not proxy_url:
+    return None
   proxy_protocol = proxy_env_var.lower().split('_')[0]
   if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
     logging.warn("proxy_info_from_url requires a protocol, which is always "
