@@ -326,6 +326,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
         self._applied_ptransform, self._input_bundle,
         side_input_values, scoped_metrics_container)
 
+    with scoped_metrics_container:
+      evaluator.start_bundle()
+
     if self._fired_timers:
       for timer_firing in self._fired_timers:
         evaluator.process_timer_wrapper(timer_firing)

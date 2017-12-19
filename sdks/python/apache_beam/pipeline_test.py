@@ -22,6 +22,8 @@ import platform
 import unittest
 from collections import defaultdict
 
+from mock import mock
+
 import apache_beam as beam
 from apache_beam.io import Read
 from apache_beam.metrics import Metrics
@@ -30,7 +32,6 @@ from apache_beam.pipeline import PipelineOptions
 from apache_beam.pipeline import PipelineVisitor
 from apache_beam.pipeline import PTransformOverride
 from apache_beam.pvalue import AsSingleton
-from apache_beam.runners import DirectRunner
 from apache_beam.runners.dataflow.native_io.iobase import NativeSource
 from apache_beam.runners.direct.evaluation_context import _ExecutionContext
 from apache_beam.runners.direct.transform_evaluator import _GroupByKeyOnlyEvaluator
@@ -303,7 +304,9 @@ class PipelineTest(unittest.TestCase):
   #   p = Pipeline('EagerRunner')
   #   self.assertEqual([1, 4, 9], p | Create([1, 2, 3]) | Map(lambda x: x*x))
 
-  def test_ptransform_overrides(self):
+  @mock.patch(
+      'apache_beam.runners.direct.direct_runner._get_transform_overrides')
+  def test_ptransform_overrides(self, file_system_override_mock):
 
     def my_par_do_matcher(applied_ptransform):
       return isinstance(applied_ptransform.transform, DoubleParDo)
@@ -318,8 +321,11 @@ class PipelineTest(unittest.TestCase):
           return TripleParDo()
         raise ValueError('Unsupported type of transform: %r', ptransform)
 
-    # Using following private variable for testing.
-    DirectRunner._PTRANSFORM_OVERRIDES.append(MyParDoOverride())
+    def get_overrides():
+      return [MyParDoOverride()]
+
+    file_system_override_mock.side_effect = get_overrides
+
     with Pipeline() as p:
       pcoll = p | beam.Create([1, 2, 3]) | 'Multiply' >> DoubleParDo()
       assert_that(pcoll, equal_to([3, 6, 9]))

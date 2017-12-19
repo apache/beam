@@ -28,16 +28,20 @@ cdef class Receiver(object):
   cpdef receive(self, WindowedValue windowed_value)
 
 
-cdef class DoFnMethodWrapper(object):
+cdef class MethodWrapper(object):
   cdef public object args
   cdef public object defaults
   cdef public object method_value
 
 
 cdef class DoFnSignature(object):
-  cdef public DoFnMethodWrapper process_method
-  cdef public DoFnMethodWrapper start_bundle_method
-  cdef public DoFnMethodWrapper finish_bundle_method
+  cdef public MethodWrapper process_method
+  cdef public MethodWrapper start_bundle_method
+  cdef public MethodWrapper finish_bundle_method
+  cdef public MethodWrapper initial_restriction_method
+  cdef public MethodWrapper restriction_coder_method
+  cdef public MethodWrapper create_tracker_method
+  cdef public MethodWrapper split_method
   cdef public object do_fn
 
 
@@ -45,11 +49,14 @@ cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
   cdef _OutputProcessor output_processor
 
-  cpdef invoke_process(self, WindowedValue windowed_value)
+  cpdef invoke_process(self, WindowedValue windowed_value,
+                       restriction_tracker=*, output_processor=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)
-
-  # TODO(chamikara) define static method create_invoker() here.
+  cpdef invoke_split(self, element, restriction)
+  cpdef invoke_initial_restriction(self, element)
+  cpdef invoke_restriction_coder(self)
+  cpdef invoke_create_tracker(self, restriction)
 
 
 cdef class SimpleInvoker(DoFnInvoker):
@@ -77,7 +84,10 @@ cdef class DoFnRunner(Receiver):
   cpdef process(self, WindowedValue windowed_value)
 
 
-cdef class _OutputProcessor(object):
+cdef class OutputProcessor(object):
+  pass
+
+cdef class _OutputProcessor(OutputProcessor):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers
