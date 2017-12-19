@@ -20,10 +20,8 @@ The Beam SDKs provide a unified programming model that can represent and transfo
 
 Beam currently supports the following language-specific SDKs:
 
-* Java <img src="{{ site.baseurl }}/images/logos/sdks/java.png"
-         alt="Java SDK">
-* Python <img src="{{ site.baseurl }}/images/logos/sdks/python.png"
-         alt="Python SDK ">
+* Java ![Java logo]({{ "/images/logos/sdks/java.png" | prepend: site.baseurl }})
+* Python ![Python logo]({{ "/images/logos/sdks/python.png" | prepend: site.baseurl }})
 
 ## Apache Beam Pipeline Runners
 
@@ -31,16 +29,11 @@ The Beam Pipeline Runners translate the data processing pipeline you define with
 
 Beam currently supports Runners that work with the following distributed processing back-ends:
 
-* Apache Apex <img src="{{ site.baseurl }}/images/logos/runners/apex.png"
-         alt="Apache Apex">
-* Apache Flink <img src="{{ site.baseurl }}/images/logos/runners/flink.png"
-         alt="Apache Flink">
-* Apache Gearpump (incubating) <img src="{{ site.baseurl }}/images/logos/runners/gearpump.png"
-         alt="Apache Gearpump">
-* Apache Spark <img src="{{ site.baseurl }}/images/logos/runners/spark.png"
-         alt="Apache Spark">
-* Google Cloud Dataflow <img src="{{ site.baseurl }}/images/logos/runners/dataflow.png"
-         alt="Google Cloud Dataflow">
+* Apache Apex  ![Apache Apex logo]({{ "/images/logos/runners/apex.png" | prepend: site.baseurl }})
+* Apache Flink ![Apache Flink logo]({{ "/images/logos/runners/flink.png" | prepend: site.baseurl }})
+* Apache Gearpump (incubating) ![Apache Gearpump logo]({{ "/images/logos/runners/gearpump.png" | prepend: site.baseurl }})
+* Apache Spark ![Apache Spark logo]({{ "/images/logos/runners/spark.png" | prepend: site.baseurl }})
+* Google Cloud Dataflow ![Google Cloud Dataflow logo]({{ "/images/logos/runners/dataflow.png" | prepend: site.baseurl }})
 
 **Note:** You can always execute your pipeline locally for testing and debugging purposes.
 
