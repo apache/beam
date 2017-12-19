@@ -62,7 +62,7 @@ class MapTaskExecutorRunner(PipelineRunner):
     """
     return False
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(self.has_metrics_support())
     # List of map tasks  Each map task is a list of
     # (stage_name, operation_specs.WorkerOperation) instructions.
@@ -80,7 +80,7 @@ class MapTaskExecutorRunner(PipelineRunner):
     self.dependencies = collections.defaultdict(set)
 
     # Visit the graph, building up the map_tasks and their metadata.
-    super(MapTaskExecutorRunner, self).run(pipeline)
+    super(MapTaskExecutorRunner, self).run_pipeline(pipeline)
 
     # Now run the tasks in topological order.
     def compute_depth_map(deps):

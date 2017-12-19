@@ -58,7 +58,6 @@ class UniversalLocalRunner(runner.PipelineRunner):
   def __init__(self, use_grpc=True, use_subprocesses=False):
     if use_subprocesses and not use_grpc:
       raise ValueError("GRPC must be used with subprocesses")
-    super(UniversalLocalRunner, self).__init__()
     self._use_grpc = use_grpc
     self._use_subprocesses = use_subprocesses
 
@@ -136,7 +135,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
     logging.info("Server ready.")
     return job_service
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     job_service = self._get_job_service()
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
