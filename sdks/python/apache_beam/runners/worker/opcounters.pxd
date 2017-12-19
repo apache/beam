@@ -30,6 +30,7 @@ cdef class TransformIoCounter(object):
 
 cdef class SideInputReadCounter(TransformIoCounter):
   cdef readonly object _counter_factory
+  cdef readonly object _state_sampler
   cdef readonly object declaring_step
   cdef readonly object input_index
 
