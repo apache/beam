@@ -22,17 +22,15 @@
 
 int main(int argc, char* argv[])
 {
-  if(argc < 3){
-    std::cerr << "No parameter sent, must send the return file location and a statement to echo" << '\n';
-    return 1;
-  }
-
-std::string retFile = argv[1];
-std::string word = argv[2];
-
-  std::ofstream myfile;
-  myfile.open (retFile);
-  myfile << word;
-  myfile.close();
-  return 0;
+    if(argc < 3){
+        std::cerr << "No parameter sent, must send the return file location and a statement to echo" << '\n';
+        return 1;
+    }
+    std::string retFile = argv[1];
+    std::string word = argv[2];
+    std::ofstream myfile;
+    myfile.open (retFile);
+    myfile << word;
+    myfile.close();
+    return 0;
 }

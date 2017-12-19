@@ -54,7 +54,7 @@ public class ExampleEchoPipeline {
     Pipeline p = Pipeline.create(options);
 
     // Setup the Configuration option used with all transforms
-    SubProcessConfiguration configuration = new SubProcessConfiguration(options);
+    SubProcessConfiguration configuration = options.getSubProcessConfiguration();
 
     // Create some sample data to be fed to our c++ Echo library
     List<KV<String, String>> sampleData = new ArrayList<>();

@@ -21,15 +21,9 @@ import com.google.common.collect.Lists;
 
 import java.util.List;
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
-
-
-
 /**
  * Parameters to the sub-process, has tuple of ordinal position and the value.
  */
-@DefaultCoder(AvroCoder.class)
 public class SubProcessCommandLineArgs {
 
   // Parameters to pass to the sub-process
@@ -50,7 +44,6 @@ public class SubProcessCommandLineArgs {
   /**
    * Class used to store the SubProcces parameters.
    */
-  @DefaultCoder(AvroCoder.class)
   public static class Command {
 
     // The ordinal position of the command to pass to the sub-process

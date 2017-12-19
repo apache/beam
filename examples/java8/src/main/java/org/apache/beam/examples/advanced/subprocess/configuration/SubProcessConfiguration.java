@@ -19,8 +19,6 @@ package org.apache.beam.examples.advanced.subprocess.configuration;
 
 import java.io.Serializable;
 
-import org.apache.beam.examples.advanced.subprocess.SubProcessPipelineOptions;
-
 /**
  * Configuration file used to setup the Process kernel for execution of the external library Values
  * are copied from the Options to all them to be Serializable.
@@ -29,45 +27,19 @@ import org.apache.beam.examples.advanced.subprocess.SubProcessPipelineOptions;
 public class SubProcessConfiguration implements Serializable {
 
   // Source GCS directory where the C++ library is located gs://bucket/tests
-  private String sourcePath;
+  public String sourcePath;
 
   // Working directory for the process I/O
-  private String workerPath;
+  public String workerPath;
 
   // The maximum time to wait for the sub-process to complete
-  private Integer waitTime;
+  public Integer waitTime;
 
   // "As sub-processes can be heavy weight match the concurrency level to num cores on the machines"
-  private Integer concurrency;
+  public Integer concurrency;
 
   // Should log files only be uploaded if error
-  private Boolean onlyUpLoadLogsOnError;
-
-  // Prevent empty instantiation
-  @SuppressWarnings("unused")
-  private SubProcessConfiguration() {}
-
-  /**
-   * Copy the options into this configuration which is Serializable.
-   * @param options
-   * @throws IllegalStateException
-   */
-  public SubProcessConfiguration(SubProcessPipelineOptions options) throws IllegalStateException {
-
-    if (options.getSourcePath() == null) {
-      throw new IllegalStateException("Source path must be set");
-    }
-
-    if (options.getConcurrency() == 0 || options.getConcurrency() == null) {
-      throw new IllegalStateException("Concurrency must be set and be > 0");
-    }
-
-    this.setSourcePath(options.getSourcePath());
-    this.setWorkerPath(options.getWorkerPath());
-    this.setWaitTime(options.getWaitTime());
-    this.setOnlyUpLoadLogsOnError(options.getOnlyUpLoadLogsOnError());
-    this.concurrency = options.getConcurrency();
-  }
+  public Boolean onlyUpLoadLogsOnError;
 
   public Boolean getOnlyUpLoadLogsOnError() {
     return onlyUpLoadLogsOnError;

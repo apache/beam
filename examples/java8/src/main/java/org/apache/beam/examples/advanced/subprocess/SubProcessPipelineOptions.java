@@ -18,9 +18,9 @@
 package org.apache.beam.examples.advanced.subprocess;
 
 
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
+import org.apache.beam.examples.advanced.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.sdk.options.Default;
+import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.Validation.Required;
@@ -28,7 +28,6 @@ import org.apache.beam.sdk.options.Validation.Required;
 /**
  * Options for running a sub process within a DoFn.
  */
-@DefaultCoder(AvroCoder.class)
 public interface SubProcessPipelineOptions extends PipelineOptions {
 
   @Description("Source GCS directory where the C++ library is located gs://bucket/tests")
@@ -61,4 +60,38 @@ public interface SubProcessPipelineOptions extends PipelineOptions {
 
   void setOnlyUpLoadLogsOnError(Boolean onlyUpLoadLogsOnError);
 
+  @Default.InstanceFactory(SubProcessConfigurationFactory.class)
+  SubProcessConfiguration getSubProcessConfiguration();
+
+  void setSubProcessConfiguration(SubProcessConfiguration configuration);
+
+  /**
+   * Confirm Configuration and return a configuration object used in pipeline.
+   */
+  class SubProcessConfigurationFactory
+      implements DefaultValueFactory<SubProcessConfiguration> {
+    @Override
+    public SubProcessConfiguration create(PipelineOptions options) {
+
+      SubProcessPipelineOptions subProcessPipelineOptions = (SubProcessPipelineOptions) options;
+
+      SubProcessConfiguration configuration = new SubProcessConfiguration();
+
+      if (subProcessPipelineOptions.getSourcePath() == null) {
+        throw new IllegalStateException("Source path must be set");
+      }
+      if (subProcessPipelineOptions.getConcurrency() == null ||
+          subProcessPipelineOptions.getConcurrency() == 0) {
+        throw new IllegalStateException("Concurrency must be set and be > 0");
+      }
+      configuration.setSourcePath(subProcessPipelineOptions.getSourcePath());
+      configuration.setWorkerPath(subProcessPipelineOptions.getWorkerPath());
+      configuration.setWaitTime(subProcessPipelineOptions.getWaitTime());
+      configuration.setOnlyUpLoadLogsOnError(subProcessPipelineOptions.getOnlyUpLoadLogsOnError());
+      configuration.concurrency = subProcessPipelineOptions.getConcurrency();
+
+      return configuration;
+
+    }
+  }
 }

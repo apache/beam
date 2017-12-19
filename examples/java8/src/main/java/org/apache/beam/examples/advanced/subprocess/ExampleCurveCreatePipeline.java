@@ -30,8 +30,6 @@ import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessCommandLine
 import org.apache.beam.examples.advanced.subprocess.kernel.SubProcessKernel;
 import org.apache.beam.examples.advanced.subprocess.utils.CallingSubProcessUtils;
 import org.apache.beam.sdk.Pipeline;
-import org.apache.beam.sdk.coders.AvroCoder;
-import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -62,7 +60,7 @@ public class ExampleCurveCreatePipeline {
 
 		Pipeline p = Pipeline.create(options);
 		// Setup the Configuration option used with all transforms
-		SubProcessConfiguration configuration = new SubProcessConfiguration(options);
+		SubProcessConfiguration configuration = options.getSubProcessConfiguration();
 
 		// Create some sample data to be fed to our c++ library in protobuf
 		// format
@@ -123,7 +121,7 @@ public class ExampleCurveCreatePipeline {
 				})).apply(GroupByKey.<String, Data>create())
 				.apply("Create Curve", ParDo.of(new CurveCreateDoFn(configuration, "democurve")));
 
-		// Log every 100th value
+		// Log every 100000th value
 		results.apply("Log every 10000th result", ParDo.of(new DoFn<KV<String, String>, String>() {
 			@ProcessElement
 			public void process(ProcessContext c) {
@@ -139,7 +137,6 @@ public class ExampleCurveCreatePipeline {
 	 * Wrapper class for the elements that will be sent to the SubProcess.
 	 */
 	@SuppressWarnings("serial")
-	@DefaultCoder(AvroCoder.class)
 	public static class CurveCreateDoFn
 	extends DoFn<KV<String, Iterable<Data>>, KV<String, String>> {
 

@@ -17,7 +17,7 @@
  */
 syntax = "proto3";
 
-package com.google.cloud.solutions.samples.dataflow.subprocess.examples;
+package org.apache.beam.examples.advanced.subprocess;
 
 message DataList{
 
