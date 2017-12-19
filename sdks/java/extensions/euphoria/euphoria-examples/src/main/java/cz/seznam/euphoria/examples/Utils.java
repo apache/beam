@@ -140,9 +140,10 @@ class Utils {
       case "hdfs":
       case "file":
         return DataSinks.mapping(
-            new SequenceFileSink<>(
-                ImmutableBytesWritable.class, ImmutableBytesWritable.class,
-                output.toString(), conf),
+            SequenceFileSink.newBuilder(ImmutableBytesWritable.class,  ImmutableBytesWritable.class)
+              .setOutputPath(output.toString())
+              .setConfiguration(conf)
+              .build(),
             b -> Pair.of(new ImmutableBytesWritable(), new ImmutableBytesWritable(b)));
       case "kafka":
         return DataSinks.mapping(
