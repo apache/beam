@@ -97,6 +97,16 @@ class Coder(object):
     """
     return False
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    """Returns a deterministic version of self, if possible.
+
+    Otherwise raises a value error.
+    """
+    if self.is_deterministic():
+      return self
+    else:
+      raise ValueError(error_message or "'%s' cannot be made deterministic.")
+
   def estimate_size(self, value):
     """Estimates the encoded size of the given value, in bytes.
 
@@ -497,6 +507,9 @@ class PickleCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(
         lambda x: dumps(x, HIGHEST_PROTOCOL), pickle.loads)
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    return DeterministicFastPrimitivesCoder(self, step_label)
+
 
 class DillCoder(_PickleCoderBase):
   """Coder using dill's pickle functionality."""
@@ -543,6 +556,12 @@ class FastPrimitivesCoder(FastCoder):
 
   def is_deterministic(self):
     return self._fallback_coder.is_deterministic()
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return DeterministicFastPrimitivesCoder(self, step_label)
 
   def as_cloud_object(self, is_pair_like=True):
     value = super(FastCoder, self).as_cloud_object()
@@ -662,6 +681,13 @@ class TupleCoder(FastCoder):
   def is_deterministic(self):
     return all(c.is_deterministic() for c in self._coders)
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return TupleCoder([c.as_deterministic_coder(step_label, error_message)
+                         for c in self._coders])
+
   @staticmethod
   def from_type_hint(typehint, registry):
     return TupleCoder([registry.get_coder(t) for t in typehint.tuple_types])
@@ -731,6 +757,13 @@ class TupleSequenceCoder(FastCoder):
   def is_deterministic(self):
     return self._elem_coder.is_deterministic()
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return TupleSequenceCoder(
+          self._elem_coder.as_deterministic_coder(step_label, error_message))
+
   @staticmethod
   def from_type_hint(typehint, registry):
     return TupleSequenceCoder(registry.get_coder(typehint.inner_type))
@@ -760,6 +793,13 @@ class IterableCoder(FastCoder):
 
   def is_deterministic(self):
     return self._elem_coder.is_deterministic()
+
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    else:
+      return IterableCoder(
+          self._elem_coder.as_deterministic_coder(step_label, error_message))
 
   def as_cloud_object(self):
     return {
