@@ -18,8 +18,8 @@
 import logging
 import math
 import random
-from time import sleep
 import unittest
+from time import sleep
 
 from nose.plugins.skip import SkipTest
 
