@@ -155,7 +155,7 @@ def binary_subscr(state, unused_arg):
   if base in (str, six.text_type):
     out = base
   elif (isinstance(index, Const) and isinstance(index.value, int)
-      and isinstance(base, typehints.TupleHint.TupleConstraint)):
+        and isinstance(base, typehints.TupleHint.TupleConstraint)):
     const_index = index.value
     if -len(base.tuple_types) < const_index < len(base.tuple_types):
       out = base.tuple_types[const_index]

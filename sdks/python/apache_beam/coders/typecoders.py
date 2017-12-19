@@ -155,6 +155,10 @@ class CoderRegistry(object):
         if not silent:
           logging.warning(error_msg)
         return coders.DeterministicFastPrimitivesCoder(key_coder, op_name)
+      elif isinstance(key_coder, coders.TupleCoder):
+        return coders.TupleCoder([
+            self.verify_deterministic(coder, op_name, silent)
+            for coder in key_coder.coders()])
       else:
         raise ValueError(error_msg)
     else:
