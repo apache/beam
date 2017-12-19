@@ -33,6 +33,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -44,9 +45,9 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
   private final SerializableWritable<JobID> jobID;
 
   @GuardedBy("lock")
-  private final transient Map<TaskAttemptID, OutputFormat<K, V>> outputFormats = new HashMap<>();
+  private transient Map<TaskAttemptID, OutputFormat<K, V>> outputFormats;
 
-  private final transient Object lock = new Object();
+  private final Object lock = new Serializable() {};
 
   public HadoopSink(Class<? extends OutputFormat<K, V>> outputFormatClass,
                     Configuration conf) {
@@ -95,6 +96,9 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
   private OutputFormat<K, V> getOutputFormat(TaskAttemptID tai) {
     return ExceptionUtils.unchecked(() -> {
       synchronized (lock) {
+        if (outputFormats == null) {
+          outputFormats = new HashMap<>();
+        }
         if (!outputFormats.containsKey(tai)) {
           final OutputFormat<K, V> outputFormat = outputFormatClass.newInstance();
           if (outputFormat instanceof Configurable) {
