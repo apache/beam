@@ -68,7 +68,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
    * write windowed files. In cases when user does specify shard template to be used then provided
    * template will be used for both windowed and non-windowed file names.
    */
-  private static final String DEFAULT_WINDOWED_SHARD_TEMPLATE =
+  public static final String DEFAULT_WINDOWED_SHARD_TEMPLATE =
       "W-P" + DEFAULT_UNWINDOWED_SHARD_TEMPLATE;
 
   /*

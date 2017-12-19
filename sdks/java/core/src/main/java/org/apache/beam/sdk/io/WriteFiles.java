@@ -24,7 +24,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Objects;
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
@@ -624,14 +623,15 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @Override
     public PCollection<FileResult<DestinationT>> expand(PCollection<UserT> input) {
+      List<PCollectionView<?>> shardingSideInputs = Lists.newArrayList(getSideInputs());
+      if (numShardsView != null) {
+        shardingSideInputs.add(numShardsView);
+      }
       return input
           .apply(
               "ApplyShardingKey",
               ParDo.of(new ApplyShardingKeyFn(numShardsView, destinationCoder))
-                  .withSideInputs(
-                      (numShardsView == null)
-                          ? ImmutableList.<PCollectionView<Integer>>of()
-                          : ImmutableList.of(numShardsView)))
+                  .withSideInputs(shardingSideInputs))
           .setCoder(KvCoder.of(ShardedKeyCoder.of(VarIntCoder.of()), input.getCoder()))
           .apply("GroupIntoShards", GroupByKey.<ShardedKey<Integer>, UserT>create())
           .apply(
@@ -656,6 +656,7 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     @ProcessElement
     public void processElement(ProcessContext context) throws IOException {
+      getDynamicDestinations().setSideInputAccessorFromProcessContext(context);
       final int shardCount;
       if (numShardsView != null) {
         shardCount = context.sideInput(numShardsView);
