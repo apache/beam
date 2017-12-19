@@ -718,7 +718,7 @@ public class BigtableIOTest {
             Create.empty(
                 KvCoder.of(ByteStringCoder.of(), IterableCoder.of(ProtoCoder.of(Mutation.class)))));
 
-    // Exception will be thrown by write.validate() when write is applied.
+    // Exception will be thrown by write.validate() when writeToDynamic is applied.
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(String.format("Table %s does not exist", table));
 
