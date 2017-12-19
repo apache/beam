@@ -18,105 +18,122 @@ package cz.seznam.euphoria.hadoop.output;
 import cz.seznam.euphoria.core.client.io.DataSink;
 import cz.seznam.euphoria.core.client.io.Writer;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
 import cz.seznam.euphoria.hadoop.SerializableWritable;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.JobStatus;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
-public class HadoopSink<K, V>
-    implements DataSink<Pair<K, V>> {
+public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
 
-  private final Class<? extends OutputFormat<K, V>> hadoopFormatCls;
+  private final Class<? extends OutputFormat<K, V>> outputFormatClass;
   private final SerializableWritable<Configuration> conf;
+  private final SerializableWritable<JobID> jobID;
 
-  private transient OutputFormat<K, V> hadoopFormatInstance;
+  @GuardedBy("lock")
+  private transient Map<TaskAttemptID, OutputFormat<K, V>> outputFormats;
 
-  public HadoopSink(Class<? extends OutputFormat<K, V>> hadoopFormatCls,
-                    Configuration hadoopConf)
-  {
-    this.hadoopFormatCls = Objects.requireNonNull(hadoopFormatCls);
-    this.conf = new SerializableWritable<>(Objects.requireNonNull(hadoopConf));
+  private final Object lock = new Serializable() {};
+
+  public HadoopSink(Class<? extends OutputFormat<K, V>> outputFormatClass,
+                    Configuration conf) {
+    this.outputFormatClass = Objects.requireNonNull(outputFormatClass);
+    this.conf = new SerializableWritable<>(Objects.requireNonNull(conf));
+    this.jobID = new SerializableWritable<>(HadoopUtils.getJobID());
   }
 
   @Override
   public void initialize() {
-    try {
-      OutputCommitter committer = getHadoopFormatInstance()
-          .getOutputCommitter(
-              HadoopUtils.createTaskContext(conf.getWritable(), 0));
-
-      committer.setupJob(HadoopUtils.createJobContext(conf.getWritable()));
-    } catch (Exception ex) {
-      throw new RuntimeException(ex);
-    }
+    ExceptionUtils.unchecked(() -> {
+      final TaskAttemptContext setupContext =
+          HadoopUtils.createSetupTaskContext(conf.get(), jobID.get());
+      final OutputFormat<K, V> outputFormat =
+          getOutputFormat(setupContext.getTaskAttemptID());
+      // Check for validity of the output-specification for the job.
+      outputFormat.checkOutputSpecs(setupContext);
+      // Setup the job output.
+      outputFormat.getOutputCommitter(setupContext).setupJob(setupContext);
+    });
   }
 
   @Override
   public HadoopWriter<K, V> openWriter(int partitionId) {
     try {
-      TaskAttemptContext ctx =
-          HadoopUtils.createTaskContext(conf.getWritable(), partitionId);
-
-      RecordWriter<K, V> writer =
-          getHadoopFormatInstance().getRecordWriter(ctx);
-
-      OutputCommitter committer =
-          getHadoopFormatInstance().getOutputCommitter(ctx);
-
-      return new HadoopWriter<>(writer, committer, ctx);
+      final TaskAttemptContext taskContext =
+          HadoopUtils.createTaskContext(conf.get(), jobID.get(), partitionId);
+      final OutputFormat<K, V> outputFormat =
+          getOutputFormat(taskContext.getTaskAttemptID());
+      return new HadoopWriter<>(
+          outputFormat.getRecordWriter(taskContext),
+          outputFormat.getOutputCommitter(taskContext),
+          taskContext);
     } catch (Exception ex) {
       throw new RuntimeException(ex);
     }
   }
 
   /**
-   * Retrieves the instance or create new if not exists.
+   * Retrieves the instance or create new if not exists. This will create
+   * only one output format per {@link TaskAttemptID}.
+   *
+   * @param tai TaskAttemptID to create output format for
+   * @return output format instance
    */
-  @SuppressWarnings("unchecked")
-  private OutputFormat<K, V> getHadoopFormatInstance()
-          throws InstantiationException, IllegalAccessException
-  {
-    if (hadoopFormatInstance == null) {
-      hadoopFormatInstance = HadoopUtils.instantiateHadoopFormat(
-              hadoopFormatCls,
-              OutputFormat.class,
-              conf.getWritable());
-    }
-
-    return hadoopFormatInstance;
+  private OutputFormat<K, V> getOutputFormat(TaskAttemptID tai) {
+    return ExceptionUtils.unchecked(() -> {
+      synchronized (lock) {
+        if (outputFormats == null) {
+          outputFormats = new HashMap<>();
+        }
+        if (!outputFormats.containsKey(tai)) {
+          final OutputFormat<K, V> outputFormat = outputFormatClass.newInstance();
+          if (outputFormat instanceof Configurable) {
+            ((Configurable) outputFormat).setConf(conf.get());
+          }
+          outputFormats.put(tai, outputFormat);
+        }
+        return outputFormats.get(tai);
+      }
+    });
   }
 
   @Override
   public void commit() throws IOException {
     try {
-      OutputCommitter committer = getHadoopFormatInstance()
-          .getOutputCommitter(
-              HadoopUtils.createTaskContext(conf.getWritable(), 0));
-
-      committer.commitJob(HadoopUtils.createJobContext(conf.getWritable()));
-    } catch (Exception ex) {
-      throw new IOException(ex);
+      final TaskAttemptContext cleanupContext =
+          HadoopUtils.createCleanupTaskContext(conf.get(), jobID.get());
+      getOutputFormat(cleanupContext.getTaskAttemptID())
+          .getOutputCommitter(cleanupContext)
+          .commitJob(cleanupContext);
+    } catch (Exception e) {
+      throw new IOException("Unable to commit output", e);
     }
   }
 
   @Override
   public void rollback() throws IOException {
     try {
-      OutputCommitter committer = getHadoopFormatInstance()
-          .getOutputCommitter(
-              HadoopUtils.createTaskContext(conf.getWritable(), 0));
-
-      committer.abortJob(HadoopUtils.createJobContext(
-          conf.getWritable()), JobStatus.State.FAILED);
-    } catch (Exception ex) {
-      throw new IOException(ex);
+      final TaskAttemptContext cleanupContext =
+          HadoopUtils.createCleanupTaskContext(conf.get(), jobID.get());
+      getOutputFormat(cleanupContext.getTaskAttemptID())
+          .getOutputCommitter(cleanupContext)
+          .abortJob(cleanupContext, JobStatus.State.FAILED);
+    } catch (Exception e) {
+      throw new IOException("Unable to rollback output", e);
     }
   }
 
@@ -125,14 +142,13 @@ public class HadoopSink<K, V>
    * @return the configuration used in this source
    */
   public Configuration getConfiguration() {
-    return conf.getWritable();
+    return conf.get();
   }
 
   /**
    * Wraps Hadoop {@link RecordWriter}
    */
-  public static class HadoopWriter<K, V>
-      implements Writer<Pair<K, V>> {
+  public static class HadoopWriter<K, V> implements Writer<Pair<K, V>> {
 
     private final RecordWriter<K, V> hadoopWriter;
     private final OutputCommitter hadoopCommitter;
@@ -140,8 +156,7 @@ public class HadoopSink<K, V>
 
     public HadoopWriter(RecordWriter<K, V> hadoopWriter,
                         OutputCommitter committer,
-                        TaskAttemptContext ctx)
-    {
+                        TaskAttemptContext ctx) {
       this.hadoopWriter = Objects.requireNonNull(hadoopWriter);
       this.hadoopCommitter = Objects.requireNonNull(committer);
       this.ctx = ctx;
@@ -152,20 +167,21 @@ public class HadoopSink<K, V>
       try {
         hadoopWriter.write(record.getFirst(), record.getSecond());
       } catch (InterruptedException e) {
-        throw new IOException(e);
+        Thread.currentThread().interrupt();
+        throw new IOException("Interrupted while writing!");
       }
     }
 
     @Override
     public void commit() throws IOException {
-      // ~ flush pending changes - if any
       try {
+        // flush pending changes - if any
         hadoopWriter.close(ctx);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IOException("Interrupted from closing hadoop writer!");
       }
-      // ~ now commit
+      // task is complete - we can commit it
       hadoopCommitter.commitTask(ctx);
     }
 
