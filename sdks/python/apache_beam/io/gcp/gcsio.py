@@ -271,8 +271,7 @@ class GcsIO(object):
       request = storage.StorageObjectsDeleteRequest(
           bucket=bucket, object=object_path)
       batch_request.Add(self.client.objects, 'Delete', request)
-    api_calls = batch_request.Execute(self.client._http) # pylint:
-    # disable=protected-access
+    api_calls = batch_request.Execute(self.client._http) # pylint: disable=protected-access
     result_statuses = []
     for i, api_call in enumerate(api_calls):
       path = paths[i]
@@ -338,8 +337,7 @@ class GcsIO(object):
           destinationBucket=dest_bucket,
           destinationObject=dest_path)
       batch_request.Add(self.client.objects, 'Copy', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint:
-    # disable=protected-access
+    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
     result_statuses = []
     for i, api_call in enumerate(api_calls):
       src, dest = src_dest_pairs[i]
