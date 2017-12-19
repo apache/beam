@@ -114,7 +114,9 @@
         
 
 <ul class="nav">
-  <li><a href="#api-stability">API Stability</a></li>
+  <li><a href="#using-a-central-repository">Using a central repository</a></li>
+  <li><a href="#downloading-source-code">Downloading source code</a></li>
+  <li><a href="#api-stability">API stability</a></li>
   <li><a href="#releases">Releases</a>
     <ul>
       <li><a href="#section">2.2.0 (2017-12-02)</a></li>
@@ -136,13 +138,18 @@
       <div class="body__contained body__section-nav">
         <h1 id="apache-beam8482-downloads">Apache Beam™ Downloads</h1>
 
-<p>The easiest way to use Apache Beam is via one of the released versions in a central repository.
-Java SDK is available on <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a>,
-and Python SDK is available on <a href="https://pypi.python.org/pypi/apache-beam">PyPI</a>.</p>
+<blockquote>
+  <p>Beam SDK 2.2.0 is the latest released version.</p>
+</blockquote>
 
-<p>For example, if you are developing using Maven and want to use the SDK for
-Java with the <code class="highlighter-rouge">DirectRunner</code>, add the following dependencies to your
-<code class="highlighter-rouge">pom.xml</code> file:</p>
+<h2 id="using-a-central-repository">Using a central repository</h2>
+
+<p>The easiest way to use Apache Beam is via one of the released versions in a
+central repository. The Java SDK is available on <a href="https://search.maven.org/#search%7Cga%7C1%7Cg%3A%22org.apache.beam%22">Maven Central Repository</a>,
+and the Python SDK is available on <a href="https://pypi.python.org/pypi/apache-beam">PyPI</a>.</p>
+
+<p>For example, if you are developing using Maven and want to use the SDK for Java
+with the <code class="highlighter-rouge">DirectRunner</code>, add the following dependencies to your <code class="highlighter-rouge">pom.xml</code> file:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>&lt;dependency&gt;
   &lt;groupId&gt;org.apache.beam&lt;/groupId&gt;
@@ -158,8 +165,8 @@ Java with the <code class="highlighter-rouge">DirectRunner</code>, add the follo
 </code></pre>
 </div>
 
-<p>Similarly in Python, if you are using PyPI and want to use the SDK for Python with
-<code class="highlighter-rouge">DirectRunner</code>, add the following requirement to your <code class="highlighter-rouge">setup.py</code> file:</p>
+<p>Similarly in Python, if you are using PyPI and want to use the SDK for Python
+with <code class="highlighter-rouge">DirectRunner</code>, add the following requirement to your <code class="highlighter-rouge">setup.py</code> file:</p>
 
 <div class="highlighter-rouge"><pre class="highlight"><code>apache-beam==2.2.0
 </code></pre>
@@ -169,9 +176,15 @@ Java with the <code class="highlighter-rouge">DirectRunner</code>, add the follo
 connectors or other extensions, and additional runners to execute your pipeline
 at scale.</p>
 
-<h2 id="api-stability">API Stability</h2>
+<h2 id="downloading-source-code">Downloading source code</h2>
 
-<p>Apache Beam uses <a href="http://semver.org/">semantic versioning</a>. Version numbers use the form <code class="highlighter-rouge">major.minor.incremental</code> and are incremented as follows:</p>
+<p>You can download the source code package for a release from the links in the
+<a href="#releases">Releases</a> section.</p>
+
+<h2 id="api-stability">API stability</h2>
+
+<p>Apache Beam uses <a href="http://semver.org/">semantic versioning</a>. Version numbers use
+the form <code class="highlighter-rouge">major.minor.incremental</code> and are incremented as follows:</p>
 
 <ul>
   <li>major version for incompatible API changes</li>
@@ -182,7 +195,8 @@ at scale.</p>
 <p>Please note that APIs marked <a href="/documentation/sdks/javadoc/2.2.0/org/apache/beam/sdk/annotations/Experimental.html"><code class="highlighter-rouge">@Experimental</code></a>
 may change at any point and are not guaranteed to remain compatible across versions.</p>
 
-<p>Additionally, any API may change before the first stable release, i.e., between versions denoted <code class="highlighter-rouge">0.x.y</code>.</p>
+<p>Additionally, any API may change before the first stable release, i.e., between
+versions denoted <code class="highlighter-rouge">0.x.y</code>.</p>
 
 <h2 id="releases">Releases</h2>
 
