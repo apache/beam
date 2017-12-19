@@ -121,3 +121,133 @@ func makeArgs(list []interface{}) []reflect.Value {
 	}
 	return ret
 }
+
+// Benchmarks
+
+// NOTE(herohde) 12/19/2017: example run on a laptop
+//
+// BenchmarkDirectCall-4              2000000000	         0.26 ns/op
+// BenchmarkIndirectCall-4            1000000000	         2.28 ns/op
+// BenchmarkReflectCall-4            	10000000	       197    ns/op
+// BenchmarkReflectCallNewArgs-4     	10000000	       200    ns/op
+// BenchmarkReflectCallReuseArgs-4   	10000000	       196    ns/op
+// BenchmarkInvokeCall-4             	 3000000	       452    ns/op
+// BenchmarkInvokeCallExtra-4        	 3000000	       419    ns/op
+// BenchmarkReflectFnCall-4          	 5000000	       340    ns/op
+// BenchmarkInvokeFnCall-4           	 2000000	       604    ns/op
+// BenchmarkInvokeFnCallExtra-4      	 3000000	       559    ns/op
+
+func inc(n int) int {
+	return n + 1
+}
+
+func BenchmarkDirectCall(b *testing.B) {
+	n := 0
+	for i := 0; i < b.N; i++ {
+		n = inc(n)
+	}
+	b.Log(n)
+}
+
+func BenchmarkIndirectCall(b *testing.B) {
+	fn := func(int) int { return 0 }
+	if b.N > 0 {
+		fn = inc // this is always set, but the compiler doesn't know
+	}
+
+	n := 0
+	for i := 0; i < b.N; i++ {
+		n = fn(n)
+	}
+	b.Log(n)
+}
+
+func BenchmarkReflectCall(b *testing.B) {
+	fn := reflect.ValueOf(inc)
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		n = fn.Call([]reflect.Value{n})[0]
+	}
+	b.Log(n.Interface())
+}
+
+func BenchmarkReflectCallNewArgs(b *testing.B) {
+	fn := reflect.ValueOf(inc)
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		args := make([]reflect.Value, 1, 1)
+		args[0] = n
+		n = fn.Call(args)[0]
+	}
+	b.Log(n.Interface())
+}
+
+func BenchmarkReflectCallReuseArgs(b *testing.B) {
+	fn := reflect.ValueOf(inc)
+	n := reflect.ValueOf(0)
+	args := make([]reflect.Value, 1, 1)
+	for i := 0; i < b.N; i++ {
+		args[0] = n
+		n = fn.Call(args)[0]
+	}
+	b.Log(n.Interface())
+}
+
+func BenchmarkInvokeCall(b *testing.B) {
+	fn, _ := funcx.New(inc)
+	ctx := context.Background()
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		ret, _ := Invoke(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		n = ret.Elm
+	}
+	b.Log(n.Interface())
+}
+
+func BenchmarkInvokeCallExtra(b *testing.B) {
+	fn, _ := funcx.New(inc)
+	ctx := context.Background()
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		ret, _ := Invoke(ctx, fn, nil, n)
+		n = ret.Elm
+	}
+	b.Log(n.Interface())
+}
+
+// The below take the additional overhead of MakeFunc.
+
+func incFn(args []reflect.Value) []reflect.Value {
+	return []reflect.Value{reflect.ValueOf(args[0].Interface().(int) + 1)}
+}
+
+func BenchmarkReflectFnCall(b *testing.B) {
+	fn := reflect.MakeFunc(reflect.TypeOf(inc), incFn)
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		n = fn.Call([]reflect.Value{n})[0]
+	}
+	b.Log(n.Interface())
+}
+
+func BenchmarkInvokeFnCall(b *testing.B) {
+	fn, _ := funcx.New(reflect.MakeFunc(reflect.TypeOf(inc), incFn).Interface().(func(int) int))
+	ctx := context.Background()
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		ret, _ := Invoke(ctx, fn, &MainInput{Key: FullValue{Elm: n}})
+		n = ret.Elm
+	}
+	b.Log(n.Interface())
+}
+
+func BenchmarkInvokeFnCallExtra(b *testing.B) {
+	fn, _ := funcx.New(reflect.MakeFunc(reflect.TypeOf(inc), incFn).Interface().(func(int) int))
+	ctx := context.Background()
+	n := reflect.ValueOf(0)
+	for i := 0; i < b.N; i++ {
+		ret, _ := Invoke(ctx, fn, nil, n)
+		n = ret.Elm
+	}
+	b.Log(n.Interface())
+}
