@@ -29,8 +29,12 @@ import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
 
+import javax.annotation.concurrent.GuardedBy;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
@@ -38,6 +42,11 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
   private final Class<? extends OutputFormat<K, V>> outputFormatClass;
   private final SerializableWritable<Configuration> conf;
   private final SerializableWritable<JobID> jobID;
+
+  @GuardedBy("lock")
+  private final transient Map<TaskAttemptID, OutputFormat<K, V>> outputFormats = new HashMap<>();
+
+  private final transient Object lock = new Object();
 
   public HadoopSink(Class<? extends OutputFormat<K, V>> outputFormatClass,
                     Configuration conf) {
@@ -51,7 +60,8 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
     ExceptionUtils.unchecked(() -> {
       final TaskAttemptContext setupContext =
           HadoopUtils.createSetupTaskContext(conf.get(), jobID.get());
-      final OutputFormat<K, V> outputFormat = newOutputFormatInstance();
+      final OutputFormat<K, V> outputFormat =
+          getOutputFormat(setupContext.getTaskAttemptID());
       // Check for validity of the output-specification for the job.
       outputFormat.checkOutputSpecs(setupContext);
       // Setup the job output.
@@ -62,9 +72,10 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
   @Override
   public HadoopWriter<K, V> openWriter(int partitionId) {
     try {
-      final OutputFormat<K, V> outputFormat = newOutputFormatInstance();
       final TaskAttemptContext taskContext =
           HadoopUtils.createTaskContext(conf.get(), jobID.get(), partitionId);
+      final OutputFormat<K, V> outputFormat =
+          getOutputFormat(taskContext.getTaskAttemptID());
       return new HadoopWriter<>(
           outputFormat.getRecordWriter(taskContext),
           outputFormat.getOutputCommitter(taskContext),
@@ -75,15 +86,24 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
   }
 
   /**
-   * Retrieves the instance or create new if not exists.
+   * Retrieves the instance or create new if not exists. This will create
+   * only one output format per {@link TaskAttemptID}.
+   *
+   * @param tai TaskAttemptID to create output format for
+   * @return output format instance
    */
-  private OutputFormat<K, V> newOutputFormatInstance() {
+  private OutputFormat<K, V> getOutputFormat(TaskAttemptID tai) {
     return ExceptionUtils.unchecked(() -> {
-      final OutputFormat<K, V> outputFormat = outputFormatClass.newInstance();
-      if (outputFormat instanceof Configurable) {
-        ((Configurable) outputFormat).setConf(conf.get());
+      synchronized (lock) {
+        if (!outputFormats.containsKey(tai)) {
+          final OutputFormat<K, V> outputFormat = outputFormatClass.newInstance();
+          if (outputFormat instanceof Configurable) {
+            ((Configurable) outputFormat).setConf(conf.get());
+          }
+          outputFormats.put(tai, outputFormat);
+        }
+        return outputFormats.get(tai);
       }
-      return outputFormat;
     });
   }
 
@@ -92,7 +112,7 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
     try {
       final TaskAttemptContext cleanupContext =
           HadoopUtils.createCleanupTaskContext(conf.get(), jobID.get());
-      newOutputFormatInstance()
+      getOutputFormat(cleanupContext.getTaskAttemptID())
           .getOutputCommitter(cleanupContext)
           .commitJob(cleanupContext);
     } catch (Exception e) {
@@ -105,7 +125,7 @@ public class HadoopSink<K, V> implements DataSink<Pair<K, V>> {
     try {
       final TaskAttemptContext cleanupContext =
           HadoopUtils.createCleanupTaskContext(conf.get(), jobID.get());
-      newOutputFormatInstance()
+      getOutputFormat(cleanupContext.getTaskAttemptID())
           .getOutputCommitter(cleanupContext)
           .abortJob(cleanupContext, JobStatus.State.FAILED);
     } catch (Exception e) {
