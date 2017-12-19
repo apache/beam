@@ -119,11 +119,7 @@ func main() {
 	log.Fatalf("Python exited: %v", execx.Execute("python", args...))
 }
 
-// pipInstall runs pip install with the given args.
-func pipInstall(args []string) error {
-	return execx.Execute("pip", append([]string{"install"}, args...)...)
-}
-
+// installSetupPackages installs Beam SDK and user dependencies.
 func installSetupPackages(mds []*pbjob.ArtifactMetadata, workDir string) error {
 	log.Printf("Installing setup packages ...")
 
