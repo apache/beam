@@ -238,12 +238,13 @@
 
 <h2 id="a-basic-pipeline">A basic pipeline</h2>
 
-<p>The simplest pipelines represent a linear flow of operations, as shown in Figure 1 below:</p>
+<p>The simplest pipelines represent a linear flow of operations, as shown in figure
+1.</p>
 
-<figure id="fig1">
-    <img src="/images/design-your-pipeline-linear.png" alt="A linear pipeline." />
-</figure>
-<p>Figure 1: A linear pipeline.</p>
+<p><img src="/images/design-your-pipeline-linear.png" alt="A linear pipeline starts with one input collection, sequentially applies
+  three transforms, and ends with one output collection." /></p>
+
+<p><em>Figure 1: A linear pipeline.</em></p>
 
 <p>However, your pipeline can be significantly more complex. A pipeline represents a <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">Directed Acyclic Graph</a> of steps. It can have multiple input sources, multiple output sinks, and its operations (<code class="highlighter-rouge">PTransform</code>s) can both read and output multiple <code class="highlighter-rouge">PCollection</code>s. The following examples show some of the different shapes your pipeline can take.</p>
 
@@ -255,12 +256,16 @@
 
 <p>You can use the same <code class="highlighter-rouge">PCollection</code> as input for multiple transforms without consuming the input or altering it.</p>
 
-<p>The pipeline illustrated in Figure 2 below reads its input, first names (Strings), from a single source, a database table, and creates a <code class="highlighter-rouge">PCollection</code> of table rows. Then, the pipeline applies multiple transforms to the <strong>same</strong> <code class="highlighter-rouge">PCollection</code>. Transform A extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘A’, and Transform B extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘B’. Both transforms A and B have the same input <code class="highlighter-rouge">PCollection</code>.</p>
+<p>The pipeline in figure 2 is a branching pipeline. The pipeline reads its input (first names represented as strings) from a database table and creates a <code class="highlighter-rouge">PCollection</code> of table rows. Then, the pipeline applies multiple transforms to the <strong>same</strong> <code class="highlighter-rouge">PCollection</code>. Transform A extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘A’, and Transform B extracts all the names in that <code class="highlighter-rouge">PCollection</code> that start with the letter ‘B’. Both transforms A and B have the same input <code class="highlighter-rouge">PCollection</code>.</p>
 
-<figure id="fig2">
-    <img src="/images/design-your-pipeline-multiple-pcollections.png" alt="A pipeline with multiple transforms. Note that the PCollection of table rows is processed by two transforms." />
-</figure>
-<p>Figure 2: A pipeline with multiple transforms. Note that the PCollection of the database table rows is processed by two transforms. See the example code below:</p>
+<p><img src="/images/design-your-pipeline-multiple-pcollections.png" alt="The pipeline applies two transforms to a single input collection. Each
+  transform produces an output collection." /></p>
+
+<p><em>Figure 2: A branching pipeline. Two transforms are applied to a single
+PCollection of database table rows.</em></p>
+
+<p>The following example code applies two transforms to a single input collection.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">dbRowCollection</span> <span class="o">=</span> <span class="o">...;</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">aCollection</span> <span class="o">=</span> <span class="n">dbRowCollection</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="s">"aTrans"</span><span class="o">,</span> <span class="n">ParDo</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="k">new</span> <span class="n">DoFn</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;(){</span>
@@ -287,14 +292,16 @@
 
 <p>Another way to branch a pipeline is to have a <strong>single</strong> transform output to multiple <code class="highlighter-rouge">PCollection</code>s by using <a href="/documentation/programming-guide/#additional-outputs">tagged outputs</a>. Transforms that produce more than one output process each element of the input once, and output to zero or more <code class="highlighter-rouge">PCollection</code>s.</p>
 
-<p>Figure 3 below illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with ‘A’ are added to the main output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to an additional output <code class="highlighter-rouge">PCollection</code>.</p>
+<p>Figure 3 illustrates the same example described above, but with one transform that produces multiple outputs. Names that start with ‘A’ are added to the main output <code class="highlighter-rouge">PCollection</code>, and names that start with ‘B’ are added to an additional output <code class="highlighter-rouge">PCollection</code>.</p>
 
-<figure id="fig3">
-    <img src="/images/design-your-pipeline-additional-outputs.png" alt="A pipeline with a transform that outputs multiple PCollections." />
-</figure>
-<p>Figure 3: A pipeline with a transform that outputs multiple PCollections.</p>
+<p><img src="/images/design-your-pipeline-additional-outputs.png" alt="The pipeline applies one transform that produces multiple output collections." /></p>
 
-<p>The pipeline in Figure 2 contains two transforms that process the elements in the same input <code class="highlighter-rouge">PCollection</code>. One transform uses the following logic:</p>
+<p><em>Figure 3: A pipeline with a transform that outputs multiple PCollections.</em></p>
+
+<p>If we compare the pipelines in figure 2 and figure 3, you can see they perform
+the same operation in different ways. The pipeline in figure 2 contains two
+transforms that process the elements in the same input <code class="highlighter-rouge">PCollection</code>. One
+transform uses the following logic:</p>
 
 <pre>if (starts with 'A') { outputToPCollectionA }</pre>
 
@@ -304,11 +311,15 @@
 
 <p>Because each transform reads the entire input <code class="highlighter-rouge">PCollection</code>, each element in the input <code class="highlighter-rouge">PCollection</code> is processed twice.</p>
 
-<p>The pipeline in Figure 3 performs the same operation in a different way - with only one transform that uses the following logic:</p>
+<p>The pipeline in figure 3 performs the same operation in a different way - with only one transform that uses the following logic:</p>
 
 <pre>if (starts with 'A') { outputToPCollectionA } else if (starts with 'B') { outputToPCollectionB }</pre>
 
-<p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once. See the example code below:</p>
+<p>where each element in the input <code class="highlighter-rouge">PCollection</code> is processed once.</p>
+
+<p>The following example code applies one transform that processes each element
+once and outputs two collections.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Define two TupleTags, one for each output.</span>
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithATag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
 <span class="kd">final</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">startsWithBTag</span> <span class="o">=</span> <span class="k">new</span> <span class="n">TupleTag</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;(){};</span>
@@ -352,30 +363,41 @@
   <li><strong>Join</strong> - You can use the <code class="highlighter-rouge">CoGroupByKey</code> transform in the Beam SDK to perform a relational join between two <code class="highlighter-rouge">PCollection</code>s. The <code class="highlighter-rouge">PCollection</code>s must be keyed (i.e. they must be collections of key/value pairs) and they must use the same key type.</li>
 </ul>
 
-<p>The example depicted in Figure 4 below is a continuation of the example illustrated in Figure 2 in <a href="#multiple-transforms-process-the-same-pcollection">the section above</a>. After branching into two <code class="highlighter-rouge">PCollection</code>s, one with names that begin with ‘A’ and one with names that begin with ‘B’, the pipeline merges the two together into a single <code class="highlighter-rouge">PCollection</code> that now contains all names that begin with either ‘A’ or ‘B’. Here, it makes sense to use <code class="highlighter-rouge">Flatten</code> because the <code class="highlighter-rouge">PCollection</code>s being merged both contain the same type.</p>
+<p>The example in figure 4 is a continuation of the example in figure 2 in <a href="#multiple-transforms-process-the-same-pcollection">the
+section above</a>. After
+branching into two <code class="highlighter-rouge">PCollection</code>s, one with names that begin with ‘A’ and one
+with names that begin with ‘B’, the pipeline merges the two together into a
+single <code class="highlighter-rouge">PCollection</code> that now contains all names that begin with either ‘A’ or
+‘B’. Here, it makes sense to use <code class="highlighter-rouge">Flatten</code> because the <code class="highlighter-rouge">PCollection</code>s being
+merged both contain the same type.</p>
 
-<figure id="fig4">
-    <img src="/images/design-your-pipeline-flatten.png" alt="Part of a pipeline that merges multiple PCollections." />
-</figure>
-<p>Figure 4: Part of a pipeline that merges multiple PCollections. See the example code below:</p>
+<p><img src="/images/design-your-pipeline-flatten.png" alt="The pipeline merges two collections into one collection with the Flatten transform." /></p>
+
+<p><em>Figure 4: A pipeline that merges two collections into one collection with the Flatten
+transform.</em></p>
+
+<p>The following example code applies <code class="highlighter-rouge">Flatten</code> to merge two collections.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">//merge the two PCollections with Flatten</span>
 <span class="n">PCollectionList</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">collectionList</span> <span class="o">=</span> <span class="n">PCollectionList</span><span class="o">.</span><span class="na">of</span><span class="o">(</span><span class="n">aCollection</span><span class="o">).</span><span class="na">and</span><span class="o">(</span><span class="n">bCollection</span><span class="o">);</span>
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">mergedCollectionWithFlatten</span> <span class="o">=</span> <span class="n">collectionList</span>
     <span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">Flatten</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">&gt;</span><span class="n">pCollections</span><span class="o">());</span>
 
-<span class="c1">// continue with the new merged PCollection		</span>
+<span class="c1">// continue with the new merged PCollection</span>
 <span class="n">mergedCollectionWithFlatten</span><span class="o">.</span><span class="na">apply</span><span class="o">(...);</span>
 </code></pre>
 </div>
 
 <h2 id="multiple-sources">Multiple sources</h2>
 
-<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in Figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses <code class="highlighter-rouge">CoGroupByKey</code> to join this information, where the key is the name; the resulting <code class="highlighter-rouge">PCollection</code> contains all the combinations of names, addresses, and orders.</p>
+<p>Your pipeline can read its input from one or more sources. If your pipeline reads from multiple sources and the data from those sources is related, it can be useful to join the inputs together. In the example illustrated in figure 5 below, the pipeline reads names and addresses from a database table, and names and order numbers from a Kafka topic. The pipeline then uses <code class="highlighter-rouge">CoGroupByKey</code> to join this information, where the key is the name; the resulting <code class="highlighter-rouge">PCollection</code> contains all the combinations of names, addresses, and orders.</p>
 
-<figure id="fig5">
-    <img src="/images/design-your-pipeline-join.png" alt="A pipeline with multiple input sources." />
-</figure>
-<p>Figure 5: A pipeline with multiple input sources. See the example code below:</p>
+<p><img src="/images/design-your-pipeline-join.png" alt="The pipeline joins two input collections into one collection with the Join transform." /></p>
+
+<p><em>Figure 5: A pipeline that does a relational join of two input collections.</em></p>
+
+<p>The following example code applies <code class="highlighter-rouge">Join</code> to join two input collections.</p>
+
 <div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userAddress</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">JdbcIO</span><span class="o">.&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span><span class="n">read</span><span class="o">()...);</span>
 
 <span class="n">PCollection</span><span class="o">&lt;</span><span class="n">KV</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;&gt;</span> <span class="n">userOrder</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="na">apply</span><span class="o">(</span><span class="n">KafkaIO</span><span class="o">.&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span><span class="n">read</span><span class="o">()...);</span>

@@ -896,9 +896,12 @@ you can chain transforms to create a sequential pipeline, like this one:</p>
 </code></pre>
 </div>
 
-<p>The resulting workflow graph of the above pipeline looks like this:</p>
+<p>The resulting workflow graph of the above pipeline looks like this.</p>
 
-<p>[Sequential Graph Graphic]</p>
+<p><img src="/images/design-your-pipeline-linear.png" alt="This linear pipeline starts with one input collection, sequentially applies
+  three transforms, and ends with one output collection." /></p>
+
+<p><em>Figure: A linear pipeline with three sequential transforms.</em></p>
 
 <p>However, note that a transform <em>does not consume or otherwise alter</em> the input
 collection–remember that a <code class="highlighter-rouge">PCollection</code> is immutable by definition. This means
@@ -914,9 +917,13 @@ a branching pipeline, like so:</p>
 </code></pre>
 </div>
 
-<p>The resulting workflow graph from the branching pipeline above looks like this:</p>
+<p>The resulting workflow graph from the branching pipeline above looks like this.</p>
 
-<p>[Branching Graph Graphic]</p>
+<p><img src="/images/design-your-pipeline-multiple-pcollections.png" alt="This pipeline applies two transforms to a single input collection. Each
+  transform produces an output collection." /></p>
+
+<p><em>Figure: A branching pipeline. Two transforms are applied to a single
+PCollection of database table rows.</em></p>
 
 <p>You can also build your own <a href="#composite-transforms">composite transforms</a> that
 nest multiple sub-steps inside a single, larger transform. Composite transforms

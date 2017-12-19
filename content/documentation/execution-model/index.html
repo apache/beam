@@ -215,21 +215,6 @@
 may observe various effects as a result of the runner’s choices. This page
 describes these effects so you can better understand how Beam pipelines execute.</p>
 
-<ul id="markdown-toc">
-  <li><a href="#processing-of-elements" id="markdown-toc-processing-of-elements">Processing of elements</a>    <ul>
-      <li><a href="#serialization-and-communication" id="markdown-toc-serialization-and-communication">Serialization and communication</a></li>
-      <li><a href="#bundling-and-persistence" id="markdown-toc-bundling-and-persistence">Bundling and persistence</a></li>
-    </ul>
-  </li>
-  <li><a href="#parallelism" id="markdown-toc-parallelism">Failures and parallelism within and between transforms</a>    <ul>
-      <li><a href="#data-parallelism" id="markdown-toc-data-parallelism">Data-parallelism within one transform</a></li>
-      <li><a href="#dependent-parallellism" id="markdown-toc-dependent-parallellism">Dependent-parallelism between transforms</a></li>
-      <li><a href="#failures-within-one-transform" id="markdown-toc-failures-within-one-transform">Failures within one transform</a></li>
-      <li><a href="#coupled-failure" id="markdown-toc-coupled-failure">Coupled failure: Failures between transforms</a></li>
-    </ul>
-  </li>
-</ul>
-
 <h2 id="processing-of-elements">Processing of elements</h2>
 
 <p>The serialization and communication of elements between machines is one of the
@@ -298,27 +283,25 @@ in parallel, and how transforms are retried when failures occur.</p>
 <p>When executing a single <code class="highlighter-rouge">ParDo</code>, a runner might divide an example input
 collection of nine elements into two bundles as shown in figure 1.</p>
 
-<p><img src="/images/execution_model_bundling.svg" alt="bundling" /></p>
+<p><img src="/images/execution_model_bundling.svg" alt="Bundle A contains five elements. Bundle B contains four elements." /></p>
 
-<p><strong>Figure 1:</strong> A runner divides an input collection with nine elements
-into two bundles.</p>
+<p><em>Figure 1: A runner divides an input collection into two bundles.</em></p>
 
 <p>When the <code class="highlighter-rouge">ParDo</code> executes, workers may process the two bundles in parallel as
 shown in figure 2.</p>
 
-<p><img src="/images/execution_model_bundling_gantt.svg" alt="bundling_gantt" /></p>
+<p><img src="/images/execution_model_bundling_gantt.svg" alt="Two workers process the two bundles in parallel. Worker one processes bundle
+  A. Worker two processes bundle B." /></p>
 
-<p><strong>Figure 2:</strong> Two workers process the two bundles in parallel. The elements in
-each bundle are processed in sequence.</p>
+<p><em>Figure 2: Two workers process the two bundles in parallel.</em></p>
 
 <p>Since elements cannot be split, the maximum parallelism for a transform depends
-on the number of elements in the collection. In our example, the input
-collection has nine elements, so the maximum parallelism is nine.</p>
+on the number of elements in the collection. In figure 3, the input collection
+has nine elements, so the maximum parallelism is nine.</p>
 
-<p><img src="/images/execution_model_bundling_gantt_max.svg" alt="bundling_gantt_max" /></p>
+<p><img src="/images/execution_model_bundling_gantt_max.svg" alt="Nine workers process a nine element input collection in parallel." /></p>
 
-<p><strong>Figure 3:</strong> The maximum parallelism is nine, as there are nine elements in the
-input collection.</p>
+<p><em>Figure 3: Nine workers process a nine element input collection in parallel.</em></p>
 
 <p>Note: Splittable ParDo allows splitting the processing of a single input across
 multiple bundles. This feature is a work in progress.</p>
@@ -331,9 +314,10 @@ output elements without altering the bundling. In figure 4, <code class="highlig
 <code class="highlighter-rouge">ParDo2</code> are <em>dependently parallel</em> if the output of <code class="highlighter-rouge">ParDo1</code> for a given
 element must be processed on the same worker.</p>
 
-<p><img src="/images/execution_model_bundling_multi.svg" alt="bundling_multi" /></p>
+<p><img src="/images/execution_model_bundling_multi.svg" alt="ParDo1 processes an input collection that contains bundles A and B. ParDo2 then
+  processes the output collection from ParDo1, which contains bundles C and D." /></p>
 
-<p><strong>Figure 4:</strong> Two transforms in sequence and their corresponding input collections.</p>
+<p><em>Figure 4: Two transforms in sequence and their corresponding input collections.</em></p>
 
 <p>Figure 5 shows how these dependently parallel transforms might execute. The
 first worker executes <code class="highlighter-rouge">ParDo1</code> on the elements in bundle A (which results in
@@ -341,9 +325,10 @@ bundle C), and then executes <code class="highlighter-rouge">ParDo2</code> on th
 the second worker executes <code class="highlighter-rouge">ParDo1</code> on the elements in bundle B (which results
 in bundle D), and then executes <code class="highlighter-rouge">ParDo2</code> on the elements in bundle D.</p>
 
-<p><img src="/images/execution_model_bundling_multi_gantt.svg" alt="bundling_multi_gantt.svg" /></p>
+<p><img src="/images/execution_model_bundling_multi_gantt.svg" alt="Worker one executes ParDo1 on bundle A and Pardo2 on bundle C. Worker two
+  executes ParDo1 on bundle B and ParDo2 on bundle D." /></p>
 
-<p><strong>Figure 5:</strong> Two workers execute dependently parallel ParDo transforms.</p>
+<p><em>Figure 5: Two workers execute dependently parallel ParDo transforms.</em></p>
 
 <p>Executing transforms this way allows a runner to avoid redistributing elements
 between workers, which saves on communication costs. However, the maximum parallelism
@@ -367,12 +352,13 @@ there is one element still awaiting processing.</p>
 <p>We see that the runner retries all elements in bundle B and the processing
 completes successfully the second time. Note that the retry does not necessarily
 happen on the same worker as the original processing attempt, as shown in the
-diagram.</p>
+figure.</p>
 
-<p><img src="/images/execution_model_failure_retry.svg" alt="failure_retry" /></p>
+<p><img src="/images/execution_model_failure_retry.svg" alt="Worker two fails to process an element in bundle B. Worker one finishes
+  processing bundle A and then successfully retries to execute bundle B." /></p>
 
-<p><strong>Figure 6:</strong> The processing of an element within bundle B fails, and another worker
-retries the entire bundle.</p>
+<p><em>Figure 6: The processing of an element within bundle B fails, and another worker
+retries the entire bundle.</em></p>
 
 <p>Because we encountered a failure while processing an element in the input
 bundle, we had to reprocess <em>all</em> of the elements in the input bundle. This means
@@ -396,10 +382,11 @@ the output of <code class="highlighter-rouge">ParDo2</code>. Because the runner 
 together, the output bundle from <code class="highlighter-rouge">ParDo1</code> must also be thrown away, and all
 elements in the input bundle must be retried. These two <code class="highlighter-rouge">ParDo</code>s are co-failing.</p>
 
-<p><img src="/images/execution_model_bundling_coupled_failure.svg" alt="bundling_coupled failure" /></p>
+<p><img src="/images/execution_model_bundling_coupled_failure.svg" alt="Worker two fails to process en element in bundle D, so all elements in both
+  bundle B and bundle D must be retried." /></p>
 
-<p><strong>Figure 7:</strong> Processing of an element within bundle D fails, so all elements in
-the input bundle are retried.</p>
+<p><em>Figure 7: Processing of an element within bundle D fails, so all elements in
+the input bundle are retried.</em></p>
 
 <p>Note that the retry does not necessarily have the same processing time as the
 original attempt, as shown in the diagram.</p>

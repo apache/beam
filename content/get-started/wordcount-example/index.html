@@ -128,7 +128,7 @@
       <li><a href="#using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</a></li>
     </ul>
   </li>
-  <li><a href="#debugging-wordcount-example">Debugging WordCount example</a>
+  <li><a href="#debuggingwordcount-example">DebuggingWordCount example</a>
     <ul>
       <li><a href="#logging">Logging</a></li>
       <li><a href="#testing-your-pipeline-via-passert">Testing your pipeline via PAssert</a></li>
@@ -164,7 +164,7 @@
       <li><a href="#using-parameterizable-pipelineoptions" id="markdown-toc-using-parameterizable-pipelineoptions">Using parameterizable PipelineOptions</a></li>
     </ul>
   </li>
-  <li><a href="#debugging-wordcount-example" id="markdown-toc-debugging-wordcount-example">Debugging WordCount example</a>    <ul>
+  <li><a href="#debuggingwordcount-example" id="markdown-toc-debuggingwordcount-example">DebuggingWordCount example</a>    <ul>
       <li><a href="#logging" id="markdown-toc-logging">Logging</a>        <ul>
           <li><a href="#direct-runner" id="markdown-toc-direct-runner">Direct Runner</a></li>
           <li><a href="#cloud-dataflow-runner" id="markdown-toc-cloud-dataflow-runner">Cloud Dataflow Runner</a></li>
@@ -201,23 +201,23 @@ four successively more detailed WordCount examples that build on each other. The
 input text for all the examples is a set of Shakespeare’s texts.</p>
 
 <p>Each WordCount example introduces different concepts in the Beam programming
-model. Begin by understanding Minimal WordCount, the simplest of the examples.
+model. Begin by understanding MinimalWordCount, the simplest of the examples.
 Once you feel comfortable with the basic principles in building a pipeline,
 continue on to learn more concepts in the other examples.</p>
 
 <ul>
-  <li><strong>Minimal WordCount</strong> demonstrates the basic principles involved in building a
+  <li><strong>MinimalWordCount</strong> demonstrates the basic principles involved in building a
 pipeline.</li>
   <li><strong>WordCount</strong> introduces some of the more common best practices in creating
 re-usable and maintainable pipelines.</li>
-  <li><strong>Debugging WordCount</strong> introduces logging and debugging practices.</li>
-  <li><strong>Windowed WordCount</strong> demonstrates how you can use Beam’s programming model
+  <li><strong>DebuggingWordCount</strong> introduces logging and debugging practices.</li>
+  <li><strong>WindowedWordCount</strong> demonstrates how you can use Beam’s programming model
 to handle both bounded and unbounded datasets.</li>
 </ul>
 
 <h2 id="minimalwordcount-example">MinimalWordCount example</h2>
 
-<p>Minimal WordCount demonstrates a simple pipeline that can read from a text file,
+<p>MinimalWordCount demonstrates a simple pipeline that can read from a text file,
 apply transforms to tokenize and count the words, and write the data to an
 output text file. This example hard-codes the locations for its input and output
 files and doesn’t perform any error checking; it is intended to only show you
@@ -283,7 +283,7 @@ python -m apache_beam.examples.wordcount_minimal --input gs://dataflow-samples/s
 </ul>
 
 <p>The following sections explain these concepts in detail, using the relevant code
-excerpts from the Minimal WordCount pipeline.</p>
+excerpts from the MinimalWordCount pipeline.</p>
 
 <h3 id="creating-the-pipeline">Creating the pipeline</h3>
 
@@ -339,7 +339,7 @@ executed, associated with that particular pipeline.</p>
 
 <h3 id="applying-pipeline-transforms">Applying pipeline transforms</h3>
 
-<p>The Minimal WordCount pipeline contains several transforms to read data into the
+<p>The MinimalWordCount pipeline contains several transforms to read data into the
 pipeline, manipulate or otherwise transform the data, and write out the results.
 Transforms can consist of an individual operation, or can contain multiple
 nested transforms (which is a <a href="/documentation/programming-guide#composite-transforms">composite transform</a>).</p>
@@ -349,10 +349,11 @@ input and output data is often represented by the SDK class <code class="highlig
 <code class="highlighter-rouge">PCollection</code> is a special class, provided by the Beam SDK, that you can use to
 represent a data set of virtually any size, including unbounded data sets.</p>
 
-<p><img src="/images/wordcount-pipeline.png" alt="Word Count pipeline diagram" />
-Figure 1: The pipeline data flow.</p>
+<p><img src="/images/wordcount-pipeline.png" alt="The MinimalWordCount pipeline data flow." width="800px" /></p>
 
-<p>The Minimal WordCount pipeline contains five transforms:</p>
+<p><em>Figure 1: The MinimalWordCount pipeline data flow.</em></p>
+
+<p>The MinimalWordCount pipeline contains five transforms:</p>
 
 <ol>
   <li>
@@ -486,7 +487,7 @@ your pipeline, and help make your pipeline’s code reusable.</p>
 
 <p>This section assumes that you have a good understanding of the basic concepts in
 building a pipeline. If you feel that you aren’t at that point yet, read the
-above section, <a href="#minimalwordcount-example">Minimal WordCount</a>.</p>
+above section, <a href="#minimalwordcount-example">MinimalWordCount</a>.</p>
 
 <p><strong>To run this example in Java:</strong></p>
 
@@ -580,7 +581,7 @@ pipeline code into smaller sections.</p>
 gets applied to each element in the input <code class="highlighter-rouge">PCollection</code>. This processing
 operation is a subclass of the SDK class <code class="highlighter-rouge">DoFn</code>. You can create the <code class="highlighter-rouge">DoFn</code>
 subclasses for each <code class="highlighter-rouge">ParDo</code> inline, as an anonymous inner class instance, as is
-done in the previous example (Minimal WordCount). However, it’s often a good
+done in the previous example (MinimalWordCount). However, it’s often a good
 idea to define the <code class="highlighter-rouge">DoFn</code> at the global level, which makes it easier to unit
 test and can make the <code class="highlighter-rouge">ParDo</code> code more readable.</p>
 
@@ -706,9 +707,9 @@ values for them. You can then access the options values in your pipeline code.</
 </code></pre>
 </div>
 
-<h2 id="debugging-wordcount-example">Debugging WordCount example</h2>
+<h2 id="debuggingwordcount-example">DebuggingWordCount example</h2>
 
-<p>The Debugging WordCount example demonstrates some best practices for
+<p>The DebuggingWordCount example demonstrates some best practices for
 instrumenting your pipeline code.</p>
 
 <p><strong>To run this example in Java:</strong></p>
@@ -942,7 +943,7 @@ for an example unit test.</p>
 
 <h2 id="windowedwordcount-example">WindowedWordCount example</h2>
 
-<p>This example, <code class="highlighter-rouge">WindowedWordCount</code>, counts words in text just as the previous
+<p>The WindowedWordCount example counts words in text just as the previous
 examples did, but introduces several advanced concepts.</p>
 
 <p><strong>New Concepts:</strong></p>
@@ -1096,7 +1097,7 @@ bounded sets of elements. PTransforms that aggregate multiple elements process
 each <code class="highlighter-rouge">PCollection</code> as a succession of multiple, finite windows, even though the
 entire collection itself may be of infinite size (unbounded).</p>
 
-<p>The <code class="highlighter-rouge">WindowedWordCount</code> example applies fixed-time windowing, wherein each
+<p>The WindowedWordCount example applies fixed-time windowing, wherein each
 window represents a fixed time interval. The fixed window size for this example
 defaults to 1 minute (you can change this with a command-line option).</p>
 
