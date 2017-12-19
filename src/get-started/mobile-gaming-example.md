@@ -38,12 +38,14 @@ When the user completes an instance of the game, their phone sends the data even
 
 The following diagram shows the ideal situation (events are processed as they occur) vs. reality (there is often a time delay before processing).
 
-<figure id="fig1">
-    <img src="{{ site.baseurl }}/images/gaming-example-basic.png"
-         width="264" height="260"
-         alt="Score data for three users.">
-</figure>
-**Figure 1:** The X-axis represents event time: the actual time a game event occurred. The Y-axis represents processing time: the time at which a game event was processed. Ideally, events should be processed as they occur, depicted by the dotted line in the diagram. However, in reality that is not the case and it looks more like what is depicted by the red squiggly line.
+![There is often a time delay before processing events.](
+  {{ "/images/gaming-example-basic.png" | prepend: site.baseurl }})
+
+*Figure 1: The X-axis represents event time: the actual time a game event
+occurred. The Y-axis represents processing time: the time at which a game event
+was processed. Ideally, events should be processed as they occur, depicted by
+the dotted line in the diagram. However, in reality that is not the case and it
+looks more like what is depicted by the red squiggly line above the ideal line.*
 
 The data events might be received by the game server significantly later than users generate them. This time difference (called **skew**) can have processing implications for pipelines that make calculations that consider when each score was generated. Such pipelines might track scores generated during each hour of a day, for example, or they calculate the length of time that users are continuously playing the game—both of which depend on each data record's event time.
 
@@ -79,14 +81,12 @@ As the pipeline processes each event, the event score gets added to the sum tota
 2. Sum the score values for each unique user by grouping each game event by user ID and combining the score values to get the total score for that particular user.
 3. Write the result data to a text file.
 
-The following diagram shows score data for several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair:
+The following diagram shows score data for several users over the pipeline analysis period. In the diagram, each data point is an event that results in one user/score pair.
 
-<figure id="fig2">
-    <img src="{{ site.baseurl }}/images/gaming-example.gif"
-         width="900" height="263"
-         alt="Score data for three users.">
-</figure>
-**Figure 2:** Score data for three users.
+![A pipeline processes score data for three users.](
+  {{ "/images/gaming-example.gif" | prepend: site.baseurl }}){: width="850px"}
+
+*Figure 2: Score data for three users.*
 
 This example uses batch processing, and the diagram's Y axis represents processing time: the pipeline processes events lower on the Y-axis first, and events higher up the axis later. The diagram's X axis represents the event time for each game event, as denoted by that event's timestamp. Note that the individual events in the diagram are not processed by the pipeline in the same order as they occurred (according to their timestamps).
 
@@ -152,12 +152,11 @@ Using fixed-time windowing lets the pipeline provide better information on how e
 
 The following diagram shows how the pipeline processes a day's worth of a single team's scoring data after applying fixed-time windowing:
 
-<figure id="fig3">
-    <img src="{{ site.baseurl }}/images/gaming-example-team-scores-narrow.gif"
-         width="900" height="390"
-         alt="Score data for two teams.">
-</figure>
-**Figure 3:** Score data for two teams. Each team's scores are divided into logical windows based on when those scores occurred in event time.
+![A pipeline processes score data for two teams.](
+  {{ "/images/gaming-example-team-scores-narrow.gif" | prepend: site.baseurl }}){: width="800px"}
+
+*Figure 3: Score data for two teams. Each team's scores are divided into
+logical windows based on when those scores occurred in event time.*
 
 Notice that as processing time advances, the sums are now _per window_; each window represents an hour of _event time_ during the day in which the scores occurred.
 
@@ -250,12 +249,12 @@ Because we want all the data that has arrived in the pipeline every time we upda
 
 When we specify a ten-minute processing time trigger for the single global window, the pipeline effectively takes a "snapshot" of the contents of the window every time the trigger fires. This snapshot happens after ten minutes have passed since data was received. If no data has arrived, the pipeline takes its next "snapshot" 10 minutes after an element arrives. Since we're using a single global window, each snapshot contains all the data collected _to that point in time_. The following diagram shows the effects of using a processing time trigger on the single global window:
 
-<figure id="fig4">
-    <img src="{{ site.baseurl }}/images/gaming-example-proc-time-narrow.gif"
-         width="900" height="263"
-         alt="Score data for three users.">
-</figure>
-**Figure 4:** Score data for three users. Each user's scores are grouped together in a single global window, with a trigger that generates a snapshot for output ten minutes after data is received.
+![A pipeline processes score data for three users.](
+  {{ "/images/gaming-example-proc-time-narrow.gif" | prepend: site.baseurl }}){: width="850px"}
+
+*Figure 4: Score data for three users. Each user's scores are grouped together
+in a single global window, with a trigger that generates a snapshot for output
+ten minutes after data is received.*
 
 As processing time advances and more scores are processed, the trigger outputs the updated sum for each user.
 
@@ -282,12 +281,12 @@ In an ideal world, all data would be processed immediately when it occurs, so th
 
 The following diagram shows the relationship between ongoing processing time and each score's event time for two teams:
 
-<figure id="fig5">
-    <img src="{{ site.baseurl }}/images/gaming-example-event-time-narrow.gif"
-         width="900" height="390"
-         alt="Score data by team, windowed by event time.">
-</figure>
-**Figure 5:** Score data by team, windowed by event time. A trigger based on processing time causes the window to emit speculative early results and include late results.
+![A pipeline processes score data by team, windowed by event time.](
+  {{ "/images/gaming-example-event-time-narrow.gif" | prepend: site.baseurl }}){: width="800px"}
+
+*Figure 5: Score data by team, windowed by event time. A trigger based on
+processing time causes the window to emit speculative early results and include
+late results.*
 
 The dotted line in the diagram is the "ideal" **watermark**: Beam's notion of when all data in a given window can reasonably be considered to have arrived. The irregular solid line represents the actual watermark, as determined by the data source.
 
@@ -359,13 +358,12 @@ When you set session windowing, you specify a _minimum gap duration_ between eve
 
 The following diagram shows how data might look when grouped into session windows. Unlike fixed windows, session windows are _different for each user_ and is dependent on each individual user's play pattern:
 
-<figure id="fig6">
-    <img src="{{ site.baseurl }}/images/gaming-example-session-windows.png"
-         width="662" height="521"
-         alt="A diagram representing session windowing."
-         alt="User sessions, with a minimum gap duration.">
-</figure>
-**Figure 6:** User sessions, with a minimum gap duration. Note how each user has different sessions, according to how many instances they play and how long their breaks between instances are.
+![User sessions with a minimum gap duration.](
+  {{ "/images/gaming-example-session-windows.png" | prepend: site.baseurl }})
+
+*Figure 6: User sessions with a minimum gap duration. Each user has different
+sessions, according to how many instances they play and how long their breaks
+between instances are.*
 
 We can use the session-windowed data to determine the average length of uninterrupted play time for all of our users, as well as the total score they achieve during each session. We can do this in the code by first applying session windows, summing the score per user and session, and then using a transform to calculate the length of each individual session:
 
