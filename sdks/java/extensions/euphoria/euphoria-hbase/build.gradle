@@ -8,7 +8,6 @@ dependencies {
   compileOnly "org.apache.hbase:hbase-server:${hbaseVersion}"
 
   testCompile "org.apache.hbase:hbase-testing-util:${hbaseVersion}"
-  testCompile "org.apache.hbase:hbase-server:${hbaseVersion}:tests"
 }
 
 configurations {
