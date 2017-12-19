@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package piputilx contains the utility functions to install python pip packages.
-package piputilx
+// Contains the utility functions to install python pip packages.
+package main
 
 import (
   "bufio"
@@ -29,7 +29,7 @@ import (
   "github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 )
 
-var (
+const (
   pip = "/usr/local/bin/pip"
 )
 
@@ -42,14 +42,14 @@ func PipInstallRequirements(files []string, dir, name string) error {
       // option will make sure that only things staged in the worker will be
       // used without following their dependencies.
       args := []string{"install", "-r", filepath.Join(dir, name), "--no-index", "--no-deps", "--find-links", dir}
-      if err := execx.Execute(pip, args); err != nil {
+      if err := execx.Execute(pip, args...); err != nil {
         return err
       }
       // The second install round opens up the search for packages on PyPI and
       // also installs dependencies. The key is that if all the packages have
       // been installed in the first round then this command will be a no-op.
       args = []string{"install", "-r", filepath.Join(dir, name), "--find-links", dir}
-      return execx.Execute(pip, args)
+      return execx.Execute(pip, args...)
     }
   }
   return nil
@@ -82,17 +82,17 @@ func PipInstallPackage(files []string, dir, name string, force, optional bool, e
         // installed if necessary.  This achieves our goal outlined above.
         args := []string{"install", "--upgrade", "--force-reinstall", "--no-deps",
           filepath.Join(dir, packageSpec)}
-        err := execx.Execute(pip, args)
+        err := execx.Execute(pip, args...)
         if err != nil {
           return err
         }
         args = []string{"install", filepath.Join(dir, packageSpec)}
-        return execx.Execute(pip, args)
+        return execx.Execute(pip, args...)
       }
 
       // Case when we do not perform a forced reinstall.
       args := []string{"install", filepath.Join(dir, packageSpec)}
-      return execx.Execute(pip, args)
+      return execx.Execute(pip, args...)
     }
   }
   if optional {
