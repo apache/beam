@@ -28,7 +28,9 @@ import cz.seznam.euphoria.hadoop.HadoopUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.compress.DeflateCodec;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileRecordReader;
@@ -64,7 +66,9 @@ public class HadoopSinkTest {
         Collections.singletonList(Pair.of(new Text("fourth"), new LongWritable(3L))));
 
     final HadoopSink<Text, LongWritable> sink =
-        new SequenceFileSink<>(Text.class, LongWritable.class, outputDir);
+        SequenceFileSink.newBuilder(Text.class, LongWritable.class)
+            .setCompression(DeflateCodec.class, SequenceFile.CompressionType.BLOCK.toString())
+            .setOutputPath(outputDir).build();
 
     MapElements
         .of(flow.createInput(source))
