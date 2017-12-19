@@ -188,7 +188,7 @@ class DirectRunner(PipelineRunner):
     output.element_type = unicode
     return output
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # Performing configured PTransform overrides.
