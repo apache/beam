@@ -132,18 +132,18 @@ func installSetupPackages(mds []*pbjob.ArtifactMetadata, workDir string) error {
 	// Install the Dataflow Python SDK and worker packages.
 	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
 	// if the user is using an SDK that does not provide these.
-	if err := PipInstallPackage(files, workDir, sdkFile, false, false, []string{"gcp"}); err != nil {
+	if err := pipInstallPackage(files, workDir, sdkFile, false, false, []string{"gcp"}); err != nil {
 		return fmt.Errorf("failed to install SDK: %v", err)
 	}
 	// The staged files will not disappear due to restarts because workDir is a
 	// folder that is mapped to the host (and therefore survives restarts).
-	if err := PipInstallRequirements(files, workDir, requirementsFile); err != nil {
+	if err := pipInstallRequirements(files, workDir, requirementsFile); err != nil {
 		return fmt.Errorf("failed to install requirements: %v", err)
 	}
-	if err := InstallExtraPackages(files, extraPackagesFile, workDir); err != nil {
+	if err := installExtraPackages(files, extraPackagesFile, workDir); err != nil {
 		return fmt.Errorf("failed to install extra packages: %v", err)
 	}
-	if err := PipInstallPackage(files, workDir, workflowFile, false, true, nil); err != nil {
+	if err := pipInstallPackage(files, workDir, workflowFile, false, true, nil); err != nil {
 		return fmt.Errorf("failed to install workflow: %v", err)
 	}
 

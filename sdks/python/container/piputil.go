@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Contains the utility functions to install python pip packages.
 package main
 
 import (
@@ -33,8 +32,8 @@ const (
   pip = "/usr/local/bin/pip"
 )
 
-// PipInstallRequirements installs the given requirement, if present.
-func PipInstallRequirements(files []string, dir, name string) error {
+// pipInstallRequirements installs the given requirement, if present.
+func pipInstallRequirements(files []string, dir, name string) error {
   for _, file := range files {
     if file == name {
       // We run the install process in two rounds in order to avoid as much
@@ -55,8 +54,8 @@ func PipInstallRequirements(files []string, dir, name string) error {
   return nil
 }
 
-// PipInstallPackage installs the given package, if present.
-func PipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {
+// pipInstallPackage installs the given package, if present.
+func pipInstallPackage(files []string, dir, name string, force, optional bool, extras []string) error {
   for _, file := range files {
     if file == name {
       var packageSpec = name
@@ -101,9 +100,9 @@ func PipInstallPackage(files []string, dir, name string, force, optional bool, e
   return errors.New("package '" + name + "' not found")
 }
 
-// InstallExtraPackages installs all the packages declared in the extra
+// installExtraPackages installs all the packages declared in the extra
 // packages manifest file.
-func InstallExtraPackages(files []string, extraPackagesFile, dir string) error {
+func installExtraPackages(files []string, extraPackagesFile, dir string) error {
   // First check that extra packages manifest file is present.
   for _, file := range files {
     if file != extraPackagesFile {
@@ -122,7 +121,7 @@ func InstallExtraPackages(files []string, extraPackagesFile, dir string) error {
     for s.Scan() {
       extraPackage := s.Text()
       log.Printf("Installing extra package: %s", extraPackage)
-      if err = PipInstallPackage(files, dir, extraPackage, true, false, nil); err != nil {
+      if err = pipInstallPackage(files, dir, extraPackage, true, false, nil); err != nil {
         return fmt.Errorf("failed to install extra package %s: %v", extraPackage, err)
       }
     }
