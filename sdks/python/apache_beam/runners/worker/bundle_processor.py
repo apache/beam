@@ -553,3 +553,57 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
           factory.state_sampler),
       transform_proto.unique_name,
       consumers)
+
+
+@BeamTransformFactory.register_urn(
+    urns.PRECOMBINE_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  # TODO: Combine side inputs.
+  serialized_combine_fn = pickler.dumps(
+      (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
+       [], {}))
+  return factory.augment_oldstyle_op(
+      operations.PGBKCVOperation(
+          transform_proto.unique_name,
+          operation_specs.WorkerPartialGroupByKey(
+              serialized_combine_fn,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(
+    urns.MERGE_ACCUMULATORS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'merge')
+
+
+@BeamTransformFactory.register_urn(
+    urns.EXTRACT_OUTPUTS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'extract')
+
+
+def _create_combine_phase_operation(
+    factory, transform_proto, payload, consumers, phase):
+  # This is where support for combine fn side inputs would go.
+  serialized_combine_fn = pickler.dumps(
+      (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
+       [], {}))
+  return factory.augment_oldstyle_op(
+      operations.CombineOperation(
+          transform_proto.unique_name,
+          operation_specs.WorkerCombineFn(
+              serialized_combine_fn,
+              phase,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)

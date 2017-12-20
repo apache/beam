@@ -398,6 +398,7 @@ class CombineOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.serialized_fn)[:3]
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
+    self.scoped_metrics_container = ScopedMetricsContainer()
 
   def finish(self):
     logging.debug('Finishing %s', self)
