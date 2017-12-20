@@ -171,6 +171,14 @@ class _WindowGroupingBuffer(object):
 class FnApiRunner(runner.PipelineRunner):
 
   def __init__(self, use_grpc=False, sdk_harness_factory=None):
+    """Creates a new Fn API Runner.
+
+    Args:
+      use_grpc: whether to use grpc or simply make in-process calls
+          defaults to False
+      sdk_harness_factory: callable used to instantiate customized sdk harnesses
+          typcially not set by users
+    """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
     self._use_grpc = use_grpc
@@ -286,20 +294,11 @@ class FnApiRunner(runner.PipelineRunner):
 
       ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
       """
-      def new_id(existing_ids, prefix=''):
-        existing_ids = set(existing_ids)
-        counter = 0
-        while True:
-          new_id = '%s_%d' % (prefix, counter)
-          if new_id not in existing_ids:
-            return new_id
-          counter += 1
-
       def add_or_get_coder_id(coder_proto):
         for coder_id, coder in pipeline_components.coders.items():
           if coder == coder_proto:
             return coder_id
-        new_coder_id = new_id(pipeline_components.coders, 'coder')
+        new_coder_id = unique_name(pipeline_components.coders, 'coder')
         pipeline_components.coders[new_coder_id].CopyFrom(coder_proto)
         return new_coder_id
 
@@ -325,10 +324,10 @@ class FnApiRunner(runner.PipelineRunner):
 
           windowed_input_coder = pipeline_components.coders[
               input_pcoll.coder_id]
-          window_coder_id = windowed_input_coder.component_coder_ids[1]
-          input_coder = pipeline_components.coders[
-              windowed_input_coder.component_coder_ids[0]]
-          key_coder_id = input_coder.component_coder_ids[0]
+          element_coder_id, window_coder_id = (
+              windowed_input_coder.component_coder_ids)
+          element_coder = pipeline_components.coders[element_coder_id]
+          key_coder_id, _ = element_coder.component_coder_ids
           accumulator_coder_id = combine_payload.accumulator_coder_id
 
           key_accumulator_coder = beam_runner_api_pb2.Coder(
@@ -354,7 +353,7 @@ class FnApiRunner(runner.PipelineRunner):
           key_accumulator_iter_coder_id = add_or_get_coder_id(
               key_accumulator_iter_coder)
 
-          precombined_pcoll_id = new_id(
+          precombined_pcoll_id = unique_name(
               pipeline_components.pcollections, 'pcollection')
           pipeline_components.pcollections[precombined_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
@@ -363,7 +362,7 @@ class FnApiRunner(runner.PipelineRunner):
                   windowing_strategy_id=input_pcoll.windowing_strategy_id,
                   is_bounded=input_pcoll.is_bounded))
 
-          grouped_pcoll_id = new_id(
+          grouped_pcoll_id = unique_name(
               pipeline_components.pcollections, 'pcollection')
           pipeline_components.pcollections[grouped_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
@@ -372,7 +371,7 @@ class FnApiRunner(runner.PipelineRunner):
                   windowing_strategy_id=output_pcoll.windowing_strategy_id,
                   is_bounded=output_pcoll.is_bounded))
 
-          merged_pcoll_id = new_id(
+          merged_pcoll_id = unique_name(
               pipeline_components.pcollections, 'pcollection')
           pipeline_components.pcollections[merged_pcoll_id].CopyFrom(
               beam_runner_api_pb2.PCollection(
