@@ -101,6 +101,7 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	// 3) Encoded Entry message.
 
 	body := bufPool.Get().(*proto.Buffer)
+	defer bufPool.Put(body)
 	if err := body.Marshal(pb); err != nil {
 		return fmt.Errorf("Unable to marshal message for session recording: %v", err)
 	}
@@ -111,11 +112,13 @@ func recordMessage(opcode session.Kind, pb *session.Entry) error {
 	}
 
 	hdr := bufPool.Get().(*proto.Buffer)
+	defer bufPool.Put(hdr)
 	if err := hdr.Marshal(eh); err != nil {
 		return fmt.Errorf("Unable to marshal message header for session recording: %v", err)
 	}
 
 	l := bufPool.Get().(*proto.Buffer)
+	defer bufPool.Put(l)
 	if err := l.EncodeVarint(uint64(len(hdr.Bytes()))); err != nil {
 		return fmt.Errorf("Unable to write entry header length: %v", err)
 	}
