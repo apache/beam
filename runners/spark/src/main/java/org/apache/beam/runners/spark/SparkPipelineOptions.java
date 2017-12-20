@@ -71,6 +71,10 @@ public interface SparkPipelineOptions
   String getCheckpointDir();
   void setCheckpointDir(String checkpointDir);
 
+  @Description("JARs to be submitted to the cluster, Usually a shaded JAR with all dependencies. ")
+  String getJars();
+  void setJars(String jars);
+
   /**
    * Returns the default checkpoint directory of /tmp/${job.name}.
    * For testing purposes only. Production applications should use a reliable
