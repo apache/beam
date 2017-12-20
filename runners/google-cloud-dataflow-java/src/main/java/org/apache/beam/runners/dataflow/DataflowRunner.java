@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
+import static org.apache.beam.sdk.util.PipelineUtils.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
 
@@ -41,12 +42,8 @@ import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -256,9 +253,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new IllegalArgumentException("No files to stage has been found.");
       } else {
         LOG.info("PipelineOptions.filesToStage was not specified. "
-                        + "Defaulting to files from the classpath: will stage {} files. "
-                        + "Enable logging at DEBUG level to see which files will be staged.",
-                dataflowOptions.getFilesToStage().size());
+                + "Defaulting to files from the classpath: will stage {} files. "
+                + "Enable logging at DEBUG level to see which files will be staged.",
+            dataflowOptions.getFilesToStage().size());
         LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
       }
     }
@@ -1563,36 +1560,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @Override
   public String toString() {
     return "DataflowRunner#" + options.getJobName();
-  }
-
-  /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
-   *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException  If either the class loader is not a URLClassLoader or one
-   * of the resources the class loader exposes is not a file resource.
-   * @return A list of absolute paths to the resources the class loader uses.
-   */
-  protected static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
-      LOG.error(message);
-      throw new IllegalArgumentException(message);
-    }
-
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        LOG.error(message);
-        throw new IllegalArgumentException(message, e);
-      }
-    }
-    return files;
   }
 
   /**
