@@ -18,7 +18,7 @@
 
 package org.apache.beam.runners.spark;
 
-import static org.apache.beam.sdk.util.PipelineUtils.detectClassPathResourcesToStage;
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 
 import com.google.common.collect.Iterables;
 import java.util.Arrays;
@@ -124,7 +124,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     SparkPipelineOptions sparkOptions =
         PipelineOptionsValidator.validate(SparkPipelineOptions.class, options);
 
-    if (sparkOptions.getFilesToStage().isEmpty()) {
+    if (sparkOptions.getFilesToStage() == null) {
       sparkOptions.setFilesToStage(detectClassPathResourcesToStage(
           SparkRunner.class.getClassLoader()));
       LOG.info("PipelineOptions.filesToStage was not specified. "
