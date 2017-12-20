@@ -73,13 +73,7 @@ class PrefetchingSourceSetIterable(object):
     # Whether an error was encountered in any source reader.
     self.has_errored = False
 
-    # The tracking of time spend reading and bytes read from side inputs is kept
-    # behind an experiment flag to test performance impact.
-    experiments = RuntimeValueProvider('experiments', str, '').get().split(',')
-    if 'sideinput_io_metrics' in experiments:
-      self.read_counter = read_counter or opcounters.TransformIoCounter()
-    else:
-      self.read_counter = opcounters.TransformIoCounter()
+    self.read_counter = read_counter or opcounters.TransformIoCounter()
 
     self.reader_threads = []
     self._start_reader_threads()
@@ -87,10 +81,19 @@ class PrefetchingSourceSetIterable(object):
   def add_byte_counter(self, reader):
     """Adds byte counter observer to a side input reader.
 
+    If the 'sideinput_io_metrics' experiment flag is not passed in, then nothing
+    is attached to the reader.
+
     Args:
       reader: A reader that should inherit from ObservableMixin to have
         bytes tracked.
     """
+
+    # The tracking of time spend reading and bytes read from side inputs is kept
+    # behind an experiment flag to test performance impact.
+    experiments = RuntimeValueProvider('experiments', str, '').get().split(',')
+    if 'sideinput_io_metrics' not in experiments:
+      return
 
     def update_bytes_read(record_size, is_record_size=False, **kwargs):
       # Let the reader report block size.
