@@ -27,7 +27,6 @@ cdef class TransformIoCounter(object):
   cpdef __exit__(self, exc_type, exc_value, traceback)
   
 
-
 cdef class SideInputReadCounter(TransformIoCounter):
   cdef readonly object _counter_factory
   cdef readonly object _state_sampler
