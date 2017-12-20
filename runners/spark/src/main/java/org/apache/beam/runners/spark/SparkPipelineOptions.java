@@ -20,15 +20,12 @@ package org.apache.beam.runners.spark;
 
 import java.util.ArrayList;
 import java.util.List;
-
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
-
-
 
 /**
  * Spark runner {@link PipelineOptions} handles Spark execution-related configurations,
@@ -104,12 +101,20 @@ public interface SparkPipelineOptions
   boolean getUsesProvidedSparkContext();
   void setUsesProvidedSparkContext(boolean value);
 
-  @Description("Jars for spark context")
-  @Default.InstanceFactory(SparkContextOptions.EmptyPathList.class)
-  List<String> getJarsForSparkContext();
-  void setJarsForSparkContext(List<String> jars);
+  /**
+   * List of local files to make available to workers.
+   *
+   * <p>Jars are placed on the worker's classpath.
+   *
+   * <p>The default value is the list of jars from the main program's classpath.
+   */
+  @Description("Jar-Files to send to all workers and put on the classpath. "
+      + "The default value is all files from the classpath.")
+  @Default.InstanceFactory(EmptyPathList.class)
+  List<String> getFilesToStage();
+  void setFilesToStage(List<String> value);
 
-  /** Returns an empty path list, top avoid handling null. */
+  /** Returns an empty path list, to avoid handling null. */
   class EmptyPathList implements DefaultValueFactory<List<String>> {
     @Override
     public List<String> create(PipelineOptions options) {

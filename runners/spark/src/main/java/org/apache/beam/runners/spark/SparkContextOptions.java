@@ -54,7 +54,7 @@ public interface SparkContextOptions extends SparkPipelineOptions {
   List<JavaStreamingListener> getListeners();
   void setListeners(List<JavaStreamingListener> listeners);
 
-  /** Returns an empty list, top avoid handling null. */
+  /** Returns an empty list, to avoid handling null. */
   class EmptyListenersList implements DefaultValueFactory<List<JavaStreamingListener>> {
     @Override
     public List<JavaStreamingListener> create(PipelineOptions options) {
