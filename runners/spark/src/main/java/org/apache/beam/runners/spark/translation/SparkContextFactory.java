@@ -93,7 +93,7 @@ public final class SparkContextFactory {
         conf.setMaster(contextOptions.getSparkMaster());
       }
 
-      if (contextOptions.getFilesToStage().size() > 0) {
+      if (contextOptions.getFilesToStage() != null && !contextOptions.getFilesToStage().isEmpty()) {
         conf.setJars(contextOptions.getFilesToStage().toArray(new String[0]));
       }
 

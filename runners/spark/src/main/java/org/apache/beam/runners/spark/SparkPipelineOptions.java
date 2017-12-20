@@ -18,7 +18,6 @@
 
 package org.apache.beam.runners.spark;
 
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.Default;
@@ -110,15 +109,6 @@ public interface SparkPipelineOptions
    */
   @Description("Jar-Files to send to all workers and put on the classpath. "
       + "The default value is all files from the classpath.")
-  @Default.InstanceFactory(EmptyPathList.class)
   List<String> getFilesToStage();
   void setFilesToStage(List<String> value);
-
-  /** Returns an empty path list, to avoid handling null. */
-  class EmptyPathList implements DefaultValueFactory<List<String>> {
-    @Override
-    public List<String> create(PipelineOptions options) {
-      return new ArrayList<>();
-    }
-  }
 }
