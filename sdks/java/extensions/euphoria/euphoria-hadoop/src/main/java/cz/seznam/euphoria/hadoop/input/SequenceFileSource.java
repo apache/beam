@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.hadoop.input;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 
@@ -24,8 +23,7 @@ import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
  * A data source reading hadoop based inputs as a sequences of records persisted in
  * (binary) sequence files.
  */
-public class SequenceFileSource<K extends Writable, V extends Writable>
-    extends HadoopFileSource<K, V> {
+public class SequenceFileSource<K, V> extends HadoopFileSource<K, V> {
 
   /**
    * Convenience constructor invoking
