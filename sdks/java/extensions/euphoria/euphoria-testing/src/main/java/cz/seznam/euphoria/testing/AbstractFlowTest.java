@@ -33,7 +33,7 @@ public abstract class AbstractFlowTest<OUT> {
   /**
    * This method describes how the final dataset should look like.
    *
-   * @return expected output
+   * @return expected output dataset (ordering does not matter)
    */
   protected abstract List<OUT> getOutput();
 
