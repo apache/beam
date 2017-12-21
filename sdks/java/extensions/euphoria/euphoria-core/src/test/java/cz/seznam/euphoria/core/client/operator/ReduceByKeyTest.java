@@ -176,4 +176,21 @@ public class ReduceByKeyTest {
     assertTrue(reduce.getWindowing() instanceof Time);
   }
 
+  @Test
+  public void testWindow_applyIfNot() {
+    Flow flow = Flow.create("TEST");
+    Dataset<String> dataset = Util.createMockDataset(flow, 2);
+
+    ReduceByKey.of(dataset)
+        .keyBy(s -> s)
+        .valueBy(s -> 1L)
+        .reduceBy(n -> StreamSupport.stream(n.spliterator(), false).mapToLong(Long::new).sum())
+        .withSortedValues(Long::compare)
+        .applyIf(false, b -> b, b -> b.windowBy(Time.of(Duration.ofHours(1))))
+        .output();
+
+    ReduceByKey reduce = (ReduceByKey) flow.operators().iterator().next();
+    assertTrue(reduce.getWindowing() instanceof Time);
+  }
+
 }
