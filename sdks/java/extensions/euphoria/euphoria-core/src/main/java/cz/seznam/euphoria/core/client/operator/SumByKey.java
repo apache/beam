@@ -42,6 +42,17 @@ import java.util.Objects;
  *       .valueBy(Pair::getSecond)
  *       .output();
  * }</pre>
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code [valueBy] ................} {@link UnaryFunction} transforming from input element to long (default: e -> 1L)
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code (output | outputValues) ..} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(
@@ -76,28 +87,63 @@ public class SumByKey<IN, KEY, W extends Window>
     }
 
     @Override
-    public <KEY> ByBuilder2<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
-      return new ByBuilder2<>(name, input, keyExtractor);
+    public <KEY> ValueByBuilder<IN, KEY> keyBy(UnaryFunction<IN, KEY> keyExtractor) {
+      return new ValueByBuilder<>(name, input, keyExtractor);
     }
   }
-  public static class ByBuilder2<IN, KEY>
+  public static class ValueByBuilder<IN, KEY>
       implements Builders.WindowBy<IN, ByBuilder2<IN, KEY>>,
-      Builders.Output<Pair<KEY, Long>> {
+          Builders.Output<Pair<KEY, Long>>,
+          Builders.OutputValues<KEY, Long> {
 
-    final String name;
-    final Dataset<IN> input;
-    final UnaryFunction<IN, KEY> keyExtractor;
-    UnaryFunction<IN, Long> valueExtractor = e -> 1L;
 
-    ByBuilder2(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryFunction<IN, KEY> keyExtractor;
+
+    ValueByBuilder(String name, Dataset<IN> input, UnaryFunction<IN, KEY> keyExtractor) {
       this.name = Objects.requireNonNull(name);
       this.input = Objects.requireNonNull(input);
       this.keyExtractor = Objects.requireNonNull(keyExtractor);
     }
 
     public ByBuilder2<IN, KEY> valueBy(UnaryFunction<IN, Long> valueExtractor) {
-      this.valueExtractor = valueExtractor;
-      return this;
+      return new ByBuilder2<>(name, input, keyExtractor, valueExtractor);
+    }
+
+    @Override
+    public <W extends Window> OutputBuilder<IN, KEY, W>
+    windowBy(Windowing<IN, W> windowing) {
+      return new OutputBuilder<>(name, input, keyExtractor, e -> 1L, windowing);
+    }
+
+    @Override
+    public Dataset<Pair<KEY, Long>> output() {
+      return new OutputBuilder<>(name, input, keyExtractor, e -> 1L, null)
+          .output();
+    }
+
+  }
+  public static class ByBuilder2<IN, KEY>
+      implements Builders.WindowBy<IN, ByBuilder2<IN, KEY>>,
+      Builders.Output<Pair<KEY, Long>>,
+      Builders.OutputValues<KEY, Long> {
+
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, KEY> keyExtractor;
+    final UnaryFunction<IN, Long> valueExtractor;
+
+    ByBuilder2(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, KEY> keyExtractor,
+        UnaryFunction<IN, Long> valueExtractor) {
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.keyExtractor = Objects.requireNonNull(keyExtractor);
+      this.valueExtractor = Objects.requireNonNull(valueExtractor);
     }
 
     @Override
@@ -117,6 +163,7 @@ public class SumByKey<IN, KEY, W extends Window>
 
   public static class OutputBuilder<IN, KEY, W extends Window>
       extends ByBuilder2<IN, KEY> {
+
     @Nullable
     private final Windowing<IN, W> windowing;
 
@@ -125,9 +172,8 @@ public class SumByKey<IN, KEY, W extends Window>
                   UnaryFunction<IN, KEY> keyExtractor,
                   UnaryFunction<IN, Long> valueExtractor,
                   @Nullable Windowing<IN, W> windowing) {
-      
-      super(name, input, keyExtractor);
-      this.valueExtractor = Objects.requireNonNull(valueExtractor);
+
+      super(name, input, keyExtractor, valueExtractor);
       this.windowing = windowing;
     }
     @Override

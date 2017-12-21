@@ -59,6 +59,16 @@ import java.util.Objects;
  * been used only once here, a {@link FlatMap} operator is free
  * to invoke it multiple times or not at all to generate that many elements
  * to the output dataset.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code using ....................} apply {@link UnaryFunctor} to input elements
+ *   <li>{@code [eventTimeBy] ............} change event time characteristic of output elements using {@link ExtractEventTime}
+ *   <li>{@code output ...................} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(
