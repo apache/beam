@@ -25,5 +25,9 @@ import java.io.Closeable;
 @Audience(Audience.Type.EXECUTOR)
 public interface ExternalIterable<T> extends Iterable<T>, Closeable {
 
+  // don't throw exceptions
+  @Override
+  void close();
+
 
 }

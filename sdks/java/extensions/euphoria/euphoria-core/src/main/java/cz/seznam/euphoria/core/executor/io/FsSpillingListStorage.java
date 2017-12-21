@@ -23,7 +23,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
@@ -55,9 +54,11 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
   private SerializerFactory.Serializer.Output serializerStream;
   private boolean needsFlush;
 
-  public FsSpillingListStorage(SerializerFactory serializerFactory,
-                               SpillFileFactory spillFileFactory,
-                               int maxElemsInMemory) {
+  public FsSpillingListStorage(
+      SerializerFactory serializerFactory,
+      SpillFileFactory spillFileFactory,
+      int maxElemsInMemory) {
+
     this.serializerFactory = Objects.requireNonNull(serializerFactory);
     this.spillFileFactory = Objects.requireNonNull(spillFileFactory);
     this.maxElemsInMemory = maxElemsInMemory;
@@ -85,7 +86,9 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
   @Override
   public Iterable<T> get() {
     return () -> {
-      if (serializerStream == null && elems.isEmpty()) {
+      if (serializerStream == null && elems.isEmpty()
+          && (storageFile == null || !storageFile.exists())) {
+
         return Collections.emptyIterator();
       }
 
@@ -95,15 +98,14 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
           serializerStream.flush();
           needsFlush = false;
         }
-        try {
-          is = serializerInstance.newInput(new FileInputStream(storageFile));
-        } catch (FileNotFoundException e) {
-          throw new IllegalStateException(
-              "Failed to open spilling storage: "
-                  + storageFile, e);
-        }
-      } else {
-        is = null;
+      }
+      try {
+        is = storageFile != null && storageFile.exists()
+            ? serializerInstance.newInput(new FileInputStream(storageFile))
+            : null;
+      } catch (FileNotFoundException e) {
+        throw new IllegalStateException(
+            "Failed to open spilling storage: " + storageFile, e);
       }
 
       Iterator elemsIter = elems.iterator();
@@ -135,10 +137,21 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
     };
   }
 
+  void closeOutput() {
+    flush();
+    if (serializerStream != null) {
+      serializerStream.close();
+      serializerStream = null;
+    }
+  }
+
   @Override
   public void clear() {
     if (serializerStream != null) {
       serializerStream.close();
+      serializerStream = null;
+    }
+    if (storageFile != null && storageFile.exists()) {
       if (!storageFile.delete()) {
         throw new IllegalStateException(
             "Failed to clean up storage file: " + storageFile);
@@ -174,7 +187,7 @@ public class FsSpillingListStorage<T> implements ListStorage<T>, ExternalIterabl
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     clear();
   }
 
