@@ -128,7 +128,6 @@ public class HadoopSplit<K, V>
         RecordReader<K, V> reader,
         Class<K> keyClass, Class<V> valueClass,
         Configuration conf) {
-      System.out.println(Arrays.asList(Thread.currentThread().getStackTrace()));
       this.reader = Objects.requireNonNull(reader);
       // TODO: better
       this.keyCloner = Objects.requireNonNull(Cloner.get(keyClass, conf));
