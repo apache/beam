@@ -17,7 +17,6 @@ package cz.seznam.euphoria.core.executor.util;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.io.ExternalIterable;
-import java.io.IOException;
 import java.util.Iterator;
 
 /**
@@ -40,7 +39,7 @@ public class InMemExternalIterable<T> implements ExternalIterable<T> {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     // nop
   }
 

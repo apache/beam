@@ -47,7 +47,7 @@ public class GenericSpillToolsTest {
   }
 
   @Test
-  public void testSorted() {
+  public void testSorted() throws InterruptedException {
     Iterable<Integer> iterable = tools.sorted(
         IntStream.range(0, 1003)
             .boxed()
@@ -65,7 +65,7 @@ public class GenericSpillToolsTest {
   }
 
   @Test
-  public void testSpilling() {
+  public void testSpilling() throws InterruptedException {
     Collection<ExternalIterable<Integer>> parts = tools.spillAndSortParts(
         IntStream.range(0, 1003)
             .boxed()
