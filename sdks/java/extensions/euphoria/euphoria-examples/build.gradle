@@ -1,8 +1,35 @@
+plugins {
+  id 'java'
+  id 'com.github.johnrengelman.shadow'
+}
+
 dependencies {
   compile project(':euphoria-core')
   compile project(':euphoria-hadoop')
   compile project(':euphoria-flink')
   compile project(':euphoria-spark')
   compile project(':euphoria-local')
+  compile project(':euphoria-hbase')
+  compile project(':euphoria-kafka')
   testCompile project(':euphoria-testing')
+
+  compileOnly "org.apache.flink:flink-statebackend-rocksdb_${scalaVersion}:${flinkVersion}"
+  compileOnly "org.apache.flink:flink-streaming-java_${scalaVersion}:${flinkVersion}"
+
+  compile "org.apache.hbase:hbase-client:${hbaseVersion}"
+  compile "org.apache.hbase:hbase-server:${hbaseVersion}"
+
+  runtime "org.apache.flink:flink-hadoop-compatibility_${scalaVersion}:${flinkVersion}"
+}
+
+shadowJar {
+  relocate 'io.netty', 'cz.seznam.euphoria.example.io.netty'
+}
+
+configurations {
+  runtime.exclude group: "org.apache.hadoop"
+  runtime.exclude group: "org.apache.spark"
+  runtime.exclude group: "org.apache.flink"
+  runtime.exclude group: "org.scala-lang"
+  runtime.exclude group: "org.mortbay.jetty"
 }
