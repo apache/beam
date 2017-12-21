@@ -41,6 +41,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -968,6 +969,7 @@ public class BigQueryIO {
         .setBigQueryServices(new BigQueryServicesImpl())
         .setCreateDisposition(Write.CreateDisposition.CREATE_IF_NEEDED)
         .setWriteDisposition(Write.WriteDisposition.WRITE_EMPTY)
+        .setSchemaUpdateOptions(Collections.<Write.SchemaUpdateOption>emptyList())
         .setNumFileShards(0)
         .setMethod(Write.Method.DEFAULT)
         .build();
@@ -1029,6 +1031,7 @@ public class BigQueryIO {
     @Nullable abstract ValueProvider<String> getJsonTimePartitioning();
     abstract CreateDisposition getCreateDisposition();
     abstract WriteDisposition getWriteDisposition();
+    abstract List<SchemaUpdateOption> getSchemaUpdateOptions();
     /** Table description. Default is empty. */
     @Nullable abstract String getTableDescription();
     /** An option to indicate if table validation is desired. Default is true. */
@@ -1062,6 +1065,7 @@ public class BigQueryIO {
       abstract Builder<T> setJsonTimePartitioning(ValueProvider<String> jsonTimePartitioning);
       abstract Builder<T> setCreateDisposition(CreateDisposition createDisposition);
       abstract Builder<T> setWriteDisposition(WriteDisposition writeDisposition);
+      abstract Builder<T> setSchemaUpdateOptions(List<SchemaUpdateOption> schemaUpdateOptions);
       abstract Builder<T> setTableDescription(String tableDescription);
       abstract Builder<T> setValidate(boolean validate);
       abstract Builder<T> setBigQueryServices(BigQueryServices bigQueryServices);
@@ -1108,6 +1112,24 @@ public class BigQueryIO {
        * if necessary when paired with a {@link WriteDisposition#WRITE_TRUNCATE}.
        */
       CREATE_IF_NEEDED
+    }
+
+    /**
+     * An enumeration type for the BigQuery schema update options strings.
+     *
+     * @see <a
+     *     href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions">
+     *     <code>configuration.load.schemaUpdateOptions</code> in the BigQuery Jobs API</a>
+     */
+    public enum SchemaUpdateOption {
+      /**
+       * Allow adding a nullable field to the schema.
+       */
+      ALLOW_FIELD_ADDITION,
+      /**
+       * Allow relaxing a required field in the original schema to nullable.
+       */
+      ALLOW_FIELD_RELAXATION
     }
 
     /**
@@ -1279,6 +1301,11 @@ public class BigQueryIO {
     public Write<T> withWriteDisposition(WriteDisposition writeDisposition) {
       checkArgument(writeDisposition != null, "writeDisposition can not be null");
       return toBuilder().setWriteDisposition(writeDisposition).build();
+    }
+
+    /** Specifies the schema update options to use. */
+    public Write<T> withSchemaUpdateOptions(List<SchemaUpdateOption> schemaUpdateOptions) {
+      return toBuilder().setSchemaUpdateOptions(schemaUpdateOptions).build();
     }
 
     /** Specifies the table description. */
@@ -1533,7 +1560,8 @@ public class BigQueryIO {
             getJsonTableRef() != null,
             dynamicDestinations,
             destinationCoder,
-            getCustomGcsTempLocation());
+            getCustomGcsTempLocation(),
+            getSchemaUpdateOptions());
         batchLoads.setTestServices(getBigQueryServices());
         if (getMaxFilesPerBundle() != null) {
           batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
