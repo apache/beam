@@ -217,11 +217,6 @@ public class ListDataSource<T>
     return Collections.singleton("localhost");
   }
 
-  @Override
-  public int getDefaultParallelism() {
-    return parent == null ? storage.get(this).size() : 1;
-  }
-
   @SuppressWarnings("unchecked")
   @Override
   public BoundedReader<T> openReader() throws IOException {

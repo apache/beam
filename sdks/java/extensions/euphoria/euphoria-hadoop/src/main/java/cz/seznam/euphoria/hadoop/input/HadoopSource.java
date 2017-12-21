@@ -66,10 +66,7 @@ public class HadoopSource<K, V>
     return ExceptionUtils.unchecked(() -> newInputFormatClass()
         .getSplits(job)
         .stream()
-        .map(split -> {
-          System.out.println(split.toString());
-          return new HadoopSplit<>(this, split);
-        })
+        .map(split -> new HadoopSplit<>(this, split))
         .collect(Collectors.toList()));
   }
 
@@ -116,4 +113,5 @@ public class HadoopSource<K, V>
   public Set<String> getLocations() {
     return Collections.singleton("unknown");
   }
+
 }

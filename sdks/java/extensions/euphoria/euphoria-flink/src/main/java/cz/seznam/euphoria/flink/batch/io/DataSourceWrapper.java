@@ -43,14 +43,19 @@ public class DataSourceWrapper<T>
   /** currently opened reader (if any) */
   private transient BoundedReader<T> reader;
 
+  private final List<BoundedDataSource<T>> splits;
+
   public DataSourceWrapper(
       BoundedDataSource<T> dataSource,
       BiFunction<LocatableInputSplit[], Integer,
-      InputSplitAssigner> splitAssignerFactory) {
-    
+          InputSplitAssigner> splitAssignerFactory,
+      int parallel) {
+
     Preconditions.checkArgument(dataSource.isBounded());
     this.dataSource = dataSource;
     this.splitAssignerFactory = splitAssignerFactory;
+    long sizeEstimate = dataSource.sizeEstimate();
+    splits = dataSource.split(sizeEstimate / parallel);
   }
 
   @Override
@@ -67,9 +72,10 @@ public class DataSourceWrapper<T>
 
   @Override
   public PartitionWrapper<T>[] createInputSplits(int minNumSplits) throws IOException {
-    long sizeEstimate = dataSource.sizeEstimate();
-    List<BoundedDataSource<T>> splits = dataSource.split(sizeEstimate / minNumSplits);
-
+    if (minNumSplits > splits.size()) {
+      throw new IllegalArgumentException(
+          "minNumSplits must be less or equals to splits size");
+    }
     @SuppressWarnings("unchecked")
     PartitionWrapper<T>[] splitWrappers = new PartitionWrapper[splits.size()];
     for (int i = 0; i < splits.size(); i++) {
@@ -113,4 +119,9 @@ public class DataSourceWrapper<T>
   public TypeInformation<T> getProducedType() {
     return TypeInformation.of((Class) BatchElement.class);
   }
+
+  public int getParallelism() {
+    return splits.size();
+  }
+
 }

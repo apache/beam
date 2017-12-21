@@ -7,4 +7,3 @@ dependencies {
   testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
   testCompile "org.apache.flink:flink-statebackend-rocksdb_${scalaVersion}:${flinkVersion}"
 }
-

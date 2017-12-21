@@ -37,9 +37,4 @@ public abstract class UnsplittableBoundedSource<T> implements BoundedDataSource<
     return Collections.singletonList(this);
   }
 
-  @Override
-  public int getDefaultParallelism() {
-    return 1;
-  }
-
 }
