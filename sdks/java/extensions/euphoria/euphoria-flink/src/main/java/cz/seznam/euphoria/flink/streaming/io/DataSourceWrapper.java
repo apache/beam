@@ -112,7 +112,6 @@ public class DataSourceWrapper<T>
     StreamingRuntimeContext runtimeContext =
             (StreamingRuntimeContext) getRuntimeContext();
 
-    final int subtaskIndex = runtimeContext.getIndexOfThisSubtask();
     final int totalSubtasks = runtimeContext.getNumberOfParallelSubtasks();
 
     List<BoundedDataSource<T>> partitions = boundedSource

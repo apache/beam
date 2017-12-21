@@ -17,7 +17,6 @@ package cz.seznam.euphoria.kafka;
 
 import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.core.client.io.UnboundedDataSource;
 import cz.seznam.euphoria.core.client.io.UnboundedPartition;
 import cz.seznam.euphoria.core.client.io.UnboundedReader;
@@ -27,13 +26,11 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;

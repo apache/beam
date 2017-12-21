@@ -17,13 +17,20 @@ package cz.seznam.euphoria.flink;
 
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.accumulators.FlinkAccumulatorFactory;
+import cz.seznam.euphoria.flink.batch.BatchElement;
 import cz.seznam.euphoria.flink.batch.BatchFlowTranslator;
+import cz.seznam.euphoria.flink.streaming.StreamingElement;
 import cz.seznam.euphoria.flink.streaming.StreamingFlowTranslator;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.runtime.state.AbstractStateBackend;
 import org.slf4j.Logger;
@@ -32,7 +39,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.time.Duration;
-import java.util.HashSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -56,7 +63,7 @@ public class FlinkExecutor implements Executor {
   private Duration latencyTracking = Duration.ofSeconds(2);
   private FlinkAccumulatorFactory accumulatorFactory =
           new FlinkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
-  private final Set<Class<?>> registeredClasses = new HashSet<>();
+  private final Set<Class<?>> registeredClasses = getDefaultClasses();
   @Nullable
   private Duration checkpointInterval;
 
@@ -285,6 +292,17 @@ public class FlinkExecutor implements Executor {
   }
 
   /**
+   * Pre-register given classes to flink for serialization purposes.
+   *
+   * @param classes the classes types to register
+   * @return this
+   */
+  public FlinkExecutor registerClasses(Class<?>... classes) {
+    Arrays.stream(classes).forEach(this::registerClass);
+    return this;
+  }
+
+  /**
    * Set the check-pointing interval.
    *
    * @param interval the check-pointing interval for flink
@@ -304,5 +322,17 @@ public class FlinkExecutor implements Executor {
    */
   protected int getParallelism() {
     return -1;
+  }
+
+  // return classes that should be registered by default
+  // because the flink executor (might) use them by default
+  private Set<Class<?>> getDefaultClasses() {
+    return Sets.newHashSet(
+        Pair.class,
+        Window.class,
+        GlobalWindowing.Window.class,
+        TimeInterval.class,
+        BatchElement.class,
+        StreamingElement.class);
   }
 }
