@@ -5,6 +5,7 @@ include ':thirdparty-guava'
 
 // ~ core
 include ':euphoria-core'
+include ':euphoria-testing'
 include ':euphoria-operator-testkit'
 
 // ~ io
