@@ -128,6 +128,7 @@ func makeArgs(list []interface{}) []reflect.Value {
 //
 // BenchmarkDirectCall-4              2000000000	         0.26 ns/op
 // BenchmarkIndirectCall-4            1000000000	         2.28 ns/op
+// BenchmarkReflectedAndBackCall-4    1000000000	         2.40 ns/op
 // BenchmarkReflectCall-4            	10000000	       197    ns/op
 // BenchmarkReflectCallNewArgs-4     	10000000	       200    ns/op
 // BenchmarkReflectCallReuseArgs-4   	10000000	       196    ns/op
@@ -155,6 +156,15 @@ func BenchmarkIndirectCall(b *testing.B) {
 		fn = inc // this is always set, but the compiler doesn't know
 	}
 
+	n := 0
+	for i := 0; i < b.N; i++ {
+		n = fn(n)
+	}
+	b.Log(n)
+}
+
+func BenchmarkReflectedAndBackCall(b *testing.B) {
+	fn := reflect.ValueOf(inc).Interface().(func(int) int)
 	n := 0
 	for i := 0; i < b.N; i++ {
 		n = fn(n)
