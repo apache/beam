@@ -32,6 +32,16 @@ import java.util.Objects;
 
 /**
  * Operator outputting distinct (based on {@link Object#equals}) elements.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code [mapped] .................} compare objects retrieved by this {@link UnaryFunction} instead of raw input elements
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code output ...................} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(
@@ -54,29 +64,20 @@ public class Distinct<IN, ELEM, W extends Window>
     }
 
     @Override
-    public <IN> WindowingBuilder<IN, IN> of(Dataset<IN> input) {
-      return new WindowingBuilder<>(name, input, e -> e);
+    public <IN> MappedBuilder<IN, IN> of(Dataset<IN> input) {
+      return new MappedBuilder<>(name, input);
     }
   }
 
-  public static class WindowingBuilder<IN, ELEM>
-      implements Builders.WindowBy<IN, WindowingBuilder<IN, ELEM>>,
-      Builders.Output<ELEM>,
-      OptionalMethodBuilder<WindowingBuilder<IN, ELEM>> {
+  public static class MappedBuilder<IN, ELEM>
+      extends WindowingBuilder<IN, ELEM> {
 
-    final String name;
-    final Dataset<IN> input;
-    @Nullable
-    final UnaryFunction<IN, ELEM> mapper;
-
-    WindowingBuilder(
+    @SuppressWarnings("unchecked")
+    private MappedBuilder(
         String name,
-        Dataset<IN> input,
-        @Nullable UnaryFunction<IN, ELEM> mapper) {
+        Dataset<IN> input) {
 
-      this.name = Objects.requireNonNull(name);
-      this.input = Objects.requireNonNull(input);
-      this.mapper = mapper;
+      super(name, input, (UnaryFunction) e -> e);
     }
 
     /**
@@ -96,6 +97,27 @@ public class Distinct<IN, ELEM, W extends Window>
      */
     public <ELEM> WindowingBuilder<IN, ELEM> mapped(UnaryFunction<IN, ELEM> mapper) {
       return new WindowingBuilder<>(name, input, mapper);
+    }
+
+  }
+
+  public static class WindowingBuilder<IN, ELEM>
+      implements Builders.WindowBy<IN, WindowingBuilder<IN, ELEM>>,
+      Builders.Output<ELEM>,
+      OptionalMethodBuilder<WindowingBuilder<IN, ELEM>> {
+
+    final String name;
+    final Dataset<IN> input;
+    final UnaryFunction<IN, ELEM> mapper;
+
+    private WindowingBuilder(
+        String name,
+        Dataset<IN> input,
+        UnaryFunction<IN, ELEM> mapper) {
+
+      this.name = Objects.requireNonNull(name);
+      this.input = Objects.requireNonNull(input);
+      this.mapper = Objects.requireNonNull(mapper);
     }
 
     @Override
@@ -119,7 +141,7 @@ public class Distinct<IN, ELEM, W extends Window>
 
     OutputBuilder(String name,
                   Dataset<IN> input,
-                  @Nullable UnaryFunction<IN, ELEM> mapper,
+                  UnaryFunction<IN, ELEM> mapper,
                   @Nullable Windowing<IN, W> windowing) {
 
       super(name, input, mapper);
@@ -149,8 +171,8 @@ public class Distinct<IN, ELEM, W extends Window>
    * @see #named(String)
    * @see OfBuilder#of(Dataset)
    */
-  public static <IN> WindowingBuilder<IN, IN> of(Dataset<IN> input) {
-    return new WindowingBuilder<>("Distinct", input, e -> e);
+  public static <IN> MappedBuilder<IN, IN> of(Dataset<IN> input) {
+    return new MappedBuilder<>("Distinct", input);
   }
 
   /**

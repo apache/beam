@@ -51,6 +51,14 @@ import java.util.Objects;
  *
  * Note: the order of the dataset does not matter. Indeed, the order of the
  * elements themselves in the union is intentionally not specified at all.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input datasets
+ *   <li>{@code output ...................} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Basic(
