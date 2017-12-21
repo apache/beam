@@ -29,12 +29,16 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An implementation of {@code SpillTools} to be used by executors.
  */
 @Audience(Audience.Type.EXECUTOR)
 public class GenericSpillTools implements SpillTools {
+
+  private static final Logger LOG = LoggerFactory.getLogger(GenericSpillTools.class);
 
   /**
    * Number of records to keep in list before spilling.
@@ -117,22 +121,26 @@ public class GenericSpillTools implements SpillTools {
     FsSpillingListStorage<T> ret = new FsSpillingListStorage<>(
         serializer, spillFactory, numSpillRecords);
     what.forEach(ret::add);
-    ret.flush();
+    ret.closeOutput();
     return ret;
   }
 
   @Override
   public <T> Collection<ExternalIterable<T>> spillAndSortParts(
-      Iterable<T> what, Comparator<T> comparator) {
+      Iterable<T> what, Comparator<T> comparator) throws InterruptedException {
 
     List<ExternalIterable<T>> ret = new ArrayList<>();
     List<T> sortList = new ArrayList<>(numSpillRecords);
     for (T e : what) {
       if (sortList.size() == numSpillRecords) {
         ret.add(externalize(sortList.stream().sorted(comparator)));
+        LOG.debug("Successfully externalized {} records", sortList.size());
         sortList.clear();
       }
       sortList.add(e);
+      if (Thread.currentThread().isInterrupted()) {
+        throw new InterruptedException();
+      }
     }
     if (!sortList.isEmpty()) {
       ret.add(externalize(sortList.stream().sorted(comparator)));

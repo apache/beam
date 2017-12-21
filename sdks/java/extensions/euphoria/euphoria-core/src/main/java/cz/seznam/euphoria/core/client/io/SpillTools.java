@@ -18,7 +18,7 @@ package cz.seznam.euphoria.core.client.io;
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.util.IOUtils;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Iterables;
-import java.io.Closeable;
+import cz.seznam.euphoria.shadow.com.google.common.io.Closeables;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Collection;
@@ -32,7 +32,7 @@ import java.util.Iterator;
 public interface SpillTools extends Serializable {
 
   /**
-   * Simply externalize {@code Iterable}.
+   * Convert {@link Iterable} to {@link ExternalIterable}.
    *
    * @param <T> type of input
    * @param what an {@code Iterable} that is to be externalized
@@ -49,9 +49,10 @@ public interface SpillTools extends Serializable {
    * @param what the {@code Iterable} that is to be split and sorted
    * @param comparator the {@code Comparator} to use for sorting
    * @return collection of externalized iterables that are sorted
+   * @throws InterruptedException if interrupted
    */
   <T> Collection<ExternalIterable<T>> spillAndSortParts(
-      Iterable<T> what, Comparator<T> comparator);
+      Iterable<T> what, Comparator<T> comparator) throws InterruptedException;
 
   /**
    * Use external sort to return given {@code Iterable} sorted according
@@ -61,8 +62,10 @@ public interface SpillTools extends Serializable {
    * @param what the {@code Iterable} to external sort
    * @param comparator the comparator to use when sorting
    * @return the sorted {@code Iterable}
+   * @throws InterruptedException if interrupted
    */
-  default <T> ExternalIterable<T> sorted(Iterable<T> what, Comparator<T> comparator) {
+  default <T> ExternalIterable<T> sorted(Iterable<T> what, Comparator<T> comparator)
+      throws InterruptedException {
 
     Collection<ExternalIterable<T>> parts = spillAndSortParts(what, comparator);
     Iterable<T> ret = Iterables.mergeSorted(parts, comparator);
@@ -75,8 +78,13 @@ public interface SpillTools extends Serializable {
       }
 
       @Override
-      public void close() throws IOException {
-        IOUtils.forEach(parts, Closeable::close);
+      public void close() {
+        try {
+          IOUtils.forEach(parts, c -> Closeables.close(c, true));
+        } catch (IOException ex) {
+          // should not happen
+          throw new IllegalStateException(ex);
+        }
       }
 
     };
