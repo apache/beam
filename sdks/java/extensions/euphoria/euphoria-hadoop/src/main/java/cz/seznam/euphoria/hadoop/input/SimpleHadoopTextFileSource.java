@@ -86,6 +86,7 @@ public class SimpleHadoopTextFileSource implements BoundedDataSource<String> {
     public BoundedReader<String> openReader() throws IOException {
       return new WrapReader(this.wrap.openReader());
     }
+
   }
 
   private final HadoopTextFileSource wrap;
@@ -109,11 +110,6 @@ public class SimpleHadoopTextFileSource implements BoundedDataSource<String> {
   @Override
   public BoundedReader<String> openReader() throws IOException {
     throw new UnsupportedOperationException("Call `split` first!");
-  }
-
-  @Override
-  public int getDefaultParallelism() {
-    return this.wrap.getDefaultParallelism();
   }
 
   /**
