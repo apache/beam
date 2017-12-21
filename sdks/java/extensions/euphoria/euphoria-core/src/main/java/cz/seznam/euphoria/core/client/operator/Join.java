@@ -44,7 +44,24 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Join two datasets by given key producing single new dataset.
+ * Inner join of two datasets by given key producing single new dataset.
+ *
+ * When joining two streams, the join has to specify {@link Windowing}
+ * which groups elements from streams into {@link Window}s. The join operation
+ * is performed within same windows produced on left and right side of
+ * input {@link Dataset}s.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} left and right input dataset
+ *   <li>{@code by .......................} {@link UnaryFunction}s transforming left and right elements into keys
+ *   <li>{@code using ....................} {@link BinaryFunctor} receiving left and right element from joined window
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code [withHints] ..............} specify hints about runtime data characteristics, see {@link JoinHint}
+ *   <li>{@code (output | outputValues) ..} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Recommended(

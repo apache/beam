@@ -59,6 +59,18 @@ import java.util.stream.StreamSupport;
  * Custom {@link Windowing} can be set, otherwise values from
  * input operator are used.<p>
  *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code [valueBy] ................} value extractor function (default: identity)
+ *   <li>{@code (combineBy | reduceBy)....} {@link CombinableReduceFunction} or {@link ReduceFunction} for combinable or non-combinable function
+ *   <li>{@code [withSortedValues] .......} use comparator for sorting values prior to being passed to {@link ReduceFunction} function (applicable only for non-combinable version)
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code (output | outputValues) ..} build output dataset
+ * </ol>
+ *
  * @param <IN> Type of input records
  * @param <KEY> Output type of #keyBy method
  * @param <VALUE> Output type of #valueBy method
@@ -109,7 +121,7 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     }
   }
 
-  interface ReduceBy<IN, KEY, VALUE> {
+  public interface ReduceBy<IN, KEY, VALUE> {
 
     /**
      * Define a function that reduces all values related to one key into one result object.

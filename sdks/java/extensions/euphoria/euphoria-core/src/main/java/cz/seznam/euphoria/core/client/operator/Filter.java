@@ -27,6 +27,17 @@ import java.util.Objects;
 
 /**
  * Operator performing a filter operation.
+ *
+ * Output elements that pass given condition.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code by .......................} apply {@link UnaryPredicate} to input elements
+ *   <li>{@code output ...................} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(
@@ -48,10 +59,9 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
     }
   }
 
-  public static class ByBuilder<IN> implements Builders.Output<IN> {
+  public static class ByBuilder<IN> {
     private final String name;
     private final Dataset<IN> input;
-    private UnaryPredicate<IN> predicate;
 
     ByBuilder(String name, Dataset<IN> input) {
       this.name = Objects.requireNonNull(name);
@@ -66,8 +76,21 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
      * @return the next builder to complete the setup of the operator
      */
     public Builders.Output<IN> by(UnaryPredicate<IN> predicate) {
-      this.predicate = Objects.requireNonNull(predicate);
-      return this;
+      return new OutputBuilder<>(name, input, predicate);
+    }
+
+  }
+
+  public static class OutputBuilder<IN> implements Builders.Output<IN> {
+
+    private final String name;
+    private final Dataset<IN> input;
+    private final UnaryPredicate<IN> predicate;
+
+    private OutputBuilder(String name, Dataset<IN> input, UnaryPredicate<IN> predicate) {
+      this.name = name;
+      this.input = input;
+      this.predicate = predicate;
     }
 
     @Override
@@ -78,6 +101,7 @@ public class Filter<IN> extends ElementWiseOperator<IN, IN> {
 
       return filter.output();
     }
+
   }
 
   /**

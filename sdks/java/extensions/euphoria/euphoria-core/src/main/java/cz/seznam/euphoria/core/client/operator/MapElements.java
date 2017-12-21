@@ -27,9 +27,18 @@ import cz.seznam.euphoria.core.executor.graph.DAG;
 import java.util.Objects;
 
 /**
- * Simple one-to-one transformation of input elements. It is a special usage of {@link FlatMap}
- * with exactly one output element for every one input element. No context is provided inside
- * the map function.
+ * Simple one-to-one transformation of input elements. It is a special case of
+ * {@link FlatMap} with exactly one output element for every one input element.
+ * No context is provided inside the map function.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code using ....................} apply {@link UnaryFunction} or {@link UnaryFunctionEnv} to input elements
+ *   <li>{@code output ...................} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(

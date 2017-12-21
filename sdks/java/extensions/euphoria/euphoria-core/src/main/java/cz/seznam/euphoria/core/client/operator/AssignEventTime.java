@@ -25,8 +25,9 @@ import cz.seznam.euphoria.core.executor.graph.DAG;
 
 import java.util.Objects;
 
-/** A convenient alias for:
+/** A convenient alias for assignment of event time.
  *
+ * Can be rewritten as:
  * <pre>{@code
  *   Dataset<T> input = ...;
  *   Dataset<T> withStamps = FlatMap.of(input)
