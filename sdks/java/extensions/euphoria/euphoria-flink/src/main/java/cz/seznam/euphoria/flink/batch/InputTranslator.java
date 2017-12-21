@@ -29,7 +29,9 @@ class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOpera
 
   private final BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory;
 
-  InputTranslator(BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
+  InputTranslator(
+      BiFunction<LocatableInputSplit[], Integer, InputSplitAssigner> splitAssignerFactory) {
+
     this.splitAssignerFactory = splitAssignerFactory;
   }
 
@@ -37,12 +39,16 @@ class InputTranslator implements BatchOperatorTranslator<FlowUnfolder.InputOpera
   public DataSet translate(
       FlinkOperator<FlowUnfolder.InputOperator> operator,
       BatchExecutorContext context) {
+
     // get original datasource from operator
     BoundedDataSource<?> ds = operator.output().getSource().asBounded();
 
+    int envParallel = context.getExecutionEnvironment().getParallelism();
+    DataSourceWrapper<?> wrapper = new DataSourceWrapper<>(
+        ds, splitAssignerFactory, envParallel);
     return context
         .getExecutionEnvironment()
-        .createInput(new DataSourceWrapper<>(ds, splitAssignerFactory))
-        .setParallelism(ds.getDefaultParallelism());
+        .createInput(wrapper)
+        .setParallelism(Math.min(envParallel, wrapper.getParallelism()));
   }
 }

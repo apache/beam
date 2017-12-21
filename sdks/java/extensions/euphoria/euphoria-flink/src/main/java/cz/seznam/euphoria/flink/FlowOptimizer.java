@@ -91,7 +91,7 @@ public class FlowOptimizer {
         DataSource<?> raw = op.output().getSource();
         if (raw.isBounded()) {
           BoundedDataSource<?> source = raw.asBounded();
-          flinkOp.setParallelism(Math.min(maxParallelism, source.getDefaultParallelism()));
+          flinkOp.setParallelism(Math.min(maxParallelism, flinkOp.getParallelism()));
         } else {
           int partitions = raw.asUnbounded().getPartitions().size();
           flinkOp.setParallelism(Math.min(maxParallelism, partitions));
