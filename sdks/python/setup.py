@@ -111,6 +111,7 @@ REQUIRED_PACKAGES = [
     'six>=1.9,<1.11',
     'typing>=3.6.0,<3.7.0',
     'futures>=3.1.1,<4.0.0',
+    'hdfs3>=0.3.0,<0.4.0',
     ]
 
 REQUIRED_SETUP_PACKAGES = [
