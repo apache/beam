@@ -53,7 +53,11 @@ public class CoderTranslation {
   private static BiMap<Class<? extends Coder>, String> loadCoderURNs() {
     ImmutableBiMap.Builder<Class<? extends Coder>, String> coderUrns = ImmutableBiMap.builder();
     for (CoderTranslatorRegistrar registrar : ServiceLoader.load(CoderTranslatorRegistrar.class)) {
+      System.out.println(registrar + " " + registrar.getCoderURNs());
       coderUrns.putAll(registrar.getCoderURNs());
+    }
+    if (coderUrns.build().size() == 0) {
+      //throw new RuntimeException();
     }
     return coderUrns.build();
   }
