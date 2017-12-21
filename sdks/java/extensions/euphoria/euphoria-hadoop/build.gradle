@@ -1,7 +1,7 @@
 dependencies {
   compile project(':euphoria-core')
   compile "org.slf4j:slf4j-api:${slf4jVersion}"
-  compile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
+  testCompile "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
   compileOnly("org.apache.hadoop:hadoop-common:${hadoopVersion}") {
     exclude group: 'log4j'
     exclude group: 'org.slf4j'

@@ -55,4 +55,5 @@ public class HadoopUtils {
     final TaskID taskId = new TaskID(jobID, TaskType.REDUCE, taskNumber);
     return new TaskAttemptContextImpl(conf, new TaskAttemptID(taskId, 0));
   }
+
 }
