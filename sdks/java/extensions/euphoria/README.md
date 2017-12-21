@@ -109,7 +109,6 @@ happy see euphoria improving over time.
 To build the Euphoria artifacts, the following is required:
 
 * Git
-* Maven 3
 * Java 8
 
 Building the project itself is a matter of:
