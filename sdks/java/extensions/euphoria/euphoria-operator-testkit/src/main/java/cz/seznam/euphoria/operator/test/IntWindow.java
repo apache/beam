@@ -17,15 +17,15 @@ package cz.seznam.euphoria.operator.test;
 
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 
-class IntWindow extends Window<IntWindow> {
-  
+public class IntWindow extends Window<IntWindow> {
+
   private int val;
 
   IntWindow(int val) {
     this.val = val;
   }
 
-  public int getValue() {
+  int getValue() {
     return val;
   }
 

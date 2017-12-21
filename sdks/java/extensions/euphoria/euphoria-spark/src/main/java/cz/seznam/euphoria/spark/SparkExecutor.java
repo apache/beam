@@ -23,25 +23,24 @@ import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.util.Either;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
-import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
-import java.util.Arrays;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.serializer.KryoRegistrator;
+import org.apache.spark.serializer.KryoSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.stream.Stream;
 
 /**
  * Executor implementation using Apache Spark as a runtime.
@@ -50,13 +49,119 @@ public class SparkExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkExecutor.class);
 
+  private static final Class<?>[] DEFAULT_CLASSES = new Class<?>[]{
+      Pair.class,
+      // windows
+      Window.class,
+      GlobalWindowing.Window.class,
+      KeyedWindow.class,
+      TimeInterval.class,
+      // elements
+      SparkElement.class,
+      TimestampedElement.class,
+      Either.class
+  };
+
+  /**
+   * Create a new builder, the {@link SparkExecutor} can be constructed from
+   *
+   * @param appName the application name
+   * @return builder
+   */
+  public static Builder newBuilder(String appName) {
+    return newBuilder(appName, new SparkConf());
+  }
+
+  /**
+   * Create a new builder, the {@link SparkExecutor} can be constructed from
+   *
+   * @param appName the application name
+   * @param conf to initialize builder from
+   * @return builder
+   */
+  public static Builder newBuilder(String appName, SparkConf conf) {
+    return new Builder(appName, conf);
+  }
+
+  public static class Builder {
+
+    private final String appName;
+    private final SparkConf conf;
+
+    private boolean kryoRequiredReqistrationDisabled = false;
+
+    private Builder(String appName, SparkConf conf) {
+      this.appName = appName;
+      this.conf = conf;
+    }
+
+    /**
+     * Execute spark in local mode with a given parallelism
+     *
+     * @param parallelism of spark executor
+     * @return builder
+     */
+    public Builder local(int parallelism) {
+      conf.setMaster("local[" + parallelism + "]");
+      return this;
+    }
+
+    /**
+     * Register classes with kryo serializer
+     *
+     * @param classes to register
+     * @return builder
+     */
+    public Builder registerKryoClasses(Class<?>... classes) {
+      conf.registerKryoClasses(classes);
+      return this;
+    }
+
+    /**
+     * Register custom kryo registrator, for simple cases
+     * {@link Builder#registerKryoClasses} should be enough.
+     *
+     * @param registrator custom kryo registrator
+     * @return builder
+     */
+    public Builder kryoRegistrator(Class<? extends KryoRegistrator> registrator) {
+      conf.set("spark.kryo.registrator", registrator.getName());
+      return this;
+    }
+
+    /**
+     * Force kryo to accept non registered classes. Not recommended.
+     *
+     * @return builder
+     */
+    public Builder disableRequiredKryoRegistration() {
+      kryoRequiredReqistrationDisabled = true;
+      return this;
+    }
+
+    public SparkExecutor build() {
+      conf.setAppName(appName);
+      // make sure we use kryo
+      conf.set("spark.serializer", KryoSerializer.class.getName());
+      if (kryoRequiredReqistrationDisabled) {
+        LOG.warn("Required kryo registration is disabled. This is highly suboptimal!");
+        conf.set("spark.kryo.registrationRequired", "false");
+      } else {
+        conf.set("spark.kryo.registrationRequired", "true");
+      }
+      return new SparkExecutor(conf);
+    }
+  }
+
   private final JavaSparkContext sparkContext;
+
   private final ExecutorService submitExecutor = Executors.newCachedThreadPool();
 
   private SparkAccumulatorFactory accumulatorFactory =
-          new SparkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
+      new SparkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
 
   public SparkExecutor(SparkConf conf) {
+    conf.registerKryoClasses(DEFAULT_CLASSES);
     sparkContext = new JavaSparkContext(conf);
   }
 
@@ -72,7 +177,8 @@ public class SparkExecutor implements Executor {
   @Override
   public void shutdown() {
     LOG.info("Shutting down spark executor.");
-    sparkContext.close(); // works with spark.yarn.maxAppAttempts=1 otherwise yarn will restart the appmaster
+    sparkContext.close(); // works with spark.yarn.maxAppAttempts=1 otherwise yarn will restart
+    // the application master
     submitExecutor.shutdownNow();
   }
 
@@ -90,7 +196,7 @@ public class SparkExecutor implements Executor {
   @Override
   public void setAccumulatorProvider(AccumulatorProvider.Factory factory) {
     this.accumulatorFactory = new SparkAccumulatorFactory.Adapter(
-            Objects.requireNonNull(factory));
+        Objects.requireNonNull(factory));
   }
 
   private Result execute(Flow flow) {
@@ -109,7 +215,7 @@ public class SparkExecutor implements Executor {
     try {
       // FIXME blocking operation in Spark
       SparkFlowTranslator translator =
-              new SparkFlowTranslator(sparkContext, flow.getSettings(), clonedFactory);
+          new SparkFlowTranslator(sparkContext, flow.getSettings(), clonedFactory);
       sinks = translator.translateInto(flow);
     } catch (Exception e) {
       // FIXME in case of exception list of sinks will be empty
@@ -134,7 +240,7 @@ public class SparkExecutor implements Executor {
    *
    * @return {@code true} if all sources are bounded
    */
-  protected boolean isBoundedInput(Flow flow) {
+  private boolean isBoundedInput(Flow flow) {
     // check if sources are bounded or not
     for (Dataset<?> ds : flow.sources()) {
       if (!ds.isBounded()) {
@@ -143,33 +249,5 @@ public class SparkExecutor implements Executor {
     }
     return true;
   }
-
-
-  /**
-   * Pre-register given classes to spark's kryo for serialization purposes.
-   *
-   * @param classes the classes types to register
-   * @return this
-   */
-  public SparkExecutor registerClasses(Class<?>... classes) {
-    this.sparkContext.getConf().registerKryoClasses(
-        Stream.concat(
-            Arrays.stream(classes),
-            getDefaultClasses().stream())
-        .toArray(l -> new Class[l]));
-    return this;
-  }
-
-  // return classes that should be registered by default
-  // because the flink executor (might) use them by default
-  private Set<Class<?>> getDefaultClasses() {
-    return Sets.newHashSet(
-        Pair.class,
-        Window.class,
-        GlobalWindowing.Window.class,
-        TimeInterval.class,
-        SparkElement.class);
-  }
-
 
 }

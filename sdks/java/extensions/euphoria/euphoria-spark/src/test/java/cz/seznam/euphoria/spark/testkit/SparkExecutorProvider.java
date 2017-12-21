@@ -18,22 +18,28 @@ package cz.seznam.euphoria.spark.testkit;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.operator.test.junit.ExecutorEnvironment;
 import cz.seznam.euphoria.operator.test.junit.ExecutorProvider;
-import cz.seznam.euphoria.spark.TestSparkExecutor;
+import cz.seznam.euphoria.spark.SparkExecutor;
 
 public interface SparkExecutorProvider extends ExecutorProvider {
 
   @Override
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
-    TestSparkExecutor exec = new TestSparkExecutor();
+
+    final Executor executor = SparkExecutor.newBuilder("test")
+        .local(8)
+        .kryoRegistrator(TestRegistrator.class)
+        .build();
+
     return new ExecutorEnvironment() {
+
       @Override
       public Executor getExecutor() {
-        return exec;
+        return executor;
       }
 
       @Override
       public void shutdown() throws Exception {
-        exec.shutdown();
+        executor.shutdown();
       }
     };
   }
