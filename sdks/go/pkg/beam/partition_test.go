@@ -114,19 +114,10 @@ func TestPartitionFailures(t *testing.T) {
 		p, s, in := ptest.CreateList(test.in)
 		beam.Partition(s, test.n, test.fn, in)
 
-		wrap(t, p, test.in)
-	}
-}
-
-func wrap(t *testing.T, p *beam.Pipeline, in []int) {
-	defer func() {
-		if r := recover(); r != nil {
-			t.Logf("Recover: %v", r)
+		if err := ptest.Run(p); err == nil {
+			t.Errorf("Partition(%v) succeeded, want error", in)
 		}
-	}()
-
-	ptest.Run(p)
-	t.Errorf("Partition(%v) succeeded, want panic", in)
+	}
 }
 
 func TestPartitionFlattenIdentity(t *testing.T) {

@@ -90,7 +90,10 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 		params := enc.Params(funcx.FnValue)
 		args[params[0]] = val.Elm
 
-		ret := enc.Fn.Call(args)
+		ret, err := reflectCallNoPanic(enc.Fn, args)
+		if err != nil {
+			return err
+		}
 		if index, ok := enc.Error(); ok && !ret[index].IsNil() {
 			return fmt.Errorf("encode error: %v", ret[index].Interface())
 		}
@@ -102,7 +105,7 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 		if err := coder.EncodeVarInt((int32)(size), w); err != nil {
 			return err
 		}
-		_, err := w.Write(data)
+		_, err = w.Write(data)
 		return err
 
 	case coder.KV:
@@ -112,7 +115,7 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 		return EncodeElement(c.Components[1], FullValue{Elm: val.Elm2}, w)
 
 	default:
-		return fmt.Errorf("Unexpected coder: %v", c)
+		return fmt.Errorf("unexpected coder: %v", c)
 	}
 }
 
@@ -155,7 +158,10 @@ func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 		params := dec.Params(funcx.FnValue)
 		args[params[0]] = reflect.ValueOf(data)
 
-		ret := dec.Fn.Call(args)
+		ret, err := reflectCallNoPanic(dec.Fn, args)
+		if err != nil {
+			return FullValue{}, err
+		}
 		if index, ok := dec.Error(); ok && !ret[index].IsNil() {
 			return FullValue{}, fmt.Errorf("decode error: %v", ret[index].Interface())
 		}
@@ -173,7 +179,7 @@ func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 		return FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
 
 	default:
-		return FullValue{}, fmt.Errorf("Unexpected coder: %v", c)
+		return FullValue{}, fmt.Errorf("unexpected coder: %v", c)
 	}
 }
 

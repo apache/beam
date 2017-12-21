@@ -19,25 +19,39 @@ import (
 	"context"
 )
 
+// UnitID is a unit identifier. Used for debugging.
 type UnitID int
 
-// Unit represents a processing unit.
+// Unit represents a processing unit capable of processing multiple bundles
+// serially. Units are not required to be concurrency-safe. Each unit is
+// responsible for propagating each data processing call downstream, i.e.,
+// all calls except Up/Down, as appropriate.
 type Unit interface {
-	// ID returns the unit ID. Used for debugging.
+	// ID returns the unit ID.
 	ID() UnitID
-	// Up brings up the processing node. It currently signals that processing
-	// preconditions, such as side input, are met and starts the bundle.
-	Up(ctx context.Context) error
-	// Down signals end of input and thus finishes the bundle. It also takes
-	// down the processing node.
-	Down(ctx context.Context) error
 
-	// Status()
-	// Error() error
+	// Up initializes the unit. It is separate from Unit construction to
+	// make panic/error handling easier.
+	Up(ctx context.Context) error
+
+	// StartBundle signals that processing preconditions, such as availability
+	// of side input, are met and starts the given bundle.
+	StartBundle(ctx context.Context, id string, data DataManager) error
+
+	// FinishBundle signals end of input and thus finishes the bundle. Any
+	// data connections must be closed.
+	FinishBundle(ctx context.Context) error
+
+	// Down tears down the processing node. It is notably called if the unit
+	// or plan encounters an error and must thus robustly handle cleanup of
+	// unfinished bundles. If a unit itself (as opposed to downstream units)
+	// is the cause of breakage, the error returned should indicate the root
+	// cause.
+	Down(ctx context.Context) error
 }
 
 // Root represents a root processing unit. It contains its processing
-// continuation, notably other other nodes.
+// continuation, notably other nodes.
 type Root interface {
 	Unit
 
@@ -54,40 +68,4 @@ type Node interface {
 	// Call processes a single element. If GBK or CoGBK result, the values
 	// are populated. Otherwise, they're empty.
 	ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error
-}
-
-// GenID is a UnitID generator.
-type GenID struct {
-	last int
-}
-
-func (g *GenID) New() UnitID {
-	g.last++
-	return UnitID(g.last)
-}
-
-func Up(ctx context.Context, list ...Node) error {
-	for _, out := range list {
-		if err := out.Up(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func Down(ctx context.Context, list ...Node) error {
-	for _, out := range list {
-		if err := out.Down(ctx); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func IDs(list ...Node) []UnitID {
-	var ret []UnitID
-	for _, n := range list {
-		ret = append(ret, n.ID())
-	}
-	return ret
 }
