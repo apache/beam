@@ -60,12 +60,18 @@ type Root interface {
 	Process(ctx context.Context) error
 }
 
+// TODO(herohde) 12/21/2017: maybe switch to interface{} from reflect.Value.
+
+// ElementProcessor presents a component that can process an element.
+type ElementProcessor interface {
+	// Call processes a single element. If GBK or CoGBK result, the values
+	// are populated. Otherwise, they're empty.
+	ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error
+}
+
 // Node represents an single-bundle processing unit. Each node contains
 // its processing continuation, notably other nodes.
 type Node interface {
 	Unit
-
-	// Call processes a single element. If GBK or CoGBK result, the values
-	// are populated. Otherwise, they're empty.
-	ProcessElement(ctx context.Context, elm FullValue, values ...ReStream) error
+	ElementProcessor
 }
