@@ -18,10 +18,16 @@ package cz.seznam.euphoria.spark;
 import cz.seznam.euphoria.core.client.accumulators.AccumulatorProvider;
 import cz.seznam.euphoria.core.client.accumulators.VoidAccumulatorProvider;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSink;
+import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
 import cz.seznam.euphoria.spark.accumulators.SparkAccumulatorFactory;
+import java.util.Arrays;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -31,9 +37,11 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 /**
  * Executor implementation using Apache Spark as a runtime.
@@ -60,7 +68,7 @@ public class SparkExecutor implements Executor {
   public CompletableFuture<Result> submit(Flow flow) {
     return CompletableFuture.supplyAsync(() -> execute(flow), submitExecutor);
   }
-  
+
   @Override
   public void shutdown() {
     LOG.info("Shutting down spark executor.");
@@ -135,4 +143,33 @@ public class SparkExecutor implements Executor {
     }
     return true;
   }
+
+
+  /**
+   * Pre-register given classes to spark's kryo for serialization purposes.
+   *
+   * @param classes the classes types to register
+   * @return this
+   */
+  public SparkExecutor registerClasses(Class<?>... classes) {
+    this.sparkContext.getConf().registerKryoClasses(
+        Stream.concat(
+            Arrays.stream(classes),
+            getDefaultClasses().stream())
+        .toArray(l -> new Class[l]));
+    return this;
+  }
+
+  // return classes that should be registered by default
+  // because the flink executor (might) use them by default
+  private Set<Class<?>> getDefaultClasses() {
+    return Sets.newHashSet(
+        Pair.class,
+        Window.class,
+        GlobalWindowing.Window.class,
+        TimeInterval.class,
+        SparkElement.class);
+  }
+
+
 }
