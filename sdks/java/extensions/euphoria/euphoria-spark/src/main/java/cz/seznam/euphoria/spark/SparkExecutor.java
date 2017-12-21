@@ -88,7 +88,7 @@ public class SparkExecutor implements Executor {
     private final String appName;
     private final SparkConf conf;
 
-    private boolean kryoRequiredReqistrationDisabled = false;
+    private boolean kryoRequiredRegistrationDisabled = false;
 
     private Builder(String appName, SparkConf conf) {
       this.appName = appName;
@@ -135,7 +135,7 @@ public class SparkExecutor implements Executor {
      * @return builder
      */
     public Builder disableRequiredKryoRegistration() {
-      kryoRequiredReqistrationDisabled = true;
+      kryoRequiredRegistrationDisabled = true;
       return this;
     }
 
@@ -143,7 +143,9 @@ public class SparkExecutor implements Executor {
       conf.setAppName(appName);
       // make sure we use kryo
       conf.set("spark.serializer", KryoSerializer.class.getName());
-      if (kryoRequiredReqistrationDisabled) {
+      // register euphoria-spark related classes
+      conf.registerKryoClasses(DEFAULT_CLASSES);
+      if (kryoRequiredRegistrationDisabled) {
         LOG.warn("Required kryo registration is disabled. This is highly suboptimal!");
         conf.set("spark.kryo.registrationRequired", "false");
       } else {
@@ -160,13 +162,8 @@ public class SparkExecutor implements Executor {
   private SparkAccumulatorFactory accumulatorFactory =
       new SparkAccumulatorFactory.Adapter(VoidAccumulatorProvider.getFactory());
 
-  public SparkExecutor(SparkConf conf) {
-    conf.registerKryoClasses(DEFAULT_CLASSES);
+  private SparkExecutor(SparkConf conf) {
     sparkContext = new JavaSparkContext(conf);
-  }
-
-  public SparkExecutor() {
-    this(new SparkConf());
   }
 
   @Override
