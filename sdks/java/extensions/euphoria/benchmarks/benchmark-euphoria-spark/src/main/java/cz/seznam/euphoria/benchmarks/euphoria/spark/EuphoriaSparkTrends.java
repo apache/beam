@@ -45,7 +45,9 @@ public class EuphoriaSparkTrends {
       SparkConf conf = new SparkConf();
       conf.set("spark.serializer", KryoSerializer.class.getName());
       conf.registerKryoClasses(dataClasses.toArray(new Class[dataClasses.size()]));
-      return new SparkExecutor(conf);
+      return SparkExecutor
+          .newBuilder(EuphoriaSparkTrends.class.getSimpleName(), conf)
+          .build();
     }
   }
 }
