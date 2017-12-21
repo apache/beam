@@ -107,12 +107,12 @@ public class HFileSinkTest extends HBaseTestCase {
         .toArray(l -> new ByteBuffer[l]);
 
     assertEquals(0, HFileSink.toRegionId(endKeys, ibw("a")));
-    assertEquals(0, HFileSink.toRegionId(endKeys, ibw("b")));
+    assertEquals(1, HFileSink.toRegionId(endKeys, ibw("b")));
     assertEquals(1, HFileSink.toRegionId(endKeys, ibw("c")));
-    assertEquals(1, HFileSink.toRegionId(endKeys, ibw("dd")));
+    assertEquals(2, HFileSink.toRegionId(endKeys, ibw("dd")));
     assertEquals(2, HFileSink.toRegionId(endKeys, ibw("ddd")));
     assertEquals(2, HFileSink.toRegionId(endKeys, ibw("e")));
-    assertEquals(2, HFileSink.toRegionId(endKeys, ibw("fff")));
+    assertEquals(3, HFileSink.toRegionId(endKeys, ibw("fff")));
     assertEquals(3, HFileSink.toRegionId(endKeys, ibw("ffff")));
     assertEquals(3, HFileSink.toRegionId(endKeys, ibw("gg")));
   }
@@ -145,9 +145,8 @@ public class HFileSinkTest extends HBaseTestCase {
 
     assertEquals(Arrays.asList("file:" + tmp.getPath() + "/global"), loadedPaths);
 
-    // validate that there are three files in directory `t`
-    assertTrue(new File(tmp + "/global", "t").exists());
-    assertTrue(new File(tmp + "/global", "t").isDirectory());
+    // validate that the bulk load directory was deleted
+    assertFalse(new File(tmp + "/global", "t").exists());
 
     // validate that the data have been written to hbase
     data.forEach(s -> assertArrayEquals(b(s), get(s)));
