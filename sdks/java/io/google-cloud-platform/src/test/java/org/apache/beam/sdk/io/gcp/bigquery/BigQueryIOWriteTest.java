@@ -27,6 +27,7 @@ import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -62,14 +63,11 @@ import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
@@ -100,64 +98,66 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 
 @RunWith(JUnit4.class)
 public class BigQueryIOWriteTest implements Serializable {
+  private transient PipelineOptions options;
+  private transient TemporaryFolder testFolder = new TemporaryFolder();
+  private transient TestPipeline p;
+
   @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  public final transient TestRule folderThenPipeline = new TestRule() {
+    @Override
+    public Statement apply(final Statement base, final Description description) {
+      Statement withPipeline = new Statement() {
+        @Override
+        public void evaluate() throws Throwable {
+          options = TestPipeline.testingPipelineOptions();
+          options.as(BigQueryOptions.class).setProject("project-id");
+          options.as(BigQueryOptions.class).setTempLocation(testFolder.getRoot().getAbsolutePath());
+          p = TestPipeline.fromOptions(options);
+          p.apply(base, description).evaluate();
+        }
+      };
+      return testFolder.apply(withPipeline, description);
+    }
+  };
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(WriteRename.class);
-  @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
 
-  private void checkWriteObject(
-      BigQueryIO.Write write, String project, String dataset, String table,
-      TableSchema schema, BigQueryIO.Write.CreateDisposition createDisposition,
-      BigQueryIO.Write.WriteDisposition writeDisposition, String tableDescription) {
-    checkWriteObjectWithValidate(
-        write,
-        project,
-        dataset,
-        table,
-        schema,
-        createDisposition,
-        writeDisposition,
-        tableDescription,
-        true);
-  }
-
-  private void checkWriteObjectWithValidate(
-      BigQueryIO.Write<TableRow> write, String project, String dataset, String table,
-      TableSchema schema, BigQueryIO.Write.CreateDisposition createDisposition,
-      BigQueryIO.Write.WriteDisposition writeDisposition, String tableDescription, boolean validate) {
-    assertEquals(project, write.getTable().get().getProjectId());
-    assertEquals(dataset, write.getTable().get().getDatasetId());
-    assertEquals(table, write.getTable().get().getTableId());
-    if (schema == null) {
-      assertNull(write.getJsonSchema());
-      assertNull(write.getSchemaFromView());
-    } else {
-      assertEquals(schema, BigQueryHelpers.fromJsonString(
-          write.getJsonSchema().get(), TableSchema.class));
-    }
-    assertEquals(createDisposition, write.getCreateDisposition());
-    assertEquals(writeDisposition, write.getWriteDisposition());
-    assertEquals(tableDescription, write.getTableDescription());
-    assertEquals(validate, write.getValidate());
-  }
+  private FakeDatasetService fakeDatasetService = new FakeDatasetService();
+  private FakeJobService fakeJobService = new FakeJobService();
+  private FakeBigQueryServices fakeBqServices =
+      new FakeBigQueryServices()
+          .withDatasetService(fakeDatasetService)
+          .withJobService(fakeJobService);
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() throws IOException, InterruptedException {
     FakeDatasetService.setUp();
     BigQueryIO.clearCreatedTables();
+
+    fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
   }
+
+  @After
+  public void tearDown() throws IOException {
+    testNumFiles(new File(options.getTempLocation()), 0);
+  }
+
 
   // Create an intermediate type to ensure that coder inference up the inheritance tree is tested.
   abstract static class StringIntegerDestinations extends DynamicDestinations<String, Integer> {
@@ -165,19 +165,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteEmptyPCollection() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
-    Pipeline p = TestPipeline.create(bqOptions);
-
     TableSchema schema = new TableSchema()
         .setFields(
             ImmutableList.of(
@@ -192,9 +179,10 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchema(schema)
             .withoutValidation());
     p.run();
-    checkNotNull(datasetService.getTable(
-        BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
+
+    checkNotNull(
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id")));
   }
 
   @Test
@@ -208,19 +196,7 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   public void writeDynamicDestinations(boolean streaming) throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
     final Pattern userPattern = Pattern.compile("([a-z]+)([0-9]+)");
-    Pipeline p = TestPipeline.create(bqOptions);
 
     final PCollectionView<List<String>> sideInput1 =
         p.apply("Create SideInput 1", Create.of("a", "b", "c").withCoder(StringUtf8Coder.of()))
@@ -252,7 +228,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
     if (streaming) {
       users = users.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
-
     }
 
     // Use a partition decorator to verify that partition decorators are supported.
@@ -329,9 +304,6 @@ public class BigQueryIOWriteTest implements Serializable {
             .withoutValidation());
     p.run();
 
-    File tempDir = new File(bqOptions.getTempLocation());
-    testNumFiles(tempDir, 0);
-
     Map<Integer, List<TableRow>> expectedTableRows = Maps.newHashMap();
     for (int i = 0; i < userList.size(); ++i) {
       Matcher matcher = userPattern.matcher(userList.get(i));
@@ -347,10 +319,10 @@ public class BigQueryIOWriteTest implements Serializable {
     }
 
     for (Map.Entry<Integer, List<TableRow>> entry : expectedTableRows.entrySet()) {
-      assertThat(datasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
+      assertThat(
+          fakeDatasetService.getAllRows("project-id", "dataset-id", "userid-" + entry.getKey()),
           containsInAnyOrder(Iterables.toArray(entry.getValue(), TableRow.class)));
     }
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
   @Test
@@ -364,18 +336,6 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   public void testTimePartitioning(BigQueryIO.Write.Method insertMethod) throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(datasetService);
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
-    Pipeline p = TestPipeline.create(bqOptions);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
 
@@ -396,32 +356,21 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withTimePartitioning(timePartitioning)
                 .withoutValidation());
     p.run();
-    Table table = datasetService.getTable(
-        BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
+    Table table =
+        fakeDatasetService.getTable(
+            BigQueryHelpers.parseTableSpec("project-id:dataset-id.table-id"));
     assertEquals(schema, table.getSchema());
     assertEquals(timePartitioning, table.getTimePartitioning());
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
   @Test
   @Category({ValidatesRunner.class, UsesTestStream.class})
   public void testTriggeredFileLoads() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(datasetService);
-
     List<TableRow> elements = Lists.newArrayList();
     for (int i = 0; i < 30; ++i) {
       elements.add(new TableRow().set("number", i));
     }
 
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
     TestStream<TableRow> testStream =
         TestStream.create(TableRowJsonCoder.of())
             .addElements(
@@ -434,7 +383,6 @@ public class BigQueryIOWriteTest implements Serializable {
                 elements.get(20), Iterables.toArray(elements.subList(21, 30), TableRow.class))
             .advanceWatermarkToInfinity();
 
-    Pipeline p = TestPipeline.create(bqOptions);
     p.apply(testStream)
         .apply(
             BigQueryIO.writeTableRows()
@@ -452,24 +400,12 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     assertThat(
-        datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(Iterables.toArray(elements, TableRow.class)));
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
   @Test
   public void testFailuresNoRetryPolicy() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -478,12 +414,11 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableDataInsertAllResponse.InsertErrors().setErrors(
             ImmutableList.of(new ErrorProto().setReason("timeout")));
 
-    datasetService.failOnInsert(
+    fakeDatasetService.failOnInsert(
         ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError)));
 
-    Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(row1, row2, row3))
         .apply(
             BigQueryIO.writeTableRows()
@@ -500,23 +435,13 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withoutValidation());
     p.run();
 
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(row1, row2, row3));
   }
 
   @Test
   public void testRetryPolicy() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
     TableRow row3 = new TableRow().set("name", "c").set("number", "3");
@@ -528,12 +453,11 @@ public class BigQueryIOWriteTest implements Serializable {
         new TableDataInsertAllResponse.InsertErrors().setErrors(
             ImmutableList.of(new ErrorProto().setReason("invalidQuery")));
 
-    datasetService.failOnInsert(
+    fakeDatasetService.failOnInsert(
         ImmutableMap.<TableRow, List<TableDataInsertAllResponse.InsertErrors>>of(
             row1, ImmutableList.of(ephemeralError, ephemeralError),
             row2, ImmutableList.of(ephemeralError, ephemeralError, persistentError)));
 
-    Pipeline p = TestPipeline.create(bqOptions);
     PCollection<TableRow> failedRows =
         p.apply(Create.of(row1, row2, row3))
             .apply(BigQueryIO.writeTableRows().to("project-id:dataset-id.table-id")
@@ -552,25 +476,13 @@ public class BigQueryIOWriteTest implements Serializable {
     p.run();
 
     // Only row1 and row3 were successfully inserted.
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(row1, row3));
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
   @Test
   public void testWrite() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    datasetService.createDataset("defaultproject", "dataset-id", "", "", null);
-
-    Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
@@ -585,23 +497,10 @@ public class BigQueryIOWriteTest implements Serializable {
             .withTestServices(fakeBqServices)
             .withoutValidation());
     p.run();
-
-    File tempDir = new File(bqOptions.getTempLocation());
-    testNumFiles(tempDir, 0);
   }
 
   @Test
   public void testStreamingWrite() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withDatasetService(datasetService);
-
-    Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
@@ -619,14 +518,13 @@ public class BigQueryIOWriteTest implements Serializable {
             .withoutValidation());
     p.run();
 
-
-    assertThat(datasetService.getAllRows("project-id", "dataset-id", "table-id"),
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
         containsInAnyOrder(
             new TableRow().set("name", "a").set("number", 1),
             new TableRow().set("name", "b").set("number", 2),
             new TableRow().set("name", "c").set("number", 3),
             new TableRow().set("name", "d").set("number", 4)));
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
   /**
@@ -718,24 +616,24 @@ public class BigQueryIOWriteTest implements Serializable {
   private static class PartitionedGlobalWindowCoder extends AtomicCoder<PartitionedGlobalWindow> {
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream)
-        throws IOException, CoderException {
+        throws IOException {
       encode(window, outStream, Context.NESTED);
     }
 
     @Override
     public void encode(PartitionedGlobalWindow window, OutputStream outStream, Context context)
-        throws IOException, CoderException {
+        throws IOException {
       StringUtf8Coder.of().encode(window.value, outStream, context);
     }
 
     @Override
-    public PartitionedGlobalWindow decode(InputStream inStream) throws IOException, CoderException {
+    public PartitionedGlobalWindow decode(InputStream inStream) throws IOException {
       return decode(inStream, Context.NESTED);
     }
 
     @Override
     public PartitionedGlobalWindow decode(InputStream inStream, Context context)
-        throws IOException, CoderException {
+        throws IOException {
       return new PartitionedGlobalWindow(StringUtf8Coder.of().decode(inStream, context));
     }
 
@@ -754,16 +652,6 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   public void testWriteWithDynamicTables(boolean streaming) throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withDatasetService(datasetService)
-        .withJobService(new FakeJobService());
-
     List<Integer> inserts = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       inserts.add(i);
@@ -807,7 +695,6 @@ public class BigQueryIOWriteTest implements Serializable {
           }
         };
 
-    Pipeline p = TestPipeline.create(bqOptions);
     PCollection<Integer> input = p.apply("CreateSource", Create.of(inserts));
     if (streaming) {
       input = input.setIsBoundedInternal(PCollection.IsBounded.UNBOUNDED);
@@ -817,7 +704,7 @@ public class BigQueryIOWriteTest implements Serializable {
         p.apply("CreateSchemaMap", Create.of(schemas))
             .apply("ViewSchemaAsMap", View.<String, String>asMap());
 
-    input.apply(Window.<Integer>into(windowFn))
+    input.apply(Window.into(windowFn))
         .apply(BigQueryIO.<Integer>write()
             .to(tableFunction)
             .withFormatFunction(new SerializableFunction<Integer, TableRow>() {
@@ -836,33 +723,28 @@ public class BigQueryIOWriteTest implements Serializable {
       String tableSpec = String.format("project-id:dataset-id.%s", tableId);
 
       // Verify that table was created with the correct schema.
-      assertThat(BigQueryHelpers.toJsonString(
-          datasetService.getTable(new TableReference().setProjectId("project-id")
-              .setDatasetId("dataset-id").setTableId(tableId)).getSchema()),
+      assertThat(
+          BigQueryHelpers.toJsonString(
+              fakeDatasetService
+                  .getTable(
+                      new TableReference()
+                          .setProjectId("project-id")
+                          .setDatasetId("dataset-id")
+                          .setTableId(tableId))
+                  .getSchema()),
           equalTo(schemas.get(tableSpec)));
 
       // Verify that the table has the expected contents.
-      assertThat(datasetService.getAllRows("project-id", "dataset-id", tableId),
+      assertThat(
+          fakeDatasetService.getAllRows("project-id", "dataset-id", tableId),
           containsInAnyOrder(
               new TableRow().set("name", String.format("number%d", i)).set("number", i),
               new TableRow().set("name", String.format("number%d", i + 5)).set("number", i + 5)));
     }
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
   }
 
   @Test
   public void testWriteUnknown() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-    Pipeline p = TestPipeline.create(bqOptions);
-
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
@@ -875,27 +757,11 @@ public class BigQueryIOWriteTest implements Serializable {
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Failed to create load job");
-    try {
-      p.run();
-    } finally {
-      File tempDir = new File(bqOptions.getTempLocation());
-      testNumFiles(tempDir, 0);
-    }
-    testNumFiles(new File(bqOptions.getTempLocation()), 0);
+    p.run();
   }
 
   @Test
   public void testWriteFailedJobs() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-
-    Pipeline p = TestPipeline.create(bqOptions);
     p.apply(Create.of(
         new TableRow().set("name", "a").set("number", 1),
         new TableRow().set("name", "b").set("number", 2),
@@ -911,26 +777,11 @@ public class BigQueryIOWriteTest implements Serializable {
     thrown.expectMessage("reached max retries");
     thrown.expectMessage("last failed load job");
 
-    try {
-      p.run();
-    } finally {
-      File tempDir = new File(bqOptions.getTempLocation());
-      testNumFiles(tempDir, 0);
-    }
+    p.run();
   }
 
   @Test
   public void testWriteWithMissingSchemaFromView() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(new FakeDatasetService());
-
-    Pipeline p = TestPipeline.create(bqOptions);
-
     PCollectionView<Map<String, String>> view =
         p.apply("Create schema view", Create.of(KV.of("foo", "bar"), KV.of("bar", "boo")))
             .apply(View.<String, String>asMap());
@@ -947,16 +798,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteWithBrokenGetTable() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(new FakeDatasetService());
-
-    Pipeline p = TestPipeline.create(bqOptions);
-
     p.apply(Create.<TableRow>of(new TableRow().set("foo", "bar")))
         .apply(
             BigQueryIO.writeTableRows()
@@ -977,130 +818,46 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
-  public void testBuildWrite() {
+  public void testWriteBuilderMethods() {
     BigQueryIO.Write<TableRow> write =
         BigQueryIO.writeTableRows().to("foo.com:project:somedataset.sometable");
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, null);
-  }
+    assertEquals("foo.com:project", write.getTable().get().getProjectId());
+    assertEquals("somedataset", write.getTable().get().getDatasetId());
+    assertEquals("sometable", write.getTable().get().getTableId());
+    assertNull(write.getJsonSchema());
+    assertNull(write.getSchemaFromView());
+    assertEquals(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, write.getCreateDisposition());
+    assertEquals(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, write.getWriteDisposition());
+    assertEquals(null, write.getTableDescription());
+    assertEquals(true, write.getValidate());
 
-  @Test
-  public void testBuildWriteWithoutValidation() {
-    // This test just checks that using withoutValidation will not trigger object
-    // construction errors.
-    BigQueryIO.Write write =
-        BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable")
-            .withoutValidation();
-    checkWriteObjectWithValidate(
-        write,
-        "foo.com:project",
-        "somedataset",
-        "sometable",
-        null,
-        BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
-        BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-        null,
-        false);
+    assertFalse(write.withoutValidation().getValidate());
+    TableSchema schema = new TableSchema();
+    assertEquals(
+        schema,
+        BigQueryHelpers.fromJsonString(
+            write.withSchema(schema).getJsonSchema().get(), TableSchema.class));
   }
 
   @Test
   public void testBuildWriteDefaultProject() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
-        .to("somedataset" + ".sometable");
-    checkWriteObject(
-        write, null, "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-        null);
+    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to("somedataset.sometable");
+    assertEquals(null, write.getTable().get().getProjectId());
+    assertEquals("somedataset", write.getTable().get().getDatasetId());
+    assertEquals("sometable", write.getTable().get().getTableId());
   }
 
   @Test
   public void testBuildWriteWithTableReference() {
-    TableReference table = new TableReference()
-        .setProjectId("foo.com:project")
-        .setDatasetId("somedataset")
-        .setTableId("sometable");
+    TableReference table =
+        new TableReference()
+            .setProjectId("foo.com:project")
+            .setDatasetId("somedataset")
+            .setTableId("sometable");
     BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows().to(table);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, null);
-  }
-
-  @Test
-  public void testBuildWriteWithSchema() {
-    TableSchema schema = new TableSchema();
-    BigQueryIO.Write<TableRow> write =
-        BigQueryIO.<TableRow>write().to("foo.com:project:somedataset.sometable").withSchema(schema);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        schema, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, null);
-  }
-
-  @Test
-  public void testBuildWriteWithCreateDispositionNever() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
-        .to("foo.com:project:somedataset.sometable")
-        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_NEVER, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, null);
-  }
-
-  @Test
-  public void testBuildWriteWithCreateDispositionIfNeeded() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
-        .to("foo.com:project:somedataset.sometable")
-        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, null);
-  }
-
-  @Test
-  public void testBuildWriteWithWriteDispositionTruncate() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
-        .to("foo.com:project:somedataset.sometable")
-        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_TRUNCATE, null);
-  }
-
-  @Test
-  public void testBuildWriteWithWriteDispositionAppend() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
-        .to("foo.com:project:somedataset.sometable")
-        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_APPEND, null);
-  }
-
-  @Test
-  public void testBuildWriteWithWriteDispositionEmpty() {
-    BigQueryIO.Write<TableRow> write = BigQueryIO.<TableRow>write()
-        .to("foo.com:project:somedataset.sometable")
-        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_EMPTY);
-    checkWriteObject(
-        write, "foo.com:project", "somedataset", "sometable",
-        null, BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED, BigQueryIO.Write.WriteDisposition.WRITE_EMPTY, null);
-  }
-
-  @Test
-  public void testBuildWriteWithWriteWithTableDescription() {
-    final String tblDescription = "foo bar table";
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
-        .to("foo.com:project:somedataset.sometable")
-        .withTableDescription(tblDescription);
-    checkWriteObject(
-        write,
-        "foo.com:project",
-        "somedataset",
-        "sometable",
-        null,
-        BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED,
-        BigQueryIO.Write.WriteDisposition.WRITE_EMPTY,
-        tblDescription);
+    assertEquals("foo.com:project", write.getTable().get().getProjectId());
+    assertEquals("somedataset", write.getTable().get().getDatasetId());
+    assertEquals("sometable", write.getTable().get().getTableId());
   }
 
   @Test
@@ -1109,42 +866,34 @@ public class BigQueryIOWriteTest implements Serializable {
     TableSchema schema = new TableSchema().set("col1", "type1").set("col2", "type2");
     final String tblDescription = "foo bar table";
 
-    BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
-        .to(tableSpec)
-        .withSchema(schema)
-        .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
-        .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
-        .withTableDescription(tblDescription)
-        .withoutValidation();
+    BigQueryIO.Write<TableRow> write =
+        BigQueryIO.writeTableRows()
+            .to(tableSpec)
+            .withSchema(schema)
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED)
+            .withWriteDisposition(BigQueryIO.Write.WriteDisposition.WRITE_APPEND)
+            .withTableDescription(tblDescription)
+            .withoutValidation();
 
     DisplayData displayData = DisplayData.from(write);
 
     assertThat(displayData, hasDisplayItem("table"));
     assertThat(displayData, hasDisplayItem("schema"));
-    assertThat(displayData,
-        hasDisplayItem("createDisposition", BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED.toString()));
-    assertThat(displayData,
-        hasDisplayItem("writeDisposition", BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString()));
-    assertThat(displayData,
-        hasDisplayItem("tableDescription", tblDescription));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            "createDisposition", BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED.toString()));
+    assertThat(
+        displayData,
+        hasDisplayItem(
+            "writeDisposition", BigQueryIO.Write.WriteDisposition.WRITE_APPEND.toString()));
+    assertThat(displayData, hasDisplayItem("tableDescription", tblDescription));
     assertThat(displayData, hasDisplayItem("validation", false));
   }
 
   private void testWriteValidatesDataset(boolean unbounded) throws Exception {
-    String projectId = "someproject";
-    String datasetId = "somedataset";
-
-    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    options.setProject(projectId);
-
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(new FakeDatasetService());
-
-    Pipeline p = TestPipeline.create(options);
-
     TableReference tableRef = new TableReference();
-    tableRef.setDatasetId(datasetId);
+    tableRef.setDatasetId("somedataset");
     tableRef.setTableId("sometable");
 
     PCollection<TableRow> tableRows;
@@ -1191,10 +940,7 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testCreateNeverWithStreaming() throws Exception {
-    BigQueryOptions options = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    options.setProject("project");
-    options.setStreaming(true);
-    Pipeline p = TestPipeline.create(options);
+    p.enableAbandonedNodeEnforcement(false);
 
     TableReference tableRef = new TableReference();
     tableRef.setDatasetId("dataset");
@@ -1290,7 +1036,7 @@ public class BigQueryIOWriteTest implements Serializable {
             ValueProvider.StaticValueProvider.of("SINGLETON"), "");
     List<ShardedKey<TableDestination>> expectedPartitions = Lists.newArrayList();
     if (isSingleton) {
-      expectedPartitions.add(ShardedKey.<TableDestination>of(
+      expectedPartitions.add(ShardedKey.of(
           new TableDestination("SINGLETON", ""), 1));
     } else {
       for (int i = 0; i < numTables; ++i) {
@@ -1313,7 +1059,9 @@ public class BigQueryIOWriteTest implements Serializable {
       for (int j = 0; j < numFilesPerTable; ++j) {
         String fileName = String.format("%s_files%05d", tableName, j);
         filenames.add(fileName);
-        files.add(new WriteBundlesToFiles.Result<>(fileName, fileSize, new TableDestination(tableName, "")));
+        files.add(
+            new WriteBundlesToFiles.Result<>(
+                fileName, fileSize, new TableDestination(tableName, "")));
       }
     }
 
@@ -1374,6 +1122,11 @@ public class BigQueryIOWriteTest implements Serializable {
     } else {
       assertEquals(filenamesPerTable, filesPerTableResult);
     }
+    for (List<String> filenames : filesPerTableResult.values()) {
+      for (String filename : filenames) {
+        Files.deleteIfExists(Paths.get(filename));
+      }
+    }
   }
 
   static class IdentityDynamicTables extends DynamicDestinations<String, String> {
@@ -1395,17 +1148,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteTables() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
-    Pipeline p = TestPipeline.create(bqOptions);
     long numTables = 3;
     long numPartitions = 3;
     long numFilesPerPartition = 10;
@@ -1475,18 +1217,13 @@ public class BigQueryIOWriteTest implements Serializable {
               }
             });
     p.run();
-    testNumFiles(testFolder.getRoot(), 0);
   }
 
   @Test
   public void testRemoveTemporaryFiles() throws Exception {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
     int numFiles = 10;
     List<String> fileNames = Lists.newArrayList();
-    String tempFilePrefix = bqOptions.getTempLocation() + "/";
+    String tempFilePrefix = options.getTempLocation() + "/";
     for (int i = 0; i < numFiles; ++i) {
       TableRowWriter writer = new TableRowWriter(tempFilePrefix);
       writer.close();
@@ -1494,23 +1231,15 @@ public class BigQueryIOWriteTest implements Serializable {
     }
     fileNames.add(tempFilePrefix + String.format("files%05d", numFiles));
 
-    File tempDir = new File(bqOptions.getTempLocation());
+    File tempDir = new File(options.getTempLocation());
     testNumFiles(tempDir, 10);
 
     WriteTables.removeTemporaryFiles(fileNames);
-
-    testNumFiles(tempDir, 0);
   }
 
   @Test
   public void testWriteRename() throws Exception {
     p.enableAbandonedNodeEnforcement(false);
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(new FakeJobService())
-        .withDatasetService(datasetService);
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
 
     final int numFinalTables = 3;
     final int numTempTablesPerFinalTable = 3;
@@ -1529,13 +1258,13 @@ public class BigQueryIOWriteTest implements Serializable {
             .setProjectId("project-id")
             .setDatasetId("dataset-id")
             .setTableId(String.format("%s_%05d_%05d", jobIdToken, i, j));
-        datasetService.createTable(new Table().setTableReference(tempTable));
+        fakeDatasetService.createTable(new Table().setTableReference(tempTable));
 
         List<TableRow> rows = Lists.newArrayList();
         for (int k = 0; k < numRecordsPerTempTable; ++k) {
           rows.add(new TableRow().set("number", j * numTempTablesPerFinalTable + k));
         }
-        datasetService.insertAll(tempTable, rows, null);
+        fakeDatasetService.insertAll(tempTable, rows, null);
         expectedRowsPerTable.putAll(tableDestination, rows);
         String tableJson = BigQueryHelpers.toJsonString(tempTable);
         tempTables.put(tableDestination, tableJson);
@@ -1562,11 +1291,11 @@ public class BigQueryIOWriteTest implements Serializable {
     for (Map.Entry<TableDestination, Collection<String>> entry : tempTables.asMap().entrySet()) {
       TableDestination tableDestination = entry.getKey();
       TableReference tableReference = tableDestination.getTableReference();
-      Table table = checkNotNull(datasetService.getTable(tableReference));
+      Table table = checkNotNull(fakeDatasetService.getTable(tableReference));
       assertEquals(tableReference.getTableId() + "_desc", tableDestination.getTableDescription());
 
       Collection<TableRow> expectedRows = expectedRowsPerTable.get(tableDestination);
-      assertThat(datasetService.getAllRows(tableReference.getProjectId(),
+      assertThat(fakeDatasetService.getAllRows(tableReference.getProjectId(),
           tableReference.getDatasetId(), tableReference.getTableId()),
           containsInAnyOrder(Iterables.toArray(expectedRows, TableRow.class)));
 
@@ -1574,7 +1303,7 @@ public class BigQueryIOWriteTest implements Serializable {
       for (String tempTableJson : entry.getValue()) {
         TableReference tempTable = BigQueryHelpers.fromJsonString(
             tempTableJson, TableReference.class);
-        assertEquals(null, datasetService.getTable(tempTable));
+        assertEquals(null, fakeDatasetService.getTable(tempTable));
       }
     }
   }
@@ -1606,29 +1335,16 @@ public class BigQueryIOWriteTest implements Serializable {
     }
   }
 
-  /** Test options. **/
-  public interface RuntimeTestOptions extends PipelineOptions {
-    ValueProvider<String> getOutputTable();
-    void setOutputTable(ValueProvider<String> value);
-
-    ValueProvider<String> getOutputSchema();
-    void setOutputSchema(ValueProvider<String> value);
-  }
-
   @Test
   public void testRuntimeOptionsNotCalledInApplyOutput() {
-    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-    Pipeline pipeline = TestPipeline.create(options);
+    p.enableAbandonedNodeEnforcement(false);
+
     BigQueryIO.Write<TableRow> write = BigQueryIO.writeTableRows()
-        .to(options.getOutputTable())
+        .to(p.newProvider("some-table"))
         .withSchema(ValueProvider.NestedValueProvider.of(
-            options.getOutputSchema(), new BigQueryHelpers.JsonSchemaToTableSchema()))
+            p.newProvider("some-schema"), new BigQueryHelpers.JsonSchemaToTableSchema()))
         .withoutValidation();
-    pipeline
-        .apply(Create.empty(TableRowJsonCoder.of()))
-        .apply(write);
+    p.apply(Create.empty(TableRowJsonCoder.of())).apply(write);
     // Test that this doesn't throw.
     DisplayData.from(write);
   }
@@ -1643,18 +1359,6 @@ public class BigQueryIOWriteTest implements Serializable {
 
   @Test
   public void testWriteToTableDecorator() throws Exception {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("project-id");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices =
-        new FakeBigQueryServices()
-            .withJobService(new FakeJobService())
-            .withDatasetService(datasetService);
-    datasetService.createDataset("project-id", "dataset-id", "", "", null);
-
-    Pipeline p = TestPipeline.create(bqOptions);
     TableRow row1 = new TableRow().set("name", "a").set("number", "1");
     TableRow row2 = new TableRow().set("name", "b").set("number", "2");
 
@@ -1671,13 +1375,5 @@ public class BigQueryIOWriteTest implements Serializable {
                 .withSchema(schema)
                 .withoutValidation());
     p.run();
-  }
-
-  @Test
-  public void testTableDecoratorStripping() {
-    assertEquals("project:dataset.table",
-        BigQueryHelpers.stripPartitionDecorator("project:dataset.table$20171127"));
-    assertEquals("project:dataset.table",
-        BigQueryHelpers.stripPartitionDecorator("project:dataset.table"));
   }
 }
