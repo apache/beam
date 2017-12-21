@@ -352,8 +352,8 @@ public class MongoDBGridFSIOTest implements Serializable {
           DataInputStream dis = new DataInputStream(ins);
           byte b[] = new byte[l];
           dis.readFully(b);
-          for (int x = 0; x < b.length; x++) {
-            intResults[b[x]] = true;
+          for (byte aByte : b) {
+            intResults[aByte] = true;
           }
         }
       }
