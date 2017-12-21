@@ -16,13 +16,10 @@
 package cz.seznam.euphoria.examples;
 
 import cz.seznam.euphoria.core.executor.Executor;
+import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.flink.FlinkExecutor;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
-import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.spark.SparkExecutor;
-import cz.seznam.euphoria.spark.TestSparkExecutor;
-import org.apache.spark.SparkConf;
-import org.apache.spark.serializer.KryoSerializer;
 
 import java.io.IOException;
 
@@ -36,6 +33,7 @@ public class Executors {
   }
 
   private static class LocalFactory implements Factory {
+
     @Override
     public Executor create() throws IOException {
       return new LocalExecutor();
@@ -43,27 +41,34 @@ public class Executors {
   }
 
   private static class SparkFactory implements Factory {
+
     private final boolean test;
+
     SparkFactory(boolean test) {
       this.test = test;
     }
+
     @Override
     public Executor create() {
+      final SparkExecutor.Builder builder = SparkExecutor
+          .newBuilder("euphoria-example")
+          .disableRequiredKryoRegistration();
       if (test) {
-        return new TestSparkExecutor();
+        return builder.local(8).build();
       } else {
-        SparkConf conf = new SparkConf();
-        conf.set("spark.serializer", KryoSerializer.class.getName());
-        return new SparkExecutor(conf);
+        return builder.build();
       }
     }
   }
 
   private static class FlinkFactory implements Factory {
+
     private final boolean test;
+
     FlinkFactory(boolean test) {
       this.test = test;
     }
+
     @Override
     public Executor create() throws IOException {
       if (test) {
