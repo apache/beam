@@ -78,10 +78,19 @@ type Z struct {
 	Type string
 }
 
-var macros = map[string][]string{
-	"integers": []string{"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64"},
-	"floats":   []string{"float32", "float64"},
-}
+var (
+	integers   = []string{"int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64"}
+	floats     = []string{"float32", "float64"}
+	primitives = append(append([]string{"bool", "string"}, integers...), floats...)
+
+	macros = map[string][]string{
+		"integers":   integers,
+		"floats":     floats,
+		"primitives": primitives,
+		"data":       append([]string{"[]byte"}, primitives...),
+		"universals": []string{"typex.T", "typex.U", "typex.V", "typex.W", "typex.X", "typex.Y", "typex.Z"},
+	}
+)
 
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %v [options] --input=<filename.tmpl --x=<types>\n", filepath.Base(os.Args[0]))

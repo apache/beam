@@ -27,6 +27,13 @@ func IsEmit(t reflect.Type) bool {
 	return ok
 }
 
+// IsEmitWithEventTime return true iff the supplied type is an
+// emitter and the first argument is the optional EventTime.
+func IsEmitWithEventTime(t reflect.Type) bool {
+	types, ok := UnfoldEmit(t)
+	return ok && types[0] == typex.EventTimeType
+}
+
 // UnfoldEmit returns the parameter types, if an emitter. For example:
 //
 //     func (int)                  returns {int}
