@@ -47,7 +47,9 @@ public class ReduceStateByKeyTranslator implements BatchOperatorTranslator<Reduc
   private StateContext stateContext;
 
   private void loadConfig(Settings settings, ExecutionEnvironment env) {
-    int maxMemoryElements = settings.getInt(CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY, CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT);
+    int maxMemoryElements = settings.getInt(
+        CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_KEY,
+        CFG_LIST_STORAGE_MAX_MEMORY_ELEMS_DEFAULT);
     this.stateContext = new BatchStateContext(settings, env, maxMemoryElements);
   }
 

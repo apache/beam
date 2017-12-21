@@ -3,6 +3,7 @@ dependencies {
   compileOnly "org.apache.flink:flink-java:${flinkVersion}"
   compileOnly "org.apache.flink:flink-clients_${scalaVersion}:${flinkVersion}"
   compileOnly "org.apache.flink:flink-streaming-java_${scalaVersion}:${flinkVersion}"
+  compileOnly "org.apache.flink:flink-statebackend-rocksdb_${scalaVersion}:${flinkVersion}"
   testCompile project(':euphoria-operator-testkit')
   testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
   testCompile "org.apache.flink:flink-statebackend-rocksdb_${scalaVersion}:${flinkVersion}"
