@@ -18,11 +18,13 @@ package org.apache.beam.runners.fnexecution.graph;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
+import org.apache.beam.runners.core.construction.ModelCoderRegistrar;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.LengthPrefixCoder;
 
@@ -32,18 +34,24 @@ import org.apache.beam.sdk.coders.LengthPrefixCoder;
  * <p>TODO: Support a dynamic list of well known coders using either registration or manual listing.
  */
 public class LengthPrefixUnknownCoders {
-  private static final String BYTES_CODER_TYPE = "urn:beam:coders:bytes:0.1";
-  private static final String LENGTH_PREFIX_CODER_TYPE = "urn:beam:coders:length_prefix:0.1";
+  static {
+    assert new ModelCoderRegistrar().getCoderURNs().size() > 0;
+  }
+  private static final Map<Class<? extends org.apache.beam.sdk.coders.Coder>, String> MODEL_CODER_URNS =
+      new ModelCoderRegistrar().getCoderURNs();
+  private static final String BYTES_CODER_TYPE = MODEL_CODER_URNS.get(ByteArrayCoder.class);
+  private static final String LENGTH_PREFIX_CODER_TYPE = MODEL_CODER_URNS.get(LengthPrefixCoder.class);
   private static final Set<String> WELL_KNOWN_CODER_URNS =
-      ImmutableSet.of(
-          BYTES_CODER_TYPE,
-          "urn:beam:coders:kv:0.1",
-          "urn:beam:coders:varint:0.1",
-          "urn:beam:coders:interval_window:0.1",
-          "urn:beam:coders:stream:0.1",
-          LENGTH_PREFIX_CODER_TYPE,
-          "urn:beam:coders:global_window:0.1",
-          "urn:beam:coders:windowed_value:0.1");
+      ImmutableSet.copyOf(MODEL_CODER_URNS.values());
+      // ImmutableSet.of(
+//           BYTES_CODER_TYPE,
+//           "urn:beam:coders:kv:0.1",
+//           "urn:beam:coders:varint:0.1",
+//           "urn:beam:coders:interval_window:0.1",
+//           "urn:beam:coders:stream:0.1",
+//           LENGTH_PREFIX_CODER_TYPE,
+//           "urn:beam:coders:global_window:0.1",
+//           "urn:beam:coders:windowed_value:0.1");
 
   /**
    * Recursively traverse the coder tree and wrap the first unknown coder in every branch with a
