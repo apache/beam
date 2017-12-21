@@ -48,16 +48,6 @@ public interface BoundedDataSource<T> extends DataSource<T> {
   }
 
   /**
-   * Retrieve default parallelism of this source.
-   * That is, into how many pieces should this source split by default.
-   * @return default parallelism
-   */
-  default int getDefaultParallelism() {
-    int def = (int) (sizeEstimate() / DEFAULT_BATCH_SIZE);
-    return def <= 0 ? 1 : def;
-  }
-
-  /**
    * Split this source to smaller pieces.
    *
    * @param desiredSplitBytes hint of approximately how many bytes
@@ -87,6 +77,5 @@ public interface BoundedDataSource<T> extends DataSource<T> {
    *          data fails for some reason
    */
   BoundedReader<T> openReader() throws IOException;
-
 
 }
