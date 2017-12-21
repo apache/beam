@@ -22,6 +22,7 @@ import cz.seznam.euphoria.flink.TestFlinkExecutor;
 import cz.seznam.euphoria.spark.SparkExecutor;
 
 import java.io.IOException;
+import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
 
 /**
  * A collection of helpers for easy allocation/creation of a specific executor.
@@ -29,13 +30,13 @@ import java.io.IOException;
 public class Executors {
 
   private interface Factory {
-    Executor create() throws IOException;
+    Executor create(Class<?>... classes) throws IOException;
   }
 
   private static class LocalFactory implements Factory {
 
     @Override
-    public Executor create() throws IOException {
+    public Executor create(Class<?>... classes) throws IOException {
       return new LocalExecutor();
     }
   }
@@ -49,10 +50,10 @@ public class Executors {
     }
 
     @Override
-    public Executor create() {
+    public Executor create(Class<?>... classes) {
       final SparkExecutor.Builder builder = SparkExecutor
           .newBuilder("euphoria-example")
-          .disableRequiredKryoRegistration();
+          .registerKryoClasses(classes);
       if (test) {
         return builder.local().build();
       } else {
@@ -70,11 +71,13 @@ public class Executors {
     }
 
     @Override
-    public Executor create() throws IOException {
+    public Executor create(Class<?>... classes) throws IOException {
       if (test) {
         return new TestFlinkExecutor();
       } else {
-        return new FlinkExecutor();
+        return new FlinkExecutor()
+            .setStateBackend(new RocksDBStateBackend("hdfs:///tmp/flink/checkpoints"))
+            .registerClasses(classes);
       }
     }
   }
@@ -94,13 +97,17 @@ public class Executors {
    * </ul>
    *
    * @param executorName the name of the executor to create
+   * @param classes classes used by the flow to be registered for serialization
    *
    * @return a newly created executor
    *
    * @throws IllegalArgumentException if the specified name is unknown
    * @throws IOException if setting up the executor fails for some reason
    */
-  public static Executor createExecutor(String executorName) throws IOException {
+  public static Executor createExecutor(
+      String executorName,
+      Class<?>... classes) throws IOException {
+
     // ~ be sure to go through factories to leverage java lazy class loading;
     // this avoids for example loading spark dependencies in a flink environment
     final Factory f;
@@ -123,7 +130,7 @@ public class Executors {
       default:
         throw new IllegalArgumentException("Executor not supported: " + executorName);
     }
-    return f.create();
+    return f.create(classes);
   }
 
 }
