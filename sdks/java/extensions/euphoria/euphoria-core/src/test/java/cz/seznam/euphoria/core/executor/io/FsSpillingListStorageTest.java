@@ -24,6 +24,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -74,8 +76,13 @@ public class FsSpillingListStorageTest {
 
     // ~ assert we can read the content (repeatedly)
     Iterable<String> elements = storage.get();
-    assertEquals(Arrays.asList("one", "two", "three", "four"), Lists.newArrayList(elements));
-    assertEquals(Arrays.asList("one", "two", "three", "four"), Lists.newArrayList(elements));
+    assertEquals(
+        Arrays.asList("one", "two", "three", "four"),
+        Lists.newArrayList(elements));
+
+    assertEquals(
+        Arrays.asList("one", "two", "three", "four"),
+        Lists.newArrayList(elements));
 
     // ~ assert that the spill files get properly cleaned up
     storage.clear();
@@ -84,7 +91,8 @@ public class FsSpillingListStorageTest {
 
   @Test
   public void testMixedIteration() {
-    List<String> input = Arrays.asList("one", "two", "three", "four", "five", "six", "seven", "eight");
+    List<String> input = Arrays.asList(
+        "one", "two", "three", "four", "five", "six", "seven", "eight");
 
 
     FsSpillingListStorage<String> storage =
@@ -115,5 +123,20 @@ public class FsSpillingListStorageTest {
     // ~ assert that the spill files get properly cleaned up
     storage.clear();
     assertFalse(spillFiles.getCreatedFiles().get(0).exists());
+  }
+
+  @Test
+  public void testCloseOutput() {
+    List<String> input = Arrays.asList(
+        "one", "two", "three", "four", "five", "six", "seven", "eight");
+
+
+    FsSpillingListStorage<String> storage =
+        new FsSpillingListStorage<>(new JavaSerializationFactory(), spillFiles, 5);
+    storage.addAll(input);
+    storage.closeOutput();
+    assertEquals(input, StreamSupport
+        .stream(storage.get().spliterator(), false)
+        .collect(Collectors.toList()));
   }
 }

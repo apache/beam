@@ -41,7 +41,6 @@ import cz.seznam.euphoria.core.client.operator.state.ValueStorage;
 import cz.seznam.euphoria.core.client.operator.state.ValueStorageDescriptor;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.executor.util.SingleValueContext;
-import java.io.IOException;
 
 import javax.annotation.Nullable;
 import java.util.Comparator;
@@ -559,12 +558,13 @@ public class ReduceByKey<IN, KEY, VALUE, OUT, W extends Window>
     @Override
     public void flush(Collector<OUT> ctx) {
       if (comparator != null) {
-        Comparator<IN> c = comparator::apply;
-        ExternalIterable<IN> sorted = spill.sorted(reducibleValues.get(), c);
-        reducer.apply(StreamSupport.stream(sorted.spliterator(), false), ctx);
         try {
-          sorted.close();
-        } catch (IOException ex) {
+          Comparator<IN> c = comparator::apply;
+          Iterable<IN> values = reducibleValues.get();
+          try (ExternalIterable<IN> sorted = spill.sorted(values, c)) {
+            reducer.apply(StreamSupport.stream(sorted.spliterator(), false), ctx);
+          }
+        } catch (InterruptedException ex) {
           throw new RuntimeException(ex);
         }
       } else {

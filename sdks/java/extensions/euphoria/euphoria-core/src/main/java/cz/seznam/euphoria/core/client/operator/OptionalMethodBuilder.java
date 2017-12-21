@@ -28,10 +28,35 @@ import java.util.Objects;
 @Audience(Audience.Type.INTERNAL)
 public interface OptionalMethodBuilder<BUILDER> {
 
+  /**
+   * Apply given modification to builder when condition evaluates to {@code true}.
+   * @param cond the condition
+   * @param apply the modification
+   * @return next step builder
+   */
   @SuppressWarnings("unchecked")
   default BUILDER applyIf(boolean cond, UnaryFunction<BUILDER, BUILDER> apply) {
     Objects.requireNonNull(apply);
     return cond ? apply.apply((BUILDER) this) : (BUILDER) this;
+  }
+
+  /**
+   * Apply given modifications to builder based on condition.
+   * @param cond the condition to evaluate
+   * @param applyTrue modification to apply when {@code cond} evaluates to {@code true}
+   * @param applyFalse modification to apply when {@code cond} evaluates to {@code false}
+   * @return next step builder
+   */
+  @SuppressWarnings("unchecked")
+  default BUILDER applyIf(
+      boolean cond,
+      UnaryFunction<BUILDER, BUILDER> applyTrue,
+      UnaryFunction<BUILDER, BUILDER> applyFalse) {
+
+    if (cond) {
+      return applyTrue.apply((BUILDER) this);
+    }
+    return applyFalse.apply((BUILDER) this);
   }
 
 }
