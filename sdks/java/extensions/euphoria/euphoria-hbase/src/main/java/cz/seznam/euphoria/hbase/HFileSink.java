@@ -19,8 +19,8 @@ package cz.seznam.euphoria.hbase;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 import cz.seznam.euphoria.core.client.io.Collector;
 import cz.seznam.euphoria.core.client.io.DataSink;
@@ -33,6 +33,7 @@ import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
 import cz.seznam.euphoria.hadoop.output.HadoopSink.HadoopWriter;
+import cz.seznam.euphoria.shadow.com.google.common.base.Strings;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -265,7 +266,7 @@ public class HFileSink implements DataSink<Cell> {
 
     CellComparator comparator = new CellComparator();
 
-    Dataset<Pair<Integer, String>> hfiles = ReduceByKey.of(output)
+    Dataset<String> hfiles = ReduceByKey.of(output)
         .keyBy(c -> toRegionIdUninitialized(bufferedKeys, endKeys,
             ByteBuffer.wrap(c.getRowArray(), c.getRowOffset(), c.getRowLength())))
         // FIXME: use raw byte arrays here and rawcomparators to sort it
@@ -306,17 +307,25 @@ public class HFileSink implements DataSink<Cell> {
         })
         .withSortedValues(comparator::compare)
         .applyIf(windowing != null, b -> b.windowBy(windowing))
-        .output();
+        .outputValues();
+
 
     String outputDir = rawSink.getConfiguration().get(FileOutputFormat.OUTDIR);
 
     ReduceWindow.of(hfiles)
-        .valueBy(Pair::getSecond)
         .reduceBy((Stream<String> s, Collector<Void> ctx) -> {
           ctx.getWindow();
-          Path o = new Path(new Path(outputDir), folderNaming.apply(ctx.getWindow()));
+          String subdir = folderNaming.apply(ctx.getWindow());
+          Path o = Strings.isNullOrEmpty(subdir)
+              ? new Path(outputDir)
+              : new Path(new Path(outputDir), folderNaming.apply(ctx.getWindow()));
           s.forEach(p -> moveTo(p, o));
           loadIncrementalHFiles(o);
+          try {
+            o.getFileSystem(rawSink.getConfiguration()).delete(o, true);
+          } catch (IOException ex) {
+            LOG.warn("Exception while removing the bulk-loaded directory {}", o, ex);
+          }
         })
         .output()
         .persist(new VoidSink<>());
@@ -401,7 +410,7 @@ public class HFileSink implements DataSink<Cell> {
 
   private static int toRegionId(ByteBuffer[] endKeys, ByteBuffer row) {
     int search = Arrays.binarySearch(endKeys, row);
-    return search >= 0 ? search : - (search + 1);
+    return search >= 0 ? search + 1: - (search + 1);
   }
 
    private static ByteBuffer[] initialize(byte[][] bytesEndKeys) {
