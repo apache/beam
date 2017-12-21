@@ -61,7 +61,7 @@ import static org.junit.Assert.fail;
 @Processing(Processing.Type.ALL)
 public class WindowingTest extends AbstractOperatorTest {
 
-  private enum Type {
+  public enum Type {
     FRUIT, VEGETABLE
   }
 
@@ -227,9 +227,10 @@ public class WindowingTest extends AbstractOperatorTest {
     }
   }
 
-  private static class ComparablePair<
+  public static class ComparablePair<
       T0 extends Comparable<T0>, T1 extends Comparable<T1>>
           implements Comparable<ComparablePair<T0, T1>> {
+
     private final T0 first;
     private final T1 second;
 
