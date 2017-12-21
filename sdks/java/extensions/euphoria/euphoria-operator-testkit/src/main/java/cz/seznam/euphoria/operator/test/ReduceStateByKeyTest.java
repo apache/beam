@@ -682,10 +682,11 @@ public class ReduceStateByKeyTest extends AbstractOperatorTest {
   /**
    * String with invalid hash code implementation returning constant.
    */
-  private static class Word {
+  public static class Word {
+
     private final String str;
 
-    public Word(String str) {
+    Word(String str) {
       this.str = str;
     }
 
