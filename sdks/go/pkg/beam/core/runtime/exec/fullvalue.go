@@ -29,7 +29,7 @@ import (
 // implicit context. The result of a GBK or CoGBK is not a single FullValue.
 // The consumer is responsible for converting the values to the correct type.
 type FullValue struct {
-	Elm  reflect.Value // Elm or KV key.
+	Elm  reflect.Value // Element or KV key.
 	Elm2 reflect.Value // KV value, if not invalid
 
 	Timestamp typex.EventTime
