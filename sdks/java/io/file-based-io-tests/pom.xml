@@ -113,6 +113,7 @@
                                 <argument>${pkbLocation}</argument>
                                 <argument>-benchmarks=beam_integration_benchmark</argument>
                                 <argument>-beam_it_profile=io-it</argument>
+                                <argument>-beam_it_timeout=${pkbTimeout}</argument>
                                 <argument>-beam_location=${beamRootProjectDir}</argument>
                                 <argument>-beam_prebuilt=true</argument>
                                 <argument>-beam_sdk=java</argument>
