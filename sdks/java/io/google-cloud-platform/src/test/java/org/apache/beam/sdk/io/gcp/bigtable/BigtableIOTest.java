@@ -63,6 +63,7 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -393,19 +394,28 @@ public class BigtableIOTest {
   }
 
   private static List<Row> filterToRange(List<Row> rows, final ByteKeyRange range) {
+    return filterToRanges(rows, ImmutableList.of(range));
+  }
+
+  private static List<Row> filterToRanges(List<Row> rows, final List<ByteKeyRange> ranges) {
     return Lists.newArrayList(Iterables.filter(
         rows,
         new Predicate<Row>() {
           @Override
           public boolean apply(@Nullable Row input) {
             verifyNotNull(input, "input");
-            return range.containsKey(makeByteKey(input.getKey()));
+            for (ByteKeyRange range : ranges) {
+              if (range.containsKey(makeByteKey(input.getKey()))) {
+                return true;
+              }
+            }
+            return false;
           }
         }));
   }
 
   private void runReadTest(BigtableIO.Read read, List<Row> expected) {
-    PCollection<Row> rows = p.apply(read.getTableId() + "_" + read.getKeyRange(), read);
+    PCollection<Row> rows = p.apply(read.getTableId() + "_" + read.getKeyRanges(), read);
     PAssert.that(rows).containsInAnyOrder(expected);
     p.run();
   }
@@ -454,6 +464,34 @@ public class BigtableIOTest {
     assertThat(suffixRows, hasItems(middleRows.toArray(new Row[]{})));
   }
 
+  /**
+   * Tests reading three key ranges with one read.
+   */
+  @Test
+  public void testReadingWithKeyRanges() throws Exception {
+    final String table = "TEST-KEY-RANGE-TABLE";
+    final int numRows = 11;
+    List<Row> testRows = makeTableData(table, numRows);
+    ByteKey startKey1 = ByteKey.copyFrom("key000000001".getBytes());
+    ByteKey endKey1 = ByteKey.copyFrom("key000000003".getBytes());
+    ByteKey startKey2 = ByteKey.copyFrom("key000000004".getBytes());
+    ByteKey endKey2 = ByteKey.copyFrom("key000000007".getBytes());
+    ByteKey startKey3 = ByteKey.copyFrom("key000000008".getBytes());
+    ByteKey endKey3 = ByteKey.copyFrom("key000000009".getBytes());
+
+    service.setupSampleRowKeys(table, numRows / 10, "key000000001".length());
+
+    final ByteKeyRange range1 = ByteKeyRange.of(startKey1, endKey1);
+    final ByteKeyRange range2 = ByteKeyRange.of(startKey2, endKey2);
+    final ByteKeyRange range3 = ByteKeyRange.of(startKey3, endKey3);
+    List<ByteKeyRange> ranges = ImmutableList.of(range1, range2, range3);
+    List<Row> rangeRows = filterToRanges(testRows, ranges);
+    runReadTest(defaultRead.withTableId(table).withKeyRanges(ranges), rangeRows);
+
+    // range rows should be non-trivial (non-zero,non-all).
+    assertThat(rangeRows, allOf(hasSize(lessThan(numRows)), hasSize(greaterThan(0))));
+  }
+
   /** Tests reading all rows using a filter. */
   @Test
   public void testReadingWithFilter() throws Exception {
@@ -494,7 +532,12 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
+        new BigtableSource(
+            serviceFactory,
+            table,
+            null,
+            Arrays.asList(service.getTableRange(table)),
+            null);
     assertSplitAtFractionExhaustive(source, null);
   }
 
@@ -511,7 +554,11 @@ public class BigtableIOTest {
     service.setupSampleRowKeys(table, numSamples, bytesPerRow);
 
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, null, service.getTableRange(table), null);
+        new BigtableSource(serviceFactory,
+            table,
+            null,
+            Arrays.asList(service.getTableRange(table)),
+            null);
     // With 0 items read, all split requests will fail.
     assertSplitAtFractionFails(source, 0, 0.1, null /* options */);
     assertSplitAtFractionFails(source, 0, 1.0, null /* options */);
@@ -544,7 +591,7 @@ public class BigtableIOTest {
         new BigtableSource(serviceFactory,
             table,
             null /*filter*/,
-            ByteKeyRange.ALL_KEYS,
+            Arrays.asList(ByteKeyRange.ALL_KEYS),
             null /*size*/);
     List<BigtableSource> splits =
         source.split(numRows * bytesPerRow / numSamples, null /* options */);
@@ -552,6 +599,50 @@ public class BigtableIOTest {
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSamples));
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
+  }
+
+  /** Tests reading all rows from a split table with several key ranges. */
+  @Test
+  public void testReadingWithSplitsWithSeveralKeyRanges() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE-MULTIPLE-RANGES";
+    final int numRows = 1500;
+    final int numSamples = 10;
+    // Two more splits are generated because of the split keys at 500 and 1000.
+    // E.g. the split [450, 600) becomes [450, 500) and [500, 600).
+    final int numSplits = 12;
+    final long bytesPerRow = 100L;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    ByteKey splitKey1 = ByteKey.copyFrom("key000000500".getBytes());
+    ByteKey splitKey2 = ByteKey.copyFrom("key000001000".getBytes());
+
+    ByteKeyRange tableRange = service.getTableRange(table);
+    List<ByteKeyRange> keyRanges = Arrays.asList(
+        tableRange.withEndKey(splitKey1),
+        tableRange.withStartKey(splitKey1).withEndKey(splitKey2),
+        tableRange.withStartKey(splitKey2));
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(serviceFactory,
+            table,
+            null /*filter*/,
+            keyRanges,
+            null /*size*/);
+    BigtableSource referenceSource =
+        new BigtableSource(serviceFactory,
+            table,
+            null /*filter*/,
+            ImmutableList.of(service.getTableRange(table)),
+            null /*size*/);
+    List<BigtableSource> splits = // 10,000
+        source.split(numRows * bytesPerRow / numSamples, null /* options */);
+
+    // Test num splits and split equality.
+    assertThat(splits, hasSize(numSplits));
+    assertSourcesEqualReferenceSource(referenceSource, splits, null /* options */);
   }
 
   /** Tests reading all rows from a sub-split table. */
@@ -572,13 +663,61 @@ public class BigtableIOTest {
         new BigtableSource(serviceFactory,
         table,
         null /*filter*/,
-        ByteKeyRange.ALL_KEYS,
+        Arrays.asList(ByteKeyRange.ALL_KEYS),
         null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
     assertThat(splits, hasSize(numSplits));
     assertSourcesEqualReferenceSource(source, splits, null /* options */);
+  }
+
+  /** Tests reading all rows from a sub-split table with several key ranges. */
+  @Test
+  public void testReadingWithSubSplitsWithSeveralKeyRanges() throws Exception {
+    final String table = "TEST-MANY-ROWS-SPLITS-TABLE-MULTIPLE-RANGES";
+    final int numRows = 1000;
+    final int numSamples = 10;
+    final int numSplits = 20;
+    // We expect 24 splits instead of 20 due to the multiple ranges. For a key of 330 separating
+    // the multiple ranges, first the [300, 330) range is subsplit into two (since numSplits is
+    // twice numSamples), so we get [300, 315) and [315, 330). Then, the [330, 400) range is also
+    // split into two, resulting in [330, 365) and [365, 400). These ranges would instead be
+    // [300, 350) and [350, 400) if this source was one range. Thus, each extra range adds two
+    // resulting splits.
+    final int expectedNumSplits = 24;
+    final long bytesPerRow = 100L;
+
+    // Set up test table data and sample row keys for size estimation and splitting.
+    makeTableData(table, numRows);
+    service.setupSampleRowKeys(table, numSamples, bytesPerRow);
+
+    ByteKey splitKey1 = ByteKey.copyFrom("key000000330".getBytes());
+    ByteKey splitKey2 = ByteKey.copyFrom("key000000730".getBytes());
+
+    ByteKeyRange tableRange = service.getTableRange(table);
+    List<ByteKeyRange> keyRanges = Arrays.asList(
+        tableRange.withEndKey(splitKey1),
+        tableRange.withStartKey(splitKey1).withEndKey(splitKey2),
+        tableRange.withStartKey(splitKey2));
+    // Generate source and split it.
+    BigtableSource source =
+        new BigtableSource(serviceFactory,
+            table,
+            null /*filter*/,
+            keyRanges,
+            null /*size*/);
+    BigtableSource referenceSource =
+        new BigtableSource(serviceFactory,
+            table,
+            null /*filter*/,
+            ImmutableList.of(service.getTableRange(table)),
+            null /*size*/);
+    List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
+
+    // Test num splits and split equality.
+    assertThat(splits, hasSize(expectedNumSplits));
+    assertSourcesEqualReferenceSource(referenceSource, splits, null /* options */);
   }
 
   /** Tests reading all rows from a sub-split table. */
@@ -598,7 +737,12 @@ public class BigtableIOTest {
     RowFilter filter =
         RowFilter.newBuilder().setRowKeyRegexFilter(ByteString.copyFromUtf8(".*17.*")).build();
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, filter, ByteKeyRange.ALL_KEYS, null /*size*/);
+        new BigtableSource(
+            serviceFactory,
+            table,
+            filter,
+            Arrays.asList(ByteKeyRange.ALL_KEYS),
+            null /*size*/);
     List<BigtableSource> splits = source.split(numRows * bytesPerRow / numSplits, null);
 
     // Test num splits and split equality.
@@ -628,7 +772,7 @@ public class BigtableIOTest {
 
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
-    assertThat(displayData, hasDisplayItem("keyRange", keyRange.toString()));
+    assertThat(displayData, hasDisplayItem("keyRange 0", keyRange.toString()));
 
     // BigtableIO adds user-agent to options; assert only on key and not value.
     assertThat(displayData, hasDisplayItem("bigtableOptions"));
@@ -759,7 +903,7 @@ public class BigtableIOTest {
     makeTableData(table, numRows);
 
     BigtableSource source =
-        new BigtableSource(serviceFactory, table, null, ByteKeyRange.ALL_KEYS, null);
+        new BigtableSource(serviceFactory, table, null, Arrays.asList(ByteKeyRange.ALL_KEYS), null);
 
     BoundedReader<Row> reader = source.createReader(TestPipeline.testingPipelineOptions());
 
@@ -986,7 +1130,7 @@ public class BigtableIOTest {
       while (rows.hasNext()) {
         entry = rows.next();
         if (!filter.apply(entry.getKey())
-            || !source.getRange().containsKey(makeByteKey(entry.getKey()))) {
+            || !rangesContainsKey(source.getRanges(), makeByteKey(entry.getKey()))) {
           // Does not match row filter or does not match source range. Skip.
           entry = null;
           continue;
@@ -1004,6 +1148,15 @@ public class BigtableIOTest {
       // Set the current row and return true.
       currentRow = makeRow(entry.getKey(), entry.getValue());
       return true;
+    }
+
+    private boolean rangesContainsKey(List<ByteKeyRange> ranges, ByteKey key){
+      for (ByteKeyRange range : ranges) {
+        if (range.containsKey(key)) {
+          return true;
+        }
+      }
+      return false;
     }
 
     @Override
