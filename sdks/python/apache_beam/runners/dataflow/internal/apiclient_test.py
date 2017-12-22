@@ -18,7 +18,6 @@
 import unittest
 
 import mock
-import pkg_resources
 
 from apache_beam.metrics.cells import DistributionData
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -185,59 +184,33 @@ class UtilTest(unittest.TestCase):
         env.proto.workerPools[0].ipConfiguration,
         dataflow.WorkerPool.IpConfigurationValueValuesEnum.WORKER_IP_PRIVATE)
 
-  def test_harness_override_present_in_dataflow_distributions(self):
-    pipeline_options = PipelineOptions(
-        ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    override = ''.join(
-        ['runner_harness_container_image=',
-         dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
-         '/harness:2.2.0'])
-    distribution = pkg_resources.Distribution(version='2.2.0')
-    with mock.patch(
-        'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
-        '.get_distribution',
-        mock.MagicMock(return_value=distribution)):
-      env = apiclient.Environment([], #packages
-                                  pipeline_options,
-                                  '2.0.0',
-                                  FAKE_PIPELINE_URL) #any environment version
-      self.assertIn(override, env.proto.experiments)
-
   @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
               'beam_version.__version__', '2.2.0')
-  def test_harness_override_present_in_beam_releases(self):
+  def test_harness_override_present_in_released_sdks(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
     override = ''.join(
         ['runner_harness_container_image=',
          dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY,
          '/harness:2.2.0'])
-    with mock.patch(
-        'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
-        '.get_distribution',
-        mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
-      env = apiclient.Environment([], #packages
-                                  pipeline_options,
-                                  '2.0.0',
-                                  FAKE_PIPELINE_URL) #any environment version
-      self.assertIn(override, env.proto.experiments)
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL) #any environment version
+    self.assertIn(override, env.proto.experiments)
 
   @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
               'beam_version.__version__', '2.2.0-dev')
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
-    with mock.patch(
-        'apache_beam.runners.dataflow.internal.dependency.pkg_resources'
-        '.get_distribution',
-        mock.Mock(side_effect=pkg_resources.DistributionNotFound())):
-      env = apiclient.Environment([], #packages
-                                  pipeline_options,
-                                  '2.0.0',
-                                  FAKE_PIPELINE_URL) #any environment version
-      if env.proto.experiments:
-        for experiment in env.proto.experiments:
-          self.assertNotIn('runner_harness_container_image=', experiment)
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL) #any environment version
+    if env.proto.experiments:
+      for experiment in env.proto.experiments:
+        self.assertNotIn('runner_harness_container_image=', experiment)
 
   def test_labels(self):
     pipeline_options = PipelineOptions(
