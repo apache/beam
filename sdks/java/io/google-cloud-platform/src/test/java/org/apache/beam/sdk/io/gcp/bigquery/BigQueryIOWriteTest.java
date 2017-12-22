@@ -111,6 +111,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
 
+/** Tests for {@link BigQueryIO#write}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOWriteTest implements Serializable {
   private transient PipelineOptions options;
@@ -118,22 +119,30 @@ public class BigQueryIOWriteTest implements Serializable {
   private transient TestPipeline p;
 
   @Rule
-  public final transient TestRule folderThenPipeline = new TestRule() {
-    @Override
-    public Statement apply(final Statement base, final Description description) {
-      Statement withPipeline = new Statement() {
+  public final transient TestRule folderThenPipeline =
+      new TestRule() {
         @Override
-        public void evaluate() throws Throwable {
-          options = TestPipeline.testingPipelineOptions();
-          options.as(BigQueryOptions.class).setProject("project-id");
-          options.as(BigQueryOptions.class).setTempLocation(testFolder.getRoot().getAbsolutePath());
-          p = TestPipeline.fromOptions(options);
-          p.apply(base, description).evaluate();
+        public Statement apply(final Statement base, final Description description) {
+          // We need to set up the temporary folder, and then set up the TestPipeline based on the
+          // chosen folder. Unfortunately, since rule evaluation order is unspecified and unrelated
+          // to field order, and is separate from construction, that requires manually creating this
+          // TestRule.
+          Statement withPipeline =
+              new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                  options = TestPipeline.testingPipelineOptions();
+                  options.as(BigQueryOptions.class).setProject("project-id");
+                  options
+                      .as(BigQueryOptions.class)
+                      .setTempLocation(testFolder.getRoot().getAbsolutePath());
+                  p = TestPipeline.fromOptions(options);
+                  p.apply(base, description).evaluate();
+                }
+              };
+          return testFolder.apply(withPipeline, description);
         }
       };
-      return testFolder.apply(withPipeline, description);
-    }
-  };
 
   @Rule public transient ExpectedException thrown = ExpectedException.none();
   @Rule public transient ExpectedLogs loggedWriteRename = ExpectedLogs.none(WriteRename.class);

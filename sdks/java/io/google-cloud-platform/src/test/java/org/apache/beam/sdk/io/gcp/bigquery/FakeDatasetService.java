@@ -56,6 +56,7 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   public static void setUp() {
     tables = HashBasedTable.create();
+    FakeJobService.setUp();
   }
 
   @Override
