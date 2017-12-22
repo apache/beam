@@ -46,7 +46,8 @@ import java.util.Objects;
  *
  * Example:
  *
- * <pre>{@code
+ * <pre>
+ * {@code
  *  Dataset<String> words = ...;
  *  Dataset<Pair<String, Integer>> counts =
  *      ReduceStateByKey.named("WORD-COUNT")
@@ -57,7 +58,8 @@ import java.util.Objects;
  *          .mergeStatesBy(WordCountState::merge)
  *          .windowBy(Time.of(Duration.ofHours(1))
  *          .output();
- * }</pre>
+ * }
+ * </pre>
  *
  * This example constitutes a windowed word-count program. Each input element
  * is treated as a key to identify an imaginary {@code WordCountState} within
@@ -72,6 +74,18 @@ import java.util.Objects;
  * none is defined the operator will act in the so-call "attached windowing"
  * mode, i.e. it will attach itself to the windowing strategy active on they
  * way from its input.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code valueBy ..................} value extractor function
+ *   <li>{@code stateFactory .............} factory method for {@link State} (see {@link StateFactory})
+ *   <li>{@code mergeStatesBy ............} state merge function (see {@link StateMerger})
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code (output | outputValues) ..} build output dataset
+ * </ol>
  *
  * @param <IN>     the type of input elements
  * @param <KEY>    the type of the key (result type of {@code #keyBy}
@@ -229,7 +243,8 @@ public class ReduceStateByKey<
   public static class DatasetBuilder5<
       IN, KEY, VALUE, OUT, STATE extends State<VALUE, OUT>>
       implements Builders.WindowBy<IN, DatasetBuilder5<IN, KEY, VALUE, OUT, STATE>>,
-      Builders.Output<Pair<KEY, OUT>> {
+      Builders.Output<Pair<KEY, OUT>>,
+      Builders.OutputValues<KEY, OUT> {
 
     final String name;
     final Dataset<IN> input;

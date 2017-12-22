@@ -31,6 +31,16 @@ import java.util.Objects;
 
 /**
  * Operator counting elements with same key.
+ *
+ * <h3>Builders:</h3>
+ * <ol>
+ *   <li>{@code [named] ..................} give name to the operator [optional]
+ *   <li>{@code of .......................} input dataset
+ *   <li>{@code keyBy ....................} key extractor function
+ *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
+ *   <li>{@code output ...................} build output dataset
+ * </ol>
+ *
  */
 @Audience(Audience.Type.CLIENT)
 @Derived(
