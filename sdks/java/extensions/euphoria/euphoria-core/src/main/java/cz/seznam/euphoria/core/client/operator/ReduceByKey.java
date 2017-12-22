@@ -49,15 +49,21 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 /**
+ * <p>
  * Operator performing state-less aggregation by given reduce function. The reduction
- * is performed on all extracted values on each key-window.<p>
+ * is performed on all extracted values on each key-window.
+ * </p>
  *
+ * <p>
  * If provided function is {@link CombinableReduceFunction} partial reduction is performed
  * before shuffle. If the function is not combinable all values must be first sent through the
- * network and the reduction is done afterwards on target machines.<p>
+ * network and the reduction is done afterwards on target machines.
+ * </p>
  *
+ * <p>
  * Custom {@link Windowing} can be set, otherwise values from
- * input operator are used.<p>
+ * input operator are used.
+ * </p>
  *
  * <h3>Builders:</h3>
  * <ol>
