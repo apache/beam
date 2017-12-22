@@ -47,7 +47,6 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Set;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -76,15 +75,53 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 
+/** Tests for {@link BigQueryIO#read}. */
 @RunWith(JUnit4.class)
 public class BigQueryIOReadTest implements Serializable {
+  private transient PipelineOptions options;
+  private transient TemporaryFolder testFolder = new TemporaryFolder();
+  private transient TestPipeline p;
+
   @Rule
-  public final transient TestPipeline p = TestPipeline.create();
+  public final transient TestRule folderThenPipeline =
+      new TestRule() {
+        @Override
+        public Statement apply(final Statement base, final Description description) {
+          // We need to set up the temporary folder, and then set up the TestPipeline based on the
+          // chosen folder. Unfortunately, since rule evaluation order is unspecified and unrelated
+          // to field order, and is separate from construction, that requires manually creating this
+          // TestRule.
+          Statement withPipeline =
+              new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                  options = TestPipeline.testingPipelineOptions();
+                  options.as(BigQueryOptions.class).setProject("project-id");
+                  options
+                      .as(BigQueryOptions.class)
+                      .setTempLocation(testFolder.getRoot().getAbsolutePath());
+                  p = TestPipeline.fromOptions(options);
+                  p.apply(base, description).evaluate();
+                }
+              };
+          return testFolder.apply(withPipeline, description);
+        }
+      };
+
   @Rule public transient ExpectedException thrown = ExpectedException.none();
-  @Rule public transient TemporaryFolder testFolder = new TemporaryFolder();
+
+  private FakeDatasetService fakeDatasetService = new FakeDatasetService();
+  private FakeJobService fakeJobService = new FakeJobService();
+  private FakeBigQueryServices fakeBqServices =
+      new FakeBigQueryServices()
+          .withDatasetService(fakeDatasetService)
+          .withJobService(fakeJobService);
 
   private void checkReadTableObject(
       BigQueryIO.Read read, String project, String dataset, String table) {
@@ -112,9 +149,10 @@ public class BigQueryIOReadTest implements Serializable {
   }
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() throws IOException, InterruptedException {
     FakeDatasetService.setUp();
     BigQueryIO.clearCreatedTables();
+    fakeDatasetService.createDataset("project-id", "dataset-id", "", "", null);
   }
 
   @Test
@@ -167,18 +205,12 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testValidateReadSetsDefaultProject() throws Exception {
-    String projectId = "someproject";
-    String datasetId = "somedataset";
     String tableId = "sometable";
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject(projectId);
-
-    bqOptions.setTempLocation(testFolder.getRoot().toPath().toString());
-
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    fakeDatasetService.createDataset(projectId, datasetId, "", "", null);
     TableReference tableReference =
-        new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
+        new TableReference()
+            .setProjectId("project-id")
+            .setDatasetId("dataset-id")
+            .setTableId(tableId);
     fakeDatasetService.createTable(new Table()
         .setTableReference(tableReference)
         .setSchema(new TableSchema()
@@ -200,11 +232,7 @@ public class BigQueryIOReadTest implements Serializable {
         new TableRow().set("name", "f").set("number", 6L));
     fakeDatasetService.insertAll(tableReference, expected, null);
 
-    Pipeline p = TestPipeline.create(bqOptions);
-
-    TableReference tableRef = new TableReference();
-    tableRef.setDatasetId(datasetId);
-    tableRef.setTableId(tableId);
+    TableReference tableRef = new TableReference().setDatasetId("dataset-id").setTableId(tableId);
 
     PCollection<KV<String, Long>> output =
         p.apply(BigQueryIO.read().from(tableRef).withTestServices(fakeBqServices))
@@ -222,11 +250,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBuildSourceWithTableAndFlatten() {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-
-    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
@@ -240,11 +263,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBuildSourceWithTableAndFlattenWithoutValidation() {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-
-    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a result flattening preference,"
@@ -259,11 +277,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBuildSourceWithTableAndSqlDialect() {
-    BigQueryOptions bqOptions = PipelineOptionsFactory.as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-
-    Pipeline p = TestPipeline.create(bqOptions);
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
         "Invalid BigQueryIO.Read: Specifies a table with a SQL dialect preference,"
@@ -301,10 +314,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   private void testReadFromTable(boolean useTemplateCompatibility, boolean useReadTableRows)
       throws IOException, InterruptedException {
-    BigQueryOptions bqOptions = TestPipeline.testingPipelineOptions().as(BigQueryOptions.class);
-    bqOptions.setProject("defaultproject");
-    bqOptions.setTempLocation(testFolder.newFolder("BigQueryIOTest").getAbsolutePath());
-
     Table sometable = new Table();
     sometable.setSchema(
         new TableSchema()
@@ -332,7 +341,6 @@ public class BigQueryIOReadTest implements Serializable {
         .withJobService(new FakeJobService())
         .withDatasetService(fakeDatasetService);
 
-    Pipeline p = TestPipeline.create(bqOptions);
     PTransform<PBegin, PCollection<TableRow>> readTransform;
     if (useReadTableRows) {
       BigQueryIO.Read read =
@@ -440,12 +448,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testBigQueryTableSourceInitSplit() throws Exception {
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    FakeJobService fakeJobService = new FakeJobService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(fakeJobService)
-        .withDatasetService(fakeDatasetService);
-
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
@@ -494,12 +496,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testEstimatedSizeWithoutStreamingBuffer() throws Exception {
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    FakeJobService fakeJobService = new FakeJobService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(fakeJobService)
-        .withDatasetService(fakeDatasetService);
-
     List<TableRow> data = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
@@ -532,12 +528,6 @@ public class BigQueryIOReadTest implements Serializable {
 
   @Test
   public void testEstimatedSizeWithStreamingBuffer() throws Exception {
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    FakeJobService fakeJobService = new FakeJobService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(fakeJobService)
-        .withDatasetService(fakeDatasetService);
-
     List<TableRow> data = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
@@ -588,12 +578,6 @@ public class BigQueryIOReadTest implements Serializable {
     extractJobStats.setExtract(extractStats);
     extractJob.setStatus(new JobStatus())
         .setStatistics(extractJobStats);
-
-    FakeJobService fakeJobService = new FakeJobService();
-    FakeDatasetService fakeDatasetService = new FakeDatasetService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(fakeJobService)
-        .withDatasetService(fakeDatasetService);
 
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
@@ -670,19 +654,10 @@ public class BigQueryIOReadTest implements Serializable {
     extractJob.setStatus(new JobStatus())
         .setStatistics(extractJobStats);
 
-    FakeDatasetService datasetService = new FakeDatasetService();
-    FakeJobService jobService = new FakeJobService();
-    FakeBigQueryServices fakeBqServices = new FakeBigQueryServices()
-        .withJobService(jobService)
-        .withDatasetService(datasetService);
-
-    PipelineOptions options = PipelineOptionsFactory.create();
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setProject("project");
     String stepUuid = "testStepUuid";
 
-    TableReference tempTableReference = createTempTableReference(
-        bqOptions.getProject(), createJobIdToken(bqOptions.getJobName(), stepUuid));
+    TableReference tempTableReference =
+        createTempTableReference("project-id", createJobIdToken(options.getJobName(), stepUuid));
     List<TableRow> expected = ImmutableList.of(
         new TableRow().set("name", "a").set("number", 1L),
         new TableRow().set("name", "b").set("number", 2L),
@@ -690,7 +665,7 @@ public class BigQueryIOReadTest implements Serializable {
         new TableRow().set("name", "d").set("number", 4L),
         new TableRow().set("name", "e").set("number", 5L),
         new TableRow().set("name", "f").set("number", 6L));
-    datasetService.createDataset(
+    fakeDatasetService.createDataset(
         tempTableReference.getProjectId(), tempTableReference.getDatasetId(), "", "", null);
     Table table = new Table()
         .setTableReference(tempTableReference)
@@ -699,10 +674,10 @@ public class BigQueryIOReadTest implements Serializable {
                 ImmutableList.of(
                     new TableFieldSchema().setName("name").setType("STRING"),
                     new TableFieldSchema().setName("number").setType("INTEGER"))));
-    datasetService.createTable(table);
+    fakeDatasetService.createTable(table);
 
     String query = FakeBigQueryServices.encodeQuery(expected);
-    jobService.expectDryRunQuery("project", query,
+    fakeJobService.expectDryRunQuery("project-id", query,
         new JobStatistics().setQuery(
             new JobStatistics2()
                 .setTotalBytesProcessed(100L)
@@ -767,37 +742,18 @@ public class BigQueryIOReadTest implements Serializable {
     p.run();
   }
 
-  /** Test options. **/
-  public interface RuntimeTestOptions extends PipelineOptions {
-    ValueProvider<String> getInputTable();
-    void setInputTable(ValueProvider<String> value);
-
-    ValueProvider<String> getInputQuery();
-    void setInputQuery(ValueProvider<String> value);
-  }
-
   @Test
   public void testRuntimeOptionsNotCalledInApplyInputTable() {
-    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-    Pipeline pipeline = TestPipeline.create(options);
     BigQueryIO.Read read = BigQueryIO.read().from(
-        options.getInputTable()).withoutValidation();
-    pipeline.apply(read);
+        p.newProvider("")).withoutValidation();
     // Test that this doesn't throw.
     DisplayData.from(read);
   }
 
   @Test
   public void testRuntimeOptionsNotCalledInApplyInputQuery() {
-    RuntimeTestOptions options = PipelineOptionsFactory.as(RuntimeTestOptions.class);
-    BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
-    bqOptions.setTempLocation("gs://testbucket/testdir");
-    Pipeline pipeline = TestPipeline.create(options);
     BigQueryIO.Read read = BigQueryIO.read().fromQuery(
-        options.getInputQuery()).withoutValidation();
-    pipeline.apply(read);
+        p.newProvider("")).withoutValidation();
     // Test that this doesn't throw.
     DisplayData.from(read);
   }
