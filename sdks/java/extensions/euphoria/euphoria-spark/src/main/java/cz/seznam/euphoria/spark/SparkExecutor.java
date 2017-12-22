@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -59,7 +60,9 @@ public class SparkExecutor implements Executor {
       // elements
       SparkElement.class,
       TimestampedElement.class,
-      Either.class
+      Either.class,
+      // broadcast hash join
+      HashMap.class
   };
 
   /**
