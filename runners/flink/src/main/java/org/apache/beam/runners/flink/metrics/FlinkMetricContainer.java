@@ -78,7 +78,7 @@ public class FlinkMetricContainer {
     }
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
     // TODO pass parameters with pipelineOptions
-    //I would have prefered creating MetricsPusher from runner-core but I need runn-specific
+    //it would have been better to create MetricsPusher from runner-core but we need runn-specific
     // MetricsContainerStepMap
     MetricsPusher.createAndStart(
         metricsAccumulator.getLocalValue(), new MetricsHttpSink("http://127.0.0.1:8080"), 5L);

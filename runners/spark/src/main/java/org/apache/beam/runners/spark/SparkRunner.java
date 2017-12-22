@@ -253,12 +253,12 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   public static void initAccumulators(SparkPipelineOptions opts, JavaSparkContext jsc) {
     // Init metrics accumulators
     MetricsAccumulator.init(opts, jsc);
+    AggregatorsAccumulator.init(opts, jsc);
     // TODO pass parameters with pipelineOptions
-    //I would have prefered creating MetricsPusher from runner-core but I need runn-specific
+    //it would have been better to create MetricsPusher from runner-core but we need runn-specific
     // MetricsContainerStepMap
     MetricsPusher.createAndStart(
         MetricsAccumulator.getInstance().value(), new MetricsHttpSink("http://127.0.0.1:8080"), 5L);
-    AggregatorsAccumulator.init(opts, jsc);
   }
 
   /** Visit the pipeline to determine the translation mode (batch/streaming). */
