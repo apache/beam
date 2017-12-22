@@ -23,7 +23,6 @@ import cz.seznam.euphoria.operator.test.WindowingTest;
 import org.apache.spark.serializer.KryoRegistrator;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 
 public class TestRegistrator implements KryoRegistrator {
 
@@ -36,6 +35,5 @@ public class TestRegistrator implements KryoRegistrator {
     kryo.register(ReduceStateByKeyTest.Word.class);
     kryo.register(WindowingTest.ComparablePair.class);
     kryo.register(WindowingTest.Type.class);
-    kryo.register(HashMap.class);
   }
 }
