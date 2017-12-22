@@ -557,10 +557,9 @@ def get_sdk_name_and_version():
   """For internal use only; no backwards-compatibility guarantees.
 
   Returns name and version of SDK reported to Google Cloud Dataflow."""
-  container_version = _get_required_container_version()
   try:
     pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME)
-    return (GOOGLE_SDK_NAME, container_version)
+    return (GOOGLE_SDK_NAME, beam_version.__version__)
   except pkg_resources.DistributionNotFound:
     return (BEAM_SDK_NAME, beam_version.__version__)
 
