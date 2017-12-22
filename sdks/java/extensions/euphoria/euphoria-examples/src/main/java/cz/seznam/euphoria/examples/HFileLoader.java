@@ -68,7 +68,7 @@ public class HFileLoader {
         KeyValue.class);
     String tmp = "/tmp/hfileloader";
     if (args.length > 3) {
-      tmp = args[2];
+      tmp = args[3];
     }
     HFileLoader app = new HFileLoader(input, output, tmp, executor);
     app.run();
@@ -133,6 +133,7 @@ public class HFileLoader {
             .using(ResultUtil.toCells())
             .output();
 
+        // this is workaround of https://issues.apache.org/jira/browse/SPARK-5928
         if (executor instanceof SparkExecutor) {
           tmp = ReduceByKey.of(tmp)
               .keyBy(Object::hashCode)

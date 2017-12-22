@@ -16,6 +16,8 @@
 
 package cz.seznam.euphoria.core.util;
 
+import java.util.function.Consumer;
+
 /**
  * Utils for easier exception handling.
  */
@@ -63,6 +65,19 @@ public class ExceptionUtils {
     }
   }
 
+  public static <T> Consumer<T> unchecked(ThrowingConsumer<T> consumer) {
+    return what -> {
+      try {
+        consumer.consume(what);
+      } catch (RuntimeException ex) {
+        // no need to wrap, it is already unchecked
+        throw ex;
+      } catch (Exception ex) {
+        throw new RuntimeException(ex);
+      }
+    };
+  }
+
   @FunctionalInterface
   public interface Supplier<T> {
     T apply() throws Exception;
@@ -71,5 +86,10 @@ public class ExceptionUtils {
   @FunctionalInterface
   public interface Action {
     void apply() throws Exception;
+  }
+
+  @FunctionalInterface
+  public interface ThrowingConsumer<T> {
+    public void consume(T what) throws Exception;
   }
 }

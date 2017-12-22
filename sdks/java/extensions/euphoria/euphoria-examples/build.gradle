@@ -1,7 +1,4 @@
-plugins {
-  id 'java'
-  id 'com.github.johnrengelman.shadow'
-}
+apply plugin: 'com.github.johnrengelman.shadow'
 
 dependencies {
   compile project(':euphoria-core')
