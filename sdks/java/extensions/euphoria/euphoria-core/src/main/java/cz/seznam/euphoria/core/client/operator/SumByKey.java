@@ -48,7 +48,7 @@ import java.util.Objects;
  *   <li>{@code [named] ..................} give name to the operator [optional]
  *   <li>{@code of .......................} input dataset
  *   <li>{@code keyBy ....................} key extractor function
- *   <li>{@code [valueBy] ................} {@link UnaryFunction} transforming from input element to long (default: e -> 1L)
+ *   <li>{@code [valueBy] ................} {@link UnaryFunction} transforming from input element to long (default: {@code e -> 1L})
  *   <li>{@code [windowBy] ...............} windowing function (see {@link Windowing}), default attached windowing
  *   <li>{@code (output | outputValues) ..} build output dataset
  * </ol>
