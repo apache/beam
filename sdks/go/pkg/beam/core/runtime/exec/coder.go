@@ -22,7 +22,6 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
@@ -89,21 +88,10 @@ func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
 
 		// (1) Call encode
 
-		args := make([]reflect.Value, len(enc.Param))
-		if index, ok := enc.Type(); ok {
-			args[index] = reflect.ValueOf(c.Custom.Type)
-		}
-		params := enc.Params(funcx.FnValue)
-		args[params[0]] = val.Elm
-
-		ret, err := reflectCallNoPanic(enc.Fn, args)
+		data, err := makeEncoder(enc).Encode(c.Custom.Type, val.Elm)
 		if err != nil {
 			return err
 		}
-		if index, ok := enc.Error(); ok && !ret[index].IsNil() {
-			return fmt.Errorf("encode error: %v", ret[index].Interface())
-		}
-		data := ret[enc.Returns(funcx.RetValue)[0]].Interface().([]byte)
 
 		// (2) Add length prefix
 
@@ -166,21 +154,11 @@ func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
 
 		// (2) Call decode
 
-		args := make([]reflect.Value, len(dec.Param))
-		if index, ok := dec.Type(); ok {
-			args[index] = reflect.ValueOf(c.Custom.Type)
-		}
-		params := dec.Params(funcx.FnValue)
-		args[params[0]] = reflect.ValueOf(data)
-
-		ret, err := reflectCallNoPanic(dec.Fn, args)
+		val, err := makeDecoder(dec).Decode(c.Custom.Type, data)
 		if err != nil {
 			return FullValue{}, err
 		}
-		if index, ok := dec.Error(); ok && !ret[index].IsNil() {
-			return FullValue{}, fmt.Errorf("decode error: %v", ret[index].Interface())
-		}
-		return FullValue{Elm: ret[dec.Returns(funcx.RetValue)[0]]}, err
+		return FullValue{Elm: val}, err
 
 	case coder.KV:
 		key, err := DecodeElement(c.Components[0], r)
