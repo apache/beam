@@ -26,7 +26,7 @@ public interface SparkExecutorProvider extends ExecutorProvider {
   default ExecutorEnvironment newExecutorEnvironment() throws Exception {
 
     final Executor executor = SparkExecutor.newBuilder("test")
-        .local(8)
+        .local()
         .kryoRegistrator(TestRegistrator.class)
         .build();
 
