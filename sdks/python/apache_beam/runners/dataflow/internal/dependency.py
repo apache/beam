@@ -498,19 +498,13 @@ def get_runner_harness_container_image():
        for current SDK version or None if the runner harness container image
        bundled with the service shall be used.
   """
-  try:
-    version = pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
-    # Pin runner harness for Dataflow releases.
+  # Pin runner harness for released versions of the SDK.
+  if 'dev' not in beam_version.__version__:
     return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-            version)
-  except pkg_resources.DistributionNotFound:
-    # Pin runner harness for BEAM releases.
-    if 'dev' not in beam_version.__version__:
-      return (DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/' + 'harness' + ':' +
-              beam_version.__version__)
-    # Don't pin runner harness for BEAM head so that we can notice
-    # potential incompatibility between runner and sdk harnesses.
-    return None
+            beam_version.__version__)
+  # Don't pin runner harness for dev versions so that we can notice
+  # potential incompatibility between runner and sdk harnesses.
+  return None
 
 
 def get_default_container_image_for_current_sdk(job_type):
@@ -541,16 +535,13 @@ def _get_required_container_version(job_type=None):
     str: The tag of worker container images in GCR that corresponds to
       current version of the SDK.
   """
-  # TODO(silviuc): Handle apache-beam versions when we have official releases.
-  try:
-    return pkg_resources.get_distribution(GOOGLE_PACKAGE_NAME).version
-  except pkg_resources.DistributionNotFound:
-    # This case covers Apache Beam end-to-end testing scenarios. All these tests
-    # will run with a special container version.
+  if 'dev' in beam_version.__version__:
     if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
       return BEAM_FNAPI_CONTAINER_VERSION
     else:
       return BEAM_CONTAINER_VERSION
+  else:
+    return beam_version.__version__
 
 
 def get_sdk_name_and_version():
