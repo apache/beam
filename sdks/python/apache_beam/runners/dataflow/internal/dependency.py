@@ -77,11 +77,11 @@ from apache_beam.utils import processes
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_CONTAINER_VERSION = 'beam-2.2.0-20170928'
+BEAM_CONTAINER_VERSION = 'beam-master-20171214'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
 # This should be in the beam-[version]-[date] format, date is optional.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-2.3.0-20171219'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20171222'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'
