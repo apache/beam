@@ -43,7 +43,7 @@ job('beam_PerformanceTests_FileBasedIO_IT') {
     def pipelineArgs = [
             project: 'apache-beam-testing',
             tempRoot: 'gs://temp-storage-for-perf-tests',
-            numberOfRecords: '1000000',
+            numberOfRecords: '100000000',
             filenamePrefix: 'gs://temp-storage-for-perf-tests/filebased/${BUILD_ID}/TESTIOIT',
     ]
     def pipelineArgList = []
@@ -62,6 +62,7 @@ job('beam_PerformanceTests_FileBasedIO_IT') {
     itClasses.each {
         def argMap = [
             benchmarks: 'beam_integration_benchmark',
+            beam_it_timeout: '1200',
             beam_it_profile: 'io-it',
             beam_prebuilt: 'true',
             beam_sdk: 'java',
