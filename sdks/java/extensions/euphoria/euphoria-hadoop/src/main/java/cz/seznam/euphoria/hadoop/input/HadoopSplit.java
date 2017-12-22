@@ -20,10 +20,8 @@ import cz.seznam.euphoria.core.client.io.UnsplittableBoundedSource;
 import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.hadoop.utils.Cloner;
-import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.shadow.com.google.common.collect.AbstractIterator;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -33,13 +31,15 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.hadoop.io.serializer.Deserializer;
+import org.apache.hadoop.io.serializer.SerializationFactory;
+import org.apache.hadoop.io.serializer.Serializer;
 
 /**
  * Wraps Hadoop {@link InputSplit}
@@ -54,15 +54,15 @@ public class HadoopSplit<K, V>
 
   private transient InputSplit inputSplit;
 
-  public HadoopSplit(HadoopSource<K, V> source, InputSplit inputSplit) {
-    // ~ sanity check
-    Preconditions.checkArgument(inputSplit instanceof Writable,
-        "InputSplit of type [" + inputSplit.getClass() + "] does not implement Writable.");
+  public HadoopSplit(
+      HadoopSource<K, V> source,
+      InputSplit inputSplit) {
+
     this.source = source;
     this.locations = ExceptionUtils.unchecked(() ->
         new HashSet<>(Arrays.asList(inputSplit.getLocations())));
     this.inputSplitClass = inputSplit.getClass();
-    this.inputSplitBytes = serializeSplit(inputSplit);
+    this.inputSplitBytes = serializeSplit(inputSplit, source.getConf());
   }
 
   @Override
@@ -83,21 +83,10 @@ public class HadoopSplit<K, V>
       reader.initialize(inputSplit, ctx);
       return new HadoopReader<>(
           reader, source.getKeyClass(), source.getValueClass(), source.getConf());
-    } catch (Exception e) {
+    } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while opening reader.");
     }
-  }
-
-  private InputSplit getInputSplit() {
-    if (inputSplit == null) {
-      inputSplit = ExceptionUtils.unchecked(() -> {
-        final Writable instance = (Writable) inputSplitClass.newInstance();
-        instance.readFields(new DataInputStream(new ByteArrayInputStream(inputSplitBytes)));
-        return (InputSplit) instance;
-      });
-    }
-    return inputSplit;
   }
 
   @Override
@@ -105,11 +94,38 @@ public class HadoopSplit<K, V>
     return getClass().getName() + "<" + getInputSplit() + ">";
   }
 
-  private static byte[] serializeSplit(InputSplit inputSplit) {
+  @SuppressWarnings("unchecked")
+  private InputSplit getInputSplit() {
+    if (inputSplit == null) {
+
+      Deserializer<InputSplit> deserializer;
+      deserializer = (Deserializer) new SerializationFactory(source.getConf())
+          .getDeserializer(inputSplitClass);
+
+      inputSplit = ExceptionUtils.unchecked(() -> {
+        try (InputStream in = new ByteArrayInputStream(inputSplitBytes)) {
+          deserializer.open(in);
+          InputSplit ret = deserializer.deserialize(inputSplitClass.newInstance());
+          deserializer.close();
+          return ret;
+        }
+      });
+    }
+    return inputSplit;
+  }
+
+  private static byte[] serializeSplit(InputSplit inputSplit, Configuration conf) {
+    @SuppressWarnings("unchecked")
+    Serializer<InputSplit> serializer = (Serializer) new SerializationFactory(conf)
+        .getSerializer(inputSplit.getClass());
+
     return ExceptionUtils.unchecked(() -> {
-      final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      ((Writable) inputSplit).write(new DataOutputStream(baos));
-      return baos.toByteArray();
+      try (final ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+        serializer.open(baos);
+        serializer.serialize(inputSplit);
+        serializer.close();
+        return baos.toByteArray();
+      }
     });
   }
 
