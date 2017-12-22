@@ -17,6 +17,8 @@ package cz.seznam.euphoria.core.client.operator;
 
 import cz.seznam.euphoria.core.annotation.audience.Audience;
 import cz.seznam.euphoria.core.client.dataset.Dataset;
+import cz.seznam.euphoria.core.client.dataset.windowing.Window;
+import cz.seznam.euphoria.core.client.dataset.windowing.Windowing;
 import cz.seznam.euphoria.core.client.functional.BinaryFunctor;
 import cz.seznam.euphoria.core.client.functional.UnaryFunction;
 
