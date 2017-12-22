@@ -89,6 +89,7 @@ public class ReduceWindowTest {
     assertNotNull(producer.valueComparator);
   }
 
+  @SuppressWarnings("unchecked")
   @Test
   public void testWindow_applyIf() {
     Flow flow = Flow.create("TEST");
@@ -100,7 +101,7 @@ public class ReduceWindowTest {
         .withSortedValues((l, r) -> l.compareTo(r))
         .applyIf(true, b -> b.windowBy(windowing))
         .output();
-    
+
     ReduceWindow<String, String, Long, ?> producer;
     producer = (ReduceWindow<String, String, Long, ?>) output.getProducer();
     assertTrue(producer.windowing instanceof Time);
