@@ -65,7 +65,8 @@
   </build>
 
   <properties>
-    <aws.version>1.11.18</aws.version>
+    <aws.version>1.11.255</aws.version>
+    <amazon-kinesis-client.version>1.8.8</amazon-kinesis-client.version>
   </properties>
 
   <dependencies>
@@ -89,7 +90,7 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-client</artifactId>
-      <version>1.6.1</version>
+      <version>${amazon-kinesis-client.version}</version>
     </dependency>
 
     <dependency>

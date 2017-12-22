@@ -26,7 +26,7 @@ test {
   forkEvery 1
 }
 
-def aws_version = "1.11.18"
+def aws_version = "1.11.255"
 
 dependencies {
   compile library.java.guava
@@ -37,7 +37,7 @@ dependencies {
   shadow "com.amazonaws:aws-java-sdk-core:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
-  shadow "com.amazonaws:amazon-kinesis-client:1.6.1"
+  shadow "com.amazonaws:amazon-kinesis-client:1.8.8"
   shadow "commons-lang:commons-lang:2.6"
   testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
   testCompile library.java.junit
