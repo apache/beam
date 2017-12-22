@@ -54,7 +54,7 @@ public class Executors {
           .newBuilder("euphoria-example")
           .disableRequiredKryoRegistration();
       if (test) {
-        return builder.local(8).build();
+        return builder.local().build();
       } else {
         return builder.build();
       }

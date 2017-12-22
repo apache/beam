@@ -50,6 +50,8 @@ public class SparkExecutor implements Executor {
 
   private static final Logger LOG = LoggerFactory.getLogger(SparkExecutor.class);
 
+  private static final int DEFAULT_PARALLELISM = 5;
+
   private static final Class<?>[] DEFAULT_CLASSES = new Class<?>[]{
       Pair.class,
       // windows
@@ -96,6 +98,15 @@ public class SparkExecutor implements Executor {
     private Builder(String appName, SparkConf conf) {
       this.appName = appName;
       this.conf = conf;
+    }
+
+    /**
+     * Execute spark in local mode with a given parallelism
+     *
+     * @return builder
+     */
+    public Builder local() {
+      return local(DEFAULT_PARALLELISM);
     }
 
     /**
