@@ -2,6 +2,7 @@ package org.apache.beam.runners.core.metrics;
 
 import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAttemptedOnlyMetricResults;
 
+import com.google.common.collect.Iterables;
 import java.io.Serializable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -10,7 +11,11 @@ import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
-/** Component that regularly merges metrics and pushes them to a metrics sink. */
+/**
+ * Component that regularly merges metrics and pushes them to a metrics sink. It needs to be a
+ * singleton because spark runner might call initAccumulators several times and this method calls
+ * {@link MetricsPusher#createAndStart} and needs to be idempotent
+ */
 public class MetricsPusher implements Serializable {
 
   private static MetricsPusher instance;
@@ -23,15 +28,14 @@ public class MetricsPusher implements Serializable {
     this.metricsContainerStepMap = metricsContainerStepMap;
     this.metricsSink = metricsSink;
     this.period = period;
-    start();
   }
 
-  public static MetricsPusher createAndStart(
+  public static void createAndStart(
       MetricsContainerStepMap metricsContainerStepMap, MetricsSink metricsSink, long period) {
     if (instance == null) {
       instance = new MetricsPusher(metricsContainerStepMap, metricsSink, period);
+      instance.start();
     }
-    return instance;
   }
 
   private void start() {
@@ -53,7 +57,11 @@ public class MetricsPusher implements Serializable {
         MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
         MetricQueryResults metricQueryResults =
             metricResults.queryMetrics(MetricsFilter.builder().build());
-        metricsSink.writeMetrics(metricQueryResults);
+        if ((Iterables.size(metricQueryResults.distributions()) != 0)
+            || (Iterables.size(metricQueryResults.gauges()) != 0)
+            || (Iterables.size(metricQueryResults.counters()) != 0)) {
+          metricsSink.writeMetrics(metricQueryResults);
+        }
         // TODO find a condition to interrupt the pushing thread
         /*
         PipelineResult.State pipelineState = pipelineResult.getState();
@@ -63,8 +71,15 @@ public class MetricsPusher implements Serializable {
         */
 
       } catch (Exception e) {
-        e.printStackTrace();
+        MetricsPushException metricsPushException = new MetricsPushException(e);
+        metricsPushException.printStackTrace();
       }
+    }
+  }
+  private static class MetricsPushException extends Exception{
+
+    MetricsPushException(Throwable cause) {
+      super(cause);
     }
   }
 }

@@ -2,10 +2,9 @@ package org.apache.beam.runners.core.metrics;
 
 import java.io.Serializable;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResults;
 
 /**
- * Abstract base class for all metric sinks.
+ * Abstract base class for all metric sinks it can use different serializers.
  */
 
 public abstract class MetricsSink<OutputT> implements Serializable{
