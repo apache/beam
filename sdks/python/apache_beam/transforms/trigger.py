@@ -23,6 +23,7 @@ Triggers control when in processing time windows get emitted.
 import collections
 import copy
 import itertools
+import numbers
 from abc import ABCMeta
 from abc import abstractmethod
 
@@ -378,6 +379,8 @@ class AfterCount(TriggerFn):
   COUNT_TAG = _CombiningValueStateTag('count', combiners.CountCombineFn())
 
   def __init__(self, count):
+    if not isinstance(count, numbers.Integral) or count < 1:
+      raise ValueError("count (%d) must be a positive integer." % count)
     self.count = count
 
   def __repr__(self):
