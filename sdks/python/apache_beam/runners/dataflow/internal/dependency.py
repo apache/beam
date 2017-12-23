@@ -71,7 +71,7 @@ from apache_beam.utils import processes
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
-# In a released SDK version, container tags are selected based on the SDK version.
+# In a released SDK, container tags are selected based on the SDK version.
 # Unreleased versions use container versions based on values of
 # BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION (see below).
 
