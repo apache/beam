@@ -195,22 +195,100 @@ class UtilTest(unittest.TestCase):
          '/harness:2.2.0'])
     env = apiclient.Environment([], #packages
                                 pipeline_options,
-                                '2.0.0',
-                                FAKE_PIPELINE_URL) #any environment version
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
     self.assertIn(override, env.proto.experiments)
 
   @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
-              'beam_version.__version__', '2.2.0-dev')
+              'beam_version.__version__', '2.2.0.dev')
   def test_harness_override_absent_in_unreleased_sdk(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp', '--streaming'])
     env = apiclient.Environment([], #packages
                                 pipeline_options,
-                                '2.0.0',
-                                FAKE_PIPELINE_URL) #any environment version
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
     if env.proto.experiments:
       for experiment in env.proto.experiments:
         self.assertNotIn('runner_harness_container_image=', experiment)
+
+  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+              'beam_version.__version__', '2.2.0.dev')
+  def test_pinned_worker_harness_image_tag_used_in_dev_sdk(self):
+    # streaming, fnapi pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+         '/python-fnapi:' + dependency.BEAM_FNAPI_CONTAINER_VERSION))
+
+    # batch, legacy pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+         '/python:' + dependency.BEAM_CONTAINER_VERSION))
+
+  @mock.patch('apache_beam.runners.dataflow.internal.dependency.'
+              'beam_version.__version__', '2.2.0')
+  def test_worker_harness_image_tag_matches_released_sdk_version(self):
+    # streaming, fnapi pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+         '/python-fnapi:2.2.0'))
+
+    # batch, legacy pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        (dependency.DATAFLOW_CONTAINER_IMAGE_REPOSITORY +
+         '/python:2.2.0'))
+
+  def test_worker_harness_override_takes_precedence_over_sdk_defaults(self):
+    # streaming, fnapi pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp', '--streaming',
+         '--worker_harness_container_image=some:image'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        'some:image')
+    # batch, legacy pipeline.
+    pipeline_options = PipelineOptions(
+        ['--temp_location', 'gs://any-location/temp',
+         '--worker_harness_container_image=some:image'])
+    env = apiclient.Environment([], #packages
+                                pipeline_options,
+                                '2.0.0', #any environment version
+                                FAKE_PIPELINE_URL)
+    self.assertEqual(
+        env.proto.workerPools[0].workerHarnessContainerImage,
+        'some:image')
 
   def test_labels(self):
     pipeline_options = PipelineOptions(

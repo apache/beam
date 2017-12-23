@@ -518,9 +518,9 @@ def get_default_container_image_for_current_sdk(job_type):
   """
   # TODO(tvalentyn): Use enumerated type instead of strings for job types.
   if job_type == 'FNAPI_BATCH' or job_type == 'FNAPI_STREAMING':
-    image_name = 'dataflow.gcr.io/v1beta3/python-fnapi'
+    image_name = DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python-fnapi'
   else:
-    image_name = 'dataflow.gcr.io/v1beta3/python'
+    image_name = DATAFLOW_CONTAINER_IMAGE_REPOSITORY + '/python'
   image_tag = _get_required_container_version(job_type)
   return image_name + ':' + image_tag
 
