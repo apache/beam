@@ -773,8 +773,12 @@ class FnApiRunner(runner.PipelineRunner):
     def leaf_transforms(root_ids):
       for root_id in root_ids:
         root = pipeline_proto.components.transforms[root_id]
-        if root.spec.urn in known_composites or not root.subtransforms:
+        if root.spec.urn in known_composites:
           yield root_id
+        elif not root.subtransforms:
+          # Make sure its outputs that are not a subset of its inputs.
+          if set(root.outputs.values()) - set(root.inputs.values()):
+            yield root_id
         else:
           for leaf in leaf_transforms(root.subtransforms):
             yield leaf
