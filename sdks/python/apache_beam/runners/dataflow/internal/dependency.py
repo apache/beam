@@ -255,7 +255,7 @@ def _populate_requirements_cache(requirements_file, cache_dir):
   # It will get the packages downloaded in the order they are presented in
   # the requirements file and will not download package dependencies.
   cmd_args = [
-      _get_python_executable(), '-m', 'pip', 'install', '--download', cache_dir,
+      _get_python_executable(), '-m', 'pip', 'download', '--dest', cache_dir,
       '-r', requirements_file,
       # Download from PyPI source distributions.
       '--no-binary', ':all:']
@@ -578,7 +578,7 @@ def _download_pypi_sdk_package(temp_dir):
 
   # Get a source distribution for the SDK package from PyPI.
   cmd_args = [
-      _get_python_executable(), '-m', 'pip', 'install', '--download', temp_dir,
+      _get_python_executable(), '-m', 'pip', 'download', '--dest', temp_dir,
       '%s==%s' % (package_name, version),
       '--no-binary', ':all:', '--no-deps']
   logging.info('Executing command: %s', cmd_args)
