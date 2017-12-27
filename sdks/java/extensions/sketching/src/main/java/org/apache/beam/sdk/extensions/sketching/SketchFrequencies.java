@@ -534,10 +534,10 @@ public final class SketchFrequencies {
         throw new CoderException("cannot encode a null Count-min Sketch");
       } else {
         // 8L is for the sketch's size (long)
-        // 4L * 2 is for depth and width (ints) in Sketch<T> and in the Count-Min sketch
+        // 4L * 4 is for depth and width (ints) in Sketch<T> and in the Count-Min sketch
         // 8L * depth * (width + 1) is a factorization for the sizes of table (long[depth][width])
         // and hashA (long[depth])
-        return 8L + 4L * 4 + 8L * value.depth * (value.width + 1);
+        return 8L + 4L * 4 + 8L * value.getDepth() * (value.getWidth() + 1);
       }
     }
   }
