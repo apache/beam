@@ -34,6 +34,7 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.findbugs_jsr305
+  shadow library.java.jackson_dataformat_cbor
   shadow "com.amazonaws:aws-java-sdk-core:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-kinesis:$aws_version"
   shadow "com.amazonaws:aws-java-sdk-cloudwatch:$aws_version"
@@ -44,6 +45,7 @@ dependencies {
   testCompile library.java.mockito_core
   testCompile library.java.guava_testlib
   testCompile library.java.hamcrest_core
+  testCompile library.java.slf4j_jdk14
   testCompile "org.assertj:assertj-core:2.5.0"
 }
 
