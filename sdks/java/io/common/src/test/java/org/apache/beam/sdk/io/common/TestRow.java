@@ -95,7 +95,9 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
    * the name() for the rows generated from seeds in [0, n).
    */
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
-      1000, "7d94d63a41164be058a9680002914358"
+      1000, "7d94d63a41164be058a9680002914358",
+      100_000, "c7cbddb319209e200f1c5eebef8fe960",
+      1_000_000, "205893d26b6b9753e3df62d52ad419f6"
   );
 
   /**
