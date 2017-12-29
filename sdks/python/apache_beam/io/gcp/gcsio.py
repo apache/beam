@@ -111,7 +111,7 @@ def proxy_info_from_environment_var(proxy_env_var):
 
 def get_new_http():
   """Creates and returns a new httplib2.Http instance.
-  
+
   Returns:
     An initialized httplib2.Http instance.
   """
