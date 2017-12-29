@@ -31,34 +31,48 @@ from apache_beam.utils.counters import CounterName
 # This module is experimental. No backwards-compatibility guarantees.
 
 
-class TransformIoCounter(object):
+class TransformIOCounter(object):
   """Class to track time and bytes consumed while reading from IO.
 
-  Examples of IO can be side inputs, shuffle, or streaming state.
+  Subclasses should be able to track consumption of IO across steps
+  in the same stage - for instance, if a Shuffle or Side Input iterable
+  is passed down to a next step.
+
+  Some examples of IO can be side inputs, shuffle, or streaming state.
   """
 
   def check_step(self):
+    """Check the current step within a stage as it may have changed.
+
+    If the state changed, it would mean that an initial step passed a
+    data-accessor (such as a side input / shuffle Iterable) down to the
+    next step in a stage.
+    """
     pass
 
   def __exit__(self, exc_type, exc_value, traceback):
+    """Exit the IO state."""
     pass
 
   def __enter__(self):
+    """Enter the IO state. This should track time spent blocked on IO."""
     pass
 
-  def add_bytes_read(self, n):
+  def add_bytes_read(self, count):
     pass
 
 
-class SideInputReadCounter(TransformIoCounter):
+class SideInputReadCounter(TransformIOCounter):
   """Tracks time and bytes consumed while reading from side inputs.
 
   This class is designed to track consumption of side inputs across fused steps.
   We represent a side input as a declaring step, and an input index, which are
   represented as an io_target.
+
   The declaring step is the step that originally receives the side input for
   consumption, and the input index in which the declaring step receives the side
   input that we want to identify.
+
   Note that the declaring step originally receives the side input, but it may
   not be the only step that spends time reading from this side input.
   """
@@ -70,7 +84,8 @@ class SideInputReadCounter(TransformIoCounter):
     Args:
       counter_factory: A counters.CounterFactory to create byte counters.
       state_sampler: A statesampler.StateSampler to transition into read states.
-      declaring_step: The step that directly receives the side input initially.
+      declaring_step: A string with the step name of the step that directly
+        receives the side input initially.
       input_index: The index of the side input in the list of inputs of the
         declaring step.
 
@@ -83,6 +98,10 @@ class SideInputReadCounter(TransformIoCounter):
     self._state_sampler = state_sampler
     self.declaring_step = declaring_step
     self.input_index = input_index
+
+    # Side inputs are set up within the start state of the first receiving
+    # state.
+    # We check the current state to create the internal counters.
     self.check_step()
 
   def check_step(self):
@@ -91,7 +110,7 @@ class SideInputReadCounter(TransformIoCounter):
     Due to the fusion optimization, user code may choose to emit the data
     structure that holds side inputs (Iterable, Dict, or others). This call
     updates the current step, to attribute the data consumption to the step
-    that is responsible for it.
+    that is responsible for actual consumption.
     """
     current_state = self._state_sampler.current_state()
     operation_name = current_state.name.step_name
@@ -106,9 +125,9 @@ class SideInputReadCounter(TransformIoCounter):
             io_target=counters.side_input_id(operation_name, self.input_index)),
         Counter.SUM)
 
-  def add_bytes_read(self, n):
-    if n > 0:
-      self.bytes_read_counter.update(n)
+  def add_bytes_read(self, count):
+    if count > 0:
+      self.bytes_read_counter.update(count)
 
   def __enter__(self):
     self.scoped_state.__enter__()
