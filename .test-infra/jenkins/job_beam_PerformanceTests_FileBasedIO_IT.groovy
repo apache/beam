@@ -70,6 +70,7 @@ job('beam_PerformanceTests_FileBasedIO_IT') {
             beam_it_class: "${it}",
             beam_it_options: pipelineArgsJoined,
             beam_extra_mvn_properties: '["filesystem=gcs"]',
+            bigquery_table: 'beam_performance.filebasedioit_pkb_results',
         ]
         common_job_properties.buildPerformanceTest(delegate, argMap)
     }
