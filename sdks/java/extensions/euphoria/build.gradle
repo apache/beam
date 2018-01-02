@@ -22,6 +22,7 @@ subprojects {
   license {
     // ~ TODO: support for other file formats
     include '**/*.java'
+    mapping('java', 'SLASHSTAR_STYLE')
     header = rootProject.file('HEADER')
     strictCheck = true
     ext.year = "2016-${Calendar.getInstance().get(Calendar.YEAR)}"
