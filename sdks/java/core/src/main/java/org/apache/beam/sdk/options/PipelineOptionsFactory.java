@@ -1097,7 +1097,7 @@ public class PipelineOptionsFactory {
             @Nonnull
             @Override
             public Iterable<? extends Annotation> apply(@Nonnull Method method) {
-              return FluentIterable.of(method.getAnnotations());
+              return FluentIterable.from(method.getAnnotations());
             }
           })
           .filter(annotationPredicates.forAnnotation));
@@ -1112,7 +1112,7 @@ public class PipelineOptionsFactory {
                   @Nonnull
                   @Override
                   public Iterable<String> apply(final @Nonnull Method method) {
-                    return FluentIterable.of(method.getAnnotations())
+                    return FluentIterable.from(method.getAnnotations())
                         .filter(annotationPredicates.forAnnotation)
                         .transform(new Function<Annotation, String>() {
                           @Nonnull
@@ -1483,7 +1483,7 @@ public class PipelineOptionsFactory {
           }});
 
     private static final Set<Class<?>> DEFAULT_ANNOTATION_CLASSES = Sets.newHashSet(
-        FluentIterable.of(Default.class.getDeclaredClasses())
+        FluentIterable.from(Default.class.getDeclaredClasses())
         .filter(new Predicate<Class<?>>() {
           @Override
           public boolean apply(@Nonnull Class<?> klass) {
