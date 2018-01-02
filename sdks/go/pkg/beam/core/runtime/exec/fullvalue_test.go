@@ -15,7 +15,9 @@
 
 package exec
 
-import "reflect"
+import (
+	"reflect"
+)
 
 func makeValue(v interface{}) FullValue {
 	return FullValue{Elm: reflect.ValueOf(v)}
