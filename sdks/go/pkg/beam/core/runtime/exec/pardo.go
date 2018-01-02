@@ -36,7 +36,7 @@ type ParDo struct {
 	Out  []Node
 
 	ready     bool
-	sideinput []ReusableSideInput
+	sideinput []ReusableInput
 	emitters  []ReusableEmitter
 	extra     []reflect.Value
 
