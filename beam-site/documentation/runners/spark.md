@@ -79,6 +79,10 @@ And shading the application jar using the maven shade plugin:
       <configuration>
         <shadedArtifactAttached>true</shadedArtifactAttached>
         <shadedClassifierName>shaded</shadedClassifierName>
+        <transformers>
+          <transformer
+            implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+        </transformers>
       </configuration>
     </execution>
   </executions>
