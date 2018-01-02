@@ -776,7 +776,7 @@ class FnApiRunner(runner.PipelineRunner):
         if root.spec.urn in known_composites:
           yield root_id
         elif not root.subtransforms:
-          # Make sure its outputs that are not a subset of its inputs.
+          # Make sure its outputs are not a subset of its inputs.
           if set(root.outputs.values()) - set(root.inputs.values()):
             yield root_id
         else:
