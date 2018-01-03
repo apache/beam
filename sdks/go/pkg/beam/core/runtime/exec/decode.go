@@ -16,11 +16,13 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sync"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=decoders.tmpl --x=data,universals
@@ -43,7 +45,11 @@ func RegisterDecoder(t reflect.Type, maker func(reflect.Value) Decoder) {
 	decodersMu.Lock()
 	defer decodersMu.Unlock()
 
-	decoders[t.String()] = maker
+	key := t.String()
+	if _, exists := decoders[key]; exists {
+		log.Warnf(context.Background(), "Decoder for %v already registered. Overwriting.", key)
+	}
+	decoders[key] = maker
 }
 
 func makeDecoder(fn *funcx.Fn) Decoder {

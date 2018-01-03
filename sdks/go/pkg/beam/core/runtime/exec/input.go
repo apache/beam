@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"reflect"
@@ -23,6 +24,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=inputs.tmpl --x=data,universals --y=data,universals
@@ -54,7 +56,11 @@ func RegisterInput(t reflect.Type, maker func(ReStream) ReusableInput) {
 	inputsMu.Lock()
 	defer inputsMu.Unlock()
 
-	inputs[t.String()] = maker
+	key := t.String()
+	if _, exists := inputs[key]; exists {
+		log.Warnf(context.Background(), "Input for %v already registered. Overwriting.", key)
+	}
+	inputs[key] = maker
 }
 
 type reIterValue struct {
