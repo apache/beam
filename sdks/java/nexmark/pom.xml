@@ -166,6 +166,10 @@
     </plugins>
   </build>
 
+  <properties>
+    <kafka.clients.version>0.10.1.0</kafka.clients.version>
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.beam</groupId>
@@ -261,5 +265,17 @@
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-io-kafka</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka.clients.version}</version>
+    </dependency>
+  
   </dependencies>
 </project>
