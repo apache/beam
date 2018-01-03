@@ -62,118 +62,202 @@ type DataManager interface {
 // work, because each "element" can be too large to fit into memory. Instead,
 // we handle the top GBK/CoGBK layer in the processing node directly.
 
-// EncodeElement uses the supplied coder to write the data in val to the supplied io.Writer.
-func EncodeElement(c *coder.Coder, val FullValue, w io.Writer) error {
+// ElementEncoder handles FullValue serialization to a byte stream. The encoder
+// can be reused, even if an error is encountered.
+type ElementEncoder interface {
+	// Encode serializes the given value to the writer.
+	Encode(FullValue, io.Writer) error
+}
+
+// ElementDecoder handles FullValue deserialization from a byte stream. The decoder
+// can be reused, even if an error is encountered.
+type ElementDecoder interface {
+	// Decode deserializes a value from the given reader.
+	Decode(io.Reader) (FullValue, error)
+}
+
+// MakeElementEncoder returns a ElementCoder for the given coder. It panics
+// if given a coder with stream types, such as GBK.
+func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	switch c.Kind {
 	case coder.Bytes:
-		// Encoding: size (varint) + raw data
-
-		data := reflectx.UnderlyingType(val.Elm).Convert(reflectx.ByteSlice).Interface().([]byte)
-		size := len(data)
-
-		if err := coder.EncodeVarInt((int32)(size), w); err != nil {
-			return err
-		}
-		_, err := w.Write(data)
-		return err
+		return &bytesEncoder{}
 
 	case coder.VarInt:
-		// Encoding: beam varint
-
-		n := reflectx.UnderlyingType(val.Elm).Convert(reflectx.Int32).Interface().(int32)
-		return coder.EncodeVarInt(n, w)
+		return &varIntEncoder{}
 
 	case coder.Custom:
-		enc := c.Custom.Enc
-
-		// (1) Call encode
-
-		data, err := makeEncoder(enc).Encode(c.Custom.Type, val.Elm)
-		if err != nil {
-			return err
+		return &customEncoder{
+			t:   c.Custom.Type,
+			enc: makeEncoder(c.Custom.Enc),
 		}
-
-		// (2) Add length prefix
-
-		size := len(data)
-		if err := coder.EncodeVarInt((int32)(size), w); err != nil {
-			return err
-		}
-		_, err = w.Write(data)
-		return err
 
 	case coder.KV:
-		if err := EncodeElement(c.Components[0], FullValue{Elm: val.Elm}, w); err != nil {
-			return err
+		return &kvEncoder{
+			fst: MakeElementEncoder(c.Components[0]),
+			snd: MakeElementEncoder(c.Components[1]),
 		}
-		return EncodeElement(c.Components[1], FullValue{Elm: val.Elm2}, w)
 
 	default:
-		return fmt.Errorf("unexpected coder: %v", c)
+		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
 }
 
-// DecodeElement uses the supplied coder to read data from the supplied Reader and return a data element.
-func DecodeElement(c *coder.Coder, r io.Reader) (FullValue, error) {
+// MakeElementDecoder returns a ElementDecoder for the given coder. It panics
+// if given a coder with stream types, such as GBK.
+func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	switch c.Kind {
 	case coder.Bytes:
-		// Encoding: size (varint) + raw data
-
-		size, err := coder.DecodeVarInt(r)
-		if err != nil {
-			return FullValue{}, err
-		}
-		data, err := ioutilx.ReadN(r, (int)(size))
-		if err != nil {
-			return FullValue{}, err
-		}
-		return FullValue{Elm: reflect.ValueOf(data)}, nil
+		return &bytesDecoder{}
 
 	case coder.VarInt:
-		// Encoding: beam varint
-
-		n, err := coder.DecodeVarInt(r)
-		if err != nil {
-			return FullValue{}, err
-		}
-		return FullValue{Elm: reflect.ValueOf(n)}, nil
+		return &varIntDecoder{}
 
 	case coder.Custom:
-		dec := c.Custom.Dec
-
-		// (1) Read length-prefixed encoded data
-
-		size, err := coder.DecodeVarInt(r)
-		if err != nil {
-			return FullValue{}, err
+		return &customDecoder{
+			t:   c.Custom.Type,
+			dec: makeDecoder(c.Custom.Dec),
 		}
-		data, err := ioutilx.ReadN(r, (int)(size))
-		if err != nil {
-			return FullValue{}, err
-		}
-
-		// (2) Call decode
-
-		val, err := makeDecoder(dec).Decode(c.Custom.Type, data)
-		if err != nil {
-			return FullValue{}, err
-		}
-		return FullValue{Elm: val}, err
 
 	case coder.KV:
-		key, err := DecodeElement(c.Components[0], r)
-		if err != nil {
-			return FullValue{}, err
+		return &kvDecoder{
+			fst: MakeElementDecoder(c.Components[0]),
+			snd: MakeElementDecoder(c.Components[1]),
 		}
-		value, err := DecodeElement(c.Components[1], r)
-		if err != nil {
-			return FullValue{}, err
-		}
-		return FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
 
 	default:
-		return FullValue{}, fmt.Errorf("unexpected coder: %v", c)
+		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
+}
+
+type bytesEncoder struct{}
+
+func (*bytesEncoder) Encode(val FullValue, w io.Writer) error {
+	// Encoding: size (varint) + raw data
+
+	data := reflectx.UnderlyingType(val.Elm).Convert(reflectx.ByteSlice).Interface().([]byte)
+	size := len(data)
+
+	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+		return err
+	}
+	_, err := w.Write(data)
+	return err
+}
+
+type bytesDecoder struct{}
+
+func (*bytesDecoder) Decode(r io.Reader) (FullValue, error) {
+	// Encoding: size (varint) + raw data
+
+	size, err := coder.DecodeVarInt(r)
+	if err != nil {
+		return FullValue{}, err
+	}
+	data, err := ioutilx.ReadN(r, (int)(size))
+	if err != nil {
+		return FullValue{}, err
+	}
+	return FullValue{Elm: reflect.ValueOf(data)}, nil
+}
+
+type varIntEncoder struct{}
+
+func (*varIntEncoder) Encode(val FullValue, w io.Writer) error {
+	// Encoding: beam varint
+
+	n := reflectx.UnderlyingType(val.Elm).Convert(reflectx.Int32).Interface().(int32)
+	return coder.EncodeVarInt(n, w)
+}
+
+type varIntDecoder struct{}
+
+func (*varIntDecoder) Decode(r io.Reader) (FullValue, error) {
+	// Encoding: beam varint
+
+	n, err := coder.DecodeVarInt(r)
+	if err != nil {
+		return FullValue{}, err
+	}
+	return FullValue{Elm: reflect.ValueOf(n)}, nil
+}
+
+type customEncoder struct {
+	t   reflect.Type
+	enc Encoder
+}
+
+func (c *customEncoder) Encode(val FullValue, w io.Writer) error {
+	// (1) Call encode
+
+	data, err := c.enc.Encode(c.t, val.Elm)
+	if err != nil {
+		return err
+	}
+
+	// (2) Add length prefix
+
+	size := len(data)
+	if err := coder.EncodeVarInt((int32)(size), w); err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
+}
+
+type customDecoder struct {
+	t   reflect.Type
+	dec Decoder
+}
+
+func (c *customDecoder) Decode(r io.Reader) (FullValue, error) {
+	// (1) Read length-prefixed encoded data
+
+	size, err := coder.DecodeVarInt(r)
+	if err != nil {
+		return FullValue{}, err
+	}
+	data, err := ioutilx.ReadN(r, (int)(size))
+	if err != nil {
+		return FullValue{}, err
+	}
+
+	// (2) Call decode
+
+	val, err := c.dec.Decode(c.t, data)
+	if err != nil {
+		return FullValue{}, err
+	}
+	return FullValue{Elm: val}, err
+}
+
+type kvEncoder struct {
+	fst, snd ElementEncoder
+}
+
+func (c *kvEncoder) Encode(val FullValue, w io.Writer) error {
+	if err := c.fst.Encode(FullValue{Elm: val.Elm}, w); err != nil {
+		return err
+	}
+	return c.snd.Encode(FullValue{Elm: val.Elm2}, w)
+
+}
+
+type kvDecoder struct {
+	fst, snd ElementDecoder
+}
+
+func (c *kvDecoder) Decode(r io.Reader) (FullValue, error) {
+	key, err := c.fst.Decode(r)
+	if err != nil {
+		return FullValue{}, err
+	}
+	value, err := c.snd.Decode(r)
+	if err != nil {
+		return FullValue{}, err
+	}
+	return FullValue{Elm: key.Elm, Elm2: value.Elm}, nil
+
 }
 
 // TODO(herohde) 4/7/2017: actually handle windows.
