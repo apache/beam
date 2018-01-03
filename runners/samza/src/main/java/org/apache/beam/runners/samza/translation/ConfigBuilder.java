@@ -44,6 +44,7 @@ import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.samza.config.ApplicationConfig;
 import org.apache.samza.config.Config;
+import org.apache.samza.config.JobConfig;
 import org.apache.samza.config.MapConfig;
 
 /**
@@ -61,6 +62,7 @@ public class ConfigBuilder extends Pipeline.PipelineVisitor.Defaults {
                                    Map<PValue, String> idMap) {
     try {
       final Map<String, String> config = new HashMap<>(options.getSamzaConfig());
+      config.put(JobConfig.JOB_NAME(), options.getJobName());
       config.put("beamPipelineOptions",
           Base64Serializer.serializeUnchecked(new SerializablePipelineOptions(options)));
       // TODO: remove after SAMZA-1531 is resolved
