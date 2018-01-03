@@ -84,7 +84,6 @@ class FnApiRunnerTest(
       side1 = p | 'side1' >> beam.Create([('a', 1)])
       side2 = p | 'side2' >> beam.Create([('b', 2)])
       side = (side1, side2) | beam.Flatten()
-      _ = main | 'Do' >> beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side))
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': 1, 'b': 2})]))
@@ -93,7 +92,6 @@ class FnApiRunnerTest(
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
       side = p | 'side' >> beam.Create([('a', 1)]) | beam.GroupByKey()
-      _ = main | 'Do' >> beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side))
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
@@ -104,6 +102,17 @@ class FnApiRunnerTest(
     with self.assertRaisesRegexp(Exception, 'Failed assert'):
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
+
+  def test_no_subtransform_composite(self):
+
+    class First(beam.PTransform):
+      def expand(self, pcolls):
+        return pcolls[0]
+
+    with self.create_pipeline() as p:
+      pcoll_a = p | 'a' >> beam.Create(['a'])
+      pcoll_b = p | 'b' >> beam.Create(['b'])
+      assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
   def test_progress_metrics(self):
     p = self.create_pipeline()
