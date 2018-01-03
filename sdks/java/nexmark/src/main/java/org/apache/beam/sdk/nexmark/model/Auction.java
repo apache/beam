@@ -80,14 +80,14 @@ public class Auction implements KnownSize, Serializable {
 
   /** Extra auction properties. */
   @JsonProperty
-  private final String itemName;
+  public final String itemName;
 
   @JsonProperty
-  private final String description;
+  public final String description;
 
   /** Initial bid price, in cents. */
   @JsonProperty
-  private final long initialBid;
+  public final long initialBid;
 
   /** Reserve price, in cents. */
   @JsonProperty
@@ -110,7 +110,7 @@ public class Auction implements KnownSize, Serializable {
 
   /** Additional arbitrary payload for performance testing. */
   @JsonProperty
-  private final String extra;
+  public final String extra;
 
 
   // For Avro only.
