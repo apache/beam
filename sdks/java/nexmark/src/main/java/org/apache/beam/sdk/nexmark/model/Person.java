@@ -75,10 +75,10 @@ public class Person implements KnownSize, Serializable {
   public final String name;
 
   @JsonProperty
-  private final String emailAddress;
+  public final String emailAddress;
 
   @JsonProperty
-  private final String creditCard;
+  public final String creditCard;
 
   @JsonProperty
   public final String city;
@@ -91,7 +91,7 @@ public class Person implements KnownSize, Serializable {
 
   /** Additional arbitrary payload for performance testing. */
   @JsonProperty
-  private final String extra;
+  public final String extra;
 
   // For Avro only.
   @SuppressWarnings("unused")
