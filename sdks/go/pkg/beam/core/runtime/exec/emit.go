@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 //go:generate specialize --input=emitters.tmpl --x=data,universals --y=data,universals
@@ -47,7 +48,11 @@ func RegisterEmitter(t reflect.Type, maker func(ElementProcessor) ReusableEmitte
 	emittersMu.Lock()
 	defer emittersMu.Unlock()
 
-	emitters[t.String()] = maker
+	key := t.String()
+	if _, exists := emitters[key]; exists {
+		log.Warnf(context.Background(), "Emitter for %v already registered. Overwriting.", key)
+	}
+	emitters[key] = maker
 }
 
 func makeEmit(t reflect.Type, n ElementProcessor) ReusableEmitter {
