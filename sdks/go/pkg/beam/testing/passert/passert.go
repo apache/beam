@@ -137,13 +137,15 @@ type indexEntry struct {
 
 func index(c *coder.Coder, iter func(*beam.T) bool) (map[string]indexEntry, error) {
 	ret := make(map[string]indexEntry)
+	enc := exec.MakeElementEncoder(c)
 
 	var val beam.T
 	for iter(&val) {
-		encoded, err := encode(c, val)
-		if err != nil {
-			return nil, err
+		var buf bytes.Buffer
+		if err := enc.Encode(exec.FullValue{Elm: reflect.ValueOf(val)}, &buf); err != nil {
+			return nil, fmt.Errorf("value %v not encodable by %v", val, c)
 		}
+		encoded := buf.String()
 
 		cur := ret[encoded]
 		ret[encoded] = indexEntry{count: cur.count + 1, value: val}
@@ -153,14 +155,6 @@ func index(c *coder.Coder, iter func(*beam.T) bool) (map[string]indexEntry, erro
 
 // TODO(herohde) 7/11/2017: perhaps extract the coder helpers as more
 // general and polished utilities for working with coders in user code.
-
-func encode(c *coder.Coder, value interface{}) (string, error) {
-	var buf bytes.Buffer
-	if err := exec.EncodeElement(c, exec.FullValue{Elm: reflect.ValueOf(value)}, &buf); err != nil {
-		return "", fmt.Errorf("value %v not encodable by %v", value, c)
-	}
-	return buf.String(), nil
-}
 
 // True asserts that all elements satisfy the given predicate.
 func True(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollection {
