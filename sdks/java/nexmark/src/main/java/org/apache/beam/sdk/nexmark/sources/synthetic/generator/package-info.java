@@ -17,6 +17,6 @@
  */
 
 /**
- * Model Generators.
+ * Event generator for Nexmark suite.
  */
-package org.apache.beam.sdk.nexmark.sources.generator.model;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;

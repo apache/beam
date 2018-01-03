@@ -44,7 +44,7 @@ import org.apache.beam.sdk.nexmark.model.Auction;
 import org.apache.beam.sdk.nexmark.model.AuctionBid;
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorConfig;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;

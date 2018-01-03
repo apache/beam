@@ -16,18 +16,19 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.generator.model;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator.model;
 
-import static org.apache.beam.sdk.nexmark.sources.generator.model.LongGenerator.nextLong;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.PersonGenerator.lastBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.PersonGenerator.nextBase0PersonId;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.PriceGenerator.nextPrice;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerator.nextExtra;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.StringsGenerator.nextString;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.LongGenerator.nextLong;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.PersonGenerator.lastBase0PersonId;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.PersonGenerator.nextBase0PersonId;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.PriceGenerator.nextPrice;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.StringsGenerator.nextExtra;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.StringsGenerator.nextString;
 
 import java.util.Random;
+
 import org.apache.beam.sdk.nexmark.model.Auction;
-import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorConfig;
 
 /**
  * AuctionGenerator.

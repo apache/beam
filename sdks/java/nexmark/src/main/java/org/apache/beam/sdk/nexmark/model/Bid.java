@@ -19,11 +19,14 @@ package org.apache.beam.sdk.nexmark.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.Objects;
+
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
@@ -173,5 +176,28 @@ public class Bid implements KnownSize, Serializable {
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (!(o instanceof Bid)) {
+      return false;
+    }
+
+    Bid bid = (Bid) o;
+    return auction == bid.auction
+        && bidder == bid.bidder
+        && price == bid.price
+        && dateTime == bid.dateTime
+        && Objects.equals(extra, bid.extra);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(auction, bidder, price, dateTime, extra);
   }
 }

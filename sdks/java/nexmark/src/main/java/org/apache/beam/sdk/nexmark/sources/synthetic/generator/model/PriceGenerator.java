@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.nexmark.sources.generator.model;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator.model;
 
 import java.util.Random;
 

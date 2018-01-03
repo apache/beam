@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources;
+package org.apache.beam.sdk.nexmark.sources.synthetic;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,16 +23,14 @@ import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.concurrent.ThreadLocalRandom;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
-import org.apache.beam.sdk.nexmark.sources.generator.Generator;
-import org.apache.beam.sdk.nexmark.sources.generator.GeneratorCheckpoint;
-import org.apache.beam.sdk.nexmark.sources.generator.GeneratorConfig;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.Generator;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorCheckpoint;
+import org.apache.beam.sdk.nexmark.sources.synthetic.generator.GeneratorConfig;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.TimestampedValue;

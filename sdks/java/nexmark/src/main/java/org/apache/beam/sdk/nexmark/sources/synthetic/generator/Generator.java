@@ -15,17 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.nexmark.sources.generator;
+package org.apache.beam.sdk.nexmark.sources.synthetic.generator;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.AuctionGenerator.nextAuction;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.BidGenerator.nextBid;
-import static org.apache.beam.sdk.nexmark.sources.generator.model.PersonGenerator.nextPerson;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.AuctionGenerator.nextAuction;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.BidGenerator.nextBid;
+import static org.apache.beam.sdk.nexmark.sources.synthetic.generator.model.PersonGenerator.nextPerson;
 
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.Objects;
 import java.util.Random;
+
 import org.apache.beam.sdk.nexmark.model.Bid;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.values.TimestampedValue;
