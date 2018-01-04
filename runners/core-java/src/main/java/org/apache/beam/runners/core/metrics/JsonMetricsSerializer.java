@@ -6,7 +6,11 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import java.io.IOException;
+import org.apache.beam.sdk.metrics.DistributionResult;
+import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.joda.time.Instant;
 
 /** Serialize metrics into json representation to be pushed to a backend. */
 public class JsonMetricsSerializer implements MetricsSerializer<String> {
@@ -37,9 +41,59 @@ public class JsonMetricsSerializer implements MetricsSerializer<String> {
         JsonGenerator jsonGenerator,
         SerializerProvider serializerProvider)
         throws IOException {
-      // TODO replace dummy serializer
       jsonGenerator.writeStartObject();
-      jsonGenerator.writeStringField("dummy", "toto");
+
+      jsonGenerator.writeArrayFieldStart("counters");
+      for (MetricResult<Long>  result : metricQueryResults.counters()){
+        jsonGenerator.writeStartObject();
+        String name = result.name().namespace() + "/"  + result.name().name();
+        jsonGenerator.writeStringField("name", name);
+        String step = result.step();
+        jsonGenerator.writeStringField("step", step);
+        Long attempted = result.attempted();
+        jsonGenerator.writeNumberField("attempted", attempted);
+        jsonGenerator.writeEndObject();
+      }
+      jsonGenerator.writeEndArray();
+
+      jsonGenerator.writeArrayFieldStart("distributions");
+      for (MetricResult<DistributionResult> result : metricQueryResults.distributions()){
+        jsonGenerator.writeStartObject();
+        String name = result.name().namespace() + "/"  + result.name().name();
+        jsonGenerator.writeStringField("name", name);
+        String step = result.step();
+        jsonGenerator.writeStringField("step", step);
+        DistributionResult attempted = result.attempted();
+        jsonGenerator.writeFieldName("attempted");
+        jsonGenerator.writeStartObject();
+        jsonGenerator.writeNumberField("min", attempted.min());
+        jsonGenerator.writeNumberField("max", attempted.max());
+        jsonGenerator.writeNumberField("sum", attempted.sum());
+        jsonGenerator.writeNumberField("count", attempted.count());
+        jsonGenerator.writeNumberField("mean", attempted.mean());
+        jsonGenerator.writeEndObject();
+
+        jsonGenerator.writeEndObject();
+      }
+      jsonGenerator.writeEndArray();
+
+      jsonGenerator.writeArrayFieldStart("gauges");
+      for (MetricResult<GaugeResult> result : metricQueryResults.gauges()){
+        jsonGenerator.writeStartObject();
+        String name = result.name().namespace() + "/"  + result.name().name();
+        jsonGenerator.writeStringField("name", name);
+        String step = result.step();
+        jsonGenerator.writeStringField("step", step);
+        GaugeResult attempted = result.attempted();
+        jsonGenerator.writeFieldName("attempted");
+        jsonGenerator.writeStartObject();
+        jsonGenerator.writeNumberField("value", attempted.value());
+        jsonGenerator.writeStringField("timestamp", attempted.timestamp().toString());
+        jsonGenerator.writeEndObject();
+        jsonGenerator.writeEndObject();
+      }
+      jsonGenerator.writeEndArray();
+
       jsonGenerator.writeEndObject();
     }
   }
