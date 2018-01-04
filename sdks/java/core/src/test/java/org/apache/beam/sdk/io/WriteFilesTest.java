@@ -329,21 +329,21 @@ public class WriteFilesTest {
     WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(3);
     assertThat((SimpleSink<Void>) write.getSink(), is(sink));
     PTransform<PCollection<String>, PCollectionView<Integer>> originalSharding =
-        write.getSharding();
+        write.getComputeNumShards();
 
-    assertThat(write.getSharding(), is(nullValue()));
-    assertThat(write.getNumShards(), instanceOf(StaticValueProvider.class));
-    assertThat(write.getNumShards().get(), equalTo(3));
-    assertThat(write.getSharding(), equalTo(originalSharding));
+    assertThat(write.getComputeNumShards(), is(nullValue()));
+    assertThat(write.getNumShardsProvider(), instanceOf(StaticValueProvider.class));
+    assertThat(write.getNumShardsProvider().get(), equalTo(3));
+    assertThat(write.getComputeNumShards(), equalTo(originalSharding));
 
     WriteFiles<String, ?, ?> write2 = write.withSharding(SHARDING_TRANSFORM);
     assertThat((SimpleSink<Void>) write2.getSink(), is(sink));
-    assertThat(write2.getSharding(), equalTo(SHARDING_TRANSFORM));
+    assertThat(write2.getComputeNumShards(), equalTo(SHARDING_TRANSFORM));
     // original unchanged
 
     WriteFiles<String, ?, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
-    assertThat(writeUnsharded.getSharding(), nullValue());
-    assertThat(write.getSharding(), equalTo(originalSharding));
+    assertThat(writeUnsharded.getComputeNumShards(), nullValue());
+    assertThat(write.getComputeNumShards(), equalTo(originalSharding));
   }
 
   @Test
@@ -386,10 +386,11 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWindowedWritesNeedSharding() {
+  public void testUnboundedWritesNeedSharding() {
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage(
-        "When using windowed writes, must specify number of output shards explicitly");
+        "When applying WriteFiles to an unbounded PCollection, "
+            + "must specify number of output shards explicitly");
 
     SimpleSink<Void> sink = makeSimpleSink();
     p.apply(Create.of("foo"))
@@ -669,10 +670,10 @@ public class WriteFilesTest {
     p.run();
 
     Optional<Integer> numShards =
-        (write.getNumShards() != null && !write.isWindowedWrites())
-            ? Optional.of(write.getNumShards().get())
+        (write.getNumShardsProvider() != null && !write.getWindowedWrites())
+            ? Optional.of(write.getNumShardsProvider().get())
             : Optional.<Integer>absent();
-    checkFileContents(baseName, inputs, numShards, !write.isWindowedWrites());
+    checkFileContents(baseName, inputs, numShards, !write.getWindowedWrites());
   }
 
   static void checkFileContents(

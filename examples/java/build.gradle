@@ -79,7 +79,7 @@ dependencies {
   dataflowRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-google-cloud-dataflow-java", configuration: "shadow")
   dataflowStreamingRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-google-cloud-dataflow-java", configuration: "shadow")
   directRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
-  flinkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-flink_2.10", configuration: "shadow")
+  flinkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-flink_2.11", configuration: "shadow")
   sparkRunnerPreCommit project(path: ":beam-runners-parent:beam-runners-spark", configuration: "shadow")
   sparkRunnerPreCommit project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-file-system", configuration: "shadow")
   sparkRunnerPreCommit library.java.spark_streaming

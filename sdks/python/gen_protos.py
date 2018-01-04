@@ -21,16 +21,17 @@ import glob
 import logging
 import multiprocessing
 import os
+import pip
 import pkg_resources
 import platform
+import pprint
 import shutil
 import subprocess
 import sys
 import time
 import warnings
 
-
-GRPC_TOOLS = 'grpcio-tools>=1.3.5'
+GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
 
 BEAM_PROTO_PATHS = [
   os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
@@ -126,15 +127,21 @@ def _install_grpcio_tools_and_generate_proto_files():
   logging.warning('Installing grpcio-tools into %s' % install_path)
   try:
     start = time.time()
+    pprint.pprint(pip.pep425tags.get_supported())
     subprocess.check_call(
-        ['pip', 'install', '--target', install_path, '--build', build_path,
+        [sys.executable, '-m', 'pip', 'install',
+         '--target', install_path, '--build', build_path,
          '--upgrade', GRPC_TOOLS])
     logging.warning(
         'Installing grpcio-tools took %0.2f seconds.' % (time.time() - start))
   finally:
+    sys.stderr.flush()
     shutil.rmtree(build_path)
   sys.path.append(install_path)
-  generate_proto_files()
+  try:
+    generate_proto_files()
+  finally:
+    sys.stderr.flush()
 
 
 if __name__ == '__main__':

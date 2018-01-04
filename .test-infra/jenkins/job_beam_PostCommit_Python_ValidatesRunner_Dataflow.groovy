@@ -40,7 +40,7 @@ job('beam_PostCommit_Python_ValidatesRunner_Dataflow') {
   parameters {
     nodeParam('TEST_HOST') {
       description('select test host as either beam1, 2 or 3')
-      defaultNodes(['beam3'])
+      defaultNodes(['beam1', 'beam2', 'beam3'])
       allowedNodes(['beam1', 'beam2', 'beam3'])
       trigger('multiSelectionDisallowed')
       eligibility('IgnoreOfflineNodeEligibility')

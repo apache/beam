@@ -261,7 +261,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -296,7 +296,7 @@ class DataflowRunner(PipelineRunner):
     pipeline.visit(self.flatten_input_visitor())
 
     # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowRunner, self).run(pipeline)
+    super(DataflowRunner, self).run_pipeline(pipeline)
 
     test_options = pipeline._options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.
@@ -936,7 +936,7 @@ class DataflowPipelineResult(PipelineResult):
     return self._job.currentState in [
         values_enum.JOB_STATE_STOPPED, values_enum.JOB_STATE_DONE,
         values_enum.JOB_STATE_FAILED, values_enum.JOB_STATE_CANCELLED,
-        values_enum.JOB_STATE_DRAINED]
+        values_enum.JOB_STATE_UPDATED, values_enum.JOB_STATE_DRAINED]
 
   def wait_until_finish(self, duration=None):
     if not self._is_in_terminal_state():
@@ -957,7 +957,7 @@ class DataflowPipelineResult(PipelineResult):
 
       # TODO: Merge the termination code in poll_for_job_completion and
       # _is_in_terminal_state.
-      terminated = (str(self._job.currentState) != 'JOB_STATE_RUNNING')
+      terminated = self._is_in_terminal_state()
       assert duration or terminated, (
           'Job did not reach to a terminal state after waiting indefinitely.')
 

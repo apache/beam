@@ -52,6 +52,8 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
@@ -389,7 +391,19 @@ class PackageUtil implements Closeable {
     }
 
     try {
-      List<DataflowPackage> stagedPackages = Futures.allAsList(destinationPackages).get();
+      ListenableFuture<List<DataflowPackage>> stagingFutures =
+          Futures.allAsList(destinationPackages);
+      boolean finished = false;
+      do {
+        try {
+          stagingFutures.get(3L, TimeUnit.MINUTES);
+          finished = true;
+        } catch (TimeoutException e) {
+          // finished will still be false
+          LOG.info("Still staging {} files", classpathElements.size());
+        }
+      } while (!finished);
+      List<DataflowPackage> stagedPackages = stagingFutures.get();
       LOG.info(
           "Staging files complete: {} files cached, {} files newly uploaded",
           numCached.get(), numUploaded.get());

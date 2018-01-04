@@ -32,6 +32,7 @@ from apache_beam.metrics.cells import DistributionData
 from apache_beam.metrics.cells import DistributionResult
 from apache_beam.metrics.execution import MetricKey
 from apache_beam.metrics.execution import MetricResult
+from apache_beam.metrics.metric import Metrics
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.pipeline import Pipeline
@@ -68,7 +69,6 @@ class RunnerTest(unittest.TestCase):
         isinstance(create_runner('Direct'), DirectRunner))
 
   def test_direct_runner_metrics(self):
-    from apache_beam.metrics.metric import Metrics
 
     class MyDoFn(beam.DoFn):
       def start_bundle(self):
@@ -117,6 +117,16 @@ class RunnerTest(unittest.TestCase):
                 MetricKey('Do', MetricName(namespace, 'element_dist')),
                 DistributionResult(DistributionData(15, 5, 1, 5)),
                 DistributionResult(DistributionData(15, 5, 1, 5)))))
+
+  def test_run_api(self):
+    my_metric = Metrics.counter('namespace', 'my_metric')
+    runner = DirectRunner()
+    result = runner.run(
+        beam.Create([1, 10, 100]) | beam.Map(lambda x: my_metric.inc(x)))
+    result.wait_until_finish()
+    # Use counters to assert the pipeline actually ran.
+    my_metric_value = result.metrics().query()['counters'][0].committed
+    self.assertEqual(my_metric_value, 111)
 
 
 if __name__ == '__main__':

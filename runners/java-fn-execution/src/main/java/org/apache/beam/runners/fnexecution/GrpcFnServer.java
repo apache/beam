@@ -57,7 +57,6 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
     this.server = server;
     this.service = service;
     this.apiServiceDescriptor = apiServiceDescriptor;
-    server.start();
   }
 
   /**
@@ -71,6 +70,13 @@ public class GrpcFnServer<ServiceT extends FnService> implements AutoCloseable {
   /** Get the service exposed by this {@link GrpcFnServer}. */
   public ServiceT getService() {
     return service;
+  }
+
+  /**
+   * Get the underlying {@link Server} contained by this {@link GrpcFnServer}.
+   */
+  public Server getServer() {
+    return server;
   }
 
   @Override

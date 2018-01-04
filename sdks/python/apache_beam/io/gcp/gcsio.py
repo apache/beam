@@ -87,6 +87,44 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
+def proxy_info_from_environment_var(proxy_env_var):
+  """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
+
+  Args:
+    proxy_env_var: environment variable string to read, http_proxy or
+       https_proxy (in lower case).
+       Example: http://myproxy.domain.com:8080
+
+  Returns:
+    httplib2.ProxyInfo constructed from the environment string.
+  """
+  proxy_url = os.environ.get(proxy_env_var)
+  if not proxy_url:
+    return None
+  proxy_protocol = proxy_env_var.lower().split('_')[0]
+  if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
+    logging.warn("proxy_info_from_url requires a protocol, which is always "
+                 "http or https.")
+    proxy_url = proxy_protocol + '://' + proxy_url
+  return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
+
+
+def get_new_http():
+  """Creates and returns a new httplib2.Http instance.
+
+  Returns:
+    An initialized httplib2.Http instance.
+  """
+  proxy_info = None
+  for proxy_env_var in ['http_proxy', 'https_proxy']:
+    if os.environ.get(proxy_env_var):
+      proxy_info = proxy_info_from_environment_var(proxy_env_var)
+      break
+  # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
+  return httplib2.Http(proxy_info=proxy_info,
+                       timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
+
+
 def parse_gcs_path(gcs_path):
   """Return the bucket and object names of the given gs:// path."""
   match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
@@ -117,7 +155,8 @@ class GcsIO(object):
         credentials = auth.get_service_credentials()
         storage_client = storage.StorageV1(
             credentials=credentials,
-            http=httplib2.Http(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS))
+            get_credentials=False,
+            http=get_new_http())
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))
         local_state.gcsio_instance.client = storage_client
@@ -233,7 +272,7 @@ class GcsIO(object):
       request = storage.StorageObjectsDeleteRequest(
           bucket=bucket, object=object_path)
       batch_request.Add(self.client.objects, 'Delete', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+    api_calls = batch_request.Execute(self.client._http) # pylint: disable=protected-access
     result_statuses = []
     for i, api_call in enumerate(api_calls):
       path = paths[i]

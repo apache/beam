@@ -1,5 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one
+/* * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
  * regarding copyright ownership.  The ASF licenses this file
@@ -30,18 +29,11 @@ description = "Apache Beam :: Runners :: Java Fn Execution"
  */
 evaluationDependsOn(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution")
 
-configurations.all {
-  // Fn Execution contains shared utilities for Runners and Harnesses which use            
-  // the Portability framework. Runner-side interactions must not require a
-  // dependency on any particular SDK, so this library must not introduce such an
-  // edge.
-  exclude group: "org.apache.beam", module: "beam-sdks-java-core"
-}
-
 dependencies {
   compile library.java.guava
   shadow project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow")
   shadow project(path: ":beam-model-parent:beam-model-fn-execution", configuration: "shadow")
+  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
   shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution", configuration: "shadow")
   shadow library.java.grpc_core
   shadow library.java.grpc_stub

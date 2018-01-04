@@ -426,6 +426,12 @@ public abstract class DoFnSignature {
     @Override
     public abstract List<Parameter> extraParameters();
 
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}.
+     */
+    public abstract boolean requiresStableInput();
+
     /** Concrete type of the {@link RestrictionTracker} parameter, if present. */
     @Nullable
     public abstract TypeDescriptor<?> trackerT();
@@ -440,12 +446,14 @@ public abstract class DoFnSignature {
     static ProcessElementMethod create(
         Method targetMethod,
         List<Parameter> extraParameters,
+        boolean requiresStableInput,
         TypeDescriptor<?> trackerT,
         @Nullable TypeDescriptor<? extends BoundedWindow> windowT,
         boolean hasReturnValue) {
       return new AutoValue_DoFnSignature_ProcessElementMethod(
           targetMethod,
           Collections.unmodifiableList(extraParameters),
+          requiresStableInput,
           trackerT,
           windowT,
           hasReturnValue);
@@ -487,6 +495,13 @@ public abstract class DoFnSignature {
     @Override
     public abstract Method targetMethod();
 
+    /**
+     * Whether this method requires stable input, expressed via {@link
+     * org.apache.beam.sdk.transforms.DoFn.RequiresStableInput}. For timers, this means that any
+     * state must be stably persisted prior to calling it.
+     */
+    public abstract boolean requiresStableInput();
+
     /** The window type used by this method, if any. */
     @Nullable
     public abstract TypeDescriptor<? extends BoundedWindow> windowT();
@@ -498,10 +513,15 @@ public abstract class DoFnSignature {
     static OnTimerMethod create(
         Method targetMethod,
         String id,
+        boolean requiresStableInput,
         TypeDescriptor<? extends BoundedWindow> windowT,
         List<Parameter> extraParameters) {
       return new AutoValue_DoFnSignature_OnTimerMethod(
-          id, targetMethod, windowT, Collections.unmodifiableList(extraParameters));
+          id,
+          targetMethod,
+          requiresStableInput,
+          windowT,
+          Collections.unmodifiableList(extraParameters));
     }
   }
 

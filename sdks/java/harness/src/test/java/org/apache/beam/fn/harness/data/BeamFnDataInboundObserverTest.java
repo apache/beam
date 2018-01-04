@@ -51,10 +51,8 @@ public class BeamFnDataInboundObserverTest {
   public void testDecodingElements() throws Exception {
     Collection<WindowedValue<String>> values = new ArrayList<>();
     CompletableFuture<Void> readFuture = new CompletableFuture<>();
-    BeamFnDataInboundObserver<String> observer = new BeamFnDataInboundObserver<>(
-        CODER,
-        values::add,
-        readFuture);
+    BeamFnDataInboundObserver<String> observer =
+        new BeamFnDataInboundObserver<>(CODER, values::add, readFuture);
 
     // Test decoding multiple messages
     observer.accept(dataWith("ABC", "DEF", "GHI"));
@@ -75,10 +73,8 @@ public class BeamFnDataInboundObserverTest {
   @Test
   public void testConsumptionFailureCompletesReadFutureAndDiscardsMessages() throws Exception {
     CompletableFuture<Void> readFuture = new CompletableFuture<>();
-    BeamFnDataInboundObserver<String> observer = new BeamFnDataInboundObserver<>(
-        CODER,
-        this::throwOnDefValue,
-        readFuture);
+    BeamFnDataInboundObserver<String> observer =
+        new BeamFnDataInboundObserver<>(CODER, this::throwOnDefValue, readFuture);
 
     assertFalse(readFuture.isDone());
     observer.accept(dataWith("ABC", "DEF", "GHI"));

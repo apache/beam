@@ -534,7 +534,7 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                           keyCoder, wvCoder.getValueCoder(), wvCoder.getWindowCoder());
 
               @Override
-              public Iterable<WindowedValue<KV<K, Iterable<InputT>>>> call(
+              public java.util.Iterator<WindowedValue<KV<K, Iterable<InputT>>>> call(
                   final Tuple2<
                           /*K*/ ByteArray,
                           Tuple2<StateAndTimers, /*WV<KV<K, Itr<I>>>*/ List<byte[]>>>
@@ -542,7 +542,8 @@ public class SparkGroupAlsoByWindowViaWindowSet implements Serializable {
                   throws Exception {
                 // drop the state since it is already persisted at this point.
                 // return in serialized form.
-                return CoderHelpers.fromByteArrays(t2._2()._2(), windowedValueKeyValueCoder);
+                return CoderHelpers.fromByteArrays(t2._2()._2(), windowedValueKeyValueCoder)
+                    .iterator();
               }
             });
   }
