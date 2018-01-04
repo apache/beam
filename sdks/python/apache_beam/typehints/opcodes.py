@@ -28,8 +28,12 @@ For internal use only; no backwards-compatibility guarantees.
 """
 from __future__ import absolute_import
 
+import inspect
+import sys
 import types
 from functools import reduce
+
+import six
 
 from . import typehints
 from .trivial_inference import BoundMethod
@@ -146,11 +150,19 @@ binary_subtract = inplace_subtract = symmetric_binary_op
 
 
 def binary_subscr(state, unused_arg):
-  tos = state.stack.pop()
-  if tos in (str, unicode):
-    out = tos
+  index = state.stack.pop()
+  base = state.stack.pop()
+  if base in (str, six.text_type):
+    out = base
+  elif (isinstance(index, Const) and isinstance(index.value, int)
+        and isinstance(base, typehints.TupleHint.TupleConstraint)):
+    const_index = index.value
+    if -len(base.tuple_types) < const_index < len(base.tuple_types):
+      out = base.tuple_types[const_index]
+    else:
+      out = element_type(base)
   else:
-    out = element_type(tos)
+    out = element_type(base)
   state.stack.append(out)
 
 
@@ -189,8 +201,9 @@ print_newline = nop
 # break_loop
 # continue_loop
 def list_append(state, arg):
+  new_element_type = Const.unwrap(state.stack.pop())
   state.stack[-arg] = List[Union[element_type(state.stack[-arg]),
-                                 Const.unwrap(state.stack.pop())]]
+                                 new_element_type]]
 
 
 load_locals = push_value(Dict[str, Any])
@@ -261,13 +274,22 @@ build_map = push_value(Dict[Any, Any])
 
 
 def load_attr(state, arg):
+  """Replaces the top of the stack, TOS, with
+  getattr(TOS, co_names[arg])
+  """
   o = state.stack.pop()
   name = state.get_name(arg)
   if isinstance(o, Const) and hasattr(o.value, name):
     state.stack.append(Const(getattr(o.value, name)))
-  elif (isinstance(o, type)
-        and isinstance(getattr(o, name, None), types.MethodType)):
-    state.stack.append(Const(BoundMethod(getattr(o, name))))
+  elif (inspect.isclass(o) and
+        isinstance(getattr(o, name, None),
+                   (types.MethodType, types.FunctionType))):
+    # TODO(luke-zhu): Support other callable objects
+    if sys.version_info[0] == 2:
+      func = getattr(o, name).__func__
+    else:
+      func = getattr(o, name) # Python 3 has no unbound methods
+    state.stack.append(Const(BoundMethod(func, o)))
   else:
     state.stack.append(Any)
 
@@ -327,7 +349,18 @@ def call_function(state, arg, has_var=False, has_kw=False):
 
 
 def make_function(state, arg):
-  state.stack[-arg - 1:] = [Any]  # a callable
+  """Creates a function with the arguments at the top of the stack.
+  """
+  # TODO(luke-zhu): Handle default argument types
+  globals = state.f.__globals__ # Inherits globals from the current frame
+  if sys.version_info[0] == 2:
+    func_code = state.stack[-1].value
+    func = types.FunctionType(func_code, globals)
+  else:
+    func_name = state.stack[-1].value
+    func_code = state.stack[-2].value
+    func = types.FunctionType(func_code, globals, name=func_name)
+  state.stack.append(Const(func))
 
 
 def make_closure(state, arg):

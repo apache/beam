@@ -45,8 +45,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.fn.harness.PTransformRunnerFactory.Registrar;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
@@ -55,10 +53,12 @@ import org.apache.beam.model.pipeline.v1.RunnerApi.MessageWithComponents;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.hamcrest.collection.IsMapContaining;
 import org.junit.Before;
 import org.junit.Test;
@@ -111,7 +111,7 @@ public class BeamFnDataWriteRunnerTest {
     String bundleId = "57L";
     String inputId = "100L";
 
-    Multimap<String, ThrowingConsumer<WindowedValue<?>>> consumers = HashMultimap.create();
+    Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
@@ -135,6 +135,7 @@ public class BeamFnDataWriteRunnerTest {
         ImmutableMap.of("inputPC",
             RunnerApi.PCollection.newBuilder().setCoderId(CODER_ID).build()),
         COMPONENTS.getCodersMap(),
+        COMPONENTS.getWindowingStrategiesMap(),
         consumers,
         startFunctions::add,
         finishFunctions::add);
@@ -143,8 +144,8 @@ public class BeamFnDataWriteRunnerTest {
 
     List<WindowedValue<String>> outputValues = new ArrayList<>();
     AtomicBoolean wasCloseCalled = new AtomicBoolean();
-    CloseableThrowingConsumer<WindowedValue<String>> outputConsumer =
-        new CloseableThrowingConsumer<WindowedValue<String>>(){
+    CloseableFnDataReceiver<WindowedValue<String>> outputConsumer =
+        new CloseableFnDataReceiver<WindowedValue<String>>() {
           @Override
           public void close() throws Exception {
             wasCloseCalled.set(true);
@@ -156,14 +157,14 @@ public class BeamFnDataWriteRunnerTest {
           }
         };
 
-    when(mockBeamFnDataClient.forOutboundConsumer(
+    when(mockBeamFnDataClient.send(
         any(),
         any(),
         Matchers.<Coder<WindowedValue<String>>>any())).thenReturn(outputConsumer);
     Iterables.getOnlyElement(startFunctions).run();
-    verify(mockBeamFnDataClient).forOutboundConsumer(
+    verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(KV.of(bundleId, BeamFnApi.Target.newBuilder()
+        eq(LogicalEndpoint.of(bundleId, BeamFnApi.Target.newBuilder()
             .setPrimitiveTransformReference("ptransformId")
             .setName(inputId)
             .build())),
@@ -183,9 +184,9 @@ public class BeamFnDataWriteRunnerTest {
 
   @Test
   public void testReuseForMultipleBundles() throws Exception {
-    RecordingConsumer<WindowedValue<String>> valuesA = new RecordingConsumer<>();
-    RecordingConsumer<WindowedValue<String>> valuesB = new RecordingConsumer<>();
-    when(mockBeamFnDataClient.forOutboundConsumer(
+    RecordingReceiver<WindowedValue<String>> valuesA = new RecordingReceiver<>();
+    RecordingReceiver<WindowedValue<String>> valuesB = new RecordingReceiver<>();
+    when(mockBeamFnDataClient.send(
         any(),
         any(),
         Matchers.<Coder<WindowedValue<String>>>any())).thenReturn(valuesA).thenReturn(valuesB);
@@ -201,9 +202,9 @@ public class BeamFnDataWriteRunnerTest {
     // Process for bundle id 0
     writeRunner.registerForOutput();
 
-    verify(mockBeamFnDataClient).forOutboundConsumer(
+    verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(KV.of(bundleId.get(), OUTPUT_TARGET)),
+        eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
         eq(CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
@@ -219,9 +220,9 @@ public class BeamFnDataWriteRunnerTest {
     valuesB.clear();
     writeRunner.registerForOutput();
 
-    verify(mockBeamFnDataClient).forOutboundConsumer(
+    verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
-        eq(KV.of(bundleId.get(), OUTPUT_TARGET)),
+        eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
         eq(CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));
@@ -233,8 +234,8 @@ public class BeamFnDataWriteRunnerTest {
     verifyNoMoreInteractions(mockBeamFnDataClient);
   }
 
-  private static class RecordingConsumer<T> extends ArrayList<T>
-      implements CloseableThrowingConsumer<T> {
+  private static class RecordingReceiver<T> extends ArrayList<T>
+      implements CloseableFnDataReceiver<T> {
     private boolean closed;
     @Override
     public void close() throws Exception {

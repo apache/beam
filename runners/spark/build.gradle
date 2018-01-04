@@ -60,6 +60,7 @@ dependencies {
   shadow library.java.joda_time
   shadow library.java.commons_text
   shadow "io.dropwizard.metrics:metrics-core:3.1.2"
+  shadow "com.fasterxml.jackson.module:jackson-module-scala_2.11:2.8.9"
   provided library.java.spark_core
   provided library.java.spark_streaming
   provided library.java.spark_network_common
@@ -70,7 +71,7 @@ dependencies {
   provided library.java.commons_io_2x
   provided library.java.hamcrest_core
   provided "org.apache.zookeeper:zookeeper:3.4.6"
-  provided "org.scala-lang:scala-library:2.10.5"
+  provided "org.scala-lang:scala-library:2.11.8"
   provided "com.esotericsoftware.kryo:kryo:2.21"
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-kafka", configuration: "shadow")
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
@@ -81,7 +82,7 @@ dependencies {
   testCompile library.java.junit
   testCompile library.java.mockito_core
   testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.kafka:kafka_2.10:0.9.0.1"
+  testCompile "org.apache.kafka:kafka_2.11:0.11.0.1"
 }
 
 configurations.testRuntimeClasspath {

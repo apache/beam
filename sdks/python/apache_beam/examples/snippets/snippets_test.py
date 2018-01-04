@@ -423,8 +423,8 @@ class SnippetsTest(unittest.TestCase):
 
       def start_bundle(self):
         assert self.file_to_write
-        self.file_to_write += str(uuid.uuid4())
-        self.file_obj = open(self.file_to_write, 'w')
+        # Appending a UUID to create a unique file object per invocation.
+        self.file_obj = open(self.file_to_write + str(uuid.uuid4()), 'w')
 
       def process(self, element):
         assert self.file_obj

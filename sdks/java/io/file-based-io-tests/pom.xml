@@ -124,6 +124,11 @@
                                 <argument>-beam_it_class=${fileBasedIoItClass}</argument>
                                 <!-- arguments typically defined by user -->
                                 <argument>-beam_it_options=${integrationTestPipelineOptions}</argument>
+                                <!--
+                                optional array of key=value items. It will be passed to
+                                target mvn command by pkb. eg. -DpkbExtraProperties='["filesystem=local"]'
+                                -->
+                                <argument>-beam_extra_mvn_properties=${pkbExtraProperties}</argument>
                             </arguments>
                         </configuration>
                     </plugin>
@@ -138,6 +143,24 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <!-- Include the google-cloud-platform activated by -Dfilesystem=gcs
+            Support for protocol scheme gs:// - allow to read/write to google storage -->
+            <id>google-cloud-storage</id>
+            <activation>
+                <property>
+                    <name>filesystem</name>
+                    <value>gcs</value>
+                </property>
+            </activation>
+            <dependencies>
+                <dependency>
+                    <groupId>org.apache.beam</groupId>
+                    <artifactId>beam-sdks-java-io-google-cloud-platform</artifactId>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
         </profile>
     </profiles>
 
@@ -178,5 +201,11 @@
             <artifactId>beam-sdks-java-io-common</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.avro</groupId>
+            <artifactId>avro</artifactId>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 </project>

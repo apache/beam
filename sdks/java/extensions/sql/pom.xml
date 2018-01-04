@@ -89,6 +89,7 @@
         <configuration>
           <source>1.7</source>
           <target>1.7</target>
+          <useIncrementalCompilation>false</useIncrementalCompilation>
           <compilerArgs>
             <!-- Generated calcite code has some deprecation warning -->
             <arg>-Xlint:-deprecation</arg>

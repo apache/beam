@@ -31,24 +31,27 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
+import org.apache.beam.fn.harness.data.MultiplexingFnDataReceiver;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Registers as a consumer for data over the Beam Fn API. Multiplexes any received data
- * to all consumers in the specified output map.
+ * to all receivers in a specified output map.
  *
  * <p>Can be re-used serially across {@link BeamFnApi.ProcessBundleRequest}s.
  * For each request, call {@link #registerInputLocation()} to start and call
@@ -81,11 +84,12 @@ public class BeamFnDataReadRunner<OutputT> {
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
-        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
 
@@ -96,7 +100,7 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.Coder coderSpec =
           coders.get(
               pCollections.get(getOnlyElement(pTransform.getOutputsMap().values())).getCoderId());
-      Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers =
+      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers =
           (Collection) pCollectionIdsToConsumers.get(
               getOnlyElement(pTransform.getOutputsMap().values()));
 
@@ -115,7 +119,7 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   private final Endpoints.ApiServiceDescriptor apiServiceDescriptor;
-  private final Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers;
+  private final FnDataReceiver<WindowedValue<OutputT>> receiver;
   private final Supplier<String> processBundleInstructionIdSupplier;
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Coder<WindowedValue<OutputT>> coder;
@@ -130,14 +134,14 @@ public class BeamFnDataReadRunner<OutputT> {
       RunnerApi.Coder coderSpec,
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory,
-      Collection<ThrowingConsumer<WindowedValue<OutputT>>> consumers)
+      Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers)
           throws IOException {
     this.apiServiceDescriptor =
         BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getPayload()).getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClientFactory = beamFnDataClientFactory;
-    this.consumers = consumers;
+    this.receiver = MultiplexingFnDataReceiver.forConsumers(consumers);
 
     @SuppressWarnings("unchecked")
     Coder<WindowedValue<OutputT>> coder =
@@ -150,22 +154,16 @@ public class BeamFnDataReadRunner<OutputT> {
   }
 
   public void registerInputLocation() {
-    this.readFuture = beamFnDataClientFactory.forInboundConsumer(
+    this.readFuture = beamFnDataClientFactory.receive(
         apiServiceDescriptor,
-        KV.of(processBundleInstructionIdSupplier.get(), inputTarget),
+        LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), inputTarget),
         coder,
-        this::multiplexToConsumers);
+        receiver);
   }
 
   public void blockTillReadFinishes() throws Exception {
     LOG.debug("Waiting for process bundle instruction {} and target {} to close.",
         processBundleInstructionIdSupplier.get(), inputTarget);
     readFuture.get();
-  }
-
-  private void multiplexToConsumers(WindowedValue<OutputT> value) throws Exception {
-    for (ThrowingConsumer<WindowedValue<OutputT>> consumer : consumers) {
-      consumer.accept(value);
-    }
   }
 }

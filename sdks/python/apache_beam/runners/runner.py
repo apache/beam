@@ -116,8 +116,21 @@ class PipelineRunner(object):
   materialized values in order to reduce footprint.
   """
 
-  def run(self, pipeline):
-    """Execute the entire pipeline or the sub-DAG reachable from a node."""
+  def run(self, transform, options=None):
+    """Run the given transform with this runner.
+    """
+    # Imported here to avoid circular dependencies.
+    # pylint: disable=wrong-import-order, wrong-import-position
+    from apache_beam.pipeline import Pipeline
+    p = Pipeline(runner=self, options=options)
+    p | transform
+    return p.run()
+
+  def run_pipeline(self, pipeline):
+    """Execute the entire pipeline or the sub-DAG reachable from a node.
+
+    Runners should override this method.
+    """
 
     # Imported here to avoid circular dependencies.
     # pylint: disable=wrong-import-order, wrong-import-position

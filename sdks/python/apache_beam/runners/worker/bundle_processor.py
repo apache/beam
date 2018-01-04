@@ -36,7 +36,6 @@ from apache_beam.io import iobase
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners import pipeline_context
-from apache_beam.runners.dataflow.native_io import iobase as native_iobase
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import operations
 from apache_beam.transforms import sideinputs
@@ -71,6 +70,7 @@ class RunnerIOOperation(operations.Operation):
     super(RunnerIOOperation, self).__init__(
         operation_name, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
+    self.windowed_coder_impl = windowed_coder.get_impl()
     self.step_name = step_name
     # target represents the consumer for the bytes in the data plane for a
     # DataInputOperation or a producer of these bytes for a DataOutputOperation.
@@ -89,7 +89,7 @@ class DataOutputOperation(RunnerIOOperation):
     self.output_stream = output_stream
 
   def process(self, windowed_value):
-    self.windowed_coder.get_impl().encode_to_stream(
+    self.windowed_coder_impl.encode_to_stream(
         windowed_value, self.output_stream, True)
 
   def finish(self):
@@ -118,45 +118,9 @@ class DataInputOperation(RunnerIOOperation):
   def process_encoded(self, encoded_windowed_values):
     input_stream = coder_impl.create_InputStream(encoded_windowed_values)
     while input_stream.size() > 0:
-      decoded_value = self.windowed_coder.get_impl().decode_from_stream(
+      decoded_value = self.windowed_coder_impl.decode_from_stream(
           input_stream, True)
       self.output(decoded_value)
-
-
-# TODO(robertwb): Revise side input API to not be in terms of native sources.
-# This will enable lookups, but there's an open question as to how to handle
-# custom sources without forcing intermediate materialization.  This seems very
-# related to the desire to inject key and window preserving [Splittable]DoFns
-# into the view computation.
-class SideInputSource(native_iobase.NativeSource,
-                      native_iobase.NativeSourceReader):
-  """A 'source' for reading side inputs via state API calls.
-  """
-
-  def __init__(self, state_handler, state_key, coder):
-    self._state_handler = state_handler
-    self._state_key = state_key
-    self._coder = coder
-
-  def reader(self):
-    return self
-
-  @property
-  def returns_windowed_values(self):
-    return True
-
-  def __enter__(self):
-    return self
-
-  def __exit__(self, *exn_info):
-    pass
-
-  def __iter__(self):
-    # TODO(robertwb): Support pagination.
-    input_stream = coder_impl.create_InputStream(
-        self._state_handler.Get(self._state_key).data)
-    while input_stream.size() > 0:
-      yield self._coder.get_impl().decode_from_stream(input_stream, True)
 
 
 class StateBackedSideInputMap(object):
@@ -565,9 +529,10 @@ def create(factory, transform_id, transform_proto, parameter, consumers):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, timestamp=beam.DoFn.TimestampParam):
+    def process(self, element, timestamp=beam.DoFn.TimestampParam,
+                window=beam.DoFn.WindowParam):
       new_windows = self.windowing.windowfn.assign(
-          WindowFn.AssignContext(timestamp, element=element))
+          WindowFn.AssignContext(timestamp, element=element, window=window))
       yield WindowedValue(element, timestamp, new_windows)
   from apache_beam.transforms.core import Windowing
   from apache_beam.transforms.window import WindowFn, WindowedValue
@@ -584,6 +549,60 @@ def create(factory, transform_id, transform_proto, unused_parameter, consumers):
           transform_proto.unique_name,
           operation_specs.WorkerFlatten(
               None, [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(
+    urns.PRECOMBINE_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  # TODO: Combine side inputs.
+  serialized_combine_fn = pickler.dumps(
+      (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
+       [], {}))
+  return factory.augment_oldstyle_op(
+      operations.PGBKCVOperation(
+          transform_proto.unique_name,
+          operation_specs.WorkerPartialGroupByKey(
+              serialized_combine_fn,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(
+    urns.MERGE_ACCUMULATORS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'merge')
+
+
+@BeamTransformFactory.register_urn(
+    urns.EXTRACT_OUTPUTS_TRANSFORM, beam_runner_api_pb2.CombinePayload)
+def create(factory, transform_id, transform_proto, payload, consumers):
+  return _create_combine_phase_operation(
+      factory, transform_proto, payload, consumers, 'extract')
+
+
+def _create_combine_phase_operation(
+    factory, transform_proto, payload, consumers, phase):
+  # This is where support for combine fn side inputs would go.
+  serialized_combine_fn = pickler.dumps(
+      (beam.CombineFn.from_runner_api(payload.combine_fn, factory.context),
+       [], {}))
+  return factory.augment_oldstyle_op(
+      operations.CombineOperation(
+          transform_proto.unique_name,
+          operation_specs.WorkerCombineFn(
+              serialized_combine_fn,
+              phase,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,
           factory.state_sampler),
       transform_proto.unique_name,

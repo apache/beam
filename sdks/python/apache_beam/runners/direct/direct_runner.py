@@ -36,6 +36,8 @@ from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.pvalue import PCollection
 from apache_beam.runners.direct.bundle_factory import BundleFactory
+from apache_beam.runners.direct.clock import RealClock
+from apache_beam.runners.direct.clock import TestClock
 from apache_beam.runners.runner import PipelineResult
 from apache_beam.runners.runner import PipelineRunner
 from apache_beam.runners.runner import PipelineState
@@ -86,19 +88,27 @@ class _StreamingGroupAlsoByWindow(_GroupAlsoByWindow):
         context.windowing_strategies.get_by_id(payload.value))
 
 
-class DirectRunner(PipelineRunner):
-  """Executes a single pipeline on the local machine."""
-
+def _get_transform_overrides():
   # A list of PTransformOverride objects to be applied before running a pipeline
   # using DirectRunner.
   # Currently this only works for overrides where the input and output types do
   # not change.
-  # For internal SDK use only. This should not be updated by Beam pipeline
-  # authors.
-  _PTRANSFORM_OVERRIDES = []
+  # For internal use only; no backwards-compatibility guarantees.
+
+  # Importing following locally to avoid a circular dependency.
+  from apache_beam.runners.sdf_common import SplittableParDoOverride
+  from apache_beam.runners.direct.sdf_direct_runner import ProcessKeyedElementsViaKeyedWorkItemsOverride
+  return [SplittableParDoOverride(),
+          ProcessKeyedElementsViaKeyedWorkItemsOverride()]
+
+
+class DirectRunner(PipelineRunner):
+  """Executes a single pipeline on the local machine."""
 
   def __init__(self):
     self._cache = None
+    self._use_test_clock = False  # use RealClock() in production
+    self._ptransform_overrides = _get_transform_overrides()
 
   def apply_CombinePerKey(self, transform, pcoll):
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
@@ -110,6 +120,10 @@ class DirectRunner(PipelineRunner):
           transform.fn, transform.args, transform.kwargs)
     except NotImplementedError:
       return transform.expand(pcoll)
+
+  def apply_TestStream(self, transform, pcoll):
+    self._use_test_clock = True  # use TestClock() for testing
+    return transform.expand(pcoll)
 
   def apply__GroupByKeyOnly(self, transform, pcoll):
     if (transform.__class__ == _GroupByKeyOnly and
@@ -183,11 +197,11 @@ class DirectRunner(PipelineRunner):
     output.element_type = unicode
     return output
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Execute the entire pipeline and returns an DirectPipelineResult."""
 
     # Performing configured PTransform overrides.
-    pipeline.replace_all(DirectRunner._PTRANSFORM_OVERRIDES)
+    pipeline.replace_all(self._ptransform_overrides)
 
     # TODO: Move imports to top. Pipeline <-> Runner dependency cause problems
     # with resolving imports when they are at top.
@@ -204,6 +218,7 @@ class DirectRunner(PipelineRunner):
     self.consumer_tracking_visitor = ConsumerTrackingPipelineVisitor()
     pipeline.visit(self.consumer_tracking_visitor)
 
+    clock = TestClock() if self._use_test_clock else RealClock()
     evaluation_context = EvaluationContext(
         pipeline._options,
         BundleFactory(stacked=pipeline._options.view_as(DirectOptions)
@@ -211,7 +226,8 @@ class DirectRunner(PipelineRunner):
         self.consumer_tracking_visitor.root_transforms,
         self.consumer_tracking_visitor.value_to_consumers,
         self.consumer_tracking_visitor.step_names,
-        self.consumer_tracking_visitor.views)
+        self.consumer_tracking_visitor.views,
+        clock)
 
     evaluation_context.use_pvalue_cache(self._cache)
 

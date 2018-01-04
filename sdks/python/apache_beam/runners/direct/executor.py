@@ -326,6 +326,9 @@ class TransformExecutor(_ExecutorService.CallableTask):
         self._applied_ptransform, self._input_bundle,
         side_input_values, scoped_metrics_container)
 
+    with scoped_metrics_container:
+      evaluator.start_bundle()
+
     if self._fired_timers:
       for timer_firing in self._fired_timers:
         evaluator.process_timer_wrapper(timer_firing)
@@ -545,22 +548,19 @@ class _ExecutorServiceParallelExecutor(object):
           self._executor.executor_service.submit(self)
 
     def _should_shutdown(self):
-      """_should_shutdown checks whether pipeline is completed or not.
+      """Checks whether the pipeline is completed and should be shut down.
 
-      It will check for successful completion by checking the watermarks of all
-      transforms. If they all reached the maximum watermark it means that
-      pipeline successfully reached to completion.
+      If there is anything in the queue of tasks to do, do not shut down.
 
-      If the above is not true, it will check that at least one executor is
-      making progress. Otherwise pipeline will be declared stalled.
-
-      If the pipeline reached to a terminal state as explained above
-      _should_shutdown will request executor to gracefully shutdown.
+      Otherwise, check if all the transforms' watermarks are complete.
+      If they are not, the pipeline is not progressing (stall detected).
+      Whether the pipeline has stalled or not, the executor should shut
+      down the pipeline.
 
       Returns:
-        True if pipeline reached a terminal state and monitor task could finish.
-        Otherwise monitor task should schedule itself again for future
-        execution.
+        True only if the pipeline has reached a terminal state and should
+        be shut down.
+
       """
       if self._is_executing():
         # There are some bundles still in progress.
@@ -585,8 +585,8 @@ class _ExecutorServiceParallelExecutor(object):
       Returns:
         True if timers fired.
       """
-      transform_fired_timers = (
-          self._executor.evaluation_context.extract_fired_timers())
+      transform_fired_timers, _ = (
+          self._executor.evaluation_context.extract_all_timers())
       for applied_ptransform, fired_timers in transform_fired_timers:
         # Use an empty committed bundle. just to trigger.
         empty_bundle = (
@@ -602,7 +602,17 @@ class _ExecutorServiceParallelExecutor(object):
       return bool(transform_fired_timers)
 
     def _is_executing(self):
-      """Returns True if there is at least one non-blocked TransformExecutor."""
+      """Checks whether the job is still executing.
+
+      Returns:
+        True if there are any timers set or if there is at least
+        one non-blocked TransformExecutor active."""
+
+      watermark_manager = self._executor.evaluation_context._watermark_manager
+      _, any_unfired_realtime_timers = watermark_manager.extract_all_timers()
+      if any_unfired_realtime_timers:
+        return True
+
       executors = self._executor.transform_executor_services.executors
       if not executors:
         # Nothing is executing.

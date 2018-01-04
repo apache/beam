@@ -29,19 +29,21 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.fn.harness.data.BeamFnDataClient;
-import org.apache.beam.fn.harness.fn.CloseableThrowingConsumer;
-import org.apache.beam.fn.harness.fn.ThrowingConsumer;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
+import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
 import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
+import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.values.KV;
 
 /**
  * Registers as a consumer with the Beam Fn Data Api. Consumes elements and encodes them for
@@ -76,11 +78,12 @@ public class BeamFnDataWriteRunner<InputT> {
         BeamFnDataClient beamFnDataClient,
         BeamFnStateClient beamFnStateClient,
         String pTransformId,
-        RunnerApi.PTransform pTransform,
+        PTransform pTransform,
         Supplier<String> processBundleInstructionId,
-        Map<String, RunnerApi.PCollection> pCollections,
+        Map<String, PCollection> pCollections,
         Map<String, RunnerApi.Coder> coders,
-        Multimap<String, ThrowingConsumer<WindowedValue<?>>> pCollectionIdsToConsumers,
+        Map<String, RunnerApi.WindowingStrategy> windowingStrategies,
+        Multimap<String, FnDataReceiver<WindowedValue<?>>> pCollectionIdsToConsumers,
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction) throws IOException {
       BeamFnApi.Target target = BeamFnApi.Target.newBuilder()
@@ -100,8 +103,8 @@ public class BeamFnDataWriteRunner<InputT> {
       addStartFunction.accept(runner::registerForOutput);
       pCollectionIdsToConsumers.put(
           getOnlyElement(pTransform.getInputsMap().values()),
-          (ThrowingConsumer)
-              (ThrowingConsumer<WindowedValue<InputT>>) runner::consume);
+          (FnDataReceiver)
+              (FnDataReceiver<WindowedValue<InputT>>) runner::consume);
       addFinishFunction.accept(runner::close);
       return runner;
     }
@@ -113,7 +116,7 @@ public class BeamFnDataWriteRunner<InputT> {
   private final BeamFnDataClient beamFnDataClientFactory;
   private final Supplier<String> processBundleInstructionIdSupplier;
 
-  private CloseableThrowingConsumer<WindowedValue<InputT>> consumer;
+  private CloseableFnDataReceiver<WindowedValue<InputT>> consumer;
 
   BeamFnDataWriteRunner(
       RunnerApi.FunctionSpec functionSpec,
@@ -140,9 +143,9 @@ public class BeamFnDataWriteRunner<InputT> {
   }
 
   public void registerForOutput() {
-    consumer = beamFnDataClientFactory.forOutboundConsumer(
+    consumer = beamFnDataClientFactory.send(
         apiServiceDescriptor,
-        KV.of(processBundleInstructionIdSupplier.get(), outputTarget),
+        LogicalEndpoint.of(processBundleInstructionIdSupplier.get(), outputTarget),
         coder);
   }
 

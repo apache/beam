@@ -33,7 +33,6 @@ from apache_beam.coders import registry
 from apache_beam.coders.coder_impl import create_InputStream
 from apache_beam.coders.coder_impl import create_OutputStream
 from apache_beam.internal import pickler
-from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
@@ -100,29 +99,6 @@ def streaming_rpc_handler(cls, method_name):
   return StreamingRpcHandler()
 
 
-class OldeSourceSplittableDoFn(beam.DoFn):
-  """A DoFn that reads and emits an entire source.
-  """
-
-  # TODO(robertwb): Make this a full SDF with progress splitting, etc.
-  def process(self, source):
-    if isinstance(source, iobase.SourceBundle):
-      for value in source.source.read(source.source.get_range_tracker(
-          source.start_position, source.stop_position)):
-        yield value
-    else:
-      # Dataflow native source
-      with source.reader() as reader:
-        for value in reader:
-          yield value
-
-
-# See DataflowRunner._pardo_fn_data
-OLDE_SOURCE_SPLITTABLE_DOFN_DATA = pickler.dumps(
-    (OldeSourceSplittableDoFn(), (), {}, [],
-     beam.transforms.core.Windowing(GlobalWindows())))
-
-
 class _GroupingBuffer(object):
   """Used to accumulate groupded (shuffled) results."""
   def __init__(self, pre_grouped_coder, post_grouped_coder, windowing):
@@ -134,22 +110,32 @@ class _GroupingBuffer(object):
 
   def append(self, elements_data):
     input_stream = create_InputStream(elements_data)
+    coder_impl = self._pre_grouped_coder.get_impl()
+    key_coder_impl = self._key_coder.get_impl()
+    # TODO(robertwb): We could optimize this even more by using a
+    # window-dropping coder for the data plane.
+    is_trivial_windowing = self._windowing.is_default()
     while input_stream.size() > 0:
-      windowed_key_value = self._pre_grouped_coder.get_impl(
-          ).decode_from_stream(input_stream, True)
-      key = windowed_key_value.value[0]
-      windowed_value = windowed_key_value.with_value(
-          windowed_key_value.value[1])
-      self._table[self._key_coder.encode(key)].append(windowed_value)
+      windowed_key_value = coder_impl.decode_from_stream(input_stream, True)
+      key, value = windowed_key_value.value
+      self._table[key_coder_impl.encode(key)].append(
+          value if is_trivial_windowing
+          else windowed_key_value.with_value(value))
 
   def __iter__(self):
     output_stream = create_OutputStream()
-    trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+    if self._windowing.is_default():
+      globally_window = GlobalWindows.windowed_value(None).with_value
+      windowed_key_values = lambda key, values: [globally_window((key, values))]
+    else:
+      trigger_driver = trigger.create_trigger_driver(self._windowing, True)
+      windowed_key_values = trigger_driver.process_entire_key
+    coder_impl = self._post_grouped_coder.get_impl()
+    key_coder_impl = self._key_coder.get_impl()
     for encoded_key, windowed_values in self._table.items():
-      key = self._key_coder.decode(encoded_key)
-      for wkvs in trigger_driver.process_entire_key(key, windowed_values):
-        self._post_grouped_coder.get_impl().encode_to_stream(
-            wkvs, output_stream, True)
+      key = key_coder_impl.decode(encoded_key)
+      for wkvs in windowed_key_values(key, windowed_values):
+        coder_impl.encode_to_stream(wkvs, output_stream, True)
     return iter([output_stream.get()])
 
 
@@ -185,6 +171,14 @@ class _WindowGroupingBuffer(object):
 class FnApiRunner(runner.PipelineRunner):
 
   def __init__(self, use_grpc=False, sdk_harness_factory=None):
+    """Creates a new Fn API Runner.
+
+    Args:
+      use_grpc: whether to use grpc or simply make in-process calls
+          defaults to False
+      sdk_harness_factory: callable used to instantiate customized sdk harnesses
+          typcially not set by users
+    """
     super(FnApiRunner, self).__init__()
     self._last_uid = -1
     self._use_grpc = use_grpc
@@ -196,7 +190,7 @@ class FnApiRunner(runner.PipelineRunner):
     self._last_uid += 1
     return str(self._last_uid)
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     MetricsEnvironment.set_metrics_supported(False)
     return self.run_via_runner_api(pipeline.to_runner_api())
 
@@ -291,6 +285,150 @@ class FnApiRunner(runner.PipelineRunner):
 
     safe_coders = {}
 
+    def lift_combiners(stages):
+      """Expands CombinePerKey into pre- and post-grouping stages.
+
+      ... -> CombinePerKey -> ...
+
+      becomes
+
+      ... -> PreCombine -> GBK -> MergeAccumulators -> ExtractOutput -> ...
+      """
+      def add_or_get_coder_id(coder_proto):
+        for coder_id, coder in pipeline_components.coders.items():
+          if coder == coder_proto:
+            return coder_id
+        new_coder_id = unique_name(pipeline_components.coders, 'coder')
+        pipeline_components.coders[new_coder_id].CopyFrom(coder_proto)
+        return new_coder_id
+
+      def windowed_coder_id(coder_id):
+        proto = beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.SdkFunctionSpec(
+                spec=beam_runner_api_pb2.FunctionSpec(
+                    urn=urns.WINDOWED_VALUE_CODER)),
+            component_coder_ids=[coder_id, window_coder_id])
+        return add_or_get_coder_id(proto)
+
+      for stage in stages:
+        assert len(stage.transforms) == 1
+        transform = stage.transforms[0]
+        if transform.spec.urn == urns.COMBINE_PER_KEY_TRANSFORM:
+          combine_payload = proto_utils.parse_Bytes(
+              transform.spec.payload, beam_runner_api_pb2.CombinePayload)
+
+          input_pcoll = pipeline_components.pcollections[only_element(
+              transform.inputs.values())]
+          output_pcoll = pipeline_components.pcollections[only_element(
+              transform.outputs.values())]
+
+          windowed_input_coder = pipeline_components.coders[
+              input_pcoll.coder_id]
+          element_coder_id, window_coder_id = (
+              windowed_input_coder.component_coder_ids)
+          element_coder = pipeline_components.coders[element_coder_id]
+          key_coder_id, _ = element_coder.component_coder_ids
+          accumulator_coder_id = combine_payload.accumulator_coder_id
+
+          key_accumulator_coder = beam_runner_api_pb2.Coder(
+              spec=beam_runner_api_pb2.SdkFunctionSpec(
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.KV_CODER)),
+              component_coder_ids=[key_coder_id, accumulator_coder_id])
+          key_accumulator_coder_id = add_or_get_coder_id(key_accumulator_coder)
+
+          accumulator_iter_coder = beam_runner_api_pb2.Coder(
+              spec=beam_runner_api_pb2.SdkFunctionSpec(
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.ITERABLE_CODER)),
+              component_coder_ids=[accumulator_coder_id])
+          accumulator_iter_coder_id = add_or_get_coder_id(
+              accumulator_iter_coder)
+
+          key_accumulator_iter_coder = beam_runner_api_pb2.Coder(
+              spec=beam_runner_api_pb2.SdkFunctionSpec(
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.KV_CODER)),
+              component_coder_ids=[key_coder_id, accumulator_iter_coder_id])
+          key_accumulator_iter_coder_id = add_or_get_coder_id(
+              key_accumulator_iter_coder)
+
+          precombined_pcoll_id = unique_name(
+              pipeline_components.pcollections, 'pcollection')
+          pipeline_components.pcollections[precombined_pcoll_id].CopyFrom(
+              beam_runner_api_pb2.PCollection(
+                  unique_name=transform.unique_name + '/Precombine.out',
+                  coder_id=windowed_coder_id(key_accumulator_coder_id),
+                  windowing_strategy_id=input_pcoll.windowing_strategy_id,
+                  is_bounded=input_pcoll.is_bounded))
+
+          grouped_pcoll_id = unique_name(
+              pipeline_components.pcollections, 'pcollection')
+          pipeline_components.pcollections[grouped_pcoll_id].CopyFrom(
+              beam_runner_api_pb2.PCollection(
+                  unique_name=transform.unique_name + '/Group.out',
+                  coder_id=windowed_coder_id(key_accumulator_iter_coder_id),
+                  windowing_strategy_id=output_pcoll.windowing_strategy_id,
+                  is_bounded=output_pcoll.is_bounded))
+
+          merged_pcoll_id = unique_name(
+              pipeline_components.pcollections, 'pcollection')
+          pipeline_components.pcollections[merged_pcoll_id].CopyFrom(
+              beam_runner_api_pb2.PCollection(
+                  unique_name=transform.unique_name + '/Merge.out',
+                  coder_id=windowed_coder_id(key_accumulator_coder_id),
+                  windowing_strategy_id=output_pcoll.windowing_strategy_id,
+                  is_bounded=output_pcoll.is_bounded))
+
+          def make_stage(base_stage, transform):
+            return Stage(
+                transform.unique_name,
+                [transform],
+                downstream_side_inputs=base_stage.downstream_side_inputs,
+                must_follow=base_stage.must_follow)
+
+          yield make_stage(
+              stage,
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/Precombine',
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.PRECOMBINE_TRANSFORM,
+                      payload=transform.spec.payload),
+                  inputs=transform.inputs,
+                  outputs={'out': precombined_pcoll_id}))
+
+          yield make_stage(
+              stage,
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/Group',
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.GROUP_BY_KEY_TRANSFORM),
+                  inputs={'in': precombined_pcoll_id},
+                  outputs={'out': grouped_pcoll_id}))
+
+          yield make_stage(
+              stage,
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/Merge',
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.MERGE_ACCUMULATORS_TRANSFORM,
+                      payload=transform.spec.payload),
+                  inputs={'in': grouped_pcoll_id},
+                  outputs={'out': merged_pcoll_id}))
+
+          yield make_stage(
+              stage,
+              beam_runner_api_pb2.PTransform(
+                  unique_name=transform.unique_name + '/ExtractOutputs',
+                  spec=beam_runner_api_pb2.FunctionSpec(
+                      urn=urns.EXTRACT_OUTPUTS_TRANSFORM,
+                      payload=transform.spec.payload),
+                  inputs={'in': merged_pcoll_id},
+                  outputs=transform.outputs))
+
+        else:
+          yield stage
+
     def expand_gbk(stages):
       """Transforms each GBK into a write followed by a read.
       """
@@ -365,6 +503,8 @@ class FnApiRunner(runner.PipelineRunner):
 
           # This is used later to correlate the read and write.
           param = str("group:%s" % stage.name)
+          if stage.name not in pipeline_components.transforms:
+            pipeline_components.transforms[stage.name].CopyFrom(transform)
           gbk_write = Stage(
               transform.unique_name + '/Write',
               [beam_runner_api_pb2.PTransform(
@@ -385,7 +525,7 @@ class FnApiRunner(runner.PipelineRunner):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
                       payload=param))],
-              downstream_side_inputs=frozenset(),
+              downstream_side_inputs=stage.downstream_side_inputs,
               must_follow=union(frozenset([gbk_write]), stage.must_follow))
         else:
           yield stage
@@ -454,7 +594,7 @@ class FnApiRunner(runner.PipelineRunner):
                   spec=beam_runner_api_pb2.FunctionSpec(
                       urn=bundle_processor.DATA_INPUT_URN,
                       payload=param))],
-              downstream_side_inputs=frozenset(),
+              downstream_side_inputs=stage.downstream_side_inputs,
               must_follow=union(frozenset(flatten_writes), stage.must_follow))
 
         else:
@@ -627,13 +767,18 @@ class FnApiRunner(runner.PipelineRunner):
         pcoll.coder_id = coders.get_id(coder)
     coders.populate_map(pipeline_components.coders)
 
-    known_composites = set([urns.GROUP_BY_KEY_TRANSFORM])
+    known_composites = set(
+        [urns.GROUP_BY_KEY_TRANSFORM, urns.COMBINE_PER_KEY_TRANSFORM])
 
     def leaf_transforms(root_ids):
       for root_id in root_ids:
         root = pipeline_proto.components.transforms[root_id]
-        if root.spec.urn in known_composites or not root.subtransforms:
+        if root.spec.urn in known_composites:
           yield root_id
+        elif not root.subtransforms:
+          # Make sure its outputs are not a subset of its inputs.
+          if set(root.outputs.values()) - set(root.inputs.values()):
+            yield root_id
         else:
           for leaf in leaf_transforms(root.subtransforms):
             yield leaf
@@ -645,8 +790,8 @@ class FnApiRunner(runner.PipelineRunner):
 
     # Apply each phase in order.
     for phase in [
-        annotate_downstream_side_inputs, expand_gbk, sink_flattens,
-        greedily_fuse, sort_stages]:
+        annotate_downstream_side_inputs, lift_combiners, expand_gbk,
+        sink_flattens, greedily_fuse, sort_stages]:
       logging.info('%s %s %s', '=' * 20, phase, '=' * 20)
       stages = list(phase(stages))
       logging.debug('Stages: %s', [str(s) for s in stages])
@@ -759,10 +904,12 @@ class FnApiRunner(runner.PipelineRunner):
             state_key, elements_data, process_bundle.instruction_id)
 
     # Register and start running the bundle.
+    logging.debug('Register and start running the bundle')
     controller.control_handler.push(process_bundle_registration)
     controller.control_handler.push(process_bundle)
 
     # Wait for the bundle to finish.
+    logging.debug('Wait for the bundle to finish.')
     while True:
       result = controller.control_handler.pull()
       if result and result.instruction_id == process_bundle.instruction_id:
@@ -770,11 +917,14 @@ class FnApiRunner(runner.PipelineRunner):
           raise RuntimeError(result.error)
         break
 
-    # Gather all output data.
     expected_targets = [
         beam_fn_api_pb2.Target(primitive_transform_reference=transform_id,
                                name=output_name)
         for (transform_id, output_name), _ in data_output.items()]
+
+    # Gather all output data.
+    logging.debug('Gather all output data from %s.', expected_targets)
+
     for output in controller.data_plane_handler.input_elements(
         process_bundle.instruction_id, expected_targets):
       target_tuple = (
@@ -864,12 +1014,12 @@ class FnApiRunner(runner.PipelineRunner):
       self.data_plane_handler = data_plane.InMemoryDataChannel()
       self.worker = sdk_worker.SdkWorker(
           self.state_handler, data_plane.InMemoryDataChannelFactory(
-              self.data_plane_handler.inverse()))
+              self.data_plane_handler.inverse()), {})
 
     def push(self, request):
-      logging.info('CONTROL REQUEST %s', request)
+      logging.debug('CONTROL REQUEST %s', request)
       response = self.worker.do_instruction(request)
-      logging.info('CONTROL RESPONSE %s', response)
+      logging.debug('CONTROL RESPONSE %s', response)
       self._responses.append(response)
 
     def pull(self):
@@ -916,8 +1066,11 @@ class FnApiRunner(runner.PipelineRunner):
       self.data_server.start()
       self.control_server.start()
 
-      self.worker = (self.sdk_harness_factory or sdk_worker.SdkHarness)(
-          'localhost:%s' % self.control_port)
+      self.worker = self.sdk_harness_factory(
+          'localhost:%s' % self.control_port
+      ) if self.sdk_harness_factory else sdk_worker.SdkHarness(
+          'localhost:%s' % self.control_port, worker_count=1)
+
       self.worker_thread = threading.Thread(
           name='run_worker', target=self.worker.run)
       logging.info('starting worker')

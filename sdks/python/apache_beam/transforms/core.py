@@ -259,6 +259,19 @@ class RestrictionProvider(object):
     return coders.registry.get_coder(object)
 
 
+def get_function_arguments(obj, func):
+  """Return the function arguments based on the name provided. If they have
+  a _inspect_function attached to the class then use that otherwise default
+  to the python inspect library.
+  """
+  func_name = '_inspect_%s' % func
+  if hasattr(obj, func_name):
+    f = getattr(obj, func_name)
+    return f()
+  f = getattr(obj, func)
+  return inspect.getargspec(f)
+
+
 class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   """A function object used by a transform with custom processing.
 
@@ -326,16 +339,7 @@ class DoFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     pass
 
   def get_function_arguments(self, func):
-    """Return the function arguments based on the name provided. If they have
-    a _inspect_function attached to the class then use that otherwise default
-    to the python inspect library.
-    """
-    func_name = '_inspect_%s' % func
-    if hasattr(self, func_name):
-      f = getattr(self, func_name)
-      return f()
-    f = getattr(self, func)
-    return inspect.getargspec(f)
+    return get_function_arguments(self, func)
 
   # TODO(sourabhbajaj): Do we want to remove the responsibility of these from
   # the DoFn or maybe the runner
@@ -1579,8 +1583,10 @@ class WindowInto(ParDo):
     def __init__(self, windowing):
       self.windowing = windowing
 
-    def process(self, element, timestamp=DoFn.TimestampParam):
-      context = WindowFn.AssignContext(timestamp, element=element)
+    def process(self, element, timestamp=DoFn.TimestampParam,
+                window=DoFn.WindowParam):
+      context = WindowFn.AssignContext(timestamp, element=element,
+                                       window=window)
       new_windows = self.windowing.windowfn.assign(context)
       yield WindowedValue(element, context.timestamp, new_windows)
 

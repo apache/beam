@@ -31,6 +31,7 @@ from concurrent import futures
 import grpc
 from google.protobuf import text_format
 
+from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import beam_job_api_pb2
 from apache_beam.portability.api import beam_job_api_pb2_grpc
 from apache_beam.portability.api import endpoints_pb2
@@ -135,7 +136,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
     logging.info("Server ready.")
     return job_service
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     job_service = self._get_job_service()
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(
@@ -241,6 +242,7 @@ class BeamJob(threading.Thread):
             use_grpc=self._use_grpc,
             sdk_harness_factory=self._sdk_harness_factory
         ).run_via_runner_api(self._pipeline_proto)
+        logging.info("Successfully completed job.")
         self.state = beam_job_api_pb2.JobState.DONE
       except:  # pylint: disable=bare-except
         logging.exception("Error running pipeline.")
@@ -271,10 +273,12 @@ class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     port = self._server.add_insecure_port('localhost:%d' % port)
     beam_job_api_pb2_grpc.add_JobServiceServicer_to_server(self, self._server)
     self._server.start()
+    logging.info("Grpc server started on port %s", port)
     return port
 
   def Prepare(self, request, context=None):
     # For now, just use the job name as the job id.
+    logging.debug("Got Prepare request.")
     preparation_id = "%s-%s" % (request.job_name, uuid.uuid4())
     if self._worker_command_line:
       sdk_harness_factory = functools.partial(
@@ -284,10 +288,12 @@ class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
     self._jobs[preparation_id] = BeamJob(
         preparation_id, request.pipeline_options, request.pipeline,
         use_grpc=self._use_grpc, sdk_harness_factory=sdk_harness_factory)
+    logging.debug("Prepared job '%s' as '%s'", request.job_name, preparation_id)
     return beam_job_api_pb2.PrepareJobResponse(preparation_id=preparation_id)
 
   def Run(self, request, context=None):
     job_id = request.preparation_id
+    logging.debug("Runing job '%s'", job_id)
     self._jobs[job_id].start()
     return beam_job_api_pb2.RunJobResponse(job_id=job_id)
 
@@ -330,6 +336,14 @@ class JobServicer(beam_job_api_pb2_grpc.JobServiceServicer):
       pass
 
 
+class BeamFnLoggingServicer(beam_fn_api_pb2_grpc.BeamFnLoggingServicer):
+  def Logging(self, log_bundles, context=None):
+    for log_bundle in log_bundles:
+      for log_entry in log_bundle.log_entries:
+        logging.info('Worker: %s', str(log_entry).replace('\n', ' '))
+    return iter([])
+
+
 class SubprocessSdkWorker(object):
   """Manages a SDK worker implemented as a subprocess communicating over grpc.
   """
@@ -339,13 +353,25 @@ class SubprocessSdkWorker(object):
     self._control_address = control_address
 
   def run(self):
+    logging_server = grpc.server(
+        futures.ThreadPoolExecutor(max_workers=10))
+    logging_port = logging_server.add_insecure_port('[::]:0')
+    logging_server.start()
+    logging_servicer = BeamFnLoggingServicer()
+    beam_fn_api_pb2_grpc.add_BeamFnLoggingServicer_to_server(
+        logging_servicer, logging_server)
+    logging_descriptor = text_format.MessageToString(
+        endpoints_pb2.ApiServiceDescriptor(url='localhost:%s' % logging_port))
+
     control_descriptor = text_format.MessageToString(
         endpoints_pb2.ApiServiceDescriptor(url=self._control_address))
+
     p = subprocess.Popen(
         self._worker_command_line,
         shell=True,
         env=dict(os.environ,
-                 CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor))
+                 CONTROL_API_SERVICE_DESCRIPTOR=control_descriptor,
+                 LOGGING_API_SERVICE_DESCRIPTOR=logging_descriptor))
     try:
       p.wait()
       if p.returncode:
@@ -354,6 +380,7 @@ class SubprocessSdkWorker(object):
     finally:
       if p.poll() is None:
         p.kill()
+      logging_server.stop(0)
 
 
 class JobLogHandler(logging.Handler):
