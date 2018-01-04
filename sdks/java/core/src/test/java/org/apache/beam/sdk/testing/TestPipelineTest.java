@@ -119,18 +119,34 @@ public class TestPipelineTest implements Serializable {
           pipeline.toString());
     }
 
+    /** Test options with various types used to verify
+     * {@link TestPipeline#convertToArgs(PipelineOptions)}.
+     */
+    public interface SimpleTestOptions extends PipelineOptions {
+      List<String> getListArgs();
+      void setListArgs(List<String> value);
+
+      boolean getBoolArg();
+      void setBoolArg(boolean value);
+    }
+
     @Test
     public void testConvertToArgs() {
-      String[] args = new String[] {"--tempLocation=Test_Location"};
-      PipelineOptions options = PipelineOptionsFactory.fromArgs(args).as(PipelineOptions.class);
+      String[] args = new String[] {"--tempLocation=Test_Location",
+          "--listArgs=item1,item2",
+          "--boolArg=true"};
+      SimpleTestOptions options = PipelineOptionsFactory.fromArgs(args).as(SimpleTestOptions.class);
       String[] arr = TestPipeline.convertToArgs(options);
       List<String> lst = Arrays.asList(arr);
-      assertEquals(lst.size(), 3);
+      assertEquals(lst.size(), 6);
       assertThat(
           lst,
           containsInAnyOrder("--tempLocation=Test_Location",
               "--appName=TestPipelineCreationTest",
-              "--optionsId=" + options.getOptionsId()));
+              "--optionsId=" + options.getOptionsId(),
+              "--listArgs=item1",
+              "--listArgs=item2",
+              "--boolArg=true"));
     }
 
     @Test
