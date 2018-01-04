@@ -44,7 +44,7 @@ public class JsonMetricsSerializer implements MetricsSerializer<String> {
       jsonGenerator.writeStartObject();
 
       jsonGenerator.writeArrayFieldStart("counters");
-      for (MetricResult<Long>  result : metricQueryResults.counters()){
+      for (MetricResult<Long> result : metricQueryResults.counters()){
         jsonGenerator.writeStartObject();
         String name = result.name().namespace() + "/"  + result.name().name();
         jsonGenerator.writeStringField("name", name);
