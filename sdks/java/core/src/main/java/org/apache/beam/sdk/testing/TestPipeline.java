@@ -492,6 +492,10 @@ public class TestPipeline extends Pipeline implements TestRule {
           continue;
         } else if (entry.getValue().isTextual()) {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue().asText());
+        } else if (entry.getValue().isArray()) {
+          for (JsonNode n : entry.getValue()) {
+            optArrayList.add("--" + entry.getKey() + "=" + n.asText());
+          }
         } else {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
         }
