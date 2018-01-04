@@ -28,6 +28,7 @@ import threading
 
 from apache_beam.metrics.metricbase import Counter
 from apache_beam.metrics.metricbase import Distribution
+from apache_beam.portability.api import beam_fn_api_pb2
 
 __all__ = ['DistributionResult']
 
@@ -286,9 +287,17 @@ class DistributionData(object):
         new_min,
         new_max)
 
-  @classmethod
-  def singleton(cls, value):
+  @staticmethod
+  def singleton(value):
     return DistributionData(value, 1, value, value)
+
+  def to_runner_api(self):
+    return beam_fn_api_pb2.Metrics.User.DistributionData(
+        count=self.count, sum=self.sum, min=self.min, max=self.max)
+
+  @staticmethod
+  def from_runner_api(proto):
+    return DistributionData(proto.sum, proto.count, proto.min, proto.max)
 
 
 class MetricAggregator(object):

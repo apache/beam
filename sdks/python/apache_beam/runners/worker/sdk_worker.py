@@ -208,7 +208,11 @@ class SdkWorker(object):
 
   def process_bundle_progress(self, request, instruction_id):
     # It is an error to get progress for a not-in-flight bundle.
-    return self.bundle_processors.get(instruction_id).metrics()
+    processor = self.bundle_processors.get(request.instruction_reference)
+    return beam_fn_api_pb2.InstructionResponse(
+        instruction_id=instruction_id,
+        process_bundle_progress=beam_fn_api_pb2.ProcessBundleProgressResponse(
+            metrics=processor.metrics() if processor else None))
 
 
 class GrpcStateHandler(object):
