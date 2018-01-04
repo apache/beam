@@ -47,10 +47,11 @@ cdef class DoFnSignature(object):
 
 cdef class DoFnInvoker(object):
   cdef public DoFnSignature signature
-  cdef _OutputProcessor output_processor
+  cdef OutputProcessor output_processor
 
   cpdef invoke_process(self, WindowedValue windowed_value,
-                       restriction_tracker=*, output_processor=*)
+                       restriction_tracker=*,
+                       OutputProcessor output_processor=*)
   cpdef invoke_start_bundle(self)
   cpdef invoke_finish_bundle(self)
   cpdef invoke_split(self, element, restriction)
@@ -85,15 +86,14 @@ cdef class DoFnRunner(Receiver):
 
 
 cdef class OutputProcessor(object):
-  pass
+  @cython.locals(windowed_value=WindowedValue)
+  cpdef process_outputs(self, WindowedValue element, results)
+
 
 cdef class _OutputProcessor(OutputProcessor):
   cdef object window_fn
   cdef Receiver main_receivers
   cdef object tagged_receivers
-
-  @cython.locals(windowed_value=WindowedValue)
-  cpdef process_outputs(self, WindowedValue element, results)
 
 
 cdef class DoFnContext(object):
