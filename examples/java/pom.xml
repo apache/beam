@@ -267,6 +267,11 @@
                     <include>WordCountIT.java</include>
                     <include>WindowedWordCountIT.java</include>
                   </includes>
+                  <classpathDependencyExcludes>
+                     <!-- Avoid [BEAM-3397] errors by reducing the pipeline options and the copies of filesToStage -->
+                     <classpathDependencyExcludes>org.apache.beam:beam-runners-spark</classpathDependencyExcludes>
+                     <classpathDependencyExcludes>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExcludes>
+                  </classpathDependencyExcludes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
                   <systemPropertyVariables>
