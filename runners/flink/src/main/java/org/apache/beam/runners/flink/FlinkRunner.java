@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineRunner;
@@ -120,7 +121,9 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
 
     if (result instanceof DetachedEnvironment.DetachedJobExecutionResult) {
       LOG.info("Pipeline submitted in Detached mode");
-      return new FlinkDetachedRunnerResult();
+      FlinkDetachedRunnerResult flinkDetachedRunnerResult = new FlinkDetachedRunnerResult();
+      MetricsPusher.getInstance().setPipelineResult(flinkDetachedRunnerResult);
+      return flinkDetachedRunnerResult;
     } else {
       LOG.info("Execution finished in {} msecs", result.getNetRuntime());
       Map<String, Object> accumulators = result.getAllAccumulatorResults();
@@ -130,8 +133,10 @@ public class FlinkRunner extends PipelineRunner<PipelineResult> {
           LOG.info("{} : {}", entry.getKey(), entry.getValue());
         }
       }
-
-      return new FlinkRunnerResult(accumulators, result.getNetRuntime());
+      FlinkRunnerResult flinkRunnerResult = new FlinkRunnerResult(accumulators,
+          result.getNetRuntime());
+      MetricsPusher.getInstance().setPipelineResult(flinkRunnerResult);
+      return flinkRunnerResult;
     }
   }
 
