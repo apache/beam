@@ -75,7 +75,7 @@ sys.path.insert(0, os.path.abspath('../../..'))
 
 exclude_patterns = [
     '_build',
-    'target/docs/source/apache_beam.rst',
+    'apache_beam.rst',
 ]
 
 extensions = [
@@ -100,6 +100,7 @@ import apache_beam as beam
 intersphinx_mapping = {
   'python': ('https://docs.python.org/2', None),
   'hamcrest': ('https://pyhamcrest.readthedocs.io/en/latest/', None),
+  'hdfs3': ('https://hdfs3.readthedocs.io/en/latest/', None),
 }
 
 # Since private classes are skipped by sphinx, if there is any cross reference
@@ -167,7 +168,7 @@ EOF
 
 # Build the documentation using sphinx
 # Reference: http://www.sphinx-doc.org/en/stable/man/sphinx-build.html
-python $(type -p sphinx-build) -v -a -E -q target/docs/source \
+python $(type -p sphinx-build) -v -a -E -j 8 -q target/docs/source \
   target/docs/_build -c target/docs/source \
   -w "target/docs/sphinx-build.warnings.log"
 
@@ -180,7 +181,7 @@ python $(type -p sphinx-build) -v -a -E -q target/docs/source \
 # - Interactive code starting with '>>>'
 python -msphinx -M doctest target/docs/source \
   target/docs/_build -c target/docs/source \
-  -w "target/docs/sphinx-doctest.warnings.log"
+  -w "target/docs/sphinx-doctest.warnings.log" -j 8
 
 # Fail if there are errors or warnings in docs
 ! grep -q "ERROR:" target/docs/sphinx-doctest.warnings.log || exit 1

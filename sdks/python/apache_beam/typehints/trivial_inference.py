@@ -22,9 +22,9 @@ For internal use only; no backwards-compatibility guarantees.
 from __future__ import absolute_import
 from __future__ import print_function
 
-import __builtin__
 import collections
 import dis
+import inspect
 import pprint
 import sys
 import types
@@ -32,6 +32,8 @@ from functools import reduce
 
 from apache_beam.typehints import Any
 from apache_beam.typehints import typehints
+from six.moves import builtins
+from six.moves import zip
 
 
 class TypeInferenceError(ValueError):
@@ -46,9 +48,9 @@ def instance_to_type(o):
   if o is None:
     return type(None)
   elif t not in typehints.DISALLOWED_PRIMITIVE_TYPES:
-    if t == types.InstanceType:
+    if sys.version_info[0] == 2 and t == types.InstanceType:
       return o.__class__
-    elif t == BoundMethod:
+    if t == BoundMethod:
       return types.MethodType
     return t
   elif t == tuple:
@@ -107,15 +109,12 @@ class FrameState(object):
 
   def __init__(self, f, local_vars=None, stack=()):
     self.f = f
-    if sys.version_info[0] >= 3:
-      self.co = f.__code__
-    else:
-      self.co = f.func_code
+    self.co = f.__code__
     self.vars = list(local_vars)
     self.stack = list(stack)
 
   def __eq__(self, other):
-    return self.__dict__ == other.__dict__
+    return isinstance(other, FrameState) and self.__dict__ == other.__dict__
 
   def copy(self):
     return FrameState(self.f, self.vars, self.stack)
@@ -133,8 +132,8 @@ class FrameState(object):
     name = self.get_name(i)
     if name in self.f.__globals__:
       return Const(self.f.__globals__[name])
-    if name in __builtin__.__dict__:
-      return Const(__builtin__.__dict__[name])
+    if name in builtins.__dict__:
+      return Const(builtins.__dict__[name])
     return Any
 
   def get_name(self, i):
@@ -203,8 +202,15 @@ class BoundMethod(object):
   """Used to create a bound method when we only know the type of the instance.
   """
 
-  def __init__(self, unbound):
-    self.unbound = unbound
+  def __init__(self, func, type):
+    """Instantiates a bound method object.
+
+    Args:
+      func (types.FunctionType): The method's underlying function
+      type (type): The class of the method.
+    """
+    self.func = func
+    self.type = type
 
 
 def hashable(c):
@@ -238,10 +244,9 @@ def infer_return_type(c, input_types, debug=False, depth=5):
         input_types = [Const(c.__self__)] + input_types
       return infer_return_type_func(c.__func__, input_types, debug, depth)
     elif isinstance(c, BoundMethod):
-      input_types = [c.unbound.__self__.__class__] + input_types
-      return infer_return_type_func(
-          c.unbound.__func__, input_types, debug, depth)
-    elif isinstance(c, type):
+      input_types = [c.type] + input_types
+      return infer_return_type_func(c.func, input_types, debug, depth)
+    elif inspect.isclass(c):
       if c in typehints.DISALLOWED_PRIMITIVE_TYPES:
         return {
             list: typehints.List[Any],
@@ -303,15 +308,23 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   last_pc = -1
   while pc < end:
     start = pc
-    op = ord(code[pc])
-
+    if sys.version_info[0] == 2:
+      op = ord(code[pc])
+    else:
+      op = code[pc]
     if debug:
       print('-->' if pc == last_pc else '    ', end=' ')
       print(repr(pc).rjust(4), end=' ')
       print(dis.opname[op].ljust(20), end=' ')
+
     pc += 1
     if op >= dis.HAVE_ARGUMENT:
-      arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
+      if sys.version_info[0] == 2:
+        arg = ord(code[pc]) + ord(code[pc + 1]) * 256 + extended_arg
+      elif sys.version_info[0] == 3 and sys.version_info[1] < 6:
+        arg = code[pc] + code[pc + 1] * 256 + extended_arg
+      else:
+        pass # TODO(luke-zhu): Python 3.6 bytecode to wordcode changes
       extended_arg = 0
       pc += 2
       if op == dis.EXTENDED_ARG:
@@ -344,7 +357,7 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
     opname = dis.opname[op]
     jmp = jmp_state = None
     if opname.startswith('CALL_FUNCTION'):
-      standard_args = (arg & 0xF) + (arg & 0xF0) / 8
+      standard_args = (arg & 0xF) + (arg & 0xF0) // 8
       var_args = 'VAR' in opname
       kw_args = 'KW' in opname
       pop_count = standard_args + var_args + kw_args + 1

@@ -136,7 +136,7 @@ class UniversalLocalRunner(runner.PipelineRunner):
     logging.info("Server ready.")
     return job_service
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     job_service = self._get_job_service()
     prepare_response = job_service.Prepare(
         beam_job_api_pb2.PrepareJobRequest(

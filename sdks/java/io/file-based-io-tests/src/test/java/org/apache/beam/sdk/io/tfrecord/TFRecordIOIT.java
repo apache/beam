@@ -36,6 +36,7 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.values.PCollection;
@@ -110,7 +111,8 @@ public class TFRecordIOIT {
     PCollection<String> consolidatedHashcode = readPipeline
         .apply(TFRecordIO.read().from(filenamePattern).withCompression(AUTO))
         .apply("Transform bytes to strings", MapElements.via(new ByteArrayToString()))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
+        .apply("Calculate hashcode", Combine.globally(new HashingFn()))
+        .apply(Reshuffle.<String>viaRandomKey());
 
     String expectedHash = getExpectedHashForLineCount(numberOfTextLines);
     PAssert.thatSingleton(consolidatedHashcode).isEqualTo(expectedHash);

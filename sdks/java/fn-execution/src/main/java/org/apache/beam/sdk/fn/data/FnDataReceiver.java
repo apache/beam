@@ -19,16 +19,7 @@ package org.apache.beam.sdk.fn.data;
 
 /**
  * A receiver of streamed data.
- *
- * <p>A {@link FnDataReceiver} should have an idempotent {@link #close()} method.
  */
-public interface FnDataReceiver<T> extends AutoCloseable {
+public interface FnDataReceiver<T> {
   void accept(T input) throws Exception;
-
-  /**
-   * {@inheritDoc}.
-   *
-   * <p>{@link #close()} must be idempotent.
-   */
-  void close() throws Exception;
 }

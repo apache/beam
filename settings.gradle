@@ -76,10 +76,11 @@ include ':beam-runners-parent:beam-java-fn-execution'
 include ':beam-runners-parent:beam-runners-core-construction-java'
 include ':beam-runners-parent:beam-runners-core-java'
 include ':beam-runners-parent:beam-local-artifact-service-java'
+include ':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java'
 include ':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator'
 include ':beam-runners-parent:beam-runners-reference-parent'
 include ':beam-runners-parent:beam-runners-direct-java'
-include ':beam-runners-parent:beam-runners-flink_2.10'
+include ':beam-runners-parent:beam-runners-flink_2.11'
 include ':beam-runners-parent:beam-runners-google-cloud-dataflow-java'
 include ':beam-runners-parent:beam-runners-local-java-core'
 include ':beam-runners-parent:beam-runners-spark'
@@ -153,10 +154,11 @@ project(':beam-runners-parent:beam-java-fn-execution').projectDir = "$rootDir/ru
 project(':beam-runners-parent:beam-runners-core-construction-java').projectDir = "$rootDir/runners/core-construction-java" as File
 project(':beam-runners-parent:beam-runners-core-java').projectDir = "$rootDir/runners/core-java" as File
 project(':beam-runners-parent:beam-local-artifact-service-java').projectDir = "$rootDir/runners/local-artifact-service-java" as File
+project(':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-java').projectDir = "$rootDir/runners/reference/java" as File
 project(':beam-runners-parent:beam-runners-reference-parent:beam-runners-reference-job-orchestrator').projectDir = "$rootDir/runners/reference/job-server" as File
 project(':beam-runners-parent:beam-runners-reference-parent').projectDir = "$rootDir/runners/reference" as File
 project(':beam-runners-parent:beam-runners-direct-java').projectDir = "$rootDir/runners/direct-java" as File
-project(':beam-runners-parent:beam-runners-flink_2.10').projectDir = "$rootDir/runners/flink" as File
+project(':beam-runners-parent:beam-runners-flink_2.11').projectDir = "$rootDir/runners/flink" as File
 project(':beam-runners-parent:beam-runners-google-cloud-dataflow-java').projectDir = "$rootDir/runners/google-cloud-dataflow-java" as File
 project(':beam-runners-parent:beam-runners-local-java-core').projectDir = "$rootDir/runners/local-java" as File
 project(':beam-runners-parent:beam-runners-spark').projectDir = "$rootDir/runners/spark" as File

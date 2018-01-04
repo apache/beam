@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.sdk.testing.TestPipeline;
 
 /** Utilities for working with the {@link ValueProvider} interface. */
 public class ValueProviders {
@@ -32,7 +31,8 @@ public class ValueProviders {
    * Given {@code serializedOptions} as a JSON-serialized {@link PipelineOptions}, updates the
    * values according to the provided values in {@code runtimeValues}.
    *
-   * @deprecated Use {@link TestPipeline#newProvider} for testing {@link ValueProvider} code.
+   * @deprecated Use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider}
+   * for testing {@link ValueProvider} code.
    */
   @Deprecated
   public static String updateSerializedOptions(

@@ -213,6 +213,12 @@ ext.applyJavaNature = {
       excludeFilter = rootProject.file('sdks/java/build-tools/src/main/resources/beam/findbugs-filter.xml')
       sourceSets = [sourceSets.main]
     }
+    tasks.withType(FindBugs) {
+      reports {
+        html.enabled = true
+        xml.enabled = false
+      }
+    }
   }
 
   // Enables a plugin which can perform shading of classes. See the general comments

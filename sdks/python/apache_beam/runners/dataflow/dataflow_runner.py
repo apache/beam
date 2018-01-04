@@ -261,7 +261,7 @@ class DataflowRunner(PipelineRunner):
 
     return FlattenInputVisitor()
 
-  def run(self, pipeline):
+  def run_pipeline(self, pipeline):
     """Remotely executes entire pipeline or parts reachable from node."""
     # Import here to avoid adding the dependency for local running scenarios.
     try:
@@ -296,7 +296,7 @@ class DataflowRunner(PipelineRunner):
     pipeline.visit(self.flatten_input_visitor())
 
     # The superclass's run will trigger a traversal of all reachable nodes.
-    super(DataflowRunner, self).run(pipeline)
+    super(DataflowRunner, self).run_pipeline(pipeline)
 
     test_options = pipeline._options.view_as(TestOptions)
     # If it is a dry run, return without submitting the job.

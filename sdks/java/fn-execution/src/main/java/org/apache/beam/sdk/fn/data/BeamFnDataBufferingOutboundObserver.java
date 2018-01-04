@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * a marker, detect on the input side that no bytes were read and force reading a single byte.
  */
 public class BeamFnDataBufferingOutboundObserver<T>
-    implements FnDataReceiver<WindowedValue<T>> {
+    implements CloseableFnDataReceiver<WindowedValue<T>> {
   // TODO: Consider moving this constant out of this class
   public static final String BEAM_FN_API_DATA_BUFFER_LIMIT = "beam_fn_api_data_buffer_limit=";
   @VisibleForTesting
@@ -71,6 +71,7 @@ public class BeamFnDataBufferingOutboundObserver<T>
 
   private long byteCounter;
   private long counter;
+  private boolean closed;
   private final int bufferLimit;
   private final Coder<WindowedValue<T>> coder;
   private final LogicalEndpoint outputLocation;
@@ -87,10 +88,15 @@ public class BeamFnDataBufferingOutboundObserver<T>
     this.coder = coder;
     this.outboundObserver = outboundObserver;
     this.bufferedElements = ByteString.newOutput();
+    this.closed = false;
   }
 
   @Override
   public void close() throws Exception {
+    if (closed) {
+      throw new IllegalStateException("Already closed.");
+    }
+    closed = true;
     BeamFnApi.Elements.Builder elements = convertBufferForTransmission();
     // This will add an empty data block representing the end of stream.
     elements.addDataBuilder()
@@ -108,6 +114,9 @@ public class BeamFnDataBufferingOutboundObserver<T>
 
   @Override
   public void accept(WindowedValue<T> t) throws IOException {
+    if (closed) {
+      throw new IllegalStateException("Already closed.");
+    }
     coder.encode(t, bufferedElements);
     counter += 1;
     if (bufferedElements.size() >= bufferLimit) {

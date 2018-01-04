@@ -64,7 +64,6 @@ example, the above function can be decorated::
 See apache_beam.typehints.decorators module for more details.
 """
 
-import logging
 import warnings
 
 from apache_beam.coders import coders
@@ -148,15 +147,7 @@ class CoderRegistry(object):
                    'and for custom key classes, by writing a '
                    'deterministic custom Coder. Please see the '
                    'documentation for more details.' % (key_coder, op_name))
-      # TODO(vikasrk): PickleCoder will eventually be removed once its direct
-      # usage is stopped.
-      if isinstance(key_coder, (coders.PickleCoder,
-                                coders.FastPrimitivesCoder)):
-        if not silent:
-          logging.warning(error_msg)
-        return coders.DeterministicFastPrimitivesCoder(key_coder, op_name)
-      else:
-        raise ValueError(error_msg)
+      return key_coder.as_deterministic_coder(op_name, error_msg)
     else:
       return key_coder
 

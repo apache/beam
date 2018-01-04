@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.WindowedValue.valueInGlobalWindow;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.Iterables;
 import com.google.protobuf.ByteString;
@@ -58,7 +59,7 @@ public class BeamFnDataBufferingOutboundObserverTest {
   public void testWithDefaultBuffer() throws Exception {
     final Collection<BeamFnApi.Elements> values = new ArrayList<>();
     final AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
-    FnDataReceiver<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocation(
             OUTPUT_LOCATION,
             CODER,
@@ -98,13 +99,31 @@ public class BeamFnDataBufferingOutboundObserverTest {
     consumer.close();
     assertEquals(messageWithData(),
         Iterables.get(values, 2));
+
+    // Test that we can't write to a closed stream.
+    try {
+      consumer.accept(
+          valueInGlobalWindow(
+              new byte[BeamFnDataBufferingOutboundObserver.DEFAULT_BUFFER_LIMIT_BYTES - 50]));
+      fail("Writing after close should be prohibited.");
+    } catch (IllegalStateException exn) {
+      // expected
+    }
+
+    // Test that we can't close a stream twice.
+    try {
+      consumer.close();
+      fail("Closing twice should be prohibited.");
+    } catch (IllegalStateException exn) {
+      // expected
+    }
   }
 
   @Test
   public void testConfiguredBufferLimit() throws Exception {
     Collection<BeamFnApi.Elements> values = new ArrayList<>();
     AtomicBoolean onCompletedWasCalled = new AtomicBoolean();
-    FnDataReceiver<WindowedValue<byte[]>> consumer =
+    CloseableFnDataReceiver<WindowedValue<byte[]>> consumer =
         BeamFnDataBufferingOutboundObserver.forLocationWithBufferLimit(
             100,
             OUTPUT_LOCATION,
