@@ -114,12 +114,41 @@ class FnApiRunnerTest(
       pcoll_b = p | 'b' >> beam.Create(['b'])
       assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
 
+  def test_metrics(self):
+
+    p = self.create_pipeline()
+    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
+      # This test is inherited by others that may not support the same
+      # internal way of accessing progress metrics.
+      self.skipTest('Metrics not supported.')
+
+    counter = beam.metrics.Metrics.counter('ns', 'counter')
+    distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
+    pcoll = p | beam.Create(['a', 'zzz'])
+    # pylint: disable=expression-not-assigned
+    pcoll | 'count1' >> beam.FlatMap(lambda x: counter.inc())
+    pcoll | 'count2' >> beam.FlatMap(lambda x: counter.inc(len(x)))
+    pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
+
+    res = p.run()
+    res.wait_until_finish()
+    c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
+        'counters']
+    self.assertEqual(c1.committed, 2)
+    c2, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count2'))[
+        'counters']
+    self.assertEqual(c2.committed, 4)
+    dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
+        'distributions']
+    self.assertEqual(
+        dist.committed, beam.metrics.cells.DistributionData(4, 2, 1, 3))
+
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
       # This test is inherited by others that may not support the same
       # internal way of accessing progress metrics.
-      return
+      self.skipTest('Progress metrics not supported.')
 
     _ = (p
          | beam.Create([0, 0, 0, 2.1e-3 * DEFAULT_SAMPLING_PERIOD_MS])
