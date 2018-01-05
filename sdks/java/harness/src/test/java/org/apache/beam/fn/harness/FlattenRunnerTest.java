@@ -46,10 +46,10 @@ public class FlattenRunnerTest {
   /**
    * Create a DoFn that has 4 inputs (inputATarget1, inputATarget2, inputBTarget, inputCTarget) and
    * 2 outputs (mainOutput, output). Validate that inputs are flattened together and that outputs
-   * are directed to the correct consumers.
+   * are directed to all consumers.
    */
   @Test
-  public void testCreatingAndProcessingDoFn() throws Exception {
+  public void testCreatingAndProcessingDoFlatten() throws Exception {
     String pTransformId = "pTransformId";
     String mainOutputId = "101";
     String additionalOutputId = "102";
