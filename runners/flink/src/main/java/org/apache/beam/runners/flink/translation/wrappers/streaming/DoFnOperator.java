@@ -363,6 +363,9 @@ public class DoFnOperator<InputT, OutputT>
       super.dispose();
       checkFinishBundleTimer.cancel(true);
     } finally {
+      if (bundleStarted) {
+        invokeFinishBundle();
+      }
       doFnInvoker.invokeTeardown();
     }
   }
