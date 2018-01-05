@@ -128,6 +128,7 @@ public class StatefulDoFnRunnerTest {
   @Test
   public void testGarbageCollect() throws Exception {
     timerInternals.advanceInputWatermark(new Instant(1L));
+    timerInternals.advanceOutputWatermark(new Instant(BoundedWindow.TIMESTAMP_MIN_VALUE));
 
     MyDoFn fn = new MyDoFn();
     StateTag<ValueState<Integer>> stateTag = StateTags.tagForSpec(fn.stateId, fn.intState);
