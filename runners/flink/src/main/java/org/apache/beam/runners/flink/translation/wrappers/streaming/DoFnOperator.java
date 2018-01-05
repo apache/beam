@@ -371,18 +371,41 @@ public class DoFnOperator<InputT, OutputT>
 
   @Override
   public void close() throws Exception {
-    super.close();
+    try {
 
-    // sanity check: these should have been flushed out by +Inf watermarks
-    if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
-      BagState<WindowedValue<InputT>> pushedBack =
-          nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
-
-      Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
-      if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
-        String pushedBackString = Joiner.on(",").join(pushedBackContents);
+      // This is our last change to block shutdown of this operator while
+      // there are still remaining processing-time timers. Flink will ignore pending
+      // processing-time timers when upstream operators have shut down and will also
+      // shut down this operator with pending processing-time timers.
+      while (this.numProcessingTimeTimers() > 0) {
+        getContainingTask().getCheckpointLock().wait(100);
+      }
+      if (this.numProcessingTimeTimers() > 0) {
         throw new RuntimeException(
-            "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
+            "There are still processing-time timers left, this indicates a bug");
+      }
+
+      // make sure we send a +Inf watermark downstream. It can happen that we receive +Inf
+      // in processWatermark*() but have holds, so we have to re-evaluate here.
+      processWatermark(new Watermark(Long.MAX_VALUE));
+      if (currentOutputWatermark < Long.MAX_VALUE) {
+        throw new RuntimeException("There are still watermark holds. Watermark held at "
+            + keyedStateInternals.watermarkHold().getMillis() + ".");
+      }
+    } finally {
+      super.close();
+
+      // sanity check: these should have been flushed out by +Inf watermarks
+      if (!sideInputs.isEmpty() && nonKeyedStateInternals != null) {
+        BagState<WindowedValue<InputT>> pushedBack =
+            nonKeyedStateInternals.state(StateNamespaces.global(), pushedBackTag);
+
+        Iterable<WindowedValue<InputT>> pushedBackContents = pushedBack.read();
+        if (pushedBackContents != null && !Iterables.isEmpty(pushedBackContents)) {
+          String pushedBackString = Joiner.on(",").join(pushedBackContents);
+          throw new RuntimeException(
+              "Leftover pushed-back data: " + pushedBackString + ". This indicates a bug.");
+        }
       }
     }
   }
