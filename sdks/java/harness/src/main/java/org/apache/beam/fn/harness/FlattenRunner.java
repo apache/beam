@@ -58,7 +58,7 @@ public class FlattenRunner<InputT>{
     }
   }
 
-  /** A factory for {@link FlattenRunner}s. */
+  /** A factory for {@link FlattenRunner}. */
   static class Factory<InputT> implements
       PTransformRunnerFactory<FlattenRunner<InputT>> {
     @Override
@@ -76,9 +76,8 @@ public class FlattenRunner<InputT>{
         Consumer<ThrowingRunnable> addStartFunction,
         Consumer<ThrowingRunnable> addFinishFunction)
         throws IOException {
-      //Collection<FnDataReceiver<WindowedValue<InputT>>> consumers =
-      //    (Collection) pCollectionIdsToConsumers
-      //        .get(getOnlyElement(pTransform.getOutputsMap().values()));
+
+      // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
       ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>> consumersBuilder =
           new ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>>();
       for (String output : pTransform.getOutputsMap().values()) {
