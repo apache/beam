@@ -270,6 +270,7 @@
                   <classpathDependencyExcludes>
                      <!-- Avoid [BEAM-3397] errors by reducing the pipeline
                           options and the copies of filesToStage.
+
                           A longer term solution will be to split up the
                           precommit runs as in [BEAM-2596].
                      -->
