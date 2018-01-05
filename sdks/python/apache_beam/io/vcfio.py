@@ -285,9 +285,12 @@ class _VcfSource(filebasedsource.FileBasedSource):
       try:
         self._vcf_reader = vcf.Reader(fsock=self._create_generator())
       except SyntaxError as e:
-        raise ValueError('An exception was raised when reading header from VCF '
-                         'file %s: %s' % (self._file_name,
-                                          traceback.format_exc(e)))
+        # Throw the exception inside the generator to ensure file is properly
+        # closed (it's opened inside TextSource.read_records).
+        self._text_lines.throw(
+            ValueError('An exception was raised when reading header from VCF '
+                       'file %s: %s' % (self._file_name,
+                                        traceback.format_exc(e))))
 
     def _store_header_lines(self, header_lines):
       self._header_lines = header_lines
@@ -321,11 +324,14 @@ class _VcfSource(filebasedsource.FileBasedSource):
               self._file_name, self._last_record, traceback.format_exc(e))
           return MalformedVcfRecord(self._file_name, self._last_record)
 
-        raise ValueError('An exception was raised when reading record from VCF '
-                         'file %s. Invalid record was %s: %s' % (
-                             self._file_name,
-                             self._last_record,
-                             traceback.format_exc(e)))
+        # Throw the exception inside the generator to ensure file is properly
+        # closed (it's opened inside TextSource.read_records).
+        self._text_lines.throw(
+            ValueError('An exception was raised when reading record from VCF '
+                       'file %s. Invalid record was %s: %s' % (
+                           self._file_name,
+                           self._last_record,
+                           traceback.format_exc(e))))
 
     def _convert_to_variant_record(self, record, infos, formats):
       """Converts the PyVCF record to a :class:`Variant` object.
