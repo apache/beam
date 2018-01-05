@@ -41,7 +41,7 @@ final class PaneExtractors {
   }
 
   static <T> SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> onlyPane(
-      PAssert.PAssertionSite site) {
+      PAsserts.PAssertionSite site) {
     return new ExtractOnlyPane<>(site);
   }
 
@@ -67,9 +67,9 @@ final class PaneExtractors {
 
   private static class ExtractOnlyPane<T>
       extends SimpleFunction<Iterable<ValueInSingleWindow<T>>, Iterable<T>> {
-    private final PAssert.PAssertionSite site;
+    private final PAsserts.PAssertionSite site;
 
-    private ExtractOnlyPane(PAssert.PAssertionSite site) {
+    private ExtractOnlyPane(PAsserts.PAssertionSite site) {
       this.site = site;
     }
 
