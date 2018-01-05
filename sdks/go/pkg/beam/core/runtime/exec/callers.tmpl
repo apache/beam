@@ -1,0 +1,55 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package exec
+
+import (
+    "reflect"
+
+  	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+)
+
+// TODO(herohde) 1/4/2018: Potential targets for type-specialization include simple predicate,
+// dofn and combiner forms.
+//
+//   (1) func(X) bool
+//   (2) func(X) error
+//   (3) func(X, X) X
+//   (4) func(ctx?, X) (X, error?)
+//   (5) func(ctx?, X, func(X)) (error?)
+//
+// For now, we just do #3.
+
+func init() {
+{{- range $x := .X}}
+    RegisterCaller(reflect.TypeOf((*func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})(nil)).Elem(), callMaker{{$x.Name}}M)
+{{- end}}
+}
+
+{{range $x := .X}}
+type native{{$x.Name}}MCaller struct {
+	fn    func ({{$x.Type}}, {{$x.Type}}){{$x.Type}}
+}
+
+func callMaker{{$x.Name}}M(fn reflect.Value) Caller {
+    f := fn.Interface().(func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})
+    return &native{{$x.Name}}MCaller{fn: f}
+}
+
+func (c *native{{$x.Name}}MCaller) Call(args []reflect.Value) []reflect.Value {
+     out := c.fn(args[0].Interface().({{$x.Type}}), args[1].Interface().({{$x.Type}}))
+     return []reflect.Value{reflect.ValueOf(out)}
+}
+{{end}}
