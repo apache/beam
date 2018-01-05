@@ -94,7 +94,6 @@
                     org.apache.beam.sdk.testing.LargeKeys$Above100MB,
                     org.apache.beam.sdk.testing.UsesCommittedMetrics,
                     org.apache.beam.sdk.testing.UsesTestStream,
-                    org.apache.beam.sdk.testing.UsesSplittableParDo
                   </excludedGroups>
                   <parallel>none</parallel>
                   <failIfNoTests>true</failIfNoTests>
