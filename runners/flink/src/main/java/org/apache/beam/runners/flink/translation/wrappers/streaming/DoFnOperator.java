@@ -177,8 +177,6 @@ public class DoFnOperator<InputT, OutputT>
   private transient long lastFinishBundleTime;
   private transient ScheduledFuture<?> checkFinishBundleTimer;
 
-  protected transient Object checkpointingLock;
-
   public DoFnOperator(
       DoFn<InputT, OutputT> doFn,
       String stepName,
@@ -226,7 +224,6 @@ public class DoFnOperator<InputT, OutputT>
       StreamTask<?, ?> containingTask,
       StreamConfig config,
       Output<StreamRecord<WindowedValue<OutputT>>> output) {
-    this.checkpointingLock = containingTask.getCheckpointLock();
 
     // make sure that FileSystems is initialized correctly
     FlinkPipelineOptions options =
@@ -380,8 +377,6 @@ public class DoFnOperator<InputT, OutputT>
   @Override
   public void close() throws Exception {
     try {
-      assert(Thread.holdsLock(checkpointingLock));
-
 
       // This is our last change to block shutdown of this operator while
       // there are still remaining processing-time timers. Flink will ignore pending
