@@ -22,7 +22,7 @@ import platform
 import unittest
 from collections import defaultdict
 
-from mock import mock
+import mock
 
 import apache_beam as beam
 from apache_beam.io import Read
