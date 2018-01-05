@@ -274,8 +274,8 @@
                           A longer term solution will be to split up the
                           precommit runs as in [BEAM-2596].
                      -->
-                     <classpathDependencyExcludes>org.apache.beam:beam-runners-spark</classpathDependencyExcludes>
-                     <classpathDependencyExcludes>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExcludes>
+                     <classpathDependencyExclude>org.apache.beam:beam-runners-spark</classpathDependencyExclude>
+                     <classpathDependencyExclude>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExclude>
                   </classpathDependencyExcludes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
