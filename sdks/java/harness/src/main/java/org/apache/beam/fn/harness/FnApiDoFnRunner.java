@@ -94,7 +94,6 @@ import org.apache.beam.sdk.util.DoFnInfo;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.WindowedValue;
-import org.apache.beam.sdk.util.WindowedValue.WindowedValueCoder;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -187,9 +186,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
           pTransformId,
           processBundleInstructionId,
           doFnInfo.getDoFn(),
-          WindowedValue.getFullCoder(
-              doFnInfo.getInputCoder(),
-              doFnInfo.getWindowingStrategy().getWindowFn().windowCoder()),
+          doFnInfo.getInputCoder(),
           (Collection<FnDataReceiver<WindowedValue<OutputT>>>) (Collection)
               tagToOutputMap.get(doFnInfo.getOutputMap().get(doFnInfo.getMainOutput())),
           tagToOutputMap,
@@ -221,7 +218,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
 
       DoFn<InputT, OutputT> doFn;
       TupleTag<OutputT> mainOutputTag;
-      WindowedValueCoder<InputT> inputCoder;
+      Coder<InputT> inputCoder;
       WindowingStrategy<InputT, ?> windowingStrategy;
 
       try {
@@ -237,7 +234,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
         // There will only be one due to the check above.
         RunnerApi.PCollection mainInput = pCollections.get(
             Iterables.getOnlyElement(pTransform.getInputsMap().values()));
-        inputCoder = (WindowedValueCoder<InputT>) rehydratedComponents.getCoder(
+        inputCoder = (Coder<InputT>) rehydratedComponents.getCoder(
             mainInput.getCoderId());
         windowingStrategy = (WindowingStrategy) rehydratedComponents.getWindowingStrategy(
             mainInput.getWindowingStrategyId());
@@ -297,7 +294,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
   private final String ptransformId;
   private final Supplier<String> processBundleInstructionId;
   private final DoFn<InputT, OutputT> doFn;
-  private final WindowedValueCoder<InputT> inputCoder;
+  private final Coder<InputT> inputCoder;
   private final Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers;
   private final Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap;
   private final WindowingStrategy windowingStrategy;
@@ -335,7 +332,7 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       String ptransformId,
       Supplier<String> processBundleInstructionId,
       DoFn<InputT, OutputT> doFn,
-      WindowedValueCoder<InputT> inputCoder,
+      Coder<InputT> inputCoder,
       Collection<FnDataReceiver<WindowedValue<OutputT>>> mainOutputConsumers,
       Multimap<TupleTag<?>, FnDataReceiver<WindowedValue<?>>> outputMap,
       WindowingStrategy windowingStrategy) {
@@ -982,12 +979,13 @@ public class FnApiDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Outp
       checkState(currentElement.getValue() instanceof KV,
           "Accessing state in unkeyed context. Current element is not a KV: %s.",
           currentElement);
-      checkState(inputCoder.getCoderArguments().get(0) instanceof KvCoder,
+      checkState(
+          inputCoder instanceof KvCoder,
           "Accessing state in unkeyed context. No keyed coder found.");
 
       ByteString.Output encodedKeyOut = ByteString.newOutput();
 
-      Coder<K> keyCoder = ((KvCoder<K, ?>) inputCoder.getValueCoder()).getKeyCoder();
+      Coder<K> keyCoder = ((KvCoder<K, ?>) inputCoder).getKeyCoder();
       try {
         keyCoder.encode(((KV<K, ?>) currentElement.getValue()).getKey(), encodedKeyOut);
       } catch (IOException e) {
