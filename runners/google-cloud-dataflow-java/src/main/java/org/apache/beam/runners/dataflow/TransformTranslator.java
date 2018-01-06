@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SdkComponents;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.OutputReference;
 import org.apache.beam.sdk.Pipeline;
@@ -70,6 +71,10 @@ public interface TransformTranslator<TransformT extends PTransform> {
 
     /** Encode a PValue reference as an output reference. */
     OutputReference asOutputReference(PValue value, AppliedPTransform<?, ?, ?> producer);
+
+    SdkComponents getSdkComponents();
+
+    AppliedPTransform<?, ?, ?> getCurrentTransform();
 
     /**
      * Get the {@link AppliedPTransform} that produced the provided {@link PValue}.

@@ -49,8 +49,12 @@ import org.apache.beam.sdk.values.TupleTag;
 /** Utilities for going to/from Runner API pipelines. */
 public class PipelineTranslation {
 
-  public static RunnerApi.Pipeline toProto(final Pipeline pipeline) {
-    final SdkComponents components = SdkComponents.create();
+  public static RunnerApi.Pipeline toProto(Pipeline pipeline) {
+    return toProto(pipeline, SdkComponents.create());
+  }
+
+  public static RunnerApi.Pipeline toProto(
+      final Pipeline pipeline, final SdkComponents components) {
     final Collection<String> rootIds = new HashSet<>();
     pipeline.traverseTopologically(
         new PipelineVisitor.Defaults() {
