@@ -1,0 +1,68 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package reflectx
+
+import "reflect"
+
+// Generated arity-specialized Caller implementations to avoid runtime temporary
+// slices. Code that knows the arity can potentially avoid that overhead in
+// addition to avoiding the reflection call overhead.
+//
+// We force CallerZxY to implement Caller as well to have a single registry. Concrete
+// caller implementations should implement the most specific supported variant. This
+// also allows more specific intermediate interfaces, such as Caller2bool, to be added
+// later.
+
+{{range $in := upto 8}}
+{{range $out := upto 4}}
+type Caller{{$in}}x{{$out}} interface {
+    Caller
+    Call{{$in}}x{{$out}}({{mktuple $in "interface{}"}}) ({{mktuple $out "interface{}"}})
+}
+
+type shimCaller{{$in}}x{{$out}} struct {
+    inner Caller
+}
+
+func (c *shimCaller{{$in}}x{{$out}}) Type() reflect.Type {
+   return c.inner.Type()
+}
+
+func (c *shimCaller{{$in}}x{{$out}}) Call(args []interface{}) []interface{} {
+   return c.inner.Call(args)
+}
+
+func (c *shimCaller{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "interface{}"}}) ({{mktuple $out "interface{}"}}) {
+   ret := c.inner.Call([]interface{}{ {{mktuplef $in "arg%v"}} })
+   _ = ret
+   return {{mktuplef $out "ret[%v]"}}
+}
+
+func ToCaller{{$in}}x{{$out}}(c Caller) Caller{{$in}}x{{$out}} {
+    if c.Type().NumIn() != {{$in}} || c.Type().NumOut() != {{$out}} {
+        panic("incompatible caller type")
+    }
+    if sc, ok := c.(Caller{{$in}}x{{$out}}); ok {
+        return sc
+    }
+    return &shimCaller{{$in}}x{{$out}}{inner: c}
+}
+
+func MakeCaller{{$in}}x{{$out}}(fn interface{}) Caller{{$in}}x{{$out}} {
+    return ToCaller{{$in}}x{{$out}}(MakeCaller(fn))
+}
+{{end}}
+{{end}}

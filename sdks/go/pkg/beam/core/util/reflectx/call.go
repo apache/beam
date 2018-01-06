@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exec
+package reflectx
 
 import (
 	"context"
@@ -23,31 +23,26 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
-//go:generate specialize --input=callers.tmpl --x=data,universals
+//go:generate specialize --input=calls.tmpl
 
-// Caller is a uniform function call interface for a function. This indirection allows
+// Caller is an untyped function call interface. This indirection allows
 // us to avoid reflection call overhead for certain types.
 type Caller interface {
+	// Type returns the type.
+	Type() reflect.Type
 	// Call invokes the implicit fn with arguments.
-	Call(args []reflect.Value) []reflect.Value
+	Call(args []interface{}) []interface{}
 }
 
-// TODO(herohde) 1/4/2018: Consider forms that avoid the slice creation as well,
-// i.e.,
-//         Call2x1(a, b reflect.Value) reflect.Value or
-//         Call2bool(a, b interface{}) bool
-// signatures. If we do that, we should probably move this mechanism into a
-// separate "fastcall" package.
-
 var (
-	callers   = make(map[string]func(reflect.Value) Caller)
+	callers   = make(map[string]func(interface{}) Caller)
 	callersMu sync.Mutex
 )
 
-// RegisterCaller registers an custom caller for the given type, such as
-// "func(int)bool". If multiple callers are registered for the same type,
+// RegisterCaller registers an custom caller factory for the given type, such as
+// "func(int)bool". If multiple caller factories are registered for the same type,
 // the last registration wins.
-func RegisterCaller(t reflect.Type, maker func(reflect.Value) Caller) {
+func RegisterCaller(t reflect.Type, maker func(interface{}) Caller) {
 	callersMu.Lock()
 	defer callersMu.Unlock()
 
@@ -58,10 +53,11 @@ func RegisterCaller(t reflect.Type, maker func(reflect.Value) Caller) {
 	callers[key] = maker
 }
 
-func makeCaller(fn reflect.Value) Caller {
-	encodersMu.Lock()
-	maker, exists := callers[fn.Type().String()]
-	encodersMu.Unlock()
+// MakeCaller returns a caller for given function.
+func MakeCaller(fn interface{}) Caller {
+	callersMu.Lock()
+	maker, exists := callers[reflect.TypeOf(fn).String()]
+	callersMu.Unlock()
 
 	if exists {
 		return maker(fn)
@@ -70,13 +66,35 @@ func makeCaller(fn reflect.Value) Caller {
 	// If no specialized implementation is available, we use the standard
 	// reflection-based call.
 
-	return &caller{fn: fn}
+	return &caller{fn: reflect.ValueOf(fn)}
 }
 
 type caller struct {
 	fn reflect.Value
 }
 
-func (c *caller) Call(args []reflect.Value) []reflect.Value {
-	return c.fn.Call(args)
+func (c *caller) Type() reflect.Type {
+	return c.fn.Type()
+}
+
+func (c *caller) Call(args []interface{}) []interface{} {
+	return Interface(c.fn.Call(ValueOf(args)))
+}
+
+// ValueOf performs a per-element reflect.ValueOf.
+func ValueOf(list []interface{}) []reflect.Value {
+	ret := make([]reflect.Value, len(list), len(list))
+	for i := 0; i < len(list); i++ {
+		ret[i] = reflect.ValueOf(list[i])
+	}
+	return ret
+}
+
+// Interface performs a per-element Interface call.
+func Interface(list []reflect.Value) []interface{} {
+	ret := make([]interface{}, len(list), len(list))
+	for i := 0; i < len(list); i++ {
+		ret[i] = list[i].Interface()
+	}
+	return ret
 }

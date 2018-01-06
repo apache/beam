@@ -25,6 +25,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
+//go:generate specialize --input=callers.tmpl --x=data,universals
+
 // NOTE(herohde) 12/11/2017: the below helpers are ripe for type-specialization,
 // if the reflection overhead here turns out to be significant. It would
 // be nice to be able to quantify any potential improvements first, however.
