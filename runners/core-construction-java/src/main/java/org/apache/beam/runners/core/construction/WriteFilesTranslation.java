@@ -78,7 +78,7 @@ public class WriteFilesTranslation {
             Map<String, SideInput> sideInputs = new HashMap<>();
             for (PCollectionView<?> view :
                 transform.getSink().getDynamicDestinations().getSideInputs()) {
-              sideInputs.put(view.getTagInternal().getId(), ParDoTranslation.toProto(view));
+              sideInputs.put(view.getTagInternal().getId(), ParDoTranslation.translateView(view));
             }
             return sideInputs;
           }
