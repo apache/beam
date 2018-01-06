@@ -22,6 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.runners.core.construction.PTransformTranslation.PAR_DO_TRANSFORM_URN;
+import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getStateSpecOrThrow;
+import static org.apache.beam.sdk.transforms.reflect.DoFnSignatures.getTimerSpecOrThrow;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -177,7 +179,7 @@ public class ParDoTranslation {
             for (Map.Entry<String, StateDeclaration> state :
                 signature.stateDeclarations().entrySet()) {
               RunnerApi.StateSpec spec =
-                  toProto(getStateSpecOrCrash(state.getValue(), doFn), components);
+                  translateStateSpec(getStateSpecOrThrow(state.getValue(), doFn), components);
               stateSpecs.put(state.getKey(), spec);
             }
             return stateSpecs;
@@ -188,7 +190,8 @@ public class ParDoTranslation {
             Map<String, RunnerApi.TimerSpec> timerSpecs = new HashMap<>();
             for (Map.Entry<String, TimerDeclaration> timer :
                 signature.timerDeclarations().entrySet()) {
-              RunnerApi.TimerSpec spec = toProto(getTimerSpecOrCrash(timer.getValue(), doFn));
+              RunnerApi.TimerSpec spec =
+                  translateTimerSpec(getTimerSpecOrThrow(timer.getValue(), doFn));
               timerSpecs.put(timer.getKey(), spec);
             }
             return timerSpecs;
@@ -200,52 +203,6 @@ public class ParDoTranslation {
           }
         },
         components);
-  }
-
-  private static StateSpec<?> getStateSpecOrCrash(
-      StateDeclaration stateDeclaration, DoFn<?, ?> target) {
-    try {
-      Object fieldValue = stateDeclaration.field().get(target);
-      checkState(
-          fieldValue instanceof StateSpec,
-          "Malformed %s class %s: state declaration field %s does not have type %s.",
-          DoFn.class.getSimpleName(),
-          target.getClass().getName(),
-          stateDeclaration.field().getName(),
-          StateSpec.class);
-
-      return (StateSpec<?>) stateDeclaration.field().get(target);
-    } catch (IllegalAccessException exc) {
-      throw new RuntimeException(
-          String.format(
-              "Malformed %s class %s: state declaration field %s is not accessible.",
-              DoFn.class.getSimpleName(),
-              target.getClass().getName(),
-              stateDeclaration.field().getName()));
-    }
-  }
-
-  private static TimerSpec getTimerSpecOrCrash(
-      TimerDeclaration timerDeclaration, DoFn<?, ?> target) {
-    try {
-      Object fieldValue = timerDeclaration.field().get(target);
-      checkState(
-          fieldValue instanceof TimerSpec,
-          "Malformed %s class %s: timer declaration field %s does not have type %s.",
-          DoFn.class.getSimpleName(),
-          target.getClass().getName(),
-          timerDeclaration.field().getName(),
-          TimerSpec.class);
-
-      return (TimerSpec) timerDeclaration.field().get(target);
-    } catch (IllegalAccessException exc) {
-      throw new RuntimeException(
-          String.format(
-              "Malformed %s class %s: timer declaration field %s is not accessible.",
-              DoFn.class.getSimpleName(),
-              target.getClass().getName(),
-              timerDeclaration.field().getName()));
-    }
   }
 
   public static DoFn<?, ?> getDoFn(ParDoPayload payload) throws InvalidProtocolBufferException {
