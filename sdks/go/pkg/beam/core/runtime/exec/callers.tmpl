@@ -19,6 +19,7 @@ import (
     "reflect"
 
   	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+  	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // TODO(herohde) 1/4/2018: Potential targets for type-specialization include simple predicate,
@@ -34,7 +35,7 @@ import (
 
 func init() {
 {{- range $x := .X}}
-    RegisterCaller(reflect.TypeOf((*func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})(nil)).Elem(), callMaker{{$x.Name}}M)
+    reflectx.RegisterCaller(reflect.TypeOf((*func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})(nil)).Elem(), callMaker{{$x.Name}}M)
 {{- end}}
 }
 
@@ -43,13 +44,21 @@ type native{{$x.Name}}MCaller struct {
 	fn    func ({{$x.Type}}, {{$x.Type}}){{$x.Type}}
 }
 
-func callMaker{{$x.Name}}M(fn reflect.Value) Caller {
-    f := fn.Interface().(func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})
+func callMaker{{$x.Name}}M(fn interface{}) reflectx.Caller {
+    f := fn.(func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})
     return &native{{$x.Name}}MCaller{fn: f}
 }
 
-func (c *native{{$x.Name}}MCaller) Call(args []reflect.Value) []reflect.Value {
-     out := c.fn(args[0].Interface().({{$x.Type}}), args[1].Interface().({{$x.Type}}))
-     return []reflect.Value{reflect.ValueOf(out)}
+func (c *native{{$x.Name}}MCaller) Type() reflect.Type {
+    return reflect.TypeOf(c.fn)
+}
+
+func (c *native{{$x.Name}}MCaller) Call(args []interface{}) []interface{} {
+    out := c.fn(args[0].({{$x.Type}}), args[1].({{$x.Type}}))
+    return []interface{}{out}
+}
+
+func (c *native{{$x.Name}}MCaller) Call2x1(a, b interface{}) interface{} {
+    return c.fn(a.({{$x.Type}}), b.({{$x.Type}}))
 }
 {{end}}

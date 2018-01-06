@@ -39,7 +39,7 @@ type Combine struct {
 	first             bool
 	isPerKey, usesKey bool
 
-	mergeFn Caller // optimized caller in the case of binary merge accumulators
+	mergeFn reflectx.Caller2x1 // optimized caller in the case of binary merge accumulators
 
 	status Status
 	err    errorx.GuardedError
@@ -59,7 +59,9 @@ func (n *Combine) Up(ctx context.Context) error {
 		return n.fail(err)
 	}
 
-	n.mergeFn = makeCaller(n.Edge.CombineFn.MergeAccumulatorsFn().Fn)
+	if n.Edge.CombineFn.AddInputFn() == nil {
+		n.mergeFn = reflectx.MakeCaller2x1(n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Interface())
+	}
 
 	// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge
 	// instead of inferring it here?
@@ -213,9 +215,7 @@ func (n *Combine) addInput(ctx context.Context, accum, key, value reflect.Value,
 
 		a := reflectx.UnderlyingType(accum)
 		b := reflectx.UnderlyingType(value)
-
-		vals := n.mergeFn.Call([]reflect.Value{a, b})
-		return vals[0], nil
+		return reflect.ValueOf(n.mergeFn.Call2x1(a.Interface(), b.Interface())), nil
 	}
 
 	opt := &MainInput{

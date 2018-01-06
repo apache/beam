@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // TODO(herohde) 1/4/2018: Potential targets for type-specialization include simple predicate,
@@ -35,334 +36,510 @@ import (
 // For now, we just do #3.
 
 func init() {
-	RegisterCaller(reflect.TypeOf((*func([]byte, []byte) []byte)(nil)).Elem(), callMakerByteSliceM)
-	RegisterCaller(reflect.TypeOf((*func(bool, bool) bool)(nil)).Elem(), callMakerBoolM)
-	RegisterCaller(reflect.TypeOf((*func(string, string) string)(nil)).Elem(), callMakerStringM)
-	RegisterCaller(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), callMakerIntM)
-	RegisterCaller(reflect.TypeOf((*func(int8, int8) int8)(nil)).Elem(), callMakerInt8M)
-	RegisterCaller(reflect.TypeOf((*func(int16, int16) int16)(nil)).Elem(), callMakerInt16M)
-	RegisterCaller(reflect.TypeOf((*func(int32, int32) int32)(nil)).Elem(), callMakerInt32M)
-	RegisterCaller(reflect.TypeOf((*func(int64, int64) int64)(nil)).Elem(), callMakerInt64M)
-	RegisterCaller(reflect.TypeOf((*func(uint, uint) uint)(nil)).Elem(), callMakerUintM)
-	RegisterCaller(reflect.TypeOf((*func(uint8, uint8) uint8)(nil)).Elem(), callMakerUint8M)
-	RegisterCaller(reflect.TypeOf((*func(uint16, uint16) uint16)(nil)).Elem(), callMakerUint16M)
-	RegisterCaller(reflect.TypeOf((*func(uint32, uint32) uint32)(nil)).Elem(), callMakerUint32M)
-	RegisterCaller(reflect.TypeOf((*func(uint64, uint64) uint64)(nil)).Elem(), callMakerUint64M)
-	RegisterCaller(reflect.TypeOf((*func(float32, float32) float32)(nil)).Elem(), callMakerFloat32M)
-	RegisterCaller(reflect.TypeOf((*func(float64, float64) float64)(nil)).Elem(), callMakerFloat64M)
-	RegisterCaller(reflect.TypeOf((*func(typex.T, typex.T) typex.T)(nil)).Elem(), callMakerTypex_TM)
-	RegisterCaller(reflect.TypeOf((*func(typex.U, typex.U) typex.U)(nil)).Elem(), callMakerTypex_UM)
-	RegisterCaller(reflect.TypeOf((*func(typex.V, typex.V) typex.V)(nil)).Elem(), callMakerTypex_VM)
-	RegisterCaller(reflect.TypeOf((*func(typex.W, typex.W) typex.W)(nil)).Elem(), callMakerTypex_WM)
-	RegisterCaller(reflect.TypeOf((*func(typex.X, typex.X) typex.X)(nil)).Elem(), callMakerTypex_XM)
-	RegisterCaller(reflect.TypeOf((*func(typex.Y, typex.Y) typex.Y)(nil)).Elem(), callMakerTypex_YM)
-	RegisterCaller(reflect.TypeOf((*func(typex.Z, typex.Z) typex.Z)(nil)).Elem(), callMakerTypex_ZM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func([]byte, []byte) []byte)(nil)).Elem(), callMakerByteSliceM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(bool, bool) bool)(nil)).Elem(), callMakerBoolM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(string, string) string)(nil)).Elem(), callMakerStringM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(int, int) int)(nil)).Elem(), callMakerIntM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(int8, int8) int8)(nil)).Elem(), callMakerInt8M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(int16, int16) int16)(nil)).Elem(), callMakerInt16M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(int32, int32) int32)(nil)).Elem(), callMakerInt32M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(int64, int64) int64)(nil)).Elem(), callMakerInt64M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(uint, uint) uint)(nil)).Elem(), callMakerUintM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(uint8, uint8) uint8)(nil)).Elem(), callMakerUint8M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(uint16, uint16) uint16)(nil)).Elem(), callMakerUint16M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(uint32, uint32) uint32)(nil)).Elem(), callMakerUint32M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(uint64, uint64) uint64)(nil)).Elem(), callMakerUint64M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(float32, float32) float32)(nil)).Elem(), callMakerFloat32M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(float64, float64) float64)(nil)).Elem(), callMakerFloat64M)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.T, typex.T) typex.T)(nil)).Elem(), callMakerTypex_TM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.U, typex.U) typex.U)(nil)).Elem(), callMakerTypex_UM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.V, typex.V) typex.V)(nil)).Elem(), callMakerTypex_VM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.W, typex.W) typex.W)(nil)).Elem(), callMakerTypex_WM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.X, typex.X) typex.X)(nil)).Elem(), callMakerTypex_XM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.Y, typex.Y) typex.Y)(nil)).Elem(), callMakerTypex_YM)
+	reflectx.RegisterCaller(reflect.TypeOf((*func(typex.Z, typex.Z) typex.Z)(nil)).Elem(), callMakerTypex_ZM)
 }
 
 type nativeByteSliceMCaller struct {
 	fn func([]byte, []byte) []byte
 }
 
-func callMakerByteSliceM(fn reflect.Value) Caller {
-	f := fn.Interface().(func([]byte, []byte) []byte)
+func callMakerByteSliceM(fn interface{}) reflectx.Caller {
+	f := fn.(func([]byte, []byte) []byte)
 	return &nativeByteSliceMCaller{fn: f}
 }
 
-func (c *nativeByteSliceMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().([]byte), args[1].Interface().([]byte))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeByteSliceMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeByteSliceMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].([]byte), args[1].([]byte))
+	return []interface{}{out}
+}
+
+func (c *nativeByteSliceMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.([]byte), b.([]byte))
 }
 
 type nativeBoolMCaller struct {
 	fn func(bool, bool) bool
 }
 
-func callMakerBoolM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(bool, bool) bool)
+func callMakerBoolM(fn interface{}) reflectx.Caller {
+	f := fn.(func(bool, bool) bool)
 	return &nativeBoolMCaller{fn: f}
 }
 
-func (c *nativeBoolMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(bool), args[1].Interface().(bool))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeBoolMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeBoolMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(bool), args[1].(bool))
+	return []interface{}{out}
+}
+
+func (c *nativeBoolMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(bool), b.(bool))
 }
 
 type nativeStringMCaller struct {
 	fn func(string, string) string
 }
 
-func callMakerStringM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(string, string) string)
+func callMakerStringM(fn interface{}) reflectx.Caller {
+	f := fn.(func(string, string) string)
 	return &nativeStringMCaller{fn: f}
 }
 
-func (c *nativeStringMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(string), args[1].Interface().(string))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeStringMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeStringMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(string), args[1].(string))
+	return []interface{}{out}
+}
+
+func (c *nativeStringMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(string), b.(string))
 }
 
 type nativeIntMCaller struct {
 	fn func(int, int) int
 }
 
-func callMakerIntM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(int, int) int)
+func callMakerIntM(fn interface{}) reflectx.Caller {
+	f := fn.(func(int, int) int)
 	return &nativeIntMCaller{fn: f}
 }
 
-func (c *nativeIntMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(int), args[1].Interface().(int))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeIntMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeIntMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(int), args[1].(int))
+	return []interface{}{out}
+}
+
+func (c *nativeIntMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(int), b.(int))
 }
 
 type nativeInt8MCaller struct {
 	fn func(int8, int8) int8
 }
 
-func callMakerInt8M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(int8, int8) int8)
+func callMakerInt8M(fn interface{}) reflectx.Caller {
+	f := fn.(func(int8, int8) int8)
 	return &nativeInt8MCaller{fn: f}
 }
 
-func (c *nativeInt8MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(int8), args[1].Interface().(int8))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeInt8MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeInt8MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(int8), args[1].(int8))
+	return []interface{}{out}
+}
+
+func (c *nativeInt8MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(int8), b.(int8))
 }
 
 type nativeInt16MCaller struct {
 	fn func(int16, int16) int16
 }
 
-func callMakerInt16M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(int16, int16) int16)
+func callMakerInt16M(fn interface{}) reflectx.Caller {
+	f := fn.(func(int16, int16) int16)
 	return &nativeInt16MCaller{fn: f}
 }
 
-func (c *nativeInt16MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(int16), args[1].Interface().(int16))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeInt16MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeInt16MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(int16), args[1].(int16))
+	return []interface{}{out}
+}
+
+func (c *nativeInt16MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(int16), b.(int16))
 }
 
 type nativeInt32MCaller struct {
 	fn func(int32, int32) int32
 }
 
-func callMakerInt32M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(int32, int32) int32)
+func callMakerInt32M(fn interface{}) reflectx.Caller {
+	f := fn.(func(int32, int32) int32)
 	return &nativeInt32MCaller{fn: f}
 }
 
-func (c *nativeInt32MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(int32), args[1].Interface().(int32))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeInt32MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeInt32MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(int32), args[1].(int32))
+	return []interface{}{out}
+}
+
+func (c *nativeInt32MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(int32), b.(int32))
 }
 
 type nativeInt64MCaller struct {
 	fn func(int64, int64) int64
 }
 
-func callMakerInt64M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(int64, int64) int64)
+func callMakerInt64M(fn interface{}) reflectx.Caller {
+	f := fn.(func(int64, int64) int64)
 	return &nativeInt64MCaller{fn: f}
 }
 
-func (c *nativeInt64MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(int64), args[1].Interface().(int64))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeInt64MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeInt64MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(int64), args[1].(int64))
+	return []interface{}{out}
+}
+
+func (c *nativeInt64MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(int64), b.(int64))
 }
 
 type nativeUintMCaller struct {
 	fn func(uint, uint) uint
 }
 
-func callMakerUintM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(uint, uint) uint)
+func callMakerUintM(fn interface{}) reflectx.Caller {
+	f := fn.(func(uint, uint) uint)
 	return &nativeUintMCaller{fn: f}
 }
 
-func (c *nativeUintMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(uint), args[1].Interface().(uint))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeUintMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeUintMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(uint), args[1].(uint))
+	return []interface{}{out}
+}
+
+func (c *nativeUintMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(uint), b.(uint))
 }
 
 type nativeUint8MCaller struct {
 	fn func(uint8, uint8) uint8
 }
 
-func callMakerUint8M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(uint8, uint8) uint8)
+func callMakerUint8M(fn interface{}) reflectx.Caller {
+	f := fn.(func(uint8, uint8) uint8)
 	return &nativeUint8MCaller{fn: f}
 }
 
-func (c *nativeUint8MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(uint8), args[1].Interface().(uint8))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeUint8MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeUint8MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(uint8), args[1].(uint8))
+	return []interface{}{out}
+}
+
+func (c *nativeUint8MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(uint8), b.(uint8))
 }
 
 type nativeUint16MCaller struct {
 	fn func(uint16, uint16) uint16
 }
 
-func callMakerUint16M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(uint16, uint16) uint16)
+func callMakerUint16M(fn interface{}) reflectx.Caller {
+	f := fn.(func(uint16, uint16) uint16)
 	return &nativeUint16MCaller{fn: f}
 }
 
-func (c *nativeUint16MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(uint16), args[1].Interface().(uint16))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeUint16MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeUint16MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(uint16), args[1].(uint16))
+	return []interface{}{out}
+}
+
+func (c *nativeUint16MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(uint16), b.(uint16))
 }
 
 type nativeUint32MCaller struct {
 	fn func(uint32, uint32) uint32
 }
 
-func callMakerUint32M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(uint32, uint32) uint32)
+func callMakerUint32M(fn interface{}) reflectx.Caller {
+	f := fn.(func(uint32, uint32) uint32)
 	return &nativeUint32MCaller{fn: f}
 }
 
-func (c *nativeUint32MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(uint32), args[1].Interface().(uint32))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeUint32MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeUint32MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(uint32), args[1].(uint32))
+	return []interface{}{out}
+}
+
+func (c *nativeUint32MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(uint32), b.(uint32))
 }
 
 type nativeUint64MCaller struct {
 	fn func(uint64, uint64) uint64
 }
 
-func callMakerUint64M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(uint64, uint64) uint64)
+func callMakerUint64M(fn interface{}) reflectx.Caller {
+	f := fn.(func(uint64, uint64) uint64)
 	return &nativeUint64MCaller{fn: f}
 }
 
-func (c *nativeUint64MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(uint64), args[1].Interface().(uint64))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeUint64MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeUint64MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(uint64), args[1].(uint64))
+	return []interface{}{out}
+}
+
+func (c *nativeUint64MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(uint64), b.(uint64))
 }
 
 type nativeFloat32MCaller struct {
 	fn func(float32, float32) float32
 }
 
-func callMakerFloat32M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(float32, float32) float32)
+func callMakerFloat32M(fn interface{}) reflectx.Caller {
+	f := fn.(func(float32, float32) float32)
 	return &nativeFloat32MCaller{fn: f}
 }
 
-func (c *nativeFloat32MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(float32), args[1].Interface().(float32))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeFloat32MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeFloat32MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(float32), args[1].(float32))
+	return []interface{}{out}
+}
+
+func (c *nativeFloat32MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(float32), b.(float32))
 }
 
 type nativeFloat64MCaller struct {
 	fn func(float64, float64) float64
 }
 
-func callMakerFloat64M(fn reflect.Value) Caller {
-	f := fn.Interface().(func(float64, float64) float64)
+func callMakerFloat64M(fn interface{}) reflectx.Caller {
+	f := fn.(func(float64, float64) float64)
 	return &nativeFloat64MCaller{fn: f}
 }
 
-func (c *nativeFloat64MCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(float64), args[1].Interface().(float64))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeFloat64MCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeFloat64MCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(float64), args[1].(float64))
+	return []interface{}{out}
+}
+
+func (c *nativeFloat64MCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(float64), b.(float64))
 }
 
 type nativeTypex_TMCaller struct {
 	fn func(typex.T, typex.T) typex.T
 }
 
-func callMakerTypex_TM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.T, typex.T) typex.T)
+func callMakerTypex_TM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.T, typex.T) typex.T)
 	return &nativeTypex_TMCaller{fn: f}
 }
 
-func (c *nativeTypex_TMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.T), args[1].Interface().(typex.T))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_TMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_TMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.T), args[1].(typex.T))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_TMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.T), b.(typex.T))
 }
 
 type nativeTypex_UMCaller struct {
 	fn func(typex.U, typex.U) typex.U
 }
 
-func callMakerTypex_UM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.U, typex.U) typex.U)
+func callMakerTypex_UM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.U, typex.U) typex.U)
 	return &nativeTypex_UMCaller{fn: f}
 }
 
-func (c *nativeTypex_UMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.U), args[1].Interface().(typex.U))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_UMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_UMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.U), args[1].(typex.U))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_UMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.U), b.(typex.U))
 }
 
 type nativeTypex_VMCaller struct {
 	fn func(typex.V, typex.V) typex.V
 }
 
-func callMakerTypex_VM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.V, typex.V) typex.V)
+func callMakerTypex_VM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.V, typex.V) typex.V)
 	return &nativeTypex_VMCaller{fn: f}
 }
 
-func (c *nativeTypex_VMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.V), args[1].Interface().(typex.V))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_VMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_VMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.V), args[1].(typex.V))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_VMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.V), b.(typex.V))
 }
 
 type nativeTypex_WMCaller struct {
 	fn func(typex.W, typex.W) typex.W
 }
 
-func callMakerTypex_WM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.W, typex.W) typex.W)
+func callMakerTypex_WM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.W, typex.W) typex.W)
 	return &nativeTypex_WMCaller{fn: f}
 }
 
-func (c *nativeTypex_WMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.W), args[1].Interface().(typex.W))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_WMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_WMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.W), args[1].(typex.W))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_WMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.W), b.(typex.W))
 }
 
 type nativeTypex_XMCaller struct {
 	fn func(typex.X, typex.X) typex.X
 }
 
-func callMakerTypex_XM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.X, typex.X) typex.X)
+func callMakerTypex_XM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.X, typex.X) typex.X)
 	return &nativeTypex_XMCaller{fn: f}
 }
 
-func (c *nativeTypex_XMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.X), args[1].Interface().(typex.X))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_XMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_XMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.X), args[1].(typex.X))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_XMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.X), b.(typex.X))
 }
 
 type nativeTypex_YMCaller struct {
 	fn func(typex.Y, typex.Y) typex.Y
 }
 
-func callMakerTypex_YM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.Y, typex.Y) typex.Y)
+func callMakerTypex_YM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.Y, typex.Y) typex.Y)
 	return &nativeTypex_YMCaller{fn: f}
 }
 
-func (c *nativeTypex_YMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.Y), args[1].Interface().(typex.Y))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_YMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_YMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.Y), args[1].(typex.Y))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_YMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.Y), b.(typex.Y))
 }
 
 type nativeTypex_ZMCaller struct {
 	fn func(typex.Z, typex.Z) typex.Z
 }
 
-func callMakerTypex_ZM(fn reflect.Value) Caller {
-	f := fn.Interface().(func(typex.Z, typex.Z) typex.Z)
+func callMakerTypex_ZM(fn interface{}) reflectx.Caller {
+	f := fn.(func(typex.Z, typex.Z) typex.Z)
 	return &nativeTypex_ZMCaller{fn: f}
 }
 
-func (c *nativeTypex_ZMCaller) Call(args []reflect.Value) []reflect.Value {
-	out := c.fn(args[0].Interface().(typex.Z), args[1].Interface().(typex.Z))
-	return []reflect.Value{reflect.ValueOf(out)}
+func (c *nativeTypex_ZMCaller) Type() reflect.Type {
+	return reflect.TypeOf(c.fn)
+}
+
+func (c *nativeTypex_ZMCaller) Call(args []interface{}) []interface{} {
+	out := c.fn(args[0].(typex.Z), args[1].(typex.Z))
+	return []interface{}{out}
+}
+
+func (c *nativeTypex_ZMCaller) Call2x1(a, b interface{}) interface{} {
+	return c.fn(a.(typex.Z), b.(typex.Z))
 }
