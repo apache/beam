@@ -70,6 +70,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature.StateDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature.TimerDeclaration;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.WindowMappingFn;
+import org.apache.beam.sdk.util.DoFnAndMainOutput;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -470,16 +471,6 @@ public class ParDoTranslation {
     }
   }
 
-  @AutoValue
-  abstract static class DoFnAndMainOutput implements Serializable {
-    public static DoFnAndMainOutput of(DoFn<?, ?> fn, TupleTag<?> tag) {
-      return new AutoValue_ParDoTranslation_DoFnAndMainOutput(fn, tag);
-    }
-
-    abstract DoFn<?, ?> getDoFn();
-
-    abstract TupleTag<?> getMainOutputTag();
-  }
 
   private static SdkFunctionSpec toProto(DoFn<?, ?> fn, TupleTag<?> tag) {
     return SdkFunctionSpec.newBuilder()
