@@ -20,18 +20,16 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.internal.StaticCredentialsProvider;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.auto.value.AutoValue;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -266,7 +264,7 @@ public final class KinesisIO {
       }
 
       private AWSCredentialsProvider getCredentialsProvider() {
-        return new StaticCredentialsProvider(new BasicAWSCredentials(
+        return new AWSStaticCredentialsProvider(new BasicAWSCredentials(
             accessKey,
             secretKey
         ));
@@ -275,16 +273,18 @@ public final class KinesisIO {
 
       @Override
       public AmazonKinesis getKinesisClient() {
-        AmazonKinesisClient client = new AmazonKinesisClient(getCredentialsProvider());
-        client.withRegion(region);
-        return client;
+        return AmazonKinesisClientBuilder.standard()
+            .withCredentials(getCredentialsProvider())
+            .withRegion(region)
+            .build();
       }
 
       @Override
       public AmazonCloudWatch getCloudWatchClient() {
-        AmazonCloudWatchClient client = new AmazonCloudWatchClient(getCredentialsProvider());
-        client.withRegion(region);
-        return client;
+        return AmazonCloudWatchClientBuilder.standard()
+            .withCredentials(getCredentialsProvider())
+            .withRegion(region)
+            .build();
       }
     }
   }
