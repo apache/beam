@@ -17,20 +17,18 @@
  */
 package org.apache.beam.sdk.io.kinesis;
 
-import static com.google.common.collect.Lists.newArrayList;
-
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.internal.StaticCredentialsProvider;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesis;
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.model.PutRecordsRequest;
 import com.amazonaws.services.kinesis.model.PutRecordsRequestEntry;
 import com.amazonaws.services.kinesis.model.PutRecordsResult;
 import com.amazonaws.services.kinesis.model.PutRecordsResultEntry;
 import com.google.common.base.Charsets;
 import com.google.common.collect.Lists;
-
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -41,16 +39,17 @@ public class KinesisUploader {
   public static final int MAX_NUMBER_OF_RECORDS_IN_BATCH = 499;
 
   public static void uploadAll(List<String> data, KinesisTestOptions options) {
-    AmazonKinesisClient client = new AmazonKinesisClient(
-        new StaticCredentialsProvider(
-            new BasicAWSCredentials(
-                options.getAwsAccessKey(), options.getAwsSecretKey()))
-    ).withRegion(Regions.fromName(options.getAwsKinesisRegion()));
+    AmazonKinesis client =
+        AmazonKinesisClientBuilder.standard()
+            .withCredentials(
+                new AWSStaticCredentialsProvider(
+                    new BasicAWSCredentials(options.getAwsAccessKey(), options.getAwsSecretKey())))
+            .withRegion(options.getAwsKinesisRegion())
+            .build();
 
     List<List<String>> partitions = Lists.partition(data, MAX_NUMBER_OF_RECORDS_IN_BATCH);
-
     for (List<String> partition : partitions) {
-      List<PutRecordsRequestEntry> allRecords = newArrayList();
+      List<PutRecordsRequestEntry> allRecords = new ArrayList<>();
       for (String row : partition) {
         allRecords.add(new PutRecordsRequestEntry().
             withData(ByteBuffer.wrap(row.getBytes(Charsets.UTF_8))).
@@ -65,7 +64,7 @@ public class KinesisUploader {
             new PutRecordsRequest().
                 withStreamName(options.getAwsKinesisStream()).
                 withRecords(allRecords));
-        List<PutRecordsRequestEntry> failedRecords = newArrayList();
+        List<PutRecordsRequestEntry> failedRecords = new ArrayList<>();
         int i = 0;
         for (PutRecordsResultEntry row : result.getRecords()) {
           if (row.getErrorCode() != null) {
@@ -79,5 +78,4 @@ public class KinesisUploader {
       while (result.getFailedRecordCount() > 0);
     }
   }
-
 }
