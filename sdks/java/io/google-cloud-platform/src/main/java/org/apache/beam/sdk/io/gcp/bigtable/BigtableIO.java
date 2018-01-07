@@ -246,8 +246,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withProjectId(String projectId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withProjectId(projectId)).build();
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
     /**
@@ -270,8 +269,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withInstanceId(String instanceId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withInstanceId(instanceId)).build();
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
     /**
@@ -290,8 +288,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Read withTableId(String tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+      return withTableId(ValueProvider.StaticValueProvider.of(tableId));
     }
 
     /**
@@ -467,8 +464,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withProjectId(String projectId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withProjectId(projectId)).build();
+      return withProjectId(ValueProvider.StaticValueProvider.of(projectId));
     }
 
     /**
@@ -491,8 +487,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withInstanceId(String instanceId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withInstanceId(instanceId)).build();
+      return withInstanceId(ValueProvider.StaticValueProvider.of(instanceId));
     }
 
     /**
@@ -511,8 +506,7 @@ public class BigtableIO {
      * <p>Does not modify this object.
      */
     public Write withTableId(String tableId) {
-      BigtableConfig config = getBigtableConfig();
-      return toBuilder().setBigtableConfig(config.withTableId(tableId)).build();
+      return withTableId(ValueProvider.StaticValueProvider.of(tableId));
     }
 
     /**

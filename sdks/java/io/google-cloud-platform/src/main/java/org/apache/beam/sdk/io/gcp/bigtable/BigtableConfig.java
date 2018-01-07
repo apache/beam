@@ -105,29 +105,14 @@ abstract class BigtableConfig implements Serializable {
     return toBuilder().setProjectId(projectId).build();
   }
 
-  BigtableConfig withProjectId(String projectId) {
-    checkNotNull(projectId, "Project Id of BigTable can not be null");
-    return toBuilder().setProjectId(ValueProvider.StaticValueProvider.of(projectId)).build();
-  }
-
   BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
     checkNotNull(instanceId, "Instance Id of BigTable can not be null");
     return toBuilder().setInstanceId(instanceId).build();
   }
 
-  BigtableConfig withInstanceId(String instanceId) {
-    checkNotNull(instanceId, "Instance Id of BigTable can not be null");
-    return toBuilder().setInstanceId(ValueProvider.StaticValueProvider.of(instanceId)).build();
-  }
-
   BigtableConfig withTableId(ValueProvider<String> tableId) {
     checkNotNull(tableId, "tableId can not be null");
     return toBuilder().setTableId(tableId).build();
-  }
-
-  BigtableConfig withTableId(String tableId) {
-    checkNotNull(tableId, "tableId can not be null");
-    return toBuilder().setTableId(ValueProvider.StaticValueProvider.of(tableId)).build();
   }
 
   BigtableConfig withBigtableOptionsConfigurator(
