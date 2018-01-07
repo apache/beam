@@ -49,6 +49,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -68,23 +69,26 @@ public class BigtableWriteIT implements Serializable {
    */
   private static final String COLUMN_FAMILY_NAME = "cf";
   private static BigtableTestOptions options;
-  private BigtableOptions bigtableOptions;
+  private String bigtableProjectId;
+  private String bigtableInstanceId;
+  private String bigtableInstanceName;
+  private String bigtableTableName;
   private static BigtableSession session;
   private static BigtableTableAdminClient tableAdminClient;
   private final String tableId =
       String.format("BigtableWriteIT-%tF-%<tH-%<tM-%<tS-%<tL", new Date());
-  private String project;
 
   @Before
   public void setup() throws Exception {
     PipelineOptionsFactory.register(BigtableTestOptions.class);
     options = TestPipeline.testingPipelineOptions().as(BigtableTestOptions.class);
-    project = options.as(GcpOptions.class).getProject();
+    bigtableProjectId = options.as(GcpOptions.class).getProject();
+    bigtableInstanceId = options.getInstanceId();
 
-    bigtableOptions =
+    BigtableOptions bigtableOptions =
         new Builder()
-            .setProjectId(project)
-            .setInstanceId(options.getInstanceId())
+            .setProjectId(bigtableProjectId)
+            .setInstanceId(bigtableInstanceId)
             .setUserAgent("apache-beam-test")
             .build();
 
@@ -96,16 +100,17 @@ public class BigtableWriteIT implements Serializable {
                     CredentialOptions.credential(options.as(GcpOptions.class).getGcpCredential()))
                 .build());
     tableAdminClient = session.getTableAdminClient();
+
+    bigtableTableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
+    bigtableInstanceName = bigtableOptions.getInstanceName().toString();
   }
 
   @Test
   public void testE2EBigtableWrite() throws Exception {
-    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
-    final String instanceName = bigtableOptions.getInstanceName().toString();
     final int numRows = 1000;
     final List<KV<ByteString, ByteString>> testData = generateTableData(numRows);
 
-    createEmptyTable(instanceName, tableId);
+    createEmptyTable(bigtableInstanceName, tableId);
 
     Pipeline p = Pipeline.create(options);
     p.apply(GenerateSequence.from(0).to(numRows))
@@ -125,24 +130,30 @@ public class BigtableWriteIT implements Serializable {
           }
         }))
         .apply(BigtableIO.write()
-          .withBigtableOptions(bigtableOptions)
+          .withInstanceId(bigtableInstanceId)
+          .withProjectId(bigtableProjectId)
+          .withBigtableOptionsConfigurator(new SerializableFunction<Builder, Builder>() {
+            @Override
+            public Builder apply(Builder input) {
+              return input.setUserAgent("apache-beam-test");
+            }
+          })
           .withTableId(tableId));
     p.run();
 
     // Test number of column families and column family name equality
-    Table table = getTable(tableName);
+    Table table = getTable(bigtableTableName);
     assertThat(table.getColumnFamiliesMap().keySet(), Matchers.hasSize(1));
     assertThat(table.getColumnFamiliesMap(), Matchers.hasKey(COLUMN_FAMILY_NAME));
 
     // Test table data equality
-    List<KV<ByteString, ByteString>> tableData = getTableData(tableName);
+    List<KV<ByteString, ByteString>> tableData = getTableData(bigtableTableName);
     assertThat(tableData, Matchers.containsInAnyOrder(testData.toArray()));
   }
 
   @After
   public void tearDown() throws Exception {
-    final String tableName = bigtableOptions.getInstanceName().toTableNameStr(tableId);
-    deleteTable(tableName);
+    deleteTable(bigtableTableName);
     session.close();
   }
 

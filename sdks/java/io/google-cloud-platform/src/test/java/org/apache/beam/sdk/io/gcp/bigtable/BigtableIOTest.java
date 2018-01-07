@@ -48,10 +48,8 @@ import com.google.bigtable.v2.Row;
 import com.google.bigtable.v2.RowFilter;
 import com.google.bigtable.v2.SampleRowKeysResponse;
 import com.google.cloud.bigtable.config.BigtableOptions;
-import com.google.cloud.bigtable.config.BulkOptions;
 import com.google.cloud.bigtable.config.CredentialOptions;
 import com.google.cloud.bigtable.config.CredentialOptions.CredentialType;
-import com.google.cloud.bigtable.config.RetryOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
@@ -122,11 +120,10 @@ public class BigtableIOTest {
           return service;
         }
   };
-  private static final BigtableOptions BIGTABLE_OPTIONS =
-      new BigtableOptions.Builder()
-          .setProjectId("options_project")
-          .setInstanceId("options_instance")
-          .build();
+
+  private static final String PROJECT_ID = "project";
+  private static final String INSTANCE_ID = "instance";
+  private static final String TABLE_ID = "table";
   private static BigtableIO.Read defaultRead =
       BigtableIO.read().withInstanceId("instance").withProjectId("project");
   private static BigtableIO.Write defaultWrite =
@@ -159,46 +156,42 @@ public class BigtableIOTest {
   @Test
   public void testReadBuildsCorrectly() {
     BigtableIO.Read read =
-        BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS)
-            .withTableId("table")
-            .withInstanceId("instance")
-            .withProjectId("project")
+        BigtableIO.read()
+            .withTableId(TABLE_ID)
+            .withInstanceId(INSTANCE_ID)
+            .withProjectId(PROJECT_ID)
             .withBigtableOptionsConfigurator(PORT_CONFIGURATOR);
-    assertEquals("options_project", read.getBigtableOptions().getProjectId());
-    assertEquals("options_instance", read.getBigtableOptions().getInstanceId());
-    assertEquals("instance", read.getBigtableConfig().getInstanceId());
-    assertEquals("project", read.getBigtableConfig().getProjectId());
-    assertEquals("table", read.getTableId());
+    assertEquals(INSTANCE_ID, read.getBigtableConfig().getInstanceId().get());
+    assertEquals(PROJECT_ID, read.getBigtableConfig().getProjectId().get());
+    assertEquals(TABLE_ID, read.getTableId());
     assertEquals(PORT_CONFIGURATOR, read.getBigtableConfig().getBigtableOptionsConfigurator());
   }
 
   @Test
   public void testReadValidationFailsMissingTable() {
-    BigtableIO.Read read = BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS);
+    BigtableIO.Read read = BigtableIO.read().withInstanceId(INSTANCE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     read.expand(null);
   }
 
   @Test
   public void testReadValidationFailsMissingInstanceId() {
-    BigtableIO.Read read = BigtableIO.read().withTableId("table")
-        .withProjectId("project")
-        .withBigtableOptions(new BigtableOptions.Builder().build());
+    BigtableIO.Read read = BigtableIO.read().withTableId(TABLE_ID)
+        .withProjectId(PROJECT_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     read.expand(null);
   }
 
   @Test
   public void testReadValidationFailsMissingProjectId() {
-    BigtableIO.Read read = BigtableIO.read().withTableId("table")
-        .withInstanceId("instance")
-        .withBigtableOptions(new BigtableOptions.Builder().build());
+    BigtableIO.Read read = BigtableIO.read().withTableId(TABLE_ID)
+        .withInstanceId(INSTANCE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     read.expand(null);
   }
@@ -206,10 +199,9 @@ public class BigtableIOTest {
   @Test
   public void testReadValidationFailsMissingInstanceIdAndProjectId() {
     BigtableIO.Read read = BigtableIO.read()
-        .withTableId("table")
-        .withBigtableOptions(new BigtableOptions.Builder().build());
+        .withTableId(TABLE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     read.expand(null);
   }
@@ -217,35 +209,31 @@ public class BigtableIOTest {
   @Test
   public void testWriteBuildsCorrectly() {
     BigtableIO.Write write =
-        BigtableIO.write().withBigtableOptions(BIGTABLE_OPTIONS)
-            .withTableId("table")
-            .withInstanceId("instance")
-            .withProjectId("project");
-    assertEquals("table", write.getBigtableConfig().getTableId());
-    assertEquals("options_project", write.getBigtableOptions().getProjectId());
-    assertEquals("options_instance", write.getBigtableOptions().getInstanceId());
-    assertEquals("instance", write.getBigtableConfig().getInstanceId());
-    assertEquals("project", write.getBigtableConfig().getProjectId());
+        BigtableIO.write()
+            .withTableId(TABLE_ID)
+            .withInstanceId(INSTANCE_ID)
+            .withProjectId(PROJECT_ID);
+    assertEquals(TABLE_ID, write.getBigtableConfig().getTableId().get());
+    assertEquals(INSTANCE_ID, write.getBigtableConfig().getInstanceId().get());
+    assertEquals(PROJECT_ID, write.getBigtableConfig().getProjectId().get());
   }
 
   @Test
   public void testWriteValidationFailsMissingInstanceId() {
-    BigtableIO.Write write = BigtableIO.write().withTableId("table")
-        .withProjectId("project")
-        .withBigtableOptions(new BigtableOptions.Builder().build());
+    BigtableIO.Write write = BigtableIO.write().withTableId(TABLE_ID)
+        .withProjectId(PROJECT_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     write.expand(null);
   }
 
   @Test
   public void testWriteValidationFailsMissingProjectId() {
-    BigtableIO.Write write = BigtableIO.write().withTableId("table")
-        .withInstanceId("instance")
-        .withBigtableOptions(new BigtableOptions.Builder().build());
+    BigtableIO.Write write = BigtableIO.write().withTableId(TABLE_ID)
+        .withInstanceId(INSTANCE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     write.expand(null);
   }
@@ -253,19 +241,18 @@ public class BigtableIOTest {
   @Test
   public void testWriteValidationFailsMissingInstanceIdAndProjectId() {
     BigtableIO.Write write = BigtableIO.write()
-        .withTableId("table")
-        .withBigtableOptions(new BigtableOptions.Builder().build());
+        .withTableId(TABLE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     write.expand(null);
   }
 
   @Test
   public void testWriteValidationFailsMissingOptionsAndInstanceAndProject() {
-    BigtableIO.Write write = BigtableIO.write().withTableId("table");
+    BigtableIO.Write write = BigtableIO.write().withTableId(TABLE_ID);
 
-    thrown.expect(IllegalArgumentException.class);
+    thrown.expect(NullPointerException.class);
 
     write.expand(null);
   }
@@ -290,19 +277,28 @@ public class BigtableIOTest {
   /** Tests that credentials are used from PipelineOptions if not supplied by BigtableOptions. */
   @Test
   public void testUsePipelineOptionsCredentialsIfNotSpecifiedInBigtableOptions() throws Exception {
-    BigtableOptions options = BIGTABLE_OPTIONS.toBuilder()
-        .setCredentialOptions(CredentialOptions.defaultCredentials())
-        .build();
+    SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
+      new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
+      @Override
+      public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
+        return input.setCredentialOptions(CredentialOptions.defaultCredentials());
+      }
+    };
+
     GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
     pipelineOptions.setGcpCredential(new TestCredential());
     BigtableService readService = BigtableIO.read()
-        .withBigtableOptions(options)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId("TEST-TABLE")
+        .withBigtableOptionsConfigurator(configurator)
         .getBigtableConfig()
         .getBigtableService(pipelineOptions);
     BigtableService writeService = BigtableIO.write()
-        .withBigtableOptions(options)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId("TEST-TABLE")
+        .withBigtableOptionsConfigurator(configurator)
         .getBigtableConfig()
         .getBigtableService(pipelineOptions);
     assertEquals(CredentialType.SuppliedCredentials,
@@ -314,19 +310,28 @@ public class BigtableIOTest {
   /** Tests that credentials are not used from PipelineOptions if supplied by BigtableOptions. */
   @Test
   public void testDontUsePipelineOptionsCredentialsIfSpecifiedInBigtableOptions() throws Exception {
-    BigtableOptions options = BIGTABLE_OPTIONS.toBuilder()
-        .setCredentialOptions(CredentialOptions.nullCredential())
-        .build();
+    SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
+      new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
+        @Override
+        public BigtableOptions.Builder apply(BigtableOptions.Builder input) {
+          return input.setCredentialOptions(CredentialOptions.nullCredential());
+        }
+      };
+
     GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
     pipelineOptions.setGcpCredential(new TestCredential());
     BigtableService readService = BigtableIO.read()
-        .withBigtableOptions(options)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId("TEST-TABLE")
+        .withBigtableOptionsConfigurator(configurator)
         .getBigtableConfig()
         .getBigtableService(pipelineOptions);
     BigtableService writeService = BigtableIO.write()
-        .withBigtableOptions(options)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId("TEST-TABLE")
+        .withBigtableOptionsConfigurator(configurator)
         .getBigtableConfig()
         .getBigtableService(pipelineOptions);
     assertEquals(CredentialType.None,
@@ -342,7 +347,8 @@ public class BigtableIOTest {
 
     BigtableIO.Read read =
         BigtableIO.read()
-            .withBigtableOptions(BIGTABLE_OPTIONS)
+            .withProjectId(PROJECT_ID)
+            .withInstanceId(INSTANCE_ID)
             .withTableId(table)
             .withBigtableService(service);
 
@@ -614,7 +620,8 @@ public class BigtableIOTest {
 
     ByteKeyRange keyRange = ByteKeyRange.ALL_KEYS.withEndKey(ByteKey.of(0xab, 0xcd));
     BigtableIO.Read read = BigtableIO.read()
-        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId("fooTable")
         .withRowFilter(rowFilter)
         .withKeyRange(keyRange);
@@ -629,9 +636,6 @@ public class BigtableIOTest {
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
 
     assertThat(displayData, hasDisplayItem("keyRange", keyRange.toString()));
-
-    // BigtableIO adds user-agent to options; assert only on key and not value.
-    assertThat(displayData, hasDisplayItem("bigtableOptions"));
   }
 
   @Test
@@ -645,7 +649,8 @@ public class BigtableIOTest {
 
     DisplayDataEvaluator evaluator = DisplayDataEvaluator.create();
     BigtableIO.Read read = BigtableIO.read()
-        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId(table)
         .withRowFilter(rowFilter)
         .withBigtableService(service);
@@ -661,7 +666,8 @@ public class BigtableIOTest {
   public void testReadWithoutValidate() {
     final String table = "fooTable";
     BigtableIO.Read read = BigtableIO.read()
-        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId(table)
         .withBigtableService(service)
         .withoutValidation();
@@ -674,7 +680,8 @@ public class BigtableIOTest {
   public void testWriteWithoutValidate() {
     final String table = "fooTable";
     BigtableIO.Write write = BigtableIO.write()
-        .withBigtableOptions(BIGTABLE_OPTIONS)
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID)
         .withTableId(table)
         .withBigtableService(service)
         .withoutValidation();
@@ -744,7 +751,8 @@ public class BigtableIOTest {
   public void testWritingDisplayData() {
     BigtableIO.Write write = BigtableIO.write()
         .withTableId("fooTable")
-        .withBigtableOptions(BIGTABLE_OPTIONS);
+        .withProjectId(PROJECT_ID)
+        .withInstanceId(INSTANCE_ID);
 
     DisplayData displayData = DisplayData.from(write);
     assertThat(displayData, hasDisplayItem("tableId", "fooTable"));
@@ -778,59 +786,6 @@ public class BigtableIOTest {
     assertEquals("splitPointsConsumed done", numRows, reader.getSplitPointsConsumed());
 
     reader.close();
-  }
-
-  @Test
-  public void testReadWithBigTableOptionsSetsRetryOptions() {
-    final int initialBackoffMillis = -1;
-
-    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
-
-    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
-    retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
-
-    optionsBuilder.setRetryOptions(retryOptionsBuilder.build());
-
-    BigtableIO.Read read =
-        BigtableIO.read().withBigtableOptions(optionsBuilder.build());
-
-    BigtableOptions options = read.getBigtableOptions();
-    assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
-
-    assertThat(options.getRetryOptions(),
-        Matchers.equalTo(retryOptionsBuilder.build()));
-  }
-
-  @Test
-  public void testWriteWithBigTableOptionsSetsBulkOptionsAndRetryOptions() {
-    final int maxInflightRpcs = 1;
-    final int initialBackoffMillis = -1;
-
-    BigtableOptions.Builder optionsBuilder = BIGTABLE_OPTIONS.toBuilder();
-
-    BulkOptions.Builder bulkOptionsBuilder = new BulkOptions.Builder();
-    bulkOptionsBuilder.setMaxInflightRpcs(maxInflightRpcs);
-
-    RetryOptions.Builder retryOptionsBuilder = new RetryOptions.Builder();
-    retryOptionsBuilder.setInitialBackoffMillis(initialBackoffMillis);
-
-    optionsBuilder.setBulkOptions(bulkOptionsBuilder.build())
-        .setRetryOptions(retryOptionsBuilder.build());
-
-    BigtableIO.Write write =
-        BigtableIO.write().withBigtableOptions(optionsBuilder.build());
-
-    BigtableOptions options = write.getBigtableOptions();
-    assertEquals(true, options.getBulkOptions().useBulkApi());
-    assertEquals(maxInflightRpcs, options.getBulkOptions().getMaxInflightRpcs());
-    assertEquals(initialBackoffMillis, options.getRetryOptions().getInitialBackoffMillis());
-
-    assertThat(options.getBulkOptions(),
-        Matchers.equalTo(bulkOptionsBuilder
-            .setUseBulkApi(true)
-            .build()));
-    assertThat(options.getRetryOptions(),
-        Matchers.equalTo(retryOptionsBuilder.build()));
   }
 
   ////////////////////////////////////////////////////////////////////////////////////////////
