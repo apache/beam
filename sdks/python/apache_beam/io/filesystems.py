@@ -24,6 +24,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.filesystem import FileSystem
 # All filesystem implements should be added here
 # pylint: disable=wrong-import-position, unused-import
+from apache_beam.io.hadoopfilesystem import HadoopFileSystem
 from apache_beam.io.localfilesystem import LocalFileSystem
 
 try:

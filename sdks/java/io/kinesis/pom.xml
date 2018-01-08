@@ -52,11 +52,21 @@
           </execution>
         </executions>
       </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- BEAM-3228 Temp fix to prevent crashing forked VM during tests. -->
+          <forkCount>1</forkCount>
+          <reuseForks>false</reuseForks>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
   <properties>
-    <aws.version>1.11.18</aws.version>
+    <aws.version>1.11.255</aws.version>
+    <amazon-kinesis-client.version>1.8.8</amazon-kinesis-client.version>
   </properties>
 
   <dependencies>
@@ -80,7 +90,14 @@
     <dependency>
       <groupId>com.amazonaws</groupId>
       <artifactId>amazon-kinesis-client</artifactId>
-      <version>1.6.1</version>
+      <version>${amazon-kinesis-client.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-cbor</artifactId>
+      <version>${jackson.version}</version>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
@@ -155,6 +172,12 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-runners-direct-java</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-jdk14</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

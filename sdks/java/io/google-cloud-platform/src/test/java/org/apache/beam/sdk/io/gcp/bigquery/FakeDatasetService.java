@@ -28,6 +28,7 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import java.io.IOException;
@@ -46,14 +47,24 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 
 /** A fake dataset service that can be serialized, for use in testReadFromTable. */
 class FakeDatasetService implements DatasetService, Serializable {
+  // Table information must be static, as each ParDo will get a separate instance of
+  // FakeDatasetServices, and they must all modify the same storage.
+  static com.google.common.collect.Table<String, String, Map<String, TableContainer>>
+      tables;
+
   Map<String, List<String>> insertErrors = Maps.newHashMap();
+
+  public static void setUp() {
+    tables = HashBasedTable.create();
+    FakeJobService.setUp();
+  }
 
   @Override
   public Table getTable(TableReference tableRef)
       throws InterruptedException, IOException {
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       Map<String, TableContainer> dataset =
-              BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
+              tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such dataset was set",
@@ -67,15 +78,15 @@ class FakeDatasetService implements DatasetService, Serializable {
 
   List<TableRow> getAllRows(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       return getTableContainer(projectId, datasetId, tableId).getRows();
     }
   }
 
   private TableContainer getTableContainer(String projectId, String datasetId, String tableId)
       throws InterruptedException, IOException {
-    synchronized (BigQueryIOTest.tables) {
-      Map<String, TableContainer> dataset = BigQueryIOTest.tables.get(projectId, datasetId);
+    synchronized (tables) {
+      Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such dataset was set",
@@ -97,9 +108,9 @@ class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
     validateWholeTableReference(tableRef);
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       Map<String, TableContainer> dataset =
-          BigQueryIOTest.tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
+          tables.get(tableRef.getProjectId(), tableRef.getDatasetId());
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such table was set",
@@ -131,9 +142,9 @@ class FakeDatasetService implements DatasetService, Serializable {
   public void createTable(Table table) throws IOException {
     TableReference tableReference = table.getTableReference();
     validateWholeTableReference(tableReference);
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       Map<String, TableContainer> dataset =
-          BigQueryIOTest.tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
+          tables.get(tableReference.getProjectId(), tableReference.getDatasetId());
       if (dataset == null) {
         throwNotFound(
             "Tried to get a dataset %s:%s, but no such table was set",
@@ -158,8 +169,8 @@ class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public Dataset getDataset(
       String projectId, String datasetId) throws IOException, InterruptedException {
-    synchronized (BigQueryIOTest.tables) {
-      Map<String, TableContainer> dataset = BigQueryIOTest.tables.get(projectId, datasetId);
+    synchronized (tables) {
+      Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         throwNotFound("Tried to get a dataset %s:%s, but no such table was set",
                     projectId, datasetId);
@@ -178,11 +189,11 @@ class FakeDatasetService implements DatasetService, Serializable {
       String description,
       Long defaultTableExpirationMs /* ignored */)
       throws IOException, InterruptedException {
-    synchronized (BigQueryIOTest.tables) {
-      Map<String, TableContainer> dataset = BigQueryIOTest.tables.get(projectId, datasetId);
+    synchronized (tables) {
+      Map<String, TableContainer> dataset = tables.get(projectId, datasetId);
       if (dataset == null) {
         dataset = new HashMap<>();
-        BigQueryIOTest.tables.put(projectId, datasetId, dataset);
+        tables.put(projectId, datasetId, dataset);
       }
     }
   }
@@ -190,8 +201,8 @@ class FakeDatasetService implements DatasetService, Serializable {
   @Override
   public void deleteDataset(String projectId, String datasetId)
       throws IOException, InterruptedException {
-    synchronized (BigQueryIOTest.tables) {
-      BigQueryIOTest.tables.remove(projectId, datasetId);
+    synchronized (tables) {
+      tables.remove(projectId, datasetId);
     }
   }
 
@@ -213,7 +224,7 @@ class FakeDatasetService implements DatasetService, Serializable {
       InsertRetryPolicy retryPolicy, List<ValueInSingleWindow<TableRow>> failedInserts)
       throws IOException, InterruptedException {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors = getInsertErrors();
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       if (insertIdList != null) {
         assertEquals(rowList.size(), insertIdList.size());
       } else {
@@ -254,7 +265,7 @@ class FakeDatasetService implements DatasetService, Serializable {
                                      @Nullable String tableDescription)
       throws IOException, InterruptedException {
     validateWholeTableReference(tableReference);
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       TableContainer tableContainer = getTableContainer(tableReference.getProjectId(),
           tableReference.getDatasetId(), tableReference.getTableId());
       tableContainer.getTable().setDescription(tableDescription);
@@ -268,7 +279,7 @@ class FakeDatasetService implements DatasetService, Serializable {
    */
   public void failOnInsert(
       Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> insertErrors) {
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       for (Map.Entry<TableRow, List<TableDataInsertAllResponse.InsertErrors>> entry
           : insertErrors.entrySet()) {
         List<String> errorStrings = Lists.newArrayList();
@@ -283,7 +294,7 @@ class FakeDatasetService implements DatasetService, Serializable {
   Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> getInsertErrors() {
     Map<TableRow, List<TableDataInsertAllResponse.InsertErrors>> parsedInsertErrors =
         Maps.newHashMap();
-    synchronized (BigQueryIOTest.tables) {
+    synchronized (tables) {
       for (Map.Entry<String, List<String>> entry : this.insertErrors.entrySet()) {
         TableRow tableRow = BigQueryHelpers.fromJsonString(entry.getKey(), TableRow.class);
         List<TableDataInsertAllResponse.InsertErrors> allErrors = Lists.newArrayList();

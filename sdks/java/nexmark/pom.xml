@@ -65,7 +65,7 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-flink_2.10</artifactId>
+          <artifactId>beam-runners-flink_2.11</artifactId>
           <scope>runtime</scope>
         </dependency>
       </dependencies>
@@ -81,13 +81,13 @@
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-streaming_2.10</artifactId>
+          <artifactId>spark-streaming_2.11</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
         </dependency>
         <dependency>
           <groupId>org.apache.spark</groupId>
-          <artifactId>spark-core_2.10</artifactId>
+          <artifactId>spark-core_2.11</artifactId>
           <version>${spark.version}</version>
           <scope>runtime</scope>
           <exclusions>
@@ -163,6 +163,14 @@
           </execution>
         </executions>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-da</argLine> <!-- disable assert in Calcite converter validation -->
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
@@ -170,6 +178,7 @@
     <dependency>
       <groupId>org.apache.beam</groupId>
       <artifactId>beam-sdks-java-core</artifactId>
+      <scope>compile</scope>
     </dependency>
 
     <dependency>
@@ -260,6 +269,20 @@
       <groupId>com.google.auto.value</groupId>
       <artifactId>auto-value</artifactId>
       <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.beam</groupId>
+      <artifactId>beam-sdks-java-extensions-sql</artifactId>
+      <scope>compile</scope>
+      <version>${parent.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>${apache.commons.lang.version}</version>
+      <scope>runtime</scope>
     </dependency>
   </dependencies>
 </project>

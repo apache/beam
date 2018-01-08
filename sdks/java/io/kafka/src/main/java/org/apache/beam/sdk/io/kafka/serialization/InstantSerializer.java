@@ -41,4 +41,4 @@ public class InstantSerializer implements Serializer<Instant> {
 
   @Override
   public void close() {}
-};
+}

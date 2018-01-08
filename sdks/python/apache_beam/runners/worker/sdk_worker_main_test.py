@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import json
 import logging
 import unittest
 
@@ -34,11 +35,39 @@ class SdkWorkerMainTest(unittest.TestCase):
     def wrapped_method_for_test():
       lines = sdk_worker_main.StatusServer.get_thread_dump()
       threaddump = '\n'.join(lines)
-      self.assertRegexpMatches(threaddump, ".*wrapped_method_for_test.*")
+      self.assertRegexpMatches(threaddump, '.*wrapped_method_for_test.*')
 
     wrapped_method_for_test()
 
+  def test_work_count_default_value(self):
+    self._check_worker_count('{}', 1)
 
-if __name__ == "__main__":
+  def test_work_count_custom_value(self):
+    self._check_worker_count(
+        '{"options": {"experiments":["worker_threads=1"]}}', 1)
+    self._check_worker_count(
+        '{"options": {"experiments":["worker_threads=4"]}}', 4)
+    self._check_worker_count(
+        '{"options": {"experiments":["worker_threads=12"]}}', 12)
+
+  def test_work_count_wrong_format(self):
+    self._check_worker_count(
+        '{"options": {"experiments":["worker_threads="]}}', exception=True)
+    self._check_worker_count(
+        '{"options": {"experiments":["worker_threads=a"]}}', exception=True)
+    self._check_worker_count(
+        '{"options": {"experiments":["worker_threads=1a"]}}', exception=True)
+
+  def _check_worker_count(self, pipeline_options, expected=0, exception=False):
+    if exception:
+      self.assertRaises(Exception, sdk_worker_main._get_worker_count,
+                        json.loads(pipeline_options))
+    else:
+      self.assertEquals(
+          sdk_worker_main._get_worker_count(json.loads(pipeline_options)),
+          expected)
+
+
+if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

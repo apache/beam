@@ -20,13 +20,15 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/artifact"
-	pb "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pbpipeline "github.com/apache/beam/sdks/go/pkg/beam/model/pipeline_v1"
+	pbjob "github.com/apache/beam/sdks/go/pkg/beam/model/jobmanagement_v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/provision"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/execx"
 	"github.com/apache/beam/sdks/go/pkg/beam/util/grpcx"
@@ -42,6 +44,15 @@ var (
 	provisionEndpoint = flag.String("provision_endpoint", "", "Provision endpoint (required).")
 	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+)
+
+const (
+	sdkHarnessEntrypoint = "apache_beam.runners.worker.sdk_worker_main"
+	// Please keep these names in sync with setup dependency.py
+	workflowFile      = "workflow.tar.gz"
+	requirementsFile  = "requirements.txt"
+	sdkFile           = "dataflow_python_sdk.tar"
+	extraPackagesFile = "extra_packages.txt"
 )
 
 func main() {
@@ -81,36 +92,62 @@ func main() {
 
 	dir := filepath.Join(*semiPersistDir, "staged")
 
-	_, err = artifact.Materialize(ctx, *artifactEndpoint, dir)
+	files, err := artifact.Materialize(ctx, *artifactEndpoint, dir)
 	if err != nil {
 		log.Fatalf("Failed to retrieve staged files: %v", err)
 	}
 
 	// TODO(herohde): the packages to install should be specified explicitly. It
 	// would also be possible to install the SDK in the Dockerfile.
-	if err := pipInstall(joinPaths(dir, "dataflow_python_sdk.tar[gcp]")); err != nil {
-		log.Fatalf("Failed to install SDK: %v", err)
+	if setupErr := installSetupPackages(files, dir); setupErr != nil {
+		log.Fatalf("Failed to install SDK: %v", setupErr)
 	}
 
 	// (3) Invoke python
 
 	os.Setenv("PIPELINE_OPTIONS", options)
 	os.Setenv("SEMI_PERSISTENT_DIRECTORY", *semiPersistDir)
-	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *loggingEndpoint}))
-	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pb.ApiServiceDescriptor{Url: *controlEndpoint}))
+	os.Setenv("LOGGING_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pbpipeline.ApiServiceDescriptor{Url: *loggingEndpoint}))
+	os.Setenv("CONTROL_API_SERVICE_DESCRIPTOR", proto.MarshalTextString(&pbpipeline.ApiServiceDescriptor{Url: *controlEndpoint}))
 
 	args := []string{
 		"-m",
-		"apache_beam.runners.worker.sdk_worker_main",
+		sdkHarnessEntrypoint,
 	}
 	log.Printf("Executing: python %v", strings.Join(args, " "))
 
 	log.Fatalf("Python exited: %v", execx.Execute("python", args...))
 }
 
-// pipInstall runs pip install with the given args.
-func pipInstall(args []string) error {
-	return execx.Execute("pip", append([]string{"install"}, args...)...)
+// installSetupPackages installs Beam SDK and user dependencies.
+func installSetupPackages(mds []*pbjob.ArtifactMetadata, workDir string) error {
+	log.Printf("Installing setup packages ...")
+
+	files := make([]string, len(mds))
+	for i, v := range mds {
+		log.Printf("Found artifact: %s", v.Name)
+		files[i] = v.Name
+	}
+
+	// Install the Dataflow Python SDK and worker packages.
+	// We install the extra requirements in case of using the beam sdk. These are ignored by pip
+	// if the user is using an SDK that does not provide these.
+	if err := pipInstallPackage(files, workDir, sdkFile, false, false, []string{"gcp"}); err != nil {
+		return fmt.Errorf("failed to install SDK: %v", err)
+	}
+	// The staged files will not disappear due to restarts because workDir is a
+	// folder that is mapped to the host (and therefore survives restarts).
+	if err := pipInstallRequirements(files, workDir, requirementsFile); err != nil {
+		return fmt.Errorf("failed to install requirements: %v", err)
+	}
+	if err := installExtraPackages(files, extraPackagesFile, workDir); err != nil {
+		return fmt.Errorf("failed to install extra packages: %v", err)
+	}
+	if err := pipInstallPackage(files, workDir, workflowFile, false, true, nil); err != nil {
+		return fmt.Errorf("failed to install workflow: %v", err)
+	}
+
+	return nil
 }
 
 // joinPaths joins the dir to every artifact path. Each / in the path is

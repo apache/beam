@@ -39,7 +39,7 @@ test {
   }
 }
 
-def flink_version = "1.3.0"
+def flink_version = "1.4.0"
 
 dependencies {
   compile library.java.guava
@@ -51,12 +51,12 @@ dependencies {
   shadow library.java.slf4j_api
   shadow library.java.joda_time
   shadow library.java.commons_compress
-  shadow "org.apache.flink:flink-clients_2.10:$flink_version"
+  shadow "org.apache.flink:flink-clients_2.11:$flink_version"
   shadow "org.apache.flink:flink-core:$flink_version"
   shadow "org.apache.flink:flink-metrics-core:$flink_version"
   shadow "org.apache.flink:flink-java:$flink_version"
-  shadow "org.apache.flink:flink-runtime_2.10:$flink_version"
-  shadow "org.apache.flink:flink-streaming-java_2.10:$flink_version"
+  shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
+  shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
   testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
   testCompile project(":beam-model-parent:beam-model-fn-execution").sourceSets.test.output
   testCompile project(":beam-runners-parent:beam-runners-core-java").sourceSets.test.output
@@ -67,9 +67,9 @@ dependencies {
   testCompile library.java.google_api_services_bigquery
   testCompile library.java.jackson_dataformat_yaml
   testCompile "org.apache.flink:flink-core:$flink_version:tests"
-  testCompile "org.apache.flink:flink-runtime_2.10:$flink_version:tests"
-  testCompile "org.apache.flink:flink-streaming-java_2.10:$flink_version:tests"
-  testCompile "org.apache.flink:flink-test-utils_2.10:$flink_version"
+  testCompile "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  testCompile "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
+  testCompile "org.apache.flink:flink-test-utils_2.11:$flink_version"
 }
 
 task packageTests(type: Jar) {

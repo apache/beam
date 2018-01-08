@@ -116,7 +116,7 @@ class KinesisReader extends UnboundedSource.UnboundedReader<KinesisRecord> {
 
   /**
    * Moves to the next record in one of the shards.
-   * If current shard iterator can be move forward (i.e. there's a record present) then we do it.
+   * If current shard iterator can be moved forward (i.e. there's a record present) then we do it.
    * If not, we iterate over shards in a round-robin manner.
    */
   @Override

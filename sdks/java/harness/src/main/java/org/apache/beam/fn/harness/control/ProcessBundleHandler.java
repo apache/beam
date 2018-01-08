@@ -162,7 +162,6 @@ public class ProcessBundleHandler {
     // Recursively ensure that all consumers of the output PCollection have been created.
     // Since we are creating the consumers first, we know that the we are building the DAG
     // in reverse topological order.
-    System.out.println("* Create " + pTransform.toString().replace("\n", " "));
     for (String pCollectionId : pTransform.getOutputsMap().values()) {
       // If we have created the consumers for this PCollection we can skip it.
       if (pCollectionIdsToConsumers.containsKey(pCollectionId)) {
