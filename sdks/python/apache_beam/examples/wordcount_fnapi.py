@@ -26,6 +26,7 @@ from __future__ import absolute_import
 
 import argparse
 import logging
+import re
 
 import apache_beam as beam
 from apache_beam.io import ReadFromText
@@ -35,6 +36,7 @@ from apache_beam.metrics import Metrics
 from apache_beam.metrics.metric import MetricsFilter
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import SetupOptions
 
 
 class WordExtractingDoFn(beam.DoFn):
@@ -59,12 +61,6 @@ class WordExtractingDoFn(beam.DoFn):
     Returns:
       The processed element.
     """
-
-    # TODO(BEAM-3041): Move this import to top of the file after the fix.
-    # Portable containers does not support save main session, and importing here
-    # is required. This is only needed for running experimental jobs with FnApi.
-    import re
-
     text_line = element.strip()
     if not text_line:
       self.empty_line_counter.inc(1)
@@ -89,7 +85,10 @@ def run(argv=None):
                       help='Output file to write results to.')
   known_args, pipeline_args = parser.parse_known_args(argv)
 
+  # We use the save_main_session option because one or more DoFn's in this
+  # workflow rely on global context (e.g., a module imported at module level).
   pipeline_options = PipelineOptions(pipeline_args)
+  pipeline_options.view_as(SetupOptions).save_main_session = True
   p = beam.Pipeline(options=pipeline_options)
 
   # Ensure that the experiment flag is set explicitly by the user.

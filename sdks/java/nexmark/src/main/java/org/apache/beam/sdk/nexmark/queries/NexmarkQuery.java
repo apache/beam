@@ -36,6 +36,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
+
 import org.joda.time.Instant;
 
 /**
@@ -83,7 +84,7 @@ public abstract class NexmarkQuery
   };
 
   /** Predicate to detect a new bid event. */
-  private static final SerializableFunction<Event, Boolean> IS_BID =
+  public static final SerializableFunction<Event, Boolean> IS_BID =
       new SerializableFunction<Event, Boolean>() {
         @Override
         public Boolean apply(Event event) {
@@ -211,7 +212,7 @@ public abstract class NexmarkQuery
   private final Monitor<Event> endOfStreamMonitor;
   private final Counter fatalCounter;
 
-  NexmarkQuery(NexmarkConfiguration configuration, String name) {
+  protected NexmarkQuery(NexmarkConfiguration configuration, String name) {
     super(name);
     this.configuration = configuration;
     if (configuration.debug) {

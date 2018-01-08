@@ -21,6 +21,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static org.apache.beam.runners.core.construction.PipelineResources.detectClassPathResourcesToStage;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
 import static org.apache.beam.sdk.util.SerializableUtils.serializeToByteArray;
 import static org.apache.beam.sdk.util.StringUtils.byteArrayToJsonString;
@@ -41,12 +42,8 @@ import com.google.common.base.Utf8;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.net.URISyntaxException;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.channels.Channels;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -256,9 +253,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         throw new IllegalArgumentException("No files to stage has been found.");
       } else {
         LOG.info("PipelineOptions.filesToStage was not specified. "
-                        + "Defaulting to files from the classpath: will stage {} files. "
-                        + "Enable logging at DEBUG level to see which files will be staged.",
-                dataflowOptions.getFilesToStage().size());
+                + "Defaulting to files from the classpath: will stage {} files. "
+                + "Enable logging at DEBUG level to see which files will be staged.",
+            dataflowOptions.getFilesToStage().size());
         LOG.debug("Classpath elements: {}", dataflowOptions.getFilesToStage());
       }
     }
@@ -382,11 +379,13 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(Read.Unbounded.class),
-                  new StreamingUnboundedReadOverrideFactory()))
-          .add(
-              PTransformOverride.of(
-                  PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
-                  new StreamingCreatePCollectionViewFactory()));
+                  new StreamingUnboundedReadOverrideFactory()));
+      if (!hasExperiment(options, "beam_fn_api")) {
+        overridesBuilder.add(
+            PTransformOverride.of(
+                PTransformMatchers.classEqualTo(View.CreatePCollectionView.class),
+                new StreamingCreatePCollectionViewFactory()));
+      }
     } else {
       overridesBuilder
           // State and timer pardos are implemented by expansion to GBK-then-ParDo
@@ -397,7 +396,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
           .add(
               PTransformOverride.of(
                   PTransformMatchers.stateOrTimerParDoSingle(),
-                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)))
+                  BatchStatefulParDoOverrides.singleOutputOverrideFactory(options)));
+      if (!hasExperiment(options, "beam_fn_api")) {
+        overridesBuilder
           .add(
               PTransformOverride.of(
                   PTransformMatchers.classEqualTo(View.AsMap.class),
@@ -422,6 +423,7 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
                   PTransformMatchers.classEqualTo(View.AsIterable.class),
                   new ReflectiveViewOverrideFactory(
                       BatchViewOverrides.BatchViewAsIterable.class, this)));
+      }
     }
     // Expands into Reshuffle and single-output ParDo, so has to be before the overrides below.
     if (hasExperiment(options, "beam_fn_api")) {
@@ -832,8 +834,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
   }
 
+  // This method is protected to allow a Google internal subclass to properly
+  // setup overrides.
   @VisibleForTesting
-  void replaceTransforms(Pipeline pipeline) {
+  protected void replaceTransforms(Pipeline pipeline) {
     boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms
@@ -1558,36 +1562,6 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   @Override
   public String toString() {
     return "DataflowRunner#" + options.getJobName();
-  }
-
-  /**
-   * Attempts to detect all the resources the class loader has access to. This does not recurse
-   * to class loader parents stopping it from pulling in resources from the system class loader.
-   *
-   * @param classLoader The URLClassLoader to use to detect resources to stage.
-   * @throws IllegalArgumentException  If either the class loader is not a URLClassLoader or one
-   * of the resources the class loader exposes is not a file resource.
-   * @return A list of absolute paths to the resources the class loader uses.
-   */
-  protected static List<String> detectClassPathResourcesToStage(ClassLoader classLoader) {
-    if (!(classLoader instanceof URLClassLoader)) {
-      String message = String.format("Unable to use ClassLoader to detect classpath elements. "
-          + "Current ClassLoader is %s, only URLClassLoaders are supported.", classLoader);
-      LOG.error(message);
-      throw new IllegalArgumentException(message);
-    }
-
-    List<String> files = new ArrayList<>();
-    for (URL url : ((URLClassLoader) classLoader).getURLs()) {
-      try {
-        files.add(new File(url.toURI()).getAbsolutePath());
-      } catch (IllegalArgumentException | URISyntaxException e) {
-        String message = String.format("Unable to convert url (%s) to file.", url);
-        LOG.error(message);
-        throw new IllegalArgumentException(message, e);
-      }
-    }
-    return files;
   }
 
   /**

@@ -43,6 +43,18 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(
         typehints.Tuple[str, int, float], lambda x: (x, 0, 1.0), [str])
 
+  def testGetItem(self):
+    def reverse(ab):
+      return ab[-1], ab[0]
+    self.assertReturnType(
+        typehints.Tuple[typehints.Any, typehints.Any], reverse, [typehints.Any])
+    self.assertReturnType(
+        typehints.Tuple[int, float], reverse, [typehints.Tuple[float, int]])
+    self.assertReturnType(
+        typehints.Tuple[int, str], reverse, [typehints.Tuple[str, float, int]])
+    self.assertReturnType(
+        typehints.Tuple[int, int], reverse, [typehints.List[int]])
+
   def testUnpack(self):
     def reverse(a_b):
       (a, b) = a_b
@@ -72,6 +84,17 @@ class TrivialInferenceTest(unittest.TestCase):
       return None
     self.assertReturnType(typehints.Union[int, type(None)], func, [int])
 
+  def testSimpleList(self):
+    self.assertReturnType(
+        typehints.List[int],
+        lambda xs: [1, 2],
+        [typehints.Tuple[int, ...]])
+
+    self.assertReturnType(
+        typehints.List[typehints.Any],
+        lambda xs: list(xs), # List is a disallowed builtin
+        [typehints.Tuple[int, ...]])
+
   def testListComprehension(self):
     self.assertReturnType(
         typehints.List[int],
@@ -87,6 +110,14 @@ class TrivialInferenceTest(unittest.TestCase):
         typehints.List[typehints.Union[int, float]],
         lambda xs: [x for x in xs],
         [typehints.Tuple[int, float]])
+    self.assertReturnType(
+        typehints.List[typehints.Tuple[str, int]],
+        lambda kvs: [(kvs[0], v) for v in kvs[1]],
+        [typehints.Tuple[str, typehints.Iterable[int]]])
+    self.assertReturnType(
+        typehints.List[typehints.Tuple[str, typehints.Union[str, int], int]],
+        lambda L: [(a, a or b, b) for a, b in L],
+        [typehints.Iterable[typehints.Tuple[str, int]]])
 
   def testGenerator(self):
 
@@ -97,6 +128,12 @@ class TrivialInferenceTest(unittest.TestCase):
     self.assertReturnType(typehints.Iterable[int], foo, [int, int])
     self.assertReturnType(
         typehints.Iterable[typehints.Union[int, float]], foo, [int, float])
+
+  def testGeneratorComprehension(self):
+    self.assertReturnType(
+        typehints.Iterable[int],
+        lambda xs: (x for x in xs),
+        [typehints.Tuple[int, ...]])
 
   def testBinOp(self):
     self.assertReturnType(int, lambda a, b: a + b, [int, int])
@@ -130,7 +167,6 @@ class TrivialInferenceTest(unittest.TestCase):
   def testMethod(self):
 
     class A(object):
-
       def m(self, x):
         return x
 

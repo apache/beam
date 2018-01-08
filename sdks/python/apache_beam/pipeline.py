@@ -69,7 +69,7 @@ from apache_beam.typehints import typehints
 from apache_beam.utils import urns
 from apache_beam.utils.annotations import deprecated
 
-__all__ = ['Pipeline']
+__all__ = ['Pipeline', 'PTransformOverride']
 
 
 class Pipeline(object):
@@ -336,7 +336,7 @@ class Pipeline(object):
         pickler.dump_session(os.path.join(tmpdir, 'main_session.pickle'))
       finally:
         shutil.rmtree(tmpdir)
-    return self.runner.run(self)
+    return self.runner.run_pipeline(self)
 
   def __enter__(self):
     return self

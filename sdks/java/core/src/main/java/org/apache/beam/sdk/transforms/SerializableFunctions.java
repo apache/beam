@@ -18,8 +18,22 @@
 
 package org.apache.beam.sdk.transforms;
 
+import java.io.Serializable;
+import javax.annotation.Nullable;
+import org.apache.beam.sdk.util.SerializableUtils;
+
 /** Useful {@link SerializableFunction} overrides. */
 public class SerializableFunctions {
+  public static <InT, OutT extends Serializable> SerializableFunction<InT, OutT> clonesOf(
+      final OutT base) {
+    return new SerializableFunction<InT, OutT>() {
+      @Override
+      public OutT apply(InT input) {
+        return SerializableUtils.clone(base);
+      }
+    };
+  }
+
   private static class Identity<T> implements SerializableFunction<T, T> {
     @Override
     public T apply(T input) {
@@ -28,9 +42,9 @@ public class SerializableFunctions {
   }
 
   private static class Constant<InT, OutT> implements SerializableFunction<InT, OutT> {
-    OutT value;
+    @Nullable OutT value;
 
-    Constant(OutT value) {
+    Constant(@Nullable OutT value) {
       this.value = value;
     }
 
@@ -44,7 +58,7 @@ public class SerializableFunctions {
     return new Identity<>();
   }
 
-  public static <InT, OutT> SerializableFunction<InT, OutT> constant(OutT value) {
+  public static <InT, OutT> SerializableFunction<InT, OutT> constant(@Nullable OutT value) {
     return new Constant<>(value);
   }
 }

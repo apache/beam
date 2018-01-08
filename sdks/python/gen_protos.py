@@ -31,8 +31,7 @@ import sys
 import time
 import warnings
 
-
-GRPC_TOOLS = 'grpcio-tools>=1.3.5'
+GRPC_TOOLS = 'grpcio-tools>=1.3.5,<2'
 
 BEAM_PROTO_PATHS = [
   os.path.join('..', '..', 'model', 'pipeline', 'src', 'main', 'proto'),
