@@ -172,7 +172,7 @@
     <maven-license-plugin.version>1.13</maven-license-plugin.version>
     <maven-resources-plugin.version>3.0.2</maven-resources-plugin.version>
     <maven-shade-plugin.version>3.0.0</maven-shade-plugin.version>
-    <reproducible-build-maven-plugin.version>0.3</reproducible-build-maven-plugin.version>
+    <reproducible-build-maven-plugin.version>0.4</reproducible-build-maven-plugin.version>
 
     <compiler.error.flag>-Werror</compiler.error.flag>
     <compiler.default.pkginfo.flag>-Xpkginfo:always</compiler.default.pkginfo.flag>
