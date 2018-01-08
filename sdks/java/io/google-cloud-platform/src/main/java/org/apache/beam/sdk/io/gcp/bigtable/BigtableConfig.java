@@ -142,7 +142,7 @@ abstract class BigtableConfig implements Serializable {
       .addIfNotNull(DisplayData.item("projectId", getProjectId()).withLabel("Bigtable Project Id"))
       .addIfNotNull(DisplayData.item("instanceId", getInstanceId())
         .withLabel("Bigtable Instance Id"))
-      .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Table ID"))
+      .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table ID"))
       .add(DisplayData.item("withValidation", getValidate()).withLabel("Check is table exists"));
 
     builder.add(DisplayData.item("effectiveBigtableOptions",

@@ -630,7 +630,7 @@ public class BigtableIOTest {
 
     assertThat(displayData, hasDisplayItem(allOf(
         hasKey("tableId"),
-        hasLabel("Table ID"),
+        hasLabel("Bigtable Table ID"),
         hasValue("fooTable"))));
 
     assertThat(displayData, hasDisplayItem("rowFilter", rowFilter.toString()));
