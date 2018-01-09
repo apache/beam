@@ -30,7 +30,8 @@ type DataSink struct {
 	UID  UnitID
 	Edge *graph.MultiEdge
 
-	w io.WriteCloser
+	enc ElementEncoder
+	w   io.WriteCloser
 }
 
 func (n *DataSink) ID() UnitID {
@@ -38,6 +39,8 @@ func (n *DataSink) ID() UnitID {
 }
 
 func (n *DataSink) Up(ctx context.Context) error {
+	c := coder.SkipW(n.Edge.Input[0].From.Coder)
+	n.enc = MakeElementEncoder(c)
 	return nil
 }
 
@@ -61,7 +64,7 @@ func (n *DataSink) ProcessElement(ctx context.Context, value FullValue, values .
 	if err := EncodeWindowedValueHeader(c, value.Timestamp, &b); err != nil {
 		return err
 	}
-	if err := EncodeElement(coder.SkipW(c), value, &b); err != nil {
+	if err := n.enc.Encode(value, &b); err != nil {
 		return err
 	}
 
