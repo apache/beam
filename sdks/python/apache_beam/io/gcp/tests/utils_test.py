@@ -60,13 +60,12 @@ class UtilsTest(unittest.TestCase):
     mock_client.return_value.dataset = mock_dataset
     mock_dataset.return_value.exists.return_value = False
 
-    with self.assertRaises(Exception) as e:
+    with self.assertRaisesRegexp(
+        Exception, r'^Failed to cleanup. Bigquery dataset unused_dataset '
+                   r'doesn\'t exist'):
       utils.delete_bq_table('unused_project',
                             'unused_dataset',
                             'unused_table')
-    self.assertTrue(
-        e.exception.message.startswith('Failed to cleanup. Bigquery dataset '
-                                       'unused_dataset doesn\'t exist'))
 
   @patch.object(bigquery, 'Client')
   def test_delete_table_fails_table_not_exist(self, mock_client):
@@ -78,13 +77,12 @@ class UtilsTest(unittest.TestCase):
     mock_dataset.return_value.table = mock_table
     mock_table.return_value.exists.return_value = False
 
-    with self.assertRaises(Exception) as e:
+    with self.assertRaisesRegexp(Exception,
+                                 r'^Failed to cleanup. Bigquery table '
+                                 'unused_table doesn\'t exist'):
       utils.delete_bq_table('unused_project',
                             'unused_dataset',
                             'unused_table')
-    self.assertTrue(
-        e.exception.message.startswith('Failed to cleanup. Bigquery table '
-                                       'unused_table doesn\'t exist'))
 
   @patch.object(bigquery, 'Client')
   def test_delete_table_fails_service_error(self, mock_client):
@@ -96,13 +94,12 @@ class UtilsTest(unittest.TestCase):
     mock_dataset.return_value.table = mock_table
     mock_table.return_value.exists.return_value = True
 
-    with self.assertRaises(Exception) as e:
+    with self.assertRaisesRegexp(Exception,
+                                 r'^Failed to cleanup. Bigquery table '
+                                 'unused_table still exists'):
       utils.delete_bq_table('unused_project',
                             'unused_dataset',
                             'unused_table')
-    self.assertTrue(
-        e.exception.message.startswith('Failed to cleanup. Bigquery table '
-                                       'unused_table still exists'))
 
 
 if __name__ == '__main__':
