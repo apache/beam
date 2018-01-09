@@ -23,6 +23,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 var (
@@ -78,11 +79,17 @@ type filterFn struct {
 	Predicate beam.EncodedFn `json:"predicate"`
 	// Include indicates whether to include or exclude elements that satisfy the predicate.
 	Include bool `json:"include"`
+
+	fn reflectx.Caller1x1
+}
+
+func (f *filterFn) Setup() {
+	f.fn = reflectx.MakeCaller1x1(f.Predicate.Fn.Interface())
 }
 
 func (f *filterFn) ProcessElement(elm beam.T, emit func(beam.T)) {
-	ret := f.Predicate.Fn.Call([]reflect.Value{reflect.ValueOf(elm)})
-	if ret[0].Bool() == f.Include {
+	match := f.fn.Call1x1(elm).(bool)
+	if match == f.Include {
 		emit(elm)
 	}
 }
