@@ -1162,7 +1162,7 @@ class ProgressRequester(threading.Thread):
         self._latest_progress = progress_result.process_bundle_progress
         if self._callback:
           self._callback(self._latest_progress)
-      except Exception, exn:
+      except Exception as exn:
         logging.error("Bad progress: %s", exn)
       time.sleep(self._frequency)
 

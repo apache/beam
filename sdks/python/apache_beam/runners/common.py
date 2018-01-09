@@ -25,6 +25,8 @@ For internal use only; no backwards-compatibility guarantees.
 import sys
 import traceback
 
+import six
+
 from apache_beam.internal import util
 from apache_beam.metrics.execution import ScopedMetricsContainer
 from apache_beam.pvalue import TaggedOutput
@@ -512,7 +514,7 @@ class DoFnRunner(Receiver):
           traceback.format_exception_only(type(exn), exn)[-1].strip()
           + step_annotation)
       new_exn._tagged_with_step = True
-    raise new_exn, None, original_traceback
+    six.raise_from(new_exn, original_traceback)
 
 
 class OutputProcessor(object):
