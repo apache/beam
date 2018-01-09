@@ -36,7 +36,8 @@ type GBK struct {
 	Edge *graph.MultiEdge
 	Out  exec.Node
 
-	m map[string]*group
+	enc exec.ElementEncoder // key encoder for coder-equality
+	m   map[string]*group
 }
 
 func (n *GBK) ID() exec.UnitID {
@@ -44,6 +45,7 @@ func (n *GBK) ID() exec.UnitID {
 }
 
 func (n *GBK) Up(ctx context.Context) error {
+	n.enc = exec.MakeElementEncoder(coder.SkipW(n.Edge.Input[0].From.Coder).Components[0])
 	n.m = make(map[string]*group)
 	return nil
 }
@@ -54,7 +56,7 @@ func (n *GBK) StartBundle(ctx context.Context, id string, data exec.DataManager)
 
 func (n *GBK) ProcessElement(ctx context.Context, elm exec.FullValue, _ ...exec.ReStream) error {
 	var buf bytes.Buffer
-	if err := exec.EncodeElement(coder.SkipW(n.Edge.Input[0].From.Coder).Components[0], exec.FullValue{Elm: elm.Elm}, &buf); err != nil {
+	if err := n.enc.Encode(exec.FullValue{Elm: elm.Elm}, &buf); err != nil {
 		return fmt.Errorf("failed to encode key %v for GBK: %v", elm, err)
 	}
 	key := buf.String()

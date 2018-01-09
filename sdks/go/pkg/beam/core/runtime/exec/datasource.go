@@ -56,24 +56,23 @@ func (n *DataSource) Process(ctx context.Context) error {
 	defer r.Close()
 
 	c := n.Edge.Output[0].To.Coder
-	for {
-		t, err := DecodeWindowedValueHeader(c, r)
-		if err != nil {
-			if err == io.EOF {
-				// log.Printf("EOF")
-				break
-			}
-			return fmt.Errorf("source failed: %v", err)
-		}
+	switch {
+	case coder.IsWGBK(c):
+		ck := MakeElementDecoder(coder.SkipW(c).Components[0])
+		cv := MakeElementDecoder(coder.SkipW(c).Components[1])
 
-		switch {
-		case coder.IsWGBK(c):
-			ck := coder.SkipW(c).Components[0]
-			cv := coder.SkipW(c).Components[1]
+		for {
+			t, err := DecodeWindowedValueHeader(c, r)
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return fmt.Errorf("source failed: %v", err)
+			}
 
 			// Decode key
 
-			key, err := DecodeElement(ck, r)
+			key, err := ck.Decode(r)
 			if err != nil {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
@@ -96,7 +95,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				// log.Printf("Fixed size=%v", size)
 
 				for i := int32(0); i < size; i++ {
-					value, err := DecodeElement(cv, r)
+					value, err := cv.Decode(r)
 					if err != nil {
 						return fmt.Errorf("stream value decode failed: %v", err)
 					}
@@ -118,7 +117,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 					}
 
 					for i := uint64(0); i < chunk; i++ {
-						value, err := DecodeElement(cv, r)
+						value, err := cv.Decode(r)
 						if err != nil {
 							return fmt.Errorf("stream value decode failed: %v", err)
 						}
@@ -131,12 +130,24 @@ func (n *DataSource) Process(ctx context.Context) error {
 			if err := n.Out.ProcessElement(ctx, key, values); err != nil {
 				return err
 			}
+		}
 
-		case coder.IsWCoGBK(c):
-			panic("NYI")
+	case coder.IsWCoGBK(c):
+		panic("NYI")
 
-		default:
-			elm, err := DecodeElement(coder.SkipW(c), r)
+	default:
+		ec := MakeElementDecoder(coder.SkipW(c))
+
+		for {
+			t, err := DecodeWindowedValueHeader(c, r)
+			if err != nil {
+				if err == io.EOF {
+					return nil
+				}
+				return fmt.Errorf("source failed: %v", err)
+			}
+
+			elm, err := ec.Decode(r)
 			if err != nil {
 				return fmt.Errorf("source decode failed: %v", err)
 			}
@@ -149,7 +160,6 @@ func (n *DataSource) Process(ctx context.Context) error {
 			}
 		}
 	}
-	return nil
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
