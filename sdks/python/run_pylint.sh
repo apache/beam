@@ -62,6 +62,8 @@ echo "Running pylint for module $MODULE:"
 pylint -j8 "$MODULE" --ignore-patterns="$FILES_TO_IGNORE"
 echo "Running pycodestyle for module $MODULE:"
 pycodestyle "$MODULE" --exclude="$FILES_TO_IGNORE"
+echo "Running flake8 for module $MODULE:"
+flake8 $MODULE --count --select=E999 --show-source --statistics
 echo "Running isort for module $MODULE:"
 # Skip files where isort is behaving weirdly
 ISORT_EXCLUDED=(
@@ -69,6 +71,7 @@ ISORT_EXCLUDED=(
   "avroio_test.py"
   "datastore_wordcount.py"
   "datastoreio_test.py"
+  "hadoopfilesystem.py"
   "iobase_test.py"
   "fast_coders_test.py"
   "slow_coders_test.py"
