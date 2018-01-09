@@ -13,6 +13,8 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+# Hdfs cluster termination script.
+#
 
 #!/bin/sh
 set -e

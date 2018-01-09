@@ -12,6 +12,14 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
+# This script creates hadoop-external service that allows to connect to hdfs cluster from
+# outside world. Running:
+#
+#   kubectl get svc hadoop-external
+#
+# allows to read LoadBalancer EXTERNAL-IP which should be used to interact with the hdfs cluster.
+#
 
 apiVersion: v1
 kind: Service

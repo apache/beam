@@ -13,6 +13,11 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+# This script starts hdfs cluster and hadoop-external service that allows to reach cluster
+# from developer's machine. Once the cluster is working, scripts waits till
+# external cluster endpoint will be available. It prints out configuration line that
+# should be added to /etc/hosts file in order to work with hdfs cluster.
+#
 
 #!/bin/sh
 set -e

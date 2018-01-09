@@ -12,6 +12,13 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
+#
+# This script contains definition of hdfs single node cluster. In this configuration hdfs datanode
+# and namenode are running on the same pod. Service hadoop allows to connect to pods labeled as
+# hadoop, this service also provides connectivity from outside of the cluster.
+# Replication controller creates pods using docker image sequenceiq/hadoop-docker:2.7.1.
+# Each pod created will expose hdfs standard ports.
+#
 
 apiVersion: v1
 kind: Service

@@ -13,6 +13,9 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+# This script terminates hdfs cluster and hadoop-external service. It checks /etc/hosts file
+# for any unneeded entries and notifies user about them.
+#
 
 #!/bin/sh
 set -e
