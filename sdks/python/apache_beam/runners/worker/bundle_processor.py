@@ -49,7 +49,7 @@ from apache_beam.utils import urns
 try:
   from apache_beam.runners.worker import statesampler
 except ImportError:
-  from apache_beam.runners.worker import statesampler_fake as statesampler
+  from apache_beam.runners.worker import statesampler_slow as statesampler
 
 
 DATA_INPUT_URN = 'urn:org.apache.beam:source:runner:0.1'

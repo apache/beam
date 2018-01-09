@@ -34,7 +34,7 @@ thread queries the current state, the time spent since the previous sample is
 attributed to that state and accumulated.  Over time, this allows a granular
 runtime profile to be produced.
 """
-
+from collections import namedtuple
 import threading
 import time
 
@@ -71,19 +71,25 @@ cdef inline int64_t get_nsec_time() nogil:
       current_time.tv_nsec)
 
 
-class StateSamplerInfo(object):
-  """Info for current state and transition statistics of StateSampler."""
+class ExecutionStateSamplers(threading.local):
+  """ Per-thread state sampler. """
+  def __init__(self):
+    super(ExecutionStateSamplers, self).__init__()
+    self._current_sampler = None
 
-  def __init__(self, state_name, transition_count, time_since_transition):
-    self.state_name = state_name
-    self.transition_count = transition_count
-    self.time_since_transition = time_since_transition
+  def current_sampler(self):
+    return self._current_sampler
 
-  def __repr__(self):
-    return ('<StateSamplerInfo state: %s time: %dns transitions: %d>'
-            % (self.state_name,
-               self.time_since_transition,
-               self.transition_count))
+  def set_sampler(self, sampler):
+    self._current_sampler = sampler
+
+
+EXECUTION_STATE_SAMPLERS = ExecutionStateSamplers()
+
+
+StateSamplerInfo = namedtuple(
+    'StateSamplerInfo',
+    ['state_name', 'transition_count', 'time_since_transition'])
 
 
 # Default period for sampling current state of pipeline execution.
@@ -115,11 +121,8 @@ cdef class StateSampler(object):
 
   def __init__(self, prefix, counter_factory,
       sampling_period_ms=DEFAULT_SAMPLING_PERIOD_MS):
-
-    # TODO(pabloem): Remove this once all dashed prefixes are removed from
-    # the worker.
-    # We stop using prefixes with included dash.
-    self.prefix = prefix[:-1] if prefix[-1] == '-' else prefix
+    EXECUTION_STATE_SAMPLERS.set_sampler(self)
+    self.prefix = prefix
     self.counter_factory = counter_factory
     self.sampling_period_ms = sampling_period_ms
 
@@ -197,9 +200,7 @@ cdef class StateSampler(object):
         self.state_transition_count,
         self.time_since_transition)
 
-  # TODO(pabloem): Make state_name required once all callers migrate,
-  #   and the legacy path is removed.
-  def scoped_state(self, step_name, state_name=None, io_target=None):
+  def scoped_state(self, step_name, state_name, io_target=None):
     """Returns a context manager managing transitions for a given state.
     Args:
       step_name: A string with the name of the running step.
@@ -211,17 +212,11 @@ cdef class StateSampler(object):
       A ScopedState for the set of step-state-io_target.
     """
     cdef ScopedState scoped_state
-    if state_name is None:
-      # If state_name is None, the worker is still using old style
-      # msec counters.
-      counter_name = '%s-%s-msecs' % (self.prefix, step_name)
-      scoped_state = self.scoped_states_by_name.get(counter_name, None)
-    else:
-      counter_name = CounterName(state_name + '-msecs',
-                                 stage_name=self.prefix,
-                                 step_name=step_name,
-                                 io_target=io_target)
-      scoped_state = self.scoped_states_by_name.get(counter_name, None)
+    counter_name = CounterName(state_name + '-msecs',
+                               stage_name=self.prefix,
+                               step_name=step_name,
+                               io_target=io_target)
+    scoped_state = self.scoped_states_by_name.get(counter_name, None)
 
     if scoped_state is None:
       output_counter = self.counter_factory.get_counter(counter_name,

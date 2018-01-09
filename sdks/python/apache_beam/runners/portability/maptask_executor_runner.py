@@ -43,7 +43,7 @@ from apache_beam.utils.counters import CounterFactory
 try:
   from apache_beam.runners.worker import statesampler
 except ImportError:
-  from apache_beam.runners.worker import statesampler_fake as statesampler
+  from apache_beam.runners.worker import statesampler_slow as statesampler
 
 # This module is experimental. No backwards-compatibility guarantees.
 
