@@ -238,6 +238,9 @@ func (m *marshaller) makePayload(edge *graph.MultiEdge) *pb.FunctionSpec {
 	case graph.GBK:
 		return &pb.FunctionSpec{Urn: urnGBK}
 
+	case graph.External:
+		return &pb.FunctionSpec{Urn: edge.Payload.URN, Payload: edge.Payload.Data}
+
 	default:
 		panic(fmt.Sprintf("Unexpected opcode: %v", edge.Op))
 	}
