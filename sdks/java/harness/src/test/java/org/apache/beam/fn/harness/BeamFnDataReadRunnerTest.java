@@ -78,13 +78,18 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class BeamFnDataReadRunnerTest {
 
-  private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
-      .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()).build();
+  private static final Coder<String> ELEMENT_CODER = StringUtf8Coder.of();
+  private static final String ELEMENT_CODER_SPEC_ID = "string-coder-id";
   private static final Coder<WindowedValue<String>> CODER =
-      WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final String CODER_SPEC_ID = "string-coder-id";
+      WindowedValue.getFullCoder(ELEMENT_CODER, GlobalWindow.Coder.INSTANCE);
+  private static final String CODER_SPEC_ID = "windowed-string-coder-id";
   private static final RunnerApi.Coder CODER_SPEC;
   private static final RunnerApi.Components COMPONENTS;
+  private static final BeamFnApi.RemoteGrpcPort PORT_SPEC =
+      BeamFnApi.RemoteGrpcPort.newBuilder()
+          .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance())
+          .setCoderId(CODER_SPEC_ID)
+          .build();
 
   static {
     try {
@@ -95,6 +100,7 @@ public class BeamFnDataReadRunnerTest {
               .getComponents()
               .toBuilder()
               .putCoders(CODER_SPEC_ID, CODER_SPEC)
+              .putCoders(ELEMENT_CODER_SPEC_ID, CoderTranslation.toProto(ELEMENT_CODER).getCoder())
               .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
@@ -138,7 +144,7 @@ public class BeamFnDataReadRunnerTest {
         pTransform,
         Suppliers.ofInstance(bundleId)::get,
         ImmutableMap.of(localOutputId,
-            RunnerApi.PCollection.newBuilder().setCoderId(CODER_SPEC_ID).build()),
+            RunnerApi.PCollection.newBuilder().setCoderId(ELEMENT_CODER_SPEC_ID).build()),
         COMPONENTS.getCodersMap(),
         COMPONENTS.getWindowingStrategiesMap(),
         consumers,
