@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.hadoop.inputformat;
 
 import static org.apache.beam.sdk.io.common.TestRow.DeterministicallyConstructTestRowFn;
 import static org.apache.beam.sdk.io.common.TestRow.SelectNameFn;
+import static org.apache.beam.sdk.io.common.TestRow.getExpectedHashForRowCount;
 import static org.apache.beam.sdk.io.hadoop.inputformat.TestRowDBWritable.PrepareStatementFromTestRow;
 
 import java.sql.SQLException;
@@ -49,8 +50,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.postgresql.ds.PGSimpleDataSource;
 
+
 /**
- * IOIT for {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO}.
+ * A test of {@link org.apache.beam.sdk.io.hadoop.inputformat.HadoopInputFormatIO}
+ * on an independent postgres instance.
+ *
+ * <p>This test requires a running instance of Postgres. Pass in connection information using
+ * PipelineOptions:
+ * <pre>
+ *  mvn -e -Pio-it verify -pl sdks/java/io/hadoop/input-format/ -DintegrationTestPipelineOptions='[
+ *  "--postgresServerName=1.2.3.4",
+ *  "--postgresUsername=postgres",
+ *  "--postgresDatabaseName=myfancydb",
+ *  "--postgresPassword=mypass",
+ *  "--postgresSsl=false",
+ *  "--numberOfRecords=1000" ]'
+ * </pre>
  */
 public class HadoopInputFormatIOIT {
 
@@ -75,7 +90,7 @@ public class HadoopInputFormatIOIT {
     numberOfRows = options.getNumberOfRecords();
     tableName = DatabaseTestHelper.getTestTableName("HadoopInputFormatIOIT");
 
-    DatabaseTestHelper.createDataTable(dataSource, tableName);
+    DatabaseTestHelper.createTable(dataSource, tableName);
     setupHadoopConfiguration(options);
   }
 
@@ -101,32 +116,31 @@ public class HadoopInputFormatIOIT {
 
   @AfterClass
   public static void tearDown() throws SQLException {
-    DatabaseTestHelper.cleanUpDataTable(dataSource, tableName);
+    DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
   @Test
-  public void writeThenReadUsingDBInputFormat() {
+  public void readUsingHadoopInputFormat() {
     writePipeline.apply("Generate sequence", GenerateSequence.from(0).to(numberOfRows))
         .apply("Produce db rows", ParDo.of(new DeterministicallyConstructTestRowFn()))
-        .apply(JdbcIO.<TestRow>write()
+        .apply("Prevent fusion before writing", Reshuffle.<TestRow>viaRandomKey())
+        .apply("Write using JDBCIO", JdbcIO.<TestRow>write()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
             .withStatement(String.format("insert into %s values(?, ?)", tableName))
             .withPreparedStatementSetter(new PrepareStatementFromTestRow()));
 
-
     writePipeline.run().waitUntilFinish();
 
     PCollection<String> consolidatedHashcode = readPipeline
-        .apply("Read using DBInputFormat", HadoopInputFormatIO
+        .apply("Read using HadoopInputFormat", HadoopInputFormatIO
             .<LongWritable, TestRowDBWritable>read()
             .withConfiguration(hadoopConfiguration.get()))
         .apply("Get values only", Values.<TestRowDBWritable>create())
         .apply("Values as string", ParDo.of(new SelectNameFn()))
-        .apply("Calculate hashcode", Combine.globally(new HashingFn()))
-        .apply(Reshuffle.<String>viaRandomKey());
+        .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     PAssert.thatSingleton(consolidatedHashcode)
-        .isEqualTo(TestRow.getExpectedHashForRowCount(numberOfRows.intValue()));
+        .isEqualTo(getExpectedHashForRowCount(numberOfRows.intValue()));
 
     readPipeline.run().waitUntilFinish();
   }

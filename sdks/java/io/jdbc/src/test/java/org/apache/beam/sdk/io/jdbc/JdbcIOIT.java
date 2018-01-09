@@ -87,12 +87,12 @@ public class JdbcIOIT {
     dataSource = getPostgresDataSource(options);
 
     tableName = DatabaseTestHelper.getTestTableName("IT");
-    DatabaseTestHelper.createDataTable(dataSource, tableName);
+    DatabaseTestHelper.createTable(dataSource, tableName);
   }
 
   @AfterClass
   public static void tearDown() throws SQLException {
-    DatabaseTestHelper.cleanUpDataTable(dataSource, tableName);
+    DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
   /**

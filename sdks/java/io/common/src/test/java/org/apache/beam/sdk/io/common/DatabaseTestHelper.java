@@ -41,7 +41,7 @@ public class DatabaseTestHelper {
     return dataSource;
   }
 
-  public static void createDataTable(DataSource dataSource, String tableName)
+  public static void createTable(DataSource dataSource, String tableName)
       throws SQLException {
     try (Connection connection = dataSource.getConnection()) {
       try (Statement statement = connection.createStatement()) {
@@ -51,7 +51,7 @@ public class DatabaseTestHelper {
     }
   }
 
-  public static void cleanUpDataTable(DataSource dataSource, String tableName)
+  public static void deleteTable(DataSource dataSource, String tableName)
       throws SQLException {
     if (tableName != null) {
       try (Connection connection = dataSource.getConnection();

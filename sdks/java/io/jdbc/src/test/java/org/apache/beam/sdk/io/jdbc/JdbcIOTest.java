@@ -114,14 +114,14 @@ public class JdbcIOTest implements Serializable {
 
     readTableName = DatabaseTestHelper.getTestTableName("UT_READ");
 
-    DatabaseTestHelper.createDataTable(dataSource, readTableName);
+    DatabaseTestHelper.createTable(dataSource, readTableName);
     addInitialData(dataSource, readTableName);
   }
 
   @AfterClass
   public static void shutDownDatabase() throws Exception {
     try {
-      DatabaseTestHelper.cleanUpDataTable(dataSource, readTableName);
+      DatabaseTestHelper.deleteTable(dataSource, readTableName);
     } finally {
       if (derbyServer != null) {
         derbyServer.shutdown();
@@ -255,7 +255,7 @@ public class JdbcIOTest implements Serializable {
     final long rowsToAdd = 1000L;
 
     String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
-    DatabaseTestHelper.createDataTable(dataSource, tableName);
+    DatabaseTestHelper.createTable(dataSource, tableName);
     try {
       ArrayList<KV<Integer, String>> data = new ArrayList<>();
       for (int i = 0; i < rowsToAdd; i++) {
@@ -291,7 +291,7 @@ public class JdbcIOTest implements Serializable {
         }
       }
     } finally {
-      DatabaseTestHelper.cleanUpDataTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
     }
   }
 
