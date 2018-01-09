@@ -22,11 +22,10 @@ import logging
 import time
 import unittest
 
-from nose.plugins.skip import SkipTest
-
+from apache_beam.runners.worker import statesampler_slow as statesampler
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
-from apache_beam.runners.worker import statesampler_slow as statesampler
+
 
 class StateSamplerSlowTest(unittest.TestCase):
 
@@ -48,7 +47,8 @@ class StateSamplerSlowTest(unittest.TestCase):
         with sampler.scoped_state('step3', 'statec'):
           self.assertEqual(
               sampler.current_state().name,
-              CounterName('statec-msecs', step_name='step3', stage_name='basic'))
+              CounterName(
+                  'statec-msecs', step_name='step3', stage_name='basic'))
         # Back to stateb
         self.assertEqual(
             sampler.current_state().name,
