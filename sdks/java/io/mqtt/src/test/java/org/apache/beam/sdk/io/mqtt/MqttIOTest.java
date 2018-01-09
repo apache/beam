@@ -24,6 +24,7 @@ import java.net.ServerSocket;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
+
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.broker.Connection;
 import org.apache.beam.sdk.io.mqtt.MqttIO.Read;
@@ -37,6 +38,7 @@ import org.fusesource.mqtt.client.MQTT;
 import org.fusesource.mqtt.client.Message;
 import org.fusesource.mqtt.client.QoS;
 import org.fusesource.mqtt.client.Topic;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -134,7 +136,7 @@ public class MqttIOTest {
     publisherThread.join();
   }
 
-  @Test(timeout = 60 * 1000)
+  @Test(timeout = 5 * 1000)
   public void testRead() throws Exception {
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
@@ -143,7 +145,7 @@ public class MqttIOTest {
                     "tcp://localhost:" + port,
                     "READ_TOPIC",
                     "READ_PIPELINE"))
-          .withMaxNumRecords(10));
+            .withMaxReadTime(Duration.standardSeconds(3)));
     PAssert.that(output).containsInAnyOrder(
         "This is test 0".getBytes(),
         "This is test 1".getBytes(),
@@ -191,6 +193,22 @@ public class MqttIOTest {
 
     publishConnection.disconnect();
     publisherThread.join();
+  }
+
+  /**
+   * Test for BEAM-3282: this test should not timeout.
+   */
+  @Test(timeout = 5 * 1000)
+  public void testReceiveWithTimeoutAndNoData() throws Exception {
+    pipeline.apply(MqttIO.read()
+        .withConnectionConfiguration(
+            MqttIO.ConnectionConfiguration.create(
+                "tcp://localhost:" + port,
+                "READ_TOPIC",
+                "READ_PIPELINE")).withMaxReadTime(Duration.standardSeconds(2)));
+
+    // should stop before the test timeout
+    pipeline.run();
   }
 
   @Test
