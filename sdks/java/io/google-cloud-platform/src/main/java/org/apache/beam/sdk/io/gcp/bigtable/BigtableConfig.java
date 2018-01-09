@@ -18,6 +18,7 @@
 
 package org.apache.beam.sdk.io.gcp.bigtable;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
@@ -58,6 +59,15 @@ abstract class BigtableConfig implements Serializable {
   abstract ValueProvider<String> getTableId();
 
   /**
+   * Returns the Google Cloud Bigtable instance being written to, and other parameters.
+   *
+   * @deprecated will be replaced by bigtable options configurator.
+   */
+  @Deprecated
+  @Nullable
+  abstract BigtableOptions getBigtableOptions();
+
+  /**
    * Configurator of the effective Bigtable Options.
    */
   @Nullable
@@ -90,6 +100,12 @@ abstract class BigtableConfig implements Serializable {
 
     abstract Builder setTableId(ValueProvider<String> tableId);
 
+    /**
+     * @deprecated will be replaced by bigtable options configurator.
+     */
+    @Deprecated
+    abstract Builder setBigtableOptions(BigtableOptions options);
+
     abstract Builder setValidate(boolean validate);
 
     abstract Builder setBigtableOptionsConfigurator(
@@ -115,6 +131,15 @@ abstract class BigtableConfig implements Serializable {
     return toBuilder().setTableId(tableId).build();
   }
 
+  /**
+   * @deprecated will be replaced by bigtable options configurator.
+   */
+  @Deprecated
+  BigtableConfig withBigtableOptions(BigtableOptions options) {
+    checkNotNull(options, "Bigtable options can not be null");
+    return toBuilder().setBigtableOptions(options).build();
+  }
+
   BigtableConfig withBigtableOptionsConfigurator(
     SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
     checkNotNull(configurator, "configurator can not be null");
@@ -132,9 +157,17 @@ abstract class BigtableConfig implements Serializable {
   }
 
   void validate() {
-    checkNotNull(getProjectId(), "Could not obtain Bigtable project id");
-    checkNotNull(getInstanceId(), "Could not obtain Bigtable instance id");
     checkNotNull(getTableId(), "Could not obtain Bigtable table id");
+
+    checkArgument(getProjectId() != null
+        || getBigtableOptions() != null && getBigtableOptions().getProjectId() != null
+        && !getBigtableOptions().getProjectId().isEmpty(),
+      "Could not obtain Bigtable project id");
+
+    checkArgument(getInstanceId() != null
+        || getBigtableOptions() != null && getBigtableOptions().getInstanceId() != null
+        && !getBigtableOptions().getInstanceId().isEmpty(),
+      "Could not obtain Bigtable instance id");
   }
 
   void populateDisplayData(DisplayData.Builder builder) {
@@ -142,8 +175,13 @@ abstract class BigtableConfig implements Serializable {
       .addIfNotNull(DisplayData.item("projectId", getProjectId()).withLabel("Bigtable Project Id"))
       .addIfNotNull(DisplayData.item("instanceId", getInstanceId())
         .withLabel("Bigtable Instance Id"))
-      .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table ID"))
+      .addIfNotNull(DisplayData.item("tableId", getTableId()).withLabel("Bigtable Table Id"))
       .add(DisplayData.item("withValidation", getValidate()).withLabel("Check is table exists"));
+
+    if (getBigtableOptions() != null) {
+      builder.add(DisplayData.item("bigtableOptions", getBigtableOptions().toString())
+        .withLabel("Bigtable Options"));
+    }
 
     builder.add(DisplayData.item("effectiveBigtableOptions",
       effectiveUserProvidedBigtableOptions().build().toString())
@@ -190,19 +228,28 @@ abstract class BigtableConfig implements Serializable {
       .add("bigtableOptionsConfigurator",
         getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
           .getClass().getName())
+      .add("options", getBigtableOptions())
       .add("effectiveOptions", effectiveUserProvidedBigtableOptions())
       .toString();
   }
 
   private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
-    BigtableOptions.Builder effectiveOptions = new BigtableOptions.Builder();
+    BigtableOptions.Builder effectiveOptions = getBigtableOptions() != null
+      ? getBigtableOptions().toBuilder()
+      : new BigtableOptions.Builder();
 
     if (getBigtableOptionsConfigurator() != null) {
       effectiveOptions = getBigtableOptionsConfigurator().apply(effectiveOptions);
     }
 
-    return effectiveOptions
-      .setInstanceId(getInstanceId().get())
-      .setProjectId(getProjectId().get());
+    if (getInstanceId() != null) {
+      effectiveOptions.setInstanceId(getInstanceId().get());
+    }
+
+    if (getProjectId() != null) {
+      effectiveOptions.setProjectId(getProjectId().get());
+    }
+
+    return effectiveOptions;
   }
 }

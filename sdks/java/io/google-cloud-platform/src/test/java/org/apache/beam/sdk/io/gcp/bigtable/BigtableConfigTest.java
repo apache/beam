@@ -183,7 +183,7 @@ public class BigtableConfigTest {
 
     assertThat(displayData, hasDisplayItem(allOf(
       hasKey("tableId"),
-      hasLabel("Bigtable Table ID"),
+      hasLabel("Bigtable Table Id"),
       hasValue(TABLE_ID.get()))));
   }
 
