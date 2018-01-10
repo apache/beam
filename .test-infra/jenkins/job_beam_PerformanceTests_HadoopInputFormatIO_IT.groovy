@@ -53,6 +53,7 @@ job('beam_PerformanceTests_HadoopInputFormatIO_IT') {
     def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
 
     def argMap = [
+            kubeconfig: '/home/jenkins/.kube/config',
             beam_it_timeout: '1200',
             benchmarks: 'beam_integration_benchmark',
             beam_it_profile: 'io-it',
@@ -70,5 +71,5 @@ job('beam_PerformanceTests_HadoopInputFormatIO_IT') {
 }
 
 static def makePathAbsolute(String path) {
-    return '"$WORKSPACE/src/' + path + '"'
+    return '"$WORKSPACE/' + path + '"'
 }
