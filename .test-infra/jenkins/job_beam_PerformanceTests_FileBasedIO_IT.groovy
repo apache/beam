@@ -18,59 +18,101 @@
 
 import common_job_properties
 
-// This job runs the file-based IOs performance tests on PerfKit Benchmarker.
-job('beam_PerformanceTests_FileBasedIO_IT') {
-    description('Runs PerfKit tests for file-based IOs.')
+def testsConfigurations = [
+        [
+                jobName           : 'beam_PerformanceTests_TextIOIT',
+                jobDescription    : 'Runs PerfKit tests for TextIOIT',
+                itClass           : 'org.apache.beam.sdk.io.text.TextIOIT',
+                bqTable           : 'beam_performance.textioit_pkb_results',
+                prCommitStatusName: 'Java TextIO Performance Test',
+                prTriggerPhase    : 'Run Java TextIO Performance Test',
 
-    // Set default Beam job properties.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+        ],
+        [
+                jobName            : 'beam_PerformanceTests_Compressed_TextIOIT',
+                jobDescription     : 'Runs PerfKit tests for TextIOIT with GZIP compression',
+                itClass            : 'org.apache.beam.sdk.io.text.TextIOIT',
+                bqTable            : 'beam_performance.compressed_textioit_pkb_results',
+                prCommitStatusName : 'Java CompressedTextIO Performance Test',
+                prTriggerPhase     : 'Run Java CompressedTextIO Performance Test',
+                extraPipelineArgs: [
+                        compressionType: 'GZIP'
+                ]
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_AvroIOIT',
+                jobDescription    : 'Runs PerfKit tests for AvroIOIT',
+                itClass           : 'org.apache.beam.sdk.io.avro.AvroIOIT',
+                bqTable           : 'beam_performance.avroioit_pkb_results',
+                prCommitStatusName: 'Java AvroIO Performance Test',
+                prTriggerPhase    : 'Run Java AvroIO Performance Test',
+        ],
+        [
+                jobName           : 'beam_PerformanceTests_TFRecordIOIT',
+                jobDescription    : 'Runs PerfKit tests for beam_PerformanceTests_TFRecordIOIT',
+                itClass           : 'org.apache.beam.sdk.io.tfrecord.TFRecordIOIT',
+                bqTable           : 'beam_performance.tfrecordioit_pkb_results',
+                prCommitStatusName: 'Java TFRecordIO Performance Test',
+                prTriggerPhase    : 'Run Java TFRecordIO Performance Test',
+        ],
+]
 
-    // Allows triggering this build against pull requests.
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java FileBasedIOs Performance Test',
-            'Run Java FileBasedIOs Performance Test')
-
-    // Run job in postcommit every 6 hours, don't trigger every push, and
-    // don't email individual committers.
-    common_job_properties.setPostCommit(
-            delegate,
-            '0 */6 * * *',
-            false,
-            'commits@beam.apache.org',
-            false)
-
-    def pipelineArgs = [
-            project: 'apache-beam-testing',
-            tempRoot: 'gs://temp-storage-for-perf-tests',
-            numberOfRecords: '1000000',
-            filenamePrefix: 'gs://temp-storage-for-perf-tests/filebased/${BUILD_ID}/TESTIOIT',
-    ]
-    def pipelineArgList = []
-    pipelineArgs.each({
-        key, value -> pipelineArgList.add("\"--$key=$value\"")
-    })
-    def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
+for (testConfiguration in testsConfigurations) {
+    create_filebasedio_performance_test_job(testConfiguration)
+}
 
 
-    def itClasses = [
-            "org.apache.beam.sdk.io.text.TextIOIT",
-            "org.apache.beam.sdk.io.avro.AvroIOIT",
-            "org.apache.beam.sdk.io.tfrecord.TFRecordIOIT",
-    ]
+private void create_filebasedio_performance_test_job(testConfiguration) {
 
-    itClasses.each {
+    // This job runs the file-based IOs performance tests on PerfKit Benchmarker.
+    job(testConfiguration.jobName) {
+        description(testConfiguration.jobDescription)
+
+        // Set default Beam job properties.
+        common_job_properties.setTopLevelMainJobProperties(delegate)
+
+        // Allows triggering this build against pull requests.
+        common_job_properties.enablePhraseTriggeringFromPullRequest(
+                delegate,
+                testConfiguration.prCommitStatusName,
+                testConfiguration.prTriggerPhase)
+
+        // Run job in postcommit every 6 hours, don't trigger every push, and
+        // don't email individual committers.
+        common_job_properties.setPostCommit(
+                delegate,
+                '0 */6 * * *',
+                false,
+                'commits@beam.apache.org',
+                false)
+
+        def pipelineArgs = [
+                project        : 'apache-beam-testing',
+                tempRoot       : 'gs://temp-storage-for-perf-tests',
+                numberOfRecords: '1000000',
+                filenamePrefix : "gs://temp-storage-for-perf-tests/${testConfiguration.jobName}/\${BUILD_ID}/",
+        ]
+        if (testConfiguration.containsKey('extraPipelineArgs')) {
+            pipelineArgs << testConfiguration.extraPipelineArgs
+        }
+
+        def pipelineArgList = []
+        pipelineArgs.each({
+            key, value -> pipelineArgList.add("\"--$key=$value\"")
+        })
+        def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
+
         def argMap = [
-            benchmarks: 'beam_integration_benchmark',
-            beam_it_timeout: '1200',
-            beam_it_profile: 'io-it',
-            beam_prebuilt: 'true',
-            beam_sdk: 'java',
-            beam_it_module: 'sdks/java/io/file-based-io-tests',
-            beam_it_class: "${it}",
-            beam_it_options: pipelineArgsJoined,
-            beam_extra_mvn_properties: '["filesystem=gcs"]',
-            bigquery_table: 'beam_performance.filebasedioit_pkb_results',
+                benchmarks               : 'beam_integration_benchmark',
+                beam_it_timeout          : '1200',
+                beam_it_profile          : 'io-it',
+                beam_prebuilt            : 'true',
+                beam_sdk                 : 'java',
+                beam_it_module           : 'sdks/java/io/file-based-io-tests',
+                beam_it_class            : testConfiguration.itClass,
+                beam_it_options          : pipelineArgsJoined,
+                beam_extra_mvn_properties: '["filesystem=gcs"]',
+                bigquery_table           : testConfiguration.bqTable,
         ]
         common_job_properties.buildPerformanceTest(delegate, argMap)
     }
