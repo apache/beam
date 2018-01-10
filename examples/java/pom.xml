@@ -268,14 +268,8 @@
                     <include>WindowedWordCountIT.java</include>
                   </includes>
                   <classpathDependencyExcludes>
-                     <!-- Avoid [BEAM-3397] errors by reducing the pipeline
-                          options and the copies of filesToStage.
-
-                          A longer term solution will be to split up the
-                          precommit runs as in [BEAM-2596].
-                     -->
-                     <classpathDependencyExclude>org.apache.beam:beam-runners-spark</classpathDependencyExclude>
-                     <classpathDependencyExclude>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExclude>
+                    <classpathDependencyExcludes>org.apache.beam:beam-runners-spark</classpathDependencyExcludes>
+                    <classpathDependencyExcludes>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExcludes>
                   </classpathDependencyExcludes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
