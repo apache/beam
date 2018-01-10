@@ -127,23 +127,32 @@ class _MetricsEnvironment(object):
     with self._METRICS_SUPPORTED_LOCK:
       self.METRICS_SUPPORTED = supported
 
-  def current_container(self):
+  def _old_style_container(self):
+    """Gets the current MetricsContainer based on the container stack.
+
+    The container stack is the old method, and will be deprecated. Should
+    rely on StateSampler instead."""
     self.set_container_stack()
     index = len(self.PER_THREAD.container) - 1
     if index < 0:
       return None
     return self.PER_THREAD.container[index]
 
-  def set_current_container(self, container):
-    self.set_container_stack()
-    self.PER_THREAD.container.append(container)
-
-  def unset_current_container(self):
-    self.set_container_stack()
-    self.PER_THREAD.container.pop()
+  def current_container(self):
+    """Returns the current MetricsContainer."""
+    sampler = statesampler.get_current_tracker()
+    if sampler is None:
+      return self._old_style_container()
+    return sampler.current_state().metrics_container
 
 
 MetricsEnvironment = _MetricsEnvironment()
+
+
+def metrics_startup():
+  """Initialize metrics context to run."""
+  global statesampler  # pylint: disable=global-variable-not-assigned
+  from apache_beam.runners.worker import statesampler
 
 
 class MetricsContainer(object):
@@ -227,10 +236,12 @@ class ScopedMetricsContainer(object):
     self._container = container
 
   def enter(self):
-    self._stack.append(self._container)
+    if self._container:
+      self._stack.append(self._container)
 
   def exit(self):
-    self._stack.pop()
+    if self._container:
+      self._stack.pop()
 
   def __enter__(self):
     self.enter()

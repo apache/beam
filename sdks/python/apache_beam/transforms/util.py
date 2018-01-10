@@ -221,6 +221,7 @@ class _BatchSizeEstimator(object):
     self._clock = clock
     self._data = []
     self._ignore_next_timing = False
+
     self._size_distribution = Metrics.distribution(
         'BatchElements', 'batch_size')
     self._time_distribution = Metrics.distribution(
