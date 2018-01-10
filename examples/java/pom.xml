@@ -267,6 +267,10 @@
                     <include>WordCountIT.java</include>
                     <include>WindowedWordCountIT.java</include>
                   </includes>
+                  <classpathDependencyExcludes>
+                    <classpathDependencyExcludes>org.apache.beam:beam-runners-spark</classpathDependencyExcludes>
+                    <classpathDependencyExcludes>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExcludes>
+                  </classpathDependencyExcludes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
                   <systemPropertyVariables>
