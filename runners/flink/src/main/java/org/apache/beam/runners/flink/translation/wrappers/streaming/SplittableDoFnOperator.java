@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
@@ -85,6 +86,15 @@ public class SplittableDoFnOperator<
         sideInputs,
         options,
         keyCoder);
+  }
+
+  @Override
+  protected DoFnRunner<
+      KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> createWrappingDoFnRunner(
+          DoFnRunner<KeyedWorkItem<String, KV<InputT, RestrictionT>>, OutputT> wrappedRunner) {
+    // don't wrap in anything because we don't need state cleanup because ProcessFn does
+    // all that
+    return wrappedRunner;
   }
 
   @Override
