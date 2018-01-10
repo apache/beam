@@ -58,6 +58,7 @@ dependencies {
 shadowJar {
   dependencies {
     include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
     include(project(path: ":beam-model-parent:beam-model-pipeline", configuration: "shadow"))
     include(project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow"))
     include(project(path: ":beam-runners-parent:beam-runners-core-java", configuration: "shadow"))

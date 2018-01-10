@@ -95,6 +95,7 @@ task shadowTestJar(type: com.github.jengelman.gradle.plugins.shadow.tasks.Shadow
     exclude(".*")
     include(dependency(library.java.guava))
     include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
     include(dependency(library.java.byte_buddy))
     include(dependency("org.apache.commons:.*"))
   }
