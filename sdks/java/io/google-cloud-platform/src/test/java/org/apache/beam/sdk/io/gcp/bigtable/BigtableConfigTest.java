@@ -82,7 +82,7 @@ public class BigtableConfigTest {
   public void testWithProjectId() {
     assertEquals(PROJECT_ID.get(), config.withProjectId(PROJECT_ID).getProjectId().get());
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.withProjectId(null);
   }
 
@@ -90,7 +90,7 @@ public class BigtableConfigTest {
   public void testWithInstanceId() {
     assertEquals(INSTANCE_ID.get(), config.withInstanceId(INSTANCE_ID).getInstanceId().get());
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.withProjectId(null);
   }
 
@@ -98,7 +98,7 @@ public class BigtableConfigTest {
   public void testWithTableId() {
     assertEquals(TABLE_ID.get(), config.withTableId(TABLE_ID).getTableId().get());
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.withProjectId(null);
   }
 
@@ -107,7 +107,7 @@ public class BigtableConfigTest {
     assertEquals(CONFIGURATOR,
       config.withBigtableOptionsConfigurator(CONFIGURATOR).getBigtableOptionsConfigurator());
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.withBigtableOptionsConfigurator(null);
   }
 
@@ -120,7 +120,7 @@ public class BigtableConfigTest {
   public void testWithBigtableService() {
     assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.withProjectId(null);
   }
 
@@ -137,7 +137,7 @@ public class BigtableConfigTest {
     config.withInstanceId(INSTANCE_ID)
       .withTableId(TABLE_ID);
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.validate();
   }
 
@@ -146,7 +146,7 @@ public class BigtableConfigTest {
     config.withProjectId(PROJECT_ID)
       .withTableId(TABLE_ID);
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.validate();
   }
 
@@ -155,7 +155,7 @@ public class BigtableConfigTest {
     config.withProjectId(PROJECT_ID)
       .withInstanceId(INSTANCE_ID);
 
-    thrown.expect(NullPointerException.class);
+    thrown.expect(IllegalArgumentException.class);
     config.validate();
   }
 

@@ -19,7 +19,6 @@
 package org.apache.beam.sdk.io.gcp.bigtable;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigtable.config.BigtableOptions;
@@ -117,17 +116,17 @@ abstract class BigtableConfig implements Serializable {
   }
 
   BigtableConfig withProjectId(ValueProvider<String> projectId) {
-    checkNotNull(projectId, "Project Id of BigTable can not be null");
+    checkArgument(projectId != null, "Project Id of BigTable can not be null");
     return toBuilder().setProjectId(projectId).build();
   }
 
   BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
-    checkNotNull(instanceId, "Instance Id of BigTable can not be null");
+    checkArgument(instanceId != null, "Instance Id of BigTable can not be null");
     return toBuilder().setInstanceId(instanceId).build();
   }
 
   BigtableConfig withTableId(ValueProvider<String> tableId) {
-    checkNotNull(tableId, "tableId can not be null");
+    checkArgument(tableId != null, "tableId can not be null");
     return toBuilder().setTableId(tableId).build();
   }
 
@@ -136,13 +135,13 @@ abstract class BigtableConfig implements Serializable {
    */
   @Deprecated
   BigtableConfig withBigtableOptions(BigtableOptions options) {
-    checkNotNull(options, "Bigtable options can not be null");
+    checkArgument(options != null, "Bigtable options can not be null");
     return toBuilder().setBigtableOptions(options).build();
   }
 
   BigtableConfig withBigtableOptionsConfigurator(
     SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator) {
-    checkNotNull(configurator, "configurator can not be null");
+    checkArgument(configurator != null, "configurator can not be null");
     return toBuilder().setBigtableOptionsConfigurator(configurator).build();
   }
 
@@ -152,12 +151,12 @@ abstract class BigtableConfig implements Serializable {
 
   @VisibleForTesting
   BigtableConfig withBigtableService(BigtableService bigtableService) {
-    checkNotNull(bigtableService, "bigtableService can not be null");
+    checkArgument(bigtableService != null, "bigtableService can not be null");
     return toBuilder().setBigtableService(bigtableService).build();
   }
 
   void validate() {
-    checkNotNull(getTableId(), "Could not obtain Bigtable table id");
+    checkArgument(getTableId() != null, "Could not obtain Bigtable table id");
 
     checkArgument(getProjectId() != null
         || getBigtableOptions() != null && getBigtableOptions().getProjectId() != null

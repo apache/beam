@@ -151,11 +151,11 @@ public class BigtableIO {
 
   /**
    * Creates an uninitialized {@link BigtableIO.Read}. Before use, the {@code Read} must be
-   * initialized with a {@link BigtableIO.Read#withInstanceId(ValueProvider)} and
-   * {@link BigtableIO.Read#withProjectId(ValueProvider)} that specifies the source Cloud Bigtable
-   * instance, and a {@link BigtableIO.Read#withTableId tableId} that specifies which table to
+   * initialized with a {@link BigtableIO.Read#withInstanceId(String)} and
+   * {@link BigtableIO.Read#withProjectId(String)} that specifies the source Cloud Bigtable
+   * instance, and a {@link BigtableIO.Read#withTableId(String)} that specifies which table to
    * read. A {@link RowFilter} may also optionally be specified using
-   * {@link BigtableIO.Read#withRowFilter}.
+   * {@link BigtableIO.Read#withRowFilter(RowFilter)}.
    */
   @Experimental
   public static Read read() {
@@ -164,10 +164,10 @@ public class BigtableIO {
 
   /**
    * Creates an uninitialized {@link BigtableIO.Write}. Before use, the {@code Write} must be
-   * initialized with a {@link BigtableIO.Write#withProjectId(ValueProvider)} and
-   * {@link BigtableIO.Write#withInstanceId(ValueProvider)} that specifies the destination Cloud
-   * Bigtable instance, and a {@link BigtableIO.Write#withTableId tableId} that specifies which
-   * table to write.
+   * initialized with a {@link BigtableIO.Write#withProjectId(String)} and
+   * {@link BigtableIO.Write#withInstanceId(String)} that specifies the destination Cloud
+   * Bigtable instance, and a {@link BigtableIO.Write#withTableId(String) tableId} that specifies
+   * which table to write.
    */
   @Experimental
   public static Write write() {
