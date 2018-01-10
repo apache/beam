@@ -131,14 +131,23 @@ public class TestPipelineTest implements Serializable {
     }
 
     @Test
-    public void testConvertToArgs() {
+    public void testConvertToArgs() throws Exception {
       String[] args = new String[] {"--tempLocation=Test_Location",
           "--listArgs=item1,item2",
           "--boolArg=true"};
       SimpleTestOptions options = PipelineOptionsFactory.fromArgs(args).as(SimpleTestOptions.class);
+      String extraOptions =
+          MAPPER.writeValueAsString(
+              new String[] {
+                  "--extraArg=true"
+              });
+      System.getProperties().put(TestPipeline.PROPERTY_BEAM_TEST_EXTRA_OPTIONS, extraOptions);
       String[] arr = TestPipeline.convertToArgs(options);
       List<String> lst = Arrays.asList(arr);
-      assertEquals(lst.size(), 6);
+      for (String s : lst) {
+        System.out.println(s);
+      }
+      assertEquals(lst.size(), 7);
       assertThat(
           lst,
           containsInAnyOrder("--tempLocation=Test_Location",
@@ -146,7 +155,8 @@ public class TestPipelineTest implements Serializable {
               "--optionsId=" + options.getOptionsId(),
               "--listArgs=item1",
               "--listArgs=item2",
-              "--boolArg=true"));
+              "--boolArg=true",
+              "--extraArg=true"));
     }
 
     @Test

@@ -34,6 +34,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -253,6 +254,12 @@ public class TestPipeline extends Pipeline implements TestRule {
   /** System property used to set {@link TestPipelineOptions}. */
   public static final String PROPERTY_BEAM_TEST_PIPELINE_OPTIONS = "beamTestPipelineOptions";
 
+  /** System property used to pass to pipeline main function directly without going through
+   * {@link TestPipelineOptions}. This can potentially avoid incorrect format interpreted by
+   * {@link TestPipeline#convertToArgs(PipelineOptions)}
+   */
+  public static final String PROPERTY_BEAM_TEST_EXTRA_OPTIONS = "beamTestExtraOptions";
+
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
 
   private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
@@ -442,39 +449,46 @@ public class TestPipeline extends Pipeline implements TestRule {
     return "TestPipeline#" + options.as(ApplicationNameOptions.class).getAppName();
   }
 
-  /** Creates {@link PipelineOptions} for testing. */
-  public static PipelineOptions testingPipelineOptions() {
+  private static String[] parseOptionsFromSysProperty(String propertyName) {
     try {
       @Nullable
-      String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
-
-      PipelineOptions options =
-          Strings.isNullOrEmpty(beamTestPipelineOptions)
-              ? PipelineOptionsFactory.create()
-              : PipelineOptionsFactory.fromArgs(
-              MAPPER.readValue(beamTestPipelineOptions, String[].class))
-              .as(TestPipelineOptions.class);
-
-      // If no options were specified, set some reasonable defaults
-      if (Strings.isNullOrEmpty(beamTestPipelineOptions)) {
-        // If there are no provided options, check to see if a dummy runner should be used.
-        String useDefaultDummy = System.getProperty(PROPERTY_USE_DEFAULT_DUMMY_RUNNER);
-        if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
-          options.setRunner(CrashingRunner.class);
-        }
-      }
-      options.setStableUniqueNames(CheckEnabled.ERROR);
-
-      FileSystems.setDefaultPipelineOptions(options);
-      return options;
+      String beamTestPipelineOptions = System.getProperty(propertyName);
+      return Strings.isNullOrEmpty(beamTestPipelineOptions)
+          ? null
+          : MAPPER.readValue(beamTestPipelineOptions, String[].class);
     } catch (IOException e) {
       throw new RuntimeException(
           "Unable to instantiate test options from system property "
-              + PROPERTY_BEAM_TEST_PIPELINE_OPTIONS
+              + propertyName
               + ":"
-              + System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS),
+              + System.getProperty(propertyName),
           e);
     }
+  }
+
+  /** Creates {@link PipelineOptions} for testing. */
+  public static PipelineOptions testingPipelineOptions() {
+    @Nullable
+    String[] testOptionList = parseOptionsFromSysProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
+
+    PipelineOptions options =
+        testOptionList == null || testOptionList.length == 0
+            ? PipelineOptionsFactory.create()
+            : PipelineOptionsFactory.fromArgs(testOptionList)
+                .as(TestPipelineOptions.class);
+
+    // If no options were specified, set some reasonable defaults
+    if (testOptionList == null || testOptionList.length == 0) {
+      // If there are no provided options, check to see if a dummy runner should be used.
+      String useDefaultDummy = System.getProperty(PROPERTY_USE_DEFAULT_DUMMY_RUNNER);
+      if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
+        options.setRunner(CrashingRunner.class);
+      }
+    }
+    options.setStableUniqueNames(CheckEnabled.ERROR);
+
+    FileSystems.setDefaultPipelineOptions(options);
+    return options;
   }
 
   public static String[] convertToArgs(PipelineOptions options) {
@@ -499,6 +513,10 @@ public class TestPipeline extends Pipeline implements TestRule {
         } else {
           optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
         }
+      }
+      String[] extraOptionList = parseOptionsFromSysProperty(PROPERTY_BEAM_TEST_EXTRA_OPTIONS);
+      if (extraOptionList != null && extraOptionList.length != 0) {
+        optArrayList.addAll(Arrays.asList(extraOptionList));
       }
       return optArrayList.toArray(new String[optArrayList.size()]);
     } catch (IOException e) {
