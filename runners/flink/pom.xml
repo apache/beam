@@ -67,6 +67,7 @@
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                    <dependency>org.apache.beam:beam-runners-core-java</dependency>
                   </dependenciesToScan>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
@@ -100,6 +101,7 @@
                   <failIfNoTests>true</failIfNoTests>
                   <dependenciesToScan>
                     <dependency>org.apache.beam:beam-sdks-java-core</dependency>
+                    <dependency>org.apache.beam:beam-runners-core-java</dependency>
                   </dependenciesToScan>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
