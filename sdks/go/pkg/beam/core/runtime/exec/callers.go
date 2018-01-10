@@ -27,13 +27,12 @@ import (
 // TODO(herohde) 1/4/2018: Potential targets for type-specialization include simple predicate,
 // dofn and combiner forms.
 //
-//   (1) func(X) bool
-//   (2) func(X) error
-//   (3) func(X, X) X
-//   (4) func(ctx?, X) (X, error?)
-//   (5) func(ctx?, X, func(X)) (error?)
+//   (1) func(X) bool                    // unary predicate
+//   (2) func(X, X) X                    // binary combiner merge
+//   (3) func(ctx?, X) (X, error?)       // simple DoFn with direct output
+//   (4) func(ctx?, X, func(X)) (error?) // simple DoFn with emitter
 //
-// For now, we just do #3.
+// For now, we just do #2.
 
 func init() {
 	reflectx.RegisterCaller(reflect.TypeOf((*func([]byte, []byte) []byte)(nil)).Elem(), callMakerByteSliceM)
