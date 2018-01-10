@@ -504,6 +504,8 @@ Major or otherwise important releases should have a blog post. Write one if need
 
 Tweet, post on Facebook, LinkedIn, and other platforms. Ask other contributors to do the same.
 
+Also, update [the Wikipedia article on Apache Beam](https://en.wikipedia.org/wiki/Apache_Beam).
+
 ### Checklist to declare the process completed
 
 1. Release announced on the user@ mailing list.
@@ -511,6 +513,7 @@ Tweet, post on Facebook, LinkedIn, and other platforms. Ask other contributors t
 1. Release recorded in reporter.apache.org.
 1. Release announced on social media.
 1. Completion declared on the dev@ mailing list.
+1. Update Wikipedia Apache Beam article.
 
 **********
 
