@@ -454,7 +454,7 @@ public class TestPipeline extends Pipeline implements TestRule {
       @Nullable
       String beamTestPipelineOptions = System.getProperty(propertyName);
       return Strings.isNullOrEmpty(beamTestPipelineOptions)
-          ? null
+          ? new String[0]
           : MAPPER.readValue(beamTestPipelineOptions, String[].class);
     } catch (IOException e) {
       throw new RuntimeException(
@@ -468,17 +468,15 @@ public class TestPipeline extends Pipeline implements TestRule {
 
   /** Creates {@link PipelineOptions} for testing. */
   public static PipelineOptions testingPipelineOptions() {
-    @Nullable
     String[] testOptionList = parseOptionsFromSysProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS);
 
-    PipelineOptions options =
-        testOptionList == null || testOptionList.length == 0
-            ? PipelineOptionsFactory.create()
-            : PipelineOptionsFactory.fromArgs(testOptionList)
-                .as(TestPipelineOptions.class);
+    PipelineOptions options = testOptionList.length == 0
+        ? PipelineOptionsFactory.create()
+        : PipelineOptionsFactory.fromArgs(testOptionList)
+            .as(TestPipelineOptions.class);
 
     // If no options were specified, set some reasonable defaults
-    if (testOptionList == null || testOptionList.length == 0) {
+    if (testOptionList.length == 0) {
       // If there are no provided options, check to see if a dummy runner should be used.
       String useDefaultDummy = System.getProperty(PROPERTY_USE_DEFAULT_DUMMY_RUNNER);
       if (!Strings.isNullOrEmpty(useDefaultDummy) && Boolean.valueOf(useDefaultDummy)) {
@@ -515,7 +513,7 @@ public class TestPipeline extends Pipeline implements TestRule {
         }
       }
       String[] extraOptionList = parseOptionsFromSysProperty(PROPERTY_BEAM_TEST_EXTRA_OPTIONS);
-      if (extraOptionList != null && extraOptionList.length != 0) {
+      if (extraOptionList.length != 0) {
         optArrayList.addAll(Arrays.asList(extraOptionList));
       }
       return optArrayList.toArray(new String[optArrayList.size()]);
