@@ -32,6 +32,7 @@ import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.runners.flink.metrics.DoFnRunnerWithMetricsUpdate;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -205,6 +206,7 @@ public class FlinkStatefulDoFnFunction<K, V, OutputT>
 
   @Override
   public void close() throws Exception {
+    MetricsPusher.getInstance().pushMetrics();
     doFnInvoker.invokeTeardown();
   }
 

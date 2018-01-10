@@ -81,36 +81,39 @@ public class MetricsPusher implements Serializable {
     instance.scheduledFuture.cancel(true);
   }
 
+  public void pushMetrics(){
+    try {
+      // merge metrics
+      MetricResults metricResults =
+          asAttemptedOnlyMetricResults(instance.metricsContainerStepMap);
+      MetricQueryResults metricQueryResults =
+          metricResults.queryMetrics(MetricsFilter.builder().build());
+      if ((Iterables.size(metricQueryResults.distributions()) != 0)
+          || (Iterables.size(metricQueryResults.gauges()) != 0)
+          || (Iterables.size(metricQueryResults.counters()) != 0)) {
+        instance.metricsSink.writeMetrics(metricQueryResults);
+      }
+      if (instance.pipelineResult != null) {
+        PipelineResult.State pipelineState = instance.pipelineResult.getState();
+        if (pipelineState.isTerminal()) {
+          stop();
+        }
+      }
+
+    } catch (Exception e) {
+      MetricsPushException metricsPushException = new MetricsPushException(e);
+      metricsPushException.printStackTrace();
+    }
+  }
   private static class PushingThread implements Runnable {
 
     @Override
     public void run() {
-      try {
-        // merge metrics
-        MetricResults metricResults =
-            asAttemptedOnlyMetricResults(instance.metricsContainerStepMap);
-        MetricQueryResults metricQueryResults =
-            metricResults.queryMetrics(MetricsFilter.builder().build());
-        if ((Iterables.size(metricQueryResults.distributions()) != 0)
-            || (Iterables.size(metricQueryResults.gauges()) != 0)
-            || (Iterables.size(metricQueryResults.counters()) != 0)) {
-          instance.metricsSink.writeMetrics(metricQueryResults);
-        }
-        if (instance.pipelineResult != null) {
-          PipelineResult.State pipelineState = instance.pipelineResult.getState();
-          if (pipelineState.isTerminal()) {
-            stop();
-          }
-        }
-
-      } catch (Exception e) {
-        MetricsPushException metricsPushException = new MetricsPushException(e);
-        metricsPushException.printStackTrace();
-      }
+      instance.pushMetrics();
     }
   }
-  private static class MetricsPushException extends Exception{
 
+  private static class MetricsPushException extends Exception{
     MetricsPushException(Throwable cause) {
       super(cause);
     }
