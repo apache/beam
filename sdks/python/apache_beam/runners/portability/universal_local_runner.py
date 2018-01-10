@@ -192,6 +192,7 @@ class PipelineResult(runner.PipelineResult):
     if self._state != runner.PipelineState.DONE:
       raise RuntimeError(
           "Pipeline %s failed in state %s." % (self._job_id, self._state))
+    return self._state
 
 
 class BeamJob(threading.Thread):

@@ -20,18 +20,17 @@ package org.apache.beam.sdk.io.kinesis;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.internal.StaticCredentialsProvider;
+import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.cloudwatch.AmazonCloudWatch;
-import com.amazonaws.services.cloudwatch.AmazonCloudWatchClient;
+import com.amazonaws.services.cloudwatch.AmazonCloudWatchClientBuilder;
 import com.amazonaws.services.kinesis.AmazonKinesis;
-import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.AmazonKinesisClientBuilder;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.google.auto.value.AutoValue;
-
 import javax.annotation.Nullable;
-
 import org.apache.beam.sdk.annotations.Experimental;
 import org.apache.beam.sdk.io.BoundedReadFromUnboundedSource;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -199,12 +198,26 @@ public final class KinesisIO {
     }
 
     /**
-     * Specify credential details and region to be used to read from Kinesis.
-     * If you need more sophisticated credential protocol, then you should look at
-     * {@link Read#withAWSClientsProvider(AWSClientsProvider)}.
+     * Specify credential details and region to be used to read from Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
      */
     public Read withAWSClientsProvider(String awsAccessKey, String awsSecretKey, Regions region) {
-      return withAWSClientsProvider(new BasicKinesisProvider(awsAccessKey, awsSecretKey, region));
+      return withAWSClientsProvider(awsAccessKey, awsSecretKey, region, null);
+    }
+
+    /**
+     * Specify credential details and region to be used to read from Kinesis. If you need more
+     * sophisticated credential protocol, then you should look at {@link
+     * Read#withAWSClientsProvider(AWSClientsProvider)}.
+     *
+     * <p>The {@code serviceEndpoint} sets an alternative service host. This is useful to execute
+     * the tests with a kinesis service emulator.
+     */
+    public Read withAWSClientsProvider(
+        String awsAccessKey, String awsSecretKey, Regions region, String serviceEndpoint) {
+      return withAWSClientsProvider(
+          new BasicKinesisProvider(awsAccessKey, awsSecretKey, region, serviceEndpoint));
     }
 
     /** Specifies to read at most a given number of records. */
@@ -251,40 +264,50 @@ public final class KinesisIO {
     }
 
     private static final class BasicKinesisProvider implements AWSClientsProvider {
-
       private final String accessKey;
       private final String secretKey;
       private final Regions region;
+      @Nullable private final String serviceEndpoint;
 
-      private BasicKinesisProvider(String accessKey, String secretKey, Regions region) {
+      private BasicKinesisProvider(
+          String accessKey, String secretKey, Regions region, @Nullable String serviceEndpoint) {
         checkArgument(accessKey != null, "accessKey can not be null");
         checkArgument(secretKey != null, "secretKey can not be null");
         checkArgument(region != null, "region can not be null");
         this.accessKey = accessKey;
         this.secretKey = secretKey;
         this.region = region;
+        this.serviceEndpoint = serviceEndpoint;
       }
 
       private AWSCredentialsProvider getCredentialsProvider() {
-        return new StaticCredentialsProvider(new BasicAWSCredentials(
-            accessKey,
-            secretKey
-        ));
-
+        return new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessKey, secretKey));
       }
 
       @Override
       public AmazonKinesis getKinesisClient() {
-        AmazonKinesisClient client = new AmazonKinesisClient(getCredentialsProvider());
-        client.withRegion(region);
-        return client;
+        AmazonKinesisClientBuilder clientBuilder =
+            AmazonKinesisClientBuilder.standard().withCredentials(getCredentialsProvider());
+        if (serviceEndpoint == null) {
+          clientBuilder.withRegion(region);
+        } else {
+          clientBuilder.withEndpointConfiguration(
+              new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, region.getName()));
+        }
+        return clientBuilder.build();
       }
 
       @Override
       public AmazonCloudWatch getCloudWatchClient() {
-        AmazonCloudWatchClient client = new AmazonCloudWatchClient(getCredentialsProvider());
-        client.withRegion(region);
-        return client;
+        AmazonCloudWatchClientBuilder clientBuilder =
+            AmazonCloudWatchClientBuilder.standard().withCredentials(getCredentialsProvider());
+        if (serviceEndpoint == null) {
+          clientBuilder.withRegion(region);
+        } else {
+          clientBuilder.withEndpointConfiguration(
+              new AwsClientBuilder.EndpointConfiguration(serviceEndpoint, region.getName()));
+        }
+        return clientBuilder.build();
       }
     }
   }
