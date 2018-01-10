@@ -19,24 +19,15 @@ package org.apache.beam.sdk.testing;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.TreeNode;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.Maps;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.Pipeline;
@@ -55,7 +46,6 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 
 /**
  * Handler allowing to execute pipeline in tests.
@@ -212,9 +202,6 @@ public abstract class TestPipelineHandler<T> extends Pipeline {
 
   static final String PROPERTY_USE_DEFAULT_DUMMY_RUNNER = "beamUseDummyRunner";
 
-  private static final ObjectMapper MAPPER = new ObjectMapper().registerModules(
-      ObjectMapper.findModules(ReflectHelpers.findClassLoader()));
-
   @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
   private Optional<? extends PipelineRunEnforcement> enforcement = Optional.absent();
 
@@ -301,8 +288,8 @@ public abstract class TestPipelineHandler<T> extends Pipeline {
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
-      PipelineOptions updatedOptions =
-          MAPPER.convertValue(MAPPER.valueToTree(options), PipelineOptions.class);
+      // todo: serialization shouldn't be needed
+      PipelineOptions updatedOptions = Jsons.convertOptions(options);
       updatedOptions
           .as(TestValueProviderOptions.class)
           .setProviderRuntimeValues(StaticValueProvider.of(providerRuntimeValues));
@@ -403,7 +390,9 @@ public abstract class TestPipelineHandler<T> extends Pipeline {
           Strings.isNullOrEmpty(beamTestPipelineOptions)
               ? PipelineOptionsFactory.create()
               : PipelineOptionsFactory.fromArgs(
-              MAPPER.readValue(beamTestPipelineOptions, String[].class))
+              Options.isParseable(beamTestPipelineOptions)
+                  ? Options.readOptions(beamTestPipelineOptions) :
+                  Jsons.readOptions(beamTestPipelineOptions))
               .as(TestPipelineOptions.class);
 
       // If no options were specified, set some reasonable defaults
@@ -418,39 +407,19 @@ public abstract class TestPipelineHandler<T> extends Pipeline {
 
       FileSystems.setDefaultPipelineOptions(options);
       return options;
-    } catch (IOException e) {
+    } catch (IllegalArgumentException e) {
       throw new RuntimeException(
           "Unable to instantiate test options from system property "
               + PROPERTY_BEAM_TEST_PIPELINE_OPTIONS
               + ":"
               + System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS),
-          e);
+          e.getCause());
     }
   }
 
-  public static String[] convertToArgs(PipelineOptions options) {
-    try {
-      byte[] opts = MAPPER.writeValueAsBytes(options);
-
-      JsonParser jsonParser = MAPPER.getFactory().createParser(opts);
-      TreeNode node = jsonParser.readValueAsTree();
-      ObjectNode optsNode = (ObjectNode) node.get("options");
-      ArrayList<String> optArrayList = new ArrayList<>();
-      Iterator<Entry<String, JsonNode>> entries = optsNode.fields();
-      while (entries.hasNext()) {
-        Entry<String, JsonNode> entry = entries.next();
-        if (entry.getValue().isNull()) {
-          continue;
-        } else if (entry.getValue().isTextual()) {
-          optArrayList.add("--" + entry.getKey() + "=" + entry.getValue().asText());
-        } else {
-          optArrayList.add("--" + entry.getKey() + "=" + entry.getValue());
-        }
-      }
-      return optArrayList.toArray(new String[optArrayList.size()]);
-    } catch (IOException e) {
-      throw new IllegalStateException(e);
-    }
+  public static String[] convertToArgs(final PipelineOptions options) {
+    // todo: support Options.toArgs, no real reason to use json here
+    return Jsons.toArgs(options);
   }
 
   /**
