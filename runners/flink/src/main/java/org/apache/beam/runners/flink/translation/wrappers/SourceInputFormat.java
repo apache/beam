@@ -20,6 +20,7 @@ package org.apache.beam.runners.flink.translation.wrappers;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.flink.metrics.FlinkMetricContainer;
 import org.apache.beam.runners.flink.metrics.ReaderInvocationUtil;
 import org.apache.beam.sdk.io.BoundedSource;
@@ -158,6 +159,7 @@ public class SourceInputFormat<T>
 
   @Override
   public void close() throws IOException {
+    MetricsPusher.getInstance().pushMetrics();
     // TODO null check can be removed once FLINK-3796 is fixed
     if (reader != null) {
       reader.close();
