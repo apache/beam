@@ -79,17 +79,7 @@ public class BeamFnDataGrpcMultiplexer {
   }
 
   private SettableFuture<DataBytesReceiver> receiverFuture(LogicalEndpoint endpoint) {
-    SettableFuture<DataBytesReceiver> future = consumers.get(endpoint);
-    if (future == null) {
-      future = SettableFuture.create();
-      SettableFuture<DataBytesReceiver> present =
-          consumers.putIfAbsent(endpoint, future);
-      if (present != null) {
-        // This call lost the race; use the existing future
-        future = present;
-      }
-    }
-    return future;
+    return consumers.computeIfAbsent(endpoint, (LogicalEndpoint unused) -> SettableFuture.create());
   }
 
   public void registerReceiver(LogicalEndpoint inputLocation, DataBytesReceiver dataBytesReceiver) {
