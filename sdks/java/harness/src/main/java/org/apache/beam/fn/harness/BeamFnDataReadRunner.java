@@ -20,7 +20,6 @@ package org.apache.beam.fn.harness;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
@@ -44,6 +43,7 @@ import org.apache.beam.runners.core.construction.RehydratedComponents;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
+import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
@@ -60,17 +60,17 @@ import org.slf4j.LoggerFactory;
 public class BeamFnDataReadRunner<OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataReadRunner.class);
-  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-  private static final String URN = "urn:org.apache.beam:source:runner:0.1";
 
-  /** A registrar which provides a factory to handle reading from the Fn Api Data Plane. */
+  /**
+   * A registrar which provides a factory to handle reading from the Fn Api Data
+   * Plane.
+   */
   @AutoService(PTransformRunnerFactory.Registrar.class)
-  public static class Registrar implements
-      PTransformRunnerFactory.Registrar {
+  public static class Registrar implements PTransformRunnerFactory.Registrar {
 
     @Override
     public Map<String, PTransformRunnerFactory> getPTransformRunnerFactories() {
-      return ImmutableMap.of(URN, new Factory());
+      return ImmutableMap.of(RemoteGrpcPortRead.URN, new Factory());
     }
   }
 
@@ -105,7 +105,7 @@ public class BeamFnDataReadRunner<OutputT> {
               getOnlyElement(pTransform.getOutputsMap().values()));
 
       BeamFnDataReadRunner<OutputT> runner = new BeamFnDataReadRunner<>(
-          pTransform.getSpec(),
+          pTransform,
           processBundleInstructionId,
           target,
           coderSpec,
@@ -128,7 +128,7 @@ public class BeamFnDataReadRunner<OutputT> {
   private CompletableFuture<Void> readFuture;
 
   BeamFnDataReadRunner(
-      RunnerApi.FunctionSpec functionSpec,
+      RunnerApi.PTransform grpcReadNode,
       Supplier<String> processBundleInstructionIdSupplier,
       BeamFnApi.Target inputTarget,
       RunnerApi.Coder coderSpec,
@@ -137,7 +137,7 @@ public class BeamFnDataReadRunner<OutputT> {
       Collection<FnDataReceiver<WindowedValue<OutputT>>> consumers)
           throws IOException {
     this.apiServiceDescriptor =
-        BeamFnApi.RemoteGrpcPort.parseFrom(functionSpec.getPayload()).getApiServiceDescriptor();
+        RemoteGrpcPortRead.fromPTransform(grpcReadNode).getPort().getApiServiceDescriptor();
     this.inputTarget = inputTarget;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.beamFnDataClientFactory = beamFnDataClientFactory;
