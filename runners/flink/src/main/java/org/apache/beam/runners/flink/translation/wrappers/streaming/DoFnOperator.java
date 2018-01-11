@@ -314,7 +314,7 @@ public class DoFnOperator<InputT, OutputT>
 
       doFnRunner = DoFnRunners.lateDataDroppingRunner(
           (DoFnRunner) doFnRunner,
-          stepContext,
+          timerInternals,
           windowingStrategy);
     } else if (keyCoder != null) {
       // It is a stateful DoFn
