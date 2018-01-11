@@ -57,7 +57,6 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
-import org.apache.beam.sdk.fn.data.RemoteGrpcPortRead;
 import org.apache.beam.sdk.fn.test.TestExecutors;
 import org.apache.beam.sdk.fn.test.TestExecutors.TestExecutorService;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -80,11 +79,14 @@ public class BeamFnDataReadRunnerTest {
 
   private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
       .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()).build();
+  private static final RunnerApi.FunctionSpec FUNCTION_SPEC = RunnerApi.FunctionSpec.newBuilder()
+      .setPayload(PORT_SPEC.toByteString()).build();
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
   private static final String CODER_SPEC_ID = "string-coder-id";
   private static final RunnerApi.Coder CODER_SPEC;
   private static final RunnerApi.Components COMPONENTS;
+  private static final String URN = "urn:org.apache.beam:source:runner:0.1";
 
   static {
     try {
@@ -117,18 +119,25 @@ public class BeamFnDataReadRunnerTest {
   @Test
   public void testCreatingAndProcessingBeamFnDataReadRunner() throws Exception {
     String bundleId = "57";
+    String outputId = "101";
 
     List<WindowedValue<String>> outputValues = new ArrayList<>();
 
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
-    String localOutputId = "outputPC";
-    consumers.put(localOutputId,
+    consumers.put("outputPC",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) outputValues::add);
     List<ThrowingRunnable> startFunctions = new ArrayList<>();
     List<ThrowingRunnable> finishFunctions = new ArrayList<>();
 
-    RunnerApi.PTransform pTransform =
-        RemoteGrpcPortRead.readFromPort(PORT_SPEC, localOutputId).toPTransform();
+    RunnerApi.FunctionSpec functionSpec = RunnerApi.FunctionSpec.newBuilder()
+        .setUrn("urn:org.apache.beam:source:runner:0.1")
+        .setPayload(PORT_SPEC.toByteString())
+        .build();
+
+    RunnerApi.PTransform pTransform = RunnerApi.PTransform.newBuilder()
+        .setSpec(functionSpec)
+        .putOutputs(outputId, "outputPC")
+        .build();
 
     new BeamFnDataReadRunner.Factory<String>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
@@ -137,7 +146,7 @@ public class BeamFnDataReadRunnerTest {
         "pTransformId",
         pTransform,
         Suppliers.ofInstance(bundleId)::get,
-        ImmutableMap.of(localOutputId,
+        ImmutableMap.of("outputPC",
             RunnerApi.PCollection.newBuilder().setCoderId(CODER_SPEC_ID).build()),
         COMPONENTS.getCodersMap(),
         COMPONENTS.getWindowingStrategiesMap(),
@@ -155,7 +164,7 @@ public class BeamFnDataReadRunnerTest {
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId, BeamFnApi.Target.newBuilder()
             .setPrimitiveTransformReference("pTransformId")
-            .setName(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()))
+            .setName(outputId)
             .build())),
         eq(CODER),
         consumerCaptor.capture());
@@ -164,7 +173,7 @@ public class BeamFnDataReadRunnerTest {
     assertThat(outputValues, contains(valueInGlobalWindow("TestValue")));
     outputValues.clear();
 
-    assertThat(consumers.keySet(), containsInAnyOrder(localOutputId));
+    assertThat(consumers.keySet(), containsInAnyOrder("outputPC"));
 
     completionFuture.complete(null);
     Iterables.getOnlyElement(finishFunctions).run();
@@ -186,7 +195,7 @@ public class BeamFnDataReadRunnerTest {
 
     AtomicReference<String> bundleId = new AtomicReference<>("0");
     BeamFnDataReadRunner<String> readRunner = new BeamFnDataReadRunner<>(
-        RemoteGrpcPortRead.readFromPort(PORT_SPEC, "localOutput").toPTransform(),
+        FUNCTION_SPEC,
         bundleId::get,
         INPUT_TARGET,
         CODER_SPEC,
@@ -263,9 +272,7 @@ public class BeamFnDataReadRunnerTest {
     for (Registrar registrar :
         ServiceLoader.load(Registrar.class)) {
       if (registrar instanceof BeamFnDataReadRunner.Registrar) {
-        assertThat(
-            registrar.getPTransformRunnerFactories(),
-            IsMapContaining.hasKey(RemoteGrpcPortRead.URN));
+        assertThat(registrar.getPTransformRunnerFactories(), IsMapContaining.hasKey(URN));
         return;
       }
     }
