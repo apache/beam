@@ -23,6 +23,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.DoFnRunner;
+import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.GroupAlsoByWindowViaWindowSetNewDoFn;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.KeyedWorkItems;
@@ -76,6 +78,22 @@ public class WindowDoFnOperator<K, InputT, OutputT>
 
     this.systemReduceFn = systemReduceFn;
 
+  }
+
+  @Override
+  protected DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> createWrappingDoFnRunner(
+      DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner) {
+    // When the doFn is this, we know it came from WindowDoFnOperator and
+    //   InputT = KeyedWorkItem<K, V>
+    //   OutputT = KV<K, V>
+    //
+    // for some K, V
+
+
+    return DoFnRunners.lateDataDroppingRunner(
+        (DoFnRunner) doFnRunner,
+        timerInternals,
+        windowingStrategy);
   }
 
   @Override
