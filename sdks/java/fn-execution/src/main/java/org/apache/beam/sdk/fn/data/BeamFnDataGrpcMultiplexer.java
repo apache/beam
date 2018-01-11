@@ -19,13 +19,15 @@ package org.apache.beam.sdk.fn.data;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
-import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.stub.StreamObserver;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.slf4j.Logger;
@@ -50,7 +52,7 @@ public class BeamFnDataGrpcMultiplexer {
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
   private final ConcurrentMap<
-            LogicalEndpoint, SettableFuture<DataBytesReceiver>>
+            LogicalEndpoint, CompletableFuture<Consumer<BeamFnApi.Elements.Data>>>
       consumers;
 
   public BeamFnDataGrpcMultiplexer(
@@ -65,6 +67,7 @@ public class BeamFnDataGrpcMultiplexer {
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
+        .omitNullValues()
         .add("apiServiceDescriptor", apiServiceDescriptor)
         .add("consumers", consumers)
         .toString();
@@ -78,24 +81,26 @@ public class BeamFnDataGrpcMultiplexer {
     return outboundObserver;
   }
 
-  private SettableFuture<DataBytesReceiver> receiverFuture(LogicalEndpoint endpoint) {
-    return consumers.computeIfAbsent(endpoint, (LogicalEndpoint unused) -> SettableFuture.create());
+  private CompletableFuture<Consumer<Data>> receiverFuture(LogicalEndpoint endpoint) {
+    return consumers.computeIfAbsent(
+        endpoint, (LogicalEndpoint unused) -> new CompletableFuture<>());
   }
 
-  public void registerReceiver(LogicalEndpoint inputLocation, DataBytesReceiver dataBytesReceiver) {
-    receiverFuture(inputLocation).set(dataBytesReceiver);
+  public void registerConsumer(
+      LogicalEndpoint inputLocation, Consumer<BeamFnApi.Elements.Data> dataBytesReceiver) {
+    receiverFuture(inputLocation).complete(dataBytesReceiver);
   }
 
   @VisibleForTesting
-  boolean hasReceiver(LogicalEndpoint outputLocation) {
+  boolean hasConsumer(LogicalEndpoint outputLocation) {
     return consumers.containsKey(outputLocation);
   }
 
   /**
-   * A multiplexing {@link StreamObserver} that selects the inbound {@link DataBytesReceiver} to
+   * A multiplexing {@link StreamObserver} that selects the inbound {@link Consumer} to
    * pass the elements to.
    *
-   * <p>The inbound observer blocks until the {@link DataBytesReceiver} is bound allowing for the
+   * <p>The inbound observer blocks until the {@link Consumer} is bound allowing for the
    * sending harness to initiate transmitting data without needing for the receiving harness to
    * signal that it is ready to consume that data.
    */
@@ -106,12 +111,12 @@ public class BeamFnDataGrpcMultiplexer {
         try {
           LogicalEndpoint key =
               LogicalEndpoint.of(data.getInstructionReference(), data.getTarget());
-          SettableFuture<DataBytesReceiver> consumer = receiverFuture(key);
+          CompletableFuture<Consumer<BeamFnApi.Elements.Data>> consumer = receiverFuture(key);
           if (!consumer.isDone()) {
             LOG.debug("Received data for key {} without consumer ready. "
                 + "Waiting for consumer to be registered.", key);
           }
-          consumer.get().receive(data);
+          consumer.get().accept(data);
           if (data.getData().isEmpty()) {
             consumers.remove(key);
           }
