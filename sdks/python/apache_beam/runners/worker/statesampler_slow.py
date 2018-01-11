@@ -16,12 +16,13 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
+from apache_beam.utils.counters import CounterName
 
 
 class StateSampler(object):
 
   def __init__(self, sampling_period_ms):
-    self._state_stack = [ScopedState(None, self, None)]
+    self._state_stack = [ScopedState(self, CounterName('unknown'), None)]
     self.state_transition_count = 0
     self.time_since_transition = 0
     self.started = False

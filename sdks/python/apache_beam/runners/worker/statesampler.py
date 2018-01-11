@@ -16,9 +16,11 @@
 #
 
 # This module is experimental. No backwards-compatibility guarantees.
+import threading
 from collections import namedtuple
 
 from apache_beam.utils.counters import Counter
+from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
 try:
@@ -27,6 +29,22 @@ try:
 except ImportError:
   from apache_beam.runners.worker import statesampler_slow as statesampler_impl
   FAST_SAMPLER = False
+
+
+class ExecutionStateSamplers(threading.local):
+  """ Per-thread state sampler. """
+  def __init__(self):
+    super(ExecutionStateSamplers, self).__init__()
+    self._current_sampler = None
+
+  def current_sampler(self):
+    return self._current_sampler
+
+  def set_sampler(self, sampler):
+    self._current_sampler = sampler
+
+
+EXECUTION_STATE_SAMPLERS = ExecutionStateSamplers()
 
 
 StateSamplerInfo = namedtuple(
@@ -49,9 +67,23 @@ class StateSampler(statesampler_impl.StateSampler):
     self.sampling_period_ms = sampling_period_ms
     super(StateSampler, self).__init__(sampling_period_ms)
 
+    # TODO(pabloem) - Remove this once all clients register the
+    # sampler independently.
+    self.register()
+
   def stop_if_still_running(self):
     if self.started and not self.finished:
       self.stop()
+
+  @staticmethod
+  def simple_tracker():
+    sampler = StateSampler('', CounterFactory())
+    sampler.register()
+    return sampler
+
+  def register(self):
+    EXECUTION_STATE_SAMPLERS.set_sampler(self)
+    self._registered = True
 
   def get_info(self):
     """Returns StateSamplerInfo with transition statistics."""

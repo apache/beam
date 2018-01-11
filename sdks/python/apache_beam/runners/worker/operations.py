@@ -32,7 +32,6 @@ from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
 from apache_beam.runners.dataflow.internal.names import PropertyNames
-from apache_beam.runners.worker import logger
 from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
@@ -356,8 +355,6 @@ class DoOperation(Operation):
           fn, args, kwargs, self.side_input_maps, window_fn,
           tagged_receivers=self.tagged_receivers,
           step_name=self.step_name,
-          logging_context=logger.PerThreadLoggingContext(
-              step_name=self.step_name),
           state=state,
           scoped_metrics_container=self.scoped_metrics_container)
       self.dofn_receiver = (self.dofn_runner
