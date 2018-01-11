@@ -23,7 +23,6 @@ import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.appendTimestampT
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.getExpectedHashForLineCount;
 import static org.apache.beam.sdk.io.common.FileBasedIOITHelper.readTestPipelineOptions;
 
-import java.text.ParseException;
 import org.apache.beam.sdk.io.Compression;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.TextIO;
@@ -65,14 +64,14 @@ import org.junit.runners.JUnit4;
 public class TextIOIT {
 
   private static String filenamePrefix;
-  private static Long numberOfTextLines;
+  private static Integer numberOfTextLines;
   private static Compression compressionType;
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws ParseException {
+  public static void setup() {
     IOTestPipelineOptions options = readTestPipelineOptions();
 
     numberOfTextLines = options.getNumberOfRecords();

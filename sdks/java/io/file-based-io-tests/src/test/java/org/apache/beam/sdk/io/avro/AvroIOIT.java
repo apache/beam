@@ -75,7 +75,7 @@ public class AvroIOIT {
       + "}");
 
   private static String filenamePrefix;
-  private static Long numberOfTextLines;
+  private static Integer numberOfTextLines;
 
   @Rule
   public TestPipeline pipeline = TestPipeline.create();
