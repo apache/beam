@@ -218,6 +218,39 @@ public class DoFnOperator<InputT, OutputT>
     return doFn;
   }
 
+  // allow overriding this, for example SplittableDoFnOperator will not create a
+  // stateful DoFn runner because ProcessFn, which is used for executing a Splittable DoFn
+  // doesn't play by the normal DoFn rules and WindowDoFnOperator uses LateDataDroppingDoFnRunner
+  protected DoFnRunner<InputT, OutputT> createWrappingDoFnRunner(
+      DoFnRunner<InputT, OutputT> wrappedRunner) {
+
+    if (keyCoder != null) {
+      StatefulDoFnRunner.CleanupTimer cleanupTimer =
+          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
+              timerInternals, windowingStrategy);
+
+      // we don't know the window type
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
+
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
+          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
+              doFn, keyedStateInternals, windowCoder);
+
+
+      return DoFnRunners.defaultStatefulDoFnRunner(
+          doFn,
+          wrappedRunner,
+          windowingStrategy,
+          cleanupTimer,
+          stateCleaner);
+
+    } else {
+      return doFnRunner;
+    }
+  }
+
   @Override
   public void setup(
       StreamTask<?, ?> containingTask,
@@ -304,41 +337,7 @@ public class DoFnOperator<InputT, OutputT>
         stepContext,
         windowingStrategy);
 
-    if (doFn instanceof GroupAlsoByWindowViaWindowSetNewDoFn) {
-      // When the doFn is this, we know it came from WindowDoFnOperator and
-      //   InputT = KeyedWorkItem<K, V>
-      //   OutputT = KV<K, V>
-      //
-      // for some K, V
-
-
-      doFnRunner = DoFnRunners.lateDataDroppingRunner(
-          (DoFnRunner) doFnRunner,
-          timerInternals,
-          windowingStrategy);
-    } else if (keyCoder != null) {
-      // It is a stateful DoFn
-
-      StatefulDoFnRunner.CleanupTimer cleanupTimer =
-          new StatefulDoFnRunner.TimeInternalsCleanupTimer(
-              stepContext.timerInternals(), windowingStrategy);
-
-      // we don't know the window type
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      Coder windowCoder = windowingStrategy.getWindowFn().windowCoder();
-
-      @SuppressWarnings({"unchecked", "rawtypes"})
-      StatefulDoFnRunner.StateCleaner<?> stateCleaner =
-          new StatefulDoFnRunner.StateInternalsStateCleaner<>(
-              doFn, stepContext.stateInternals(), windowCoder);
-
-      doFnRunner = DoFnRunners.defaultStatefulDoFnRunner(
-          doFn,
-          doFnRunner,
-          windowingStrategy,
-          cleanupTimer,
-          stateCleaner);
-    }
+    doFnRunner = createWrappingDoFnRunner(doFnRunner);
 
     if (options.getEnableMetrics()) {
       doFnRunner = new DoFnRunnerWithMetricsUpdate<>(stepName, doFnRunner, getRuntimeContext());
