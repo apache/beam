@@ -48,7 +48,7 @@ $(document).ready(function() {
                 var _self = this;
 
                 $("div"+_self.selector).each(function() {
-                    if ($(this).prev().is(_self.selector)) {
+                    if ($(this).prev().is("div"+_self.selector)) {
                         return;
                     }
                     $(this).before(_self.navHtml(_self.lookup($(this), [])));
