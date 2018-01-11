@@ -140,8 +140,8 @@ public class UnboundedSourceSystem {
     @Override
     public Map<SystemStreamPartition, String> getOffsetsAfter(
         Map<SystemStreamPartition, String> offsets) {
-      return offsets.entrySet().stream()
-          .collect(Collectors.toMap(Map.Entry::getKey, null));
+      // BEAM checkpoints the next offset so here we just need to return the map itself
+      return offsets;
     }
 
     @Override
@@ -171,12 +171,9 @@ public class UnboundedSourceSystem {
 
     @Override
     public Integer offsetComparator(String offset1, String offset2) {
-      if (offset1 == null) {
-        return offset2 == null ? 0 : -1;
-      } else if (offset2 == null) {
-        return 1;
-      }
-      return Instant.parse(offset1).compareTo(Instant.parse(offset2));
+      // BEAM will fetch the exact offset. So we don't need to compare them.
+      // Return null indicating it's caught up.
+      return null;
     }
   }
 
