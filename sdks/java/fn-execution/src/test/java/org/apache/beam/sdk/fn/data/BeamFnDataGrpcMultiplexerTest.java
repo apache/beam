@@ -32,7 +32,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
-import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements.Data;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.StreamObserverFactory.StreamObserverClientFactory;
 import org.apache.beam.sdk.fn.test.Consumer;
@@ -108,24 +107,20 @@ public class BeamFnDataGrpcMultiplexerTest {
               }
             });
     ExecutorService executorService = Executors.newCachedThreadPool();
-    executorService.submit(new Runnable() {
-      @Override
-      public void run() {
-        // Purposefully sleep to simulate a delay in a consumer connecting.
-        Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
-        multiplexer.registerReceiver(OUTPUT_LOCATION, new DataBytesReceiver() {
+    executorService.submit(
+        new Runnable() {
           @Override
-          public void receive(Data data) {
-            inboundValues.add(data);
+          public void run() {
+            // Purposefully sleep to simulate a delay in a consumer connecting.
+            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+            multiplexer.registerConsumer(OUTPUT_LOCATION, inboundValues::add);
           }
         });
-      }
-    });
     multiplexer.getInboundObserver().onNext(ELEMENTS);
-    assertTrue(multiplexer.hasReceiver(OUTPUT_LOCATION));
+    assertTrue(multiplexer.hasConsumer(OUTPUT_LOCATION));
     // Ensure that when we see a terminal Elements object, we remove the consumer
     multiplexer.getInboundObserver().onNext(TERMINAL_ELEMENTS);
-    assertFalse(multiplexer.hasReceiver(OUTPUT_LOCATION));
+    assertFalse(multiplexer.hasConsumer(OUTPUT_LOCATION));
 
     // Assert that normal and terminal Elements are passed to the consumer
     assertThat(inboundValues, contains(ELEMENTS.getData(0), TERMINAL_ELEMENTS.getData(0)));
