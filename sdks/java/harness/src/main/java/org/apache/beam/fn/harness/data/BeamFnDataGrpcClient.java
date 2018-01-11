@@ -88,7 +88,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
 
     CompletableFuture<Void> readFuture = new CompletableFuture<>();
     BeamFnDataGrpcMultiplexer client = getClientFor(apiServiceDescriptor);
-    client.registerReceiver(
+    client.registerConsumer(
         inputLocation, new BeamFnDataInboundObserver<>(coder, consumer, readFuture));
     return readFuture;
   }
