@@ -62,7 +62,7 @@ RUN \
     pip install "proto-google-cloud-datastore-v1 == 0.90.4" && \
     pip install "googledatastore == 7.0.1" && \
     pip install "google-cloud-pubsub == 0.26.0" && \
-    pip install "google-cloud-bigquery == 0.25.0" && \
+    pip install "google-cloud-bigquery == 0.29.0" && \
     # Optional packages
     pip install "cython == 0.27.2" && \
     pip install "guppy == 0.1.10" && \
