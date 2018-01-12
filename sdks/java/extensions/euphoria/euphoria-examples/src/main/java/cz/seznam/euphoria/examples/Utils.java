@@ -24,6 +24,12 @@ import cz.seznam.euphoria.hbase.HBaseSource;
 import cz.seznam.euphoria.kafka.KafkaSink;
 import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 import cz.seznam.euphoria.shadow.com.google.common.base.Strings;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
+import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization.KeyValueDeserializer;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -37,11 +43,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.hbase.Cell;
-import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
-import org.apache.hadoop.hbase.mapreduce.KeyValueSerialization.KeyValueDeserializer;
 
 /**
  * Various utilities for examples.
@@ -140,10 +141,11 @@ class Utils {
       case "hdfs":
       case "file":
         return DataSinks.mapping(
-            SequenceFileSink.newBuilder(ImmutableBytesWritable.class,  ImmutableBytesWritable.class)
-              .setOutputPath(output.toString())
-              .setConfiguration(conf)
-              .build(),
+            SequenceFileSink
+                .of(ImmutableBytesWritable.class, ImmutableBytesWritable.class)
+                .outputPath(output.toString())
+                .withConfiguration(conf)
+                .build(),
             b -> Pair.of(new ImmutableBytesWritable(), new ImmutableBytesWritable(b)));
       case "kafka":
         return DataSinks.mapping(
