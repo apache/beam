@@ -256,6 +256,7 @@ public class RetryHttpRequestInitializerTest {
    */
   @Test
   public void testIOExceptionHandlerIsInvokedOnTimeout() throws Exception {
+    FastNanoClockAndSleeper fakeClockAndSleeper = new FastNanoClockAndSleeper();
     // Counts the number of calls to execute the HTTP request.
     final AtomicLong executeCount = new AtomicLong();
 
@@ -274,14 +275,15 @@ public class RetryHttpRequestInitializerTest {
           }
         }).build();
 
-    // A sample HTTP request to Google Cloud Storage that uses both default Transport and default
-    // RetryHttpInitializer.
+    // A sample HTTP request to Google Cloud Storage that uses both a default Transport and
+    // effectively a default RetryHttpRequestInitializer (same args as default with fake
+    // clock/sleeper).
     Storage storage = new Storage.Builder(
         transport,
         Transport.getJsonFactory(),
         new RetryHttpRequestInitializer(
-            new FastNanoClockAndSleeper(),
-            new FastNanoClockAndSleeper(),
+            fakeClockAndSleeper,
+            fakeClockAndSleeper,
             Collections.<Integer>emptyList(),
             null)
     ).build();
