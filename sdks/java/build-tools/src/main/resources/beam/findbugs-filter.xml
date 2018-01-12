@@ -114,14 +114,14 @@
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionViewAssert"/>
+    <Class name="org.apache.beam.sdk.testing.PAsserts$PCollectionViewAssert"/>
     <Method name="equals" />
     <Bug pattern="EQ_UNUSUAL"/>
     <!-- Unsupported operation -->
   </Match>
 
   <Match>
-    <Class name="org.apache.beam.sdk.testing.PAssert$PCollectionContentsAssert"/>
+    <Class name="org.apache.beam.sdk.testing.PAsserts$PCollectionContentsAssert"/>
     <Method name="equals" />
     <Bug pattern="EQ_UNUSUAL"/>
     <!-- Unsupported operation -->
