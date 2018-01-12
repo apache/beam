@@ -198,6 +198,10 @@ The Spark Runner can execute Spark pipelines just like a native Spark applicatio
       <span class="o">&lt;</span><span class="n">configuration</span><span class="o">&gt;</span>
         <span class="o">&lt;</span><span class="n">shadedArtifactAttached</span><span class="o">&gt;</span><span class="kc">true</span><span class="o">&lt;/</span><span class="n">shadedArtifactAttached</span><span class="o">&gt;</span>
         <span class="o">&lt;</span><span class="n">shadedClassifierName</span><span class="o">&gt;</span><span class="n">shaded</span><span class="o">&lt;/</span><span class="n">shadedClassifierName</span><span class="o">&gt;</span>
+        <span class="o">&lt;</span><span class="n">transformers</span><span class="o">&gt;</span>
+          <span class="o">&lt;</span><span class="n">transformer</span>
+            <span class="n">implementation</span><span class="o">=</span><span class="s">"org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"</span><span class="o">/&gt;</span>
+        <span class="o">&lt;/</span><span class="n">transformers</span><span class="o">&gt;</span>
       <span class="o">&lt;/</span><span class="n">configuration</span><span class="o">&gt;</span>
     <span class="o">&lt;/</span><span class="n">execution</span><span class="o">&gt;</span>
   <span class="o">&lt;/</span><span class="n">executions</span><span class="o">&gt;</span>
