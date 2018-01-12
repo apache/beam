@@ -231,7 +231,7 @@ public final class ApproximateDistinct {
   /**
    * Implementation of {@link #globally()}.
    *
-   * @param <InputT>
+   * @param <InputT> the type of the elements in the input {@link PCollection}
    */
   @AutoValue
   public abstract static class GloballyDistinct<InputT>
@@ -282,8 +282,8 @@ public final class ApproximateDistinct {
   /**
    * Implementation of {@link #perKey()}.
    *
-   * @param <K>
-   * @param <V>
+   * @param <K> type of the keys mapping the elements
+   * @param <V> type of the values being combined per key
    */
   @AutoValue
   public abstract static class PerKeyDistinct<K, V>
@@ -360,7 +360,8 @@ public final class ApproximateDistinct {
       try {
         coder.verifyDeterministic();
       } catch (Coder.NonDeterministicException e) {
-        throw new IllegalArgumentException("Coder is not deterministic ! " + e.getMessage(), e);
+        throw new IllegalArgumentException("Coder must be deterministic to perform this sketch."
+                + e.getMessage(), e);
       }
       return new ApproximateDistinctFn<>(12, 0, coder);
     }
