@@ -18,26 +18,30 @@ package beam_test
 import (
 	"testing"
 
-	"github.com/apache/beam/sdks/go/pkg/beam"
-	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/passert"
+	"github.com/apache/beam/sdks/go/pkg/beam/testing/ptest"
 )
 
-func TestJSONCoder(t *testing.T) {
-	tests := []int{43, 12431235, -2, 0, 1}
+type wc struct {
+	K string
+	V int
+}
+
+func TestCreate(t *testing.T) {
+	tests := []struct {
+		values []interface{}
+	}{
+		{[]interface{}{1, 2, 3}},
+		{[]interface{}{"1", "2", "3"}},
+		{[]interface{}{wc{"a", 23}, wc{"b", 42}, wc{"c", 5}}},
+	}
 
 	for _, test := range tests {
-		data, err := beam.JSONEnc(test)
-		if err != nil {
-			t.Fatalf("Failed to encode %v: %v", tests, err)
-		}
-		decoded, err := beam.JSONDec(reflectx.Int, data)
-		if err != nil {
-			t.Fatalf("Failed to decode: %v", err)
-		}
-		actual := decoded.(int)
+		p, s, c := ptest.Create(test.values)
+		passert.Equals(s, c, test.values...)
 
-		if test != actual {
-			t.Errorf("Corrupt coding: %v, want %v", actual, test)
+		if err := ptest.Run(p); err != nil {
+			t.Errorf("beam.Create(%v) failed: %v", test.values, err)
 		}
 	}
 }
