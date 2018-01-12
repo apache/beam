@@ -80,11 +80,11 @@ type filterFn struct {
 	// Include indicates whether to include or exclude elements that satisfy the predicate.
 	Include bool `json:"include"`
 
-	fn reflectx.Caller1x1
+	fn reflectx.Func1x1
 }
 
 func (f *filterFn) Setup() {
-	f.fn = reflectx.MakeCaller1x1(f.Predicate.Fn.Interface())
+	f.fn = reflectx.MakeFunc1x1(f.Predicate.Fn.Interface())
 }
 
 func (f *filterFn) ProcessElement(elm beam.T, emit func(beam.T)) {

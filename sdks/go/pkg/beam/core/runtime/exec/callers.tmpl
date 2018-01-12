@@ -34,30 +34,34 @@ import (
 
 func init() {
 {{- range $x := .X}}
-    reflectx.RegisterCaller(reflect.TypeOf((*func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})(nil)).Elem(), callMaker{{$x.Name}}M)
+    reflectx.RegisterFunc(reflect.TypeOf((*func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})(nil)).Elem(), funcMaker{{$x.Name}}M)
 {{- end}}
 }
 
 {{range $x := .X}}
-type native{{$x.Name}}MCaller struct {
+type native{{$x.Name}}MFunc struct {
 	fn    func ({{$x.Type}}, {{$x.Type}}){{$x.Type}}
 }
 
-func callMaker{{$x.Name}}M(fn interface{}) reflectx.Caller {
+func funcMaker{{$x.Name}}M(fn interface{}) reflectx.Func {
     f := fn.(func ({{$x.Type}}, {{$x.Type}}){{$x.Type}})
-    return &native{{$x.Name}}MCaller{fn: f}
+    return &native{{$x.Name}}MFunc{fn: f}
 }
 
-func (c *native{{$x.Name}}MCaller) Type() reflect.Type {
+func (c *native{{$x.Name}}MFunc) Name() string {
+    return reflectx.FunctionName(c.fn)
+}
+
+func (c *native{{$x.Name}}MFunc) Type() reflect.Type {
     return reflect.TypeOf(c.fn)
 }
 
-func (c *native{{$x.Name}}MCaller) Call(args []interface{}) []interface{} {
+func (c *native{{$x.Name}}MFunc) Call(args []interface{}) []interface{} {
     out := c.fn(args[0].({{$x.Type}}), args[1].({{$x.Type}}))
     return []interface{}{out}
 }
 
-func (c *native{{$x.Name}}MCaller) Call2x1(a, b interface{}) interface{} {
+func (c *native{{$x.Name}}MFunc) Call2x1(a, b interface{}) interface{} {
     return c.fn(a.({{$x.Type}}), b.({{$x.Type}}))
 }
 {{end}}
