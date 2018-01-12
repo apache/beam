@@ -67,7 +67,7 @@ class CounterName(_CounterName):
                                            origin, output_index, io_target)
 
   def __str__(self):
-    return '%s' % self._str_internal()
+    return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))
 
   def __repr__(self):
     return '<CounterName<%s> at %s>' % (self._str_internal(), hex(id(self)))

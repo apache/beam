@@ -22,8 +22,7 @@ import logging
 import time
 import unittest
 
-from nose.plugins.skip import SkipTest
-
+from apache_beam.runners.worker import statesampler
 from apache_beam.utils.counters import CounterFactory
 from apache_beam.utils.counters import CounterName
 
@@ -32,11 +31,13 @@ class StateSamplerTest(unittest.TestCase):
 
   def setUp(self):
     try:
-      # pylint: disable=global-variable-not-assigned
-      global statesampler
-      from apache_beam.runners.worker import statesampler
+      # pylint: disable=unused-variable
+      from apache_beam.runners.worker import statesampler_fast
+      self.slow_sampler = False
     except ImportError:
-      raise SkipTest('State sampler not compiled.')
+      # pylint: disable=unused-variable
+      from apache_beam.runners.worker import statesampler_slow
+      self.slow_sampler = True
     super(StateSamplerTest, self).setUp()
 
   def test_basic_sampler(self):
@@ -49,13 +50,30 @@ class StateSamplerTest(unittest.TestCase):
     sampler.start()
     with sampler.scoped_state('step1', 'statea'):
       time.sleep(0.1)
+      self.assertEqual(
+          sampler.current_state().name,
+          CounterName(
+              'statea-msecs', step_name='step1', stage_name='basic'))
       with sampler.scoped_state('step1', 'stateb'):
         time.sleep(0.2 / 2)
+        self.assertEqual(
+            sampler.current_state().name,
+            CounterName(
+                'stateb-msecs', step_name='step1', stage_name='basic'))
         with sampler.scoped_state('step1', 'statec'):
           time.sleep(0.3)
+          self.assertEqual(
+              sampler.current_state().name,
+              CounterName(
+                  'statec-msecs', step_name='step1', stage_name='basic'))
         time.sleep(0.2 / 2)
+
     sampler.stop()
     sampler.commit_counters()
+
+    if self.slow_sampler:
+      # The slow sampler does not implement sampling, so we won't test it.
+      return
 
     # Test that sampled state timings are close to their expected values.
     expected_counter_values = {
