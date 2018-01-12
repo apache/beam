@@ -269,6 +269,15 @@
                   </includes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
+                  <classpathDependencyExcludes>
+                    <!-- Avoid [BEAM-3397] errors by reducing the pipeline
+                         options and the copies of filesToStage.
+                         A longer term solution will be to split up the
+                         precommit runs as in [BEAM-2596].
+                     -->
+                     <classpathDependencyExcludes>org.apache.beam:beam-runners-spark</classpathDependencyExcludes>
+                     <classpathDependencyExcludes>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExcludes>
+                  </classpathDependencyExcludes>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
@@ -293,6 +302,15 @@
                   </includes>
                   <parallel>all</parallel>
                   <threadCount>4</threadCount>
+                  <classpathDependencyExcludes>
+                    <!-- Avoid [BEAM-3397] errors by reducing the pipeline
+                         options and the copies of filesToStage.
+                         A longer term solution will be to split up the
+                         precommit runs as in [BEAM-2596].
+                     -->
+                     <classpathDependencyExcludes>org.apache.beam:beam-runners-spark</classpathDependencyExcludes>
+                     <classpathDependencyExcludes>org.apache.beam:beam-runners-flink_2.11</classpathDependencyExcludes>
+                  </classpathDependencyExcludes>
                   <systemPropertyVariables>
                     <beamTestPipelineOptions>
                       [
