@@ -52,6 +52,8 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.PCollectionViews;
+import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 
 /**
@@ -109,6 +111,11 @@ public class PrimitiveParDoSingleFactory<InputT, OutputT>
 
     public List<PCollectionView<?>> getSideInputs() {
       return original.getSideInputs();
+    }
+
+    @Override
+    public Map<TupleTag<?>, PValue> getAdditionalInputs() {
+      return PCollectionViews.toAdditionalInputs(getSideInputs());
     }
 
     @Override
