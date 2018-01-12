@@ -71,8 +71,8 @@ cdef class StateSampler(object):
 
   cdef list scoped_states_by_index
 
-  cdef bint started
-  cdef bint finished
+  cdef public bint started
+  cdef public bint finished
   cdef object sampling_thread
 
   # This lock guards members that are shared between threads, specificaly
@@ -80,22 +80,23 @@ cdef class StateSampler(object):
   cdef pythread.PyThread_type_lock lock
 
   cdef public int64_t state_transition_count
-  cdef int64_t _time_since_transition
+  cdef public int64_t time_since_transition
 
   cdef int32_t current_state_index
 
-  def __init__(self, *args):
-    self._sampling_period_ms = args[0]
+  def __init__(self, sampling_period_ms, *args):
+    self._sampling_period_ms = sampling_period_ms
+    self.started = False
+    self.finished = False
 
     self.lock = pythread.PyThread_allocate_lock()
 
     self.current_state_index = 0
-    self._time_since_transition = 0
+    self.time_since_transition = 0
     self.state_transition_count = 0
     unknown_state = ScopedState(self, 'unknown', self.current_state_index)
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
     self.scoped_states_by_index = [unknown_state]
-    self.finished = False
     pythread.PyThread_release_lock(self.lock)
 
     # Assert that the compiler correctly aligned the current_state field.  This
@@ -127,9 +128,9 @@ cdef class StateSampler(object):
               self.scoped_states_by_index, self.current_state_index))._nsecs
           nsecs_ptr[0] += elapsed_nsecs
           if latest_transition_count != self.state_transition_count:
-            self._time_since_transition = 0
+            self.time_since_transition = 0
             latest_transition_count = self.state_transition_count
-          self._time_since_transition += elapsed_nsecs
+          self.time_since_transition += elapsed_nsecs
           last_nsecs += elapsed_nsecs
         finally:
           pythread.PyThread_release_lock(self.lock)
@@ -140,10 +141,6 @@ cdef class StateSampler(object):
     self.sampling_thread = threading.Thread(target=self.run)
     self.sampling_thread.start()
 
-  @property
-  def time_since_transition(self):
-    return self._time_since_transition
-
   def stop(self):
     assert not self.finished
     pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
@@ -152,10 +149,6 @@ cdef class StateSampler(object):
     # May have to wait up to sampling_period_ms, but the platform-independent
     # pythread doesn't support conditions.
     self.sampling_thread.join()
-
-  def stop_if_still_running(self):
-    if self.started and not self.finished:
-      self.stop()
 
   def current_state(self):
     return self.scoped_states_by_index[self.current_state_index]

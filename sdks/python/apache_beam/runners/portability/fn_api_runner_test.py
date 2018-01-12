@@ -28,9 +28,10 @@ from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
 
-DEFAULT_SAMPLING_PERIOD_MS = 0
 if statesampler.FAST_SAMPLER:
   DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
+else:
+  DEFAULT_SAMPLING_PERIOD_MS = 0
 
 
 # Inherit good model test coverage from

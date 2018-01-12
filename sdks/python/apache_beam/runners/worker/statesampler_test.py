@@ -29,17 +29,6 @@ from apache_beam.utils.counters import CounterName
 
 class StateSamplerTest(unittest.TestCase):
 
-  def setUp(self):
-    try:
-      # pylint: disable=unused-variable
-      from apache_beam.runners.worker import statesampler_fast
-      self.slow_sampler = False
-    except ImportError:
-      # pylint: disable=unused-variable
-      from apache_beam.runners.worker import statesampler_slow
-      self.slow_sampler = True
-    super(StateSamplerTest, self).setUp()
-
   def test_basic_sampler(self):
     # Set up state sampler.
     counter_factory = CounterFactory()
@@ -71,7 +60,7 @@ class StateSamplerTest(unittest.TestCase):
     sampler.stop()
     sampler.commit_counters()
 
-    if self.slow_sampler:
+    if not statesampler.FAST_SAMPLER:
       # The slow sampler does not implement sampling, so we won't test it.
       return
 
