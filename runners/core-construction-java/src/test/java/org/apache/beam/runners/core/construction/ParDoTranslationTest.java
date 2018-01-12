@@ -161,7 +161,7 @@ public class ParDoTranslationTest {
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
-            ParDoTranslation.viewFromProto(
+            PCollectionViewTranslation.viewFromProto(
                 sideInput,
                 view.getTagInternal().getId(),
                 view.getPCollection(),

@@ -57,7 +57,6 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Materializations;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.ParDo.MultiOutput;
@@ -77,7 +76,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.sdk.values.WindowingStrategy;
 
 /** Utilities for interacting with {@link ParDo} instances and {@link ParDoPayload} protos. */
 public class ParDoTranslation {
@@ -323,7 +321,8 @@ public class ParDoTranslation {
               "no input with tag %s",
               sideInputTag);
       views.add(
-          viewFromProto(sideInput, sideInputTag, originalPCollection, parDoProto, components));
+          PCollectionViewTranslation.viewFromProto(sideInput, sideInputTag, originalPCollection,
+              parDoProto, components));
     }
     return views;
   }
@@ -538,42 +537,6 @@ public class ParDoTranslation {
     return builder.build();
   }
 
-  /**
-   * Create a {@link PCollectionView} from a side input spec and an already-deserialized {@link
-   * PCollection} that should be wired up.
-   */
-  public static PCollectionView<?> viewFromProto(
-      SideInput sideInput,
-      String localName,
-      PCollection<?> pCollection,
-      RunnerApi.PTransform parDoTransform,
-      RehydratedComponents components)
-      throws IOException {
-    checkArgument(
-        localName != null,
-        "%s.viewFromProto: localName must not be null",
-        ParDoTranslation.class.getSimpleName());
-    TupleTag<?> tag = new TupleTag<>(localName);
-    WindowMappingFn<?> windowMappingFn = windowMappingFnFromProto(sideInput.getWindowMappingFn());
-    ViewFn<?, ?> viewFn = viewFnFromProto(sideInput.getViewFn());
-
-    WindowingStrategy<?, ?> windowingStrategy = pCollection.getWindowingStrategy().fixDefaults();
-    checkArgument(
-        sideInput.getAccessPattern().getUrn().equals(Materializations.MULTIMAP_MATERIALIZATION_URN),
-        "Unknown View Materialization URN %s",
-        sideInput.getAccessPattern().getUrn());
-
-    PCollectionView<?> view =
-        new RunnerPCollectionView<>(
-            pCollection,
-            (TupleTag) tag,
-            (ViewFn) viewFn,
-            windowMappingFn,
-            windowingStrategy,
-            (Coder) pCollection.getCoder());
-    return view;
-  }
-
   private static SdkFunctionSpec toProto(ViewFn<?, ?> viewFn) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
@@ -602,19 +565,6 @@ public class ParDoTranslation {
     return payload.getSplittable();
   }
 
-  private static ViewFn<?, ?> viewFnFromProto(SdkFunctionSpec viewFn)
-      throws InvalidProtocolBufferException {
-    FunctionSpec spec = viewFn.getSpec();
-    checkArgument(
-        spec.getUrn().equals(CUSTOM_JAVA_VIEW_FN_URN),
-        "Can't deserialize unknown %s type %s",
-        ViewFn.class.getSimpleName(),
-        spec.getUrn());
-    return (ViewFn<?, ?>)
-        SerializableUtils.deserializeFromByteArray(
-            spec.getPayload().toByteArray(), "Custom ViewFn");
-  }
-
   private static SdkFunctionSpec toProto(WindowMappingFn<?> windowMappingFn) {
     return SdkFunctionSpec.newBuilder()
         .setSpec(
@@ -624,19 +574,6 @@ public class ParDoTranslation {
                     ByteString.copyFrom(SerializableUtils.serializeToByteArray(windowMappingFn)))
                 .build())
         .build();
-  }
-
-  private static WindowMappingFn<?> windowMappingFnFromProto(SdkFunctionSpec windowMappingFn)
-      throws InvalidProtocolBufferException {
-    FunctionSpec spec = windowMappingFn.getSpec();
-    checkArgument(
-        spec.getUrn().equals(CUSTOM_JAVA_WINDOW_MAPPING_FN_URN),
-        "Can't deserialize unknown %s type %s",
-        WindowMappingFn.class.getSimpleName(),
-        spec.getUrn());
-    return (WindowMappingFn<?>)
-        SerializableUtils.deserializeFromByteArray(
-            spec.getPayload().toByteArray(), "Custom WinodwMappingFn");
   }
 
   static class RawParDo<InputT, OutputT>
