@@ -78,7 +78,9 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.
 
 			// TODO(herohde) 12/12/2017: allow form conversion on GBK results?
 
-			args[in[i]] = makeIter(param.T, iter).Value()
+			it := makeIter(param.T, iter)
+			it.Init()
+			args[in[i]] = it.Value()
 			i++
 		}
 	}
