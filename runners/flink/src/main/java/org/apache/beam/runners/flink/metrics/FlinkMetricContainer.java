@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
+import org.apache.beam.runners.core.metrics.MetricsHttpSink;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
@@ -75,6 +77,11 @@ public class FlinkMetricContainer {
       }
     }
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
+    // TODO pass parameters with pipelineOptions
+    //I would have prefered creating MetricsPusher from runner-core but I need runn-specific
+    // MetricsContainerStepMap
+    MetricsPusher.createAndStart(
+        metricsAccumulator.getLocalValue(), new MetricsHttpSink("http://127.0.0.1:8080"), 5L);
   }
 
   MetricsContainer getMetricsContainer(String stepName) {
