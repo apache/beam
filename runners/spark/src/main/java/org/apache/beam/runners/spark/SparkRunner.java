@@ -29,7 +29,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.TransformInputs;
-import org.apache.beam.runners.core.metrics.MetricsHttpSink;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.CreateStream;
@@ -259,7 +258,7 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
     //it would have been better to create MetricsPusher from runner-core but we need runn-specific
     // MetricsContainerStepMap
     MetricsPusher.createAndStart(
-        MetricsAccumulator.getInstance().value(), new MetricsHttpSink("http://127.0.0.1:8080"), 5L);
+        MetricsAccumulator.getInstance().value(), opts);
   }
 
   /** Visit the pipeline to determine the translation mode (batch/streaming). */

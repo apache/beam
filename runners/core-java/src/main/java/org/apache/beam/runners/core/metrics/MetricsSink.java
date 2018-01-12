@@ -12,8 +12,10 @@ public abstract class MetricsSink<OutputT> implements Serializable{
   private MetricsSerializer<OutputT> metricsSerializer = provideSerializer();
 
   void writeMetrics(MetricQueryResults metricQueryResults) throws Exception {
-    OutputT serializedMetrics = metricsSerializer.serializeMetrics(metricQueryResults);
-    writeSerializedMetrics(serializedMetrics);
+    if (metricsSerializer != null) {
+      OutputT serializedMetrics = metricsSerializer.serializeMetrics(metricQueryResults);
+      writeSerializedMetrics(serializedMetrics);
+    }
   }
   protected abstract MetricsSerializer<OutputT> provideSerializer();
   protected abstract void writeSerializedMetrics(OutputT metrics) throws Exception;

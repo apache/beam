@@ -8,7 +8,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
 /** HTTP Sink to push metrics in a POST HTTP request. */
-// TODO extract in runner-extension module with DummySink as default impl for SPI dynamic injection
 public class MetricsHttpSink extends MetricsSink<String> {
   private final String url;
 

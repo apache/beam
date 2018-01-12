@@ -392,4 +392,20 @@ public interface PipelineOptions extends HasDisplayData {
       return String.format("%s/%s", info.getName(), info.getVersion()).replace(" ", "_");
     }
   }
+
+  @Description("The beam sink class to which the metrics will be pushed")
+  @Default.String("org.apache.beam.runners.core.metrics.DummyMetricsSink")
+  String getMetricsSink();
+  void setMetricsSink(String metricsSink);
+
+  @Description("The metrics push period in seconds")
+  @Default.Long(5)
+  Long getMetricsPushPeriod();
+  void setMetricsPushPeriod(Long period);
+
+  @Description("MetricsHttpSink url")
+  String getMetricsHttpSinkUrl();
+  void setMetricsHttpSinkUrl(String metricsSink);
+
+
 }

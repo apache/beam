@@ -71,7 +71,8 @@ public class SourceInputFormat<T>
 
   @Override
   public void open(SourceInputSplit<T> sourceInputSplit) throws IOException {
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+    FlinkMetricContainer metricContainer =
+        new FlinkMetricContainer(getRuntimeContext(), serializedOptions);
 
     readerInvoker =
         new ReaderInvocationUtil<>(

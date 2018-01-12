@@ -217,7 +217,8 @@ public class UnboundedSourceWrapper<
 
     context = ctx;
 
-    FlinkMetricContainer metricContainer = new FlinkMetricContainer(getRuntimeContext());
+    FlinkMetricContainer metricContainer =
+        new FlinkMetricContainer(getRuntimeContext(), serializedOptions);
 
     ReaderInvocationUtil<OutputT, UnboundedSource.UnboundedReader<OutputT>> readerInvoker =
         new ReaderInvocationUtil<>(
