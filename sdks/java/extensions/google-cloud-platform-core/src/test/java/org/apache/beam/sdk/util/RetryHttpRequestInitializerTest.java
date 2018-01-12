@@ -48,6 +48,7 @@ import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.security.PrivateKey;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.hamcrest.Matchers;
@@ -276,7 +277,14 @@ public class RetryHttpRequestInitializerTest {
     // A sample HTTP request to Google Cloud Storage that uses both default Transport and default
     // RetryHttpInitializer.
     Storage storage = new Storage.Builder(
-        transport, Transport.getJsonFactory(), new RetryHttpRequestInitializer()).build();
+        transport,
+        Transport.getJsonFactory(),
+        new RetryHttpRequestInitializer(
+            new FastNanoClockAndSleeper(),
+            new FastNanoClockAndSleeper(),
+            Collections.<Integer>emptyList(),
+            null)
+    ).build();
 
     Get getRequest = storage.objects().get("gs://fake", "file");
 
