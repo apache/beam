@@ -15,11 +15,9 @@
  */
 package cz.seznam.euphoria.hadoop.output;
 
-import com.google.common.base.Preconditions;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.compress.CompressionCodec;
-import org.apache.hadoop.io.compress.Lz4Codec;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
@@ -34,26 +32,42 @@ import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
 
   /**
-   *
    * @param keyType the class representing the type of the keys emitted
    * @param valueType the class representing the type of the values emitted
    * @param <K> type of the keys emitted
    * @param <V> type of the values emitted
-   * @return Builder
+   * @return OutputPathBuilder
    */
-  public static <K, V> Builder<K, V> newBuilder(Class<K> keyType, Class<V> valueType) {
-    return new Builder<>(keyType, valueType);
+  public static <K, V> OutputPathBuilder<K, V> of(Class<K> keyType, Class<V> valueType) {
+    return new OutputPathBuilder<>(keyType, valueType);
+  }
+
+  public static class OutputPathBuilder<K, V> {
+    private final Class<K> keyType;
+    private final Class<V> valueType;
+    private String outputPath;
+
+    OutputPathBuilder(Class<K> keyType, Class<V> valueType) {
+      this.keyType = keyType;
+      this.valueType = valueType;
+    }
+
+    /**
+     * @param outputPath the destination where to save the output
+     * @return Builder with optional setters
+     */
+    public Builder<K, V> outputPath(String outputPath) {
+      this.outputPath = outputPath;
+      return new Builder<>(this);
+    }
   }
 
   public static class Builder<K, V> {
-    Class<K> keyType = null;
-    Class<V> valueType = null;
-    Configuration conf = new Configuration();
-    String outputPath = null;
+    private OutputPathBuilder<K, V> outputPathBuilder;
+    private Configuration conf = new Configuration();
 
-    Builder(Class<K> keyType, Class<V> valueType) {
-      this.keyType = keyType;
-      this.valueType = valueType;
+    Builder(OutputPathBuilder<K, V> outputPathBuilder) {
+      this.outputPathBuilder = outputPathBuilder;
     }
 
     /**
@@ -62,21 +76,11 @@ public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
      * @param compressionType COMPRESS_TYPE value
      * @return Builder
      */
-    public Builder<K, V> setCompression(Class compressionClass, String compressionType) {
+    public Builder<K, V> withCompression(Class<? extends CompressionCodec> compressionClass,
+                                         SequenceFile.CompressionType compressionType) {
       conf.setBoolean(FileOutputFormat.COMPRESS, true);
-      conf.set(FileOutputFormat.COMPRESS_TYPE, compressionType);
+      conf.set(FileOutputFormat.COMPRESS_TYPE, compressionType.toString());
       conf.setClass(FileOutputFormat.COMPRESS_CODEC, compressionClass, CompressionCodec.class);
-      return this;
-    }
-
-    /**
-     * Optional setter for {@link Lz4Codec} compression with block {@link SequenceFile.CompressionType}
-     * @return Builder
-     */
-    public Builder<K, V> setLz4Compression() {
-      conf.setBoolean(FileOutputFormat.COMPRESS, true);
-      conf.set(FileOutputFormat.COMPRESS_TYPE, SequenceFile.CompressionType.BLOCK.toString());
-      conf.setClass(FileOutputFormat.COMPRESS_CODEC, Lz4Codec.class, CompressionCodec.class);
       return this;
     }
 
@@ -85,32 +89,40 @@ public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
      * @param configuration the hadoop configuration to build on top of
      * @return Builder
      */
-    public Builder<K,V> setConfiguration(Configuration configuration){
+    public Builder<K, V> withConfiguration(Configuration configuration) {
       this.conf = configuration;
       return this;
     }
 
-    /**
-     * @param outputPath the destination where to save the output
-     * @return Builder
-     */
-    public Builder<K, V> setOutputPath(String outputPath) {
-      this.outputPath = outputPath;
-      return this;
-    }
-
     public SequenceFileSink<K, V> build() {
-      Preconditions.checkArgument(keyType != null, "Specify type of the Key in `newBuilder`");
-      Preconditions.checkArgument(valueType != null,
-          "Specify type of the Value in `newBuilder`");
-      Preconditions.checkArgument(outputPath != null,
-          "Specify type of the Value by call to `setOutputPath`");
-
-      return new SequenceFileSink<>(keyType, valueType, outputPath, conf);
+      return new SequenceFileSink<>(
+          outputPathBuilder.keyType,
+          outputPathBuilder.valueType,
+          outputPathBuilder.outputPath,
+          conf);
     }
+
   }
 
   /**
+   * Convenience constructor delegating to
+   * {@link #SequenceFileSink(Class, Class, String, Configuration)} with a newly
+   * created hadoop configuration.
+   *
+   * @param keyType the type of the key consumed and emitted to the output
+   *         by the new data sink
+   * @param valueType the type of the value consumed and emitted to the output
+   *         by the new data sink
+   * @param path the destination where to place the output to
+   *
+   * @deprecated will be in next release private, use {@link #of(Class, Class)} instead
+   */
+  public SequenceFileSink(Class<K> keyType, Class<V> valueType, String path) {
+    this(keyType, valueType, path, new Configuration());
+  }
+
+  /**
+   *
    * Constructs a data sink based on hadoop's {@link SequenceFileOutputFormat}.
    * The specified path is automatically set/overridden in the given hadoop
    * configuration as well as the key and value types.
@@ -121,9 +133,11 @@ public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
    * @param hadoopConfig the hadoop configuration to build on top of
    *
    * @throws NullPointerException if any of the parameters is {@code null}
+   *
+   * @deprecated will be in next release private, use {@link #of(Class, Class)} instead
    */
   @SuppressWarnings("unchecked")
-  private SequenceFileSink(Class<K> keyType, Class<V> valueType,
+  public SequenceFileSink(Class<K> keyType, Class<V> valueType,
                           String path, Configuration hadoopConfig) {
     super((Class) SequenceFileOutputFormat.class,
         wrap(hadoopConfig, path, keyType.getName(), valueType.getName()));
