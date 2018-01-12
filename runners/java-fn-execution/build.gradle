@@ -40,11 +40,13 @@ dependencies {
   shadow library.java.grpc_netty
   shadow library.java.slf4j_api
   testCompile project(":sdks:java:fn-execution").sourceSets.test.output
+  testCompile project(":sdks:java:harness")
   testCompile project(path: ":runners:core-construction-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
+  testCompile library.java.slf4j_simple
 }
 
 task packageTests(type: Jar) {
