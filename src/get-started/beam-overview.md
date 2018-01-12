@@ -23,7 +23,7 @@ Beam currently supports the following language-specific SDKs:
 * Java ![Java logo]({{ "/images/logos/sdks/java.png" | prepend: site.baseurl }})
 * Python ![Python logo]({{ "/images/logos/sdks/python.png" | prepend: site.baseurl }})
 
-A Scala ![Scalal logo]({{ "/images/logos/sdks/scala.png" | prepend: site.baseurl }}) interface is also available as [Scio](https://github.com/spotify/scio).
+A Scala ![Scala logo]({{ "/images/logos/sdks/scala.png" | prepend: site.baseurl }}){: height="45px"} interface is also available as [Scio](https://github.com/spotify/scio).
 
 ## Apache Beam Pipeline Runners
 
