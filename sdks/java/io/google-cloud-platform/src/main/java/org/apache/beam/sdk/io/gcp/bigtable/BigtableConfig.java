@@ -179,12 +179,8 @@ abstract class BigtableConfig implements Serializable {
 
     if (getBigtableOptions() != null) {
       builder.add(DisplayData.item("bigtableOptions", getBigtableOptions().toString())
-        .withLabel("Bigtable Options"));
+        .withLabel("Provided Bigtable Options"));
     }
-
-    builder.add(DisplayData.item("effectiveBigtableOptions",
-      effectiveUserProvidedBigtableOptions().build().toString())
-      .withLabel("Effective BigtableOptions resulted from configuration of given options"));
   }
 
   /**
@@ -218,20 +214,6 @@ abstract class BigtableConfig implements Serializable {
     return new BigtableServiceImpl(bigtableOptions.build());
   }
 
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(BigtableConfig.class)
-      .add("projectId", getProjectId())
-      .add("instanceId", getInstanceId())
-      .add("tableId", getTableId())
-      .add("bigtableOptionsConfigurator",
-        getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
-          .getClass().getName())
-      .add("options", getBigtableOptions())
-      .add("effectiveOptions", effectiveUserProvidedBigtableOptions())
-      .toString();
-  }
-
   private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {
     BigtableOptions.Builder effectiveOptions = getBigtableOptions() != null
       ? getBigtableOptions().toBuilder()
@@ -250,5 +232,18 @@ abstract class BigtableConfig implements Serializable {
     }
 
     return effectiveOptions;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(BigtableConfig.class)
+      .add("projectId", getProjectId())
+      .add("instanceId", getInstanceId())
+      .add("tableId", getTableId())
+      .add("bigtableOptionsConfigurator",
+        getBigtableOptionsConfigurator() == null ? null : getBigtableOptionsConfigurator()
+          .getClass().getName())
+      .add("options", getBigtableOptions())
+      .toString();
   }
 }

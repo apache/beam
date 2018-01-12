@@ -27,8 +27,6 @@ import static org.junit.Assert.assertThat;
 
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
-import com.google.cloud.bigtable.config.CredentialOptions;
-import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -91,7 +89,7 @@ public class BigtableConfigTest {
     assertEquals(INSTANCE_ID.get(), config.withInstanceId(INSTANCE_ID).getInstanceId().get());
 
     thrown.expect(IllegalArgumentException.class);
-    config.withProjectId(null);
+    config.withInstanceId(null);
   }
 
   @Test
@@ -99,7 +97,7 @@ public class BigtableConfigTest {
     assertEquals(TABLE_ID.get(), config.withTableId(TABLE_ID).getTableId().get());
 
     thrown.expect(IllegalArgumentException.class);
-    config.withProjectId(null);
+    config.withTableId(null);
   }
 
   @Test
@@ -121,7 +119,7 @@ public class BigtableConfigTest {
     assertEquals(SERVICE, config.withBigtableService(SERVICE).getBigtableService());
 
     thrown.expect(IllegalArgumentException.class);
-    config.withProjectId(null);
+    config.withBigtableService(null);
   }
 
   @Test
@@ -193,21 +191,6 @@ public class BigtableConfigTest {
   }
 
   @Test
-  public void testGetBigtableServiceWithoutConfigurator() {
-    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
-
-    BigtableService service = config
-      .withProjectId(PROJECT_ID)
-      .withInstanceId(INSTANCE_ID)
-      .getBigtableService(pipelineOptions);
-
-    assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
-    assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
-    assertEquals(CredentialOptions.CredentialType.SuppliedCredentials,
-      service.getBigtableOptions().getCredentialOptions().getCredentialType());
-  }
-
-  @Test
   public void testGetBigtableServiceWithConfigurator() {
     SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder> configurator =
       new SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>() {
@@ -220,19 +203,14 @@ public class BigtableConfigTest {
         }
       };
 
-    GcpOptions pipelineOptions = PipelineOptionsFactory.as(GcpOptions.class);
-    pipelineOptions.setGcpCredential(new TestCredential());
-
     BigtableService service = config
       .withProjectId(PROJECT_ID)
       .withInstanceId(INSTANCE_ID)
       .withBigtableOptionsConfigurator(configurator)
-      .getBigtableService(pipelineOptions);
+      .getBigtableService(PipelineOptionsFactory.as(GcpOptions.class));
 
     assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
     assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
     assertEquals(true, service.getBigtableOptions().getBulkOptions().useBulkApi());
-    assertEquals(CredentialOptions.CredentialType.SuppliedCredentials,
-      service.getBigtableOptions().getCredentialOptions().getCredentialType());
   }
 }
