@@ -155,7 +155,7 @@ public class WriteFilesTranslation {
               "no input with tag %s",
               entry.getKey());
       views.add(
-          ParDoTranslation.viewFromProto(
+          PCollectionViewTranslation.viewFromProto(
               entry.getValue(),
               entry.getKey(),
               originalPCollection,

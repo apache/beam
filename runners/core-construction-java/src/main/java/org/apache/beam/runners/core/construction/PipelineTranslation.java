@@ -177,7 +177,7 @@ public class PipelineTranslation {
       PCollection<?> pCollection =
           (PCollection<?>) checkNotNull(rehydratedInputs.get(new TupleTag<>(localName)));
       views.add(
-          ParDoTranslation.viewFromProto(
+          PCollectionViewTranslation.viewFromProto(
               sideInput, localName, pCollection, transformProto, rehydratedComponents));
     }
     return PCollectionViews.toAdditionalInputs(views);
