@@ -454,6 +454,7 @@ class WatermarkManager {
     private final Collection<CommittedBundle<?>> pendingBundles;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> processingTimers;
     private final Map<StructuralKey<?>, NavigableSet<TimerData>> synchronizedProcessingTimers;
+    private final Map<StructuralKey<?>, Table<StateNamespace, String, TimerData>> existingTimers;
 
     private final NavigableSet<TimerData> pendingTimers;
 
@@ -464,6 +465,7 @@ class WatermarkManager {
       this.pendingBundles = new HashSet<>();
       this.processingTimers = new HashMap<>();
       this.synchronizedProcessingTimers = new HashMap<>();
+      this.existingTimers = new HashMap<>();
       this.pendingTimers = new TreeSet<>();
       Instant initialHold = BoundedWindow.TIMESTAMP_MAX_VALUE;
       for (Watermark wm : inputWms) {
@@ -540,21 +542,51 @@ class WatermarkManager {
 
     private synchronized void updateTimers(TimerUpdate update) {
       Map<TimeDomain, NavigableSet<TimerData>> timerMap = timerMap(update.key);
+      Table<StateNamespace, String, TimerData> existingTimersForKey =
+          existingTimers.get(update.key);
+      if (existingTimersForKey == null) {
+        existingTimersForKey = HashBasedTable.create();
+        existingTimers.put(update.key, existingTimersForKey);
+      }
+
       for (TimerData addedTimer : update.setTimers) {
         NavigableSet<TimerData> timerQueue = timerMap.get(addedTimer.getDomain());
-        if (timerQueue != null) {
+        if (timerQueue == null) {
+          continue;
+        }
+
+        @Nullable
+        TimerData existingTimer =
+            existingTimersForKey.get(addedTimer.getNamespace(), addedTimer.getTimerId());
+        if (existingTimer == null) {
           timerQueue.add(addedTimer);
+        } else if (!existingTimer.equals(addedTimer)) {
+          timerQueue.remove(existingTimer);
+          timerQueue.add(addedTimer);
+        } // else the timer is already set identically, so noop.
+
+        existingTimersForKey.put(addedTimer.getNamespace(), addedTimer.getTimerId(), addedTimer);
+      }
+
+      for (TimerData deletedTimer : update.deletedTimers) {
+        NavigableSet<TimerData> timerQueue = timerMap.get(deletedTimer.getDomain());
+        if (timerQueue == null) {
+          continue;
+        }
+
+        @Nullable
+        TimerData existingTimer =
+            existingTimersForKey.get(deletedTimer.getNamespace(), deletedTimer.getTimerId());
+
+        if (existingTimer != null) {
+          pendingTimers.remove(deletedTimer);
+          timerQueue.remove(deletedTimer);
+          existingTimersForKey.remove(existingTimer.getNamespace(), existingTimer.getTimerId());
         }
       }
 
       for (TimerData completedTimer : update.completedTimers) {
         pendingTimers.remove(completedTimer);
-      }
-      for (TimerData deletedTimer : update.deletedTimers) {
-        NavigableSet<TimerData> timerQueue = timerMap.get(deletedTimer.getDomain());
-        if (timerQueue != null) {
-          timerQueue.remove(deletedTimer);
-        }
       }
     }
 
