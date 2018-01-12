@@ -65,10 +65,10 @@ public class HadoopSinkTest {
         Collections.singletonList(Pair.of(new Text("third"), new LongWritable(3L))),
         Collections.singletonList(Pair.of(new Text("fourth"), new LongWritable(3L))));
 
-    final HadoopSink<Text, LongWritable> sink =
-        SequenceFileSink.newBuilder(Text.class, LongWritable.class)
-            .setCompression(DeflateCodec.class, SequenceFile.CompressionType.BLOCK.toString())
-            .setOutputPath(outputDir).build();
+    final HadoopSink<Text, LongWritable> sink =  SequenceFileSink.of(Text.class, LongWritable.class)
+        .outputPath(outputDir)
+        .withCompression(DeflateCodec.class, SequenceFile.CompressionType.BLOCK)
+        .build();
 
     MapElements
         .of(flow.createInput(source))
