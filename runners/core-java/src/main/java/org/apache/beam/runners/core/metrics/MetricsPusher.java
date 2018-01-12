@@ -11,7 +11,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 
 /** Component that regularly merges metrics and pushes them to a metrics sink. */
-class MetricsPusher implements Serializable {
+public class MetricsPusher implements Serializable {
 
   private static MetricsPusher instance;
   private final MetricsSink metricsSink;
@@ -50,7 +50,6 @@ class MetricsPusher implements Serializable {
     public void run() {
       try {
         // merge metrics
-        //TODO deal with lifecycle of the ContainerStepMap
         MetricResults metricResults = asAttemptedOnlyMetricResults(metricsContainerStepMap);
         MetricQueryResults metricQueryResults =
             metricResults.queryMetrics(MetricsFilter.builder().build());

@@ -29,6 +29,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.beam.runners.core.construction.TransformInputs;
+import org.apache.beam.runners.core.metrics.MetricsHttpSink;
+import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.spark.aggregators.AggregatorsAccumulator;
 import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.metrics.AggregatorMetricSource;
@@ -251,6 +253,11 @@ public final class SparkRunner extends PipelineRunner<SparkPipelineResult> {
   public static void initAccumulators(SparkPipelineOptions opts, JavaSparkContext jsc) {
     // Init metrics accumulators
     MetricsAccumulator.init(opts, jsc);
+    // TODO pass parameters with pipelineOptions
+    //I would have prefered creating MetricsPusher from runner-core but I need runn-specific
+    // MetricsContainerStepMap
+    MetricsPusher.createAndStart(
+        MetricsAccumulator.getInstance().value(), new MetricsHttpSink("http://127.0.0.1:8080"), 5L);
     AggregatorsAccumulator.init(opts, jsc);
   }
 
