@@ -16,8 +16,11 @@
 package beam
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
+
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 func init() {
@@ -64,13 +67,17 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 		return PCollection{}, fmt.Errorf("create has no values")
 	}
 
-	fn := &createFn{}
 	t := reflect.ValueOf(values[0]).Type()
+	fn := &createFn{T: EncodedType{T: t}}
 	for i, value := range values {
 		if other := reflect.ValueOf(value).Type(); other != t {
 			return PCollection{}, fmt.Errorf("value %v at index %v has type %v, want %v", value, i, other, t)
 		}
-		fn.Values = append(fn.Values, value)
+		data, err := json.Marshal(value)
+		if err != nil {
+			return PCollection{}, fmt.Errorf("marshalling of %v failed: %v", value, err)
+		}
+		fn.Values = append(fn.Values, string(data))
 	}
 
 	imp := Impulse(s)
@@ -85,11 +92,17 @@ func TryCreate(s Scope, values ...interface{}) (PCollection, error) {
 // TODO(herohde) 6/26/2017: make 'create' a SDF once supported. See BEAM-2421.
 
 type createFn struct {
-	Values []interface{} `json:"values"`
+	Values []string    `json:"values"`
+	T      EncodedType `json:"type"`
 }
 
-func (c *createFn) ProcessElement(_ []byte, emit func(T)) {
-	for _, value := range c.Values {
+func (c *createFn) ProcessElement(_ []byte, emit func(T)) error {
+	for _, str := range c.Values {
+		value, err := reflectx.UnmarshalJSON(c.T.T, str)
+		if err != nil {
+			return err
+		}
 		emit(value)
 	}
+	return nil
 }
