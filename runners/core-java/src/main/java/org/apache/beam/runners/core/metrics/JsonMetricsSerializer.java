@@ -10,7 +10,6 @@ import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
 import org.apache.beam.sdk.metrics.MetricQueryResults;
 import org.apache.beam.sdk.metrics.MetricResult;
-import org.joda.time.Instant;
 
 /** Serialize metrics into json representation to be pushed to a backend. */
 public class JsonMetricsSerializer implements MetricsSerializer<String> {

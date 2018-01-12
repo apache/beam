@@ -21,9 +21,9 @@ import static org.apache.beam.runners.core.metrics.MetricsContainerStepMap.asAtt
 
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
-import org.apache.beam.runners.core.metrics.MetricsHttpSink;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.GaugeResult;
@@ -59,12 +59,15 @@ public class FlinkMetricContainer {
   private final Map<String, FlinkDistributionGauge> flinkDistributionGaugeCache;
   private final Map<String, FlinkGauge> flinkGaugeCache;
   private final MetricsAccumulator metricsAccumulator;
+  private final SerializablePipelineOptions serializedOptions;
 
-  public FlinkMetricContainer(RuntimeContext runtimeContext) {
+  public FlinkMetricContainer(
+      RuntimeContext runtimeContext, SerializablePipelineOptions serializedOptions) {
     this.runtimeContext = runtimeContext;
     this.flinkCounterCache = new HashMap<>();
     this.flinkDistributionGaugeCache = new HashMap<>();
     this.flinkGaugeCache = new HashMap<>();
+    this.serializedOptions = serializedOptions;
 
     Accumulator<MetricsContainerStepMap, MetricsContainerStepMap> metricsAccumulator =
         runtimeContext.getAccumulator(ACCUMULATOR_NAME);
@@ -77,11 +80,10 @@ public class FlinkMetricContainer {
       }
     }
     this.metricsAccumulator = (MetricsAccumulator) metricsAccumulator;
-    // TODO pass parameters with pipelineOptions
-    //it would have been better to create MetricsPusher from runner-core but we need runn-specific
+    //it would have been better to create MetricsPusher from runner-core but we need runner-specific
     // MetricsContainerStepMap
     MetricsPusher.createAndStart(
-        metricsAccumulator.getLocalValue(), new MetricsHttpSink("http://127.0.0.1:8080"), 5L);
+        metricsAccumulator.getLocalValue(), serializedOptions.get());
   }
 
   MetricsContainer getMetricsContainer(String stepName) {
