@@ -65,6 +65,18 @@ job('beam_PerformanceTests_JDBC'){
             bigquery_table: 'beam_performance.JdbcIOIT_pkb_results'
     ]
 
+    // Allow the test to only run on nodes with kubernetes installed.
+    // TODO(INFRA-14819): remove when kubernetes is installed on all Jenkins workers
+    parameters {
+        nodeParam('TEST_HOST') {
+            description('select beam1 test host - only this one has kubernetes installed')
+            defaultNodes(['beam1'])
+            allowedNodes(['beam1'])
+            trigger('multiSelectionDisallowed')
+            eligibility('IgnoreOfflineNodeEligibility')
+        }
+    }
+
     common_job_properties.buildPerformanceTest(delegate, argMap)
 }
 
