@@ -26,7 +26,7 @@ import (
 func UnmarshalJSON(t reflect.Type, str string) (interface{}, error) {
 	data := reflect.New(t).Interface()
 	if err := json.Unmarshal([]byte(str), data); err != nil {
-		return nil, fmt.Errorf("Failed to decode data: %v", err)
+		return nil, fmt.Errorf("failed to decode data: %v", err)
 	}
 	return reflect.ValueOf(data).Elem().Interface(), nil
 }
