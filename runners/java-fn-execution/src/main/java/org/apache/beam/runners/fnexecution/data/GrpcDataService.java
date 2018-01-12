@@ -24,6 +24,8 @@ import java.util.Queue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
 import org.apache.beam.runners.fnexecution.FnService;
@@ -151,12 +153,14 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
         outputLocation.getTarget());
     try {
       return BeamFnDataBufferingOutboundObserver.forLocation(
-          outputLocation, coder, connectedClient.get().getOutboundObserver());
+          outputLocation, coder, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);
+    } catch (TimeoutException e) {
+      throw new RuntimeException("No client connected within timeout", e);
     } catch (ExecutionException e) {
-      throw new RuntimeException(e.getCause());
+      throw new RuntimeException(e);
     }
   }
 }
