@@ -23,6 +23,8 @@ Beam currently supports the following language-specific SDKs:
 * Java ![Java logo]({{ "/images/logos/sdks/java.png" | prepend: site.baseurl }})
 * Python ![Python logo]({{ "/images/logos/sdks/python.png" | prepend: site.baseurl }})
 
+A Scala ![Scala logo]({{ "/images/logos/sdks/scala.png" | prepend: site.baseurl }}){: height="45px"} interface is also available as [Scio](https://github.com/spotify/scio).
+
 ## Apache Beam Pipeline Runners
 
 The Beam Pipeline Runners translate the data processing pipeline you define with your Beam program into the API compatible with the distributed processing back-end of your choice. When you run your Beam program, you'll need to specify an [appropriate runner]({{ site.baseurl }}/documentation/runners/capability-matrix) for the back-end where you want to execute your pipeline.
