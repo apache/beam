@@ -19,1195 +19,1323 @@ package reflectx
 
 import "reflect"
 
-// Generated arity-specialized Caller implementations to avoid runtime temporary
+// Generated arity-specialized Func implementations to avoid runtime temporary
 // slices. Code that knows the arity can potentially avoid that overhead in
 // addition to avoiding the reflection call overhead.
 //
-// We force CallerZxY to implement Caller as well to have a single registry. Concrete
-// caller implementations should implement the most specific supported variant. This
-// also allows more specific intermediate interfaces, such as Caller2bool, to be added
+// We force FuncXxY to implement Func as well to have a single registry. Concrete
+// Func implementations should implement the most specific supported variant. This
+// also allows more specific intermediate interfaces, such as Func2xbool, to be added
 // later.
 
-type Caller0x0 interface {
-	Caller
+type Func0x0 interface {
+	Func
 	Call0x0()
 }
 
-type shimCaller0x0 struct {
-	inner Caller
+type shimFunc0x0 struct {
+	inner Func
 }
 
-func (c *shimCaller0x0) Type() reflect.Type {
+func (c *shimFunc0x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc0x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller0x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc0x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller0x0) Call0x0() {
+func (c *shimFunc0x0) Call0x0() {
 	ret := c.inner.Call([]interface{}{})
 	_ = ret
 	return
 }
 
-func ToCaller0x0(c Caller) Caller0x0 {
+func ToFunc0x0(c Func) Func0x0 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller0x0); ok {
+	if sc, ok := c.(Func0x0); ok {
 		return sc
 	}
-	return &shimCaller0x0{inner: c}
+	return &shimFunc0x0{inner: c}
 }
 
-func MakeCaller0x0(fn interface{}) Caller0x0 {
-	return ToCaller0x0(MakeCaller(fn))
+func MakeFunc0x0(fn interface{}) Func0x0 {
+	return ToFunc0x0(MakeFunc(fn))
 }
 
-type Caller0x1 interface {
-	Caller
+type Func0x1 interface {
+	Func
 	Call0x1() interface{}
 }
 
-type shimCaller0x1 struct {
-	inner Caller
+type shimFunc0x1 struct {
+	inner Func
 }
 
-func (c *shimCaller0x1) Type() reflect.Type {
+func (c *shimFunc0x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc0x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller0x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc0x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller0x1) Call0x1() interface{} {
+func (c *shimFunc0x1) Call0x1() interface{} {
 	ret := c.inner.Call([]interface{}{})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller0x1(c Caller) Caller0x1 {
+func ToFunc0x1(c Func) Func0x1 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller0x1); ok {
+	if sc, ok := c.(Func0x1); ok {
 		return sc
 	}
-	return &shimCaller0x1{inner: c}
+	return &shimFunc0x1{inner: c}
 }
 
-func MakeCaller0x1(fn interface{}) Caller0x1 {
-	return ToCaller0x1(MakeCaller(fn))
+func MakeFunc0x1(fn interface{}) Func0x1 {
+	return ToFunc0x1(MakeFunc(fn))
 }
 
-type Caller0x2 interface {
-	Caller
+type Func0x2 interface {
+	Func
 	Call0x2() (interface{}, interface{})
 }
 
-type shimCaller0x2 struct {
-	inner Caller
+type shimFunc0x2 struct {
+	inner Func
 }
 
-func (c *shimCaller0x2) Type() reflect.Type {
+func (c *shimFunc0x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc0x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller0x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc0x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller0x2) Call0x2() (interface{}, interface{}) {
+func (c *shimFunc0x2) Call0x2() (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller0x2(c Caller) Caller0x2 {
+func ToFunc0x2(c Func) Func0x2 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller0x2); ok {
+	if sc, ok := c.(Func0x2); ok {
 		return sc
 	}
-	return &shimCaller0x2{inner: c}
+	return &shimFunc0x2{inner: c}
 }
 
-func MakeCaller0x2(fn interface{}) Caller0x2 {
-	return ToCaller0x2(MakeCaller(fn))
+func MakeFunc0x2(fn interface{}) Func0x2 {
+	return ToFunc0x2(MakeFunc(fn))
 }
 
-type Caller0x3 interface {
-	Caller
+type Func0x3 interface {
+	Func
 	Call0x3() (interface{}, interface{}, interface{})
 }
 
-type shimCaller0x3 struct {
-	inner Caller
+type shimFunc0x3 struct {
+	inner Func
 }
 
-func (c *shimCaller0x3) Type() reflect.Type {
+func (c *shimFunc0x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc0x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller0x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc0x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller0x3) Call0x3() (interface{}, interface{}, interface{}) {
+func (c *shimFunc0x3) Call0x3() (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller0x3(c Caller) Caller0x3 {
+func ToFunc0x3(c Func) Func0x3 {
 	if c.Type().NumIn() != 0 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller0x3); ok {
+	if sc, ok := c.(Func0x3); ok {
 		return sc
 	}
-	return &shimCaller0x3{inner: c}
+	return &shimFunc0x3{inner: c}
 }
 
-func MakeCaller0x3(fn interface{}) Caller0x3 {
-	return ToCaller0x3(MakeCaller(fn))
+func MakeFunc0x3(fn interface{}) Func0x3 {
+	return ToFunc0x3(MakeFunc(fn))
 }
 
-type Caller1x0 interface {
-	Caller
+type Func1x0 interface {
+	Func
 	Call1x0(interface{})
 }
 
-type shimCaller1x0 struct {
-	inner Caller
+type shimFunc1x0 struct {
+	inner Func
 }
 
-func (c *shimCaller1x0) Type() reflect.Type {
+func (c *shimFunc1x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc1x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller1x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc1x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller1x0) Call1x0(arg0 interface{}) {
+func (c *shimFunc1x0) Call1x0(arg0 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0})
 	_ = ret
 	return
 }
 
-func ToCaller1x0(c Caller) Caller1x0 {
+func ToFunc1x0(c Func) Func1x0 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller1x0); ok {
+	if sc, ok := c.(Func1x0); ok {
 		return sc
 	}
-	return &shimCaller1x0{inner: c}
+	return &shimFunc1x0{inner: c}
 }
 
-func MakeCaller1x0(fn interface{}) Caller1x0 {
-	return ToCaller1x0(MakeCaller(fn))
+func MakeFunc1x0(fn interface{}) Func1x0 {
+	return ToFunc1x0(MakeFunc(fn))
 }
 
-type Caller1x1 interface {
-	Caller
+type Func1x1 interface {
+	Func
 	Call1x1(interface{}) interface{}
 }
 
-type shimCaller1x1 struct {
-	inner Caller
+type shimFunc1x1 struct {
+	inner Func
 }
 
-func (c *shimCaller1x1) Type() reflect.Type {
+func (c *shimFunc1x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc1x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller1x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc1x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller1x1) Call1x1(arg0 interface{}) interface{} {
+func (c *shimFunc1x1) Call1x1(arg0 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller1x1(c Caller) Caller1x1 {
+func ToFunc1x1(c Func) Func1x1 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller1x1); ok {
+	if sc, ok := c.(Func1x1); ok {
 		return sc
 	}
-	return &shimCaller1x1{inner: c}
+	return &shimFunc1x1{inner: c}
 }
 
-func MakeCaller1x1(fn interface{}) Caller1x1 {
-	return ToCaller1x1(MakeCaller(fn))
+func MakeFunc1x1(fn interface{}) Func1x1 {
+	return ToFunc1x1(MakeFunc(fn))
 }
 
-type Caller1x2 interface {
-	Caller
+type Func1x2 interface {
+	Func
 	Call1x2(interface{}) (interface{}, interface{})
 }
 
-type shimCaller1x2 struct {
-	inner Caller
+type shimFunc1x2 struct {
+	inner Func
 }
 
-func (c *shimCaller1x2) Type() reflect.Type {
+func (c *shimFunc1x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc1x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller1x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc1x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller1x2) Call1x2(arg0 interface{}) (interface{}, interface{}) {
+func (c *shimFunc1x2) Call1x2(arg0 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller1x2(c Caller) Caller1x2 {
+func ToFunc1x2(c Func) Func1x2 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller1x2); ok {
+	if sc, ok := c.(Func1x2); ok {
 		return sc
 	}
-	return &shimCaller1x2{inner: c}
+	return &shimFunc1x2{inner: c}
 }
 
-func MakeCaller1x2(fn interface{}) Caller1x2 {
-	return ToCaller1x2(MakeCaller(fn))
+func MakeFunc1x2(fn interface{}) Func1x2 {
+	return ToFunc1x2(MakeFunc(fn))
 }
 
-type Caller1x3 interface {
-	Caller
+type Func1x3 interface {
+	Func
 	Call1x3(interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller1x3 struct {
-	inner Caller
+type shimFunc1x3 struct {
+	inner Func
 }
 
-func (c *shimCaller1x3) Type() reflect.Type {
+func (c *shimFunc1x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc1x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller1x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc1x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller1x3) Call1x3(arg0 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc1x3) Call1x3(arg0 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller1x3(c Caller) Caller1x3 {
+func ToFunc1x3(c Func) Func1x3 {
 	if c.Type().NumIn() != 1 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller1x3); ok {
+	if sc, ok := c.(Func1x3); ok {
 		return sc
 	}
-	return &shimCaller1x3{inner: c}
+	return &shimFunc1x3{inner: c}
 }
 
-func MakeCaller1x3(fn interface{}) Caller1x3 {
-	return ToCaller1x3(MakeCaller(fn))
+func MakeFunc1x3(fn interface{}) Func1x3 {
+	return ToFunc1x3(MakeFunc(fn))
 }
 
-type Caller2x0 interface {
-	Caller
+type Func2x0 interface {
+	Func
 	Call2x0(interface{}, interface{})
 }
 
-type shimCaller2x0 struct {
-	inner Caller
+type shimFunc2x0 struct {
+	inner Func
 }
 
-func (c *shimCaller2x0) Type() reflect.Type {
+func (c *shimFunc2x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc2x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller2x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc2x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller2x0) Call2x0(arg0, arg1 interface{}) {
+func (c *shimFunc2x0) Call2x0(arg0, arg1 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1})
 	_ = ret
 	return
 }
 
-func ToCaller2x0(c Caller) Caller2x0 {
+func ToFunc2x0(c Func) Func2x0 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller2x0); ok {
+	if sc, ok := c.(Func2x0); ok {
 		return sc
 	}
-	return &shimCaller2x0{inner: c}
+	return &shimFunc2x0{inner: c}
 }
 
-func MakeCaller2x0(fn interface{}) Caller2x0 {
-	return ToCaller2x0(MakeCaller(fn))
+func MakeFunc2x0(fn interface{}) Func2x0 {
+	return ToFunc2x0(MakeFunc(fn))
 }
 
-type Caller2x1 interface {
-	Caller
+type Func2x1 interface {
+	Func
 	Call2x1(interface{}, interface{}) interface{}
 }
 
-type shimCaller2x1 struct {
-	inner Caller
+type shimFunc2x1 struct {
+	inner Func
 }
 
-func (c *shimCaller2x1) Type() reflect.Type {
+func (c *shimFunc2x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc2x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller2x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc2x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller2x1) Call2x1(arg0, arg1 interface{}) interface{} {
+func (c *shimFunc2x1) Call2x1(arg0, arg1 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0, arg1})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller2x1(c Caller) Caller2x1 {
+func ToFunc2x1(c Func) Func2x1 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller2x1); ok {
+	if sc, ok := c.(Func2x1); ok {
 		return sc
 	}
-	return &shimCaller2x1{inner: c}
+	return &shimFunc2x1{inner: c}
 }
 
-func MakeCaller2x1(fn interface{}) Caller2x1 {
-	return ToCaller2x1(MakeCaller(fn))
+func MakeFunc2x1(fn interface{}) Func2x1 {
+	return ToFunc2x1(MakeFunc(fn))
 }
 
-type Caller2x2 interface {
-	Caller
+type Func2x2 interface {
+	Func
 	Call2x2(interface{}, interface{}) (interface{}, interface{})
 }
 
-type shimCaller2x2 struct {
-	inner Caller
+type shimFunc2x2 struct {
+	inner Func
 }
 
-func (c *shimCaller2x2) Type() reflect.Type {
+func (c *shimFunc2x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc2x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller2x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc2x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller2x2) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
+func (c *shimFunc2x2) Call2x2(arg0, arg1 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller2x2(c Caller) Caller2x2 {
+func ToFunc2x2(c Func) Func2x2 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller2x2); ok {
+	if sc, ok := c.(Func2x2); ok {
 		return sc
 	}
-	return &shimCaller2x2{inner: c}
+	return &shimFunc2x2{inner: c}
 }
 
-func MakeCaller2x2(fn interface{}) Caller2x2 {
-	return ToCaller2x2(MakeCaller(fn))
+func MakeFunc2x2(fn interface{}) Func2x2 {
+	return ToFunc2x2(MakeFunc(fn))
 }
 
-type Caller2x3 interface {
-	Caller
+type Func2x3 interface {
+	Func
 	Call2x3(interface{}, interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller2x3 struct {
-	inner Caller
+type shimFunc2x3 struct {
+	inner Func
 }
 
-func (c *shimCaller2x3) Type() reflect.Type {
+func (c *shimFunc2x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc2x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller2x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc2x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller2x3) Call2x3(arg0, arg1 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc2x3) Call2x3(arg0, arg1 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller2x3(c Caller) Caller2x3 {
+func ToFunc2x3(c Func) Func2x3 {
 	if c.Type().NumIn() != 2 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller2x3); ok {
+	if sc, ok := c.(Func2x3); ok {
 		return sc
 	}
-	return &shimCaller2x3{inner: c}
+	return &shimFunc2x3{inner: c}
 }
 
-func MakeCaller2x3(fn interface{}) Caller2x3 {
-	return ToCaller2x3(MakeCaller(fn))
+func MakeFunc2x3(fn interface{}) Func2x3 {
+	return ToFunc2x3(MakeFunc(fn))
 }
 
-type Caller3x0 interface {
-	Caller
+type Func3x0 interface {
+	Func
 	Call3x0(interface{}, interface{}, interface{})
 }
 
-type shimCaller3x0 struct {
-	inner Caller
+type shimFunc3x0 struct {
+	inner Func
 }
 
-func (c *shimCaller3x0) Type() reflect.Type {
+func (c *shimFunc3x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc3x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller3x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc3x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller3x0) Call3x0(arg0, arg1, arg2 interface{}) {
+func (c *shimFunc3x0) Call3x0(arg0, arg1, arg2 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2})
 	_ = ret
 	return
 }
 
-func ToCaller3x0(c Caller) Caller3x0 {
+func ToFunc3x0(c Func) Func3x0 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller3x0); ok {
+	if sc, ok := c.(Func3x0); ok {
 		return sc
 	}
-	return &shimCaller3x0{inner: c}
+	return &shimFunc3x0{inner: c}
 }
 
-func MakeCaller3x0(fn interface{}) Caller3x0 {
-	return ToCaller3x0(MakeCaller(fn))
+func MakeFunc3x0(fn interface{}) Func3x0 {
+	return ToFunc3x0(MakeFunc(fn))
 }
 
-type Caller3x1 interface {
-	Caller
+type Func3x1 interface {
+	Func
 	Call3x1(interface{}, interface{}, interface{}) interface{}
 }
 
-type shimCaller3x1 struct {
-	inner Caller
+type shimFunc3x1 struct {
+	inner Func
 }
 
-func (c *shimCaller3x1) Type() reflect.Type {
+func (c *shimFunc3x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc3x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller3x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc3x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller3x1) Call3x1(arg0, arg1, arg2 interface{}) interface{} {
+func (c *shimFunc3x1) Call3x1(arg0, arg1, arg2 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller3x1(c Caller) Caller3x1 {
+func ToFunc3x1(c Func) Func3x1 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller3x1); ok {
+	if sc, ok := c.(Func3x1); ok {
 		return sc
 	}
-	return &shimCaller3x1{inner: c}
+	return &shimFunc3x1{inner: c}
 }
 
-func MakeCaller3x1(fn interface{}) Caller3x1 {
-	return ToCaller3x1(MakeCaller(fn))
+func MakeFunc3x1(fn interface{}) Func3x1 {
+	return ToFunc3x1(MakeFunc(fn))
 }
 
-type Caller3x2 interface {
-	Caller
+type Func3x2 interface {
+	Func
 	Call3x2(interface{}, interface{}, interface{}) (interface{}, interface{})
 }
 
-type shimCaller3x2 struct {
-	inner Caller
+type shimFunc3x2 struct {
+	inner Func
 }
 
-func (c *shimCaller3x2) Type() reflect.Type {
+func (c *shimFunc3x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc3x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller3x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc3x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller3x2) Call3x2(arg0, arg1, arg2 interface{}) (interface{}, interface{}) {
+func (c *shimFunc3x2) Call3x2(arg0, arg1, arg2 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller3x2(c Caller) Caller3x2 {
+func ToFunc3x2(c Func) Func3x2 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller3x2); ok {
+	if sc, ok := c.(Func3x2); ok {
 		return sc
 	}
-	return &shimCaller3x2{inner: c}
+	return &shimFunc3x2{inner: c}
 }
 
-func MakeCaller3x2(fn interface{}) Caller3x2 {
-	return ToCaller3x2(MakeCaller(fn))
+func MakeFunc3x2(fn interface{}) Func3x2 {
+	return ToFunc3x2(MakeFunc(fn))
 }
 
-type Caller3x3 interface {
-	Caller
+type Func3x3 interface {
+	Func
 	Call3x3(interface{}, interface{}, interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller3x3 struct {
-	inner Caller
+type shimFunc3x3 struct {
+	inner Func
 }
 
-func (c *shimCaller3x3) Type() reflect.Type {
+func (c *shimFunc3x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc3x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller3x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc3x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller3x3) Call3x3(arg0, arg1, arg2 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc3x3) Call3x3(arg0, arg1, arg2 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller3x3(c Caller) Caller3x3 {
+func ToFunc3x3(c Func) Func3x3 {
 	if c.Type().NumIn() != 3 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller3x3); ok {
+	if sc, ok := c.(Func3x3); ok {
 		return sc
 	}
-	return &shimCaller3x3{inner: c}
+	return &shimFunc3x3{inner: c}
 }
 
-func MakeCaller3x3(fn interface{}) Caller3x3 {
-	return ToCaller3x3(MakeCaller(fn))
+func MakeFunc3x3(fn interface{}) Func3x3 {
+	return ToFunc3x3(MakeFunc(fn))
 }
 
-type Caller4x0 interface {
-	Caller
+type Func4x0 interface {
+	Func
 	Call4x0(interface{}, interface{}, interface{}, interface{})
 }
 
-type shimCaller4x0 struct {
-	inner Caller
+type shimFunc4x0 struct {
+	inner Func
 }
 
-func (c *shimCaller4x0) Type() reflect.Type {
+func (c *shimFunc4x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc4x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller4x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc4x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller4x0) Call4x0(arg0, arg1, arg2, arg3 interface{}) {
+func (c *shimFunc4x0) Call4x0(arg0, arg1, arg2, arg3 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3})
 	_ = ret
 	return
 }
 
-func ToCaller4x0(c Caller) Caller4x0 {
+func ToFunc4x0(c Func) Func4x0 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller4x0); ok {
+	if sc, ok := c.(Func4x0); ok {
 		return sc
 	}
-	return &shimCaller4x0{inner: c}
+	return &shimFunc4x0{inner: c}
 }
 
-func MakeCaller4x0(fn interface{}) Caller4x0 {
-	return ToCaller4x0(MakeCaller(fn))
+func MakeFunc4x0(fn interface{}) Func4x0 {
+	return ToFunc4x0(MakeFunc(fn))
 }
 
-type Caller4x1 interface {
-	Caller
+type Func4x1 interface {
+	Func
 	Call4x1(interface{}, interface{}, interface{}, interface{}) interface{}
 }
 
-type shimCaller4x1 struct {
-	inner Caller
+type shimFunc4x1 struct {
+	inner Func
 }
 
-func (c *shimCaller4x1) Type() reflect.Type {
+func (c *shimFunc4x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc4x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller4x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc4x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller4x1) Call4x1(arg0, arg1, arg2, arg3 interface{}) interface{} {
+func (c *shimFunc4x1) Call4x1(arg0, arg1, arg2, arg3 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller4x1(c Caller) Caller4x1 {
+func ToFunc4x1(c Func) Func4x1 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller4x1); ok {
+	if sc, ok := c.(Func4x1); ok {
 		return sc
 	}
-	return &shimCaller4x1{inner: c}
+	return &shimFunc4x1{inner: c}
 }
 
-func MakeCaller4x1(fn interface{}) Caller4x1 {
-	return ToCaller4x1(MakeCaller(fn))
+func MakeFunc4x1(fn interface{}) Func4x1 {
+	return ToFunc4x1(MakeFunc(fn))
 }
 
-type Caller4x2 interface {
-	Caller
+type Func4x2 interface {
+	Func
 	Call4x2(interface{}, interface{}, interface{}, interface{}) (interface{}, interface{})
 }
 
-type shimCaller4x2 struct {
-	inner Caller
+type shimFunc4x2 struct {
+	inner Func
 }
 
-func (c *shimCaller4x2) Type() reflect.Type {
+func (c *shimFunc4x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc4x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller4x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc4x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller4x2) Call4x2(arg0, arg1, arg2, arg3 interface{}) (interface{}, interface{}) {
+func (c *shimFunc4x2) Call4x2(arg0, arg1, arg2, arg3 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller4x2(c Caller) Caller4x2 {
+func ToFunc4x2(c Func) Func4x2 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller4x2); ok {
+	if sc, ok := c.(Func4x2); ok {
 		return sc
 	}
-	return &shimCaller4x2{inner: c}
+	return &shimFunc4x2{inner: c}
 }
 
-func MakeCaller4x2(fn interface{}) Caller4x2 {
-	return ToCaller4x2(MakeCaller(fn))
+func MakeFunc4x2(fn interface{}) Func4x2 {
+	return ToFunc4x2(MakeFunc(fn))
 }
 
-type Caller4x3 interface {
-	Caller
+type Func4x3 interface {
+	Func
 	Call4x3(interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller4x3 struct {
-	inner Caller
+type shimFunc4x3 struct {
+	inner Func
 }
 
-func (c *shimCaller4x3) Type() reflect.Type {
+func (c *shimFunc4x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc4x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller4x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc4x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller4x3) Call4x3(arg0, arg1, arg2, arg3 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc4x3) Call4x3(arg0, arg1, arg2, arg3 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller4x3(c Caller) Caller4x3 {
+func ToFunc4x3(c Func) Func4x3 {
 	if c.Type().NumIn() != 4 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller4x3); ok {
+	if sc, ok := c.(Func4x3); ok {
 		return sc
 	}
-	return &shimCaller4x3{inner: c}
+	return &shimFunc4x3{inner: c}
 }
 
-func MakeCaller4x3(fn interface{}) Caller4x3 {
-	return ToCaller4x3(MakeCaller(fn))
+func MakeFunc4x3(fn interface{}) Func4x3 {
+	return ToFunc4x3(MakeFunc(fn))
 }
 
-type Caller5x0 interface {
-	Caller
+type Func5x0 interface {
+	Func
 	Call5x0(interface{}, interface{}, interface{}, interface{}, interface{})
 }
 
-type shimCaller5x0 struct {
-	inner Caller
+type shimFunc5x0 struct {
+	inner Func
 }
 
-func (c *shimCaller5x0) Type() reflect.Type {
+func (c *shimFunc5x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc5x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller5x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc5x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller5x0) Call5x0(arg0, arg1, arg2, arg3, arg4 interface{}) {
+func (c *shimFunc5x0) Call5x0(arg0, arg1, arg2, arg3, arg4 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4})
 	_ = ret
 	return
 }
 
-func ToCaller5x0(c Caller) Caller5x0 {
+func ToFunc5x0(c Func) Func5x0 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller5x0); ok {
+	if sc, ok := c.(Func5x0); ok {
 		return sc
 	}
-	return &shimCaller5x0{inner: c}
+	return &shimFunc5x0{inner: c}
 }
 
-func MakeCaller5x0(fn interface{}) Caller5x0 {
-	return ToCaller5x0(MakeCaller(fn))
+func MakeFunc5x0(fn interface{}) Func5x0 {
+	return ToFunc5x0(MakeFunc(fn))
 }
 
-type Caller5x1 interface {
-	Caller
+type Func5x1 interface {
+	Func
 	Call5x1(interface{}, interface{}, interface{}, interface{}, interface{}) interface{}
 }
 
-type shimCaller5x1 struct {
-	inner Caller
+type shimFunc5x1 struct {
+	inner Func
 }
 
-func (c *shimCaller5x1) Type() reflect.Type {
+func (c *shimFunc5x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc5x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller5x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc5x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller5x1) Call5x1(arg0, arg1, arg2, arg3, arg4 interface{}) interface{} {
+func (c *shimFunc5x1) Call5x1(arg0, arg1, arg2, arg3, arg4 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller5x1(c Caller) Caller5x1 {
+func ToFunc5x1(c Func) Func5x1 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller5x1); ok {
+	if sc, ok := c.(Func5x1); ok {
 		return sc
 	}
-	return &shimCaller5x1{inner: c}
+	return &shimFunc5x1{inner: c}
 }
 
-func MakeCaller5x1(fn interface{}) Caller5x1 {
-	return ToCaller5x1(MakeCaller(fn))
+func MakeFunc5x1(fn interface{}) Func5x1 {
+	return ToFunc5x1(MakeFunc(fn))
 }
 
-type Caller5x2 interface {
-	Caller
+type Func5x2 interface {
+	Func
 	Call5x2(interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{})
 }
 
-type shimCaller5x2 struct {
-	inner Caller
+type shimFunc5x2 struct {
+	inner Func
 }
 
-func (c *shimCaller5x2) Type() reflect.Type {
+func (c *shimFunc5x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc5x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller5x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc5x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller5x2) Call5x2(arg0, arg1, arg2, arg3, arg4 interface{}) (interface{}, interface{}) {
+func (c *shimFunc5x2) Call5x2(arg0, arg1, arg2, arg3, arg4 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller5x2(c Caller) Caller5x2 {
+func ToFunc5x2(c Func) Func5x2 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller5x2); ok {
+	if sc, ok := c.(Func5x2); ok {
 		return sc
 	}
-	return &shimCaller5x2{inner: c}
+	return &shimFunc5x2{inner: c}
 }
 
-func MakeCaller5x2(fn interface{}) Caller5x2 {
-	return ToCaller5x2(MakeCaller(fn))
+func MakeFunc5x2(fn interface{}) Func5x2 {
+	return ToFunc5x2(MakeFunc(fn))
 }
 
-type Caller5x3 interface {
-	Caller
+type Func5x3 interface {
+	Func
 	Call5x3(interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller5x3 struct {
-	inner Caller
+type shimFunc5x3 struct {
+	inner Func
 }
 
-func (c *shimCaller5x3) Type() reflect.Type {
+func (c *shimFunc5x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc5x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller5x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc5x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller5x3) Call5x3(arg0, arg1, arg2, arg3, arg4 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc5x3) Call5x3(arg0, arg1, arg2, arg3, arg4 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller5x3(c Caller) Caller5x3 {
+func ToFunc5x3(c Func) Func5x3 {
 	if c.Type().NumIn() != 5 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller5x3); ok {
+	if sc, ok := c.(Func5x3); ok {
 		return sc
 	}
-	return &shimCaller5x3{inner: c}
+	return &shimFunc5x3{inner: c}
 }
 
-func MakeCaller5x3(fn interface{}) Caller5x3 {
-	return ToCaller5x3(MakeCaller(fn))
+func MakeFunc5x3(fn interface{}) Func5x3 {
+	return ToFunc5x3(MakeFunc(fn))
 }
 
-type Caller6x0 interface {
-	Caller
+type Func6x0 interface {
+	Func
 	Call6x0(interface{}, interface{}, interface{}, interface{}, interface{}, interface{})
 }
 
-type shimCaller6x0 struct {
-	inner Caller
+type shimFunc6x0 struct {
+	inner Func
 }
 
-func (c *shimCaller6x0) Type() reflect.Type {
+func (c *shimFunc6x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc6x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller6x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc6x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller6x0) Call6x0(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) {
+func (c *shimFunc6x0) Call6x0(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5})
 	_ = ret
 	return
 }
 
-func ToCaller6x0(c Caller) Caller6x0 {
+func ToFunc6x0(c Func) Func6x0 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller6x0); ok {
+	if sc, ok := c.(Func6x0); ok {
 		return sc
 	}
-	return &shimCaller6x0{inner: c}
+	return &shimFunc6x0{inner: c}
 }
 
-func MakeCaller6x0(fn interface{}) Caller6x0 {
-	return ToCaller6x0(MakeCaller(fn))
+func MakeFunc6x0(fn interface{}) Func6x0 {
+	return ToFunc6x0(MakeFunc(fn))
 }
 
-type Caller6x1 interface {
-	Caller
+type Func6x1 interface {
+	Func
 	Call6x1(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) interface{}
 }
 
-type shimCaller6x1 struct {
-	inner Caller
+type shimFunc6x1 struct {
+	inner Func
 }
 
-func (c *shimCaller6x1) Type() reflect.Type {
+func (c *shimFunc6x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc6x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller6x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc6x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller6x1) Call6x1(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) interface{} {
+func (c *shimFunc6x1) Call6x1(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller6x1(c Caller) Caller6x1 {
+func ToFunc6x1(c Func) Func6x1 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller6x1); ok {
+	if sc, ok := c.(Func6x1); ok {
 		return sc
 	}
-	return &shimCaller6x1{inner: c}
+	return &shimFunc6x1{inner: c}
 }
 
-func MakeCaller6x1(fn interface{}) Caller6x1 {
-	return ToCaller6x1(MakeCaller(fn))
+func MakeFunc6x1(fn interface{}) Func6x1 {
+	return ToFunc6x1(MakeFunc(fn))
 }
 
-type Caller6x2 interface {
-	Caller
+type Func6x2 interface {
+	Func
 	Call6x2(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{})
 }
 
-type shimCaller6x2 struct {
-	inner Caller
+type shimFunc6x2 struct {
+	inner Func
 }
 
-func (c *shimCaller6x2) Type() reflect.Type {
+func (c *shimFunc6x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc6x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller6x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc6x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller6x2) Call6x2(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (interface{}, interface{}) {
+func (c *shimFunc6x2) Call6x2(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller6x2(c Caller) Caller6x2 {
+func ToFunc6x2(c Func) Func6x2 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller6x2); ok {
+	if sc, ok := c.(Func6x2); ok {
 		return sc
 	}
-	return &shimCaller6x2{inner: c}
+	return &shimFunc6x2{inner: c}
 }
 
-func MakeCaller6x2(fn interface{}) Caller6x2 {
-	return ToCaller6x2(MakeCaller(fn))
+func MakeFunc6x2(fn interface{}) Func6x2 {
+	return ToFunc6x2(MakeFunc(fn))
 }
 
-type Caller6x3 interface {
-	Caller
+type Func6x3 interface {
+	Func
 	Call6x3(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller6x3 struct {
-	inner Caller
+type shimFunc6x3 struct {
+	inner Func
 }
 
-func (c *shimCaller6x3) Type() reflect.Type {
+func (c *shimFunc6x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc6x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller6x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc6x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller6x3) Call6x3(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc6x3) Call6x3(arg0, arg1, arg2, arg3, arg4, arg5 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller6x3(c Caller) Caller6x3 {
+func ToFunc6x3(c Func) Func6x3 {
 	if c.Type().NumIn() != 6 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller6x3); ok {
+	if sc, ok := c.(Func6x3); ok {
 		return sc
 	}
-	return &shimCaller6x3{inner: c}
+	return &shimFunc6x3{inner: c}
 }
 
-func MakeCaller6x3(fn interface{}) Caller6x3 {
-	return ToCaller6x3(MakeCaller(fn))
+func MakeFunc6x3(fn interface{}) Func6x3 {
+	return ToFunc6x3(MakeFunc(fn))
 }
 
-type Caller7x0 interface {
-	Caller
+type Func7x0 interface {
+	Func
 	Call7x0(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{})
 }
 
-type shimCaller7x0 struct {
-	inner Caller
+type shimFunc7x0 struct {
+	inner Func
 }
 
-func (c *shimCaller7x0) Type() reflect.Type {
+func (c *shimFunc7x0) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc7x0) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller7x0) Call(args []interface{}) []interface{} {
+func (c *shimFunc7x0) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller7x0) Call7x0(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) {
+func (c *shimFunc7x0) Call7x0(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6})
 	_ = ret
 	return
 }
 
-func ToCaller7x0(c Caller) Caller7x0 {
+func ToFunc7x0(c Func) Func7x0 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 0 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller7x0); ok {
+	if sc, ok := c.(Func7x0); ok {
 		return sc
 	}
-	return &shimCaller7x0{inner: c}
+	return &shimFunc7x0{inner: c}
 }
 
-func MakeCaller7x0(fn interface{}) Caller7x0 {
-	return ToCaller7x0(MakeCaller(fn))
+func MakeFunc7x0(fn interface{}) Func7x0 {
+	return ToFunc7x0(MakeFunc(fn))
 }
 
-type Caller7x1 interface {
-	Caller
+type Func7x1 interface {
+	Func
 	Call7x1(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) interface{}
 }
 
-type shimCaller7x1 struct {
-	inner Caller
+type shimFunc7x1 struct {
+	inner Func
 }
 
-func (c *shimCaller7x1) Type() reflect.Type {
+func (c *shimFunc7x1) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc7x1) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller7x1) Call(args []interface{}) []interface{} {
+func (c *shimFunc7x1) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller7x1) Call7x1(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) interface{} {
+func (c *shimFunc7x1) Call7x1(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) interface{} {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6})
 	_ = ret
 	return ret[0]
 }
 
-func ToCaller7x1(c Caller) Caller7x1 {
+func ToFunc7x1(c Func) Func7x1 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 1 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller7x1); ok {
+	if sc, ok := c.(Func7x1); ok {
 		return sc
 	}
-	return &shimCaller7x1{inner: c}
+	return &shimFunc7x1{inner: c}
 }
 
-func MakeCaller7x1(fn interface{}) Caller7x1 {
-	return ToCaller7x1(MakeCaller(fn))
+func MakeFunc7x1(fn interface{}) Func7x1 {
+	return ToFunc7x1(MakeFunc(fn))
 }
 
-type Caller7x2 interface {
-	Caller
+type Func7x2 interface {
+	Func
 	Call7x2(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{})
 }
 
-type shimCaller7x2 struct {
-	inner Caller
+type shimFunc7x2 struct {
+	inner Func
 }
 
-func (c *shimCaller7x2) Type() reflect.Type {
+func (c *shimFunc7x2) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc7x2) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller7x2) Call(args []interface{}) []interface{} {
+func (c *shimFunc7x2) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller7x2) Call7x2(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) (interface{}, interface{}) {
+func (c *shimFunc7x2) Call7x2(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) (interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6})
 	_ = ret
 	return ret[0], ret[1]
 }
 
-func ToCaller7x2(c Caller) Caller7x2 {
+func ToFunc7x2(c Func) Func7x2 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 2 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller7x2); ok {
+	if sc, ok := c.(Func7x2); ok {
 		return sc
 	}
-	return &shimCaller7x2{inner: c}
+	return &shimFunc7x2{inner: c}
 }
 
-func MakeCaller7x2(fn interface{}) Caller7x2 {
-	return ToCaller7x2(MakeCaller(fn))
+func MakeFunc7x2(fn interface{}) Func7x2 {
+	return ToFunc7x2(MakeFunc(fn))
 }
 
-type Caller7x3 interface {
-	Caller
+type Func7x3 interface {
+	Func
 	Call7x3(interface{}, interface{}, interface{}, interface{}, interface{}, interface{}, interface{}) (interface{}, interface{}, interface{})
 }
 
-type shimCaller7x3 struct {
-	inner Caller
+type shimFunc7x3 struct {
+	inner Func
 }
 
-func (c *shimCaller7x3) Type() reflect.Type {
+func (c *shimFunc7x3) Name() string {
+	return c.inner.Name()
+}
+
+func (c *shimFunc7x3) Type() reflect.Type {
 	return c.inner.Type()
 }
 
-func (c *shimCaller7x3) Call(args []interface{}) []interface{} {
+func (c *shimFunc7x3) Call(args []interface{}) []interface{} {
 	return c.inner.Call(args)
 }
 
-func (c *shimCaller7x3) Call7x3(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) (interface{}, interface{}, interface{}) {
+func (c *shimFunc7x3) Call7x3(arg0, arg1, arg2, arg3, arg4, arg5, arg6 interface{}) (interface{}, interface{}, interface{}) {
 	ret := c.inner.Call([]interface{}{arg0, arg1, arg2, arg3, arg4, arg5, arg6})
 	_ = ret
 	return ret[0], ret[1], ret[2]
 }
 
-func ToCaller7x3(c Caller) Caller7x3 {
+func ToFunc7x3(c Func) Func7x3 {
 	if c.Type().NumIn() != 7 || c.Type().NumOut() != 3 {
-		panic("incompatible caller type")
+		panic("incompatible func type")
 	}
-	if sc, ok := c.(Caller7x3); ok {
+	if sc, ok := c.(Func7x3); ok {
 		return sc
 	}
-	return &shimCaller7x3{inner: c}
+	return &shimFunc7x3{inner: c}
 }
 
-func MakeCaller7x3(fn interface{}) Caller7x3 {
-	return ToCaller7x3(MakeCaller(fn))
+func MakeFunc7x3(fn interface{}) Func7x3 {
+	return ToFunc7x3(MakeFunc(fn))
 }

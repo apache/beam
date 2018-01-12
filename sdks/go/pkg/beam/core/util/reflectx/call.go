@@ -25,9 +25,12 @@ import (
 
 //go:generate specialize --input=calls.tmpl
 
-// Caller is an untyped function call interface. This indirection allows
-// us to avoid reflection call overhead for certain types.
-type Caller interface {
+// Func represents a callable untyped function. This indirection allows
+// us to avoid reflection call overhead for certain types as well as
+// faster dynamic function implementations.
+type Func interface {
+	// Name returns the name of the function.
+	Name() string
 	// Type returns the type.
 	Type() reflect.Type
 	// Call invokes the implicit fn with arguments.
@@ -35,29 +38,29 @@ type Caller interface {
 }
 
 var (
-	callers   = make(map[string]func(interface{}) Caller)
-	callersMu sync.Mutex
+	funcs   = make(map[string]func(interface{}) Func)
+	funcsMu sync.Mutex
 )
 
-// RegisterCaller registers an custom caller factory for the given type, such as
-// "func(int)bool". If multiple caller factories are registered for the same type,
+// RegisterFunc registers an custom reflectFunc factory for the given type, such as
+// "func(int)bool". If multiple func factories are registered for the same type,
 // the last registration wins.
-func RegisterCaller(t reflect.Type, maker func(interface{}) Caller) {
-	callersMu.Lock()
-	defer callersMu.Unlock()
+func RegisterFunc(t reflect.Type, maker func(interface{}) Func) {
+	funcsMu.Lock()
+	defer funcsMu.Unlock()
 
 	key := t.String()
-	if _, exists := callers[key]; exists {
-		log.Warnf(context.Background(), "Caller for %v already registered. Overwriting.", key)
+	if _, exists := funcs[key]; exists {
+		log.Warnf(context.Background(), "Func for %v already registered. Overwriting.", key)
 	}
-	callers[key] = maker
+	funcs[key] = maker
 }
 
-// MakeCaller returns a caller for given function.
-func MakeCaller(fn interface{}) Caller {
-	callersMu.Lock()
-	maker, exists := callers[reflect.TypeOf(fn).String()]
-	callersMu.Unlock()
+// MakeFunc returns a reflectFunc for given function.
+func MakeFunc(fn interface{}) Func {
+	funcsMu.Lock()
+	maker, exists := funcs[reflect.TypeOf(fn).String()]
+	funcsMu.Unlock()
 
 	if exists {
 		return maker(fn)
@@ -66,18 +69,22 @@ func MakeCaller(fn interface{}) Caller {
 	// If no specialized implementation is available, we use the standard
 	// reflection-based call.
 
-	return &caller{fn: reflect.ValueOf(fn)}
+	return &reflectFunc{fn: reflect.ValueOf(fn)}
 }
 
-type caller struct {
+type reflectFunc struct {
 	fn reflect.Value
 }
 
-func (c *caller) Type() reflect.Type {
+func (c *reflectFunc) Name() string {
+	return FunctionName(c.fn.Interface())
+}
+
+func (c *reflectFunc) Type() reflect.Type {
 	return c.fn.Type()
 }
 
-func (c *caller) Call(args []interface{}) []interface{} {
+func (c *reflectFunc) Call(args []interface{}) []interface{} {
 	return Interface(c.fn.Call(ValueOf(args)))
 }
 

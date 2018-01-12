@@ -17,52 +17,56 @@ package reflectx
 
 import "reflect"
 
-// Generated arity-specialized Caller implementations to avoid runtime temporary
+// Generated arity-specialized Func implementations to avoid runtime temporary
 // slices. Code that knows the arity can potentially avoid that overhead in
 // addition to avoiding the reflection call overhead.
 //
-// We force CallerZxY to implement Caller as well to have a single registry. Concrete
-// caller implementations should implement the most specific supported variant. This
-// also allows more specific intermediate interfaces, such as Caller2bool, to be added
+// We force FuncXxY to implement Func as well to have a single registry. Concrete
+// Func implementations should implement the most specific supported variant. This
+// also allows more specific intermediate interfaces, such as Func2xbool, to be added
 // later.
 
 {{range $in := upto 8}}
 {{range $out := upto 4}}
-type Caller{{$in}}x{{$out}} interface {
-    Caller
+type Func{{$in}}x{{$out}} interface {
+    Func
     Call{{$in}}x{{$out}}({{mktuple $in "interface{}"}}) ({{mktuple $out "interface{}"}})
 }
 
-type shimCaller{{$in}}x{{$out}} struct {
-    inner Caller
+type shimFunc{{$in}}x{{$out}} struct {
+    inner Func
 }
 
-func (c *shimCaller{{$in}}x{{$out}}) Type() reflect.Type {
+func (c *shimFunc{{$in}}x{{$out}}) Name() string {
+   return c.inner.Name()
+}
+
+func (c *shimFunc{{$in}}x{{$out}}) Type() reflect.Type {
    return c.inner.Type()
 }
 
-func (c *shimCaller{{$in}}x{{$out}}) Call(args []interface{}) []interface{} {
+func (c *shimFunc{{$in}}x{{$out}}) Call(args []interface{}) []interface{} {
    return c.inner.Call(args)
 }
 
-func (c *shimCaller{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "interface{}"}}) ({{mktuple $out "interface{}"}}) {
+func (c *shimFunc{{$in}}x{{$out}}) Call{{$in}}x{{$out}}({{mkargs $in "arg%v" "interface{}"}}) ({{mktuple $out "interface{}"}}) {
    ret := c.inner.Call([]interface{}{ {{mktuplef $in "arg%v"}} })
    _ = ret
    return {{mktuplef $out "ret[%v]"}}
 }
 
-func ToCaller{{$in}}x{{$out}}(c Caller) Caller{{$in}}x{{$out}} {
+func ToFunc{{$in}}x{{$out}}(c Func) Func{{$in}}x{{$out}} {
     if c.Type().NumIn() != {{$in}} || c.Type().NumOut() != {{$out}} {
-        panic("incompatible caller type")
+        panic("incompatible func type")
     }
-    if sc, ok := c.(Caller{{$in}}x{{$out}}); ok {
+    if sc, ok := c.(Func{{$in}}x{{$out}}); ok {
         return sc
     }
-    return &shimCaller{{$in}}x{{$out}}{inner: c}
+    return &shimFunc{{$in}}x{{$out}}{inner: c}
 }
 
-func MakeCaller{{$in}}x{{$out}}(fn interface{}) Caller{{$in}}x{{$out}} {
-    return ToCaller{{$in}}x{{$out}}(MakeCaller(fn))
+func MakeFunc{{$in}}x{{$out}}(fn interface{}) Func{{$in}}x{{$out}} {
+    return ToFunc{{$in}}x{{$out}}(MakeFunc(fn))
 }
 {{end}}
 {{end}}
