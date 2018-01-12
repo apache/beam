@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sketching;
 
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasDisplayItem;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -43,7 +44,6 @@ import org.apache.beam.sdk.transforms.Values;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -115,7 +115,7 @@ public class SketchFrequenciesTest implements Serializable {
 
     // n sketches each containing [0, 1, 2]
     for (int i = 0; i < nOccurrences; i++) {
-      Sketch<Integer> sketch = new Sketch<Integer>(eps, conf);
+      Sketch<Integer> sketch = Sketch.<Integer>create(eps, conf);
       for (int j = 0; j < size; j++) {
         sketch.add(j, coder);
       }
@@ -125,7 +125,7 @@ public class SketchFrequenciesTest implements Serializable {
     CountMinSketchFn<Integer> fn = CountMinSketchFn.create(coder).withAccuracy(eps, conf);
     Sketch<Integer> merged = fn.mergeAccumulators(sketches);
     for (int i = 0; i < size; i++) {
-      Assert.assertEquals(nOccurrences, merged.estimateCount(i, coder));
+      assertEquals(nOccurrences, merged.estimateCount(i, coder));
     }
   }
 
@@ -135,7 +135,7 @@ public class SketchFrequenciesTest implements Serializable {
     long occurrences = 2L; // occurrence of each user in the stream
     double eps = 0.01;
     double conf = 0.8;
-    Sketch<GenericRecord> sketch = new Sketch<>(eps, conf);
+    Sketch<GenericRecord> sketch = Sketch.<GenericRecord>create(eps, conf);
     Schema schema =
             SchemaBuilder.record("User")
                     .fields()
@@ -149,13 +149,13 @@ public class SketchFrequenciesTest implements Serializable {
       newRecord.put("Pseudo", "User" + i);
       newRecord.put("Age", i);
       sketch.add(newRecord, occurrences, coder);
-      Assert.assertEquals("Test API", occurrences, sketch.estimateCount(newRecord, coder));
+      assertEquals("Test API", occurrences, sketch.estimateCount(newRecord, coder));
     }
   }
 
   @Test
   public void testCoder() throws Exception {
-    Sketch<Integer> cMSketch = new Sketch<Integer>(0.01, 0.8);
+    Sketch<Integer> cMSketch = Sketch.<Integer>create(0.01, 0.8);
     Coder<Integer> coder = VarIntCoder.of();
     for (int i = 0; i < 3; i++) {
       cMSketch.add(i, coder);
@@ -196,7 +196,7 @@ public class SketchFrequenciesTest implements Serializable {
     @Override
     public Void apply(Sketch<T> sketch) {
       for (int i = 0; i < elements.length; i++) {
-        Assert.assertEquals((long) expectedHits[i], sketch.estimateCount(elements[i], coder));
+        assertEquals((long) expectedHits[i], sketch.estimateCount(elements[i], coder));
       }
       return null;
     }
