@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.transforms.reflect;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.sdk.util.common.ReflectHelpers.findClassLoader;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -326,7 +327,7 @@ public class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         (Class<? extends DoFnInvoker<?, ?>>)
             unloaded
                 .load(
-                    ByteBuddyDoFnInvokerFactory.class.getClassLoader(),
+                    findClassLoader(fnClass.getClassLoader()),
                     ClassLoadingStrategy.Default.INJECTION)
                 .getLoaded();
     return res;
