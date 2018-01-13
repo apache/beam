@@ -342,8 +342,8 @@ class _TestStreamEvaluator(_TransformEvaluator):
       assert event.new_watermark >= self.watermark
       self.watermark = event.new_watermark
     elif isinstance(event, ProcessingTimeEvent):
-      # TODO(ccy): advance processing time in the context's mock clock.
-      pass
+      self._evaluation_context._watermark_manager._clock.advance_time(
+          event.advance_by)
     else:
       raise ValueError('Invalid TestStream event: %s.' % event)
 
@@ -736,7 +736,8 @@ class _StreamingGroupAlsoByWindowEvaluator(_TransformEvaluator):
     self.output_pcollection = list(self._outputs)[0]
     self.step_context = self._execution_context.get_step_context()
     self.driver = create_trigger_driver(
-        self._applied_ptransform.transform.windowing)
+        self._applied_ptransform.transform.windowing,
+        clock=self._evaluation_context._watermark_manager._clock)
     self.gabw_items = []
     self.keyed_holds = {}
 
