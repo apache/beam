@@ -20,7 +20,6 @@ package org.apache.beam.runners.flink;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
-import org.apache.beam.runners.core.construction.PipelineTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.java.CollectionEnvironment;
