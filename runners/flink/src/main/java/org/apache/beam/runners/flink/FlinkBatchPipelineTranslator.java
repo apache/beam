@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink;
 
 import javax.annotation.Nullable;
+import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.runners.TransformHierarchy;
@@ -94,8 +95,8 @@ class FlinkBatchPipelineTranslator extends FlinkPipelineTranslator {
     BatchTransformTranslator<?> translator =
         FlinkBatchTransformTranslators.getTranslator(transform);
     if (translator == null) {
-      LOG.info(node.getTransform().getClass().toString());
-      throw new UnsupportedOperationException("The transform " + transform
+      String transformUrn = PTransformTranslation.urnForTransform(transform);
+      throw new UnsupportedOperationException("The transform " + transformUrn
           + " is currently not supported.");
     }
     applyBatchTransform(transform, node, translator);
