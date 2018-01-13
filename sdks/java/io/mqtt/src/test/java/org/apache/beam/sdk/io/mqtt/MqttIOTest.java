@@ -133,7 +133,7 @@ public class MqttIOTest {
     publisherThread.join();
   }
 
-  @Test(timeout = 5 * 1000)
+  @Test(timeout = 30 * 1000)
   public void testRead() throws Exception {
     PCollection<byte[]> output = pipeline.apply(
         MqttIO.read()
@@ -195,7 +195,7 @@ public class MqttIOTest {
   /**
    * Test for BEAM-3282: this test should not timeout.
    */
-  @Test(timeout = 10 * 1000)
+  @Test(timeout = 30 * 1000)
   public void testReceiveWithTimeoutAndNoData() throws Exception {
     pipeline.apply(MqttIO.read()
         .withConnectionConfiguration(
