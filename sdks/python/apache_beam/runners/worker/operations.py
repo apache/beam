@@ -28,6 +28,7 @@ from apache_beam.internal import pickler
 from apache_beam.io import iobase
 from apache_beam.metrics.execution import MetricsContainer
 from apache_beam.metrics.execution import ScopedMetricsContainer
+from apache_beam.options.value_provider import RuntimeValueProvider
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.runners import common
 from apache_beam.runners.common import Receiver
@@ -306,12 +307,19 @@ class DoOperation(Operation):
         if not isinstance(si, operation_specs.WorkerSideInputSource):
           raise NotImplementedError('Unknown side input type: %r' % si)
         sources.append(si.source)
-      si_counter = opcounters.SideInputReadCounter(
-          self.counter_factory,
-          self.state_sampler,
-          declaring_step=self.operation_name,
-          # Inputs are 1-indexed, so we add 1 to i in the side input id
-          input_index=i + 1)
+        # The tracking of time spend reading and bytes read from side inputs is
+        # behind an experiment flag to test performance impact.
+        experiments = RuntimeValueProvider(
+            'experiments', str, '').get().split(',')
+        if 'sideinput_io_metrics' in experiments:
+          si_counter = opcounters.SideInputReadCounter(
+              self.counter_factory,
+              self.state_sampler,
+              declaring_step=self.operation_name,
+              # Inputs are 1-indexed, so we add 1 to i in the side input id
+              input_index=i + 1)
+        else:
+          si_counter = opcounters.TransformIOCounter()
       iterator_fn = sideinputs.get_iterator_fn_for_sources(
           sources, read_counter=si_counter)
 
