@@ -195,13 +195,6 @@ docker build -t beam:openjdk8 .
 </code></pre>
 </div>
 
-<p>If you want to build a container with JDK 7:</p>
-
-<div class="highlighter-rouge"><pre class="highlight"><code>cd file/openjdk7
-docker build -t beam:openjdk7 .
-</code></pre>
-</div>
-
 <p>When you run the image it downloads the specific version of Beam given the
 environment variables. By default it downloads the source code of the latest
 master. If you want to download the latest master and execute the tests:</p>
@@ -274,9 +267,9 @@ directory in your host machine. This is useful to test your code with different
 versions of Java.</p>
 
 <p>If you have the code in the ~/workspace/beam directory and you want to quickly
-test it with Beam on Java 7 you can do:</p>
+test it with Beam you can do:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/workspace/beam:/home/user/beam -it beam:openjdk7 /bin/bash
+<div class="highlighter-rouge"><pre class="highlight"><code>docker run -v ~/workspace/beam:/home/user/beam -it beam:openjdk8 /bin/bash
 </code></pre>
 </div>
 
