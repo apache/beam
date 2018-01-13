@@ -44,15 +44,14 @@ import org.junit.runners.JUnit4;
 public class FlattenRunnerTest {
 
   /**
-   * Create a DoFn that has 4 inputs (inputATarget1, inputATarget2, inputBTarget, inputCTarget) and
-   * 2 outputs (mainOutput, output). Validate that inputs are flattened together and that outputs
-   * are directed to all consumers.
+   * Create a Flatten that has 4 inputs (inputATarget1, inputATarget2, inputBTarget, inputCTarget)
+   * and one output (mainOutput). Validate that inputs are flattened together and directed to the
+   * output.
    */
   @Test
   public void testCreatingAndProcessingDoFlatten() throws Exception {
     String pTransformId = "pTransformId";
     String mainOutputId = "101";
-    String additionalOutputId = "102";
 
     RunnerApi.FunctionSpec functionSpec =
         RunnerApi.FunctionSpec.newBuilder()
@@ -64,16 +63,12 @@ public class FlattenRunnerTest {
         .putInputs("inputB", "inputBTarget")
         .putInputs("inputC", "inputCTarget")
         .putOutputs(mainOutputId, "mainOutputTarget")
-        .putOutputs(additionalOutputId, "additionalOutputTarget")
         .build();
 
     List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
-    List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
     Multimap<String, FnDataReceiver<WindowedValue<?>>> consumers = HashMultimap.create();
     consumers.put("mainOutputTarget",
         (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
-    consumers.put("additionalOutputTarget",
-        (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
 
     new FlattenRunner.Factory<>().createRunnerForPTransform(
         PipelineOptionsFactory.create(),
@@ -91,8 +86,7 @@ public class FlattenRunnerTest {
 
     mainOutputValues.clear();
     assertThat(consumers.keySet(), containsInAnyOrder(
-        "inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget",
-        "additionalOutputTarget"));
+        "inputATarget", "inputBTarget", "inputCTarget", "mainOutputTarget"));
 
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
@@ -103,13 +97,7 @@ public class FlattenRunnerTest {
         valueInGlobalWindow("A2"),
         valueInGlobalWindow("B"),
         valueInGlobalWindow("C")));
-    assertThat(additionalOutputValues, contains(
-        valueInGlobalWindow("A1"),
-        valueInGlobalWindow("A2"),
-        valueInGlobalWindow("B"),
-        valueInGlobalWindow("C")));
 
     mainOutputValues.clear();
-    additionalOutputValues.clear();
   }
 }

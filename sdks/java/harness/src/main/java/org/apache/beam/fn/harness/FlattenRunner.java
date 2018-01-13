@@ -17,12 +17,13 @@
  */
 package org.apache.beam.fn.harness;
 
+import static com.google.common.collect.Iterables.getOnlyElement;
+
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -33,20 +34,14 @@ import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
-import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.util.WindowedValue;
 
-/**
- * A {@link DoFnRunner} for flatten transformations.
- */
+/** Executes flatten PTransforms. */
 public class FlattenRunner<InputT>{
-  /**
-   * A registrar which provides a factory to handle Java {@link DoFn}s.
-   */
+  /** A registrar which provides a factory to handle flatten PTransforms. */
   @AutoService(PTransformRunnerFactory.Registrar.class)
   public static class Registrar implements
       PTransformRunnerFactory.Registrar {
@@ -80,13 +75,11 @@ public class FlattenRunner<InputT>{
       // Give each input a MultiplexingFnDataReceiver to all outputs of the flatten.
       ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>> consumersBuilder =
           new ImmutableSet.Builder<FnDataReceiver<WindowedValue<InputT>>>();
-      for (String output : pTransform.getOutputsMap().values()) {
-        consumersBuilder.addAll((Iterable) pCollectionIdsToConsumers.get(output));
-      }
-      Collection<FnDataReceiver<WindowedValue<InputT>>> consumers = consumersBuilder.build();
+      String output = getOnlyElement(pTransform.getOutputsMap().values());
+      consumersBuilder.addAll((Iterable) pCollectionIdsToConsumers.get(output));
 
       FnDataReceiver<WindowedValue<InputT>> receiver =
-          MultiplexingFnDataReceiver.forConsumers(consumers);
+          MultiplexingFnDataReceiver.forConsumers(consumersBuilder.build());
       FlattenRunner<InputT> runner = new FlattenRunner<>();
 
       for (String pCollectionId : pTransform.getInputsMap().values()) {
