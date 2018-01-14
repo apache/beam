@@ -779,7 +779,10 @@ public class DoFnInvokersTest {
         invoker.getClass().getName(),
         equalTo(
             String.format(
-                "%s$%s", StableNameTestDoFn.class.getName(), DoFnInvoker.class.getSimpleName())));
+                "%s%s%s",
+                StableNameTestDoFn.class.getName(),
+                StableInvokerNamingStrategy.PROXY_NAME_DELIMITER,
+                ByteBuddyDoFnInvokerFactory.PROXY_CLASSNAME_SUFFIX)));
   }
 
 }

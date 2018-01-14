@@ -131,8 +131,9 @@ public class OnTimerInvokersTest {
         invoker.getClass().getName(),
         equalTo(
             String.format(
-                "%s$%s$%s$%s",
+                "%s%s%s$%s$%s",
                 StableNameTestDoFn.class.getName(),
+                StableInvokerNamingStrategy.PROXY_NAME_DELIMITER,
                 OnTimerInvoker.class.getSimpleName(),
                 "timeridwithspecialChars" /* alphanum only; human readable but not unique */,
                 "dGltZXItaWQud2l0aCBzcGVjaWFsQ2hhcnN7fQ" /* base64 encoding of UTF-8 timerId */)));
