@@ -209,7 +209,7 @@ public class DoFnOperator<InputT, OutputT>
 
     FlinkPipelineOptions flinkOptions = options.as(FlinkPipelineOptions.class);
 
-    this.maxBundleSize = options.getMaxBundleSize();
+    this.maxBundleSize = flinkOptions.getMaxBundleSize();
     this.maxBundleTimeMills = flinkOptions.getMaxBundleTimeMills();
   }
 

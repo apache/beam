@@ -270,7 +270,6 @@ public interface PipelineOptions extends HasDisplayData {
   String getJobName();
   void setJobName(String jobName);
 
-  @Description("The maximum number of elements in a bundle.")
   @Default.Long(1000)
   Long getMaxBundleSize();
   void setMaxBundleSize(Long size);

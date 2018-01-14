@@ -575,7 +575,7 @@ public class Pipeline {
     this.traverseTopologically(new ValidateVisitor(options));
     final Collection<Map.Entry<String, Collection<PTransform<?, ?>>>> errors =
             Collections2.filter(instancePerName.asMap().entrySet(),
-                    Predicates.not(IsUnique.INSTANCE));
+                    Predicates.not(new IsUnique<String, PTransform<?, ?>>()));
     if (!errors.isEmpty()) {
       switch (options.getStableUniqueNames()) {
         case OFF:
@@ -583,14 +583,14 @@ public class Pipeline {
         case WARNING:
           LOG.warn(
               "The following transforms do not have stable unique names: {}",
-              Joiner.on(", ").join(transform(errors, KeysExtractor.INSTANCE)));
+              Joiner.on(", ").join(transform(errors, new KeysExtractor())));
           break;
         case ERROR: // be very verbose here since it will just fail the execution
           throw new IllegalStateException(
               String.format(
                   "Pipeline update will not be possible"
                       + " because the following transforms do not have stable unique names: %s.",
-                  Joiner.on(", ").join(transform(errors, KeysExtractor.INSTANCE))) + "\n\n"
+                  Joiner.on(", ").join(transform(errors, new KeysExtractor()))) + "\n\n"
                       + "Conflicting instances:\n"
                       + Joiner.on("\n").join(transform(
                               errors, new UnstableNameToMessage(instancePerName)))
@@ -650,8 +650,6 @@ public class Pipeline {
   }
 
   private static class TransformToMessage implements Function<PTransform<?, ?>, String> {
-    private static final TransformToMessage INSTANCE = new TransformToMessage();
-
     @Override
     public String apply(final PTransform<?, ?> transform) {
       return "    - " + transform;
@@ -670,14 +668,12 @@ public class Pipeline {
     public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       final Collection<PTransform<?, ?>> values = instances.get(input.getKey());
       return "- name=" + input.getKey() + ":\n"
-              + Joiner.on("\n").join(transform(values, TransformToMessage.INSTANCE));
+              + Joiner.on("\n").join(transform(values, new TransformToMessage()));
     }
   }
 
   private static class KeysExtractor implements
           Function<Map.Entry<String, Collection<PTransform<?, ?>>>, String> {
-    private static final KeysExtractor INSTANCE = new KeysExtractor();
-
     @Override
     public String apply(final Map.Entry<String, Collection<PTransform<?, ?>>> input) {
       return input.getKey();
@@ -685,9 +681,6 @@ public class Pipeline {
   }
 
   private static class IsUnique<K, V> implements Predicate<Map.Entry<K, Collection<V>>> {
-    private static final Predicate<Map.Entry<String, Collection<PTransform<?, ?>>>> INSTANCE =
-            new IsUnique<>();
-
     @Override
     public boolean apply(final Map.Entry<K, Collection<V>> input) {
       return input != null && input.getValue().size() == 1;
