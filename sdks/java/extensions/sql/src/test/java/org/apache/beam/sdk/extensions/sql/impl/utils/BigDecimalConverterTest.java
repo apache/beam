@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.beam.sdk.extensions.sql.impl.transform.agg;
+package org.apache.beam.sdk.extensions.sql.impl.utils;
 
 import static org.apache.beam.sdk.extensions.sql.SqlTypeCoders.NUMERIC_TYPES;
 import static org.junit.Assert.assertNotNull;

@@ -19,16 +19,12 @@ package org.apache.beam.sdk.extensions.sql;
 
 import static org.hamcrest.Matchers.isA;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
@@ -190,52 +186,6 @@ public class BeamSqlDslAggregationTest extends BeamSqlDslBase {
         , 1.25, 1.666666667, 1, 1);
 
     PAssert.that(result).containsInAnyOrder(record);
-
-    pipeline.run().waitUntilFinish();
-  }
-
-  private static class CheckerBigDecimalDivide
-          implements SerializableFunction<Iterable<BeamRecord>, Void> {
-    @Override public Void apply(Iterable<BeamRecord> input) {
-      Iterator<BeamRecord> iter = input.iterator();
-      assertTrue(iter.hasNext());
-      BeamRecord row = iter.next();
-      assertEquals(row.getDouble("avg1"), 8.142857143, 1e-7);
-      assertTrue(row.getInteger("avg2") == 8);
-      assertEquals(row.getDouble("varpop1"), 26.40816326, 1e-7);
-      assertTrue(row.getInteger("varpop2") == 26);
-      assertEquals(row.getDouble("varsamp1"), 30.80952381, 1e-7);
-      assertTrue(row.getInteger("varsamp2") == 30);
-      assertFalse(iter.hasNext());
-      return null;
-    }
-  }
-
-  /**
-   * GROUP-BY with aggregation functions with BigDeciaml Calculation (Avg, Var_Pop, etc).
-   */
-  @Test
-  public void testAggregationFunctionsWithBoundedOnBigDecimalDivide() throws Exception {
-    String sql = "SELECT AVG(f_double) as avg1, AVG(f_int) as avg2, "
-        + "VAR_POP(f_double) as varpop1, VAR_POP(f_int) as varpop2, "
-        + "VAR_SAMP(f_double) as varsamp1, VAR_SAMP(f_int) as varsamp2 "
-        + "FROM PCOLLECTION GROUP BY f_int2";
-
-    PCollection<BeamRecord> result =
-        boundedInput3.apply("testAggregationWithDecimalValue", BeamSql.query(sql));
-
-    BeamRecordType resultType =
-        BeamRecordSqlType.builder()
-            .withDoubleField("avg1")
-            .withIntegerField("avg2")
-            .withDecimalField("avg3")
-            .withDoubleField("varpop1")
-            .withIntegerField("varpop2")
-            .withDoubleField("varsamp1")
-            .withIntegerField("varsamp2")
-            .build();
-
-    PAssert.that(result).satisfies(new CheckerBigDecimalDivide());
 
     pipeline.run().waitUntilFinish();
   }

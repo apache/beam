@@ -262,18 +262,21 @@
                   </relocation>
                   <relocation>
                     <pattern>com.google.protobuf</pattern>
+                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.com.google.protobuf
                     </shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>org.apache.calcite</pattern>
+                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.org.apache.calcite
                     </shadedPattern>
                   </relocation>
                   <relocation>
                     <pattern>org.codehaus</pattern>
+                    <!--suppress MavenModelInspection -->
                     <shadedPattern>
                       org.apache.${renderedArtifactId}.repackaged.org.codehaus
                     </shadedPattern>
