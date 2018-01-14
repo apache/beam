@@ -120,7 +120,7 @@ ext.getJavaRelocatedPath = { String suffix ->
 
 // A class defining the set of configurable properties accepted by applyJavaNature
 class JavaNatureConfiguration {
-  double javaVersion = 1.7        // Controls the JDK source language and target compatibility
+  double javaVersion = 1.8        // Controls the JDK source language and target compatibility
   boolean enableFindbugs = true   // Controls whether the findbugs plugin is enabled and configured
   boolean enableShadow = true     // Controls whether the shadow plugin is enabled and configured
 }

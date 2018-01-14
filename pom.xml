@@ -294,45 +294,6 @@
       <activation>
         <jdk>[1.8,)</jdk>
       </activation>
-      <build>
-        <plugins>
-          <!-- Override Beam parent to allow Java8 dependencies -->
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-enforcer-plugin</artifactId>
-            <version>${maven-enforcer-plugin.version}</version>
-            <executions>
-              <execution>
-                <id>enforce</id>
-                <goals>
-                  <goal>enforce</goal>
-                </goals>
-                <configuration>
-                  <rules>
-                    <enforceBytecodeVersion>
-                      <maxJdkVersion>1.8</maxJdkVersion>
-                      <excludes>
-                        <!--
-                          Supplied by the user JDK and compiled with matching
-                          version. Is not shaded, so safe to ignore.
-                        -->
-                        <exclude>jdk.tools:jdk.tools</exclude>
-                      </excludes>
-                    </enforceBytecodeVersion>
-                    <requireJavaVersion>
-                      <version>[1.7,)</version>
-                    </requireJavaVersion>
-                    <requireMavenVersion>
-                      <!-- Keep aligned with preqrequisite section below. -->
-                      <version>[3.2,)</version>
-                    </requireMavenVersion>
-                  </rules>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>
@@ -1509,8 +1470,8 @@
           <artifactId>maven-compiler-plugin</artifactId>
           <version>${maven-compiler-plugin.version}</version>
           <configuration>
-            <source>1.7</source>
-            <target>1.7</target>
+            <source>1.8</source>
+            <target>1.8</target>
             <compilerArgs>
               <arg>-Xlint:all</arg>
               <arg>${compiler.error.flag}</arg>
@@ -2053,7 +2014,7 @@
             <configuration>
               <rules>
                 <enforceBytecodeVersion>
-                  <maxJdkVersion>1.7</maxJdkVersion>
+                  <maxJdkVersion>1.8</maxJdkVersion>
                   <excludes>
                     <!--
                       Supplied by the user JDK and compiled with matching
@@ -2064,7 +2025,7 @@
                   </excludes>
                 </enforceBytecodeVersion>
                 <requireJavaVersion>
-                  <version>[1.7,)</version>
+                  <version>[1.8,)</version>
                 </requireJavaVersion>
                 <requireMavenVersion>
                   <!-- Keep aligned with preqrequisite section below. -->
