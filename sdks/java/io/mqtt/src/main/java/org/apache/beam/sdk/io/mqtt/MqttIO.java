@@ -260,19 +260,13 @@ public class MqttIO {
 
     @Override
     public PCollection<byte[]> expand(PBegin input) {
-      checkArgument(
-          maxReadTime() == null || maxNumRecords() == Long.MAX_VALUE,
-          "withMaxNumRecords() and withMaxReadTime() are exclusive");
-
       org.apache.beam.sdk.io.Read.Unbounded<byte[]> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedMqttSource(this));
 
       PTransform<PBegin, PCollection<byte[]>> transform = unbounded;
 
-      if (maxNumRecords() != Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(maxNumRecords());
-      } else if (maxReadTime() != null) {
-        transform = unbounded.withMaxReadTime(maxReadTime());
+      if (maxNumRecords() < Long.MAX_VALUE || maxReadTime() != null) {
+        transform = unbounded.withMaxReadTime(maxReadTime()).withMaxNumRecords(maxNumRecords());
       }
 
       return input.getPipeline().apply(transform);
