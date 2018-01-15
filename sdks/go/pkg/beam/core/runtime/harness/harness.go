@@ -70,6 +70,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	respc := make(chan *fnpb.InstructionResponse, 100)
 
 	wg.Add(1)
+
+	// gRPC requires all writers to a stream be the same goroutine, so this is the
+	// goroutine for managing responses back to the control service.
 	go func() {
 		defer wg.Done()
 		for resp := range respc {
@@ -100,34 +103,39 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 			return fmt.Errorf("recv failed: %v", err)
 		}
 
-		log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
-		recordInstructionRequest(req)
+		// Launch a goroutine to handle the control message.
+		// TODO(wcn): maybe only do this for 'heavy' messages?
+		// TODO(wcn): implement a rate limiter for 'heavy' messages?
+		go func() {
+			log.Debugf(ctx, "RECV: %v", proto.MarshalTextString(req))
+			recordInstructionRequest(req)
 
-		if isEnabled("cpu_profiling") {
-			cpuProfBuf.Reset()
-			pprof.StartCPUProfile(&cpuProfBuf)
-		}
-		resp := ctrl.handleInstruction(ctx, req)
-
-		if isEnabled("cpu_profiling") {
-			pprof.StopCPUProfile()
-			if err := ioutil.WriteFile(fmt.Sprintf("%s/cpu_prof%s", storagePath, req.InstructionId), cpuProfBuf.Bytes(), 0644); err != nil {
-				log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
+			if isEnabled("cpu_profiling") {
+				cpuProfBuf.Reset()
+				pprof.StartCPUProfile(&cpuProfBuf)
 			}
-		}
+			resp := ctrl.handleInstruction(ctx, req)
 
-		recordInstructionResponse(resp)
-		if resp != nil {
-			respc <- resp
-		}
+			if isEnabled("cpu_profiling") {
+				pprof.StopCPUProfile()
+				if err := ioutil.WriteFile(fmt.Sprintf("%s/cpu_prof%s", storagePath, req.InstructionId), cpuProfBuf.Bytes(), 0644); err != nil {
+					log.Warnf(ctx, "Failed to write CPU profile for instruction %s: %v", req.InstructionId, err)
+				}
+			}
+
+			recordInstructionResponse(resp)
+			if resp != nil {
+				respc <- resp
+			}
+		}()
 	}
 }
 
 type control struct {
-	plans map[string]*exec.Plan
-	data  *DataManager
-
-	// TODO: running pipelines
+	plans  map[string]*exec.Plan // protected by mu
+	active map[string]*exec.Plan // protected by mu
+	mu     sync.Mutex
+	data   *DataManager
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
@@ -140,7 +148,7 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 
 		for _, desc := range msg.GetProcessBundleDescriptor() {
 			var roots []string
-			for id, _ := range desc.GetTransforms() {
+			for id := range desc.GetTransforms() {
 				roots = append(roots, id)
 			}
 			p := &pb.Pipeline{
@@ -170,7 +178,9 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			}
 			log.Debugf(ctx, "Plan %v: %v", desc.GetId(), plan)
 
+			c.mu.Lock()
 			c.plans[desc.GetId()] = plan
+			c.mu.Unlock()
 		}
 
 		return &fnpb.InstructionResponse{
@@ -188,14 +198,27 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 		log.Debugf(ctx, "PB: %v", msg)
 
 		ref := msg.GetProcessBundleDescriptorReference()
+		c.mu.Lock()
 		plan, ok := c.plans[ref]
+		// Make the plan active, and remove it from candidates
+		// since a plan can't be run concurrently.
+		c.active[id] = plan
+		delete(c.plans, ref)
+		c.mu.Unlock()
+
 		if !ok {
 			return fail(id, "execution plan for %v not found", ref)
 		}
 
-		// TODO: Async execution. The below assumes serial bundle execution.
+		err := plan.Execute(ctx, id, c.data)
 
-		if err := plan.Execute(ctx, id, c.data); err != nil {
+		// Move the plan back to the candidate state
+		c.mu.Lock()
+		c.plans[plan.ID()] = plan
+		delete(c.active, id)
+		c.mu.Unlock()
+
+		if err != nil {
 			return fail(id, "execute failed: %v", err)
 		}
 
@@ -209,12 +232,36 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 	case req.GetProcessBundleProgress() != nil:
 		msg := req.GetProcessBundleProgress()
 
-		log.Debugf(ctx, "PB Progress: %v", msg)
+		// log.Debugf(ctx, "PB Progress: %v", msg)
+
+		ref := msg.GetInstructionReference()
+		c.mu.Lock()
+		plan, ok := c.active[ref]
+		c.mu.Unlock()
+		if !ok {
+			return fail(id, "execution plan for %v not found", ref)
+		}
+
+		snapshot := plan.ProgressReport()
 
 		return &fnpb.InstructionResponse{
 			InstructionId: id,
 			Response: &fnpb.InstructionResponse_ProcessBundleProgress{
-				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{},
+				ProcessBundleProgress: &fnpb.ProcessBundleProgressResponse{
+					Metrics: &fnpb.Metrics{
+						Ptransforms: map[string]*fnpb.Metrics_PTransform{
+							snapshot.ID: &fnpb.Metrics_PTransform{
+								ProcessedElements: &fnpb.Metrics_PTransform_ProcessedElements{
+									Measured: &fnpb.Metrics_PTransform_Measured{
+										OutputElementCounts: map[string]int64{
+											snapshot.Name: snapshot.Count,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
 			},
 		}
 

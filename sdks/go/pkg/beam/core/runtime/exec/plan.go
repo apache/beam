@@ -32,17 +32,23 @@ type Plan struct {
 	units []Unit
 
 	status Status
+	source *DataSource
 }
 
 // NewPlan returns a new bundle execution plan from the given units.
 func NewPlan(id string, units []Unit) (*Plan, error) {
 	var roots []Root
+	var source *DataSource
+
 	for _, u := range units {
 		if u == nil {
 			return nil, fmt.Errorf("no <nil> units")
 		}
 		if r, ok := u.(Root); ok {
 			roots = append(roots, r)
+		}
+		if s, ok := u.(*DataSource); ok {
+			source = s
 		}
 	}
 	if len(roots) == 0 {
@@ -54,6 +60,7 @@ func NewPlan(id string, units []Unit) (*Plan, error) {
 		status: Initializing,
 		roots:  roots,
 		units:  units,
+		source: source,
 	}, nil
 }
 
@@ -136,4 +143,9 @@ func (p *Plan) String() string {
 		units = append(units, fmt.Sprintf("%v: %v", u.ID(), u))
 	}
 	return fmt.Sprintf("Plan[%v]:\n%v", p.ID(), strings.Join(units, "\n"))
+}
+
+// ProgressReport returns a snapshot of input progress of the plan.
+func (p *Plan) ProgressReport() ProgressReportSnapshot {
+	return p.source.Progress()
 }

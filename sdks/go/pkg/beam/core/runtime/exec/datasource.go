@@ -19,9 +19,12 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync/atomic"
+	"time"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
+	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
 // DataSource is a Root execution unit.
@@ -32,6 +35,8 @@ type DataSource struct {
 
 	sid    StreamID
 	source DataReader
+	count  int64
+	start  time.Time
 }
 
 func (n *DataSource) ID() UnitID {
@@ -45,6 +50,8 @@ func (n *DataSource) Up(ctx context.Context) error {
 func (n *DataSource) StartBundle(ctx context.Context, id string, data DataManager) error {
 	n.sid = StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target, InstID: id}
 	n.source = data
+	n.start = time.Now()
+	atomic.StoreInt64(&n.count, 0)
 	return n.Out.StartBundle(ctx, id, data)
 }
 
@@ -93,6 +100,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 				// Single chunk stream.
 
 				// log.Printf("Fixed size=%v", size)
+				atomic.AddInt64(&n.count, int64(size))
 
 				for i := int32(0); i < size; i++ {
 					value, err := cv.Decode(r)
@@ -116,6 +124,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 						break
 					}
 
+					atomic.AddInt64(&n.count, int64(chunk))
 					for i := uint64(0); i < chunk; i++ {
 						value, err := cv.Decode(r)
 						if err != nil {
@@ -139,6 +148,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 		ec := MakeElementDecoder(coder.SkipW(c))
 
 		for {
+			atomic.AddInt64(&n.count, 1)
 			t, err := DecodeWindowedValueHeader(c, r)
 			if err != nil {
 				if err == io.EOF {
@@ -163,6 +173,7 @@ func (n *DataSource) Process(ctx context.Context) error {
 }
 
 func (n *DataSource) FinishBundle(ctx context.Context) error {
+	log.Infof(context.Background(), "DataSource: %d elements in %d ns", n.count, time.Now().Sub(n.start))
 	n.sid = StreamID{}
 	n.source = nil
 	return n.Out.FinishBundle(ctx)
@@ -177,4 +188,18 @@ func (n *DataSource) Down(ctx context.Context) error {
 func (n *DataSource) String() string {
 	sid := StreamID{Port: *n.Edge.Port, Target: *n.Edge.Target}
 	return fmt.Sprintf("DataSource[%v] Out:%v", sid, n.Out.ID())
+}
+
+// ProgressReportSnapshot captures the progress reading an input source.
+type ProgressReportSnapshot struct {
+	ID, Name string
+	Count    int64
+}
+
+// Progress returns a snapshot of the source's progress.
+func (n *DataSource) Progress() ProgressReportSnapshot {
+	if n == nil {
+		return ProgressReportSnapshot{}
+	}
+	return ProgressReportSnapshot{n.sid.Target.ID, n.sid.Target.Name, atomic.LoadInt64(&n.count)}
 }
