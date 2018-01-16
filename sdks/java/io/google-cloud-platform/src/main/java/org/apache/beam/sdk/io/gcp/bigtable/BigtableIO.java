@@ -974,8 +974,9 @@ public class BigtableIO {
 
     @Override
     public void validate() {
-      String tableId = getTableId();
-      checkArgument(tableId != null && !tableId.isEmpty(), "tableId cannot be empty");
+      ValueProvider<String> tableId = config.getTableId();
+      checkArgument(tableId != null && tableId.isAccessible() && !tableId.get().isEmpty(),
+        "tableId was not supplied");
     }
 
     @Override
@@ -1041,8 +1042,8 @@ public class BigtableIO {
       return filter;
     }
 
-    public String getTableId() {
-      return config.getTableId().isAccessible() ? config.getTableId().get() : null;
+    public ValueProvider<String> getTableId() {
+      return config.getTableId();
     }
   }
 
@@ -1165,7 +1166,7 @@ public class BigtableIO {
   }
 
   static void validateTableExists(BigtableConfig config, PipelineOptions options) {
-    if (config.getValidate()) {
+    if (config.getValidate() && config.isDataAccessible()) {
       String tableId = checkNotNull(config.getTableId().get());
       try {
         checkArgument(

@@ -156,14 +156,18 @@ abstract class BigtableConfig implements Serializable {
   }
 
   void validate() {
-    checkArgument(getTableId() != null, "Could not obtain Bigtable table id");
+    checkArgument(getTableId() != null
+        && (!getTableId().isAccessible() || !getTableId().get().isEmpty()),
+      "Could not obtain Bigtable table id");
 
     checkArgument(getProjectId() != null
+        && (!getProjectId().isAccessible() || !getProjectId().get().isEmpty())
         || getBigtableOptions() != null && getBigtableOptions().getProjectId() != null
         && !getBigtableOptions().getProjectId().isEmpty(),
       "Could not obtain Bigtable project id");
 
     checkArgument(getInstanceId() != null
+        && (!getInstanceId().isAccessible() || !getInstanceId().get().isEmpty())
         || getBigtableOptions() != null && getBigtableOptions().getInstanceId() != null
         && !getBigtableOptions().getInstanceId().isEmpty(),
       "Could not obtain Bigtable instance id");
@@ -179,7 +183,7 @@ abstract class BigtableConfig implements Serializable {
 
     if (getBigtableOptions() != null) {
       builder.add(DisplayData.item("bigtableOptions", getBigtableOptions().toString())
-        .withLabel("Provided Bigtable Options"));
+        .withLabel("Bigtable Options"));
     }
   }
 
@@ -212,6 +216,12 @@ abstract class BigtableConfig implements Serializable {
     bigtableOptions.setUseCachedDataPool(true);
 
     return new BigtableServiceImpl(bigtableOptions.build());
+  }
+
+  boolean isDataAccessible() {
+    return getTableId().isAccessible()
+      && (getProjectId() == null || getProjectId().isAccessible())
+      && (getInstanceId() == null || getInstanceId().isAccessible());
   }
 
   private BigtableOptions.Builder effectiveUserProvidedBigtableOptions() {

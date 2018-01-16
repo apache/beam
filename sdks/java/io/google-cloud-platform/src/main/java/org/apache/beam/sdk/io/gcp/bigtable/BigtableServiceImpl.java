@@ -117,7 +117,7 @@ class BigtableServiceImpl implements BigtableService {
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder()
               .setRows(rowSet)
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId()));
+              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()));
       if (source.getRowFilter() != null) {
         requestB.setFilter(source.getRowFilter());
       }
@@ -247,7 +247,7 @@ class BigtableServiceImpl implements BigtableService {
     try (BigtableSession session = new BigtableSession(options)) {
       SampleRowKeysRequest request =
           SampleRowKeysRequest.newBuilder()
-              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId()))
+              .setTableName(options.getInstanceName().toTableNameStr(source.getTableId().get()))
               .build();
       return session.getDataClient().sampleRowKeys(request);
     }

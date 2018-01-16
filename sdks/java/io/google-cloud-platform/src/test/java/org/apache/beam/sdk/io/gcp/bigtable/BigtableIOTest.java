@@ -172,6 +172,14 @@ public class BigtableIOTest {
   }
 
   @Test
+  public void testReadValidationFailsMissingTable() {
+    BigtableIO.Read read = BigtableIO.read().withBigtableOptions(BIGTABLE_OPTIONS);
+
+    thrown.expect(IllegalArgumentException.class);
+    read.expand(null);
+  }
+
+  @Test
   public void testReadValidationFailsMissingInstanceId() {
     BigtableIO.Read read = BigtableIO.read().withTableId("table")
         .withProjectId("project")
@@ -906,8 +914,8 @@ public class BigtableIOTest {
 
     @Override
     public List<SampleRowKeysResponse> getSampleRowKeys(BigtableSource source) {
-      List<SampleRowKeysResponse> samples = sampleRowKeys.get(source.getTableId());
-      checkNotNull(samples, "No samples found for table %s", source.getTableId());
+      List<SampleRowKeysResponse> samples = sampleRowKeys.get(source.getTableId().get());
+      checkNotNull(samples, "No samples found for table %s", source.getTableId().get());
       return samples;
     }
 
@@ -962,12 +970,12 @@ public class BigtableIOTest {
         checkArgument(!keyRegex.isEmpty(), "Only RowKeyRegexFilter is supported");
         filter = new KeyMatchesRegex(keyRegex.toStringUtf8());
       }
-      service.verifyTableExists(source.getTableId());
+      service.verifyTableExists(source.getTableId().get());
     }
 
     @Override
     public boolean start() {
-      rows = service.tables.get(source.getTableId()).entrySet().iterator();
+      rows = service.tables.get(source.getTableId().get()).entrySet().iterator();
       return advance();
     }
 
