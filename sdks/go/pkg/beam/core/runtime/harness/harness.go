@@ -90,6 +90,11 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}
 
 	var cpuProfBuf bytes.Buffer
+
+	// gRPC requires all readers of a stream be the same goroutine, so this goroutine
+	// is responsible for managing the network data. All it does is pull data from
+	// the stream, and hand off the message to a goroutine to actually be handled,
+	// so as to avoid blocking the underlying network channel.
 	for {
 		req, err := client.Recv()
 		if err != nil {
@@ -132,10 +137,14 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 }
 
 type control struct {
-	plans  map[string]*exec.Plan // protected by mu
+	// plans that are candidates for execution.
+	plans map[string]*exec.Plan // protected by mu
+	// plans that are actively being executed.
+	// a plan can only be in one of these maps at any time.
 	active map[string]*exec.Plan // protected by mu
 	mu     sync.Mutex
-	data   *DataManager
+
+	data *DataManager
 }
 
 func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRequest) *fnpb.InstructionResponse {
