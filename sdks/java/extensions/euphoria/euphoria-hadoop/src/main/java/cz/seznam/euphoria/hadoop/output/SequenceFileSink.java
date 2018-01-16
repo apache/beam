@@ -28,6 +28,16 @@ import javax.annotation.Nullable;
  * A convenience data sink to produce output through hadoop's sequence file for a
  * specified key and value type.
  *
+ * Example:
+ * <pre>{@code
+ * SequenceFileSink
+ *    .of(KeyClass, ValueClass)
+ *    .outputPath(outputDir)
+ *    .withConfiguration( hadoopConfig) // optional (must be before withCompression)
+ *    .withCompression( CompressionClass, CompressionType) //optional
+ *    .build();
+ * }</pre>
+ *
  * @param <K> the type of the keys emitted
  * @param <V> the type of the values emitted
  */
