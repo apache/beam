@@ -161,10 +161,9 @@ class SdkHarness(object):
   def _request_process_bundle_progress(self, request):
 
     def task():
-      self._execute(
-          lambda: self._instruction_id_vs_worker[
-              request.instruction_id].do_instruction(request),
-          request)
+      self._execute(lambda: self._instruction_id_vs_worker[getattr(
+          request, request.WhichOneof('request')
+      ).instruction_reference].do_instruction(request), request)
 
     self._progress_thread_pool.submit(task)
 
