@@ -48,22 +48,10 @@ public class LocalFileSystemArtifactStagerService
     return new LocalFileSystemArtifactStagerService(base);
   }
 
-  private final File stagingBase;
-  private final File artifactsBase;
+  private final LocalArtifactStagingLocation location;
 
   private LocalFileSystemArtifactStagerService(File stagingBase) {
-    this.stagingBase = stagingBase;
-    if (((stagingBase.exists() && stagingBase.isDirectory()) || stagingBase.mkdirs())
-        && stagingBase.canWrite()) {
-      artifactsBase = new File(stagingBase, "artifacts");
-      checkState(
-          (artifactsBase.mkdir() || artifactsBase.exists()) && artifactsBase.canWrite(),
-          "Could not create artifact staging directory at %s",
-          artifactsBase);
-    } else {
-      throw new IllegalStateException(
-          String.format("Could not create staging directory structure at root %s", stagingBase));
-    }
+    this.location = LocalArtifactStagingLocation.createAt(stagingBase);
   }
 
   @Override
@@ -98,7 +86,7 @@ public class LocalFileSystemArtifactStagerService
     Collection<ArtifactApi.ArtifactMetadata> missing = new ArrayList<>();
     for (ArtifactApi.ArtifactMetadata artifact : request.getManifest().getArtifactList()) {
       // TODO: Validate the checksums on the server side, to fail more aggressively if require
-      if (!getArtifactFile(artifact.getName()).exists()) {
+      if (!location.getArtifactFile(artifact.getName()).exists()) {
         missing.add(artifact);
       }
     }
@@ -108,20 +96,16 @@ public class LocalFileSystemArtifactStagerService
               String.format("Attempted to commit manifest with missing Artifacts: [%s]", missing))
           .asRuntimeException();
     }
-    File mf = new File(stagingBase, "MANIFEST");
+    File mf = location.getManifestFile();
     checkState(mf.createNewFile(), "Could not create file to store manifest");
     try (OutputStream mfOut = new FileOutputStream(mf)) {
       request.getManifest().writeTo(mfOut);
     }
     responseObserver.onNext(
         ArtifactApi.CommitManifestResponse.newBuilder()
-            .setStagingToken(stagingBase.getCanonicalPath())
+            .setStagingToken(location.getRootPath())
             .build());
     responseObserver.onCompleted();
-  }
-
-  File getArtifactFile(String artifactName) {
-    return new File(artifactsBase, artifactName);
   }
 
   @Override
@@ -169,7 +153,7 @@ public class LocalFileSystemArtifactStagerService
 
     private FileWritingObserver createFile(ArtifactApi.ArtifactMetadata metadata)
         throws IOException {
-      File destination = getArtifactFile(metadata.getName());
+      File destination = location.getArtifactFile(metadata.getName());
       if (!destination.createNewFile()) {
         throw Status.ALREADY_EXISTS
             .withDescription(String.format("Artifact with name %s already exists", metadata))
