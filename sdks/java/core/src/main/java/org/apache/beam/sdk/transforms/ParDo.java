@@ -688,6 +688,11 @@ public class ParDo {
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
     }
+
+    @Override
+    public String toString() {
+      return fn.toString();
+    }
   }
 
   /**
@@ -830,6 +835,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 
