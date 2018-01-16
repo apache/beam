@@ -107,10 +107,11 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
    * #getSideInputs()}.
    */
   protected final <SideInputT> SideInputT sideInput(PCollectionView<SideInputT> view) {
-    checkState(
-        sideInputAccessor != null,
-        "sideInput called on %s but side inputs have not been initialized",
-        getClass().getName());
+      checkState(
+          getSideInputs().contains(view),
+          "View %s not declared in getSideInputs() (%s)",
+          view,
+          getSideInputs());
     return sideInputAccessor.sideInput(view);
   }
 
