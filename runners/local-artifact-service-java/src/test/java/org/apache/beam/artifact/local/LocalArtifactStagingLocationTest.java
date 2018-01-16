@@ -53,9 +53,8 @@ public class LocalArtifactStagingLocationTest {
 
   @Test
   public void createAtWithExistingDirectory() throws Exception {
-    File baseFolder = tmp.newFolder();
-    File root = new File(baseFolder, "foo");
-    checkState(root.mkdir(), "Must be able to create the root directory");
+    File root = tmp.newFolder();
+    checkState(root.exists(), "root directory must exist");
 
     assertThat(root.exists(), is(true));
     assertThat(root.listFiles().length, equalTo(0));
@@ -76,5 +75,51 @@ public class LocalArtifactStagingLocationTest {
 
     thrown.expect(IllegalStateException.class);
     LocalArtifactStagingLocation.createAt(root);
+  }
+
+  @Test
+  public void testCreateAtThenForExisting() throws Exception {
+    File baseFolder = tmp.newFolder();
+    LocalArtifactStagingLocation newLocation = LocalArtifactStagingLocation.createAt(baseFolder);
+    File newManifest = newLocation.getManifestFile();
+    assertThat("Manifest creation failed", newManifest.createNewFile(), is(true));
+    File newArtifact = newLocation.getArtifactFile("my_artifact");
+    assertThat("Artifact creation failed", newArtifact.createNewFile(), is(true));
+
+    LocalArtifactStagingLocation forExisting =
+        LocalArtifactStagingLocation.forExistingDirectory(baseFolder);
+    assertThat(forExisting.getManifestFile(), equalTo(newManifest));
+    assertThat(forExisting.getArtifactFile("my_artifact"), equalTo(newArtifact));
+  }
+
+  @Test
+  public void testForExistingWithoutRoot() throws Exception {
+    File baseFolder = tmp.newFolder();
+    File root = new File(baseFolder, "bar");
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("root");
+    LocalArtifactStagingLocation.forExistingDirectory(root);
+  }
+
+  @Test
+  public void testForExistingWithoutManifest() throws Exception {
+    File baseFolder = tmp.newFolder();
+    LocalArtifactStagingLocation newLocation = LocalArtifactStagingLocation.createAt(baseFolder);
+    File newArtifact = newLocation.getArtifactFile("my_artifact");
+    assertThat("Artifact creation failed", newArtifact.createNewFile(), is(true));
+
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("Manifest");
+    LocalArtifactStagingLocation.forExistingDirectory(baseFolder);
+  }
+
+  @Test
+  public void testForExistingWithoutArtifacts() throws Exception {
+    File baseFolder = tmp.newFolder();
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("artifact directory");
+
+    LocalArtifactStagingLocation.forExistingDirectory(baseFolder);
   }
 }
