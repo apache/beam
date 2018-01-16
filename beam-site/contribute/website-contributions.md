@@ -16,7 +16,7 @@ mirror](https://github.com/apache/beam-site) repository in the `asf-site`
 branch (_not_ `master`).
 
 Issues are tracked in the
-[website](https://issues.apache.org/jira/browse/BEAM/component/12328906)
+[website](https://issues.apache.org/jira/issues/?jql=project%20%3D%20BEAM%20AND%20component%20%3D%20website)
 component in JIRA.
 
 ## One-time Setup
