@@ -38,6 +38,7 @@
     <pkbBeamRunnerProfile />
     <pkbBeamRunnerOption />
     <pkbExtraProperties />
+    <pkbTimeout>600</pkbTimeout>
   </properties>
 
   <modules>

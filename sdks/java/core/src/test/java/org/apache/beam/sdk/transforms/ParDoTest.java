@@ -3072,6 +3072,88 @@ public class ParDoTest implements Serializable {
     pipeline.run();
   }
 
+  /**
+   * A test makes sure that a processing time timer should reset rather than creating duplicate
+   * timers when a "set" method is called on it before it goes off.
+   */
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testProcessingTimeTimerCanBeReset() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, String>, String> fn =
+        new DoFn<KV<String, String>, String>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.offset(Duration.standardSeconds(1)).setRelative();
+            context.output(context.element().getValue());
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output("timer_output");
+          }
+        };
+
+    TestStream<KV<String, String>> stream =
+        TestStream.create(KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+            .addElements(KV.of("key", "input1"))
+            .addElements(KV.of("key", "input2"))
+            .advanceProcessingTime(Duration.standardSeconds(2))
+            .advanceWatermarkToInfinity();
+
+    PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    // Timer "foo" is set twice because input1 and input 2 are outputted. However, only one
+    // "timer_output" is outputted. Therefore, the timer is overwritten.
+    PAssert.that(output).containsInAnyOrder("input1", "input2", "timer_output");
+    pipeline.run();
+  }
+
+  /**
+   * A test makes sure that an event time timer should reset rather than creating duplicate
+   * timers when a "set" method is called on it before it goes off.
+   */
+  @Test
+  @Category({ValidatesRunner.class, UsesTimersInParDo.class, UsesTestStream.class})
+  public void testEventTimeTimerCanBeReset() throws Exception {
+    final String timerId = "foo";
+
+    DoFn<KV<String, String>, String> fn =
+        new DoFn<KV<String, String>, String>() {
+
+          @TimerId(timerId)
+          private final TimerSpec spec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+          @ProcessElement
+          public void processElement(ProcessContext context, @TimerId(timerId) Timer timer) {
+            timer.offset(Duration.standardSeconds(1)).setRelative();
+            context.output(context.element().getValue());
+          }
+
+          @OnTimer(timerId)
+          public void onTimer(OnTimerContext context) {
+            context.output("timer_output");
+          }
+        };
+
+    TestStream<KV<String, String>> stream = TestStream.create(KvCoder
+        .of(StringUtf8Coder.of(), StringUtf8Coder.of()))
+        .advanceWatermarkTo(new Instant(0))
+        .addElements(KV.of("hello", "input1"))
+        .addElements(KV.of("hello", "input2"))
+        .advanceWatermarkToInfinity();
+
+    PCollection<String> output = pipeline.apply(stream).apply(ParDo.of(fn));
+    // Timer "foo" is set twice because input1 and input 2 are outputted. However, only one
+    // "timer_output" is outputted. Therefore, the timer is overwritten.
+    PAssert.that(output).containsInAnyOrder("input1", "input2", "timer_output");
+    pipeline.run();
+  }
+
   @Test
   public void testWithOutputTagsDisplayData() {
     DoFn<String, String> fn = new DoFn<String, String>() {

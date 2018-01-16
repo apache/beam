@@ -834,8 +834,10 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
         PropertyNames.ENVIRONMENT_VERSION_JOB_TYPE_KEY, jobType);
   }
 
+  // This method is protected to allow a Google internal subclass to properly
+  // setup overrides.
   @VisibleForTesting
-  void replaceTransforms(Pipeline pipeline) {
+  protected void replaceTransforms(Pipeline pipeline) {
     boolean streaming = options.isStreaming() || containsUnboundedPCollection(pipeline);
     // Ensure all outputs of all reads are consumed before potentially replacing any
     // Read PTransforms

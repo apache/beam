@@ -29,7 +29,6 @@
 //
 // For example, see applyJavaNature below.
 
-
 println "Applying build_rules.gradle to $project.name"
 
 /*************************************************************************************************/
@@ -40,6 +39,17 @@ version = "2.3.0-SNAPSHOT"
 
 // Define the default set of repositories for all builds.
 repositories {
+  maven { url offlineRepositoryRoot }
+
+  // To run gradle in offline mode, one must first invoke
+  // 'updateOfflineRepository' to create an offline repo
+  // inside the root project directory. See the application
+  // of the offline repo plugin within build_rules.gradle
+  // for further details.
+  if (gradle.startParameter.isOffline()) {
+    return
+  }
+
   mavenLocal()
   mavenCentral()
   jcenter()
@@ -69,6 +79,30 @@ apply plugin: "project-report"
 // in each sub-projects report output directory.
 // See https://github.com/mmalohlava/gradle-visteg for further details.
 apply plugin: "cz.malohlava.visteg"
+
+// Apply a plugin which provides the 'updateOfflineRepository' task that creates an offline
+// repository. This offline repository satisfies all Gradle build dependencies and Java
+// project dependencies. The offline repository is placed within $rootDir/offline-repo
+// but can be overridden by specifying the 'offlineRepositoryRoot' Gradle option.
+// Note that parallel build must be disabled when executing 'updateOfflineRepository'
+// by specifying '-Dorg.gradle.parallel=false', see
+// https://github.com/mdietrichstein/gradle-offline-dependencies-plugin/issues/3
+apply plugin: "io.pry.gradle.offline_dependencies"
+
+offlineDependencies {
+  repositories {
+    maven { url offlineRepositoryRoot }
+    mavenLocal()
+    mavenCentral()
+    jcenter()
+    maven { url "https://plugins.gradle.org/m2/" }
+    maven { url "http://repo.spring.io/plugins-release" }
+  }
+
+  includeSources = false
+  includeJavadocs = false
+  includeIvyXmls = false
+}
 
 /*************************************************************************************************/
 

@@ -127,7 +127,7 @@ public class BeamSqlDslBase {
     rows.add(row3);
 
     BeamRecord row4 = new BeamRecord(rowTypeInTableA
-        , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "string_row4"
+        , 4, 4000L, Short.valueOf("4"), Byte.valueOf("4"), 4.0f, 4.0, "第四行"
         , FORMAT.parse("2017-01-01 02:04:03"), 0, new BigDecimal(4));
     rows.add(row4);
 

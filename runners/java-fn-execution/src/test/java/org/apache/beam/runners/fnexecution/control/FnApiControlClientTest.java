@@ -29,6 +29,8 @@ import io.grpc.stub.StreamObserver;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionRequest;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.InstructionResponse;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,6 +76,25 @@ public class FnApiControlClientTest {
     BeamFnApi.InstructionResponse response = responseFuture.get();
 
     assertThat(response.getInstructionId(), equalTo(id));
+  }
+
+  @Test
+  public void testRequestError() throws Exception {
+    String id = "instructionId";
+    ListenableFuture<InstructionResponse> responseFuture =
+        client.handle(InstructionRequest.newBuilder().setInstructionId(id).build());
+    String error = "Oh no an error!";
+    client
+        .asResponseObserver()
+        .onNext(
+            BeamFnApi.InstructionResponse.newBuilder()
+                .setInstructionId(id)
+                .setError(error)
+                .build());
+
+    thrown.expectCause(isA(RuntimeException.class));
+    thrown.expectMessage(error);
+    responseFuture.get();
   }
 
   @Test

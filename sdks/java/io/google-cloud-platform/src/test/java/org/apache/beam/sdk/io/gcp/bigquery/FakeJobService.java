@@ -93,17 +93,23 @@ class FakeJobService implements JobService, Serializable {
     }
   }
 
-  private static final com.google.common.collect.Table<String, String, JobInfo> allJobs =
-      HashBasedTable.create();
-  private static int numExtractJobCalls = 0;
+  private static com.google.common.collect.Table<String, String, JobInfo> allJobs;
+  private static int numExtractJobCalls;
 
-  private static final com.google.common.collect.Table<String, String, List<ResourceId>>
-      filesForLoadJobs = HashBasedTable.create();
-  private static final com.google.common.collect.Table<String, String, JobStatistics>
-      dryRunQueryResults = HashBasedTable.create();
+  private static com.google.common.collect.Table<String, String, List<ResourceId>>
+      filesForLoadJobs;
+  private static com.google.common.collect.Table<String, String, JobStatistics>
+      dryRunQueryResults;
 
   FakeJobService() {
     this.datasetService = new FakeDatasetService();
+  }
+
+  public static void setUp() {
+    allJobs = HashBasedTable.create();
+    numExtractJobCalls = 0;
+    filesForLoadJobs = HashBasedTable.create();
+    dryRunQueryResults = HashBasedTable.create();
   }
 
   @Override
