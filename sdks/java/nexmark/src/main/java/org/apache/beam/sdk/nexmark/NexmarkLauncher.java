@@ -25,6 +25,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,7 +34,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ThreadLocalRandom;
+
 import javax.annotation.Nullable;
+
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.CoderException;
@@ -77,6 +80,8 @@ import org.apache.beam.sdk.nexmark.queries.Query8;
 import org.apache.beam.sdk.nexmark.queries.Query8Model;
 import org.apache.beam.sdk.nexmark.queries.Query9;
 import org.apache.beam.sdk.nexmark.queries.Query9Model;
+import org.apache.beam.sdk.nexmark.queries.sql.NexmarkSqlQuery;
+import org.apache.beam.sdk.nexmark.queries.sql.SqlQuery0;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -86,6 +91,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+
 import org.joda.time.Duration;
 import org.slf4j.LoggerFactory;
 
@@ -93,7 +99,14 @@ import org.slf4j.LoggerFactory;
  * Run a single Nexmark query using a given configuration.
  */
 public class NexmarkLauncher<OptionT extends NexmarkOptions> {
+
   private static final org.slf4j.Logger LOG = LoggerFactory.getLogger(NexmarkLauncher.class);
+
+  /**
+   * Command line parameter value for query language.
+   */
+  private static final String SQL = "sql";
+
   /**
    * Minimum number of samples needed for 'stead-state' rate calculation.
    */
@@ -1056,37 +1069,10 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         return null;
       }
 
-      List<NexmarkQuery> queries = Arrays.asList(new Query0(configuration),
-                                                 new Query1(configuration),
-                                                 new Query2(configuration),
-                                                 new Query3(configuration),
-                                                 new Query4(configuration),
-                                                 new Query5(configuration),
-                                                 new Query6(configuration),
-                                                 new Query7(configuration),
-                                                 new Query8(configuration),
-                                                 new Query9(configuration),
-                                                 new Query10(configuration),
-                                                 new Query11(configuration),
-                                                 new Query12(configuration));
-      NexmarkQuery query = queries.get(configuration.query);
+      NexmarkQuery query = getNexmarkQuery();
       queryName = query.getName();
 
-      List<NexmarkQueryModel> models = Arrays.asList(
-          new Query0Model(configuration),
-          new Query1Model(configuration),
-          new Query2Model(configuration),
-          new Query3Model(configuration),
-          new Query4Model(configuration),
-          new Query5Model(configuration),
-          new Query6Model(configuration),
-          new Query7Model(configuration),
-          new Query8Model(configuration),
-          new Query9Model(configuration),
-          null,
-          null,
-          null);
-      NexmarkQueryModel model = models.get(configuration.query);
+      NexmarkQueryModel model = getNexmarkQueryModel();
 
       if (options.getJustModelResultRate()) {
         if (model == null) {
@@ -1153,5 +1139,82 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
       configuration = null;
       queryName = null;
     }
+  }
+
+  private boolean isSql() {
+    return SQL.equalsIgnoreCase(options.getQueryLanguage());
+  }
+
+  private NexmarkQueryModel getNexmarkQueryModel() {
+    List<NexmarkQueryModel> models = createQueryModels();
+    return models.get(configuration.query);
+  }
+
+  private NexmarkQuery getNexmarkQuery() {
+    List<NexmarkQuery> queries = createQueries();
+
+    if (options.getQuery() >= queries.size()) {
+      throw new UnsupportedOperationException(
+          "Query " + options.getQuery()
+          + " is not implemented yet");
+    }
+
+    return queries.get(configuration.query);
+  }
+
+  private List<NexmarkQueryModel> createQueryModels() {
+    return isSql()
+        ? createSqlQueryModels()
+        : createJavaQueryModels();
+  }
+
+  private List<NexmarkQueryModel> createSqlQueryModels() {
+    return Arrays.asList(
+        null, null, null, null, null, null, null, null, null, null, null, null);
+  }
+
+  private List<NexmarkQueryModel> createJavaQueryModels() {
+    return Arrays.asList(
+            new Query0Model(configuration),
+            new Query1Model(configuration),
+            new Query2Model(configuration),
+            new Query3Model(configuration),
+            new Query4Model(configuration),
+            new Query5Model(configuration),
+            new Query6Model(configuration),
+            new Query7Model(configuration),
+            new Query8Model(configuration),
+            new Query9Model(configuration),
+            null,
+            null,
+            null);
+  }
+
+  private List<NexmarkQuery> createQueries() {
+    return isSql()
+        ? createSqlQueries()
+        : createJavaQueries();
+  }
+
+  private List<NexmarkQuery> createSqlQueries() {
+    return Arrays.<NexmarkQuery> asList(
+        new NexmarkSqlQuery(configuration, new SqlQuery0()));
+  }
+
+  private List<NexmarkQuery> createJavaQueries() {
+    return Arrays.asList(
+        new Query0(configuration),
+        new Query1(configuration),
+        new Query2(configuration),
+        new Query3(configuration),
+        new Query4(configuration),
+        new Query5(configuration),
+        new Query6(configuration),
+        new Query7(configuration),
+        new Query8(configuration),
+        new Query9(configuration),
+        new Query10(configuration),
+        new Query11(configuration),
+        new Query12(configuration));
   }
 }

@@ -713,8 +713,9 @@ public class TextIO {
      */
     @Deprecated
     public <NewDestinationT> TypedWrite<UserT, NewDestinationT> to(
-        DynamicDestinations<UserT, DestinationT, String> dynamicDestinations) {
-      return (TypedWrite) toBuilder().setDynamicDestinations(dynamicDestinations).build();
+        DynamicDestinations<UserT, NewDestinationT, String> dynamicDestinations) {
+      return (TypedWrite)
+          toBuilder().setDynamicDestinations((DynamicDestinations) dynamicDestinations).build();
     }
 
     /**

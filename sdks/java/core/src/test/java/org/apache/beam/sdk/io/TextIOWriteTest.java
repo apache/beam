@@ -151,6 +151,16 @@ public class TextIOWriteTest {
   @Test
   @Category(NeedsRunner.class)
   public void testDynamicDestinations() throws Exception {
+    testDynamicDestinations(false);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testDynamicDestinationsWithCustomType() throws Exception {
+    testDynamicDestinations(true);
+  }
+
+  private void testDynamicDestinations(boolean customType) throws Exception {
     ResourceId baseDir =
         FileSystems.matchNewResource(
             Files.createTempDirectory(tempFolder.getRoot().toPath(), "testDynamicDestinations")
@@ -159,7 +169,15 @@ public class TextIOWriteTest {
 
     List<String> elements = Lists.newArrayList("aaaa", "aaab", "baaa", "baab", "caaa", "caab");
     PCollection<String> input = p.apply(Create.of(elements).withCoder(StringUtf8Coder.of()));
-    input.apply(TextIO.write().to(new TestDynamicDestinations(baseDir)).withTempDirectory(baseDir));
+    if (customType) {
+      input.apply(
+          TextIO.<String>writeCustomType()
+              .to(new TestDynamicDestinations(baseDir))
+              .withTempDirectory(baseDir));
+    } else {
+      input.apply(
+          TextIO.write().to(new TestDynamicDestinations(baseDir)).withTempDirectory(baseDir));
+    }
     p.run();
 
     assertOutputFiles(

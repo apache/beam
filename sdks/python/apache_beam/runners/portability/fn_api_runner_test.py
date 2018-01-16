@@ -84,7 +84,6 @@ class FnApiRunnerTest(
       side1 = p | 'side1' >> beam.Create([('a', 1)])
       side2 = p | 'side2' >> beam.Create([('b', 2)])
       side = (side1, side2) | beam.Flatten()
-      _ = main | 'Do' >> beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side))
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': 1, 'b': 2})]))
@@ -93,7 +92,6 @@ class FnApiRunnerTest(
     with self.create_pipeline() as p:
       main = p | 'main' >> beam.Create([None])
       side = p | 'side' >> beam.Create([('a', 1)]) | beam.GroupByKey()
-      _ = main | 'Do' >> beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side))
       assert_that(
           main | beam.Map(lambda a, b: (a, b), beam.pvalue.AsDict(side)),
           equal_to([(None, {'a': [1]})]))
@@ -105,12 +103,52 @@ class FnApiRunnerTest(
       with self.create_pipeline() as p:
         assert_that(p | beam.Create(['a', 'b']), equal_to(['a']))
 
+  def test_no_subtransform_composite(self):
+
+    class First(beam.PTransform):
+      def expand(self, pcolls):
+        return pcolls[0]
+
+    with self.create_pipeline() as p:
+      pcoll_a = p | 'a' >> beam.Create(['a'])
+      pcoll_b = p | 'b' >> beam.Create(['b'])
+      assert_that((pcoll_a, pcoll_b) | First(), equal_to(['a']))
+
+  def test_metrics(self):
+
+    p = self.create_pipeline()
+    if not isinstance(p.runner, fn_api_runner.FnApiRunner):
+      # This test is inherited by others that may not support the same
+      # internal way of accessing progress metrics.
+      self.skipTest('Metrics not supported.')
+
+    counter = beam.metrics.Metrics.counter('ns', 'counter')
+    distribution = beam.metrics.Metrics.distribution('ns', 'distribution')
+    pcoll = p | beam.Create(['a', 'zzz'])
+    # pylint: disable=expression-not-assigned
+    pcoll | 'count1' >> beam.FlatMap(lambda x: counter.inc())
+    pcoll | 'count2' >> beam.FlatMap(lambda x: counter.inc(len(x)))
+    pcoll | 'dist' >> beam.FlatMap(lambda x: distribution.update(len(x)))
+
+    res = p.run()
+    res.wait_until_finish()
+    c1, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count1'))[
+        'counters']
+    self.assertEqual(c1.committed, 2)
+    c2, = res.metrics().query(beam.metrics.MetricsFilter().with_step('count2'))[
+        'counters']
+    self.assertEqual(c2.committed, 4)
+    dist, = res.metrics().query(beam.metrics.MetricsFilter().with_step('dist'))[
+        'distributions']
+    self.assertEqual(
+        dist.committed, beam.metrics.cells.DistributionData(4, 2, 1, 3))
+
   def test_progress_metrics(self):
     p = self.create_pipeline()
     if not isinstance(p.runner, fn_api_runner.FnApiRunner):
       # This test is inherited by others that may not support the same
       # internal way of accessing progress metrics.
-      return
+      self.skipTest('Progress metrics not supported.')
 
     _ = (p
          | beam.Create([0, 0, 0, 2.1e-3 * DEFAULT_SAMPLING_PERIOD_MS])

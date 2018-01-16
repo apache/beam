@@ -101,14 +101,12 @@ REQUIRED_PACKAGES = [
     'grpcio>=1.0,<2',
     'httplib2>=0.8,<0.10',
     'mock>=1.0.1,<3.0.0',
-    'oauth2client>=2.0.1,<4.0.0',
+    'oauth2client>=2.0.1,<5',
     # grpcio 1.8.1 and above requires protobuf 3.5.0.post1.
     'protobuf>=3.5.0.post1,<4',
     'pyyaml>=3.12,<4.0.0',
     'pyvcf>=0.6.8,<0.7.0',
-    # Six 1.11.0 incompatible with apitools.
-    # TODO(BEAM-2964): Remove the upper bound.
-    'six>=1.9,<1.11',
+    'six>=1.9,<1.12',
     'typing>=3.6.0,<3.7.0',
     'futures>=3.1.1,<4.0.0',
     'hdfs3>=0.3.0,<0.4.0',
@@ -123,7 +121,8 @@ REQUIRED_TEST_PACKAGES = [
     ]
 
 GCP_REQUIREMENTS = [
-  'google-apitools>=0.5.10,<=0.5.11',
+  # oauth2client >=4 only works with google-apitools>=0.5.18.
+  'google-apitools>=0.5.18,<=0.5.20',
   'proto-google-cloud-datastore-v1>=0.90.0,<=0.90.4',
   'googledatastore==7.0.1',
   'google-cloud-pubsub==0.26.0',

@@ -41,7 +41,6 @@ import java.lang.reflect.Proxy;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
@@ -57,7 +56,7 @@ import org.apache.beam.sdk.values.PCollection;
  * For that, use {@link Create#ofProvider}.
  *
  * <p>For unit-testing a transform against a {@link ValueProvider} that only becomes available
- * at runtime, use {@link TestPipeline#newProvider}.
+ * at runtime, use {@link org.apache.beam.sdk.testing.TestPipeline#newProvider}.
  */
 @JsonSerialize(using = ValueProvider.Serializer.class)
 @JsonDeserialize(using = ValueProvider.Deserializer.class)
