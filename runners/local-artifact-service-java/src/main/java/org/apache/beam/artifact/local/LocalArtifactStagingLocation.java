@@ -18,13 +18,15 @@
 
 package org.apache.beam.artifact.local;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
 import java.io.IOException;
 
 /**
- * TODO: Document
+ * A location where the results of an {@link LocalFileSystemArtifactStagerService} are stored and
+ * where the retrieval service retrieves them from.
  */
 public class LocalArtifactStagingLocation {
   /**
@@ -33,6 +35,14 @@ public class LocalArtifactStagingLocation {
    */
   public static LocalArtifactStagingLocation createAt(File rootDirectory) {
     return new LocalArtifactStagingLocation(rootDirectory).createDirectories();
+  }
+
+  /**
+   * Create a {@link LocalArtifactStagingLocation} for an existing directory. The directory must
+   * contain a manifest and an artifact directory.
+   */
+  public static LocalArtifactStagingLocation forExistingDirectory(File rootDirectory) {
+    return new LocalArtifactStagingLocation(rootDirectory).verifyExistence();
   }
 
   private final File rootDirectory;
@@ -56,6 +66,20 @@ public class LocalArtifactStagingLocation {
       throw new IllegalStateException(
           String.format("Could not create staging directory structure at root %s", rootDirectory));
     }
+    return this;
+  }
+
+  private LocalArtifactStagingLocation verifyExistence() {
+    checkArgument(rootDirectory.exists(), "Nonexistent staging location root %s", rootDirectory);
+    checkArgument(
+        rootDirectory.isDirectory(), "Staging location %s is not a directory", rootDirectory);
+    checkArgument(
+        artifactsDirectory.exists(), "Nonexistent artifact directory %s", artifactsDirectory);
+    checkArgument(
+        artifactsDirectory.isDirectory(),
+        "Artifact Location %s is not a directory",
+        artifactsDirectory);
+    checkArgument(getManifestFile().exists(), "No Manifest in existing location %s", rootDirectory);
     return this;
   }
 
