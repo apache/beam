@@ -176,10 +176,12 @@ func (c *control) handleInstruction(ctx context.Context, req *fnpb.InstructionRe
 			if err != nil {
 				return fail(id, "translation failed: %v", err)
 			}
-			log.Debugf(ctx, "Plan %v: %v", desc.GetId(), plan)
+
+			pid := desc.GetId()
+			log.Debugf(ctx, "Plan %v: %v", pid, plan)
 
 			c.mu.Lock()
-			c.plans[desc.GetId()] = plan
+			c.plans[pid] = plan
 			c.mu.Unlock()
 		}
 
