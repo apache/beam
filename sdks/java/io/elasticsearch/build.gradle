@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Elasticsearch"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.jackson_databind
   shadow library.java.findbugs_jsr305
   shadow "org.elasticsearch.client:elasticsearch-rest-client:5.6.3"
@@ -31,7 +31,7 @@ dependencies {
   shadow "org.apache.httpcomponents:httpcore-nio:4.4.5"
   shadow "org.apache.httpcomponents:httpcore:4.4.5"
   shadow "org.apache.httpcomponents:httpclient:4.5.2"
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-common", configuration: "shadow")
+  testCompile project(path: ":sdks:java:io:common", configuration: "shadow")
 }
 
 task packageTests(type: Jar) {

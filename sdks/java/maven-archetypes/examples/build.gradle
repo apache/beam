@@ -22,7 +22,7 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: Maven Archetypes :: Examples"
 
 dependencies {
-  shadow project(path: ":beam-examples-parent:beam-examples-java", configuration: "shadow")
+  shadow project(path: ":examples:java", configuration: "shadow")
 }
 
 task packageTests(type: Jar) {
