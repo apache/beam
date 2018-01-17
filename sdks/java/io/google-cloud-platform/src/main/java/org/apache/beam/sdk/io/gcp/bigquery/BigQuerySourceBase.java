@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLoc
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.common.base.Function;
@@ -100,8 +101,14 @@ abstract class BigQuerySourceBase<T> extends BoundedSource<T> {
   protected ExtractResult extractFiles(PipelineOptions options) throws Exception {
     BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
     TableReference tableToExtract = getTableToExtract(bqOptions);
-    TableSchema schema =
-        bqServices.getDatasetService(bqOptions).getTable(tableToExtract).getSchema();
+    Table table = bqServices.getDatasetService(bqOptions).getTable(tableToExtract);
+    if (table == null) {
+      throw new IOException(String.format(
+              "Cannot start an export job since table %s does not exist",
+              BigQueryHelpers.toTableSpec(tableToExtract)));
+    }
+
+    TableSchema schema = table.getSchema();
     JobService jobService = bqServices.getJobService(bqOptions);
     String extractJobId = getExtractJobId(createJobIdToken(options.getJobName(), stepUuid));
     final String extractDestinationDir =

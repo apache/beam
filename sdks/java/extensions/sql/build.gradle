@@ -102,6 +102,7 @@ shadowJar {
     include(dependency("org.apache.calcite.avatica:.*"))
     include(dependency("org.codehaus.janino:.*"))
     include(dependency(library.java.protobuf_java))
+    include(dependency(library.java.protobuf_java_util))
   }
   relocate "com.google.protobuf", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.protobuf"
   relocate "org.apache.calcite", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.org.apache.calcite"

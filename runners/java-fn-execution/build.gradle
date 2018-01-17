@@ -16,7 +16,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(javaVersion: 1.8)
 
 description = "Apache Beam :: Runners :: Java Fn Execution"
 
@@ -40,6 +40,7 @@ dependencies {
   shadow library.java.grpc_netty
   shadow library.java.slf4j_api
   testCompile project(":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution").sourceSets.test.output
+  testCompile project(path: ":beam-runners-parent:beam-runners-core-construction-java", configuration: "shadow")
   testCompile library.java.junit
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library

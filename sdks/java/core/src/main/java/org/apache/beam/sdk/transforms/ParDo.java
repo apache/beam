@@ -580,6 +580,9 @@ public class ParDo {
    */
   public static class SingleOutput<InputT, OutputT>
       extends PTransform<PCollection<? extends InputT>, PCollection<OutputT>> {
+
+    private static final String MAIN_OUTPUT_TAG = "output";
+
     private final List<PCollectionView<?>> sideInputs;
     private final DoFn<InputT, OutputT> fn;
     private final DisplayData.ItemSpec<? extends Class<?>> fnDisplayData;
@@ -638,7 +641,7 @@ public class ParDo {
     public PCollection<OutputT> expand(PCollection<? extends InputT> input) {
       CoderRegistry registry = input.getPipeline().getCoderRegistry();
       finishSpecifyingStateSpecs(fn, registry, input.getCoder());
-      TupleTag<OutputT> mainOutput = new TupleTag<>();
+      TupleTag<OutputT> mainOutput = new TupleTag<>(MAIN_OUTPUT_TAG);
       PCollection<OutputT> res =
           input.apply(withOutputTags(mainOutput, TupleTagList.empty())).get(mainOutput);
       try {
@@ -687,6 +690,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 
@@ -830,6 +838,11 @@ public class ParDo {
     @Override
     public Map<TupleTag<?>, PValue> getAdditionalInputs() {
       return PCollectionViews.toAdditionalInputs(sideInputs);
+    }
+
+    @Override
+    public String toString() {
+      return fn.toString();
     }
   }
 

@@ -43,6 +43,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.BigtableSource;
+import org.apache.beam.sdk.io.range.ByteKeyRange;
 import org.apache.beam.sdk.values.KV;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,14 +107,15 @@ class BigtableServiceImpl implements BigtableService {
 
     @Override
     public boolean start() throws IOException {
-      RowRange range =
-          RowRange.newBuilder()
-              .setStartKeyClosed(ByteString.copyFrom(source.getRange().getStartKey().getValue()))
-              .setEndKeyOpen(ByteString.copyFrom(source.getRange().getEndKey().getValue()))
-              .build();
-      RowSet rowSet = RowSet.newBuilder()
-          .addRowRanges(range)
-          .build();
+      RowSet.Builder rowSetBuilder = RowSet.newBuilder();
+      for (ByteKeyRange sourceRange : source.getRanges()) {
+        rowSetBuilder = rowSetBuilder.addRowRanges(
+            RowRange.newBuilder()
+                .setStartKeyClosed(ByteString.copyFrom(sourceRange.getStartKey().getValue()))
+                .setEndKeyOpen(ByteString.copyFrom(sourceRange.getEndKey().getValue())));
+      }
+      RowSet rowSet = rowSetBuilder.build();
+
       ReadRowsRequest.Builder requestB =
           ReadRowsRequest.newBuilder()
               .setRows(rowSet)

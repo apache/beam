@@ -124,7 +124,7 @@ public class ParDoTranslationTest {
     @Test
     public void testToAndFromProto() throws Exception {
       SdkComponents components = SdkComponents.create();
-      ParDoPayload payload = ParDoTranslation.toProto(parDo, components);
+      ParDoPayload payload = ParDoTranslation.translateParDo(parDo, components);
 
       assertThat(ParDoTranslation.getDoFn(payload), Matchers.<DoFn<?, ?>>equalTo(parDo.getFn()));
       assertThat(
@@ -161,7 +161,7 @@ public class ParDoTranslationTest {
       for (PCollectionView<?> view : parDo.getSideInputs()) {
         SideInput sideInput = parDoPayload.getSideInputsOrThrow(view.getTagInternal().getId());
         PCollectionView<?> restoredView =
-            ParDoTranslation.viewFromProto(
+            PCollectionViewTranslation.viewFromProto(
                 sideInput,
                 view.getTagInternal().getId(),
                 view.getPCollection(),
@@ -208,7 +208,8 @@ public class ParDoTranslationTest {
     public void testStateSpecToFromProto() throws Exception {
       // Encode
       SdkComponents sdkComponents = SdkComponents.create();
-      RunnerApi.StateSpec stateSpecProto = ParDoTranslation.toProto(stateSpec, sdkComponents);
+      RunnerApi.StateSpec stateSpecProto =
+          ParDoTranslation.translateStateSpec(stateSpec, sdkComponents);
 
       // Decode
       RehydratedComponents rehydratedComponents =

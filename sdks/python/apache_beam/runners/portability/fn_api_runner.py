@@ -1202,7 +1202,7 @@ class RunnerResult(runner.PipelineResult):
     self._user_metrics = None
 
   def wait_until_finish(self, duration=None):
-    pass
+    return self._state
 
   def metrics(self):
     if self._user_metrics is None:

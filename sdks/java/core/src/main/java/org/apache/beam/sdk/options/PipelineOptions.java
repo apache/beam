@@ -270,6 +270,10 @@ public interface PipelineOptions extends HasDisplayData {
   String getJobName();
   void setJobName(String jobName);
 
+  @Default.Long(1000)
+  Long getMaxBundleSize();
+  void setMaxBundleSize(Long size);
+
   /**
    * A {@link DefaultValueFactory} that obtains the class of the {@code DirectRunner} if it exists
    * on the classpath, and throws an exception otherwise.
