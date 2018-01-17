@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 applyAvroNature()
@@ -136,7 +138,6 @@ class ValidatesRunnerConfig {
   // List of test categories to exclude from this task. Optional.
   List<String> excludes
   // Pipeline options command line arguments.
-  // TODO: Can option keys be specified multiple times?
   Map<String, String> pipelineOptions
   // Configuration to use for test runtime classpath.
   FileCollection configuration
@@ -153,16 +154,14 @@ def createValidatesRunner(Map m) {
     group = "Verification"
     description = "Validate ${config.runner} runner"
     def optionsList = config.pipelineOptions.collect {
-      // Escape strings with embedded '\' and '"' characters.
-      // TODO: Verify that this happens correctly between JSON and command line parsing.
-      def key = it.getKey().replaceAll("\\\\", "\\\\\\\\").replaceAll("\"", "\\\\\"")
-      def value = it.getValue().replaceAll("\\\\", "\\\\\\\\").replaceAll("\"", "\\\\\"")
-      "\"--${key}=${value}\""
+      def key = it.getKey()
+      def value = it.getValue()
+      "--${key}=${value}"
     }
-    def pipelineOptions = "[${optionsList.join(",")}]"
+    def pipelineOptions = JsonOutput.toJson(optionsList)
 
     systemProperty "beamTestPipelineOptions", pipelineOptions
-    if (config.systemProperties != null) {
+    if (config.systemProperties) {
       for (Map.Entry<String, String> property : config.systemProperties) {
         systemProperty property.getKey(), property.getValue()
       }
@@ -172,7 +171,7 @@ def createValidatesRunner(Map m) {
     classpath = config.configuration
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
-      if (config.excludes != null) {
+      if (config.excludes) {
         excludeCategories(*config.excludes)
       }
     }
