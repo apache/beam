@@ -131,10 +131,8 @@ task packageTests(type: Jar) {
 }
 
 class ValidatesRunnerConfig {
-  // Task name prefix
-  String testPrefix
-  // Runner name in documentation string
-  String runnerName
+  // Runner name prefix
+  String runner
   // List of test categories to exclude from this task. Optional.
   List<String> excludes
   // Pipeline options command line arguments.
@@ -148,13 +146,12 @@ class ValidatesRunnerConfig {
 
 def createValidatesRunner(Map m) {
   def config = m as ValidatesRunnerConfig
-  assert config.testPrefix != null
-  assert config.runnerName != null
+  assert config.runner != null
   assert config.pipelineOptions != null
   assert config.configuration != null
-  tasks.create(name: "${config.testPrefix}ValidatesRunner", type: Test) {
+  tasks.create(name: "${config.runner}ValidatesRunner", type: Test) {
     group = "Verification"
-    description = "Validate ${config.runnerName} runner"
+    description = "Validate ${config.runner} runner"
     def optionsList = config.pipelineOptions.collect {
       // Escape strings with embedded '\' and '"' characters.
       // TODO: Verify that this happens correctly between JSON and command line parsing.
@@ -198,15 +195,13 @@ def flinkPipelineOptions(streaming) {
 }
 
 createValidatesRunner(
-    testPrefix: "flinkBatch",
-    runnerName: "Flink batch",
+    runner: "flinkBatch",
     configuration: configurations.flinkValidatesRunner,
     excludes: flinkExcludedCategories,
     pipelineOptions: flinkPipelineOptions(false))
 
 createValidatesRunner(
-    testPrefix: "flinkStreaming",
-    runnerName: "Flink streaming",
+    runner: "flinkStreaming",
     configuration: configurations.flinkValidatesRunner,
     excludes: flinkExcludedCategories,
     pipelineOptions: flinkPipelineOptions(true))
@@ -231,8 +226,7 @@ def sparkBatchSystemProperties = [
 ]
 
 createValidatesRunner(
-  testPrefix: "sparkBatch",
-  runnerName: "Spark batch",
+  runner: "sparkBatch",
   configuration: configurations.sparkValidatesRunner,
   excludes: sparkBatchExcludedCategories,
   pipelineOptions: sparkBatchPipelineOptions)
