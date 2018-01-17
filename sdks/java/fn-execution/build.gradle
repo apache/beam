@@ -17,7 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature()
+applyJavaNature(javaVersion: 1.8)
 
 description = "Apache Beam :: SDKs :: Java :: Fn Execution"
 
@@ -37,6 +37,7 @@ dependencies {
   testCompile library.java.hamcrest_core
   testCompile library.java.hamcrest_library
   testCompile library.java.mockito_core
+  testCompile library.java.slf4j_jdk14
 }
 
 task packageTests(type: Jar) {
