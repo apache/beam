@@ -105,7 +105,7 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
 
   private boolean isLate(BoundedWindow window) {
     Instant gcTime = LateDataUtils.garbageCollectionTime(window, windowingStrategy);
-    Instant inputWM = cleanupTimer.currentInputWatermarkTime();
+    Instant inputWM = cleanupTimer.currentOutputWatermarkTime();
     return gcTime.isBefore(inputWM);
   }
 
@@ -150,6 +150,13 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
      * in the {@link TimeDomain#EVENT_TIME} time domain.
      */
     Instant currentInputWatermarkTime();
+
+    /**
+     * Return the current, local output watermark timestamp for this computation
+     * in the {@link TimeDomain#EVENT_TIME} time domain.
+     */
+    Instant currentOutputWatermarkTime();
+
 
     /**
      * Set the garbage collect time of the window to timer.
@@ -204,6 +211,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
     @Override
     public Instant currentInputWatermarkTime() {
       return timerInternals.currentInputWatermarkTime();
+    }
+
+    @Override
+    public Instant currentOutputWatermarkTime() {
+      return timerInternals.currentOutputWatermarkTime();
     }
 
     @Override
