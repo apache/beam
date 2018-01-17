@@ -20,6 +20,7 @@ package org.apache.beam.artifact.local;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -111,6 +112,11 @@ public class LocalFileSystemArtifactStagerService
   @Override
   public void close() throws Exception {
     // TODO: Close all active staging calls, signalling errors to the caller.
+  }
+
+  @VisibleForTesting
+  LocalArtifactStagingLocation getLocation() {
+    return location;
   }
 
   private class CreateAndWriteFileObserver
