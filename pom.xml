@@ -290,13 +290,6 @@
     </profile>
 
     <profile>
-      <id>java8-enable-like-dependencies</id>
-      <activation>
-        <jdk>[1.8,)</jdk>
-      </activation>
-    </profile>
-
-    <profile>
       <id>doclint-java8-disable</id>
       <activation>
         <jdk>[1.8,)</jdk>
@@ -304,49 +297,6 @@
       <properties>
         <beam.javadoc_opts>-Xdoclint:all -Xdoclint:-missing</beam.javadoc_opts>
       </properties>
-    </profile>
-
-    <profile>
-      <id>java7-packageinfo</id>
-      <activation>
-        <jdk>1.7</jdk>
-      </activation>
-      <properties>
-        <!--
-         Exclude package-info.java from main compilation to work around
-         https://jira.codehaus.org/browse/MCOMPILER-205
-         -->
-        <compiler.default.pkginfo.flag>-Xpkginfo:legacy</compiler.default.pkginfo.flag>
-        <compiler.default.exclude>**/package-info.java</compiler.default.exclude>
-      </properties>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <executions>
-              <!--
-               Compile just package-info.java to avoid
-               https://bugs.openjdk.java.net/browse/JDK-8022161
-               -->
-              <execution>
-                <id>compile-package-info</id>
-                <goals>
-                  <goal>compile</goal>
-                </goals>
-                <phase>compile</phase>
-                <configuration>
-                  <compilerArgs>
-                    <arg>-Xpkginfo:always</arg>
-                  </compilerArgs>
-                  <includes>
-                    <include>**/package-info.java</include>
-                  </includes>
-                </configuration>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
     </profile>
 
     <profile>
