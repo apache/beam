@@ -283,14 +283,14 @@ check.dependsOn rat
 // Define a root Java PreCommit task simplifying what is needed
 // to be specified on the commandline when executing locally.
 def javaPreCommitRoots = [
-  ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core",
-  ":beam-runners-parent:beam-runners-direct-java",
-  ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-fn-execution",
+  ":sdks:java:core",
+  ":runners:direct-java",
+  ":sdks:java:fn-execution",
 ]
 task javaPreCommit() {
   for (String javaPreCommitRoot : javaPreCommitRoots) {
     dependsOn javaPreCommitRoot + ":buildNeeded"
     dependsOn javaPreCommitRoot + ":buildDependents"
   }
-  dependsOn ":beam-examples-parent:beam-examples-java:preCommit"
+  dependsOn ":examples:java:preCommit"
 }

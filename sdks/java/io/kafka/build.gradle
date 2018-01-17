@@ -23,7 +23,7 @@ description = "Apache Beam :: SDKs :: Java :: IO :: Kafka"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.kafka_clients
   shadow library.java.slf4j_api
   shadow library.java.joda_time
@@ -31,8 +31,8 @@ dependencies {
   shadow library.java.jackson_annotations
   shadow library.java.jackson_databind
   shadow "org.springframework:spring-expression:4.3.5.RELEASE"
-  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile library.java.hamcrest_core
   testCompile library.java.junit
   testCompile library.java.slf4j_jdk14
