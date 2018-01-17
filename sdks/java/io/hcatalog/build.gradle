@@ -32,8 +32,8 @@ test {
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
   // Hive bundles without repackaging Jackson which is why we redeclare it here so that it appears
@@ -50,7 +50,7 @@ dependencies {
     exclude group: "org.apache.hive", module: "hive-exec"
     exclude group: "com.google.protobuf", module: "protobuf-java"
   }
-  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile library.java.commons_io_2x
   testCompile library.java.junit
   testCompile library.java.hamcrest_core

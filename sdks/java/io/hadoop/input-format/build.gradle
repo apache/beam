@@ -25,15 +25,15 @@ def log4j_version = "2.6.2"
 
 dependencies {
   compile library.java.guava
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-io-parent:beam-sdks-java-io-hadoop-common", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
+  shadow project(path: ":sdks:java:io:hadoop-common", configuration: "shadow")
   shadow library.java.slf4j_api
   shadow library.java.findbugs_jsr305
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
   testCompile library.java.hamcrest_core
-  testCompile project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadowTest")
-  testCompile project(path: ":beam-runners-parent:beam-runners-direct-java", configuration: "shadow")
+  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
+  testCompile project(path: ":runners:direct-java", configuration: "shadow")
   testCompile "org.apache.logging.log4j:log4j-core:$log4j_version"
   testCompile library.java.junit
   testCompile library.java.mockito_core
