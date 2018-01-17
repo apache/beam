@@ -186,49 +186,55 @@ def flinkExcludedCategories = [
   'org.apache.beam.sdk.testing.UsesTestStream',
 ]
 
-def flinkPipelineOptions(streaming) {
+def validatesRunnerConfigs = [
   [
-    runner: "TestFlinkRunner",
-    streaming: streaming as String,
-  ]
-}
-
-createValidatesRunner(
     runner: "flinkBatch",
-    configuration: configurations.flinkValidatesRunner,
     excludes: flinkExcludedCategories,
-    pipelineOptions: flinkPipelineOptions(false))
-
-createValidatesRunner(
+    pipelineOptions: [
+      runner: "TestFlinkRunner",
+      streaming: false,
+    ],
+    configuration: configurations.flinkValidatesRunner,
+  ],
+  [
     runner: "flinkStreaming",
-    configuration: configurations.flinkValidatesRunner,
     excludes: flinkExcludedCategories,
-    pipelineOptions: flinkPipelineOptions(true))
-
-def sparkBatchExcludedCategories = [
-  'org.apache.beam.sdk.testing.UsesSplittableParDo',
-  'org.apache.beam.sdk.testing.UsesCommittedMetrics',
-  'org.apache.beam.sdk.testing.UsesTestStream',
-  'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
+    pipelineOptions: [
+      runner: "TestFlinkRunner",
+      streaming: true,
+    ],
+    configuration: configurations.flinkValidatesRunner,
+  ],
+  [
+    runner: "sparkBatch",
+    excludes: [
+      'org.apache.beam.sdk.testing.UsesSplittableParDo',
+      'org.apache.beam.sdk.testing.UsesCommittedMetrics',
+      'org.apache.beam.sdk.testing.UsesTestStream',
+      'org.apache.beam.sdk.testing.UsesCustomWindowMerging',
+    ],
+    pipelineOptions: [
+      runner: "TestSparkRunner",
+      streaming: "false",
+      enableSparkMetricSinks: "false",
+    ],
+    configuration: configurations.sparkValidatesRunner,
+    systemProperties: [
+      "beam.spark.test.reuseSparkContext": "true",
+      "spark.ui.enabled": "false",
+      "spark.ui.showConsoleProgress": "false",
+    ],
+  ],
 ]
 
-def sparkBatchPipelineOptions = [
-  runner: "TestSparkRunner",
-  streaming: "false",
-  enableSparkMetricSinks: "false",
-]
-
-def sparkBatchSystemProperties = [
-  "beam.spark.test.reuseSparkContext": "true",
-  "spark.ui.enabled": "false",
-  "spark.ui.showConsoleProgress": "false",
-]
-
-createValidatesRunner(
-  runner: "sparkBatch",
-  configuration: configurations.sparkValidatesRunner,
-  excludes: sparkBatchExcludedCategories,
-  pipelineOptions: sparkBatchPipelineOptions)
+task(validatesRunners) {
+  group = "Verification"
+  description = "Validates all runners"
+}
+for (Map config : validatesRunnerConfigs as List<Map>) {
+  def t = createValidatesRunner(config)
+  validatesRunners.dependsOn t
+}
 
 artifacts.archives packageTests
 artifacts {
