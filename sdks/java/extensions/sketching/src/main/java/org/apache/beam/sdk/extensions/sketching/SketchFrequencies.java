@@ -29,7 +29,6 @@ import java.io.Serializable;
 import java.util.Iterator;
 
 import org.apache.beam.sdk.annotations.Experimental;
-import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -438,13 +437,6 @@ public final class SketchFrequencies {
               new CountMinSketch(depth, width, SEED));
     }
 
-    static <T> Sketch<T> create(int depth, int width, CountMinSketch sketch) {
-      return new AutoValue_SketchFrequencies_Sketch<T>(
-              depth,
-              width,
-              sketch);
-    }
-
     static <T> Sketch<T> create(CountMinSketch sketch) {
       int width = (int) Math.ceil(2 / sketch.getRelativeError());
       int depth = (int) Math.ceil(-Math.log(1 - sketch.getConfidence()) / Math.log(2));
@@ -491,26 +483,20 @@ public final class SketchFrequencies {
   static class CountMinSketchCoder<T> extends CustomCoder<Sketch<T>> {
 
     private static final ByteArrayCoder BYTE_ARRAY_CODER = ByteArrayCoder.of();
-    private static final BigEndianIntegerCoder INT_CODER = BigEndianIntegerCoder.of();
-
 
     @Override
     public void encode(Sketch<T> value, OutputStream outStream) throws IOException {
       if (value == null) {
         throw new CoderException("cannot encode a null Count-min Sketch");
       }
-      INT_CODER.encode(value.width(), outStream);
-      INT_CODER.encode(value.depth(), outStream);
       BYTE_ARRAY_CODER.encode(CountMinSketch.serialize(value.sketch()), outStream);
     }
 
     @Override
     public Sketch<T> decode(InputStream inStream) throws IOException {
-      int width = INT_CODER.decode(inStream);
-      int depth = INT_CODER.decode(inStream);
       byte[] sketchBytes = BYTE_ARRAY_CODER.decode(inStream);
       CountMinSketch sketch = CountMinSketch.deserialize(sketchBytes);
-      return Sketch.<T>create(depth, width, sketch);
+      return Sketch.<T>create(sketch);
     }
 
     @Override
