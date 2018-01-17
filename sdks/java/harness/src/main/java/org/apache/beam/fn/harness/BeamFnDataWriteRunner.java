@@ -31,8 +31,10 @@ import org.apache.beam.fn.harness.data.BeamFnDataClient;
 import org.apache.beam.fn.harness.fn.ThrowingRunnable;
 import org.apache.beam.fn.harness.state.BeamFnStateClient;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi.RemoteGrpcPort;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PCollection;
 import org.apache.beam.model.pipeline.v1.RunnerApi.PTransform;
 import org.apache.beam.runners.core.construction.CoderTranslation;
@@ -123,19 +125,24 @@ public class BeamFnDataWriteRunner<InputT> {
       Map<String, RunnerApi.Coder> coders,
       BeamFnDataClient beamFnDataClientFactory)
           throws IOException {
-    this.apiServiceDescriptor =
-        RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort().getApiServiceDescriptor();
+    RemoteGrpcPort port = RemoteGrpcPortWrite.fromPTransform(remoteWriteNode).getPort();
+    this.apiServiceDescriptor = port.getApiServiceDescriptor();
     this.beamFnDataClientFactory = beamFnDataClientFactory;
     this.processBundleInstructionIdSupplier = processBundleInstructionIdSupplier;
     this.outputTarget = outputTarget;
 
+    RehydratedComponents components =
+        RehydratedComponents.forComponents(Components.newBuilder().putAllCoders(coders).build());
     @SuppressWarnings("unchecked")
-    Coder<WindowedValue<InputT>> coder =
-        (Coder<WindowedValue<InputT>>)
-            CoderTranslation.fromProto(
-                coderSpec,
-                RehydratedComponents.forComponents(
-                    RunnerApi.Components.newBuilder().putAllCoders(coders).build()));
+    Coder<WindowedValue<InputT>> coder;
+    if (!port.getCoderId().isEmpty()) {
+      coder =
+          (Coder<WindowedValue<InputT>>)
+              CoderTranslation.fromProto(coders.get(port.getCoderId()), components);
+    } else {
+      // TODO: remove this path once it is no longer used
+      coder = (Coder<WindowedValue<InputT>>) CoderTranslation.fromProto(coderSpec, components);
+    }
     this.coder = coder;
   }
 
