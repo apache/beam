@@ -467,11 +467,6 @@ class _IdentityWindowFn(NonMergingWindowFn):
   def get_window_coder(self):
     return self._window_coder
 
-  def to_runner_api_parameter(self, unused_context):
-    pass  # Overridden by register_pickle_urn below.
-
-  urns.RunnerApiFn.register_pickle_urn(urns.RESHUFFLE_TRANSFORM)
-
 
 @typehints.with_input_types(typehints.KV[K, V])
 @typehints.with_output_types(typehints.KV[K, V])
