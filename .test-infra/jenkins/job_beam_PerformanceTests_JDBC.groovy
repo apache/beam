@@ -23,11 +23,6 @@ job('beam_PerformanceTests_JDBC'){
     // Set default Beam job properties.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
-    common_job_properties.enablePhraseTriggeringFromPullRequest(
-            delegate,
-            'Java JdbcIO Performance Test',
-            'Run Java JdbcIO Performance Test')
-
     // Run job in postcommit every 6 hours, don't trigger every push, and
     // don't email individual committers.
     common_job_properties.setPostCommit(
@@ -38,48 +33,31 @@ job('beam_PerformanceTests_JDBC'){
         false)
 
     def pipelineArgs = [
-            project: 'apache-beam-testing',
-            tempRoot: 'gs://temp-storage-for-perf-tests',
-            postgresPort: '5432',
-            numberOfRecords: '5000000'
+        tempRoot: 'gs://temp-storage-for-end-to-end-tests',
+        project: 'apache-beam-testing',
+        postgresServerName: '10.36.0.11',
+        postgresUsername: 'postgres',
+        postgresDatabaseName: 'postgres',
+        postgresPassword: 'uuinkks',
+        postgresSsl: 'false'
     ]
-
     def pipelineArgList = []
     pipelineArgs.each({
-        key, value -> pipelineArgList.add("\"--$key=$value\"")
+        key, value -> pipelineArgList.add("--$key=$value")
     })
-    def pipelineArgsJoined = "[" + pipelineArgList.join(',') + "]"
+    def pipelineArgsJoined = pipelineArgList.join(',')
 
     def argMap = [
-            kubeconfig: '/home/jenkins/.kube/config',
-            beam_it_timeout: '1200',
-            benchmarks: 'beam_integration_benchmark',
-            beam_it_profile: 'io-it',
-            beam_prebuilt: 'true',
-            beam_sdk: 'java',
-            beam_it_module: 'sdks/java/io/jdbc',
-            beam_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
-            beam_it_options: pipelineArgsJoined,
-            beam_kubernetes_scripts: makePathAbsolute('.test-infra/kubernetes/postgres/postgres.yml'),
-            beam_options_config_file: makePathAbsolute('.test-infra/kubernetes/postgres/pkb-config.yml'),
-            bigquery_table: 'beam_performance.JdbcIOIT_pkb_results'
+      benchmarks: 'beam_integration_benchmark',
+      beam_it_module: 'sdks/java/io/jdbc',
+      beam_it_args: pipelineArgsJoined,
+      beam_it_class: 'org.apache.beam.sdk.io.jdbc.JdbcIOIT',
+      // Profile is located in $BEAM_ROOT/sdks/java/io/pom.xml.
+      beam_it_profile: 'io-it'
     ]
 
-    // Allow the test to only run on nodes with kubernetes installed.
-    // TODO(INFRA-14819): remove when kubernetes is installed on all Jenkins workers
-    parameters {
-        nodeParam('TEST_HOST') {
-            description('select beam1 test host - only this one has kubernetes installed')
-            defaultNodes(['beam1'])
-            allowedNodes(['beam1'])
-            trigger('multiSelectionDisallowed')
-            eligibility('IgnoreOfflineNodeEligibility')
-        }
-    }
-
     common_job_properties.buildPerformanceTest(delegate, argMap)
-}
 
-static def makePathAbsolute(String path) {
-    return '"$WORKSPACE/' + path + '"'
+    // [BEAM-2141] Perf tests do not pass.
+    disabled()
 }
