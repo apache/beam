@@ -83,9 +83,7 @@ dependencies {
   flinkValidatesRunner project(path: ":beam-runners-parent:beam-runners-flink_2.11", configuration: "shadow")
   sparkValidatesRunner project(path: project.path, configuration: "shadowTest")
   sparkValidatesRunner project(path: ":beam-runners-parent:beam-runners-spark", configuration: "shadow")
-  // TODO: Is there a way to refer to the `provided` configuration from the Spark build?
-  sparkValidatesRunner library.java.spark_core
-  sparkValidatesRunner library.java.spark_streaming
+  sparkValidatesRunner project(path: ":beam-runners-parent:beam-runners-spark", configuration: "provided")
 }
 
 // Shade dependencies.
