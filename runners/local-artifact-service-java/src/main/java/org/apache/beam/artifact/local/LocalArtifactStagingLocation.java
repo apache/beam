@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
 import java.io.IOException;
+import org.apache.beam.model.jobmanagement.v1.ArtifactApi.Manifest;
 
 /**
  * A location where the results of an {@link LocalFileSystemArtifactStagerService} are stored and
@@ -77,7 +78,7 @@ public class LocalArtifactStagingLocation {
         artifactsDirectory.exists(), "Nonexistent artifact directory %s", artifactsDirectory);
     checkArgument(
         artifactsDirectory.isDirectory(),
-        "Artifact Location %s is not a directory",
+        "Artifact location %s is not a directory",
         artifactsDirectory);
     checkArgument(getManifestFile().exists(), "No Manifest in existing location %s", rootDirectory);
     return this;
@@ -93,7 +94,7 @@ public class LocalArtifactStagingLocation {
   }
 
   /**
-   * Returns the File which contains Manifest.
+   * Returns the {@link File} which contains the {@link Manifest}.
    *
    * <p>The file may not exist.
    */
@@ -102,7 +103,7 @@ public class LocalArtifactStagingLocation {
   }
 
   /**
-   * Returns the Local location of this {@link LocalArtifactStagingLocation}.
+   * Returns the local location of this {@link LocalArtifactStagingLocation}.
    *
    * <p>This can be used to refer to the staging location when creating a retrieval service.
    */

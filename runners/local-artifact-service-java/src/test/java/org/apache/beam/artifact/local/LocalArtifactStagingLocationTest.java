@@ -44,7 +44,7 @@ public class LocalArtifactStagingLocationTest {
     File baseFolder = tmp.newFolder();
     File root = new File(baseFolder, "foo");
 
-    assertThat(root.exists(), is(false));
+    checkState(!root.exists());
     LocalArtifactStagingLocation.createAt(root);
 
     assertThat(root.exists(), is(true));
@@ -82,9 +82,9 @@ public class LocalArtifactStagingLocationTest {
     File baseFolder = tmp.newFolder();
     LocalArtifactStagingLocation newLocation = LocalArtifactStagingLocation.createAt(baseFolder);
     File newManifest = newLocation.getManifestFile();
-    assertThat("Manifest creation failed", newManifest.createNewFile(), is(true));
+    checkState(newManifest.createNewFile(), "Manifest creation failed");
     File newArtifact = newLocation.getArtifactFile("my_artifact");
-    assertThat("Artifact creation failed", newArtifact.createNewFile(), is(true));
+    checkState(newArtifact.createNewFile(), "Artifact creation failed");
 
     LocalArtifactStagingLocation forExisting =
         LocalArtifactStagingLocation.forExistingDirectory(baseFolder);
@@ -107,7 +107,7 @@ public class LocalArtifactStagingLocationTest {
     File baseFolder = tmp.newFolder();
     LocalArtifactStagingLocation newLocation = LocalArtifactStagingLocation.createAt(baseFolder);
     File newArtifact = newLocation.getArtifactFile("my_artifact");
-    assertThat("Artifact creation failed", newArtifact.createNewFile(), is(true));
+    checkState(newArtifact.createNewFile(), "Artifact creation failed");
 
     thrown.expect(IllegalArgumentException.class);
     thrown.expectMessage("Manifest");
