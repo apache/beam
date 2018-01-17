@@ -85,8 +85,9 @@ func Main(ctx context.Context, loggingEndpoint, controlEndpoint string) error {
 	}()
 
 	ctrl := &control{
-		plans: make(map[string]*exec.Plan),
-		data:  &DataManager{},
+		plans:  make(map[string]*exec.Plan),
+		active: make(map[string]*exec.Plan),
+		data:   &DataManager{},
 	}
 
 	var cpuProfBuf bytes.Buffer
