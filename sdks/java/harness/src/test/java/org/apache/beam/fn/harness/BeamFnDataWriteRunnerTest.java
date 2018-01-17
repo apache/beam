@@ -73,20 +73,31 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class BeamFnDataWriteRunnerTest {
 
-  private static final BeamFnApi.RemoteGrpcPort PORT_SPEC = BeamFnApi.RemoteGrpcPort.newBuilder()
-      .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance()).build();
-  private static final String CODER_ID = "string-coder-id";
-  private static final Coder<WindowedValue<String>> CODER =
-      WindowedValue.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  private static final RunnerApi.Coder CODER_SPEC;
+  private static final String ELEM_CODER_ID = "string-coder-id";
+  private static final Coder<String> ELEM_CODER = StringUtf8Coder.of();
+  private static final String WIRE_CODER_ID = "windowed-string-coder-id";
+  private static final Coder<WindowedValue<String>> WIRE_CODER =
+      WindowedValue.getFullCoder(ELEM_CODER, GlobalWindow.Coder.INSTANCE);
+  private static final RunnerApi.Coder WIRE_CODER_SPEC;
   private static final RunnerApi.Components COMPONENTS;
+
+  private static final BeamFnApi.RemoteGrpcPort PORT_SPEC =
+      BeamFnApi.RemoteGrpcPort.newBuilder()
+          .setApiServiceDescriptor(Endpoints.ApiServiceDescriptor.getDefaultInstance())
+          .setCoderId(WIRE_CODER_ID)
+          .build();
 
   static {
     try {
-      MessageWithComponents coderAndComponents = CoderTranslation.toProto(CODER);
-      CODER_SPEC = coderAndComponents.getCoder();
+      MessageWithComponents coderAndComponents = CoderTranslation.toProto(WIRE_CODER);
+      WIRE_CODER_SPEC = coderAndComponents.getCoder();
       COMPONENTS =
-          coderAndComponents.getComponents().toBuilder().putCoders(CODER_ID, CODER_SPEC).build();
+          coderAndComponents
+              .getComponents()
+              .toBuilder()
+              .putCoders(WIRE_CODER_ID, WIRE_CODER_SPEC)
+              .putCoders(ELEM_CODER_ID, CoderTranslation.toProto(ELEM_CODER).getCoder())
+              .build();
     } catch (IOException e) {
       throw new ExceptionInInitializerError(e);
     }
@@ -124,7 +135,7 @@ public class BeamFnDataWriteRunnerTest {
         pTransform,
         Suppliers.ofInstance(bundleId)::get,
         ImmutableMap.of(localInputId,
-            RunnerApi.PCollection.newBuilder().setCoderId(CODER_ID).build()),
+            RunnerApi.PCollection.newBuilder().setCoderId(ELEM_CODER_ID).build()),
         COMPONENTS.getCodersMap(),
         COMPONENTS.getWindowingStrategiesMap(),
         consumers,
@@ -164,7 +175,7 @@ public class BeamFnDataWriteRunnerTest {
                     // RemoteGrpcPortWrite uses
                     .setName(Iterables.getOnlyElement(pTransform.getInputsMap().keySet()))
                     .build())),
-        eq(CODER));
+        eq(WIRE_CODER));
 
     assertThat(consumers.keySet(), containsInAnyOrder(localInputId));
     Iterables.getOnlyElement(consumers.get(localInputId)).accept(valueInGlobalWindow("TestValue"));
@@ -190,8 +201,7 @@ public class BeamFnDataWriteRunnerTest {
     BeamFnDataWriteRunner<String> writeRunner = new BeamFnDataWriteRunner<>(
         RemoteGrpcPortWrite.writeToPort("myWrite", PORT_SPEC).toPTransform(),
         bundleId::get,
-        OUTPUT_TARGET,
-        CODER_SPEC,
+        OUTPUT_TARGET, WIRE_CODER_SPEC,
         COMPONENTS.getCodersMap(),
         mockBeamFnDataClient);
 
@@ -201,7 +211,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
-        eq(CODER));
+        eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("ABC"));
     writeRunner.consume(valueInGlobalWindow("DEF"));
@@ -219,7 +229,7 @@ public class BeamFnDataWriteRunnerTest {
     verify(mockBeamFnDataClient).send(
         eq(PORT_SPEC.getApiServiceDescriptor()),
         eq(LogicalEndpoint.of(bundleId.get(), OUTPUT_TARGET)),
-        eq(CODER));
+        eq(WIRE_CODER));
 
     writeRunner.consume(valueInGlobalWindow("GHI"));
     writeRunner.consume(valueInGlobalWindow("JKL"));

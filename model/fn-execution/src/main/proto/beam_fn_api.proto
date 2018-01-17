@@ -76,6 +76,9 @@ message RemoteGrpcPort {
   // (Required) An API descriptor which describes where to
   // connect to including any authentication that is required.
   org.apache.beam.model.pipeline.v1.ApiServiceDescriptor api_service_descriptor = 1;
+
+  // (Required) The ID of the Coder that will be used to encode and decode data sent over this port.
+  string coder_id = 2;
 }
 
 /*
