@@ -15,34 +15,40 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.fn.harness.data;
+package org.apache.beam.sdk.fn.data;
 
 import java.io.InputStream;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.util.WindowedValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Decodes individually consumed {@link BeamFnApi.Elements.Data} with the
- * provided {@link Coder} passing the individual decoded elements to the provided consumer.
+ * Decodes individually consumed {@link BeamFnApi.Elements.Data} with the provided {@link Coder}
+ * passing the individual decoded elements to the provided consumer.
  */
-public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements.Data> {
+public class BeamFnDataInboundObserver<T>
+    implements Consumer<BeamFnApi.Elements.Data>, InboundDataClient {
   private static final Logger LOG = LoggerFactory.getLogger(BeamFnDataInboundObserver.class);
+
+  public static <T> BeamFnDataInboundObserver<T> forConsumer(
+      Coder<WindowedValue<T>> coder, FnDataReceiver<WindowedValue<T>> receiver) {
+    return new BeamFnDataInboundObserver<>(
+        coder, receiver, SettableFutureFutureInboundDataClient.create());
+  }
+
   private final FnDataReceiver<WindowedValue<T>> consumer;
   private final Coder<WindowedValue<T>> coder;
-  private final CompletableFuture<Void> readFuture;
+  private final InboundDataClient readFuture;
   private long byteCounter;
   private long counter;
 
   public BeamFnDataInboundObserver(
       Coder<WindowedValue<T>> coder,
       FnDataReceiver<WindowedValue<T>> consumer,
-      CompletableFuture<Void> readFuture) {
+      InboundDataClient readFuture) {
     this.coder = coder;
     this.consumer = consumer;
     this.readFuture = readFuture;
@@ -62,7 +68,7 @@ public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements
             t.getTarget(),
             counter,
             byteCounter);
-        readFuture.complete(null);
+        readFuture.complete();
         return;
       }
 
@@ -74,7 +80,32 @@ public class BeamFnDataInboundObserver<T> implements Consumer<BeamFnApi.Elements
         consumer.accept(value);
       }
     } catch (Exception e) {
-      readFuture.completeExceptionally(e);
+      readFuture.fail(e);
     }
+  }
+
+  @Override
+  public void awaitCompletion() throws Exception {
+    readFuture.awaitCompletion();
+  }
+
+  @Override
+  public boolean isDone() {
+    return readFuture.isDone();
+  }
+
+  @Override
+  public void cancel() {
+    readFuture.cancel();
+  }
+
+  @Override
+  public void complete() {
+    readFuture.complete();
+  }
+
+  @Override
+  public void fail(Throwable t) {
+    readFuture.fail(t);
   }
 }

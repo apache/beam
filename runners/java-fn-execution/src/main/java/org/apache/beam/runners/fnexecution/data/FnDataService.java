@@ -18,10 +18,10 @@
 
 package org.apache.beam.runners.fnexecution.data;
 
-import com.google.common.util.concurrent.ListenableFuture;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.CloseableFnDataReceiver;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
+import org.apache.beam.sdk.fn.data.InboundDataClient;
 import org.apache.beam.sdk.fn.data.LogicalEndpoint;
 import org.apache.beam.sdk.util.WindowedValue;
 
@@ -44,11 +44,10 @@ public interface FnDataService {
    *
    * <p>The provided receiver is not required to be thread safe.
    */
-  <T> ListenableFuture<Void> receive(
+  <T> InboundDataClient receive(
       LogicalEndpoint inputLocation,
       Coder<WindowedValue<T>> coder,
-      FnDataReceiver<WindowedValue<T>> listener)
-      throws Exception;
+      FnDataReceiver<WindowedValue<T>> listener);
 
   /**
    * Creates a receiver to which you can write data values and have them sent over this data plane
@@ -61,6 +60,5 @@ public interface FnDataService {
    * <p>The returned receiver is not thread safe.
    */
   <T> CloseableFnDataReceiver<WindowedValue<T>> send(
-      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder) throws Exception;
-
+      LogicalEndpoint outputLocation, Coder<WindowedValue<T>> coder);
 }
