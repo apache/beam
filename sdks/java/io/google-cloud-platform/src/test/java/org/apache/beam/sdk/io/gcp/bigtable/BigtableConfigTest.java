@@ -23,7 +23,9 @@ import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasLabe
 import static org.apache.beam.sdk.transforms.display.DisplayDataMatchers.hasValue;
 import static org.hamcrest.Matchers.allOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigtable.config.BigtableOptions;
 import com.google.cloud.bigtable.config.BulkOptions;
@@ -46,6 +48,18 @@ import org.mockito.Mockito;
  */
 @RunWith(JUnit4.class)
 public class BigtableConfigTest {
+
+  static final ValueProvider<String> NOT_ACCESSIBLE_VALUE = new ValueProvider<String>() {
+    @Override
+    public String get() {
+      throw new IllegalStateException("Value is not accessible");
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return false;
+    }
+  };
 
   static final ValueProvider<String> PROJECT_ID =
     ValueProvider.StaticValueProvider.of("project_id");
@@ -212,5 +226,27 @@ public class BigtableConfigTest {
     assertEquals(PROJECT_ID.get(), service.getBigtableOptions().getProjectId());
     assertEquals(INSTANCE_ID.get(), service.getBigtableOptions().getInstanceId());
     assertEquals(true, service.getBigtableOptions().getBulkOptions().useBulkApi());
+  }
+
+  @Test
+  public void testIsDataAccessible() {
+    assertTrue(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID).withInstanceId(INSTANCE_ID)
+      .isDataAccessible());
+    assertTrue(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID)
+      .withBigtableOptions(new BigtableOptions.Builder().setInstanceId("instance_id").build())
+      .isDataAccessible());
+    assertTrue(config.withTableId(TABLE_ID).withInstanceId(INSTANCE_ID)
+      .withBigtableOptions(new BigtableOptions.Builder().setProjectId("project_id").build())
+      .isDataAccessible());
+    assertTrue(config.withTableId(TABLE_ID).withBigtableOptions(
+      new BigtableOptions.Builder().setProjectId("project_id").setInstanceId("instance_id").build())
+      .isDataAccessible());
+
+    assertFalse(config.withTableId(NOT_ACCESSIBLE_VALUE).withProjectId(PROJECT_ID)
+      .withInstanceId(INSTANCE_ID).isDataAccessible());
+    assertFalse(config.withTableId(TABLE_ID).withProjectId(NOT_ACCESSIBLE_VALUE)
+      .withInstanceId(INSTANCE_ID).isDataAccessible());
+    assertFalse(config.withTableId(TABLE_ID).withProjectId(PROJECT_ID)
+      .withInstanceId(NOT_ACCESSIBLE_VALUE).isDataAccessible());
   }
 }

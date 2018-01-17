@@ -114,6 +114,18 @@ public class BigtableIOTest {
   @Rule public ExpectedException thrown = ExpectedException.none();
   @Rule public ExpectedLogs logged = ExpectedLogs.none(BigtableIO.class);
 
+  static final ValueProvider<String> NOT_ACCESSIBLE_VALUE = new ValueProvider<String>() {
+    @Override
+    public String get() {
+      throw new IllegalStateException("Value is not accessible");
+    }
+
+    @Override
+    public boolean isAccessible() {
+      return false;
+    }
+  };
+
   private static BigtableConfig config;
   private static FakeBigtableService service;
   private static final BigtableOptions BIGTABLE_OPTIONS =
@@ -719,6 +731,18 @@ public class BigtableIOTest {
     thrown.expectMessage(String.format("Table %s does not exist", table));
 
     emptyInput.apply("write", defaultWrite.withTableId(table));
+    p.run();
+  }
+
+  /** Tests that when writing to a non-existent table, the write fails. */
+  @Test
+  public void testTableCheckIgnoredWhenCanNotAccessConfig() throws Exception {
+    PCollection<KV<ByteString, Iterable<Mutation>>> emptyInput =
+      p.apply(
+        Create.empty(
+          KvCoder.of(ByteStringCoder.of(), IterableCoder.of(ProtoCoder.of(Mutation.class)))));
+
+    emptyInput.apply("write", defaultWrite.withTableId(NOT_ACCESSIBLE_VALUE));
     p.run();
   }
 
