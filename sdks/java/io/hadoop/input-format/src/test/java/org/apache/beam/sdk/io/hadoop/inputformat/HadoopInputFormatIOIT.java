@@ -70,7 +70,7 @@ import org.postgresql.ds.PGSimpleDataSource;
 public class HadoopInputFormatIOIT {
 
   private static PGSimpleDataSource dataSource;
-  private static Long numberOfRows;
+  private static Integer numberOfRows;
   private static String tableName;
   private static SerializableConfiguration hadoopConfiguration;
 
@@ -140,7 +140,7 @@ public class HadoopInputFormatIOIT {
         .apply("Calculate hashcode", Combine.globally(new HashingFn()));
 
     PAssert.thatSingleton(consolidatedHashcode)
-        .isEqualTo(getExpectedHashForRowCount(numberOfRows.intValue()));
+        .isEqualTo(getExpectedHashForRowCount(numberOfRows));
 
     readPipeline.run().waitUntilFinish();
   }

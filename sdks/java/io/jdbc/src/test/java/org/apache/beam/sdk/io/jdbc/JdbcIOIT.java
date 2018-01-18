@@ -17,10 +17,7 @@
  */
 package org.apache.beam.sdk.io.jdbc;
 
-import static org.apache.beam.sdk.io.common.DatabaseTestHelper.getPostgresDataSource;
-
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.List;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
@@ -43,10 +40,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.postgresql.ds.PGSimpleDataSource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-
 
 /**
  * A test of {@link org.apache.beam.sdk.io.jdbc.JdbcIO} on an independent Postgres instance.
@@ -59,7 +52,8 @@ import org.slf4j.LoggerFactory;
  *  "--postgresUsername=postgres",
  *  "--postgresDatabaseName=myfancydb",
  *  "--postgresPassword=mypass",
- *  "--postgresSsl=false" ]'
+ *  "--postgresSsl=false",
+ *  "--numberOfRecords=1000" ]'
  * </pre>
  *
  * <p>If you want to run this with a runner besides directrunner, there are profiles for dataflow
@@ -68,8 +62,8 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class JdbcIOIT {
-  private static final Logger LOG = LoggerFactory.getLogger(JdbcIOIT.class);
-  public static final int EXPECTED_ROW_COUNT = 1000;
+
+  private static int numberOfRows;
   private static PGSimpleDataSource dataSource;
   private static String tableName;
 
@@ -79,13 +73,13 @@ public class JdbcIOIT {
   public TestPipeline pipelineRead = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws SQLException, ParseException {
+  public static void setup() throws SQLException {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
-    dataSource = getPostgresDataSource(options);
-
+    numberOfRows = options.getNumberOfRecords();
+    dataSource = DatabaseTestHelper.getPostgresDataSource(options);
     tableName = DatabaseTestHelper.getTestTableName("IT");
     DatabaseTestHelper.createTable(dataSource, tableName);
   }
@@ -113,7 +107,7 @@ public class JdbcIOIT {
    * the database.)
    */
   private void runWrite() {
-    pipelineWrite.apply(GenerateSequence.from(0).to((long) EXPECTED_ROW_COUNT))
+    pipelineWrite.apply(GenerateSequence.from(0).to(numberOfRows))
         .apply(ParDo.of(new TestRow.DeterministicallyConstructTestRowFn()))
         .apply(JdbcIO.<TestRow>write()
             .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(dataSource))
@@ -151,13 +145,13 @@ public class JdbcIOIT {
 
     PAssert.thatSingleton(
         namesAndIds.apply("Count All", Count.<TestRow>globally()))
-        .isEqualTo((long) EXPECTED_ROW_COUNT);
+        .isEqualTo((long) numberOfRows);
 
     PCollection<String> consolidatedHashcode = namesAndIds
         .apply(ParDo.of(new TestRow.SelectNameFn()))
         .apply("Hash row contents", Combine.globally(new HashingFn()).withoutDefaults());
     PAssert.that(consolidatedHashcode)
-        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(EXPECTED_ROW_COUNT));
+        .containsInAnyOrder(TestRow.getExpectedHashForRowCount(numberOfRows));
 
     PCollection<List<TestRow>> frontOfList =
         namesAndIds.apply(Top.<TestRow>smallest(500));
@@ -167,8 +161,7 @@ public class JdbcIOIT {
     PCollection<List<TestRow>> backOfList =
         namesAndIds.apply(Top.<TestRow>largest(500));
     Iterable<TestRow> expectedBackOfList =
-        TestRow.getExpectedValues(EXPECTED_ROW_COUNT - 500,
-            EXPECTED_ROW_COUNT);
+        TestRow.getExpectedValues(numberOfRows - 500, numberOfRows);
     PAssert.thatSingletonIterable(backOfList).containsInAnyOrder(expectedBackOfList);
 
     pipelineRead.run().waitUntilFinish();

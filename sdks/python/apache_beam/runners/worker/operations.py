@@ -118,6 +118,12 @@ class Operation(object):
     self.counter_factory = counter_factory
     self.consumers = collections.defaultdict(list)
 
+    # These are overwritten in the legacy harness.
+    self.step_name = operation_name
+    self.metrics_container = MetricsContainer(self.step_name)
+    self.scoped_metrics_container = ScopedMetricsContainer(
+        self.metrics_container)
+
     self.state_sampler = state_sampler
     self.scoped_start_state = self.state_sampler.scoped_state(
         self.operation_name, 'start')
@@ -127,7 +133,6 @@ class Operation(object):
         self.operation_name, 'finish')
     # TODO(ccy): the '-abort' state can be added when the abort is supported in
     # Operations.
-    self.scoped_metrics_container = None
     self.receivers = []
 
   def start(self):
@@ -260,6 +265,7 @@ class DoOperation(Operation):
       self, name, spec, counter_factory, sampler, side_input_maps=None):
     super(DoOperation, self).__init__(name, spec, counter_factory, sampler)
     self.side_input_maps = side_input_maps
+    self.tagged_receivers = None
 
   def _read_side_inputs(self, tags_and_types):
     """Generator reading side inputs in the order prescribed by tags_and_types.

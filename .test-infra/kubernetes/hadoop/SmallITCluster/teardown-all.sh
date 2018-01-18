@@ -1,5 +1,3 @@
-#!/bin/bash
-#
 #    Licensed to the Apache Software Foundation (ASF) under one or more
 #    contributor license agreements.  See the NOTICE file distributed with
 #    this work for additional information regarding copyright ownership.
@@ -15,10 +13,21 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 #
+# This script terminates hdfs cluster and hadoop-external service. It checks /etc/hosts file
+# for any unneeded entries and notifies user about them.
+#
 
-wget --no-verbose -O $SRC_FILE $URL
-unzip -q $SRC_FILE
-rm $SRC_FILE
-ln -s $HOME/$SRC_DIR $HOME/beam
-cd $HOME/beam
-exec "$@"
+#!/bin/sh
+set -e
+
+external_ip="$(kubectl get svc hadoop-external -o jsonpath='{.status.loadBalancer.ingress[0].ip}')"
+
+hadoop_master_pod_name="$(kubectl get pods --selector=name=hadoop -o jsonpath='{.items[*].metadata.name}')"
+
+kubectl delete -f hdfs-single-datanode-cluster.yml
+
+kubectl delete -f hdfs-single-datanode-cluster-for-local-dev.yml
+
+if grep "$external_ip\|$hadoop_master_pod_name" /etc/hosts ; then
+    echo "Remove entry from /etc/hosts."
+fi

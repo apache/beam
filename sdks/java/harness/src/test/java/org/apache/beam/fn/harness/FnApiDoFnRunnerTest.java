@@ -165,7 +165,7 @@ public class FnApiDoFnRunnerTest {
 
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A1"));
     Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("A2"));
-    Iterables.getOnlyElement(consumers.get("inputATarget")).accept(valueInGlobalWindow("B"));
+    Iterables.getOnlyElement(consumers.get("inputBTarget")).accept(valueInGlobalWindow("B"));
     assertThat(mainOutputValues, contains(
         valueInGlobalWindow("MainOutputA1"),
         valueInGlobalWindow("MainOutputA2"),

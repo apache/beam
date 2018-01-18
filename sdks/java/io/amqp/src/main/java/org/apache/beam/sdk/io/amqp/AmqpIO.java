@@ -160,19 +160,14 @@ public class AmqpIO {
     @Override
     public PCollection<Message> expand(PBegin input) {
       checkArgument(addresses() != null, "withAddresses() is required");
-      checkArgument(
-          maxReadTime() == null || maxNumRecords() == Long.MAX_VALUE,
-          "withMaxNumRecords() and withMaxReadTime() are exclusive");
 
       org.apache.beam.sdk.io.Read.Unbounded<Message> unbounded =
           org.apache.beam.sdk.io.Read.from(new UnboundedAmqpSource(this));
 
       PTransform<PBegin, PCollection<Message>> transform = unbounded;
 
-      if (maxNumRecords() != Long.MAX_VALUE) {
-        transform = unbounded.withMaxNumRecords(maxNumRecords());
-      } else if (maxReadTime() != null) {
-        transform = unbounded.withMaxReadTime(maxReadTime());
+      if (maxNumRecords() < Long.MAX_VALUE || maxReadTime() != null) {
+        transform = unbounded.withMaxReadTime(maxReadTime()).withMaxNumRecords(maxNumRecords());
       }
 
       return input.getPipeline().apply(transform);

@@ -71,17 +71,16 @@ from apache_beam.utils import processes
 # All constants are for internal use only; no backwards-compatibility
 # guarantees.
 
-# In a released version BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION
-# should match each other, and should be in the same format as the SDK version
-# (i.e. MAJOR.MINOR.PATCH). For non-released (dev) versions, read below.
+# In a released SDK, container tags are selected based on the SDK version.
+# Unreleased versions use container versions based on values of
+# BEAM_CONTAINER_VERSION and BEAM_FNAPI_CONTAINER_VERSION (see below).
+
 # Update this version to the next version whenever there is a change that will
 # require changes to legacy Dataflow worker execution environment.
-# This should be in the beam-[version]-[date] format, date is optional.
-BEAM_CONTAINER_VERSION = 'beam-2.2.0-20170928'
+BEAM_CONTAINER_VERSION = 'beam-master-20171214'
 # Update this version to the next version whenever there is a change that
 # requires changes to SDK harness container or SDK harness launcher.
-# This should be in the beam-[version]-[date] format, date is optional.
-BEAM_FNAPI_CONTAINER_VERSION = 'beam-2.3.0-20171219'
+BEAM_FNAPI_CONTAINER_VERSION = 'beam-master-20171222'
 
 # Standard file names used for staging files.
 WORKFLOW_TARBALL_FILE = 'workflow.tar.gz'

@@ -22,7 +22,6 @@ import multiprocessing
 import os
 import random
 import threading
-import time
 import unittest
 
 import httplib2
@@ -435,43 +434,6 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(f.read(), '')
     f.seek(0)
     self.assertEqual(f.read(), random_file.contents)
-
-  def test_flaky_file_read(self):
-    file_name = 'gs://gcsio-test/flaky_file'
-    file_size = 5 * 1024 * 1024 + 100
-    random_file = self._insert_random_file(self.client, file_name, file_size)
-    f = self.gcs.open(file_name)
-    random.seed(0)
-    f.buffer_size = 1024 * 1024
-    f.segment_timeout = 0.01
-    self.assertEqual(f.mode, 'r')
-    f._real_get_segment = f._get_segment
-
-    def flaky_get_segment(start, size):
-      if random.randint(0, 3) == 1:
-        time.sleep(600)
-      return f._real_get_segment(start, size)
-
-    f._get_segment = flaky_get_segment
-    self.assertEqual(f.read(), random_file.contents)
-
-    # Test exception handling in file read.
-    def failing_get_segment(unused_start, unused_size):
-      raise IOError('Could not read.')
-
-    f._get_segment = failing_get_segment
-    f.seek(0)
-    with self.assertRaises(IOError):
-      f.read()
-
-    # Test retry limit in hanging file read.
-    def hanging_get_segment(unused_start, unused_size):
-      time.sleep(600)
-
-    f._get_segment = hanging_get_segment
-    f.seek(0)
-    with self.assertRaises(gcsio.GcsIOError):
-      f.read()
 
   def test_file_random_seek(self):
     file_name = 'gs://gcsio-test/seek_file'

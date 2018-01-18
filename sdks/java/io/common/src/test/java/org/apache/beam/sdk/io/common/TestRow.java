@@ -97,7 +97,8 @@ public abstract class TestRow implements Serializable, Comparable<TestRow> {
   private static final Map<Integer, String> EXPECTED_HASHES = ImmutableMap.of(
       1000, "7d94d63a41164be058a9680002914358",
       100_000, "c7cbddb319209e200f1c5eebef8fe960",
-      600_000, "e2add2f680de9024e9bc46cd3912545e"
+      600_000, "e2add2f680de9024e9bc46cd3912545e",
+      5_000_000, "c44f8a5648cd9207c9c6f77395a998dc"
   );
 
   /**

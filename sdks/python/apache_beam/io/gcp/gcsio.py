@@ -26,7 +26,6 @@ import fnmatch
 import logging
 import multiprocessing
 import os
-import Queue
 import re
 import threading
 import time
@@ -87,6 +86,44 @@ WRITE_CHUNK_SIZE = 8 * 1024 * 1024
 MAX_BATCH_OPERATION_SIZE = 100
 
 
+def proxy_info_from_environment_var(proxy_env_var):
+  """Reads proxy info from the environment and converts to httplib2.ProxyInfo.
+
+  Args:
+    proxy_env_var: environment variable string to read, http_proxy or
+       https_proxy (in lower case).
+       Example: http://myproxy.domain.com:8080
+
+  Returns:
+    httplib2.ProxyInfo constructed from the environment string.
+  """
+  proxy_url = os.environ.get(proxy_env_var)
+  if not proxy_url:
+    return None
+  proxy_protocol = proxy_env_var.lower().split('_')[0]
+  if not re.match('^https?://', proxy_url, flags=re.IGNORECASE):
+    logging.warn("proxy_info_from_url requires a protocol, which is always "
+                 "http or https.")
+    proxy_url = proxy_protocol + '://' + proxy_url
+  return httplib2.proxy_info_from_url(proxy_url, method=proxy_protocol)
+
+
+def get_new_http():
+  """Creates and returns a new httplib2.Http instance.
+
+  Returns:
+    An initialized httplib2.Http instance.
+  """
+  proxy_info = None
+  for proxy_env_var in ['http_proxy', 'https_proxy']:
+    if os.environ.get(proxy_env_var):
+      proxy_info = proxy_info_from_environment_var(proxy_env_var)
+      break
+  # Use a non-infinite SSL timeout to avoid hangs during network flakiness.
+  return httplib2.Http(proxy_info=proxy_info,
+                       timeout=DEFAULT_HTTP_TIMEOUT_SECONDS)
+
+
 def parse_gcs_path(gcs_path):
   """Return the bucket and object names of the given gs:// path."""
   match = re.match('^gs://([^/]+)/(.+)$', gcs_path)
@@ -118,7 +155,7 @@ class GcsIO(object):
         storage_client = storage.StorageV1(
             credentials=credentials,
             get_credentials=False,
-            http=httplib2.Http(timeout=DEFAULT_HTTP_TIMEOUT_SECONDS))
+            http=get_new_http())
         local_state.gcsio_instance = (
             super(GcsIO, cls).__new__(cls, storage_client))
         local_state.gcsio_instance.client = storage_client
@@ -234,7 +271,7 @@ class GcsIO(object):
       request = storage.StorageObjectsDeleteRequest(
           bucket=bucket, object=object_path)
       batch_request.Add(self.client.objects, 'Delete', request)
-    api_calls = batch_request.Execute(self.client._http)  # pylint: disable=protected-access
+    api_calls = batch_request.Execute(self.client._http) # pylint: disable=protected-access
     result_statuses = []
     for i, api_call in enumerate(api_calls):
       path = paths[i]
@@ -427,14 +464,12 @@ class GcsBufferedReader(object):
                client,
                path,
                mode='r',
-               buffer_size=DEFAULT_READ_BUFFER_SIZE,
-               segment_timeout=DEFAULT_READ_SEGMENT_TIMEOUT_SECONDS):
+               buffer_size=DEFAULT_READ_BUFFER_SIZE):
     self.client = client
     self.path = path
     self.bucket, self.name = parse_gcs_path(path)
     self.mode = mode
     self.buffer_size = buffer_size
-    self.segment_timeout = segment_timeout
 
     # Get object state.
     self.get_request = (storage.StorageObjectsGetRequest(
@@ -575,47 +610,18 @@ class GcsBufferedReader(object):
         self.buffer_start_position + len(self.buffer) <= self.position):
       bytes_to_request = min(self._remaining(), self.buffer_size)
       self.buffer_start_position = self.position
-      retry_count = 0
-      while retry_count <= 10:
-        queue = Queue.Queue()
-        t = threading.Thread(target=self._fetch_to_queue,
-                             args=(queue, self._get_segment,
-                                   (self.position, bytes_to_request)))
-        t.daemon = True
-        t.start()
-        try:
-          result, exn, tb = queue.get(timeout=self.segment_timeout)
-        except Queue.Empty:
-          logging.warning(
-              ('Timed out fetching %d bytes from position %d of %s after %f '
-               'seconds; retrying...'), bytes_to_request, self.position,
-              self.path, self.segment_timeout)
-          retry_count += 1
-          # Reinitialize download objects.
-          self.download_stream = cStringIO.StringIO()
-          self.downloader = transfer.Download(
-              self.download_stream, auto_transfer=False,
-              chunksize=self.buffer_size)
-          self.client.objects.Get(self.get_request, download=self.downloader)
-          continue
-        if exn:
-          logging.error(
-              ('Exception while fetching %d bytes from position %d of %s: '
-               '%s\n%s'),
-              bytes_to_request, self.position, self.path, exn, tb)
-          raise exn
-        self.buffer = result
-        return
-      raise GcsIOError(
-          'Reached retry limit for _fetch_next_if_buffer_exhausted.')
+      try:
+        result = self._get_segment(self.position, bytes_to_request)
+      except Exception as e:  # pylint: disable=broad-except
+        tb = traceback.format_exc()
+        logging.error(
+            ('Exception while fetching %d bytes from position %d of %s: '
+             '%s\n%s'),
+            bytes_to_request, self.position, self.path, e, tb)
+        raise
 
-  def _fetch_to_queue(self, queue, func, args):
-    try:
-      value = func(*args)
-      queue.put((value, None, None))
-    except Exception as e:  # pylint: disable=broad-except
-      tb = traceback.format_exc()
-      queue.put((None, e, tb))
+      self.buffer = result
+      return
 
   def _remaining(self):
     return self.size - self.position

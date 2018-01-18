@@ -273,10 +273,13 @@ class BundleProcessor(object):
   def metrics(self):
     return beam_fn_api_pb2.Metrics(
         # TODO(robertwb): Rename to progress?
-        ptransforms=
-        {transform_id:
-         self._fix_output_tags(transform_id, op.progress_metrics())
-         for transform_id, op in self.ops.items()})
+        ptransforms={
+            transform_id:
+            self._fix_output_tags(transform_id, op.progress_metrics())
+            for transform_id, op in self.ops.items()},
+        user=sum(
+            [op.metrics_container.to_runner_api() for op in self.ops.values()],
+            []))
 
   def _fix_output_tags(self, transform_id, metrics):
     # Outputs are still referred to by index, not by name, in many Operations.
@@ -601,6 +604,20 @@ def _create_combine_phase_operation(
           operation_specs.WorkerCombineFn(
               serialized_combine_fn,
               phase,
+              None,
+              [factory.get_only_output_coder(transform_proto)]),
+          factory.counter_factory,
+          factory.state_sampler),
+      transform_proto.unique_name,
+      consumers)
+
+
+@BeamTransformFactory.register_urn(urns.FLATTEN_TRANSFORM, None)
+def create(factory, transform_id, transform_proto, unused_parameter, consumers):
+  return factory.augment_oldstyle_op(
+      operations.create_operation(
+          transform_proto.unique_name,
+          operation_specs.WorkerFlatten(
               None,
               [factory.get_only_output_coder(transform_proto)]),
           factory.counter_factory,
