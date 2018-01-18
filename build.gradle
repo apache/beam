@@ -126,7 +126,7 @@ ext.library = [
     jackson_module_scala: "com.fasterxml.jackson.module:jackson-module-scala_2.11:$jackson_version",
     joda_time: "joda-time:joda-time:2.4",
     junit: "junit:junit:4.12",
-    kafka_clients: "org.apache.kafka:kafka-clients:0.11.0.1",
+    kafka_clients: "org.apache.kafka:kafka-clients:1.0.0",
     malhar_library: "org.apache.apex:malhar-library:$apex_malhar_version",
     mockito_core: "org.mockito:mockito-core:1.9.5",
     netty_handler: "io.netty:netty-handler:$netty_version",
