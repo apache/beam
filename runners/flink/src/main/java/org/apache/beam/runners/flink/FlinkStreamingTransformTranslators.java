@@ -23,6 +23,7 @@ import static org.apache.beam.runners.core.construction.SplittableParDo.SPLITTAB
 import com.google.auto.service.AutoService;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,7 +35,10 @@ import javax.annotation.Nullable;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.SplittableParDoViaKeyedWorkItems;
 import org.apache.beam.runners.core.SystemReduceFn;
+import org.apache.beam.runners.core.construction.CombineTranslation;
 import org.apache.beam.runners.core.construction.PTransformTranslation;
+import org.apache.beam.runners.core.construction.ParDoTranslation;
+import org.apache.beam.runners.core.construction.ReadTranslation;
 import org.apache.beam.runners.core.construction.SplittableParDo;
 import org.apache.beam.runners.core.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.runners.flink.translation.functions.FlinkAssignWindows;
@@ -53,14 +57,13 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VoidCoder;
+import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Read;
-import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.runners.AppliedPTransform;
+import org.apache.beam.sdk.transforms.CombineFnBase.GlobalCombineFn;
 import org.apache.beam.sdk.transforms.DoFn;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.join.UnionCoder;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -68,7 +71,6 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
-import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.util.AppliedCombineFn;
 import org.apache.beam.sdk.util.WindowedValue;
@@ -79,6 +81,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -150,11 +153,12 @@ class FlinkStreamingTransformTranslators {
   // --------------------------------------------------------------------------------------------
 
   private static class UnboundedReadSourceTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Unbounded<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+      PTransform<PBegin, PCollection<T>>> {
 
     @Override
     public void translateNode(
-        Read.Unbounded<T> transform,
+        PTransform<PBegin, PCollection<T>> transform,
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
@@ -170,19 +174,28 @@ class FlinkStreamingTransformTranslators {
               ValueWithRecordId.ValueWithRecordIdCoder.of(coder),
               output.getWindowingStrategy().getWindowFn().windowCoder()));
 
+      UnboundedSource<T, ?> rawSource;
+      try {
+        rawSource = ReadTranslation.unboundedSourceFromTransform(
+            (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
+                context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
       try {
 
         UnboundedSourceWrapper<T, ?> sourceWrapper =
             new UnboundedSourceWrapper<>(
                 context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
-                transform.getSource(),
+                rawSource,
                 context.getExecutionEnvironment().getParallelism());
         nonDedupSource = context
             .getExecutionEnvironment()
             .addSource(sourceWrapper).name(transform.getName()).returns(withIdTypeInfo);
 
-        if (transform.getSource().requiresDeduping()) {
+        if (rawSource.requiresDeduping()) {
           source = nonDedupSource.keyBy(
               new ValueWithRecordIdKeySelector<T>())
               .transform("deduping", outputTypeInfo, new DedupingOperator<T>());
@@ -191,7 +204,7 @@ class FlinkStreamingTransformTranslators {
         }
       } catch (Exception e) {
         throw new RuntimeException(
-            "Error while translating UnboundedSource: " + transform.getSource(), e);
+            "Error while translating UnboundedSource: " + rawSource, e);
       }
 
       context.setOutputDataStream(output, source);
@@ -237,7 +250,7 @@ class FlinkStreamingTransformTranslators {
     void translateNode(
         PTransform<PBegin, PCollection<T>> transform, FlinkStreamingTranslationContext context) {
       if (context.getOutput(transform).isBounded().equals(PCollection.IsBounded.BOUNDED)) {
-        boundedTranslator.translateNode((Read.Bounded<T>) transform, context);
+        boundedTranslator.translateNode(transform, context);
       } else {
         unboundedTranslator.translateNode((Read.Unbounded<T>) transform, context);
       }
@@ -245,11 +258,12 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class BoundedReadSourceTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Read.Bounded<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PBegin, PCollection<T>>> {
 
     @Override
     public void translateNode(
-        Read.Bounded<T> transform,
+        PTransform<PBegin, PCollection<T>> transform,
         FlinkStreamingTranslationContext context) {
       PCollection<T> output = context.getOutput(transform);
 
@@ -257,20 +271,29 @@ class FlinkStreamingTransformTranslators {
           context.getTypeInfo(context.getOutput(transform));
 
 
+      BoundedSource<T> rawSource;
+      try {
+        rawSource = ReadTranslation.boundedSourceFromTransform(
+            (AppliedPTransform<PBegin, PCollection<T>, PTransform<PBegin, PCollection<T>>>)
+                context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
       DataStream<WindowedValue<T>> source;
       try {
         BoundedSourceWrapper<T> sourceWrapper =
             new BoundedSourceWrapper<>(
                 context.getCurrentTransform().getFullName(),
                 context.getPipelineOptions(),
-                transform.getSource(),
+                rawSource,
                 context.getExecutionEnvironment().getParallelism());
         source = context
             .getExecutionEnvironment()
             .addSource(sourceWrapper).name(transform.getName()).returns(outputTypeInfo);
       } catch (Exception e) {
         throw new RuntimeException(
-            "Error while translating BoundedSource: " + transform.getSource(), e);
+            "Error while translating BoundedSource: " + rawSource, e);
       }
 
       context.setOutputDataStream(output, source);
@@ -353,7 +376,7 @@ class FlinkStreamingTransformTranslators {
   }
 
   /**
-   * Helper for translating {@link ParDo.MultiOutput} and {@link
+   * Helper for translating {@code ParDo.MultiOutput} and {@link
    * SplittableParDoViaKeyedWorkItems.ProcessElements}.
    */
   static class ParDoTranslationHelper {
@@ -403,7 +426,7 @@ class FlinkStreamingTransformTranslators {
         if (!tagsToOutputTags.containsKey(entry.getKey())) {
           tagsToOutputTags.put(
               entry.getKey(),
-              new OutputTag<>(
+              new OutputTag<WindowedValue<?>>(
                   entry.getKey().getId(),
                   (TypeInformation) context.getTypeInfo((PCollection<?>) entry.getValue())
               )
@@ -529,19 +552,47 @@ class FlinkStreamingTransformTranslators {
 
     @Override
     public void translateNode(
-        PTransform<PCollection<InputT>, PCollectionTuple> rawTransform,
+        PTransform<PCollection<InputT>, PCollectionTuple> transform,
         FlinkStreamingTranslationContext context) {
 
-      ParDo.MultiOutput<InputT, OutputT> transform = (ParDo.MultiOutput) rawTransform;
+      DoFn<InputT, OutputT> doFn;
+      try {
+        doFn = (DoFn<InputT, OutputT>) ParDoTranslation.getDoFn(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      TupleTag<OutputT> mainOutputTag;
+      try {
+        mainOutputTag = (TupleTag<OutputT>)
+            ParDoTranslation.getMainOutputTag(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      List<PCollectionView<?>> sideInputs;
+      try {
+        sideInputs = ParDoTranslation.getSideInputs(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      TupleTagList additionalOutputTags;
+      try {
+        additionalOutputTags = ParDoTranslation.getAdditionalOutputTags(
+            context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       ParDoTranslationHelper.translateParDo(
           transform.getName(),
-          transform.getFn(),
-          (PCollection<InputT>) context.getInput(transform),
-          transform.getSideInputs(),
+          doFn,
+          context.getInput(transform),
+          sideInputs,
           context.getOutputs(transform),
-          transform.getMainOutputTag(),
-          transform.getAdditionalOutputTags().getAll(),
+          mainOutputTag,
+          additionalOutputTags.getAll(),
           context,
           new ParDoTranslationHelper.DoFnOperatorFactory<InputT, OutputT>() {
             @Override
@@ -653,11 +704,12 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class WindowAssignTranslator<T>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Window.Assign<T>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PCollection<T>, PCollection<T>>> {
 
     @Override
     public void translateNode(
-        Window.Assign<T> transform,
+        PTransform<PCollection<T>, PCollection<T>> transform,
         FlinkStreamingTranslationContext context) {
 
       @SuppressWarnings("unchecked")
@@ -686,11 +738,12 @@ class FlinkStreamingTransformTranslators {
   }
 
   private static class ReshuffleTranslatorStreaming<K, InputT>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<Reshuffle<K, InputT>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, InputT>>>> {
 
     @Override
     public void translateNode(
-        Reshuffle<K, InputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, InputT>>> transform,
         FlinkStreamingTranslationContext context) {
 
       DataStream<WindowedValue<KV<K, InputT>>> inputDataSet =
@@ -703,11 +756,12 @@ class FlinkStreamingTransformTranslators {
 
 
   private static class GroupByKeyTranslator<K, InputT>
-      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<GroupByKey<K, InputT>> {
+      extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
+          PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>>> {
 
     @Override
     public void translateNode(
-        GroupByKey<K, InputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, Iterable<InputT>>>> transform,
         FlinkStreamingTranslationContext context) {
 
       PCollection<KV<K, InputT>> input = context.getInput(transform);
@@ -785,11 +839,11 @@ class FlinkStreamingTransformTranslators {
 
   private static class CombinePerKeyTranslator<K, InputT, OutputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      Combine.PerKey<K, InputT, OutputT>> {
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>>> {
 
     @Override
     boolean canTranslate(
-        Combine.PerKey<K, InputT, OutputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
         FlinkStreamingTranslationContext context) {
 
       // if we have a merging window strategy and side inputs we cannot
@@ -801,12 +855,19 @@ class FlinkStreamingTransformTranslators {
       WindowingStrategy<?, BoundedWindow> windowingStrategy =
           (WindowingStrategy<?, BoundedWindow>) input.getWindowingStrategy();
 
-      return windowingStrategy.getWindowFn().isNonMerging() || transform.getSideInputs().isEmpty();
+      boolean hasNoSideInputs;
+      try {
+        hasNoSideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform()).isEmpty();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+
+      return windowingStrategy.getWindowFn().isNonMerging() || hasNoSideInputs;
     }
 
     @Override
     public void translateNode(
-        Combine.PerKey<K, InputT, OutputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KV<K, OutputT>>> transform,
         FlinkStreamingTranslationContext context) {
 
       PCollection<KV<K, InputT>> input = context.getInput(transform);
@@ -843,17 +904,29 @@ class FlinkStreamingTransformTranslators {
                 SingletonKeyedWorkItem<K, InputT>>, ByteBuffer> keyedWorkItemStream = workItemStream
           .keyBy(new WorkItemKeySelector<K, InputT>(inputKvCoder.getKeyCoder()));
 
+      GlobalCombineFn<? super InputT, ?, OutputT> combineFn;
+      try {
+        combineFn = (GlobalCombineFn<? super InputT, ?, OutputT>)
+            CombineTranslation.getCombineFn(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
       SystemReduceFn<K, InputT, ?, OutputT, BoundedWindow> reduceFn = SystemReduceFn.combining(
           inputKvCoder.getKeyCoder(),
           AppliedCombineFn.withInputCoder(
-              transform.getFn(), input.getPipeline().getCoderRegistry(), inputKvCoder));
+              combineFn, input.getPipeline().getCoderRegistry(), inputKvCoder));
 
       Coder<WindowedValue<KV<K, OutputT>>> outputCoder =
           context.getCoder(context.getOutput(transform));
       TypeInformation<WindowedValue<KV<K, OutputT>>> outputTypeInfo =
           context.getTypeInfo(context.getOutput(transform));
 
-      List<PCollectionView<?>> sideInputs = transform.getSideInputs();
+      List<PCollectionView<?>> sideInputs;
+      try {
+        sideInputs = CombineTranslation.getSideInputs(context.getCurrentTransform());
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
 
       if (sideInputs.isEmpty()) {
 
@@ -931,18 +1004,18 @@ class FlinkStreamingTransformTranslators {
 
   private static class GBKIntoKeyedWorkItemsTranslator<K, InputT>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<K, InputT>> {
+      PTransform<PCollection<KV<K, InputT>>, PCollection<KeyedWorkItem<K, InputT>>>> {
 
     @Override
     boolean canTranslate(
-        SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<K, InputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KeyedWorkItem<K, InputT>>> transform,
         FlinkStreamingTranslationContext context) {
       return true;
     }
 
     @Override
     public void translateNode(
-        SplittableParDoViaKeyedWorkItems.GBKIntoKeyedWorkItems<K, InputT> transform,
+        PTransform<PCollection<KV<K, InputT>>, PCollection<KeyedWorkItem<K, InputT>>> transform,
         FlinkStreamingTranslationContext context) {
 
       PCollection<KV<K, InputT>> input = context.getInput(transform);
@@ -982,11 +1055,11 @@ class FlinkStreamingTransformTranslators {
 
   private static class FlattenPCollectionTranslator<T>
       extends FlinkStreamingPipelineTranslator.StreamTransformTranslator<
-      Flatten.PCollections<T>> {
+        PTransform<PCollection<T>, PCollection<T>>> {
 
     @Override
     public void translateNode(
-        Flatten.PCollections<T> transform,
+        PTransform<PCollection<T>, PCollection<T>> transform,
         FlinkStreamingTranslationContext context) {
       Map<TupleTag<?>, PValue> allInputs = context.getInputs(transform);
 

@@ -18,9 +18,11 @@
 package org.apache.beam.runners.flink;
 
 import com.google.common.collect.Iterables;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.runners.core.construction.CreatePCollectionViewTranslation;
 import org.apache.beam.runners.core.construction.ReplacementOutputs;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
@@ -29,7 +31,6 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.PTransformOverrideFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.View.CreatePCollectionView;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PValue;
@@ -134,17 +135,28 @@ class CreateStreamingFlinkView<ElemT, ViewT>
 
   public static class Factory<ElemT, ViewT>
       implements PTransformOverrideFactory<
-          PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>> {
+          PCollection<ElemT>,
+          PCollection<ElemT>,
+          PTransform<PCollection<ElemT>, PCollection<ElemT>>> {
     public Factory() {}
 
     @Override
     public PTransformReplacement<PCollection<ElemT>, PCollection<ElemT>> getReplacementTransform(
         AppliedPTransform<
-                PCollection<ElemT>, PCollection<ElemT>, CreatePCollectionView<ElemT, ViewT>>
-            transform) {
-      return PTransformReplacement.of(
-          (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values()),
-          new CreateStreamingFlinkView<ElemT, ViewT>(transform.getTransform().getView()));
+            PCollection<ElemT>,
+            PCollection<ElemT>,
+            PTransform<PCollection<ElemT>, PCollection<ElemT>>> transform) {
+      PCollection<ElemT> collection =
+          (PCollection<ElemT>) Iterables.getOnlyElement(transform.getInputs().values());
+      PCollectionView<ViewT> view;
+      try {
+        view = CreatePCollectionViewTranslation.getView(transform);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      CreateStreamingFlinkView<ElemT, ViewT> createFlinkView =
+          new CreateStreamingFlinkView<ElemT, ViewT>(view);
+      return PTransformReplacement.of(collection, createFlinkView);
     }
 
     @Override
