@@ -2,7 +2,7 @@ apply plugin: 'maven-publish'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 dependencies {
-  compile "com.google.guava:guava:${guavaVersion}"
+  compileOnly "com.google.guava:guava:${guavaVersion}"
 }
 
 // ~ remove default archives
@@ -21,9 +21,11 @@ jar.enabled = false
 
 shadowJar {
   relocate 'com.google.common', 'cz.seznam.euphoria.shadow.com.google.common'
+  relocate 'com.google.thirdparty', 'cz.seznam.euphoria.shadow.com.google.thirdparty'
+  configurations = [project.configurations.compileOnly]
 }
 
-build.dependsOn shadowJar
+jar.dependsOn shadowJar
 
 publishing {
   publications {
