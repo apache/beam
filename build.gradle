@@ -42,7 +42,7 @@ def spark_version = "2.2.1"
 def pubsub_grpc_version = "0.1.18"
 def apex_core_version = "3.6.0"
 def apex_malhar_version = "3.4.0"
-def postgres_version = "9.4.1212.jre"
+def postgres_version = "9.4.1212.jre7"
 
 // A map of maps containing common libraries used per language. To use:
 // dependencies {
