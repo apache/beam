@@ -88,6 +88,7 @@ public class HBaseSink<T extends Mutation> implements DataSink<T> {
 
     /**
      * Build the output sink.
+     * @param <T> type of {@link Mutation} to be written by this sink
      * @return the built output sink
      */
     public <T extends Mutation> HBaseSink<T> build() {
