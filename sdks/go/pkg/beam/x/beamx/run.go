@@ -21,6 +21,8 @@ import (
 	"flag"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	// Import the reflection-optimized runtime.
+	_ "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec/optimized"
 	// The imports here are for the side effect of runner registration.
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/gcs"
 	_ "github.com/apache/beam/sdks/go/pkg/beam/io/textio/local"

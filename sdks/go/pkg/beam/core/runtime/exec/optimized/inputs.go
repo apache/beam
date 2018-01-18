@@ -15,1037 +15,1038 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exec
+package optimized
 
 import (
 	"fmt"
 	"io"
 	"reflect"
 
+	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 )
 
 func init() {
-	RegisterInput(reflect.TypeOf((*func(*[]byte) bool)(nil)).Elem(), iterMakerByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte) bool)(nil)).Elem(), iterMakerETByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *[]byte) bool)(nil)).Elem(), iterMakerByteSliceByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *[]byte) bool)(nil)).Elem(), iterMakerETByteSliceByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *bool) bool)(nil)).Elem(), iterMakerByteSliceBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *bool) bool)(nil)).Elem(), iterMakerETByteSliceBool)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *string) bool)(nil)).Elem(), iterMakerByteSliceString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *string) bool)(nil)).Elem(), iterMakerETByteSliceString)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *int) bool)(nil)).Elem(), iterMakerByteSliceInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int) bool)(nil)).Elem(), iterMakerETByteSliceInt)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *int8) bool)(nil)).Elem(), iterMakerByteSliceInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int8) bool)(nil)).Elem(), iterMakerETByteSliceInt8)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *int16) bool)(nil)).Elem(), iterMakerByteSliceInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int16) bool)(nil)).Elem(), iterMakerETByteSliceInt16)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *int32) bool)(nil)).Elem(), iterMakerByteSliceInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int32) bool)(nil)).Elem(), iterMakerETByteSliceInt32)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *int64) bool)(nil)).Elem(), iterMakerByteSliceInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int64) bool)(nil)).Elem(), iterMakerETByteSliceInt64)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *uint) bool)(nil)).Elem(), iterMakerByteSliceUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint) bool)(nil)).Elem(), iterMakerETByteSliceUint)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *uint8) bool)(nil)).Elem(), iterMakerByteSliceUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint8) bool)(nil)).Elem(), iterMakerETByteSliceUint8)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *uint16) bool)(nil)).Elem(), iterMakerByteSliceUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint16) bool)(nil)).Elem(), iterMakerETByteSliceUint16)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *uint32) bool)(nil)).Elem(), iterMakerByteSliceUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint32) bool)(nil)).Elem(), iterMakerETByteSliceUint32)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *uint64) bool)(nil)).Elem(), iterMakerByteSliceUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint64) bool)(nil)).Elem(), iterMakerETByteSliceUint64)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *float32) bool)(nil)).Elem(), iterMakerByteSliceFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *float32) bool)(nil)).Elem(), iterMakerETByteSliceFloat32)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *float64) bool)(nil)).Elem(), iterMakerByteSliceFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *float64) bool)(nil)).Elem(), iterMakerETByteSliceFloat64)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.T) bool)(nil)).Elem(), iterMakerByteSliceTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.T) bool)(nil)).Elem(), iterMakerETByteSliceTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.U) bool)(nil)).Elem(), iterMakerByteSliceTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.U) bool)(nil)).Elem(), iterMakerETByteSliceTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.V) bool)(nil)).Elem(), iterMakerByteSliceTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.V) bool)(nil)).Elem(), iterMakerETByteSliceTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.W) bool)(nil)).Elem(), iterMakerByteSliceTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.W) bool)(nil)).Elem(), iterMakerETByteSliceTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.X) bool)(nil)).Elem(), iterMakerByteSliceTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.X) bool)(nil)).Elem(), iterMakerETByteSliceTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.Y) bool)(nil)).Elem(), iterMakerByteSliceTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.Y) bool)(nil)).Elem(), iterMakerETByteSliceTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.Z) bool)(nil)).Elem(), iterMakerByteSliceTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.Z) bool)(nil)).Elem(), iterMakerETByteSliceTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*bool) bool)(nil)).Elem(), iterMakerBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool) bool)(nil)).Elem(), iterMakerETBool)
-	RegisterInput(reflect.TypeOf((*func(*bool, *[]byte) bool)(nil)).Elem(), iterMakerBoolByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *[]byte) bool)(nil)).Elem(), iterMakerETBoolByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*bool, *bool) bool)(nil)).Elem(), iterMakerBoolBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *bool) bool)(nil)).Elem(), iterMakerETBoolBool)
-	RegisterInput(reflect.TypeOf((*func(*bool, *string) bool)(nil)).Elem(), iterMakerBoolString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *string) bool)(nil)).Elem(), iterMakerETBoolString)
-	RegisterInput(reflect.TypeOf((*func(*bool, *int) bool)(nil)).Elem(), iterMakerBoolInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int) bool)(nil)).Elem(), iterMakerETBoolInt)
-	RegisterInput(reflect.TypeOf((*func(*bool, *int8) bool)(nil)).Elem(), iterMakerBoolInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int8) bool)(nil)).Elem(), iterMakerETBoolInt8)
-	RegisterInput(reflect.TypeOf((*func(*bool, *int16) bool)(nil)).Elem(), iterMakerBoolInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int16) bool)(nil)).Elem(), iterMakerETBoolInt16)
-	RegisterInput(reflect.TypeOf((*func(*bool, *int32) bool)(nil)).Elem(), iterMakerBoolInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int32) bool)(nil)).Elem(), iterMakerETBoolInt32)
-	RegisterInput(reflect.TypeOf((*func(*bool, *int64) bool)(nil)).Elem(), iterMakerBoolInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int64) bool)(nil)).Elem(), iterMakerETBoolInt64)
-	RegisterInput(reflect.TypeOf((*func(*bool, *uint) bool)(nil)).Elem(), iterMakerBoolUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint) bool)(nil)).Elem(), iterMakerETBoolUint)
-	RegisterInput(reflect.TypeOf((*func(*bool, *uint8) bool)(nil)).Elem(), iterMakerBoolUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint8) bool)(nil)).Elem(), iterMakerETBoolUint8)
-	RegisterInput(reflect.TypeOf((*func(*bool, *uint16) bool)(nil)).Elem(), iterMakerBoolUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint16) bool)(nil)).Elem(), iterMakerETBoolUint16)
-	RegisterInput(reflect.TypeOf((*func(*bool, *uint32) bool)(nil)).Elem(), iterMakerBoolUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint32) bool)(nil)).Elem(), iterMakerETBoolUint32)
-	RegisterInput(reflect.TypeOf((*func(*bool, *uint64) bool)(nil)).Elem(), iterMakerBoolUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint64) bool)(nil)).Elem(), iterMakerETBoolUint64)
-	RegisterInput(reflect.TypeOf((*func(*bool, *float32) bool)(nil)).Elem(), iterMakerBoolFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *float32) bool)(nil)).Elem(), iterMakerETBoolFloat32)
-	RegisterInput(reflect.TypeOf((*func(*bool, *float64) bool)(nil)).Elem(), iterMakerBoolFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *float64) bool)(nil)).Elem(), iterMakerETBoolFloat64)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.T) bool)(nil)).Elem(), iterMakerBoolTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.T) bool)(nil)).Elem(), iterMakerETBoolTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.U) bool)(nil)).Elem(), iterMakerBoolTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.U) bool)(nil)).Elem(), iterMakerETBoolTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.V) bool)(nil)).Elem(), iterMakerBoolTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.V) bool)(nil)).Elem(), iterMakerETBoolTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.W) bool)(nil)).Elem(), iterMakerBoolTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.W) bool)(nil)).Elem(), iterMakerETBoolTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.X) bool)(nil)).Elem(), iterMakerBoolTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.X) bool)(nil)).Elem(), iterMakerETBoolTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.Y) bool)(nil)).Elem(), iterMakerBoolTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.Y) bool)(nil)).Elem(), iterMakerETBoolTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*bool, *typex.Z) bool)(nil)).Elem(), iterMakerBoolTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.Z) bool)(nil)).Elem(), iterMakerETBoolTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*string) bool)(nil)).Elem(), iterMakerString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string) bool)(nil)).Elem(), iterMakerETString)
-	RegisterInput(reflect.TypeOf((*func(*string, *[]byte) bool)(nil)).Elem(), iterMakerStringByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *[]byte) bool)(nil)).Elem(), iterMakerETStringByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*string, *bool) bool)(nil)).Elem(), iterMakerStringBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *bool) bool)(nil)).Elem(), iterMakerETStringBool)
-	RegisterInput(reflect.TypeOf((*func(*string, *string) bool)(nil)).Elem(), iterMakerStringString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *string) bool)(nil)).Elem(), iterMakerETStringString)
-	RegisterInput(reflect.TypeOf((*func(*string, *int) bool)(nil)).Elem(), iterMakerStringInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int) bool)(nil)).Elem(), iterMakerETStringInt)
-	RegisterInput(reflect.TypeOf((*func(*string, *int8) bool)(nil)).Elem(), iterMakerStringInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int8) bool)(nil)).Elem(), iterMakerETStringInt8)
-	RegisterInput(reflect.TypeOf((*func(*string, *int16) bool)(nil)).Elem(), iterMakerStringInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int16) bool)(nil)).Elem(), iterMakerETStringInt16)
-	RegisterInput(reflect.TypeOf((*func(*string, *int32) bool)(nil)).Elem(), iterMakerStringInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int32) bool)(nil)).Elem(), iterMakerETStringInt32)
-	RegisterInput(reflect.TypeOf((*func(*string, *int64) bool)(nil)).Elem(), iterMakerStringInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int64) bool)(nil)).Elem(), iterMakerETStringInt64)
-	RegisterInput(reflect.TypeOf((*func(*string, *uint) bool)(nil)).Elem(), iterMakerStringUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint) bool)(nil)).Elem(), iterMakerETStringUint)
-	RegisterInput(reflect.TypeOf((*func(*string, *uint8) bool)(nil)).Elem(), iterMakerStringUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint8) bool)(nil)).Elem(), iterMakerETStringUint8)
-	RegisterInput(reflect.TypeOf((*func(*string, *uint16) bool)(nil)).Elem(), iterMakerStringUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint16) bool)(nil)).Elem(), iterMakerETStringUint16)
-	RegisterInput(reflect.TypeOf((*func(*string, *uint32) bool)(nil)).Elem(), iterMakerStringUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint32) bool)(nil)).Elem(), iterMakerETStringUint32)
-	RegisterInput(reflect.TypeOf((*func(*string, *uint64) bool)(nil)).Elem(), iterMakerStringUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint64) bool)(nil)).Elem(), iterMakerETStringUint64)
-	RegisterInput(reflect.TypeOf((*func(*string, *float32) bool)(nil)).Elem(), iterMakerStringFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *float32) bool)(nil)).Elem(), iterMakerETStringFloat32)
-	RegisterInput(reflect.TypeOf((*func(*string, *float64) bool)(nil)).Elem(), iterMakerStringFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *float64) bool)(nil)).Elem(), iterMakerETStringFloat64)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.T) bool)(nil)).Elem(), iterMakerStringTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.T) bool)(nil)).Elem(), iterMakerETStringTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.U) bool)(nil)).Elem(), iterMakerStringTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.U) bool)(nil)).Elem(), iterMakerETStringTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.V) bool)(nil)).Elem(), iterMakerStringTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.V) bool)(nil)).Elem(), iterMakerETStringTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.W) bool)(nil)).Elem(), iterMakerStringTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.W) bool)(nil)).Elem(), iterMakerETStringTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.X) bool)(nil)).Elem(), iterMakerStringTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.X) bool)(nil)).Elem(), iterMakerETStringTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.Y) bool)(nil)).Elem(), iterMakerStringTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.Y) bool)(nil)).Elem(), iterMakerETStringTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*string, *typex.Z) bool)(nil)).Elem(), iterMakerStringTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.Z) bool)(nil)).Elem(), iterMakerETStringTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*int) bool)(nil)).Elem(), iterMakerInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int) bool)(nil)).Elem(), iterMakerETInt)
-	RegisterInput(reflect.TypeOf((*func(*int, *[]byte) bool)(nil)).Elem(), iterMakerIntByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *[]byte) bool)(nil)).Elem(), iterMakerETIntByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*int, *bool) bool)(nil)).Elem(), iterMakerIntBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *bool) bool)(nil)).Elem(), iterMakerETIntBool)
-	RegisterInput(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem(), iterMakerIntString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *string) bool)(nil)).Elem(), iterMakerETIntString)
-	RegisterInput(reflect.TypeOf((*func(*int, *int) bool)(nil)).Elem(), iterMakerIntInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int) bool)(nil)).Elem(), iterMakerETIntInt)
-	RegisterInput(reflect.TypeOf((*func(*int, *int8) bool)(nil)).Elem(), iterMakerIntInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int8) bool)(nil)).Elem(), iterMakerETIntInt8)
-	RegisterInput(reflect.TypeOf((*func(*int, *int16) bool)(nil)).Elem(), iterMakerIntInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int16) bool)(nil)).Elem(), iterMakerETIntInt16)
-	RegisterInput(reflect.TypeOf((*func(*int, *int32) bool)(nil)).Elem(), iterMakerIntInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int32) bool)(nil)).Elem(), iterMakerETIntInt32)
-	RegisterInput(reflect.TypeOf((*func(*int, *int64) bool)(nil)).Elem(), iterMakerIntInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int64) bool)(nil)).Elem(), iterMakerETIntInt64)
-	RegisterInput(reflect.TypeOf((*func(*int, *uint) bool)(nil)).Elem(), iterMakerIntUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint) bool)(nil)).Elem(), iterMakerETIntUint)
-	RegisterInput(reflect.TypeOf((*func(*int, *uint8) bool)(nil)).Elem(), iterMakerIntUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint8) bool)(nil)).Elem(), iterMakerETIntUint8)
-	RegisterInput(reflect.TypeOf((*func(*int, *uint16) bool)(nil)).Elem(), iterMakerIntUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint16) bool)(nil)).Elem(), iterMakerETIntUint16)
-	RegisterInput(reflect.TypeOf((*func(*int, *uint32) bool)(nil)).Elem(), iterMakerIntUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint32) bool)(nil)).Elem(), iterMakerETIntUint32)
-	RegisterInput(reflect.TypeOf((*func(*int, *uint64) bool)(nil)).Elem(), iterMakerIntUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint64) bool)(nil)).Elem(), iterMakerETIntUint64)
-	RegisterInput(reflect.TypeOf((*func(*int, *float32) bool)(nil)).Elem(), iterMakerIntFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *float32) bool)(nil)).Elem(), iterMakerETIntFloat32)
-	RegisterInput(reflect.TypeOf((*func(*int, *float64) bool)(nil)).Elem(), iterMakerIntFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *float64) bool)(nil)).Elem(), iterMakerETIntFloat64)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.T) bool)(nil)).Elem(), iterMakerIntTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.T) bool)(nil)).Elem(), iterMakerETIntTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.U) bool)(nil)).Elem(), iterMakerIntTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.U) bool)(nil)).Elem(), iterMakerETIntTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.V) bool)(nil)).Elem(), iterMakerIntTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.V) bool)(nil)).Elem(), iterMakerETIntTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.W) bool)(nil)).Elem(), iterMakerIntTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.W) bool)(nil)).Elem(), iterMakerETIntTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.X) bool)(nil)).Elem(), iterMakerIntTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.X) bool)(nil)).Elem(), iterMakerETIntTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.Y) bool)(nil)).Elem(), iterMakerIntTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.Y) bool)(nil)).Elem(), iterMakerETIntTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*int, *typex.Z) bool)(nil)).Elem(), iterMakerIntTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.Z) bool)(nil)).Elem(), iterMakerETIntTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*int8) bool)(nil)).Elem(), iterMakerInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8) bool)(nil)).Elem(), iterMakerETInt8)
-	RegisterInput(reflect.TypeOf((*func(*int8, *[]byte) bool)(nil)).Elem(), iterMakerInt8ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *[]byte) bool)(nil)).Elem(), iterMakerETInt8ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*int8, *bool) bool)(nil)).Elem(), iterMakerInt8Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *bool) bool)(nil)).Elem(), iterMakerETInt8Bool)
-	RegisterInput(reflect.TypeOf((*func(*int8, *string) bool)(nil)).Elem(), iterMakerInt8String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *string) bool)(nil)).Elem(), iterMakerETInt8String)
-	RegisterInput(reflect.TypeOf((*func(*int8, *int) bool)(nil)).Elem(), iterMakerInt8Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int) bool)(nil)).Elem(), iterMakerETInt8Int)
-	RegisterInput(reflect.TypeOf((*func(*int8, *int8) bool)(nil)).Elem(), iterMakerInt8Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int8) bool)(nil)).Elem(), iterMakerETInt8Int8)
-	RegisterInput(reflect.TypeOf((*func(*int8, *int16) bool)(nil)).Elem(), iterMakerInt8Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int16) bool)(nil)).Elem(), iterMakerETInt8Int16)
-	RegisterInput(reflect.TypeOf((*func(*int8, *int32) bool)(nil)).Elem(), iterMakerInt8Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int32) bool)(nil)).Elem(), iterMakerETInt8Int32)
-	RegisterInput(reflect.TypeOf((*func(*int8, *int64) bool)(nil)).Elem(), iterMakerInt8Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int64) bool)(nil)).Elem(), iterMakerETInt8Int64)
-	RegisterInput(reflect.TypeOf((*func(*int8, *uint) bool)(nil)).Elem(), iterMakerInt8Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint) bool)(nil)).Elem(), iterMakerETInt8Uint)
-	RegisterInput(reflect.TypeOf((*func(*int8, *uint8) bool)(nil)).Elem(), iterMakerInt8Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint8) bool)(nil)).Elem(), iterMakerETInt8Uint8)
-	RegisterInput(reflect.TypeOf((*func(*int8, *uint16) bool)(nil)).Elem(), iterMakerInt8Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint16) bool)(nil)).Elem(), iterMakerETInt8Uint16)
-	RegisterInput(reflect.TypeOf((*func(*int8, *uint32) bool)(nil)).Elem(), iterMakerInt8Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint32) bool)(nil)).Elem(), iterMakerETInt8Uint32)
-	RegisterInput(reflect.TypeOf((*func(*int8, *uint64) bool)(nil)).Elem(), iterMakerInt8Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint64) bool)(nil)).Elem(), iterMakerETInt8Uint64)
-	RegisterInput(reflect.TypeOf((*func(*int8, *float32) bool)(nil)).Elem(), iterMakerInt8Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *float32) bool)(nil)).Elem(), iterMakerETInt8Float32)
-	RegisterInput(reflect.TypeOf((*func(*int8, *float64) bool)(nil)).Elem(), iterMakerInt8Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *float64) bool)(nil)).Elem(), iterMakerETInt8Float64)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.T) bool)(nil)).Elem(), iterMakerInt8Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.T) bool)(nil)).Elem(), iterMakerETInt8Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.U) bool)(nil)).Elem(), iterMakerInt8Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.U) bool)(nil)).Elem(), iterMakerETInt8Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.V) bool)(nil)).Elem(), iterMakerInt8Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.V) bool)(nil)).Elem(), iterMakerETInt8Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.W) bool)(nil)).Elem(), iterMakerInt8Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.W) bool)(nil)).Elem(), iterMakerETInt8Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.X) bool)(nil)).Elem(), iterMakerInt8Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.X) bool)(nil)).Elem(), iterMakerETInt8Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.Y) bool)(nil)).Elem(), iterMakerInt8Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.Y) bool)(nil)).Elem(), iterMakerETInt8Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*int8, *typex.Z) bool)(nil)).Elem(), iterMakerInt8Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.Z) bool)(nil)).Elem(), iterMakerETInt8Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*int16) bool)(nil)).Elem(), iterMakerInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16) bool)(nil)).Elem(), iterMakerETInt16)
-	RegisterInput(reflect.TypeOf((*func(*int16, *[]byte) bool)(nil)).Elem(), iterMakerInt16ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *[]byte) bool)(nil)).Elem(), iterMakerETInt16ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*int16, *bool) bool)(nil)).Elem(), iterMakerInt16Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *bool) bool)(nil)).Elem(), iterMakerETInt16Bool)
-	RegisterInput(reflect.TypeOf((*func(*int16, *string) bool)(nil)).Elem(), iterMakerInt16String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *string) bool)(nil)).Elem(), iterMakerETInt16String)
-	RegisterInput(reflect.TypeOf((*func(*int16, *int) bool)(nil)).Elem(), iterMakerInt16Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int) bool)(nil)).Elem(), iterMakerETInt16Int)
-	RegisterInput(reflect.TypeOf((*func(*int16, *int8) bool)(nil)).Elem(), iterMakerInt16Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int8) bool)(nil)).Elem(), iterMakerETInt16Int8)
-	RegisterInput(reflect.TypeOf((*func(*int16, *int16) bool)(nil)).Elem(), iterMakerInt16Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int16) bool)(nil)).Elem(), iterMakerETInt16Int16)
-	RegisterInput(reflect.TypeOf((*func(*int16, *int32) bool)(nil)).Elem(), iterMakerInt16Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int32) bool)(nil)).Elem(), iterMakerETInt16Int32)
-	RegisterInput(reflect.TypeOf((*func(*int16, *int64) bool)(nil)).Elem(), iterMakerInt16Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int64) bool)(nil)).Elem(), iterMakerETInt16Int64)
-	RegisterInput(reflect.TypeOf((*func(*int16, *uint) bool)(nil)).Elem(), iterMakerInt16Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint) bool)(nil)).Elem(), iterMakerETInt16Uint)
-	RegisterInput(reflect.TypeOf((*func(*int16, *uint8) bool)(nil)).Elem(), iterMakerInt16Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint8) bool)(nil)).Elem(), iterMakerETInt16Uint8)
-	RegisterInput(reflect.TypeOf((*func(*int16, *uint16) bool)(nil)).Elem(), iterMakerInt16Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint16) bool)(nil)).Elem(), iterMakerETInt16Uint16)
-	RegisterInput(reflect.TypeOf((*func(*int16, *uint32) bool)(nil)).Elem(), iterMakerInt16Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint32) bool)(nil)).Elem(), iterMakerETInt16Uint32)
-	RegisterInput(reflect.TypeOf((*func(*int16, *uint64) bool)(nil)).Elem(), iterMakerInt16Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint64) bool)(nil)).Elem(), iterMakerETInt16Uint64)
-	RegisterInput(reflect.TypeOf((*func(*int16, *float32) bool)(nil)).Elem(), iterMakerInt16Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *float32) bool)(nil)).Elem(), iterMakerETInt16Float32)
-	RegisterInput(reflect.TypeOf((*func(*int16, *float64) bool)(nil)).Elem(), iterMakerInt16Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *float64) bool)(nil)).Elem(), iterMakerETInt16Float64)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.T) bool)(nil)).Elem(), iterMakerInt16Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.T) bool)(nil)).Elem(), iterMakerETInt16Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.U) bool)(nil)).Elem(), iterMakerInt16Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.U) bool)(nil)).Elem(), iterMakerETInt16Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.V) bool)(nil)).Elem(), iterMakerInt16Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.V) bool)(nil)).Elem(), iterMakerETInt16Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.W) bool)(nil)).Elem(), iterMakerInt16Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.W) bool)(nil)).Elem(), iterMakerETInt16Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.X) bool)(nil)).Elem(), iterMakerInt16Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.X) bool)(nil)).Elem(), iterMakerETInt16Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.Y) bool)(nil)).Elem(), iterMakerInt16Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.Y) bool)(nil)).Elem(), iterMakerETInt16Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*int16, *typex.Z) bool)(nil)).Elem(), iterMakerInt16Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.Z) bool)(nil)).Elem(), iterMakerETInt16Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*int32) bool)(nil)).Elem(), iterMakerInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32) bool)(nil)).Elem(), iterMakerETInt32)
-	RegisterInput(reflect.TypeOf((*func(*int32, *[]byte) bool)(nil)).Elem(), iterMakerInt32ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *[]byte) bool)(nil)).Elem(), iterMakerETInt32ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*int32, *bool) bool)(nil)).Elem(), iterMakerInt32Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *bool) bool)(nil)).Elem(), iterMakerETInt32Bool)
-	RegisterInput(reflect.TypeOf((*func(*int32, *string) bool)(nil)).Elem(), iterMakerInt32String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *string) bool)(nil)).Elem(), iterMakerETInt32String)
-	RegisterInput(reflect.TypeOf((*func(*int32, *int) bool)(nil)).Elem(), iterMakerInt32Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int) bool)(nil)).Elem(), iterMakerETInt32Int)
-	RegisterInput(reflect.TypeOf((*func(*int32, *int8) bool)(nil)).Elem(), iterMakerInt32Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int8) bool)(nil)).Elem(), iterMakerETInt32Int8)
-	RegisterInput(reflect.TypeOf((*func(*int32, *int16) bool)(nil)).Elem(), iterMakerInt32Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int16) bool)(nil)).Elem(), iterMakerETInt32Int16)
-	RegisterInput(reflect.TypeOf((*func(*int32, *int32) bool)(nil)).Elem(), iterMakerInt32Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int32) bool)(nil)).Elem(), iterMakerETInt32Int32)
-	RegisterInput(reflect.TypeOf((*func(*int32, *int64) bool)(nil)).Elem(), iterMakerInt32Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int64) bool)(nil)).Elem(), iterMakerETInt32Int64)
-	RegisterInput(reflect.TypeOf((*func(*int32, *uint) bool)(nil)).Elem(), iterMakerInt32Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint) bool)(nil)).Elem(), iterMakerETInt32Uint)
-	RegisterInput(reflect.TypeOf((*func(*int32, *uint8) bool)(nil)).Elem(), iterMakerInt32Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint8) bool)(nil)).Elem(), iterMakerETInt32Uint8)
-	RegisterInput(reflect.TypeOf((*func(*int32, *uint16) bool)(nil)).Elem(), iterMakerInt32Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint16) bool)(nil)).Elem(), iterMakerETInt32Uint16)
-	RegisterInput(reflect.TypeOf((*func(*int32, *uint32) bool)(nil)).Elem(), iterMakerInt32Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint32) bool)(nil)).Elem(), iterMakerETInt32Uint32)
-	RegisterInput(reflect.TypeOf((*func(*int32, *uint64) bool)(nil)).Elem(), iterMakerInt32Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint64) bool)(nil)).Elem(), iterMakerETInt32Uint64)
-	RegisterInput(reflect.TypeOf((*func(*int32, *float32) bool)(nil)).Elem(), iterMakerInt32Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *float32) bool)(nil)).Elem(), iterMakerETInt32Float32)
-	RegisterInput(reflect.TypeOf((*func(*int32, *float64) bool)(nil)).Elem(), iterMakerInt32Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *float64) bool)(nil)).Elem(), iterMakerETInt32Float64)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.T) bool)(nil)).Elem(), iterMakerInt32Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.T) bool)(nil)).Elem(), iterMakerETInt32Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.U) bool)(nil)).Elem(), iterMakerInt32Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.U) bool)(nil)).Elem(), iterMakerETInt32Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.V) bool)(nil)).Elem(), iterMakerInt32Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.V) bool)(nil)).Elem(), iterMakerETInt32Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.W) bool)(nil)).Elem(), iterMakerInt32Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.W) bool)(nil)).Elem(), iterMakerETInt32Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.X) bool)(nil)).Elem(), iterMakerInt32Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.X) bool)(nil)).Elem(), iterMakerETInt32Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.Y) bool)(nil)).Elem(), iterMakerInt32Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.Y) bool)(nil)).Elem(), iterMakerETInt32Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*int32, *typex.Z) bool)(nil)).Elem(), iterMakerInt32Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.Z) bool)(nil)).Elem(), iterMakerETInt32Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*int64) bool)(nil)).Elem(), iterMakerInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64) bool)(nil)).Elem(), iterMakerETInt64)
-	RegisterInput(reflect.TypeOf((*func(*int64, *[]byte) bool)(nil)).Elem(), iterMakerInt64ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *[]byte) bool)(nil)).Elem(), iterMakerETInt64ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*int64, *bool) bool)(nil)).Elem(), iterMakerInt64Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *bool) bool)(nil)).Elem(), iterMakerETInt64Bool)
-	RegisterInput(reflect.TypeOf((*func(*int64, *string) bool)(nil)).Elem(), iterMakerInt64String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *string) bool)(nil)).Elem(), iterMakerETInt64String)
-	RegisterInput(reflect.TypeOf((*func(*int64, *int) bool)(nil)).Elem(), iterMakerInt64Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int) bool)(nil)).Elem(), iterMakerETInt64Int)
-	RegisterInput(reflect.TypeOf((*func(*int64, *int8) bool)(nil)).Elem(), iterMakerInt64Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int8) bool)(nil)).Elem(), iterMakerETInt64Int8)
-	RegisterInput(reflect.TypeOf((*func(*int64, *int16) bool)(nil)).Elem(), iterMakerInt64Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int16) bool)(nil)).Elem(), iterMakerETInt64Int16)
-	RegisterInput(reflect.TypeOf((*func(*int64, *int32) bool)(nil)).Elem(), iterMakerInt64Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int32) bool)(nil)).Elem(), iterMakerETInt64Int32)
-	RegisterInput(reflect.TypeOf((*func(*int64, *int64) bool)(nil)).Elem(), iterMakerInt64Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int64) bool)(nil)).Elem(), iterMakerETInt64Int64)
-	RegisterInput(reflect.TypeOf((*func(*int64, *uint) bool)(nil)).Elem(), iterMakerInt64Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint) bool)(nil)).Elem(), iterMakerETInt64Uint)
-	RegisterInput(reflect.TypeOf((*func(*int64, *uint8) bool)(nil)).Elem(), iterMakerInt64Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint8) bool)(nil)).Elem(), iterMakerETInt64Uint8)
-	RegisterInput(reflect.TypeOf((*func(*int64, *uint16) bool)(nil)).Elem(), iterMakerInt64Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint16) bool)(nil)).Elem(), iterMakerETInt64Uint16)
-	RegisterInput(reflect.TypeOf((*func(*int64, *uint32) bool)(nil)).Elem(), iterMakerInt64Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint32) bool)(nil)).Elem(), iterMakerETInt64Uint32)
-	RegisterInput(reflect.TypeOf((*func(*int64, *uint64) bool)(nil)).Elem(), iterMakerInt64Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint64) bool)(nil)).Elem(), iterMakerETInt64Uint64)
-	RegisterInput(reflect.TypeOf((*func(*int64, *float32) bool)(nil)).Elem(), iterMakerInt64Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *float32) bool)(nil)).Elem(), iterMakerETInt64Float32)
-	RegisterInput(reflect.TypeOf((*func(*int64, *float64) bool)(nil)).Elem(), iterMakerInt64Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *float64) bool)(nil)).Elem(), iterMakerETInt64Float64)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.T) bool)(nil)).Elem(), iterMakerInt64Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.T) bool)(nil)).Elem(), iterMakerETInt64Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.U) bool)(nil)).Elem(), iterMakerInt64Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.U) bool)(nil)).Elem(), iterMakerETInt64Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.V) bool)(nil)).Elem(), iterMakerInt64Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.V) bool)(nil)).Elem(), iterMakerETInt64Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.W) bool)(nil)).Elem(), iterMakerInt64Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.W) bool)(nil)).Elem(), iterMakerETInt64Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.X) bool)(nil)).Elem(), iterMakerInt64Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.X) bool)(nil)).Elem(), iterMakerETInt64Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.Y) bool)(nil)).Elem(), iterMakerInt64Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.Y) bool)(nil)).Elem(), iterMakerETInt64Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*int64, *typex.Z) bool)(nil)).Elem(), iterMakerInt64Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.Z) bool)(nil)).Elem(), iterMakerETInt64Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*uint) bool)(nil)).Elem(), iterMakerUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint) bool)(nil)).Elem(), iterMakerETUint)
-	RegisterInput(reflect.TypeOf((*func(*uint, *[]byte) bool)(nil)).Elem(), iterMakerUintByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *[]byte) bool)(nil)).Elem(), iterMakerETUintByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*uint, *bool) bool)(nil)).Elem(), iterMakerUintBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *bool) bool)(nil)).Elem(), iterMakerETUintBool)
-	RegisterInput(reflect.TypeOf((*func(*uint, *string) bool)(nil)).Elem(), iterMakerUintString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *string) bool)(nil)).Elem(), iterMakerETUintString)
-	RegisterInput(reflect.TypeOf((*func(*uint, *int) bool)(nil)).Elem(), iterMakerUintInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int) bool)(nil)).Elem(), iterMakerETUintInt)
-	RegisterInput(reflect.TypeOf((*func(*uint, *int8) bool)(nil)).Elem(), iterMakerUintInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int8) bool)(nil)).Elem(), iterMakerETUintInt8)
-	RegisterInput(reflect.TypeOf((*func(*uint, *int16) bool)(nil)).Elem(), iterMakerUintInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int16) bool)(nil)).Elem(), iterMakerETUintInt16)
-	RegisterInput(reflect.TypeOf((*func(*uint, *int32) bool)(nil)).Elem(), iterMakerUintInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int32) bool)(nil)).Elem(), iterMakerETUintInt32)
-	RegisterInput(reflect.TypeOf((*func(*uint, *int64) bool)(nil)).Elem(), iterMakerUintInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int64) bool)(nil)).Elem(), iterMakerETUintInt64)
-	RegisterInput(reflect.TypeOf((*func(*uint, *uint) bool)(nil)).Elem(), iterMakerUintUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint) bool)(nil)).Elem(), iterMakerETUintUint)
-	RegisterInput(reflect.TypeOf((*func(*uint, *uint8) bool)(nil)).Elem(), iterMakerUintUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint8) bool)(nil)).Elem(), iterMakerETUintUint8)
-	RegisterInput(reflect.TypeOf((*func(*uint, *uint16) bool)(nil)).Elem(), iterMakerUintUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint16) bool)(nil)).Elem(), iterMakerETUintUint16)
-	RegisterInput(reflect.TypeOf((*func(*uint, *uint32) bool)(nil)).Elem(), iterMakerUintUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint32) bool)(nil)).Elem(), iterMakerETUintUint32)
-	RegisterInput(reflect.TypeOf((*func(*uint, *uint64) bool)(nil)).Elem(), iterMakerUintUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint64) bool)(nil)).Elem(), iterMakerETUintUint64)
-	RegisterInput(reflect.TypeOf((*func(*uint, *float32) bool)(nil)).Elem(), iterMakerUintFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *float32) bool)(nil)).Elem(), iterMakerETUintFloat32)
-	RegisterInput(reflect.TypeOf((*func(*uint, *float64) bool)(nil)).Elem(), iterMakerUintFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *float64) bool)(nil)).Elem(), iterMakerETUintFloat64)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.T) bool)(nil)).Elem(), iterMakerUintTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.T) bool)(nil)).Elem(), iterMakerETUintTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.U) bool)(nil)).Elem(), iterMakerUintTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.U) bool)(nil)).Elem(), iterMakerETUintTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.V) bool)(nil)).Elem(), iterMakerUintTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.V) bool)(nil)).Elem(), iterMakerETUintTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.W) bool)(nil)).Elem(), iterMakerUintTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.W) bool)(nil)).Elem(), iterMakerETUintTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.X) bool)(nil)).Elem(), iterMakerUintTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.X) bool)(nil)).Elem(), iterMakerETUintTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.Y) bool)(nil)).Elem(), iterMakerUintTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.Y) bool)(nil)).Elem(), iterMakerETUintTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*uint, *typex.Z) bool)(nil)).Elem(), iterMakerUintTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.Z) bool)(nil)).Elem(), iterMakerETUintTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*uint8) bool)(nil)).Elem(), iterMakerUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8) bool)(nil)).Elem(), iterMakerETUint8)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *[]byte) bool)(nil)).Elem(), iterMakerUint8ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *[]byte) bool)(nil)).Elem(), iterMakerETUint8ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *bool) bool)(nil)).Elem(), iterMakerUint8Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *bool) bool)(nil)).Elem(), iterMakerETUint8Bool)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *string) bool)(nil)).Elem(), iterMakerUint8String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *string) bool)(nil)).Elem(), iterMakerETUint8String)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *int) bool)(nil)).Elem(), iterMakerUint8Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int) bool)(nil)).Elem(), iterMakerETUint8Int)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *int8) bool)(nil)).Elem(), iterMakerUint8Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int8) bool)(nil)).Elem(), iterMakerETUint8Int8)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *int16) bool)(nil)).Elem(), iterMakerUint8Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int16) bool)(nil)).Elem(), iterMakerETUint8Int16)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *int32) bool)(nil)).Elem(), iterMakerUint8Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int32) bool)(nil)).Elem(), iterMakerETUint8Int32)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *int64) bool)(nil)).Elem(), iterMakerUint8Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int64) bool)(nil)).Elem(), iterMakerETUint8Int64)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *uint) bool)(nil)).Elem(), iterMakerUint8Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint) bool)(nil)).Elem(), iterMakerETUint8Uint)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *uint8) bool)(nil)).Elem(), iterMakerUint8Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint8) bool)(nil)).Elem(), iterMakerETUint8Uint8)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *uint16) bool)(nil)).Elem(), iterMakerUint8Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint16) bool)(nil)).Elem(), iterMakerETUint8Uint16)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *uint32) bool)(nil)).Elem(), iterMakerUint8Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint32) bool)(nil)).Elem(), iterMakerETUint8Uint32)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *uint64) bool)(nil)).Elem(), iterMakerUint8Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint64) bool)(nil)).Elem(), iterMakerETUint8Uint64)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *float32) bool)(nil)).Elem(), iterMakerUint8Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *float32) bool)(nil)).Elem(), iterMakerETUint8Float32)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *float64) bool)(nil)).Elem(), iterMakerUint8Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *float64) bool)(nil)).Elem(), iterMakerETUint8Float64)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.T) bool)(nil)).Elem(), iterMakerUint8Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.T) bool)(nil)).Elem(), iterMakerETUint8Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.U) bool)(nil)).Elem(), iterMakerUint8Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.U) bool)(nil)).Elem(), iterMakerETUint8Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.V) bool)(nil)).Elem(), iterMakerUint8Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.V) bool)(nil)).Elem(), iterMakerETUint8Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.W) bool)(nil)).Elem(), iterMakerUint8Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.W) bool)(nil)).Elem(), iterMakerETUint8Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.X) bool)(nil)).Elem(), iterMakerUint8Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.X) bool)(nil)).Elem(), iterMakerETUint8Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.Y) bool)(nil)).Elem(), iterMakerUint8Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.Y) bool)(nil)).Elem(), iterMakerETUint8Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*uint8, *typex.Z) bool)(nil)).Elem(), iterMakerUint8Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.Z) bool)(nil)).Elem(), iterMakerETUint8Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*uint16) bool)(nil)).Elem(), iterMakerUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16) bool)(nil)).Elem(), iterMakerETUint16)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *[]byte) bool)(nil)).Elem(), iterMakerUint16ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *[]byte) bool)(nil)).Elem(), iterMakerETUint16ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *bool) bool)(nil)).Elem(), iterMakerUint16Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *bool) bool)(nil)).Elem(), iterMakerETUint16Bool)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *string) bool)(nil)).Elem(), iterMakerUint16String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *string) bool)(nil)).Elem(), iterMakerETUint16String)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *int) bool)(nil)).Elem(), iterMakerUint16Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int) bool)(nil)).Elem(), iterMakerETUint16Int)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *int8) bool)(nil)).Elem(), iterMakerUint16Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int8) bool)(nil)).Elem(), iterMakerETUint16Int8)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *int16) bool)(nil)).Elem(), iterMakerUint16Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int16) bool)(nil)).Elem(), iterMakerETUint16Int16)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *int32) bool)(nil)).Elem(), iterMakerUint16Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int32) bool)(nil)).Elem(), iterMakerETUint16Int32)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *int64) bool)(nil)).Elem(), iterMakerUint16Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int64) bool)(nil)).Elem(), iterMakerETUint16Int64)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *uint) bool)(nil)).Elem(), iterMakerUint16Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint) bool)(nil)).Elem(), iterMakerETUint16Uint)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *uint8) bool)(nil)).Elem(), iterMakerUint16Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint8) bool)(nil)).Elem(), iterMakerETUint16Uint8)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *uint16) bool)(nil)).Elem(), iterMakerUint16Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint16) bool)(nil)).Elem(), iterMakerETUint16Uint16)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *uint32) bool)(nil)).Elem(), iterMakerUint16Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint32) bool)(nil)).Elem(), iterMakerETUint16Uint32)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *uint64) bool)(nil)).Elem(), iterMakerUint16Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint64) bool)(nil)).Elem(), iterMakerETUint16Uint64)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *float32) bool)(nil)).Elem(), iterMakerUint16Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *float32) bool)(nil)).Elem(), iterMakerETUint16Float32)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *float64) bool)(nil)).Elem(), iterMakerUint16Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *float64) bool)(nil)).Elem(), iterMakerETUint16Float64)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.T) bool)(nil)).Elem(), iterMakerUint16Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.T) bool)(nil)).Elem(), iterMakerETUint16Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.U) bool)(nil)).Elem(), iterMakerUint16Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.U) bool)(nil)).Elem(), iterMakerETUint16Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.V) bool)(nil)).Elem(), iterMakerUint16Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.V) bool)(nil)).Elem(), iterMakerETUint16Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.W) bool)(nil)).Elem(), iterMakerUint16Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.W) bool)(nil)).Elem(), iterMakerETUint16Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.X) bool)(nil)).Elem(), iterMakerUint16Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.X) bool)(nil)).Elem(), iterMakerETUint16Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.Y) bool)(nil)).Elem(), iterMakerUint16Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.Y) bool)(nil)).Elem(), iterMakerETUint16Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*uint16, *typex.Z) bool)(nil)).Elem(), iterMakerUint16Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.Z) bool)(nil)).Elem(), iterMakerETUint16Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*uint32) bool)(nil)).Elem(), iterMakerUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32) bool)(nil)).Elem(), iterMakerETUint32)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *[]byte) bool)(nil)).Elem(), iterMakerUint32ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *[]byte) bool)(nil)).Elem(), iterMakerETUint32ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *bool) bool)(nil)).Elem(), iterMakerUint32Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *bool) bool)(nil)).Elem(), iterMakerETUint32Bool)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *string) bool)(nil)).Elem(), iterMakerUint32String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *string) bool)(nil)).Elem(), iterMakerETUint32String)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *int) bool)(nil)).Elem(), iterMakerUint32Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int) bool)(nil)).Elem(), iterMakerETUint32Int)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *int8) bool)(nil)).Elem(), iterMakerUint32Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int8) bool)(nil)).Elem(), iterMakerETUint32Int8)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *int16) bool)(nil)).Elem(), iterMakerUint32Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int16) bool)(nil)).Elem(), iterMakerETUint32Int16)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *int32) bool)(nil)).Elem(), iterMakerUint32Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int32) bool)(nil)).Elem(), iterMakerETUint32Int32)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *int64) bool)(nil)).Elem(), iterMakerUint32Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int64) bool)(nil)).Elem(), iterMakerETUint32Int64)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *uint) bool)(nil)).Elem(), iterMakerUint32Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint) bool)(nil)).Elem(), iterMakerETUint32Uint)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *uint8) bool)(nil)).Elem(), iterMakerUint32Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint8) bool)(nil)).Elem(), iterMakerETUint32Uint8)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *uint16) bool)(nil)).Elem(), iterMakerUint32Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint16) bool)(nil)).Elem(), iterMakerETUint32Uint16)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *uint32) bool)(nil)).Elem(), iterMakerUint32Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint32) bool)(nil)).Elem(), iterMakerETUint32Uint32)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *uint64) bool)(nil)).Elem(), iterMakerUint32Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint64) bool)(nil)).Elem(), iterMakerETUint32Uint64)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *float32) bool)(nil)).Elem(), iterMakerUint32Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *float32) bool)(nil)).Elem(), iterMakerETUint32Float32)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *float64) bool)(nil)).Elem(), iterMakerUint32Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *float64) bool)(nil)).Elem(), iterMakerETUint32Float64)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.T) bool)(nil)).Elem(), iterMakerUint32Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.T) bool)(nil)).Elem(), iterMakerETUint32Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.U) bool)(nil)).Elem(), iterMakerUint32Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.U) bool)(nil)).Elem(), iterMakerETUint32Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.V) bool)(nil)).Elem(), iterMakerUint32Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.V) bool)(nil)).Elem(), iterMakerETUint32Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.W) bool)(nil)).Elem(), iterMakerUint32Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.W) bool)(nil)).Elem(), iterMakerETUint32Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.X) bool)(nil)).Elem(), iterMakerUint32Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.X) bool)(nil)).Elem(), iterMakerETUint32Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.Y) bool)(nil)).Elem(), iterMakerUint32Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.Y) bool)(nil)).Elem(), iterMakerETUint32Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*uint32, *typex.Z) bool)(nil)).Elem(), iterMakerUint32Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.Z) bool)(nil)).Elem(), iterMakerETUint32Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*uint64) bool)(nil)).Elem(), iterMakerUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64) bool)(nil)).Elem(), iterMakerETUint64)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *[]byte) bool)(nil)).Elem(), iterMakerUint64ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *[]byte) bool)(nil)).Elem(), iterMakerETUint64ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *bool) bool)(nil)).Elem(), iterMakerUint64Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *bool) bool)(nil)).Elem(), iterMakerETUint64Bool)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *string) bool)(nil)).Elem(), iterMakerUint64String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *string) bool)(nil)).Elem(), iterMakerETUint64String)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *int) bool)(nil)).Elem(), iterMakerUint64Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int) bool)(nil)).Elem(), iterMakerETUint64Int)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *int8) bool)(nil)).Elem(), iterMakerUint64Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int8) bool)(nil)).Elem(), iterMakerETUint64Int8)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *int16) bool)(nil)).Elem(), iterMakerUint64Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int16) bool)(nil)).Elem(), iterMakerETUint64Int16)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *int32) bool)(nil)).Elem(), iterMakerUint64Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int32) bool)(nil)).Elem(), iterMakerETUint64Int32)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *int64) bool)(nil)).Elem(), iterMakerUint64Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int64) bool)(nil)).Elem(), iterMakerETUint64Int64)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *uint) bool)(nil)).Elem(), iterMakerUint64Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint) bool)(nil)).Elem(), iterMakerETUint64Uint)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *uint8) bool)(nil)).Elem(), iterMakerUint64Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint8) bool)(nil)).Elem(), iterMakerETUint64Uint8)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *uint16) bool)(nil)).Elem(), iterMakerUint64Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint16) bool)(nil)).Elem(), iterMakerETUint64Uint16)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *uint32) bool)(nil)).Elem(), iterMakerUint64Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint32) bool)(nil)).Elem(), iterMakerETUint64Uint32)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *uint64) bool)(nil)).Elem(), iterMakerUint64Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint64) bool)(nil)).Elem(), iterMakerETUint64Uint64)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *float32) bool)(nil)).Elem(), iterMakerUint64Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *float32) bool)(nil)).Elem(), iterMakerETUint64Float32)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *float64) bool)(nil)).Elem(), iterMakerUint64Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *float64) bool)(nil)).Elem(), iterMakerETUint64Float64)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.T) bool)(nil)).Elem(), iterMakerUint64Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.T) bool)(nil)).Elem(), iterMakerETUint64Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.U) bool)(nil)).Elem(), iterMakerUint64Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.U) bool)(nil)).Elem(), iterMakerETUint64Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.V) bool)(nil)).Elem(), iterMakerUint64Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.V) bool)(nil)).Elem(), iterMakerETUint64Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.W) bool)(nil)).Elem(), iterMakerUint64Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.W) bool)(nil)).Elem(), iterMakerETUint64Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.X) bool)(nil)).Elem(), iterMakerUint64Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.X) bool)(nil)).Elem(), iterMakerETUint64Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.Y) bool)(nil)).Elem(), iterMakerUint64Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.Y) bool)(nil)).Elem(), iterMakerETUint64Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*uint64, *typex.Z) bool)(nil)).Elem(), iterMakerUint64Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.Z) bool)(nil)).Elem(), iterMakerETUint64Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*float32) bool)(nil)).Elem(), iterMakerFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32) bool)(nil)).Elem(), iterMakerETFloat32)
-	RegisterInput(reflect.TypeOf((*func(*float32, *[]byte) bool)(nil)).Elem(), iterMakerFloat32ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *[]byte) bool)(nil)).Elem(), iterMakerETFloat32ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*float32, *bool) bool)(nil)).Elem(), iterMakerFloat32Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *bool) bool)(nil)).Elem(), iterMakerETFloat32Bool)
-	RegisterInput(reflect.TypeOf((*func(*float32, *string) bool)(nil)).Elem(), iterMakerFloat32String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *string) bool)(nil)).Elem(), iterMakerETFloat32String)
-	RegisterInput(reflect.TypeOf((*func(*float32, *int) bool)(nil)).Elem(), iterMakerFloat32Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int) bool)(nil)).Elem(), iterMakerETFloat32Int)
-	RegisterInput(reflect.TypeOf((*func(*float32, *int8) bool)(nil)).Elem(), iterMakerFloat32Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int8) bool)(nil)).Elem(), iterMakerETFloat32Int8)
-	RegisterInput(reflect.TypeOf((*func(*float32, *int16) bool)(nil)).Elem(), iterMakerFloat32Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int16) bool)(nil)).Elem(), iterMakerETFloat32Int16)
-	RegisterInput(reflect.TypeOf((*func(*float32, *int32) bool)(nil)).Elem(), iterMakerFloat32Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int32) bool)(nil)).Elem(), iterMakerETFloat32Int32)
-	RegisterInput(reflect.TypeOf((*func(*float32, *int64) bool)(nil)).Elem(), iterMakerFloat32Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int64) bool)(nil)).Elem(), iterMakerETFloat32Int64)
-	RegisterInput(reflect.TypeOf((*func(*float32, *uint) bool)(nil)).Elem(), iterMakerFloat32Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint) bool)(nil)).Elem(), iterMakerETFloat32Uint)
-	RegisterInput(reflect.TypeOf((*func(*float32, *uint8) bool)(nil)).Elem(), iterMakerFloat32Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint8) bool)(nil)).Elem(), iterMakerETFloat32Uint8)
-	RegisterInput(reflect.TypeOf((*func(*float32, *uint16) bool)(nil)).Elem(), iterMakerFloat32Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint16) bool)(nil)).Elem(), iterMakerETFloat32Uint16)
-	RegisterInput(reflect.TypeOf((*func(*float32, *uint32) bool)(nil)).Elem(), iterMakerFloat32Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint32) bool)(nil)).Elem(), iterMakerETFloat32Uint32)
-	RegisterInput(reflect.TypeOf((*func(*float32, *uint64) bool)(nil)).Elem(), iterMakerFloat32Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint64) bool)(nil)).Elem(), iterMakerETFloat32Uint64)
-	RegisterInput(reflect.TypeOf((*func(*float32, *float32) bool)(nil)).Elem(), iterMakerFloat32Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *float32) bool)(nil)).Elem(), iterMakerETFloat32Float32)
-	RegisterInput(reflect.TypeOf((*func(*float32, *float64) bool)(nil)).Elem(), iterMakerFloat32Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *float64) bool)(nil)).Elem(), iterMakerETFloat32Float64)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.T) bool)(nil)).Elem(), iterMakerFloat32Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.T) bool)(nil)).Elem(), iterMakerETFloat32Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.U) bool)(nil)).Elem(), iterMakerFloat32Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.U) bool)(nil)).Elem(), iterMakerETFloat32Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.V) bool)(nil)).Elem(), iterMakerFloat32Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.V) bool)(nil)).Elem(), iterMakerETFloat32Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.W) bool)(nil)).Elem(), iterMakerFloat32Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.W) bool)(nil)).Elem(), iterMakerETFloat32Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.X) bool)(nil)).Elem(), iterMakerFloat32Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.X) bool)(nil)).Elem(), iterMakerETFloat32Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.Y) bool)(nil)).Elem(), iterMakerFloat32Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.Y) bool)(nil)).Elem(), iterMakerETFloat32Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*float32, *typex.Z) bool)(nil)).Elem(), iterMakerFloat32Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.Z) bool)(nil)).Elem(), iterMakerETFloat32Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*float64) bool)(nil)).Elem(), iterMakerFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64) bool)(nil)).Elem(), iterMakerETFloat64)
-	RegisterInput(reflect.TypeOf((*func(*float64, *[]byte) bool)(nil)).Elem(), iterMakerFloat64ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *[]byte) bool)(nil)).Elem(), iterMakerETFloat64ByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*float64, *bool) bool)(nil)).Elem(), iterMakerFloat64Bool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *bool) bool)(nil)).Elem(), iterMakerETFloat64Bool)
-	RegisterInput(reflect.TypeOf((*func(*float64, *string) bool)(nil)).Elem(), iterMakerFloat64String)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *string) bool)(nil)).Elem(), iterMakerETFloat64String)
-	RegisterInput(reflect.TypeOf((*func(*float64, *int) bool)(nil)).Elem(), iterMakerFloat64Int)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int) bool)(nil)).Elem(), iterMakerETFloat64Int)
-	RegisterInput(reflect.TypeOf((*func(*float64, *int8) bool)(nil)).Elem(), iterMakerFloat64Int8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int8) bool)(nil)).Elem(), iterMakerETFloat64Int8)
-	RegisterInput(reflect.TypeOf((*func(*float64, *int16) bool)(nil)).Elem(), iterMakerFloat64Int16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int16) bool)(nil)).Elem(), iterMakerETFloat64Int16)
-	RegisterInput(reflect.TypeOf((*func(*float64, *int32) bool)(nil)).Elem(), iterMakerFloat64Int32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int32) bool)(nil)).Elem(), iterMakerETFloat64Int32)
-	RegisterInput(reflect.TypeOf((*func(*float64, *int64) bool)(nil)).Elem(), iterMakerFloat64Int64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int64) bool)(nil)).Elem(), iterMakerETFloat64Int64)
-	RegisterInput(reflect.TypeOf((*func(*float64, *uint) bool)(nil)).Elem(), iterMakerFloat64Uint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint) bool)(nil)).Elem(), iterMakerETFloat64Uint)
-	RegisterInput(reflect.TypeOf((*func(*float64, *uint8) bool)(nil)).Elem(), iterMakerFloat64Uint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint8) bool)(nil)).Elem(), iterMakerETFloat64Uint8)
-	RegisterInput(reflect.TypeOf((*func(*float64, *uint16) bool)(nil)).Elem(), iterMakerFloat64Uint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint16) bool)(nil)).Elem(), iterMakerETFloat64Uint16)
-	RegisterInput(reflect.TypeOf((*func(*float64, *uint32) bool)(nil)).Elem(), iterMakerFloat64Uint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint32) bool)(nil)).Elem(), iterMakerETFloat64Uint32)
-	RegisterInput(reflect.TypeOf((*func(*float64, *uint64) bool)(nil)).Elem(), iterMakerFloat64Uint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint64) bool)(nil)).Elem(), iterMakerETFloat64Uint64)
-	RegisterInput(reflect.TypeOf((*func(*float64, *float32) bool)(nil)).Elem(), iterMakerFloat64Float32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *float32) bool)(nil)).Elem(), iterMakerETFloat64Float32)
-	RegisterInput(reflect.TypeOf((*func(*float64, *float64) bool)(nil)).Elem(), iterMakerFloat64Float64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *float64) bool)(nil)).Elem(), iterMakerETFloat64Float64)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.T) bool)(nil)).Elem(), iterMakerFloat64Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.T) bool)(nil)).Elem(), iterMakerETFloat64Typex_T)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.U) bool)(nil)).Elem(), iterMakerFloat64Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.U) bool)(nil)).Elem(), iterMakerETFloat64Typex_U)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.V) bool)(nil)).Elem(), iterMakerFloat64Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.V) bool)(nil)).Elem(), iterMakerETFloat64Typex_V)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.W) bool)(nil)).Elem(), iterMakerFloat64Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.W) bool)(nil)).Elem(), iterMakerETFloat64Typex_W)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.X) bool)(nil)).Elem(), iterMakerFloat64Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.X) bool)(nil)).Elem(), iterMakerETFloat64Typex_X)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.Y) bool)(nil)).Elem(), iterMakerFloat64Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.Y) bool)(nil)).Elem(), iterMakerETFloat64Typex_Y)
-	RegisterInput(reflect.TypeOf((*func(*float64, *typex.Z) bool)(nil)).Elem(), iterMakerFloat64Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.Z) bool)(nil)).Elem(), iterMakerETFloat64Typex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.T) bool)(nil)).Elem(), iterMakerTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *[]byte) bool)(nil)).Elem(), iterMakerTypex_TByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_TByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *bool) bool)(nil)).Elem(), iterMakerTypex_TBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *bool) bool)(nil)).Elem(), iterMakerETTypex_TBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *string) bool)(nil)).Elem(), iterMakerTypex_TString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *string) bool)(nil)).Elem(), iterMakerETTypex_TString)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *int) bool)(nil)).Elem(), iterMakerTypex_TInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int) bool)(nil)).Elem(), iterMakerETTypex_TInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *int8) bool)(nil)).Elem(), iterMakerTypex_TInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int8) bool)(nil)).Elem(), iterMakerETTypex_TInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *int16) bool)(nil)).Elem(), iterMakerTypex_TInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int16) bool)(nil)).Elem(), iterMakerETTypex_TInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *int32) bool)(nil)).Elem(), iterMakerTypex_TInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int32) bool)(nil)).Elem(), iterMakerETTypex_TInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *int64) bool)(nil)).Elem(), iterMakerTypex_TInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int64) bool)(nil)).Elem(), iterMakerETTypex_TInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *uint) bool)(nil)).Elem(), iterMakerTypex_TUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint) bool)(nil)).Elem(), iterMakerETTypex_TUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *uint8) bool)(nil)).Elem(), iterMakerTypex_TUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint8) bool)(nil)).Elem(), iterMakerETTypex_TUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *uint16) bool)(nil)).Elem(), iterMakerTypex_TUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint16) bool)(nil)).Elem(), iterMakerETTypex_TUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *uint32) bool)(nil)).Elem(), iterMakerTypex_TUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint32) bool)(nil)).Elem(), iterMakerETTypex_TUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *uint64) bool)(nil)).Elem(), iterMakerTypex_TUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint64) bool)(nil)).Elem(), iterMakerETTypex_TUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *float32) bool)(nil)).Elem(), iterMakerTypex_TFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *float32) bool)(nil)).Elem(), iterMakerETTypex_TFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *float64) bool)(nil)).Elem(), iterMakerTypex_TFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *float64) bool)(nil)).Elem(), iterMakerETTypex_TFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.T) bool)(nil)).Elem(), iterMakerTypex_TTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_TTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.U) bool)(nil)).Elem(), iterMakerTypex_TTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_TTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.V) bool)(nil)).Elem(), iterMakerTypex_TTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_TTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.W) bool)(nil)).Elem(), iterMakerTypex_TTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_TTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.X) bool)(nil)).Elem(), iterMakerTypex_TTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_TTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_TTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_TTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_TTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_TTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.U) bool)(nil)).Elem(), iterMakerTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *[]byte) bool)(nil)).Elem(), iterMakerTypex_UByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_UByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *bool) bool)(nil)).Elem(), iterMakerTypex_UBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *bool) bool)(nil)).Elem(), iterMakerETTypex_UBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *string) bool)(nil)).Elem(), iterMakerTypex_UString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *string) bool)(nil)).Elem(), iterMakerETTypex_UString)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *int) bool)(nil)).Elem(), iterMakerTypex_UInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int) bool)(nil)).Elem(), iterMakerETTypex_UInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *int8) bool)(nil)).Elem(), iterMakerTypex_UInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int8) bool)(nil)).Elem(), iterMakerETTypex_UInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *int16) bool)(nil)).Elem(), iterMakerTypex_UInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int16) bool)(nil)).Elem(), iterMakerETTypex_UInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *int32) bool)(nil)).Elem(), iterMakerTypex_UInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int32) bool)(nil)).Elem(), iterMakerETTypex_UInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *int64) bool)(nil)).Elem(), iterMakerTypex_UInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int64) bool)(nil)).Elem(), iterMakerETTypex_UInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *uint) bool)(nil)).Elem(), iterMakerTypex_UUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint) bool)(nil)).Elem(), iterMakerETTypex_UUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *uint8) bool)(nil)).Elem(), iterMakerTypex_UUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint8) bool)(nil)).Elem(), iterMakerETTypex_UUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *uint16) bool)(nil)).Elem(), iterMakerTypex_UUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint16) bool)(nil)).Elem(), iterMakerETTypex_UUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *uint32) bool)(nil)).Elem(), iterMakerTypex_UUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint32) bool)(nil)).Elem(), iterMakerETTypex_UUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *uint64) bool)(nil)).Elem(), iterMakerTypex_UUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint64) bool)(nil)).Elem(), iterMakerETTypex_UUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *float32) bool)(nil)).Elem(), iterMakerTypex_UFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *float32) bool)(nil)).Elem(), iterMakerETTypex_UFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *float64) bool)(nil)).Elem(), iterMakerTypex_UFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *float64) bool)(nil)).Elem(), iterMakerETTypex_UFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.T) bool)(nil)).Elem(), iterMakerTypex_UTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_UTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.U) bool)(nil)).Elem(), iterMakerTypex_UTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_UTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.V) bool)(nil)).Elem(), iterMakerTypex_UTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_UTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.W) bool)(nil)).Elem(), iterMakerTypex_UTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_UTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.X) bool)(nil)).Elem(), iterMakerTypex_UTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_UTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_UTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_UTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_UTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_UTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.V) bool)(nil)).Elem(), iterMakerTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *[]byte) bool)(nil)).Elem(), iterMakerTypex_VByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_VByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *bool) bool)(nil)).Elem(), iterMakerTypex_VBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *bool) bool)(nil)).Elem(), iterMakerETTypex_VBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *string) bool)(nil)).Elem(), iterMakerTypex_VString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *string) bool)(nil)).Elem(), iterMakerETTypex_VString)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *int) bool)(nil)).Elem(), iterMakerTypex_VInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int) bool)(nil)).Elem(), iterMakerETTypex_VInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *int8) bool)(nil)).Elem(), iterMakerTypex_VInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int8) bool)(nil)).Elem(), iterMakerETTypex_VInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *int16) bool)(nil)).Elem(), iterMakerTypex_VInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int16) bool)(nil)).Elem(), iterMakerETTypex_VInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *int32) bool)(nil)).Elem(), iterMakerTypex_VInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int32) bool)(nil)).Elem(), iterMakerETTypex_VInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *int64) bool)(nil)).Elem(), iterMakerTypex_VInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int64) bool)(nil)).Elem(), iterMakerETTypex_VInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *uint) bool)(nil)).Elem(), iterMakerTypex_VUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint) bool)(nil)).Elem(), iterMakerETTypex_VUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *uint8) bool)(nil)).Elem(), iterMakerTypex_VUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint8) bool)(nil)).Elem(), iterMakerETTypex_VUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *uint16) bool)(nil)).Elem(), iterMakerTypex_VUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint16) bool)(nil)).Elem(), iterMakerETTypex_VUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *uint32) bool)(nil)).Elem(), iterMakerTypex_VUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint32) bool)(nil)).Elem(), iterMakerETTypex_VUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *uint64) bool)(nil)).Elem(), iterMakerTypex_VUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint64) bool)(nil)).Elem(), iterMakerETTypex_VUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *float32) bool)(nil)).Elem(), iterMakerTypex_VFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *float32) bool)(nil)).Elem(), iterMakerETTypex_VFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *float64) bool)(nil)).Elem(), iterMakerTypex_VFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *float64) bool)(nil)).Elem(), iterMakerETTypex_VFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.T) bool)(nil)).Elem(), iterMakerTypex_VTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_VTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.U) bool)(nil)).Elem(), iterMakerTypex_VTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_VTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.V) bool)(nil)).Elem(), iterMakerTypex_VTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_VTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.W) bool)(nil)).Elem(), iterMakerTypex_VTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_VTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.X) bool)(nil)).Elem(), iterMakerTypex_VTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_VTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_VTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_VTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_VTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_VTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.W) bool)(nil)).Elem(), iterMakerTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *[]byte) bool)(nil)).Elem(), iterMakerTypex_WByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_WByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *bool) bool)(nil)).Elem(), iterMakerTypex_WBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *bool) bool)(nil)).Elem(), iterMakerETTypex_WBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *string) bool)(nil)).Elem(), iterMakerTypex_WString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *string) bool)(nil)).Elem(), iterMakerETTypex_WString)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *int) bool)(nil)).Elem(), iterMakerTypex_WInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int) bool)(nil)).Elem(), iterMakerETTypex_WInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *int8) bool)(nil)).Elem(), iterMakerTypex_WInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int8) bool)(nil)).Elem(), iterMakerETTypex_WInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *int16) bool)(nil)).Elem(), iterMakerTypex_WInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int16) bool)(nil)).Elem(), iterMakerETTypex_WInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *int32) bool)(nil)).Elem(), iterMakerTypex_WInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int32) bool)(nil)).Elem(), iterMakerETTypex_WInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *int64) bool)(nil)).Elem(), iterMakerTypex_WInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int64) bool)(nil)).Elem(), iterMakerETTypex_WInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *uint) bool)(nil)).Elem(), iterMakerTypex_WUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint) bool)(nil)).Elem(), iterMakerETTypex_WUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *uint8) bool)(nil)).Elem(), iterMakerTypex_WUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint8) bool)(nil)).Elem(), iterMakerETTypex_WUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *uint16) bool)(nil)).Elem(), iterMakerTypex_WUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint16) bool)(nil)).Elem(), iterMakerETTypex_WUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *uint32) bool)(nil)).Elem(), iterMakerTypex_WUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint32) bool)(nil)).Elem(), iterMakerETTypex_WUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *uint64) bool)(nil)).Elem(), iterMakerTypex_WUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint64) bool)(nil)).Elem(), iterMakerETTypex_WUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *float32) bool)(nil)).Elem(), iterMakerTypex_WFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *float32) bool)(nil)).Elem(), iterMakerETTypex_WFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *float64) bool)(nil)).Elem(), iterMakerTypex_WFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *float64) bool)(nil)).Elem(), iterMakerETTypex_WFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.T) bool)(nil)).Elem(), iterMakerTypex_WTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_WTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.U) bool)(nil)).Elem(), iterMakerTypex_WTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_WTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.V) bool)(nil)).Elem(), iterMakerTypex_WTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_WTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.W) bool)(nil)).Elem(), iterMakerTypex_WTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_WTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.X) bool)(nil)).Elem(), iterMakerTypex_WTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_WTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_WTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_WTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_WTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_WTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.X) bool)(nil)).Elem(), iterMakerTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *[]byte) bool)(nil)).Elem(), iterMakerTypex_XByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_XByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *bool) bool)(nil)).Elem(), iterMakerTypex_XBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *bool) bool)(nil)).Elem(), iterMakerETTypex_XBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *string) bool)(nil)).Elem(), iterMakerTypex_XString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *string) bool)(nil)).Elem(), iterMakerETTypex_XString)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *int) bool)(nil)).Elem(), iterMakerTypex_XInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int) bool)(nil)).Elem(), iterMakerETTypex_XInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *int8) bool)(nil)).Elem(), iterMakerTypex_XInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int8) bool)(nil)).Elem(), iterMakerETTypex_XInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *int16) bool)(nil)).Elem(), iterMakerTypex_XInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int16) bool)(nil)).Elem(), iterMakerETTypex_XInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *int32) bool)(nil)).Elem(), iterMakerTypex_XInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int32) bool)(nil)).Elem(), iterMakerETTypex_XInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *int64) bool)(nil)).Elem(), iterMakerTypex_XInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int64) bool)(nil)).Elem(), iterMakerETTypex_XInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *uint) bool)(nil)).Elem(), iterMakerTypex_XUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint) bool)(nil)).Elem(), iterMakerETTypex_XUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *uint8) bool)(nil)).Elem(), iterMakerTypex_XUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint8) bool)(nil)).Elem(), iterMakerETTypex_XUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *uint16) bool)(nil)).Elem(), iterMakerTypex_XUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint16) bool)(nil)).Elem(), iterMakerETTypex_XUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *uint32) bool)(nil)).Elem(), iterMakerTypex_XUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint32) bool)(nil)).Elem(), iterMakerETTypex_XUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *uint64) bool)(nil)).Elem(), iterMakerTypex_XUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint64) bool)(nil)).Elem(), iterMakerETTypex_XUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *float32) bool)(nil)).Elem(), iterMakerTypex_XFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *float32) bool)(nil)).Elem(), iterMakerETTypex_XFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *float64) bool)(nil)).Elem(), iterMakerTypex_XFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *float64) bool)(nil)).Elem(), iterMakerETTypex_XFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.T) bool)(nil)).Elem(), iterMakerTypex_XTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_XTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.U) bool)(nil)).Elem(), iterMakerTypex_XTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_XTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.V) bool)(nil)).Elem(), iterMakerTypex_XTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_XTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.W) bool)(nil)).Elem(), iterMakerTypex_XTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_XTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.X) bool)(nil)).Elem(), iterMakerTypex_XTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_XTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_XTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_XTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_XTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_XTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y) bool)(nil)).Elem(), iterMakerTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *[]byte) bool)(nil)).Elem(), iterMakerTypex_YByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_YByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *bool) bool)(nil)).Elem(), iterMakerTypex_YBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *bool) bool)(nil)).Elem(), iterMakerETTypex_YBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *string) bool)(nil)).Elem(), iterMakerTypex_YString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *string) bool)(nil)).Elem(), iterMakerETTypex_YString)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *int) bool)(nil)).Elem(), iterMakerTypex_YInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int) bool)(nil)).Elem(), iterMakerETTypex_YInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *int8) bool)(nil)).Elem(), iterMakerTypex_YInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int8) bool)(nil)).Elem(), iterMakerETTypex_YInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *int16) bool)(nil)).Elem(), iterMakerTypex_YInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int16) bool)(nil)).Elem(), iterMakerETTypex_YInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *int32) bool)(nil)).Elem(), iterMakerTypex_YInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int32) bool)(nil)).Elem(), iterMakerETTypex_YInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *int64) bool)(nil)).Elem(), iterMakerTypex_YInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int64) bool)(nil)).Elem(), iterMakerETTypex_YInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint) bool)(nil)).Elem(), iterMakerTypex_YUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint) bool)(nil)).Elem(), iterMakerETTypex_YUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint8) bool)(nil)).Elem(), iterMakerTypex_YUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint8) bool)(nil)).Elem(), iterMakerETTypex_YUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint16) bool)(nil)).Elem(), iterMakerTypex_YUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint16) bool)(nil)).Elem(), iterMakerETTypex_YUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint32) bool)(nil)).Elem(), iterMakerTypex_YUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint32) bool)(nil)).Elem(), iterMakerETTypex_YUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint64) bool)(nil)).Elem(), iterMakerTypex_YUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint64) bool)(nil)).Elem(), iterMakerETTypex_YUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *float32) bool)(nil)).Elem(), iterMakerTypex_YFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *float32) bool)(nil)).Elem(), iterMakerETTypex_YFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *float64) bool)(nil)).Elem(), iterMakerTypex_YFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *float64) bool)(nil)).Elem(), iterMakerETTypex_YFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.T) bool)(nil)).Elem(), iterMakerTypex_YTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_YTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.U) bool)(nil)).Elem(), iterMakerTypex_YTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_YTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.V) bool)(nil)).Elem(), iterMakerTypex_YTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_YTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.W) bool)(nil)).Elem(), iterMakerTypex_YTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_YTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.X) bool)(nil)).Elem(), iterMakerTypex_YTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_YTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_YTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_YTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_YTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_YTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z) bool)(nil)).Elem(), iterMakerTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *[]byte) bool)(nil)).Elem(), iterMakerTypex_ZByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_ZByteSlice)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *bool) bool)(nil)).Elem(), iterMakerTypex_ZBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *bool) bool)(nil)).Elem(), iterMakerETTypex_ZBool)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *string) bool)(nil)).Elem(), iterMakerTypex_ZString)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *string) bool)(nil)).Elem(), iterMakerETTypex_ZString)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *int) bool)(nil)).Elem(), iterMakerTypex_ZInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int) bool)(nil)).Elem(), iterMakerETTypex_ZInt)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *int8) bool)(nil)).Elem(), iterMakerTypex_ZInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int8) bool)(nil)).Elem(), iterMakerETTypex_ZInt8)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *int16) bool)(nil)).Elem(), iterMakerTypex_ZInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int16) bool)(nil)).Elem(), iterMakerETTypex_ZInt16)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *int32) bool)(nil)).Elem(), iterMakerTypex_ZInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int32) bool)(nil)).Elem(), iterMakerETTypex_ZInt32)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *int64) bool)(nil)).Elem(), iterMakerTypex_ZInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int64) bool)(nil)).Elem(), iterMakerETTypex_ZInt64)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint) bool)(nil)).Elem(), iterMakerTypex_ZUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint) bool)(nil)).Elem(), iterMakerETTypex_ZUint)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint8) bool)(nil)).Elem(), iterMakerTypex_ZUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint8) bool)(nil)).Elem(), iterMakerETTypex_ZUint8)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint16) bool)(nil)).Elem(), iterMakerTypex_ZUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint16) bool)(nil)).Elem(), iterMakerETTypex_ZUint16)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint32) bool)(nil)).Elem(), iterMakerTypex_ZUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint32) bool)(nil)).Elem(), iterMakerETTypex_ZUint32)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint64) bool)(nil)).Elem(), iterMakerTypex_ZUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint64) bool)(nil)).Elem(), iterMakerETTypex_ZUint64)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *float32) bool)(nil)).Elem(), iterMakerTypex_ZFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *float32) bool)(nil)).Elem(), iterMakerETTypex_ZFloat32)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *float64) bool)(nil)).Elem(), iterMakerTypex_ZFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *float64) bool)(nil)).Elem(), iterMakerETTypex_ZFloat64)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.T) bool)(nil)).Elem(), iterMakerTypex_ZTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_T)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.U) bool)(nil)).Elem(), iterMakerTypex_ZTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_U)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.V) bool)(nil)).Elem(), iterMakerTypex_ZTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_V)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.W) bool)(nil)).Elem(), iterMakerTypex_ZTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_W)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.X) bool)(nil)).Elem(), iterMakerTypex_ZTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_X)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_ZTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_Y)
-	RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_ZTypex_Z)
-	RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte) bool)(nil)).Elem(), iterMakerByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte) bool)(nil)).Elem(), iterMakerETByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *[]byte) bool)(nil)).Elem(), iterMakerByteSliceByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *[]byte) bool)(nil)).Elem(), iterMakerETByteSliceByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *bool) bool)(nil)).Elem(), iterMakerByteSliceBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *bool) bool)(nil)).Elem(), iterMakerETByteSliceBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *string) bool)(nil)).Elem(), iterMakerByteSliceString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *string) bool)(nil)).Elem(), iterMakerETByteSliceString)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *int) bool)(nil)).Elem(), iterMakerByteSliceInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int) bool)(nil)).Elem(), iterMakerETByteSliceInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *int8) bool)(nil)).Elem(), iterMakerByteSliceInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int8) bool)(nil)).Elem(), iterMakerETByteSliceInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *int16) bool)(nil)).Elem(), iterMakerByteSliceInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int16) bool)(nil)).Elem(), iterMakerETByteSliceInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *int32) bool)(nil)).Elem(), iterMakerByteSliceInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int32) bool)(nil)).Elem(), iterMakerETByteSliceInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *int64) bool)(nil)).Elem(), iterMakerByteSliceInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *int64) bool)(nil)).Elem(), iterMakerETByteSliceInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *uint) bool)(nil)).Elem(), iterMakerByteSliceUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint) bool)(nil)).Elem(), iterMakerETByteSliceUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *uint8) bool)(nil)).Elem(), iterMakerByteSliceUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint8) bool)(nil)).Elem(), iterMakerETByteSliceUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *uint16) bool)(nil)).Elem(), iterMakerByteSliceUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint16) bool)(nil)).Elem(), iterMakerETByteSliceUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *uint32) bool)(nil)).Elem(), iterMakerByteSliceUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint32) bool)(nil)).Elem(), iterMakerETByteSliceUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *uint64) bool)(nil)).Elem(), iterMakerByteSliceUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *uint64) bool)(nil)).Elem(), iterMakerETByteSliceUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *float32) bool)(nil)).Elem(), iterMakerByteSliceFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *float32) bool)(nil)).Elem(), iterMakerETByteSliceFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *float64) bool)(nil)).Elem(), iterMakerByteSliceFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *float64) bool)(nil)).Elem(), iterMakerETByteSliceFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.T) bool)(nil)).Elem(), iterMakerByteSliceTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.T) bool)(nil)).Elem(), iterMakerETByteSliceTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.U) bool)(nil)).Elem(), iterMakerByteSliceTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.U) bool)(nil)).Elem(), iterMakerETByteSliceTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.V) bool)(nil)).Elem(), iterMakerByteSliceTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.V) bool)(nil)).Elem(), iterMakerETByteSliceTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.W) bool)(nil)).Elem(), iterMakerByteSliceTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.W) bool)(nil)).Elem(), iterMakerETByteSliceTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.X) bool)(nil)).Elem(), iterMakerByteSliceTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.X) bool)(nil)).Elem(), iterMakerETByteSliceTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.Y) bool)(nil)).Elem(), iterMakerByteSliceTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.Y) bool)(nil)).Elem(), iterMakerETByteSliceTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*[]byte, *typex.Z) bool)(nil)).Elem(), iterMakerByteSliceTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *[]byte, *typex.Z) bool)(nil)).Elem(), iterMakerETByteSliceTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool) bool)(nil)).Elem(), iterMakerBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool) bool)(nil)).Elem(), iterMakerETBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *[]byte) bool)(nil)).Elem(), iterMakerBoolByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *[]byte) bool)(nil)).Elem(), iterMakerETBoolByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *bool) bool)(nil)).Elem(), iterMakerBoolBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *bool) bool)(nil)).Elem(), iterMakerETBoolBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *string) bool)(nil)).Elem(), iterMakerBoolString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *string) bool)(nil)).Elem(), iterMakerETBoolString)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *int) bool)(nil)).Elem(), iterMakerBoolInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int) bool)(nil)).Elem(), iterMakerETBoolInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *int8) bool)(nil)).Elem(), iterMakerBoolInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int8) bool)(nil)).Elem(), iterMakerETBoolInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *int16) bool)(nil)).Elem(), iterMakerBoolInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int16) bool)(nil)).Elem(), iterMakerETBoolInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *int32) bool)(nil)).Elem(), iterMakerBoolInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int32) bool)(nil)).Elem(), iterMakerETBoolInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *int64) bool)(nil)).Elem(), iterMakerBoolInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *int64) bool)(nil)).Elem(), iterMakerETBoolInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *uint) bool)(nil)).Elem(), iterMakerBoolUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint) bool)(nil)).Elem(), iterMakerETBoolUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *uint8) bool)(nil)).Elem(), iterMakerBoolUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint8) bool)(nil)).Elem(), iterMakerETBoolUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *uint16) bool)(nil)).Elem(), iterMakerBoolUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint16) bool)(nil)).Elem(), iterMakerETBoolUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *uint32) bool)(nil)).Elem(), iterMakerBoolUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint32) bool)(nil)).Elem(), iterMakerETBoolUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *uint64) bool)(nil)).Elem(), iterMakerBoolUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *uint64) bool)(nil)).Elem(), iterMakerETBoolUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *float32) bool)(nil)).Elem(), iterMakerBoolFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *float32) bool)(nil)).Elem(), iterMakerETBoolFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *float64) bool)(nil)).Elem(), iterMakerBoolFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *float64) bool)(nil)).Elem(), iterMakerETBoolFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.T) bool)(nil)).Elem(), iterMakerBoolTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.T) bool)(nil)).Elem(), iterMakerETBoolTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.U) bool)(nil)).Elem(), iterMakerBoolTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.U) bool)(nil)).Elem(), iterMakerETBoolTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.V) bool)(nil)).Elem(), iterMakerBoolTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.V) bool)(nil)).Elem(), iterMakerETBoolTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.W) bool)(nil)).Elem(), iterMakerBoolTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.W) bool)(nil)).Elem(), iterMakerETBoolTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.X) bool)(nil)).Elem(), iterMakerBoolTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.X) bool)(nil)).Elem(), iterMakerETBoolTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.Y) bool)(nil)).Elem(), iterMakerBoolTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.Y) bool)(nil)).Elem(), iterMakerETBoolTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*bool, *typex.Z) bool)(nil)).Elem(), iterMakerBoolTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *bool, *typex.Z) bool)(nil)).Elem(), iterMakerETBoolTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*string) bool)(nil)).Elem(), iterMakerString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string) bool)(nil)).Elem(), iterMakerETString)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *[]byte) bool)(nil)).Elem(), iterMakerStringByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *[]byte) bool)(nil)).Elem(), iterMakerETStringByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *bool) bool)(nil)).Elem(), iterMakerStringBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *bool) bool)(nil)).Elem(), iterMakerETStringBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *string) bool)(nil)).Elem(), iterMakerStringString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *string) bool)(nil)).Elem(), iterMakerETStringString)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *int) bool)(nil)).Elem(), iterMakerStringInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int) bool)(nil)).Elem(), iterMakerETStringInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *int8) bool)(nil)).Elem(), iterMakerStringInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int8) bool)(nil)).Elem(), iterMakerETStringInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *int16) bool)(nil)).Elem(), iterMakerStringInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int16) bool)(nil)).Elem(), iterMakerETStringInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *int32) bool)(nil)).Elem(), iterMakerStringInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int32) bool)(nil)).Elem(), iterMakerETStringInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *int64) bool)(nil)).Elem(), iterMakerStringInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *int64) bool)(nil)).Elem(), iterMakerETStringInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *uint) bool)(nil)).Elem(), iterMakerStringUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint) bool)(nil)).Elem(), iterMakerETStringUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *uint8) bool)(nil)).Elem(), iterMakerStringUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint8) bool)(nil)).Elem(), iterMakerETStringUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *uint16) bool)(nil)).Elem(), iterMakerStringUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint16) bool)(nil)).Elem(), iterMakerETStringUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *uint32) bool)(nil)).Elem(), iterMakerStringUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint32) bool)(nil)).Elem(), iterMakerETStringUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *uint64) bool)(nil)).Elem(), iterMakerStringUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *uint64) bool)(nil)).Elem(), iterMakerETStringUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *float32) bool)(nil)).Elem(), iterMakerStringFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *float32) bool)(nil)).Elem(), iterMakerETStringFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *float64) bool)(nil)).Elem(), iterMakerStringFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *float64) bool)(nil)).Elem(), iterMakerETStringFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.T) bool)(nil)).Elem(), iterMakerStringTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.T) bool)(nil)).Elem(), iterMakerETStringTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.U) bool)(nil)).Elem(), iterMakerStringTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.U) bool)(nil)).Elem(), iterMakerETStringTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.V) bool)(nil)).Elem(), iterMakerStringTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.V) bool)(nil)).Elem(), iterMakerETStringTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.W) bool)(nil)).Elem(), iterMakerStringTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.W) bool)(nil)).Elem(), iterMakerETStringTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.X) bool)(nil)).Elem(), iterMakerStringTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.X) bool)(nil)).Elem(), iterMakerETStringTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.Y) bool)(nil)).Elem(), iterMakerStringTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.Y) bool)(nil)).Elem(), iterMakerETStringTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*string, *typex.Z) bool)(nil)).Elem(), iterMakerStringTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *string, *typex.Z) bool)(nil)).Elem(), iterMakerETStringTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*int) bool)(nil)).Elem(), iterMakerInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int) bool)(nil)).Elem(), iterMakerETInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *[]byte) bool)(nil)).Elem(), iterMakerIntByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *[]byte) bool)(nil)).Elem(), iterMakerETIntByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *bool) bool)(nil)).Elem(), iterMakerIntBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *bool) bool)(nil)).Elem(), iterMakerETIntBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *string) bool)(nil)).Elem(), iterMakerIntString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *string) bool)(nil)).Elem(), iterMakerETIntString)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *int) bool)(nil)).Elem(), iterMakerIntInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int) bool)(nil)).Elem(), iterMakerETIntInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *int8) bool)(nil)).Elem(), iterMakerIntInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int8) bool)(nil)).Elem(), iterMakerETIntInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *int16) bool)(nil)).Elem(), iterMakerIntInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int16) bool)(nil)).Elem(), iterMakerETIntInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *int32) bool)(nil)).Elem(), iterMakerIntInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int32) bool)(nil)).Elem(), iterMakerETIntInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *int64) bool)(nil)).Elem(), iterMakerIntInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *int64) bool)(nil)).Elem(), iterMakerETIntInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *uint) bool)(nil)).Elem(), iterMakerIntUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint) bool)(nil)).Elem(), iterMakerETIntUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *uint8) bool)(nil)).Elem(), iterMakerIntUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint8) bool)(nil)).Elem(), iterMakerETIntUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *uint16) bool)(nil)).Elem(), iterMakerIntUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint16) bool)(nil)).Elem(), iterMakerETIntUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *uint32) bool)(nil)).Elem(), iterMakerIntUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint32) bool)(nil)).Elem(), iterMakerETIntUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *uint64) bool)(nil)).Elem(), iterMakerIntUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *uint64) bool)(nil)).Elem(), iterMakerETIntUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *float32) bool)(nil)).Elem(), iterMakerIntFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *float32) bool)(nil)).Elem(), iterMakerETIntFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *float64) bool)(nil)).Elem(), iterMakerIntFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *float64) bool)(nil)).Elem(), iterMakerETIntFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.T) bool)(nil)).Elem(), iterMakerIntTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.T) bool)(nil)).Elem(), iterMakerETIntTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.U) bool)(nil)).Elem(), iterMakerIntTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.U) bool)(nil)).Elem(), iterMakerETIntTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.V) bool)(nil)).Elem(), iterMakerIntTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.V) bool)(nil)).Elem(), iterMakerETIntTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.W) bool)(nil)).Elem(), iterMakerIntTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.W) bool)(nil)).Elem(), iterMakerETIntTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.X) bool)(nil)).Elem(), iterMakerIntTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.X) bool)(nil)).Elem(), iterMakerETIntTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.Y) bool)(nil)).Elem(), iterMakerIntTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.Y) bool)(nil)).Elem(), iterMakerETIntTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*int, *typex.Z) bool)(nil)).Elem(), iterMakerIntTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int, *typex.Z) bool)(nil)).Elem(), iterMakerETIntTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8) bool)(nil)).Elem(), iterMakerInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8) bool)(nil)).Elem(), iterMakerETInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *[]byte) bool)(nil)).Elem(), iterMakerInt8ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *[]byte) bool)(nil)).Elem(), iterMakerETInt8ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *bool) bool)(nil)).Elem(), iterMakerInt8Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *bool) bool)(nil)).Elem(), iterMakerETInt8Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *string) bool)(nil)).Elem(), iterMakerInt8String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *string) bool)(nil)).Elem(), iterMakerETInt8String)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *int) bool)(nil)).Elem(), iterMakerInt8Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int) bool)(nil)).Elem(), iterMakerETInt8Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *int8) bool)(nil)).Elem(), iterMakerInt8Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int8) bool)(nil)).Elem(), iterMakerETInt8Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *int16) bool)(nil)).Elem(), iterMakerInt8Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int16) bool)(nil)).Elem(), iterMakerETInt8Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *int32) bool)(nil)).Elem(), iterMakerInt8Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int32) bool)(nil)).Elem(), iterMakerETInt8Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *int64) bool)(nil)).Elem(), iterMakerInt8Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *int64) bool)(nil)).Elem(), iterMakerETInt8Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *uint) bool)(nil)).Elem(), iterMakerInt8Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint) bool)(nil)).Elem(), iterMakerETInt8Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *uint8) bool)(nil)).Elem(), iterMakerInt8Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint8) bool)(nil)).Elem(), iterMakerETInt8Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *uint16) bool)(nil)).Elem(), iterMakerInt8Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint16) bool)(nil)).Elem(), iterMakerETInt8Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *uint32) bool)(nil)).Elem(), iterMakerInt8Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint32) bool)(nil)).Elem(), iterMakerETInt8Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *uint64) bool)(nil)).Elem(), iterMakerInt8Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *uint64) bool)(nil)).Elem(), iterMakerETInt8Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *float32) bool)(nil)).Elem(), iterMakerInt8Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *float32) bool)(nil)).Elem(), iterMakerETInt8Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *float64) bool)(nil)).Elem(), iterMakerInt8Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *float64) bool)(nil)).Elem(), iterMakerETInt8Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.T) bool)(nil)).Elem(), iterMakerInt8Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.T) bool)(nil)).Elem(), iterMakerETInt8Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.U) bool)(nil)).Elem(), iterMakerInt8Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.U) bool)(nil)).Elem(), iterMakerETInt8Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.V) bool)(nil)).Elem(), iterMakerInt8Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.V) bool)(nil)).Elem(), iterMakerETInt8Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.W) bool)(nil)).Elem(), iterMakerInt8Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.W) bool)(nil)).Elem(), iterMakerETInt8Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.X) bool)(nil)).Elem(), iterMakerInt8Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.X) bool)(nil)).Elem(), iterMakerETInt8Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.Y) bool)(nil)).Elem(), iterMakerInt8Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.Y) bool)(nil)).Elem(), iterMakerETInt8Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*int8, *typex.Z) bool)(nil)).Elem(), iterMakerInt8Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int8, *typex.Z) bool)(nil)).Elem(), iterMakerETInt8Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16) bool)(nil)).Elem(), iterMakerInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16) bool)(nil)).Elem(), iterMakerETInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *[]byte) bool)(nil)).Elem(), iterMakerInt16ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *[]byte) bool)(nil)).Elem(), iterMakerETInt16ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *bool) bool)(nil)).Elem(), iterMakerInt16Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *bool) bool)(nil)).Elem(), iterMakerETInt16Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *string) bool)(nil)).Elem(), iterMakerInt16String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *string) bool)(nil)).Elem(), iterMakerETInt16String)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *int) bool)(nil)).Elem(), iterMakerInt16Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int) bool)(nil)).Elem(), iterMakerETInt16Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *int8) bool)(nil)).Elem(), iterMakerInt16Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int8) bool)(nil)).Elem(), iterMakerETInt16Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *int16) bool)(nil)).Elem(), iterMakerInt16Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int16) bool)(nil)).Elem(), iterMakerETInt16Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *int32) bool)(nil)).Elem(), iterMakerInt16Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int32) bool)(nil)).Elem(), iterMakerETInt16Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *int64) bool)(nil)).Elem(), iterMakerInt16Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *int64) bool)(nil)).Elem(), iterMakerETInt16Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *uint) bool)(nil)).Elem(), iterMakerInt16Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint) bool)(nil)).Elem(), iterMakerETInt16Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *uint8) bool)(nil)).Elem(), iterMakerInt16Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint8) bool)(nil)).Elem(), iterMakerETInt16Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *uint16) bool)(nil)).Elem(), iterMakerInt16Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint16) bool)(nil)).Elem(), iterMakerETInt16Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *uint32) bool)(nil)).Elem(), iterMakerInt16Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint32) bool)(nil)).Elem(), iterMakerETInt16Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *uint64) bool)(nil)).Elem(), iterMakerInt16Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *uint64) bool)(nil)).Elem(), iterMakerETInt16Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *float32) bool)(nil)).Elem(), iterMakerInt16Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *float32) bool)(nil)).Elem(), iterMakerETInt16Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *float64) bool)(nil)).Elem(), iterMakerInt16Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *float64) bool)(nil)).Elem(), iterMakerETInt16Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.T) bool)(nil)).Elem(), iterMakerInt16Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.T) bool)(nil)).Elem(), iterMakerETInt16Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.U) bool)(nil)).Elem(), iterMakerInt16Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.U) bool)(nil)).Elem(), iterMakerETInt16Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.V) bool)(nil)).Elem(), iterMakerInt16Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.V) bool)(nil)).Elem(), iterMakerETInt16Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.W) bool)(nil)).Elem(), iterMakerInt16Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.W) bool)(nil)).Elem(), iterMakerETInt16Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.X) bool)(nil)).Elem(), iterMakerInt16Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.X) bool)(nil)).Elem(), iterMakerETInt16Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.Y) bool)(nil)).Elem(), iterMakerInt16Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.Y) bool)(nil)).Elem(), iterMakerETInt16Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*int16, *typex.Z) bool)(nil)).Elem(), iterMakerInt16Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int16, *typex.Z) bool)(nil)).Elem(), iterMakerETInt16Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32) bool)(nil)).Elem(), iterMakerInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32) bool)(nil)).Elem(), iterMakerETInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *[]byte) bool)(nil)).Elem(), iterMakerInt32ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *[]byte) bool)(nil)).Elem(), iterMakerETInt32ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *bool) bool)(nil)).Elem(), iterMakerInt32Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *bool) bool)(nil)).Elem(), iterMakerETInt32Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *string) bool)(nil)).Elem(), iterMakerInt32String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *string) bool)(nil)).Elem(), iterMakerETInt32String)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *int) bool)(nil)).Elem(), iterMakerInt32Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int) bool)(nil)).Elem(), iterMakerETInt32Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *int8) bool)(nil)).Elem(), iterMakerInt32Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int8) bool)(nil)).Elem(), iterMakerETInt32Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *int16) bool)(nil)).Elem(), iterMakerInt32Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int16) bool)(nil)).Elem(), iterMakerETInt32Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *int32) bool)(nil)).Elem(), iterMakerInt32Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int32) bool)(nil)).Elem(), iterMakerETInt32Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *int64) bool)(nil)).Elem(), iterMakerInt32Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *int64) bool)(nil)).Elem(), iterMakerETInt32Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *uint) bool)(nil)).Elem(), iterMakerInt32Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint) bool)(nil)).Elem(), iterMakerETInt32Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *uint8) bool)(nil)).Elem(), iterMakerInt32Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint8) bool)(nil)).Elem(), iterMakerETInt32Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *uint16) bool)(nil)).Elem(), iterMakerInt32Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint16) bool)(nil)).Elem(), iterMakerETInt32Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *uint32) bool)(nil)).Elem(), iterMakerInt32Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint32) bool)(nil)).Elem(), iterMakerETInt32Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *uint64) bool)(nil)).Elem(), iterMakerInt32Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *uint64) bool)(nil)).Elem(), iterMakerETInt32Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *float32) bool)(nil)).Elem(), iterMakerInt32Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *float32) bool)(nil)).Elem(), iterMakerETInt32Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *float64) bool)(nil)).Elem(), iterMakerInt32Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *float64) bool)(nil)).Elem(), iterMakerETInt32Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.T) bool)(nil)).Elem(), iterMakerInt32Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.T) bool)(nil)).Elem(), iterMakerETInt32Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.U) bool)(nil)).Elem(), iterMakerInt32Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.U) bool)(nil)).Elem(), iterMakerETInt32Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.V) bool)(nil)).Elem(), iterMakerInt32Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.V) bool)(nil)).Elem(), iterMakerETInt32Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.W) bool)(nil)).Elem(), iterMakerInt32Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.W) bool)(nil)).Elem(), iterMakerETInt32Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.X) bool)(nil)).Elem(), iterMakerInt32Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.X) bool)(nil)).Elem(), iterMakerETInt32Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.Y) bool)(nil)).Elem(), iterMakerInt32Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.Y) bool)(nil)).Elem(), iterMakerETInt32Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*int32, *typex.Z) bool)(nil)).Elem(), iterMakerInt32Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int32, *typex.Z) bool)(nil)).Elem(), iterMakerETInt32Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64) bool)(nil)).Elem(), iterMakerInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64) bool)(nil)).Elem(), iterMakerETInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *[]byte) bool)(nil)).Elem(), iterMakerInt64ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *[]byte) bool)(nil)).Elem(), iterMakerETInt64ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *bool) bool)(nil)).Elem(), iterMakerInt64Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *bool) bool)(nil)).Elem(), iterMakerETInt64Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *string) bool)(nil)).Elem(), iterMakerInt64String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *string) bool)(nil)).Elem(), iterMakerETInt64String)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *int) bool)(nil)).Elem(), iterMakerInt64Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int) bool)(nil)).Elem(), iterMakerETInt64Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *int8) bool)(nil)).Elem(), iterMakerInt64Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int8) bool)(nil)).Elem(), iterMakerETInt64Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *int16) bool)(nil)).Elem(), iterMakerInt64Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int16) bool)(nil)).Elem(), iterMakerETInt64Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *int32) bool)(nil)).Elem(), iterMakerInt64Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int32) bool)(nil)).Elem(), iterMakerETInt64Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *int64) bool)(nil)).Elem(), iterMakerInt64Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *int64) bool)(nil)).Elem(), iterMakerETInt64Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *uint) bool)(nil)).Elem(), iterMakerInt64Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint) bool)(nil)).Elem(), iterMakerETInt64Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *uint8) bool)(nil)).Elem(), iterMakerInt64Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint8) bool)(nil)).Elem(), iterMakerETInt64Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *uint16) bool)(nil)).Elem(), iterMakerInt64Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint16) bool)(nil)).Elem(), iterMakerETInt64Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *uint32) bool)(nil)).Elem(), iterMakerInt64Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint32) bool)(nil)).Elem(), iterMakerETInt64Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *uint64) bool)(nil)).Elem(), iterMakerInt64Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *uint64) bool)(nil)).Elem(), iterMakerETInt64Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *float32) bool)(nil)).Elem(), iterMakerInt64Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *float32) bool)(nil)).Elem(), iterMakerETInt64Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *float64) bool)(nil)).Elem(), iterMakerInt64Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *float64) bool)(nil)).Elem(), iterMakerETInt64Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.T) bool)(nil)).Elem(), iterMakerInt64Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.T) bool)(nil)).Elem(), iterMakerETInt64Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.U) bool)(nil)).Elem(), iterMakerInt64Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.U) bool)(nil)).Elem(), iterMakerETInt64Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.V) bool)(nil)).Elem(), iterMakerInt64Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.V) bool)(nil)).Elem(), iterMakerETInt64Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.W) bool)(nil)).Elem(), iterMakerInt64Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.W) bool)(nil)).Elem(), iterMakerETInt64Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.X) bool)(nil)).Elem(), iterMakerInt64Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.X) bool)(nil)).Elem(), iterMakerETInt64Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.Y) bool)(nil)).Elem(), iterMakerInt64Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.Y) bool)(nil)).Elem(), iterMakerETInt64Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*int64, *typex.Z) bool)(nil)).Elem(), iterMakerInt64Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *int64, *typex.Z) bool)(nil)).Elem(), iterMakerETInt64Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint) bool)(nil)).Elem(), iterMakerUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint) bool)(nil)).Elem(), iterMakerETUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *[]byte) bool)(nil)).Elem(), iterMakerUintByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *[]byte) bool)(nil)).Elem(), iterMakerETUintByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *bool) bool)(nil)).Elem(), iterMakerUintBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *bool) bool)(nil)).Elem(), iterMakerETUintBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *string) bool)(nil)).Elem(), iterMakerUintString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *string) bool)(nil)).Elem(), iterMakerETUintString)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *int) bool)(nil)).Elem(), iterMakerUintInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int) bool)(nil)).Elem(), iterMakerETUintInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *int8) bool)(nil)).Elem(), iterMakerUintInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int8) bool)(nil)).Elem(), iterMakerETUintInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *int16) bool)(nil)).Elem(), iterMakerUintInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int16) bool)(nil)).Elem(), iterMakerETUintInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *int32) bool)(nil)).Elem(), iterMakerUintInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int32) bool)(nil)).Elem(), iterMakerETUintInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *int64) bool)(nil)).Elem(), iterMakerUintInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *int64) bool)(nil)).Elem(), iterMakerETUintInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *uint) bool)(nil)).Elem(), iterMakerUintUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint) bool)(nil)).Elem(), iterMakerETUintUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *uint8) bool)(nil)).Elem(), iterMakerUintUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint8) bool)(nil)).Elem(), iterMakerETUintUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *uint16) bool)(nil)).Elem(), iterMakerUintUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint16) bool)(nil)).Elem(), iterMakerETUintUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *uint32) bool)(nil)).Elem(), iterMakerUintUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint32) bool)(nil)).Elem(), iterMakerETUintUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *uint64) bool)(nil)).Elem(), iterMakerUintUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *uint64) bool)(nil)).Elem(), iterMakerETUintUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *float32) bool)(nil)).Elem(), iterMakerUintFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *float32) bool)(nil)).Elem(), iterMakerETUintFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *float64) bool)(nil)).Elem(), iterMakerUintFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *float64) bool)(nil)).Elem(), iterMakerETUintFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.T) bool)(nil)).Elem(), iterMakerUintTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.T) bool)(nil)).Elem(), iterMakerETUintTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.U) bool)(nil)).Elem(), iterMakerUintTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.U) bool)(nil)).Elem(), iterMakerETUintTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.V) bool)(nil)).Elem(), iterMakerUintTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.V) bool)(nil)).Elem(), iterMakerETUintTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.W) bool)(nil)).Elem(), iterMakerUintTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.W) bool)(nil)).Elem(), iterMakerETUintTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.X) bool)(nil)).Elem(), iterMakerUintTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.X) bool)(nil)).Elem(), iterMakerETUintTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.Y) bool)(nil)).Elem(), iterMakerUintTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.Y) bool)(nil)).Elem(), iterMakerETUintTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint, *typex.Z) bool)(nil)).Elem(), iterMakerUintTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint, *typex.Z) bool)(nil)).Elem(), iterMakerETUintTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8) bool)(nil)).Elem(), iterMakerUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8) bool)(nil)).Elem(), iterMakerETUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *[]byte) bool)(nil)).Elem(), iterMakerUint8ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *[]byte) bool)(nil)).Elem(), iterMakerETUint8ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *bool) bool)(nil)).Elem(), iterMakerUint8Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *bool) bool)(nil)).Elem(), iterMakerETUint8Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *string) bool)(nil)).Elem(), iterMakerUint8String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *string) bool)(nil)).Elem(), iterMakerETUint8String)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *int) bool)(nil)).Elem(), iterMakerUint8Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int) bool)(nil)).Elem(), iterMakerETUint8Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *int8) bool)(nil)).Elem(), iterMakerUint8Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int8) bool)(nil)).Elem(), iterMakerETUint8Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *int16) bool)(nil)).Elem(), iterMakerUint8Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int16) bool)(nil)).Elem(), iterMakerETUint8Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *int32) bool)(nil)).Elem(), iterMakerUint8Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int32) bool)(nil)).Elem(), iterMakerETUint8Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *int64) bool)(nil)).Elem(), iterMakerUint8Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *int64) bool)(nil)).Elem(), iterMakerETUint8Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *uint) bool)(nil)).Elem(), iterMakerUint8Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint) bool)(nil)).Elem(), iterMakerETUint8Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *uint8) bool)(nil)).Elem(), iterMakerUint8Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint8) bool)(nil)).Elem(), iterMakerETUint8Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *uint16) bool)(nil)).Elem(), iterMakerUint8Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint16) bool)(nil)).Elem(), iterMakerETUint8Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *uint32) bool)(nil)).Elem(), iterMakerUint8Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint32) bool)(nil)).Elem(), iterMakerETUint8Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *uint64) bool)(nil)).Elem(), iterMakerUint8Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *uint64) bool)(nil)).Elem(), iterMakerETUint8Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *float32) bool)(nil)).Elem(), iterMakerUint8Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *float32) bool)(nil)).Elem(), iterMakerETUint8Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *float64) bool)(nil)).Elem(), iterMakerUint8Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *float64) bool)(nil)).Elem(), iterMakerETUint8Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.T) bool)(nil)).Elem(), iterMakerUint8Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.T) bool)(nil)).Elem(), iterMakerETUint8Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.U) bool)(nil)).Elem(), iterMakerUint8Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.U) bool)(nil)).Elem(), iterMakerETUint8Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.V) bool)(nil)).Elem(), iterMakerUint8Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.V) bool)(nil)).Elem(), iterMakerETUint8Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.W) bool)(nil)).Elem(), iterMakerUint8Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.W) bool)(nil)).Elem(), iterMakerETUint8Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.X) bool)(nil)).Elem(), iterMakerUint8Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.X) bool)(nil)).Elem(), iterMakerETUint8Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.Y) bool)(nil)).Elem(), iterMakerUint8Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.Y) bool)(nil)).Elem(), iterMakerETUint8Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint8, *typex.Z) bool)(nil)).Elem(), iterMakerUint8Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint8, *typex.Z) bool)(nil)).Elem(), iterMakerETUint8Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16) bool)(nil)).Elem(), iterMakerUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16) bool)(nil)).Elem(), iterMakerETUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *[]byte) bool)(nil)).Elem(), iterMakerUint16ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *[]byte) bool)(nil)).Elem(), iterMakerETUint16ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *bool) bool)(nil)).Elem(), iterMakerUint16Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *bool) bool)(nil)).Elem(), iterMakerETUint16Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *string) bool)(nil)).Elem(), iterMakerUint16String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *string) bool)(nil)).Elem(), iterMakerETUint16String)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *int) bool)(nil)).Elem(), iterMakerUint16Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int) bool)(nil)).Elem(), iterMakerETUint16Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *int8) bool)(nil)).Elem(), iterMakerUint16Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int8) bool)(nil)).Elem(), iterMakerETUint16Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *int16) bool)(nil)).Elem(), iterMakerUint16Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int16) bool)(nil)).Elem(), iterMakerETUint16Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *int32) bool)(nil)).Elem(), iterMakerUint16Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int32) bool)(nil)).Elem(), iterMakerETUint16Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *int64) bool)(nil)).Elem(), iterMakerUint16Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *int64) bool)(nil)).Elem(), iterMakerETUint16Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *uint) bool)(nil)).Elem(), iterMakerUint16Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint) bool)(nil)).Elem(), iterMakerETUint16Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *uint8) bool)(nil)).Elem(), iterMakerUint16Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint8) bool)(nil)).Elem(), iterMakerETUint16Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *uint16) bool)(nil)).Elem(), iterMakerUint16Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint16) bool)(nil)).Elem(), iterMakerETUint16Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *uint32) bool)(nil)).Elem(), iterMakerUint16Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint32) bool)(nil)).Elem(), iterMakerETUint16Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *uint64) bool)(nil)).Elem(), iterMakerUint16Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *uint64) bool)(nil)).Elem(), iterMakerETUint16Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *float32) bool)(nil)).Elem(), iterMakerUint16Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *float32) bool)(nil)).Elem(), iterMakerETUint16Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *float64) bool)(nil)).Elem(), iterMakerUint16Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *float64) bool)(nil)).Elem(), iterMakerETUint16Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.T) bool)(nil)).Elem(), iterMakerUint16Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.T) bool)(nil)).Elem(), iterMakerETUint16Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.U) bool)(nil)).Elem(), iterMakerUint16Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.U) bool)(nil)).Elem(), iterMakerETUint16Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.V) bool)(nil)).Elem(), iterMakerUint16Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.V) bool)(nil)).Elem(), iterMakerETUint16Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.W) bool)(nil)).Elem(), iterMakerUint16Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.W) bool)(nil)).Elem(), iterMakerETUint16Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.X) bool)(nil)).Elem(), iterMakerUint16Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.X) bool)(nil)).Elem(), iterMakerETUint16Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.Y) bool)(nil)).Elem(), iterMakerUint16Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.Y) bool)(nil)).Elem(), iterMakerETUint16Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint16, *typex.Z) bool)(nil)).Elem(), iterMakerUint16Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint16, *typex.Z) bool)(nil)).Elem(), iterMakerETUint16Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32) bool)(nil)).Elem(), iterMakerUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32) bool)(nil)).Elem(), iterMakerETUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *[]byte) bool)(nil)).Elem(), iterMakerUint32ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *[]byte) bool)(nil)).Elem(), iterMakerETUint32ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *bool) bool)(nil)).Elem(), iterMakerUint32Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *bool) bool)(nil)).Elem(), iterMakerETUint32Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *string) bool)(nil)).Elem(), iterMakerUint32String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *string) bool)(nil)).Elem(), iterMakerETUint32String)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *int) bool)(nil)).Elem(), iterMakerUint32Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int) bool)(nil)).Elem(), iterMakerETUint32Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *int8) bool)(nil)).Elem(), iterMakerUint32Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int8) bool)(nil)).Elem(), iterMakerETUint32Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *int16) bool)(nil)).Elem(), iterMakerUint32Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int16) bool)(nil)).Elem(), iterMakerETUint32Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *int32) bool)(nil)).Elem(), iterMakerUint32Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int32) bool)(nil)).Elem(), iterMakerETUint32Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *int64) bool)(nil)).Elem(), iterMakerUint32Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *int64) bool)(nil)).Elem(), iterMakerETUint32Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *uint) bool)(nil)).Elem(), iterMakerUint32Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint) bool)(nil)).Elem(), iterMakerETUint32Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *uint8) bool)(nil)).Elem(), iterMakerUint32Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint8) bool)(nil)).Elem(), iterMakerETUint32Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *uint16) bool)(nil)).Elem(), iterMakerUint32Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint16) bool)(nil)).Elem(), iterMakerETUint32Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *uint32) bool)(nil)).Elem(), iterMakerUint32Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint32) bool)(nil)).Elem(), iterMakerETUint32Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *uint64) bool)(nil)).Elem(), iterMakerUint32Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *uint64) bool)(nil)).Elem(), iterMakerETUint32Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *float32) bool)(nil)).Elem(), iterMakerUint32Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *float32) bool)(nil)).Elem(), iterMakerETUint32Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *float64) bool)(nil)).Elem(), iterMakerUint32Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *float64) bool)(nil)).Elem(), iterMakerETUint32Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.T) bool)(nil)).Elem(), iterMakerUint32Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.T) bool)(nil)).Elem(), iterMakerETUint32Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.U) bool)(nil)).Elem(), iterMakerUint32Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.U) bool)(nil)).Elem(), iterMakerETUint32Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.V) bool)(nil)).Elem(), iterMakerUint32Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.V) bool)(nil)).Elem(), iterMakerETUint32Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.W) bool)(nil)).Elem(), iterMakerUint32Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.W) bool)(nil)).Elem(), iterMakerETUint32Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.X) bool)(nil)).Elem(), iterMakerUint32Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.X) bool)(nil)).Elem(), iterMakerETUint32Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.Y) bool)(nil)).Elem(), iterMakerUint32Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.Y) bool)(nil)).Elem(), iterMakerETUint32Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint32, *typex.Z) bool)(nil)).Elem(), iterMakerUint32Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint32, *typex.Z) bool)(nil)).Elem(), iterMakerETUint32Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64) bool)(nil)).Elem(), iterMakerUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64) bool)(nil)).Elem(), iterMakerETUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *[]byte) bool)(nil)).Elem(), iterMakerUint64ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *[]byte) bool)(nil)).Elem(), iterMakerETUint64ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *bool) bool)(nil)).Elem(), iterMakerUint64Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *bool) bool)(nil)).Elem(), iterMakerETUint64Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *string) bool)(nil)).Elem(), iterMakerUint64String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *string) bool)(nil)).Elem(), iterMakerETUint64String)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *int) bool)(nil)).Elem(), iterMakerUint64Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int) bool)(nil)).Elem(), iterMakerETUint64Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *int8) bool)(nil)).Elem(), iterMakerUint64Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int8) bool)(nil)).Elem(), iterMakerETUint64Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *int16) bool)(nil)).Elem(), iterMakerUint64Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int16) bool)(nil)).Elem(), iterMakerETUint64Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *int32) bool)(nil)).Elem(), iterMakerUint64Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int32) bool)(nil)).Elem(), iterMakerETUint64Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *int64) bool)(nil)).Elem(), iterMakerUint64Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *int64) bool)(nil)).Elem(), iterMakerETUint64Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *uint) bool)(nil)).Elem(), iterMakerUint64Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint) bool)(nil)).Elem(), iterMakerETUint64Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *uint8) bool)(nil)).Elem(), iterMakerUint64Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint8) bool)(nil)).Elem(), iterMakerETUint64Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *uint16) bool)(nil)).Elem(), iterMakerUint64Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint16) bool)(nil)).Elem(), iterMakerETUint64Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *uint32) bool)(nil)).Elem(), iterMakerUint64Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint32) bool)(nil)).Elem(), iterMakerETUint64Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *uint64) bool)(nil)).Elem(), iterMakerUint64Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *uint64) bool)(nil)).Elem(), iterMakerETUint64Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *float32) bool)(nil)).Elem(), iterMakerUint64Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *float32) bool)(nil)).Elem(), iterMakerETUint64Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *float64) bool)(nil)).Elem(), iterMakerUint64Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *float64) bool)(nil)).Elem(), iterMakerETUint64Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.T) bool)(nil)).Elem(), iterMakerUint64Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.T) bool)(nil)).Elem(), iterMakerETUint64Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.U) bool)(nil)).Elem(), iterMakerUint64Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.U) bool)(nil)).Elem(), iterMakerETUint64Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.V) bool)(nil)).Elem(), iterMakerUint64Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.V) bool)(nil)).Elem(), iterMakerETUint64Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.W) bool)(nil)).Elem(), iterMakerUint64Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.W) bool)(nil)).Elem(), iterMakerETUint64Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.X) bool)(nil)).Elem(), iterMakerUint64Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.X) bool)(nil)).Elem(), iterMakerETUint64Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.Y) bool)(nil)).Elem(), iterMakerUint64Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.Y) bool)(nil)).Elem(), iterMakerETUint64Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*uint64, *typex.Z) bool)(nil)).Elem(), iterMakerUint64Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *uint64, *typex.Z) bool)(nil)).Elem(), iterMakerETUint64Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32) bool)(nil)).Elem(), iterMakerFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32) bool)(nil)).Elem(), iterMakerETFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *[]byte) bool)(nil)).Elem(), iterMakerFloat32ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *[]byte) bool)(nil)).Elem(), iterMakerETFloat32ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *bool) bool)(nil)).Elem(), iterMakerFloat32Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *bool) bool)(nil)).Elem(), iterMakerETFloat32Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *string) bool)(nil)).Elem(), iterMakerFloat32String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *string) bool)(nil)).Elem(), iterMakerETFloat32String)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *int) bool)(nil)).Elem(), iterMakerFloat32Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int) bool)(nil)).Elem(), iterMakerETFloat32Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *int8) bool)(nil)).Elem(), iterMakerFloat32Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int8) bool)(nil)).Elem(), iterMakerETFloat32Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *int16) bool)(nil)).Elem(), iterMakerFloat32Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int16) bool)(nil)).Elem(), iterMakerETFloat32Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *int32) bool)(nil)).Elem(), iterMakerFloat32Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int32) bool)(nil)).Elem(), iterMakerETFloat32Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *int64) bool)(nil)).Elem(), iterMakerFloat32Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *int64) bool)(nil)).Elem(), iterMakerETFloat32Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *uint) bool)(nil)).Elem(), iterMakerFloat32Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint) bool)(nil)).Elem(), iterMakerETFloat32Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *uint8) bool)(nil)).Elem(), iterMakerFloat32Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint8) bool)(nil)).Elem(), iterMakerETFloat32Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *uint16) bool)(nil)).Elem(), iterMakerFloat32Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint16) bool)(nil)).Elem(), iterMakerETFloat32Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *uint32) bool)(nil)).Elem(), iterMakerFloat32Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint32) bool)(nil)).Elem(), iterMakerETFloat32Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *uint64) bool)(nil)).Elem(), iterMakerFloat32Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *uint64) bool)(nil)).Elem(), iterMakerETFloat32Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *float32) bool)(nil)).Elem(), iterMakerFloat32Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *float32) bool)(nil)).Elem(), iterMakerETFloat32Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *float64) bool)(nil)).Elem(), iterMakerFloat32Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *float64) bool)(nil)).Elem(), iterMakerETFloat32Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.T) bool)(nil)).Elem(), iterMakerFloat32Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.T) bool)(nil)).Elem(), iterMakerETFloat32Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.U) bool)(nil)).Elem(), iterMakerFloat32Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.U) bool)(nil)).Elem(), iterMakerETFloat32Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.V) bool)(nil)).Elem(), iterMakerFloat32Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.V) bool)(nil)).Elem(), iterMakerETFloat32Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.W) bool)(nil)).Elem(), iterMakerFloat32Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.W) bool)(nil)).Elem(), iterMakerETFloat32Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.X) bool)(nil)).Elem(), iterMakerFloat32Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.X) bool)(nil)).Elem(), iterMakerETFloat32Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.Y) bool)(nil)).Elem(), iterMakerFloat32Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.Y) bool)(nil)).Elem(), iterMakerETFloat32Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*float32, *typex.Z) bool)(nil)).Elem(), iterMakerFloat32Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float32, *typex.Z) bool)(nil)).Elem(), iterMakerETFloat32Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64) bool)(nil)).Elem(), iterMakerFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64) bool)(nil)).Elem(), iterMakerETFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *[]byte) bool)(nil)).Elem(), iterMakerFloat64ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *[]byte) bool)(nil)).Elem(), iterMakerETFloat64ByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *bool) bool)(nil)).Elem(), iterMakerFloat64Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *bool) bool)(nil)).Elem(), iterMakerETFloat64Bool)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *string) bool)(nil)).Elem(), iterMakerFloat64String)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *string) bool)(nil)).Elem(), iterMakerETFloat64String)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *int) bool)(nil)).Elem(), iterMakerFloat64Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int) bool)(nil)).Elem(), iterMakerETFloat64Int)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *int8) bool)(nil)).Elem(), iterMakerFloat64Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int8) bool)(nil)).Elem(), iterMakerETFloat64Int8)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *int16) bool)(nil)).Elem(), iterMakerFloat64Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int16) bool)(nil)).Elem(), iterMakerETFloat64Int16)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *int32) bool)(nil)).Elem(), iterMakerFloat64Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int32) bool)(nil)).Elem(), iterMakerETFloat64Int32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *int64) bool)(nil)).Elem(), iterMakerFloat64Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *int64) bool)(nil)).Elem(), iterMakerETFloat64Int64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *uint) bool)(nil)).Elem(), iterMakerFloat64Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint) bool)(nil)).Elem(), iterMakerETFloat64Uint)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *uint8) bool)(nil)).Elem(), iterMakerFloat64Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint8) bool)(nil)).Elem(), iterMakerETFloat64Uint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *uint16) bool)(nil)).Elem(), iterMakerFloat64Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint16) bool)(nil)).Elem(), iterMakerETFloat64Uint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *uint32) bool)(nil)).Elem(), iterMakerFloat64Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint32) bool)(nil)).Elem(), iterMakerETFloat64Uint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *uint64) bool)(nil)).Elem(), iterMakerFloat64Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *uint64) bool)(nil)).Elem(), iterMakerETFloat64Uint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *float32) bool)(nil)).Elem(), iterMakerFloat64Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *float32) bool)(nil)).Elem(), iterMakerETFloat64Float32)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *float64) bool)(nil)).Elem(), iterMakerFloat64Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *float64) bool)(nil)).Elem(), iterMakerETFloat64Float64)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.T) bool)(nil)).Elem(), iterMakerFloat64Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.T) bool)(nil)).Elem(), iterMakerETFloat64Typex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.U) bool)(nil)).Elem(), iterMakerFloat64Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.U) bool)(nil)).Elem(), iterMakerETFloat64Typex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.V) bool)(nil)).Elem(), iterMakerFloat64Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.V) bool)(nil)).Elem(), iterMakerETFloat64Typex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.W) bool)(nil)).Elem(), iterMakerFloat64Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.W) bool)(nil)).Elem(), iterMakerETFloat64Typex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.X) bool)(nil)).Elem(), iterMakerFloat64Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.X) bool)(nil)).Elem(), iterMakerETFloat64Typex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.Y) bool)(nil)).Elem(), iterMakerFloat64Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.Y) bool)(nil)).Elem(), iterMakerETFloat64Typex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*float64, *typex.Z) bool)(nil)).Elem(), iterMakerFloat64Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *float64, *typex.Z) bool)(nil)).Elem(), iterMakerETFloat64Typex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T) bool)(nil)).Elem(), iterMakerTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *[]byte) bool)(nil)).Elem(), iterMakerTypex_TByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_TByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *bool) bool)(nil)).Elem(), iterMakerTypex_TBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *bool) bool)(nil)).Elem(), iterMakerETTypex_TBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *string) bool)(nil)).Elem(), iterMakerTypex_TString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *string) bool)(nil)).Elem(), iterMakerETTypex_TString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *int) bool)(nil)).Elem(), iterMakerTypex_TInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int) bool)(nil)).Elem(), iterMakerETTypex_TInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *int8) bool)(nil)).Elem(), iterMakerTypex_TInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int8) bool)(nil)).Elem(), iterMakerETTypex_TInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *int16) bool)(nil)).Elem(), iterMakerTypex_TInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int16) bool)(nil)).Elem(), iterMakerETTypex_TInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *int32) bool)(nil)).Elem(), iterMakerTypex_TInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int32) bool)(nil)).Elem(), iterMakerETTypex_TInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *int64) bool)(nil)).Elem(), iterMakerTypex_TInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *int64) bool)(nil)).Elem(), iterMakerETTypex_TInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *uint) bool)(nil)).Elem(), iterMakerTypex_TUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint) bool)(nil)).Elem(), iterMakerETTypex_TUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *uint8) bool)(nil)).Elem(), iterMakerTypex_TUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint8) bool)(nil)).Elem(), iterMakerETTypex_TUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *uint16) bool)(nil)).Elem(), iterMakerTypex_TUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint16) bool)(nil)).Elem(), iterMakerETTypex_TUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *uint32) bool)(nil)).Elem(), iterMakerTypex_TUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint32) bool)(nil)).Elem(), iterMakerETTypex_TUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *uint64) bool)(nil)).Elem(), iterMakerTypex_TUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *uint64) bool)(nil)).Elem(), iterMakerETTypex_TUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *float32) bool)(nil)).Elem(), iterMakerTypex_TFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *float32) bool)(nil)).Elem(), iterMakerETTypex_TFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *float64) bool)(nil)).Elem(), iterMakerTypex_TFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *float64) bool)(nil)).Elem(), iterMakerETTypex_TFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.T) bool)(nil)).Elem(), iterMakerTypex_TTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_TTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.U) bool)(nil)).Elem(), iterMakerTypex_TTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_TTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.V) bool)(nil)).Elem(), iterMakerTypex_TTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_TTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.W) bool)(nil)).Elem(), iterMakerTypex_TTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_TTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.X) bool)(nil)).Elem(), iterMakerTypex_TTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_TTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_TTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_TTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.T, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_TTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.T, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_TTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U) bool)(nil)).Elem(), iterMakerTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *[]byte) bool)(nil)).Elem(), iterMakerTypex_UByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_UByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *bool) bool)(nil)).Elem(), iterMakerTypex_UBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *bool) bool)(nil)).Elem(), iterMakerETTypex_UBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *string) bool)(nil)).Elem(), iterMakerTypex_UString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *string) bool)(nil)).Elem(), iterMakerETTypex_UString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *int) bool)(nil)).Elem(), iterMakerTypex_UInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int) bool)(nil)).Elem(), iterMakerETTypex_UInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *int8) bool)(nil)).Elem(), iterMakerTypex_UInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int8) bool)(nil)).Elem(), iterMakerETTypex_UInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *int16) bool)(nil)).Elem(), iterMakerTypex_UInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int16) bool)(nil)).Elem(), iterMakerETTypex_UInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *int32) bool)(nil)).Elem(), iterMakerTypex_UInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int32) bool)(nil)).Elem(), iterMakerETTypex_UInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *int64) bool)(nil)).Elem(), iterMakerTypex_UInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *int64) bool)(nil)).Elem(), iterMakerETTypex_UInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *uint) bool)(nil)).Elem(), iterMakerTypex_UUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint) bool)(nil)).Elem(), iterMakerETTypex_UUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *uint8) bool)(nil)).Elem(), iterMakerTypex_UUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint8) bool)(nil)).Elem(), iterMakerETTypex_UUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *uint16) bool)(nil)).Elem(), iterMakerTypex_UUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint16) bool)(nil)).Elem(), iterMakerETTypex_UUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *uint32) bool)(nil)).Elem(), iterMakerTypex_UUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint32) bool)(nil)).Elem(), iterMakerETTypex_UUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *uint64) bool)(nil)).Elem(), iterMakerTypex_UUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *uint64) bool)(nil)).Elem(), iterMakerETTypex_UUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *float32) bool)(nil)).Elem(), iterMakerTypex_UFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *float32) bool)(nil)).Elem(), iterMakerETTypex_UFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *float64) bool)(nil)).Elem(), iterMakerTypex_UFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *float64) bool)(nil)).Elem(), iterMakerETTypex_UFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.T) bool)(nil)).Elem(), iterMakerTypex_UTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_UTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.U) bool)(nil)).Elem(), iterMakerTypex_UTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_UTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.V) bool)(nil)).Elem(), iterMakerTypex_UTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_UTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.W) bool)(nil)).Elem(), iterMakerTypex_UTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_UTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.X) bool)(nil)).Elem(), iterMakerTypex_UTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_UTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_UTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_UTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.U, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_UTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.U, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_UTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V) bool)(nil)).Elem(), iterMakerTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *[]byte) bool)(nil)).Elem(), iterMakerTypex_VByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_VByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *bool) bool)(nil)).Elem(), iterMakerTypex_VBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *bool) bool)(nil)).Elem(), iterMakerETTypex_VBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *string) bool)(nil)).Elem(), iterMakerTypex_VString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *string) bool)(nil)).Elem(), iterMakerETTypex_VString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *int) bool)(nil)).Elem(), iterMakerTypex_VInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int) bool)(nil)).Elem(), iterMakerETTypex_VInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *int8) bool)(nil)).Elem(), iterMakerTypex_VInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int8) bool)(nil)).Elem(), iterMakerETTypex_VInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *int16) bool)(nil)).Elem(), iterMakerTypex_VInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int16) bool)(nil)).Elem(), iterMakerETTypex_VInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *int32) bool)(nil)).Elem(), iterMakerTypex_VInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int32) bool)(nil)).Elem(), iterMakerETTypex_VInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *int64) bool)(nil)).Elem(), iterMakerTypex_VInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *int64) bool)(nil)).Elem(), iterMakerETTypex_VInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *uint) bool)(nil)).Elem(), iterMakerTypex_VUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint) bool)(nil)).Elem(), iterMakerETTypex_VUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *uint8) bool)(nil)).Elem(), iterMakerTypex_VUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint8) bool)(nil)).Elem(), iterMakerETTypex_VUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *uint16) bool)(nil)).Elem(), iterMakerTypex_VUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint16) bool)(nil)).Elem(), iterMakerETTypex_VUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *uint32) bool)(nil)).Elem(), iterMakerTypex_VUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint32) bool)(nil)).Elem(), iterMakerETTypex_VUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *uint64) bool)(nil)).Elem(), iterMakerTypex_VUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *uint64) bool)(nil)).Elem(), iterMakerETTypex_VUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *float32) bool)(nil)).Elem(), iterMakerTypex_VFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *float32) bool)(nil)).Elem(), iterMakerETTypex_VFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *float64) bool)(nil)).Elem(), iterMakerTypex_VFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *float64) bool)(nil)).Elem(), iterMakerETTypex_VFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.T) bool)(nil)).Elem(), iterMakerTypex_VTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_VTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.U) bool)(nil)).Elem(), iterMakerTypex_VTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_VTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.V) bool)(nil)).Elem(), iterMakerTypex_VTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_VTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.W) bool)(nil)).Elem(), iterMakerTypex_VTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_VTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.X) bool)(nil)).Elem(), iterMakerTypex_VTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_VTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_VTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_VTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.V, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_VTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.V, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_VTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W) bool)(nil)).Elem(), iterMakerTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *[]byte) bool)(nil)).Elem(), iterMakerTypex_WByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_WByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *bool) bool)(nil)).Elem(), iterMakerTypex_WBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *bool) bool)(nil)).Elem(), iterMakerETTypex_WBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *string) bool)(nil)).Elem(), iterMakerTypex_WString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *string) bool)(nil)).Elem(), iterMakerETTypex_WString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *int) bool)(nil)).Elem(), iterMakerTypex_WInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int) bool)(nil)).Elem(), iterMakerETTypex_WInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *int8) bool)(nil)).Elem(), iterMakerTypex_WInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int8) bool)(nil)).Elem(), iterMakerETTypex_WInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *int16) bool)(nil)).Elem(), iterMakerTypex_WInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int16) bool)(nil)).Elem(), iterMakerETTypex_WInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *int32) bool)(nil)).Elem(), iterMakerTypex_WInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int32) bool)(nil)).Elem(), iterMakerETTypex_WInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *int64) bool)(nil)).Elem(), iterMakerTypex_WInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *int64) bool)(nil)).Elem(), iterMakerETTypex_WInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *uint) bool)(nil)).Elem(), iterMakerTypex_WUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint) bool)(nil)).Elem(), iterMakerETTypex_WUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *uint8) bool)(nil)).Elem(), iterMakerTypex_WUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint8) bool)(nil)).Elem(), iterMakerETTypex_WUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *uint16) bool)(nil)).Elem(), iterMakerTypex_WUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint16) bool)(nil)).Elem(), iterMakerETTypex_WUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *uint32) bool)(nil)).Elem(), iterMakerTypex_WUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint32) bool)(nil)).Elem(), iterMakerETTypex_WUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *uint64) bool)(nil)).Elem(), iterMakerTypex_WUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *uint64) bool)(nil)).Elem(), iterMakerETTypex_WUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *float32) bool)(nil)).Elem(), iterMakerTypex_WFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *float32) bool)(nil)).Elem(), iterMakerETTypex_WFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *float64) bool)(nil)).Elem(), iterMakerTypex_WFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *float64) bool)(nil)).Elem(), iterMakerETTypex_WFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.T) bool)(nil)).Elem(), iterMakerTypex_WTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_WTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.U) bool)(nil)).Elem(), iterMakerTypex_WTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_WTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.V) bool)(nil)).Elem(), iterMakerTypex_WTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_WTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.W) bool)(nil)).Elem(), iterMakerTypex_WTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_WTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.X) bool)(nil)).Elem(), iterMakerTypex_WTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_WTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_WTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_WTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.W, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_WTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.W, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_WTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X) bool)(nil)).Elem(), iterMakerTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *[]byte) bool)(nil)).Elem(), iterMakerTypex_XByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_XByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *bool) bool)(nil)).Elem(), iterMakerTypex_XBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *bool) bool)(nil)).Elem(), iterMakerETTypex_XBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *string) bool)(nil)).Elem(), iterMakerTypex_XString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *string) bool)(nil)).Elem(), iterMakerETTypex_XString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *int) bool)(nil)).Elem(), iterMakerTypex_XInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int) bool)(nil)).Elem(), iterMakerETTypex_XInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *int8) bool)(nil)).Elem(), iterMakerTypex_XInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int8) bool)(nil)).Elem(), iterMakerETTypex_XInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *int16) bool)(nil)).Elem(), iterMakerTypex_XInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int16) bool)(nil)).Elem(), iterMakerETTypex_XInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *int32) bool)(nil)).Elem(), iterMakerTypex_XInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int32) bool)(nil)).Elem(), iterMakerETTypex_XInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *int64) bool)(nil)).Elem(), iterMakerTypex_XInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *int64) bool)(nil)).Elem(), iterMakerETTypex_XInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *uint) bool)(nil)).Elem(), iterMakerTypex_XUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint) bool)(nil)).Elem(), iterMakerETTypex_XUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *uint8) bool)(nil)).Elem(), iterMakerTypex_XUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint8) bool)(nil)).Elem(), iterMakerETTypex_XUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *uint16) bool)(nil)).Elem(), iterMakerTypex_XUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint16) bool)(nil)).Elem(), iterMakerETTypex_XUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *uint32) bool)(nil)).Elem(), iterMakerTypex_XUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint32) bool)(nil)).Elem(), iterMakerETTypex_XUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *uint64) bool)(nil)).Elem(), iterMakerTypex_XUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *uint64) bool)(nil)).Elem(), iterMakerETTypex_XUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *float32) bool)(nil)).Elem(), iterMakerTypex_XFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *float32) bool)(nil)).Elem(), iterMakerETTypex_XFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *float64) bool)(nil)).Elem(), iterMakerTypex_XFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *float64) bool)(nil)).Elem(), iterMakerETTypex_XFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.T) bool)(nil)).Elem(), iterMakerTypex_XTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_XTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.U) bool)(nil)).Elem(), iterMakerTypex_XTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_XTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.V) bool)(nil)).Elem(), iterMakerTypex_XTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_XTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.W) bool)(nil)).Elem(), iterMakerTypex_XTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_XTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.X) bool)(nil)).Elem(), iterMakerTypex_XTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_XTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_XTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_XTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.X, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_XTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.X, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_XTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y) bool)(nil)).Elem(), iterMakerTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *[]byte) bool)(nil)).Elem(), iterMakerTypex_YByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_YByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *bool) bool)(nil)).Elem(), iterMakerTypex_YBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *bool) bool)(nil)).Elem(), iterMakerETTypex_YBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *string) bool)(nil)).Elem(), iterMakerTypex_YString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *string) bool)(nil)).Elem(), iterMakerETTypex_YString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *int) bool)(nil)).Elem(), iterMakerTypex_YInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int) bool)(nil)).Elem(), iterMakerETTypex_YInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *int8) bool)(nil)).Elem(), iterMakerTypex_YInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int8) bool)(nil)).Elem(), iterMakerETTypex_YInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *int16) bool)(nil)).Elem(), iterMakerTypex_YInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int16) bool)(nil)).Elem(), iterMakerETTypex_YInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *int32) bool)(nil)).Elem(), iterMakerTypex_YInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int32) bool)(nil)).Elem(), iterMakerETTypex_YInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *int64) bool)(nil)).Elem(), iterMakerTypex_YInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *int64) bool)(nil)).Elem(), iterMakerETTypex_YInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint) bool)(nil)).Elem(), iterMakerTypex_YUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint) bool)(nil)).Elem(), iterMakerETTypex_YUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint8) bool)(nil)).Elem(), iterMakerTypex_YUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint8) bool)(nil)).Elem(), iterMakerETTypex_YUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint16) bool)(nil)).Elem(), iterMakerTypex_YUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint16) bool)(nil)).Elem(), iterMakerETTypex_YUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint32) bool)(nil)).Elem(), iterMakerTypex_YUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint32) bool)(nil)).Elem(), iterMakerETTypex_YUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *uint64) bool)(nil)).Elem(), iterMakerTypex_YUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *uint64) bool)(nil)).Elem(), iterMakerETTypex_YUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *float32) bool)(nil)).Elem(), iterMakerTypex_YFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *float32) bool)(nil)).Elem(), iterMakerETTypex_YFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *float64) bool)(nil)).Elem(), iterMakerTypex_YFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *float64) bool)(nil)).Elem(), iterMakerETTypex_YFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.T) bool)(nil)).Elem(), iterMakerTypex_YTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_YTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.U) bool)(nil)).Elem(), iterMakerTypex_YTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_YTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.V) bool)(nil)).Elem(), iterMakerTypex_YTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_YTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.W) bool)(nil)).Elem(), iterMakerTypex_YTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_YTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.X) bool)(nil)).Elem(), iterMakerTypex_YTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_YTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_YTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_YTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Y, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_YTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Y, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_YTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z) bool)(nil)).Elem(), iterMakerTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *[]byte) bool)(nil)).Elem(), iterMakerTypex_ZByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *[]byte) bool)(nil)).Elem(), iterMakerETTypex_ZByteSlice)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *bool) bool)(nil)).Elem(), iterMakerTypex_ZBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *bool) bool)(nil)).Elem(), iterMakerETTypex_ZBool)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *string) bool)(nil)).Elem(), iterMakerTypex_ZString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *string) bool)(nil)).Elem(), iterMakerETTypex_ZString)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *int) bool)(nil)).Elem(), iterMakerTypex_ZInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int) bool)(nil)).Elem(), iterMakerETTypex_ZInt)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *int8) bool)(nil)).Elem(), iterMakerTypex_ZInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int8) bool)(nil)).Elem(), iterMakerETTypex_ZInt8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *int16) bool)(nil)).Elem(), iterMakerTypex_ZInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int16) bool)(nil)).Elem(), iterMakerETTypex_ZInt16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *int32) bool)(nil)).Elem(), iterMakerTypex_ZInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int32) bool)(nil)).Elem(), iterMakerETTypex_ZInt32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *int64) bool)(nil)).Elem(), iterMakerTypex_ZInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *int64) bool)(nil)).Elem(), iterMakerETTypex_ZInt64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint) bool)(nil)).Elem(), iterMakerTypex_ZUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint) bool)(nil)).Elem(), iterMakerETTypex_ZUint)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint8) bool)(nil)).Elem(), iterMakerTypex_ZUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint8) bool)(nil)).Elem(), iterMakerETTypex_ZUint8)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint16) bool)(nil)).Elem(), iterMakerTypex_ZUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint16) bool)(nil)).Elem(), iterMakerETTypex_ZUint16)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint32) bool)(nil)).Elem(), iterMakerTypex_ZUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint32) bool)(nil)).Elem(), iterMakerETTypex_ZUint32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *uint64) bool)(nil)).Elem(), iterMakerTypex_ZUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *uint64) bool)(nil)).Elem(), iterMakerETTypex_ZUint64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *float32) bool)(nil)).Elem(), iterMakerTypex_ZFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *float32) bool)(nil)).Elem(), iterMakerETTypex_ZFloat32)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *float64) bool)(nil)).Elem(), iterMakerTypex_ZFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *float64) bool)(nil)).Elem(), iterMakerETTypex_ZFloat64)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.T) bool)(nil)).Elem(), iterMakerTypex_ZTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.T) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_T)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.U) bool)(nil)).Elem(), iterMakerTypex_ZTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.U) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_U)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.V) bool)(nil)).Elem(), iterMakerTypex_ZTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.V) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_V)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.W) bool)(nil)).Elem(), iterMakerTypex_ZTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.W) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_W)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.X) bool)(nil)).Elem(), iterMakerTypex_ZTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.X) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_X)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.Y) bool)(nil)).Elem(), iterMakerTypex_ZTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.Y) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_Y)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.Z, *typex.Z) bool)(nil)).Elem(), iterMakerTypex_ZTypex_Z)
+	exec.RegisterInput(reflect.TypeOf((*func(*typex.EventTime, *typex.Z, *typex.Z) bool)(nil)).Elem(), iterMakerETTypex_ZTypex_Z)
 }
 
 type iterNative struct {
-	s  ReStream
+	s  exec.ReStream
 	fn reflect.Value
 
 	// cur is the "current" stream, if any.
-	cur Stream
+	cur exec.Stream
 }
 
 func (v *iterNative) Init() error {
@@ -1078,7 +1079,7 @@ func (v *iterNative) readByteSlice(val *[]byte) bool {
 	return true
 }
 
-func iterMakerByteSlice(s ReStream) ReusableInput {
+func iterMakerByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSlice)
 	return ret
@@ -1098,7 +1099,7 @@ func (v *iterNative) readETByteSlice(et *typex.EventTime, val *[]byte) bool {
 	return true
 }
 
-func iterMakerETByteSlice(s ReStream) ReusableInput {
+func iterMakerETByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSlice)
 	return ret
@@ -1118,7 +1119,7 @@ func (v *iterNative) readByteSliceByteSlice(key *[]byte, value *[]byte) bool {
 	return true
 }
 
-func iterMakerByteSliceByteSlice(s ReStream) ReusableInput {
+func iterMakerByteSliceByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceByteSlice)
 	return ret
@@ -1139,7 +1140,7 @@ func (v *iterNative) readETByteSliceByteSlice(et *typex.EventTime, key *[]byte, 
 	return true
 }
 
-func iterMakerETByteSliceByteSlice(s ReStream) ReusableInput {
+func iterMakerETByteSliceByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceByteSlice)
 	return ret
@@ -1159,7 +1160,7 @@ func (v *iterNative) readByteSliceBool(key *[]byte, value *bool) bool {
 	return true
 }
 
-func iterMakerByteSliceBool(s ReStream) ReusableInput {
+func iterMakerByteSliceBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceBool)
 	return ret
@@ -1180,7 +1181,7 @@ func (v *iterNative) readETByteSliceBool(et *typex.EventTime, key *[]byte, value
 	return true
 }
 
-func iterMakerETByteSliceBool(s ReStream) ReusableInput {
+func iterMakerETByteSliceBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceBool)
 	return ret
@@ -1200,7 +1201,7 @@ func (v *iterNative) readByteSliceString(key *[]byte, value *string) bool {
 	return true
 }
 
-func iterMakerByteSliceString(s ReStream) ReusableInput {
+func iterMakerByteSliceString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceString)
 	return ret
@@ -1221,7 +1222,7 @@ func (v *iterNative) readETByteSliceString(et *typex.EventTime, key *[]byte, val
 	return true
 }
 
-func iterMakerETByteSliceString(s ReStream) ReusableInput {
+func iterMakerETByteSliceString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceString)
 	return ret
@@ -1241,7 +1242,7 @@ func (v *iterNative) readByteSliceInt(key *[]byte, value *int) bool {
 	return true
 }
 
-func iterMakerByteSliceInt(s ReStream) ReusableInput {
+func iterMakerByteSliceInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceInt)
 	return ret
@@ -1262,7 +1263,7 @@ func (v *iterNative) readETByteSliceInt(et *typex.EventTime, key *[]byte, value 
 	return true
 }
 
-func iterMakerETByteSliceInt(s ReStream) ReusableInput {
+func iterMakerETByteSliceInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceInt)
 	return ret
@@ -1282,7 +1283,7 @@ func (v *iterNative) readByteSliceInt8(key *[]byte, value *int8) bool {
 	return true
 }
 
-func iterMakerByteSliceInt8(s ReStream) ReusableInput {
+func iterMakerByteSliceInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceInt8)
 	return ret
@@ -1303,7 +1304,7 @@ func (v *iterNative) readETByteSliceInt8(et *typex.EventTime, key *[]byte, value
 	return true
 }
 
-func iterMakerETByteSliceInt8(s ReStream) ReusableInput {
+func iterMakerETByteSliceInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceInt8)
 	return ret
@@ -1323,7 +1324,7 @@ func (v *iterNative) readByteSliceInt16(key *[]byte, value *int16) bool {
 	return true
 }
 
-func iterMakerByteSliceInt16(s ReStream) ReusableInput {
+func iterMakerByteSliceInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceInt16)
 	return ret
@@ -1344,7 +1345,7 @@ func (v *iterNative) readETByteSliceInt16(et *typex.EventTime, key *[]byte, valu
 	return true
 }
 
-func iterMakerETByteSliceInt16(s ReStream) ReusableInput {
+func iterMakerETByteSliceInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceInt16)
 	return ret
@@ -1364,7 +1365,7 @@ func (v *iterNative) readByteSliceInt32(key *[]byte, value *int32) bool {
 	return true
 }
 
-func iterMakerByteSliceInt32(s ReStream) ReusableInput {
+func iterMakerByteSliceInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceInt32)
 	return ret
@@ -1385,7 +1386,7 @@ func (v *iterNative) readETByteSliceInt32(et *typex.EventTime, key *[]byte, valu
 	return true
 }
 
-func iterMakerETByteSliceInt32(s ReStream) ReusableInput {
+func iterMakerETByteSliceInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceInt32)
 	return ret
@@ -1405,7 +1406,7 @@ func (v *iterNative) readByteSliceInt64(key *[]byte, value *int64) bool {
 	return true
 }
 
-func iterMakerByteSliceInt64(s ReStream) ReusableInput {
+func iterMakerByteSliceInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceInt64)
 	return ret
@@ -1426,7 +1427,7 @@ func (v *iterNative) readETByteSliceInt64(et *typex.EventTime, key *[]byte, valu
 	return true
 }
 
-func iterMakerETByteSliceInt64(s ReStream) ReusableInput {
+func iterMakerETByteSliceInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceInt64)
 	return ret
@@ -1446,7 +1447,7 @@ func (v *iterNative) readByteSliceUint(key *[]byte, value *uint) bool {
 	return true
 }
 
-func iterMakerByteSliceUint(s ReStream) ReusableInput {
+func iterMakerByteSliceUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceUint)
 	return ret
@@ -1467,7 +1468,7 @@ func (v *iterNative) readETByteSliceUint(et *typex.EventTime, key *[]byte, value
 	return true
 }
 
-func iterMakerETByteSliceUint(s ReStream) ReusableInput {
+func iterMakerETByteSliceUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceUint)
 	return ret
@@ -1487,7 +1488,7 @@ func (v *iterNative) readByteSliceUint8(key *[]byte, value *uint8) bool {
 	return true
 }
 
-func iterMakerByteSliceUint8(s ReStream) ReusableInput {
+func iterMakerByteSliceUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceUint8)
 	return ret
@@ -1508,7 +1509,7 @@ func (v *iterNative) readETByteSliceUint8(et *typex.EventTime, key *[]byte, valu
 	return true
 }
 
-func iterMakerETByteSliceUint8(s ReStream) ReusableInput {
+func iterMakerETByteSliceUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceUint8)
 	return ret
@@ -1528,7 +1529,7 @@ func (v *iterNative) readByteSliceUint16(key *[]byte, value *uint16) bool {
 	return true
 }
 
-func iterMakerByteSliceUint16(s ReStream) ReusableInput {
+func iterMakerByteSliceUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceUint16)
 	return ret
@@ -1549,7 +1550,7 @@ func (v *iterNative) readETByteSliceUint16(et *typex.EventTime, key *[]byte, val
 	return true
 }
 
-func iterMakerETByteSliceUint16(s ReStream) ReusableInput {
+func iterMakerETByteSliceUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceUint16)
 	return ret
@@ -1569,7 +1570,7 @@ func (v *iterNative) readByteSliceUint32(key *[]byte, value *uint32) bool {
 	return true
 }
 
-func iterMakerByteSliceUint32(s ReStream) ReusableInput {
+func iterMakerByteSliceUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceUint32)
 	return ret
@@ -1590,7 +1591,7 @@ func (v *iterNative) readETByteSliceUint32(et *typex.EventTime, key *[]byte, val
 	return true
 }
 
-func iterMakerETByteSliceUint32(s ReStream) ReusableInput {
+func iterMakerETByteSliceUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceUint32)
 	return ret
@@ -1610,7 +1611,7 @@ func (v *iterNative) readByteSliceUint64(key *[]byte, value *uint64) bool {
 	return true
 }
 
-func iterMakerByteSliceUint64(s ReStream) ReusableInput {
+func iterMakerByteSliceUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceUint64)
 	return ret
@@ -1631,7 +1632,7 @@ func (v *iterNative) readETByteSliceUint64(et *typex.EventTime, key *[]byte, val
 	return true
 }
 
-func iterMakerETByteSliceUint64(s ReStream) ReusableInput {
+func iterMakerETByteSliceUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceUint64)
 	return ret
@@ -1651,7 +1652,7 @@ func (v *iterNative) readByteSliceFloat32(key *[]byte, value *float32) bool {
 	return true
 }
 
-func iterMakerByteSliceFloat32(s ReStream) ReusableInput {
+func iterMakerByteSliceFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceFloat32)
 	return ret
@@ -1672,7 +1673,7 @@ func (v *iterNative) readETByteSliceFloat32(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceFloat32(s ReStream) ReusableInput {
+func iterMakerETByteSliceFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceFloat32)
 	return ret
@@ -1692,7 +1693,7 @@ func (v *iterNative) readByteSliceFloat64(key *[]byte, value *float64) bool {
 	return true
 }
 
-func iterMakerByteSliceFloat64(s ReStream) ReusableInput {
+func iterMakerByteSliceFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceFloat64)
 	return ret
@@ -1713,7 +1714,7 @@ func (v *iterNative) readETByteSliceFloat64(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceFloat64(s ReStream) ReusableInput {
+func iterMakerETByteSliceFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceFloat64)
 	return ret
@@ -1733,7 +1734,7 @@ func (v *iterNative) readByteSliceTypex_T(key *[]byte, value *typex.T) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_T(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_T)
 	return ret
@@ -1754,7 +1755,7 @@ func (v *iterNative) readETByteSliceTypex_T(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_T(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_T)
 	return ret
@@ -1774,7 +1775,7 @@ func (v *iterNative) readByteSliceTypex_U(key *[]byte, value *typex.U) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_U(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_U)
 	return ret
@@ -1795,7 +1796,7 @@ func (v *iterNative) readETByteSliceTypex_U(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_U(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_U)
 	return ret
@@ -1815,7 +1816,7 @@ func (v *iterNative) readByteSliceTypex_V(key *[]byte, value *typex.V) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_V(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_V)
 	return ret
@@ -1836,7 +1837,7 @@ func (v *iterNative) readETByteSliceTypex_V(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_V(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_V)
 	return ret
@@ -1856,7 +1857,7 @@ func (v *iterNative) readByteSliceTypex_W(key *[]byte, value *typex.W) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_W(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_W)
 	return ret
@@ -1877,7 +1878,7 @@ func (v *iterNative) readETByteSliceTypex_W(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_W(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_W)
 	return ret
@@ -1897,7 +1898,7 @@ func (v *iterNative) readByteSliceTypex_X(key *[]byte, value *typex.X) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_X(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_X)
 	return ret
@@ -1918,7 +1919,7 @@ func (v *iterNative) readETByteSliceTypex_X(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_X(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_X)
 	return ret
@@ -1938,7 +1939,7 @@ func (v *iterNative) readByteSliceTypex_Y(key *[]byte, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_Y(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_Y)
 	return ret
@@ -1959,7 +1960,7 @@ func (v *iterNative) readETByteSliceTypex_Y(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_Y(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_Y)
 	return ret
@@ -1979,7 +1980,7 @@ func (v *iterNative) readByteSliceTypex_Z(key *[]byte, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerByteSliceTypex_Z(s ReStream) ReusableInput {
+func iterMakerByteSliceTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readByteSliceTypex_Z)
 	return ret
@@ -2000,7 +2001,7 @@ func (v *iterNative) readETByteSliceTypex_Z(et *typex.EventTime, key *[]byte, va
 	return true
 }
 
-func iterMakerETByteSliceTypex_Z(s ReStream) ReusableInput {
+func iterMakerETByteSliceTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETByteSliceTypex_Z)
 	return ret
@@ -2019,7 +2020,7 @@ func (v *iterNative) readBool(val *bool) bool {
 	return true
 }
 
-func iterMakerBool(s ReStream) ReusableInput {
+func iterMakerBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBool)
 	return ret
@@ -2039,7 +2040,7 @@ func (v *iterNative) readETBool(et *typex.EventTime, val *bool) bool {
 	return true
 }
 
-func iterMakerETBool(s ReStream) ReusableInput {
+func iterMakerETBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBool)
 	return ret
@@ -2059,7 +2060,7 @@ func (v *iterNative) readBoolByteSlice(key *bool, value *[]byte) bool {
 	return true
 }
 
-func iterMakerBoolByteSlice(s ReStream) ReusableInput {
+func iterMakerBoolByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolByteSlice)
 	return ret
@@ -2080,7 +2081,7 @@ func (v *iterNative) readETBoolByteSlice(et *typex.EventTime, key *bool, value *
 	return true
 }
 
-func iterMakerETBoolByteSlice(s ReStream) ReusableInput {
+func iterMakerETBoolByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolByteSlice)
 	return ret
@@ -2100,7 +2101,7 @@ func (v *iterNative) readBoolBool(key *bool, value *bool) bool {
 	return true
 }
 
-func iterMakerBoolBool(s ReStream) ReusableInput {
+func iterMakerBoolBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolBool)
 	return ret
@@ -2121,7 +2122,7 @@ func (v *iterNative) readETBoolBool(et *typex.EventTime, key *bool, value *bool)
 	return true
 }
 
-func iterMakerETBoolBool(s ReStream) ReusableInput {
+func iterMakerETBoolBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolBool)
 	return ret
@@ -2141,7 +2142,7 @@ func (v *iterNative) readBoolString(key *bool, value *string) bool {
 	return true
 }
 
-func iterMakerBoolString(s ReStream) ReusableInput {
+func iterMakerBoolString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolString)
 	return ret
@@ -2162,7 +2163,7 @@ func (v *iterNative) readETBoolString(et *typex.EventTime, key *bool, value *str
 	return true
 }
 
-func iterMakerETBoolString(s ReStream) ReusableInput {
+func iterMakerETBoolString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolString)
 	return ret
@@ -2182,7 +2183,7 @@ func (v *iterNative) readBoolInt(key *bool, value *int) bool {
 	return true
 }
 
-func iterMakerBoolInt(s ReStream) ReusableInput {
+func iterMakerBoolInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolInt)
 	return ret
@@ -2203,7 +2204,7 @@ func (v *iterNative) readETBoolInt(et *typex.EventTime, key *bool, value *int) b
 	return true
 }
 
-func iterMakerETBoolInt(s ReStream) ReusableInput {
+func iterMakerETBoolInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolInt)
 	return ret
@@ -2223,7 +2224,7 @@ func (v *iterNative) readBoolInt8(key *bool, value *int8) bool {
 	return true
 }
 
-func iterMakerBoolInt8(s ReStream) ReusableInput {
+func iterMakerBoolInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolInt8)
 	return ret
@@ -2244,7 +2245,7 @@ func (v *iterNative) readETBoolInt8(et *typex.EventTime, key *bool, value *int8)
 	return true
 }
 
-func iterMakerETBoolInt8(s ReStream) ReusableInput {
+func iterMakerETBoolInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolInt8)
 	return ret
@@ -2264,7 +2265,7 @@ func (v *iterNative) readBoolInt16(key *bool, value *int16) bool {
 	return true
 }
 
-func iterMakerBoolInt16(s ReStream) ReusableInput {
+func iterMakerBoolInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolInt16)
 	return ret
@@ -2285,7 +2286,7 @@ func (v *iterNative) readETBoolInt16(et *typex.EventTime, key *bool, value *int1
 	return true
 }
 
-func iterMakerETBoolInt16(s ReStream) ReusableInput {
+func iterMakerETBoolInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolInt16)
 	return ret
@@ -2305,7 +2306,7 @@ func (v *iterNative) readBoolInt32(key *bool, value *int32) bool {
 	return true
 }
 
-func iterMakerBoolInt32(s ReStream) ReusableInput {
+func iterMakerBoolInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolInt32)
 	return ret
@@ -2326,7 +2327,7 @@ func (v *iterNative) readETBoolInt32(et *typex.EventTime, key *bool, value *int3
 	return true
 }
 
-func iterMakerETBoolInt32(s ReStream) ReusableInput {
+func iterMakerETBoolInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolInt32)
 	return ret
@@ -2346,7 +2347,7 @@ func (v *iterNative) readBoolInt64(key *bool, value *int64) bool {
 	return true
 }
 
-func iterMakerBoolInt64(s ReStream) ReusableInput {
+func iterMakerBoolInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolInt64)
 	return ret
@@ -2367,7 +2368,7 @@ func (v *iterNative) readETBoolInt64(et *typex.EventTime, key *bool, value *int6
 	return true
 }
 
-func iterMakerETBoolInt64(s ReStream) ReusableInput {
+func iterMakerETBoolInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolInt64)
 	return ret
@@ -2387,7 +2388,7 @@ func (v *iterNative) readBoolUint(key *bool, value *uint) bool {
 	return true
 }
 
-func iterMakerBoolUint(s ReStream) ReusableInput {
+func iterMakerBoolUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolUint)
 	return ret
@@ -2408,7 +2409,7 @@ func (v *iterNative) readETBoolUint(et *typex.EventTime, key *bool, value *uint)
 	return true
 }
 
-func iterMakerETBoolUint(s ReStream) ReusableInput {
+func iterMakerETBoolUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolUint)
 	return ret
@@ -2428,7 +2429,7 @@ func (v *iterNative) readBoolUint8(key *bool, value *uint8) bool {
 	return true
 }
 
-func iterMakerBoolUint8(s ReStream) ReusableInput {
+func iterMakerBoolUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolUint8)
 	return ret
@@ -2449,7 +2450,7 @@ func (v *iterNative) readETBoolUint8(et *typex.EventTime, key *bool, value *uint
 	return true
 }
 
-func iterMakerETBoolUint8(s ReStream) ReusableInput {
+func iterMakerETBoolUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolUint8)
 	return ret
@@ -2469,7 +2470,7 @@ func (v *iterNative) readBoolUint16(key *bool, value *uint16) bool {
 	return true
 }
 
-func iterMakerBoolUint16(s ReStream) ReusableInput {
+func iterMakerBoolUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolUint16)
 	return ret
@@ -2490,7 +2491,7 @@ func (v *iterNative) readETBoolUint16(et *typex.EventTime, key *bool, value *uin
 	return true
 }
 
-func iterMakerETBoolUint16(s ReStream) ReusableInput {
+func iterMakerETBoolUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolUint16)
 	return ret
@@ -2510,7 +2511,7 @@ func (v *iterNative) readBoolUint32(key *bool, value *uint32) bool {
 	return true
 }
 
-func iterMakerBoolUint32(s ReStream) ReusableInput {
+func iterMakerBoolUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolUint32)
 	return ret
@@ -2531,7 +2532,7 @@ func (v *iterNative) readETBoolUint32(et *typex.EventTime, key *bool, value *uin
 	return true
 }
 
-func iterMakerETBoolUint32(s ReStream) ReusableInput {
+func iterMakerETBoolUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolUint32)
 	return ret
@@ -2551,7 +2552,7 @@ func (v *iterNative) readBoolUint64(key *bool, value *uint64) bool {
 	return true
 }
 
-func iterMakerBoolUint64(s ReStream) ReusableInput {
+func iterMakerBoolUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolUint64)
 	return ret
@@ -2572,7 +2573,7 @@ func (v *iterNative) readETBoolUint64(et *typex.EventTime, key *bool, value *uin
 	return true
 }
 
-func iterMakerETBoolUint64(s ReStream) ReusableInput {
+func iterMakerETBoolUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolUint64)
 	return ret
@@ -2592,7 +2593,7 @@ func (v *iterNative) readBoolFloat32(key *bool, value *float32) bool {
 	return true
 }
 
-func iterMakerBoolFloat32(s ReStream) ReusableInput {
+func iterMakerBoolFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolFloat32)
 	return ret
@@ -2613,7 +2614,7 @@ func (v *iterNative) readETBoolFloat32(et *typex.EventTime, key *bool, value *fl
 	return true
 }
 
-func iterMakerETBoolFloat32(s ReStream) ReusableInput {
+func iterMakerETBoolFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolFloat32)
 	return ret
@@ -2633,7 +2634,7 @@ func (v *iterNative) readBoolFloat64(key *bool, value *float64) bool {
 	return true
 }
 
-func iterMakerBoolFloat64(s ReStream) ReusableInput {
+func iterMakerBoolFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolFloat64)
 	return ret
@@ -2654,7 +2655,7 @@ func (v *iterNative) readETBoolFloat64(et *typex.EventTime, key *bool, value *fl
 	return true
 }
 
-func iterMakerETBoolFloat64(s ReStream) ReusableInput {
+func iterMakerETBoolFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolFloat64)
 	return ret
@@ -2674,7 +2675,7 @@ func (v *iterNative) readBoolTypex_T(key *bool, value *typex.T) bool {
 	return true
 }
 
-func iterMakerBoolTypex_T(s ReStream) ReusableInput {
+func iterMakerBoolTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_T)
 	return ret
@@ -2695,7 +2696,7 @@ func (v *iterNative) readETBoolTypex_T(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_T(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_T)
 	return ret
@@ -2715,7 +2716,7 @@ func (v *iterNative) readBoolTypex_U(key *bool, value *typex.U) bool {
 	return true
 }
 
-func iterMakerBoolTypex_U(s ReStream) ReusableInput {
+func iterMakerBoolTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_U)
 	return ret
@@ -2736,7 +2737,7 @@ func (v *iterNative) readETBoolTypex_U(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_U(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_U)
 	return ret
@@ -2756,7 +2757,7 @@ func (v *iterNative) readBoolTypex_V(key *bool, value *typex.V) bool {
 	return true
 }
 
-func iterMakerBoolTypex_V(s ReStream) ReusableInput {
+func iterMakerBoolTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_V)
 	return ret
@@ -2777,7 +2778,7 @@ func (v *iterNative) readETBoolTypex_V(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_V(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_V)
 	return ret
@@ -2797,7 +2798,7 @@ func (v *iterNative) readBoolTypex_W(key *bool, value *typex.W) bool {
 	return true
 }
 
-func iterMakerBoolTypex_W(s ReStream) ReusableInput {
+func iterMakerBoolTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_W)
 	return ret
@@ -2818,7 +2819,7 @@ func (v *iterNative) readETBoolTypex_W(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_W(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_W)
 	return ret
@@ -2838,7 +2839,7 @@ func (v *iterNative) readBoolTypex_X(key *bool, value *typex.X) bool {
 	return true
 }
 
-func iterMakerBoolTypex_X(s ReStream) ReusableInput {
+func iterMakerBoolTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_X)
 	return ret
@@ -2859,7 +2860,7 @@ func (v *iterNative) readETBoolTypex_X(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_X(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_X)
 	return ret
@@ -2879,7 +2880,7 @@ func (v *iterNative) readBoolTypex_Y(key *bool, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerBoolTypex_Y(s ReStream) ReusableInput {
+func iterMakerBoolTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_Y)
 	return ret
@@ -2900,7 +2901,7 @@ func (v *iterNative) readETBoolTypex_Y(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_Y(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_Y)
 	return ret
@@ -2920,7 +2921,7 @@ func (v *iterNative) readBoolTypex_Z(key *bool, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerBoolTypex_Z(s ReStream) ReusableInput {
+func iterMakerBoolTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readBoolTypex_Z)
 	return ret
@@ -2941,7 +2942,7 @@ func (v *iterNative) readETBoolTypex_Z(et *typex.EventTime, key *bool, value *ty
 	return true
 }
 
-func iterMakerETBoolTypex_Z(s ReStream) ReusableInput {
+func iterMakerETBoolTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETBoolTypex_Z)
 	return ret
@@ -2960,7 +2961,7 @@ func (v *iterNative) readString(val *string) bool {
 	return true
 }
 
-func iterMakerString(s ReStream) ReusableInput {
+func iterMakerString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readString)
 	return ret
@@ -2980,7 +2981,7 @@ func (v *iterNative) readETString(et *typex.EventTime, val *string) bool {
 	return true
 }
 
-func iterMakerETString(s ReStream) ReusableInput {
+func iterMakerETString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETString)
 	return ret
@@ -3000,7 +3001,7 @@ func (v *iterNative) readStringByteSlice(key *string, value *[]byte) bool {
 	return true
 }
 
-func iterMakerStringByteSlice(s ReStream) ReusableInput {
+func iterMakerStringByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringByteSlice)
 	return ret
@@ -3021,7 +3022,7 @@ func (v *iterNative) readETStringByteSlice(et *typex.EventTime, key *string, val
 	return true
 }
 
-func iterMakerETStringByteSlice(s ReStream) ReusableInput {
+func iterMakerETStringByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringByteSlice)
 	return ret
@@ -3041,7 +3042,7 @@ func (v *iterNative) readStringBool(key *string, value *bool) bool {
 	return true
 }
 
-func iterMakerStringBool(s ReStream) ReusableInput {
+func iterMakerStringBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringBool)
 	return ret
@@ -3062,7 +3063,7 @@ func (v *iterNative) readETStringBool(et *typex.EventTime, key *string, value *b
 	return true
 }
 
-func iterMakerETStringBool(s ReStream) ReusableInput {
+func iterMakerETStringBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringBool)
 	return ret
@@ -3082,7 +3083,7 @@ func (v *iterNative) readStringString(key *string, value *string) bool {
 	return true
 }
 
-func iterMakerStringString(s ReStream) ReusableInput {
+func iterMakerStringString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringString)
 	return ret
@@ -3103,7 +3104,7 @@ func (v *iterNative) readETStringString(et *typex.EventTime, key *string, value 
 	return true
 }
 
-func iterMakerETStringString(s ReStream) ReusableInput {
+func iterMakerETStringString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringString)
 	return ret
@@ -3123,7 +3124,7 @@ func (v *iterNative) readStringInt(key *string, value *int) bool {
 	return true
 }
 
-func iterMakerStringInt(s ReStream) ReusableInput {
+func iterMakerStringInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringInt)
 	return ret
@@ -3144,7 +3145,7 @@ func (v *iterNative) readETStringInt(et *typex.EventTime, key *string, value *in
 	return true
 }
 
-func iterMakerETStringInt(s ReStream) ReusableInput {
+func iterMakerETStringInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringInt)
 	return ret
@@ -3164,7 +3165,7 @@ func (v *iterNative) readStringInt8(key *string, value *int8) bool {
 	return true
 }
 
-func iterMakerStringInt8(s ReStream) ReusableInput {
+func iterMakerStringInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringInt8)
 	return ret
@@ -3185,7 +3186,7 @@ func (v *iterNative) readETStringInt8(et *typex.EventTime, key *string, value *i
 	return true
 }
 
-func iterMakerETStringInt8(s ReStream) ReusableInput {
+func iterMakerETStringInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringInt8)
 	return ret
@@ -3205,7 +3206,7 @@ func (v *iterNative) readStringInt16(key *string, value *int16) bool {
 	return true
 }
 
-func iterMakerStringInt16(s ReStream) ReusableInput {
+func iterMakerStringInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringInt16)
 	return ret
@@ -3226,7 +3227,7 @@ func (v *iterNative) readETStringInt16(et *typex.EventTime, key *string, value *
 	return true
 }
 
-func iterMakerETStringInt16(s ReStream) ReusableInput {
+func iterMakerETStringInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringInt16)
 	return ret
@@ -3246,7 +3247,7 @@ func (v *iterNative) readStringInt32(key *string, value *int32) bool {
 	return true
 }
 
-func iterMakerStringInt32(s ReStream) ReusableInput {
+func iterMakerStringInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringInt32)
 	return ret
@@ -3267,7 +3268,7 @@ func (v *iterNative) readETStringInt32(et *typex.EventTime, key *string, value *
 	return true
 }
 
-func iterMakerETStringInt32(s ReStream) ReusableInput {
+func iterMakerETStringInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringInt32)
 	return ret
@@ -3287,7 +3288,7 @@ func (v *iterNative) readStringInt64(key *string, value *int64) bool {
 	return true
 }
 
-func iterMakerStringInt64(s ReStream) ReusableInput {
+func iterMakerStringInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringInt64)
 	return ret
@@ -3308,7 +3309,7 @@ func (v *iterNative) readETStringInt64(et *typex.EventTime, key *string, value *
 	return true
 }
 
-func iterMakerETStringInt64(s ReStream) ReusableInput {
+func iterMakerETStringInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringInt64)
 	return ret
@@ -3328,7 +3329,7 @@ func (v *iterNative) readStringUint(key *string, value *uint) bool {
 	return true
 }
 
-func iterMakerStringUint(s ReStream) ReusableInput {
+func iterMakerStringUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringUint)
 	return ret
@@ -3349,7 +3350,7 @@ func (v *iterNative) readETStringUint(et *typex.EventTime, key *string, value *u
 	return true
 }
 
-func iterMakerETStringUint(s ReStream) ReusableInput {
+func iterMakerETStringUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringUint)
 	return ret
@@ -3369,7 +3370,7 @@ func (v *iterNative) readStringUint8(key *string, value *uint8) bool {
 	return true
 }
 
-func iterMakerStringUint8(s ReStream) ReusableInput {
+func iterMakerStringUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringUint8)
 	return ret
@@ -3390,7 +3391,7 @@ func (v *iterNative) readETStringUint8(et *typex.EventTime, key *string, value *
 	return true
 }
 
-func iterMakerETStringUint8(s ReStream) ReusableInput {
+func iterMakerETStringUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringUint8)
 	return ret
@@ -3410,7 +3411,7 @@ func (v *iterNative) readStringUint16(key *string, value *uint16) bool {
 	return true
 }
 
-func iterMakerStringUint16(s ReStream) ReusableInput {
+func iterMakerStringUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringUint16)
 	return ret
@@ -3431,7 +3432,7 @@ func (v *iterNative) readETStringUint16(et *typex.EventTime, key *string, value 
 	return true
 }
 
-func iterMakerETStringUint16(s ReStream) ReusableInput {
+func iterMakerETStringUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringUint16)
 	return ret
@@ -3451,7 +3452,7 @@ func (v *iterNative) readStringUint32(key *string, value *uint32) bool {
 	return true
 }
 
-func iterMakerStringUint32(s ReStream) ReusableInput {
+func iterMakerStringUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringUint32)
 	return ret
@@ -3472,7 +3473,7 @@ func (v *iterNative) readETStringUint32(et *typex.EventTime, key *string, value 
 	return true
 }
 
-func iterMakerETStringUint32(s ReStream) ReusableInput {
+func iterMakerETStringUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringUint32)
 	return ret
@@ -3492,7 +3493,7 @@ func (v *iterNative) readStringUint64(key *string, value *uint64) bool {
 	return true
 }
 
-func iterMakerStringUint64(s ReStream) ReusableInput {
+func iterMakerStringUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringUint64)
 	return ret
@@ -3513,7 +3514,7 @@ func (v *iterNative) readETStringUint64(et *typex.EventTime, key *string, value 
 	return true
 }
 
-func iterMakerETStringUint64(s ReStream) ReusableInput {
+func iterMakerETStringUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringUint64)
 	return ret
@@ -3533,7 +3534,7 @@ func (v *iterNative) readStringFloat32(key *string, value *float32) bool {
 	return true
 }
 
-func iterMakerStringFloat32(s ReStream) ReusableInput {
+func iterMakerStringFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringFloat32)
 	return ret
@@ -3554,7 +3555,7 @@ func (v *iterNative) readETStringFloat32(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringFloat32(s ReStream) ReusableInput {
+func iterMakerETStringFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringFloat32)
 	return ret
@@ -3574,7 +3575,7 @@ func (v *iterNative) readStringFloat64(key *string, value *float64) bool {
 	return true
 }
 
-func iterMakerStringFloat64(s ReStream) ReusableInput {
+func iterMakerStringFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringFloat64)
 	return ret
@@ -3595,7 +3596,7 @@ func (v *iterNative) readETStringFloat64(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringFloat64(s ReStream) ReusableInput {
+func iterMakerETStringFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringFloat64)
 	return ret
@@ -3615,7 +3616,7 @@ func (v *iterNative) readStringTypex_T(key *string, value *typex.T) bool {
 	return true
 }
 
-func iterMakerStringTypex_T(s ReStream) ReusableInput {
+func iterMakerStringTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_T)
 	return ret
@@ -3636,7 +3637,7 @@ func (v *iterNative) readETStringTypex_T(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_T(s ReStream) ReusableInput {
+func iterMakerETStringTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_T)
 	return ret
@@ -3656,7 +3657,7 @@ func (v *iterNative) readStringTypex_U(key *string, value *typex.U) bool {
 	return true
 }
 
-func iterMakerStringTypex_U(s ReStream) ReusableInput {
+func iterMakerStringTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_U)
 	return ret
@@ -3677,7 +3678,7 @@ func (v *iterNative) readETStringTypex_U(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_U(s ReStream) ReusableInput {
+func iterMakerETStringTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_U)
 	return ret
@@ -3697,7 +3698,7 @@ func (v *iterNative) readStringTypex_V(key *string, value *typex.V) bool {
 	return true
 }
 
-func iterMakerStringTypex_V(s ReStream) ReusableInput {
+func iterMakerStringTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_V)
 	return ret
@@ -3718,7 +3719,7 @@ func (v *iterNative) readETStringTypex_V(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_V(s ReStream) ReusableInput {
+func iterMakerETStringTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_V)
 	return ret
@@ -3738,7 +3739,7 @@ func (v *iterNative) readStringTypex_W(key *string, value *typex.W) bool {
 	return true
 }
 
-func iterMakerStringTypex_W(s ReStream) ReusableInput {
+func iterMakerStringTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_W)
 	return ret
@@ -3759,7 +3760,7 @@ func (v *iterNative) readETStringTypex_W(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_W(s ReStream) ReusableInput {
+func iterMakerETStringTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_W)
 	return ret
@@ -3779,7 +3780,7 @@ func (v *iterNative) readStringTypex_X(key *string, value *typex.X) bool {
 	return true
 }
 
-func iterMakerStringTypex_X(s ReStream) ReusableInput {
+func iterMakerStringTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_X)
 	return ret
@@ -3800,7 +3801,7 @@ func (v *iterNative) readETStringTypex_X(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_X(s ReStream) ReusableInput {
+func iterMakerETStringTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_X)
 	return ret
@@ -3820,7 +3821,7 @@ func (v *iterNative) readStringTypex_Y(key *string, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerStringTypex_Y(s ReStream) ReusableInput {
+func iterMakerStringTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_Y)
 	return ret
@@ -3841,7 +3842,7 @@ func (v *iterNative) readETStringTypex_Y(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_Y(s ReStream) ReusableInput {
+func iterMakerETStringTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_Y)
 	return ret
@@ -3861,7 +3862,7 @@ func (v *iterNative) readStringTypex_Z(key *string, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerStringTypex_Z(s ReStream) ReusableInput {
+func iterMakerStringTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readStringTypex_Z)
 	return ret
@@ -3882,7 +3883,7 @@ func (v *iterNative) readETStringTypex_Z(et *typex.EventTime, key *string, value
 	return true
 }
 
-func iterMakerETStringTypex_Z(s ReStream) ReusableInput {
+func iterMakerETStringTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETStringTypex_Z)
 	return ret
@@ -3901,7 +3902,7 @@ func (v *iterNative) readInt(val *int) bool {
 	return true
 }
 
-func iterMakerInt(s ReStream) ReusableInput {
+func iterMakerInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt)
 	return ret
@@ -3921,7 +3922,7 @@ func (v *iterNative) readETInt(et *typex.EventTime, val *int) bool {
 	return true
 }
 
-func iterMakerETInt(s ReStream) ReusableInput {
+func iterMakerETInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt)
 	return ret
@@ -3941,7 +3942,7 @@ func (v *iterNative) readIntByteSlice(key *int, value *[]byte) bool {
 	return true
 }
 
-func iterMakerIntByteSlice(s ReStream) ReusableInput {
+func iterMakerIntByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntByteSlice)
 	return ret
@@ -3962,7 +3963,7 @@ func (v *iterNative) readETIntByteSlice(et *typex.EventTime, key *int, value *[]
 	return true
 }
 
-func iterMakerETIntByteSlice(s ReStream) ReusableInput {
+func iterMakerETIntByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntByteSlice)
 	return ret
@@ -3982,7 +3983,7 @@ func (v *iterNative) readIntBool(key *int, value *bool) bool {
 	return true
 }
 
-func iterMakerIntBool(s ReStream) ReusableInput {
+func iterMakerIntBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntBool)
 	return ret
@@ -4003,7 +4004,7 @@ func (v *iterNative) readETIntBool(et *typex.EventTime, key *int, value *bool) b
 	return true
 }
 
-func iterMakerETIntBool(s ReStream) ReusableInput {
+func iterMakerETIntBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntBool)
 	return ret
@@ -4023,7 +4024,7 @@ func (v *iterNative) readIntString(key *int, value *string) bool {
 	return true
 }
 
-func iterMakerIntString(s ReStream) ReusableInput {
+func iterMakerIntString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntString)
 	return ret
@@ -4044,7 +4045,7 @@ func (v *iterNative) readETIntString(et *typex.EventTime, key *int, value *strin
 	return true
 }
 
-func iterMakerETIntString(s ReStream) ReusableInput {
+func iterMakerETIntString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntString)
 	return ret
@@ -4064,7 +4065,7 @@ func (v *iterNative) readIntInt(key *int, value *int) bool {
 	return true
 }
 
-func iterMakerIntInt(s ReStream) ReusableInput {
+func iterMakerIntInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntInt)
 	return ret
@@ -4085,7 +4086,7 @@ func (v *iterNative) readETIntInt(et *typex.EventTime, key *int, value *int) boo
 	return true
 }
 
-func iterMakerETIntInt(s ReStream) ReusableInput {
+func iterMakerETIntInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntInt)
 	return ret
@@ -4105,7 +4106,7 @@ func (v *iterNative) readIntInt8(key *int, value *int8) bool {
 	return true
 }
 
-func iterMakerIntInt8(s ReStream) ReusableInput {
+func iterMakerIntInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntInt8)
 	return ret
@@ -4126,7 +4127,7 @@ func (v *iterNative) readETIntInt8(et *typex.EventTime, key *int, value *int8) b
 	return true
 }
 
-func iterMakerETIntInt8(s ReStream) ReusableInput {
+func iterMakerETIntInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntInt8)
 	return ret
@@ -4146,7 +4147,7 @@ func (v *iterNative) readIntInt16(key *int, value *int16) bool {
 	return true
 }
 
-func iterMakerIntInt16(s ReStream) ReusableInput {
+func iterMakerIntInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntInt16)
 	return ret
@@ -4167,7 +4168,7 @@ func (v *iterNative) readETIntInt16(et *typex.EventTime, key *int, value *int16)
 	return true
 }
 
-func iterMakerETIntInt16(s ReStream) ReusableInput {
+func iterMakerETIntInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntInt16)
 	return ret
@@ -4187,7 +4188,7 @@ func (v *iterNative) readIntInt32(key *int, value *int32) bool {
 	return true
 }
 
-func iterMakerIntInt32(s ReStream) ReusableInput {
+func iterMakerIntInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntInt32)
 	return ret
@@ -4208,7 +4209,7 @@ func (v *iterNative) readETIntInt32(et *typex.EventTime, key *int, value *int32)
 	return true
 }
 
-func iterMakerETIntInt32(s ReStream) ReusableInput {
+func iterMakerETIntInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntInt32)
 	return ret
@@ -4228,7 +4229,7 @@ func (v *iterNative) readIntInt64(key *int, value *int64) bool {
 	return true
 }
 
-func iterMakerIntInt64(s ReStream) ReusableInput {
+func iterMakerIntInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntInt64)
 	return ret
@@ -4249,7 +4250,7 @@ func (v *iterNative) readETIntInt64(et *typex.EventTime, key *int, value *int64)
 	return true
 }
 
-func iterMakerETIntInt64(s ReStream) ReusableInput {
+func iterMakerETIntInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntInt64)
 	return ret
@@ -4269,7 +4270,7 @@ func (v *iterNative) readIntUint(key *int, value *uint) bool {
 	return true
 }
 
-func iterMakerIntUint(s ReStream) ReusableInput {
+func iterMakerIntUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntUint)
 	return ret
@@ -4290,7 +4291,7 @@ func (v *iterNative) readETIntUint(et *typex.EventTime, key *int, value *uint) b
 	return true
 }
 
-func iterMakerETIntUint(s ReStream) ReusableInput {
+func iterMakerETIntUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntUint)
 	return ret
@@ -4310,7 +4311,7 @@ func (v *iterNative) readIntUint8(key *int, value *uint8) bool {
 	return true
 }
 
-func iterMakerIntUint8(s ReStream) ReusableInput {
+func iterMakerIntUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntUint8)
 	return ret
@@ -4331,7 +4332,7 @@ func (v *iterNative) readETIntUint8(et *typex.EventTime, key *int, value *uint8)
 	return true
 }
 
-func iterMakerETIntUint8(s ReStream) ReusableInput {
+func iterMakerETIntUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntUint8)
 	return ret
@@ -4351,7 +4352,7 @@ func (v *iterNative) readIntUint16(key *int, value *uint16) bool {
 	return true
 }
 
-func iterMakerIntUint16(s ReStream) ReusableInput {
+func iterMakerIntUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntUint16)
 	return ret
@@ -4372,7 +4373,7 @@ func (v *iterNative) readETIntUint16(et *typex.EventTime, key *int, value *uint1
 	return true
 }
 
-func iterMakerETIntUint16(s ReStream) ReusableInput {
+func iterMakerETIntUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntUint16)
 	return ret
@@ -4392,7 +4393,7 @@ func (v *iterNative) readIntUint32(key *int, value *uint32) bool {
 	return true
 }
 
-func iterMakerIntUint32(s ReStream) ReusableInput {
+func iterMakerIntUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntUint32)
 	return ret
@@ -4413,7 +4414,7 @@ func (v *iterNative) readETIntUint32(et *typex.EventTime, key *int, value *uint3
 	return true
 }
 
-func iterMakerETIntUint32(s ReStream) ReusableInput {
+func iterMakerETIntUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntUint32)
 	return ret
@@ -4433,7 +4434,7 @@ func (v *iterNative) readIntUint64(key *int, value *uint64) bool {
 	return true
 }
 
-func iterMakerIntUint64(s ReStream) ReusableInput {
+func iterMakerIntUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntUint64)
 	return ret
@@ -4454,7 +4455,7 @@ func (v *iterNative) readETIntUint64(et *typex.EventTime, key *int, value *uint6
 	return true
 }
 
-func iterMakerETIntUint64(s ReStream) ReusableInput {
+func iterMakerETIntUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntUint64)
 	return ret
@@ -4474,7 +4475,7 @@ func (v *iterNative) readIntFloat32(key *int, value *float32) bool {
 	return true
 }
 
-func iterMakerIntFloat32(s ReStream) ReusableInput {
+func iterMakerIntFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntFloat32)
 	return ret
@@ -4495,7 +4496,7 @@ func (v *iterNative) readETIntFloat32(et *typex.EventTime, key *int, value *floa
 	return true
 }
 
-func iterMakerETIntFloat32(s ReStream) ReusableInput {
+func iterMakerETIntFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntFloat32)
 	return ret
@@ -4515,7 +4516,7 @@ func (v *iterNative) readIntFloat64(key *int, value *float64) bool {
 	return true
 }
 
-func iterMakerIntFloat64(s ReStream) ReusableInput {
+func iterMakerIntFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntFloat64)
 	return ret
@@ -4536,7 +4537,7 @@ func (v *iterNative) readETIntFloat64(et *typex.EventTime, key *int, value *floa
 	return true
 }
 
-func iterMakerETIntFloat64(s ReStream) ReusableInput {
+func iterMakerETIntFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntFloat64)
 	return ret
@@ -4556,7 +4557,7 @@ func (v *iterNative) readIntTypex_T(key *int, value *typex.T) bool {
 	return true
 }
 
-func iterMakerIntTypex_T(s ReStream) ReusableInput {
+func iterMakerIntTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_T)
 	return ret
@@ -4577,7 +4578,7 @@ func (v *iterNative) readETIntTypex_T(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_T(s ReStream) ReusableInput {
+func iterMakerETIntTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_T)
 	return ret
@@ -4597,7 +4598,7 @@ func (v *iterNative) readIntTypex_U(key *int, value *typex.U) bool {
 	return true
 }
 
-func iterMakerIntTypex_U(s ReStream) ReusableInput {
+func iterMakerIntTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_U)
 	return ret
@@ -4618,7 +4619,7 @@ func (v *iterNative) readETIntTypex_U(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_U(s ReStream) ReusableInput {
+func iterMakerETIntTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_U)
 	return ret
@@ -4638,7 +4639,7 @@ func (v *iterNative) readIntTypex_V(key *int, value *typex.V) bool {
 	return true
 }
 
-func iterMakerIntTypex_V(s ReStream) ReusableInput {
+func iterMakerIntTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_V)
 	return ret
@@ -4659,7 +4660,7 @@ func (v *iterNative) readETIntTypex_V(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_V(s ReStream) ReusableInput {
+func iterMakerETIntTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_V)
 	return ret
@@ -4679,7 +4680,7 @@ func (v *iterNative) readIntTypex_W(key *int, value *typex.W) bool {
 	return true
 }
 
-func iterMakerIntTypex_W(s ReStream) ReusableInput {
+func iterMakerIntTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_W)
 	return ret
@@ -4700,7 +4701,7 @@ func (v *iterNative) readETIntTypex_W(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_W(s ReStream) ReusableInput {
+func iterMakerETIntTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_W)
 	return ret
@@ -4720,7 +4721,7 @@ func (v *iterNative) readIntTypex_X(key *int, value *typex.X) bool {
 	return true
 }
 
-func iterMakerIntTypex_X(s ReStream) ReusableInput {
+func iterMakerIntTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_X)
 	return ret
@@ -4741,7 +4742,7 @@ func (v *iterNative) readETIntTypex_X(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_X(s ReStream) ReusableInput {
+func iterMakerETIntTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_X)
 	return ret
@@ -4761,7 +4762,7 @@ func (v *iterNative) readIntTypex_Y(key *int, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerIntTypex_Y(s ReStream) ReusableInput {
+func iterMakerIntTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_Y)
 	return ret
@@ -4782,7 +4783,7 @@ func (v *iterNative) readETIntTypex_Y(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_Y(s ReStream) ReusableInput {
+func iterMakerETIntTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_Y)
 	return ret
@@ -4802,7 +4803,7 @@ func (v *iterNative) readIntTypex_Z(key *int, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerIntTypex_Z(s ReStream) ReusableInput {
+func iterMakerIntTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readIntTypex_Z)
 	return ret
@@ -4823,7 +4824,7 @@ func (v *iterNative) readETIntTypex_Z(et *typex.EventTime, key *int, value *type
 	return true
 }
 
-func iterMakerETIntTypex_Z(s ReStream) ReusableInput {
+func iterMakerETIntTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETIntTypex_Z)
 	return ret
@@ -4842,7 +4843,7 @@ func (v *iterNative) readInt8(val *int8) bool {
 	return true
 }
 
-func iterMakerInt8(s ReStream) ReusableInput {
+func iterMakerInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8)
 	return ret
@@ -4862,7 +4863,7 @@ func (v *iterNative) readETInt8(et *typex.EventTime, val *int8) bool {
 	return true
 }
 
-func iterMakerETInt8(s ReStream) ReusableInput {
+func iterMakerETInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8)
 	return ret
@@ -4882,7 +4883,7 @@ func (v *iterNative) readInt8ByteSlice(key *int8, value *[]byte) bool {
 	return true
 }
 
-func iterMakerInt8ByteSlice(s ReStream) ReusableInput {
+func iterMakerInt8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8ByteSlice)
 	return ret
@@ -4903,7 +4904,7 @@ func (v *iterNative) readETInt8ByteSlice(et *typex.EventTime, key *int8, value *
 	return true
 }
 
-func iterMakerETInt8ByteSlice(s ReStream) ReusableInput {
+func iterMakerETInt8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8ByteSlice)
 	return ret
@@ -4923,7 +4924,7 @@ func (v *iterNative) readInt8Bool(key *int8, value *bool) bool {
 	return true
 }
 
-func iterMakerInt8Bool(s ReStream) ReusableInput {
+func iterMakerInt8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Bool)
 	return ret
@@ -4944,7 +4945,7 @@ func (v *iterNative) readETInt8Bool(et *typex.EventTime, key *int8, value *bool)
 	return true
 }
 
-func iterMakerETInt8Bool(s ReStream) ReusableInput {
+func iterMakerETInt8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Bool)
 	return ret
@@ -4964,7 +4965,7 @@ func (v *iterNative) readInt8String(key *int8, value *string) bool {
 	return true
 }
 
-func iterMakerInt8String(s ReStream) ReusableInput {
+func iterMakerInt8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8String)
 	return ret
@@ -4985,7 +4986,7 @@ func (v *iterNative) readETInt8String(et *typex.EventTime, key *int8, value *str
 	return true
 }
 
-func iterMakerETInt8String(s ReStream) ReusableInput {
+func iterMakerETInt8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8String)
 	return ret
@@ -5005,7 +5006,7 @@ func (v *iterNative) readInt8Int(key *int8, value *int) bool {
 	return true
 }
 
-func iterMakerInt8Int(s ReStream) ReusableInput {
+func iterMakerInt8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Int)
 	return ret
@@ -5026,7 +5027,7 @@ func (v *iterNative) readETInt8Int(et *typex.EventTime, key *int8, value *int) b
 	return true
 }
 
-func iterMakerETInt8Int(s ReStream) ReusableInput {
+func iterMakerETInt8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Int)
 	return ret
@@ -5046,7 +5047,7 @@ func (v *iterNative) readInt8Int8(key *int8, value *int8) bool {
 	return true
 }
 
-func iterMakerInt8Int8(s ReStream) ReusableInput {
+func iterMakerInt8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Int8)
 	return ret
@@ -5067,7 +5068,7 @@ func (v *iterNative) readETInt8Int8(et *typex.EventTime, key *int8, value *int8)
 	return true
 }
 
-func iterMakerETInt8Int8(s ReStream) ReusableInput {
+func iterMakerETInt8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Int8)
 	return ret
@@ -5087,7 +5088,7 @@ func (v *iterNative) readInt8Int16(key *int8, value *int16) bool {
 	return true
 }
 
-func iterMakerInt8Int16(s ReStream) ReusableInput {
+func iterMakerInt8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Int16)
 	return ret
@@ -5108,7 +5109,7 @@ func (v *iterNative) readETInt8Int16(et *typex.EventTime, key *int8, value *int1
 	return true
 }
 
-func iterMakerETInt8Int16(s ReStream) ReusableInput {
+func iterMakerETInt8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Int16)
 	return ret
@@ -5128,7 +5129,7 @@ func (v *iterNative) readInt8Int32(key *int8, value *int32) bool {
 	return true
 }
 
-func iterMakerInt8Int32(s ReStream) ReusableInput {
+func iterMakerInt8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Int32)
 	return ret
@@ -5149,7 +5150,7 @@ func (v *iterNative) readETInt8Int32(et *typex.EventTime, key *int8, value *int3
 	return true
 }
 
-func iterMakerETInt8Int32(s ReStream) ReusableInput {
+func iterMakerETInt8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Int32)
 	return ret
@@ -5169,7 +5170,7 @@ func (v *iterNative) readInt8Int64(key *int8, value *int64) bool {
 	return true
 }
 
-func iterMakerInt8Int64(s ReStream) ReusableInput {
+func iterMakerInt8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Int64)
 	return ret
@@ -5190,7 +5191,7 @@ func (v *iterNative) readETInt8Int64(et *typex.EventTime, key *int8, value *int6
 	return true
 }
 
-func iterMakerETInt8Int64(s ReStream) ReusableInput {
+func iterMakerETInt8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Int64)
 	return ret
@@ -5210,7 +5211,7 @@ func (v *iterNative) readInt8Uint(key *int8, value *uint) bool {
 	return true
 }
 
-func iterMakerInt8Uint(s ReStream) ReusableInput {
+func iterMakerInt8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Uint)
 	return ret
@@ -5231,7 +5232,7 @@ func (v *iterNative) readETInt8Uint(et *typex.EventTime, key *int8, value *uint)
 	return true
 }
 
-func iterMakerETInt8Uint(s ReStream) ReusableInput {
+func iterMakerETInt8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Uint)
 	return ret
@@ -5251,7 +5252,7 @@ func (v *iterNative) readInt8Uint8(key *int8, value *uint8) bool {
 	return true
 }
 
-func iterMakerInt8Uint8(s ReStream) ReusableInput {
+func iterMakerInt8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Uint8)
 	return ret
@@ -5272,7 +5273,7 @@ func (v *iterNative) readETInt8Uint8(et *typex.EventTime, key *int8, value *uint
 	return true
 }
 
-func iterMakerETInt8Uint8(s ReStream) ReusableInput {
+func iterMakerETInt8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Uint8)
 	return ret
@@ -5292,7 +5293,7 @@ func (v *iterNative) readInt8Uint16(key *int8, value *uint16) bool {
 	return true
 }
 
-func iterMakerInt8Uint16(s ReStream) ReusableInput {
+func iterMakerInt8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Uint16)
 	return ret
@@ -5313,7 +5314,7 @@ func (v *iterNative) readETInt8Uint16(et *typex.EventTime, key *int8, value *uin
 	return true
 }
 
-func iterMakerETInt8Uint16(s ReStream) ReusableInput {
+func iterMakerETInt8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Uint16)
 	return ret
@@ -5333,7 +5334,7 @@ func (v *iterNative) readInt8Uint32(key *int8, value *uint32) bool {
 	return true
 }
 
-func iterMakerInt8Uint32(s ReStream) ReusableInput {
+func iterMakerInt8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Uint32)
 	return ret
@@ -5354,7 +5355,7 @@ func (v *iterNative) readETInt8Uint32(et *typex.EventTime, key *int8, value *uin
 	return true
 }
 
-func iterMakerETInt8Uint32(s ReStream) ReusableInput {
+func iterMakerETInt8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Uint32)
 	return ret
@@ -5374,7 +5375,7 @@ func (v *iterNative) readInt8Uint64(key *int8, value *uint64) bool {
 	return true
 }
 
-func iterMakerInt8Uint64(s ReStream) ReusableInput {
+func iterMakerInt8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Uint64)
 	return ret
@@ -5395,7 +5396,7 @@ func (v *iterNative) readETInt8Uint64(et *typex.EventTime, key *int8, value *uin
 	return true
 }
 
-func iterMakerETInt8Uint64(s ReStream) ReusableInput {
+func iterMakerETInt8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Uint64)
 	return ret
@@ -5415,7 +5416,7 @@ func (v *iterNative) readInt8Float32(key *int8, value *float32) bool {
 	return true
 }
 
-func iterMakerInt8Float32(s ReStream) ReusableInput {
+func iterMakerInt8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Float32)
 	return ret
@@ -5436,7 +5437,7 @@ func (v *iterNative) readETInt8Float32(et *typex.EventTime, key *int8, value *fl
 	return true
 }
 
-func iterMakerETInt8Float32(s ReStream) ReusableInput {
+func iterMakerETInt8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Float32)
 	return ret
@@ -5456,7 +5457,7 @@ func (v *iterNative) readInt8Float64(key *int8, value *float64) bool {
 	return true
 }
 
-func iterMakerInt8Float64(s ReStream) ReusableInput {
+func iterMakerInt8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Float64)
 	return ret
@@ -5477,7 +5478,7 @@ func (v *iterNative) readETInt8Float64(et *typex.EventTime, key *int8, value *fl
 	return true
 }
 
-func iterMakerETInt8Float64(s ReStream) ReusableInput {
+func iterMakerETInt8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Float64)
 	return ret
@@ -5497,7 +5498,7 @@ func (v *iterNative) readInt8Typex_T(key *int8, value *typex.T) bool {
 	return true
 }
 
-func iterMakerInt8Typex_T(s ReStream) ReusableInput {
+func iterMakerInt8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_T)
 	return ret
@@ -5518,7 +5519,7 @@ func (v *iterNative) readETInt8Typex_T(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_T(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_T)
 	return ret
@@ -5538,7 +5539,7 @@ func (v *iterNative) readInt8Typex_U(key *int8, value *typex.U) bool {
 	return true
 }
 
-func iterMakerInt8Typex_U(s ReStream) ReusableInput {
+func iterMakerInt8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_U)
 	return ret
@@ -5559,7 +5560,7 @@ func (v *iterNative) readETInt8Typex_U(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_U(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_U)
 	return ret
@@ -5579,7 +5580,7 @@ func (v *iterNative) readInt8Typex_V(key *int8, value *typex.V) bool {
 	return true
 }
 
-func iterMakerInt8Typex_V(s ReStream) ReusableInput {
+func iterMakerInt8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_V)
 	return ret
@@ -5600,7 +5601,7 @@ func (v *iterNative) readETInt8Typex_V(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_V(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_V)
 	return ret
@@ -5620,7 +5621,7 @@ func (v *iterNative) readInt8Typex_W(key *int8, value *typex.W) bool {
 	return true
 }
 
-func iterMakerInt8Typex_W(s ReStream) ReusableInput {
+func iterMakerInt8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_W)
 	return ret
@@ -5641,7 +5642,7 @@ func (v *iterNative) readETInt8Typex_W(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_W(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_W)
 	return ret
@@ -5661,7 +5662,7 @@ func (v *iterNative) readInt8Typex_X(key *int8, value *typex.X) bool {
 	return true
 }
 
-func iterMakerInt8Typex_X(s ReStream) ReusableInput {
+func iterMakerInt8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_X)
 	return ret
@@ -5682,7 +5683,7 @@ func (v *iterNative) readETInt8Typex_X(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_X(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_X)
 	return ret
@@ -5702,7 +5703,7 @@ func (v *iterNative) readInt8Typex_Y(key *int8, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerInt8Typex_Y(s ReStream) ReusableInput {
+func iterMakerInt8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_Y)
 	return ret
@@ -5723,7 +5724,7 @@ func (v *iterNative) readETInt8Typex_Y(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_Y(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_Y)
 	return ret
@@ -5743,7 +5744,7 @@ func (v *iterNative) readInt8Typex_Z(key *int8, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerInt8Typex_Z(s ReStream) ReusableInput {
+func iterMakerInt8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt8Typex_Z)
 	return ret
@@ -5764,7 +5765,7 @@ func (v *iterNative) readETInt8Typex_Z(et *typex.EventTime, key *int8, value *ty
 	return true
 }
 
-func iterMakerETInt8Typex_Z(s ReStream) ReusableInput {
+func iterMakerETInt8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt8Typex_Z)
 	return ret
@@ -5783,7 +5784,7 @@ func (v *iterNative) readInt16(val *int16) bool {
 	return true
 }
 
-func iterMakerInt16(s ReStream) ReusableInput {
+func iterMakerInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16)
 	return ret
@@ -5803,7 +5804,7 @@ func (v *iterNative) readETInt16(et *typex.EventTime, val *int16) bool {
 	return true
 }
 
-func iterMakerETInt16(s ReStream) ReusableInput {
+func iterMakerETInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16)
 	return ret
@@ -5823,7 +5824,7 @@ func (v *iterNative) readInt16ByteSlice(key *int16, value *[]byte) bool {
 	return true
 }
 
-func iterMakerInt16ByteSlice(s ReStream) ReusableInput {
+func iterMakerInt16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16ByteSlice)
 	return ret
@@ -5844,7 +5845,7 @@ func (v *iterNative) readETInt16ByteSlice(et *typex.EventTime, key *int16, value
 	return true
 }
 
-func iterMakerETInt16ByteSlice(s ReStream) ReusableInput {
+func iterMakerETInt16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16ByteSlice)
 	return ret
@@ -5864,7 +5865,7 @@ func (v *iterNative) readInt16Bool(key *int16, value *bool) bool {
 	return true
 }
 
-func iterMakerInt16Bool(s ReStream) ReusableInput {
+func iterMakerInt16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Bool)
 	return ret
@@ -5885,7 +5886,7 @@ func (v *iterNative) readETInt16Bool(et *typex.EventTime, key *int16, value *boo
 	return true
 }
 
-func iterMakerETInt16Bool(s ReStream) ReusableInput {
+func iterMakerETInt16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Bool)
 	return ret
@@ -5905,7 +5906,7 @@ func (v *iterNative) readInt16String(key *int16, value *string) bool {
 	return true
 }
 
-func iterMakerInt16String(s ReStream) ReusableInput {
+func iterMakerInt16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16String)
 	return ret
@@ -5926,7 +5927,7 @@ func (v *iterNative) readETInt16String(et *typex.EventTime, key *int16, value *s
 	return true
 }
 
-func iterMakerETInt16String(s ReStream) ReusableInput {
+func iterMakerETInt16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16String)
 	return ret
@@ -5946,7 +5947,7 @@ func (v *iterNative) readInt16Int(key *int16, value *int) bool {
 	return true
 }
 
-func iterMakerInt16Int(s ReStream) ReusableInput {
+func iterMakerInt16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Int)
 	return ret
@@ -5967,7 +5968,7 @@ func (v *iterNative) readETInt16Int(et *typex.EventTime, key *int16, value *int)
 	return true
 }
 
-func iterMakerETInt16Int(s ReStream) ReusableInput {
+func iterMakerETInt16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Int)
 	return ret
@@ -5987,7 +5988,7 @@ func (v *iterNative) readInt16Int8(key *int16, value *int8) bool {
 	return true
 }
 
-func iterMakerInt16Int8(s ReStream) ReusableInput {
+func iterMakerInt16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Int8)
 	return ret
@@ -6008,7 +6009,7 @@ func (v *iterNative) readETInt16Int8(et *typex.EventTime, key *int16, value *int
 	return true
 }
 
-func iterMakerETInt16Int8(s ReStream) ReusableInput {
+func iterMakerETInt16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Int8)
 	return ret
@@ -6028,7 +6029,7 @@ func (v *iterNative) readInt16Int16(key *int16, value *int16) bool {
 	return true
 }
 
-func iterMakerInt16Int16(s ReStream) ReusableInput {
+func iterMakerInt16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Int16)
 	return ret
@@ -6049,7 +6050,7 @@ func (v *iterNative) readETInt16Int16(et *typex.EventTime, key *int16, value *in
 	return true
 }
 
-func iterMakerETInt16Int16(s ReStream) ReusableInput {
+func iterMakerETInt16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Int16)
 	return ret
@@ -6069,7 +6070,7 @@ func (v *iterNative) readInt16Int32(key *int16, value *int32) bool {
 	return true
 }
 
-func iterMakerInt16Int32(s ReStream) ReusableInput {
+func iterMakerInt16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Int32)
 	return ret
@@ -6090,7 +6091,7 @@ func (v *iterNative) readETInt16Int32(et *typex.EventTime, key *int16, value *in
 	return true
 }
 
-func iterMakerETInt16Int32(s ReStream) ReusableInput {
+func iterMakerETInt16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Int32)
 	return ret
@@ -6110,7 +6111,7 @@ func (v *iterNative) readInt16Int64(key *int16, value *int64) bool {
 	return true
 }
 
-func iterMakerInt16Int64(s ReStream) ReusableInput {
+func iterMakerInt16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Int64)
 	return ret
@@ -6131,7 +6132,7 @@ func (v *iterNative) readETInt16Int64(et *typex.EventTime, key *int16, value *in
 	return true
 }
 
-func iterMakerETInt16Int64(s ReStream) ReusableInput {
+func iterMakerETInt16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Int64)
 	return ret
@@ -6151,7 +6152,7 @@ func (v *iterNative) readInt16Uint(key *int16, value *uint) bool {
 	return true
 }
 
-func iterMakerInt16Uint(s ReStream) ReusableInput {
+func iterMakerInt16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Uint)
 	return ret
@@ -6172,7 +6173,7 @@ func (v *iterNative) readETInt16Uint(et *typex.EventTime, key *int16, value *uin
 	return true
 }
 
-func iterMakerETInt16Uint(s ReStream) ReusableInput {
+func iterMakerETInt16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Uint)
 	return ret
@@ -6192,7 +6193,7 @@ func (v *iterNative) readInt16Uint8(key *int16, value *uint8) bool {
 	return true
 }
 
-func iterMakerInt16Uint8(s ReStream) ReusableInput {
+func iterMakerInt16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Uint8)
 	return ret
@@ -6213,7 +6214,7 @@ func (v *iterNative) readETInt16Uint8(et *typex.EventTime, key *int16, value *ui
 	return true
 }
 
-func iterMakerETInt16Uint8(s ReStream) ReusableInput {
+func iterMakerETInt16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Uint8)
 	return ret
@@ -6233,7 +6234,7 @@ func (v *iterNative) readInt16Uint16(key *int16, value *uint16) bool {
 	return true
 }
 
-func iterMakerInt16Uint16(s ReStream) ReusableInput {
+func iterMakerInt16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Uint16)
 	return ret
@@ -6254,7 +6255,7 @@ func (v *iterNative) readETInt16Uint16(et *typex.EventTime, key *int16, value *u
 	return true
 }
 
-func iterMakerETInt16Uint16(s ReStream) ReusableInput {
+func iterMakerETInt16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Uint16)
 	return ret
@@ -6274,7 +6275,7 @@ func (v *iterNative) readInt16Uint32(key *int16, value *uint32) bool {
 	return true
 }
 
-func iterMakerInt16Uint32(s ReStream) ReusableInput {
+func iterMakerInt16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Uint32)
 	return ret
@@ -6295,7 +6296,7 @@ func (v *iterNative) readETInt16Uint32(et *typex.EventTime, key *int16, value *u
 	return true
 }
 
-func iterMakerETInt16Uint32(s ReStream) ReusableInput {
+func iterMakerETInt16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Uint32)
 	return ret
@@ -6315,7 +6316,7 @@ func (v *iterNative) readInt16Uint64(key *int16, value *uint64) bool {
 	return true
 }
 
-func iterMakerInt16Uint64(s ReStream) ReusableInput {
+func iterMakerInt16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Uint64)
 	return ret
@@ -6336,7 +6337,7 @@ func (v *iterNative) readETInt16Uint64(et *typex.EventTime, key *int16, value *u
 	return true
 }
 
-func iterMakerETInt16Uint64(s ReStream) ReusableInput {
+func iterMakerETInt16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Uint64)
 	return ret
@@ -6356,7 +6357,7 @@ func (v *iterNative) readInt16Float32(key *int16, value *float32) bool {
 	return true
 }
 
-func iterMakerInt16Float32(s ReStream) ReusableInput {
+func iterMakerInt16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Float32)
 	return ret
@@ -6377,7 +6378,7 @@ func (v *iterNative) readETInt16Float32(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Float32(s ReStream) ReusableInput {
+func iterMakerETInt16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Float32)
 	return ret
@@ -6397,7 +6398,7 @@ func (v *iterNative) readInt16Float64(key *int16, value *float64) bool {
 	return true
 }
 
-func iterMakerInt16Float64(s ReStream) ReusableInput {
+func iterMakerInt16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Float64)
 	return ret
@@ -6418,7 +6419,7 @@ func (v *iterNative) readETInt16Float64(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Float64(s ReStream) ReusableInput {
+func iterMakerETInt16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Float64)
 	return ret
@@ -6438,7 +6439,7 @@ func (v *iterNative) readInt16Typex_T(key *int16, value *typex.T) bool {
 	return true
 }
 
-func iterMakerInt16Typex_T(s ReStream) ReusableInput {
+func iterMakerInt16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_T)
 	return ret
@@ -6459,7 +6460,7 @@ func (v *iterNative) readETInt16Typex_T(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_T(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_T)
 	return ret
@@ -6479,7 +6480,7 @@ func (v *iterNative) readInt16Typex_U(key *int16, value *typex.U) bool {
 	return true
 }
 
-func iterMakerInt16Typex_U(s ReStream) ReusableInput {
+func iterMakerInt16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_U)
 	return ret
@@ -6500,7 +6501,7 @@ func (v *iterNative) readETInt16Typex_U(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_U(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_U)
 	return ret
@@ -6520,7 +6521,7 @@ func (v *iterNative) readInt16Typex_V(key *int16, value *typex.V) bool {
 	return true
 }
 
-func iterMakerInt16Typex_V(s ReStream) ReusableInput {
+func iterMakerInt16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_V)
 	return ret
@@ -6541,7 +6542,7 @@ func (v *iterNative) readETInt16Typex_V(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_V(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_V)
 	return ret
@@ -6561,7 +6562,7 @@ func (v *iterNative) readInt16Typex_W(key *int16, value *typex.W) bool {
 	return true
 }
 
-func iterMakerInt16Typex_W(s ReStream) ReusableInput {
+func iterMakerInt16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_W)
 	return ret
@@ -6582,7 +6583,7 @@ func (v *iterNative) readETInt16Typex_W(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_W(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_W)
 	return ret
@@ -6602,7 +6603,7 @@ func (v *iterNative) readInt16Typex_X(key *int16, value *typex.X) bool {
 	return true
 }
 
-func iterMakerInt16Typex_X(s ReStream) ReusableInput {
+func iterMakerInt16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_X)
 	return ret
@@ -6623,7 +6624,7 @@ func (v *iterNative) readETInt16Typex_X(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_X(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_X)
 	return ret
@@ -6643,7 +6644,7 @@ func (v *iterNative) readInt16Typex_Y(key *int16, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerInt16Typex_Y(s ReStream) ReusableInput {
+func iterMakerInt16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_Y)
 	return ret
@@ -6664,7 +6665,7 @@ func (v *iterNative) readETInt16Typex_Y(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_Y(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_Y)
 	return ret
@@ -6684,7 +6685,7 @@ func (v *iterNative) readInt16Typex_Z(key *int16, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerInt16Typex_Z(s ReStream) ReusableInput {
+func iterMakerInt16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt16Typex_Z)
 	return ret
@@ -6705,7 +6706,7 @@ func (v *iterNative) readETInt16Typex_Z(et *typex.EventTime, key *int16, value *
 	return true
 }
 
-func iterMakerETInt16Typex_Z(s ReStream) ReusableInput {
+func iterMakerETInt16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt16Typex_Z)
 	return ret
@@ -6724,7 +6725,7 @@ func (v *iterNative) readInt32(val *int32) bool {
 	return true
 }
 
-func iterMakerInt32(s ReStream) ReusableInput {
+func iterMakerInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32)
 	return ret
@@ -6744,7 +6745,7 @@ func (v *iterNative) readETInt32(et *typex.EventTime, val *int32) bool {
 	return true
 }
 
-func iterMakerETInt32(s ReStream) ReusableInput {
+func iterMakerETInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32)
 	return ret
@@ -6764,7 +6765,7 @@ func (v *iterNative) readInt32ByteSlice(key *int32, value *[]byte) bool {
 	return true
 }
 
-func iterMakerInt32ByteSlice(s ReStream) ReusableInput {
+func iterMakerInt32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32ByteSlice)
 	return ret
@@ -6785,7 +6786,7 @@ func (v *iterNative) readETInt32ByteSlice(et *typex.EventTime, key *int32, value
 	return true
 }
 
-func iterMakerETInt32ByteSlice(s ReStream) ReusableInput {
+func iterMakerETInt32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32ByteSlice)
 	return ret
@@ -6805,7 +6806,7 @@ func (v *iterNative) readInt32Bool(key *int32, value *bool) bool {
 	return true
 }
 
-func iterMakerInt32Bool(s ReStream) ReusableInput {
+func iterMakerInt32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Bool)
 	return ret
@@ -6826,7 +6827,7 @@ func (v *iterNative) readETInt32Bool(et *typex.EventTime, key *int32, value *boo
 	return true
 }
 
-func iterMakerETInt32Bool(s ReStream) ReusableInput {
+func iterMakerETInt32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Bool)
 	return ret
@@ -6846,7 +6847,7 @@ func (v *iterNative) readInt32String(key *int32, value *string) bool {
 	return true
 }
 
-func iterMakerInt32String(s ReStream) ReusableInput {
+func iterMakerInt32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32String)
 	return ret
@@ -6867,7 +6868,7 @@ func (v *iterNative) readETInt32String(et *typex.EventTime, key *int32, value *s
 	return true
 }
 
-func iterMakerETInt32String(s ReStream) ReusableInput {
+func iterMakerETInt32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32String)
 	return ret
@@ -6887,7 +6888,7 @@ func (v *iterNative) readInt32Int(key *int32, value *int) bool {
 	return true
 }
 
-func iterMakerInt32Int(s ReStream) ReusableInput {
+func iterMakerInt32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Int)
 	return ret
@@ -6908,7 +6909,7 @@ func (v *iterNative) readETInt32Int(et *typex.EventTime, key *int32, value *int)
 	return true
 }
 
-func iterMakerETInt32Int(s ReStream) ReusableInput {
+func iterMakerETInt32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Int)
 	return ret
@@ -6928,7 +6929,7 @@ func (v *iterNative) readInt32Int8(key *int32, value *int8) bool {
 	return true
 }
 
-func iterMakerInt32Int8(s ReStream) ReusableInput {
+func iterMakerInt32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Int8)
 	return ret
@@ -6949,7 +6950,7 @@ func (v *iterNative) readETInt32Int8(et *typex.EventTime, key *int32, value *int
 	return true
 }
 
-func iterMakerETInt32Int8(s ReStream) ReusableInput {
+func iterMakerETInt32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Int8)
 	return ret
@@ -6969,7 +6970,7 @@ func (v *iterNative) readInt32Int16(key *int32, value *int16) bool {
 	return true
 }
 
-func iterMakerInt32Int16(s ReStream) ReusableInput {
+func iterMakerInt32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Int16)
 	return ret
@@ -6990,7 +6991,7 @@ func (v *iterNative) readETInt32Int16(et *typex.EventTime, key *int32, value *in
 	return true
 }
 
-func iterMakerETInt32Int16(s ReStream) ReusableInput {
+func iterMakerETInt32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Int16)
 	return ret
@@ -7010,7 +7011,7 @@ func (v *iterNative) readInt32Int32(key *int32, value *int32) bool {
 	return true
 }
 
-func iterMakerInt32Int32(s ReStream) ReusableInput {
+func iterMakerInt32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Int32)
 	return ret
@@ -7031,7 +7032,7 @@ func (v *iterNative) readETInt32Int32(et *typex.EventTime, key *int32, value *in
 	return true
 }
 
-func iterMakerETInt32Int32(s ReStream) ReusableInput {
+func iterMakerETInt32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Int32)
 	return ret
@@ -7051,7 +7052,7 @@ func (v *iterNative) readInt32Int64(key *int32, value *int64) bool {
 	return true
 }
 
-func iterMakerInt32Int64(s ReStream) ReusableInput {
+func iterMakerInt32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Int64)
 	return ret
@@ -7072,7 +7073,7 @@ func (v *iterNative) readETInt32Int64(et *typex.EventTime, key *int32, value *in
 	return true
 }
 
-func iterMakerETInt32Int64(s ReStream) ReusableInput {
+func iterMakerETInt32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Int64)
 	return ret
@@ -7092,7 +7093,7 @@ func (v *iterNative) readInt32Uint(key *int32, value *uint) bool {
 	return true
 }
 
-func iterMakerInt32Uint(s ReStream) ReusableInput {
+func iterMakerInt32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Uint)
 	return ret
@@ -7113,7 +7114,7 @@ func (v *iterNative) readETInt32Uint(et *typex.EventTime, key *int32, value *uin
 	return true
 }
 
-func iterMakerETInt32Uint(s ReStream) ReusableInput {
+func iterMakerETInt32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Uint)
 	return ret
@@ -7133,7 +7134,7 @@ func (v *iterNative) readInt32Uint8(key *int32, value *uint8) bool {
 	return true
 }
 
-func iterMakerInt32Uint8(s ReStream) ReusableInput {
+func iterMakerInt32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Uint8)
 	return ret
@@ -7154,7 +7155,7 @@ func (v *iterNative) readETInt32Uint8(et *typex.EventTime, key *int32, value *ui
 	return true
 }
 
-func iterMakerETInt32Uint8(s ReStream) ReusableInput {
+func iterMakerETInt32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Uint8)
 	return ret
@@ -7174,7 +7175,7 @@ func (v *iterNative) readInt32Uint16(key *int32, value *uint16) bool {
 	return true
 }
 
-func iterMakerInt32Uint16(s ReStream) ReusableInput {
+func iterMakerInt32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Uint16)
 	return ret
@@ -7195,7 +7196,7 @@ func (v *iterNative) readETInt32Uint16(et *typex.EventTime, key *int32, value *u
 	return true
 }
 
-func iterMakerETInt32Uint16(s ReStream) ReusableInput {
+func iterMakerETInt32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Uint16)
 	return ret
@@ -7215,7 +7216,7 @@ func (v *iterNative) readInt32Uint32(key *int32, value *uint32) bool {
 	return true
 }
 
-func iterMakerInt32Uint32(s ReStream) ReusableInput {
+func iterMakerInt32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Uint32)
 	return ret
@@ -7236,7 +7237,7 @@ func (v *iterNative) readETInt32Uint32(et *typex.EventTime, key *int32, value *u
 	return true
 }
 
-func iterMakerETInt32Uint32(s ReStream) ReusableInput {
+func iterMakerETInt32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Uint32)
 	return ret
@@ -7256,7 +7257,7 @@ func (v *iterNative) readInt32Uint64(key *int32, value *uint64) bool {
 	return true
 }
 
-func iterMakerInt32Uint64(s ReStream) ReusableInput {
+func iterMakerInt32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Uint64)
 	return ret
@@ -7277,7 +7278,7 @@ func (v *iterNative) readETInt32Uint64(et *typex.EventTime, key *int32, value *u
 	return true
 }
 
-func iterMakerETInt32Uint64(s ReStream) ReusableInput {
+func iterMakerETInt32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Uint64)
 	return ret
@@ -7297,7 +7298,7 @@ func (v *iterNative) readInt32Float32(key *int32, value *float32) bool {
 	return true
 }
 
-func iterMakerInt32Float32(s ReStream) ReusableInput {
+func iterMakerInt32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Float32)
 	return ret
@@ -7318,7 +7319,7 @@ func (v *iterNative) readETInt32Float32(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Float32(s ReStream) ReusableInput {
+func iterMakerETInt32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Float32)
 	return ret
@@ -7338,7 +7339,7 @@ func (v *iterNative) readInt32Float64(key *int32, value *float64) bool {
 	return true
 }
 
-func iterMakerInt32Float64(s ReStream) ReusableInput {
+func iterMakerInt32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Float64)
 	return ret
@@ -7359,7 +7360,7 @@ func (v *iterNative) readETInt32Float64(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Float64(s ReStream) ReusableInput {
+func iterMakerETInt32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Float64)
 	return ret
@@ -7379,7 +7380,7 @@ func (v *iterNative) readInt32Typex_T(key *int32, value *typex.T) bool {
 	return true
 }
 
-func iterMakerInt32Typex_T(s ReStream) ReusableInput {
+func iterMakerInt32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_T)
 	return ret
@@ -7400,7 +7401,7 @@ func (v *iterNative) readETInt32Typex_T(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_T(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_T)
 	return ret
@@ -7420,7 +7421,7 @@ func (v *iterNative) readInt32Typex_U(key *int32, value *typex.U) bool {
 	return true
 }
 
-func iterMakerInt32Typex_U(s ReStream) ReusableInput {
+func iterMakerInt32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_U)
 	return ret
@@ -7441,7 +7442,7 @@ func (v *iterNative) readETInt32Typex_U(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_U(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_U)
 	return ret
@@ -7461,7 +7462,7 @@ func (v *iterNative) readInt32Typex_V(key *int32, value *typex.V) bool {
 	return true
 }
 
-func iterMakerInt32Typex_V(s ReStream) ReusableInput {
+func iterMakerInt32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_V)
 	return ret
@@ -7482,7 +7483,7 @@ func (v *iterNative) readETInt32Typex_V(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_V(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_V)
 	return ret
@@ -7502,7 +7503,7 @@ func (v *iterNative) readInt32Typex_W(key *int32, value *typex.W) bool {
 	return true
 }
 
-func iterMakerInt32Typex_W(s ReStream) ReusableInput {
+func iterMakerInt32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_W)
 	return ret
@@ -7523,7 +7524,7 @@ func (v *iterNative) readETInt32Typex_W(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_W(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_W)
 	return ret
@@ -7543,7 +7544,7 @@ func (v *iterNative) readInt32Typex_X(key *int32, value *typex.X) bool {
 	return true
 }
 
-func iterMakerInt32Typex_X(s ReStream) ReusableInput {
+func iterMakerInt32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_X)
 	return ret
@@ -7564,7 +7565,7 @@ func (v *iterNative) readETInt32Typex_X(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_X(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_X)
 	return ret
@@ -7584,7 +7585,7 @@ func (v *iterNative) readInt32Typex_Y(key *int32, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerInt32Typex_Y(s ReStream) ReusableInput {
+func iterMakerInt32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_Y)
 	return ret
@@ -7605,7 +7606,7 @@ func (v *iterNative) readETInt32Typex_Y(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_Y(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_Y)
 	return ret
@@ -7625,7 +7626,7 @@ func (v *iterNative) readInt32Typex_Z(key *int32, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerInt32Typex_Z(s ReStream) ReusableInput {
+func iterMakerInt32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt32Typex_Z)
 	return ret
@@ -7646,7 +7647,7 @@ func (v *iterNative) readETInt32Typex_Z(et *typex.EventTime, key *int32, value *
 	return true
 }
 
-func iterMakerETInt32Typex_Z(s ReStream) ReusableInput {
+func iterMakerETInt32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt32Typex_Z)
 	return ret
@@ -7665,7 +7666,7 @@ func (v *iterNative) readInt64(val *int64) bool {
 	return true
 }
 
-func iterMakerInt64(s ReStream) ReusableInput {
+func iterMakerInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64)
 	return ret
@@ -7685,7 +7686,7 @@ func (v *iterNative) readETInt64(et *typex.EventTime, val *int64) bool {
 	return true
 }
 
-func iterMakerETInt64(s ReStream) ReusableInput {
+func iterMakerETInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64)
 	return ret
@@ -7705,7 +7706,7 @@ func (v *iterNative) readInt64ByteSlice(key *int64, value *[]byte) bool {
 	return true
 }
 
-func iterMakerInt64ByteSlice(s ReStream) ReusableInput {
+func iterMakerInt64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64ByteSlice)
 	return ret
@@ -7726,7 +7727,7 @@ func (v *iterNative) readETInt64ByteSlice(et *typex.EventTime, key *int64, value
 	return true
 }
 
-func iterMakerETInt64ByteSlice(s ReStream) ReusableInput {
+func iterMakerETInt64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64ByteSlice)
 	return ret
@@ -7746,7 +7747,7 @@ func (v *iterNative) readInt64Bool(key *int64, value *bool) bool {
 	return true
 }
 
-func iterMakerInt64Bool(s ReStream) ReusableInput {
+func iterMakerInt64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Bool)
 	return ret
@@ -7767,7 +7768,7 @@ func (v *iterNative) readETInt64Bool(et *typex.EventTime, key *int64, value *boo
 	return true
 }
 
-func iterMakerETInt64Bool(s ReStream) ReusableInput {
+func iterMakerETInt64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Bool)
 	return ret
@@ -7787,7 +7788,7 @@ func (v *iterNative) readInt64String(key *int64, value *string) bool {
 	return true
 }
 
-func iterMakerInt64String(s ReStream) ReusableInput {
+func iterMakerInt64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64String)
 	return ret
@@ -7808,7 +7809,7 @@ func (v *iterNative) readETInt64String(et *typex.EventTime, key *int64, value *s
 	return true
 }
 
-func iterMakerETInt64String(s ReStream) ReusableInput {
+func iterMakerETInt64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64String)
 	return ret
@@ -7828,7 +7829,7 @@ func (v *iterNative) readInt64Int(key *int64, value *int) bool {
 	return true
 }
 
-func iterMakerInt64Int(s ReStream) ReusableInput {
+func iterMakerInt64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Int)
 	return ret
@@ -7849,7 +7850,7 @@ func (v *iterNative) readETInt64Int(et *typex.EventTime, key *int64, value *int)
 	return true
 }
 
-func iterMakerETInt64Int(s ReStream) ReusableInput {
+func iterMakerETInt64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Int)
 	return ret
@@ -7869,7 +7870,7 @@ func (v *iterNative) readInt64Int8(key *int64, value *int8) bool {
 	return true
 }
 
-func iterMakerInt64Int8(s ReStream) ReusableInput {
+func iterMakerInt64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Int8)
 	return ret
@@ -7890,7 +7891,7 @@ func (v *iterNative) readETInt64Int8(et *typex.EventTime, key *int64, value *int
 	return true
 }
 
-func iterMakerETInt64Int8(s ReStream) ReusableInput {
+func iterMakerETInt64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Int8)
 	return ret
@@ -7910,7 +7911,7 @@ func (v *iterNative) readInt64Int16(key *int64, value *int16) bool {
 	return true
 }
 
-func iterMakerInt64Int16(s ReStream) ReusableInput {
+func iterMakerInt64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Int16)
 	return ret
@@ -7931,7 +7932,7 @@ func (v *iterNative) readETInt64Int16(et *typex.EventTime, key *int64, value *in
 	return true
 }
 
-func iterMakerETInt64Int16(s ReStream) ReusableInput {
+func iterMakerETInt64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Int16)
 	return ret
@@ -7951,7 +7952,7 @@ func (v *iterNative) readInt64Int32(key *int64, value *int32) bool {
 	return true
 }
 
-func iterMakerInt64Int32(s ReStream) ReusableInput {
+func iterMakerInt64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Int32)
 	return ret
@@ -7972,7 +7973,7 @@ func (v *iterNative) readETInt64Int32(et *typex.EventTime, key *int64, value *in
 	return true
 }
 
-func iterMakerETInt64Int32(s ReStream) ReusableInput {
+func iterMakerETInt64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Int32)
 	return ret
@@ -7992,7 +7993,7 @@ func (v *iterNative) readInt64Int64(key *int64, value *int64) bool {
 	return true
 }
 
-func iterMakerInt64Int64(s ReStream) ReusableInput {
+func iterMakerInt64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Int64)
 	return ret
@@ -8013,7 +8014,7 @@ func (v *iterNative) readETInt64Int64(et *typex.EventTime, key *int64, value *in
 	return true
 }
 
-func iterMakerETInt64Int64(s ReStream) ReusableInput {
+func iterMakerETInt64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Int64)
 	return ret
@@ -8033,7 +8034,7 @@ func (v *iterNative) readInt64Uint(key *int64, value *uint) bool {
 	return true
 }
 
-func iterMakerInt64Uint(s ReStream) ReusableInput {
+func iterMakerInt64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Uint)
 	return ret
@@ -8054,7 +8055,7 @@ func (v *iterNative) readETInt64Uint(et *typex.EventTime, key *int64, value *uin
 	return true
 }
 
-func iterMakerETInt64Uint(s ReStream) ReusableInput {
+func iterMakerETInt64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Uint)
 	return ret
@@ -8074,7 +8075,7 @@ func (v *iterNative) readInt64Uint8(key *int64, value *uint8) bool {
 	return true
 }
 
-func iterMakerInt64Uint8(s ReStream) ReusableInput {
+func iterMakerInt64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Uint8)
 	return ret
@@ -8095,7 +8096,7 @@ func (v *iterNative) readETInt64Uint8(et *typex.EventTime, key *int64, value *ui
 	return true
 }
 
-func iterMakerETInt64Uint8(s ReStream) ReusableInput {
+func iterMakerETInt64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Uint8)
 	return ret
@@ -8115,7 +8116,7 @@ func (v *iterNative) readInt64Uint16(key *int64, value *uint16) bool {
 	return true
 }
 
-func iterMakerInt64Uint16(s ReStream) ReusableInput {
+func iterMakerInt64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Uint16)
 	return ret
@@ -8136,7 +8137,7 @@ func (v *iterNative) readETInt64Uint16(et *typex.EventTime, key *int64, value *u
 	return true
 }
 
-func iterMakerETInt64Uint16(s ReStream) ReusableInput {
+func iterMakerETInt64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Uint16)
 	return ret
@@ -8156,7 +8157,7 @@ func (v *iterNative) readInt64Uint32(key *int64, value *uint32) bool {
 	return true
 }
 
-func iterMakerInt64Uint32(s ReStream) ReusableInput {
+func iterMakerInt64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Uint32)
 	return ret
@@ -8177,7 +8178,7 @@ func (v *iterNative) readETInt64Uint32(et *typex.EventTime, key *int64, value *u
 	return true
 }
 
-func iterMakerETInt64Uint32(s ReStream) ReusableInput {
+func iterMakerETInt64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Uint32)
 	return ret
@@ -8197,7 +8198,7 @@ func (v *iterNative) readInt64Uint64(key *int64, value *uint64) bool {
 	return true
 }
 
-func iterMakerInt64Uint64(s ReStream) ReusableInput {
+func iterMakerInt64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Uint64)
 	return ret
@@ -8218,7 +8219,7 @@ func (v *iterNative) readETInt64Uint64(et *typex.EventTime, key *int64, value *u
 	return true
 }
 
-func iterMakerETInt64Uint64(s ReStream) ReusableInput {
+func iterMakerETInt64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Uint64)
 	return ret
@@ -8238,7 +8239,7 @@ func (v *iterNative) readInt64Float32(key *int64, value *float32) bool {
 	return true
 }
 
-func iterMakerInt64Float32(s ReStream) ReusableInput {
+func iterMakerInt64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Float32)
 	return ret
@@ -8259,7 +8260,7 @@ func (v *iterNative) readETInt64Float32(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Float32(s ReStream) ReusableInput {
+func iterMakerETInt64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Float32)
 	return ret
@@ -8279,7 +8280,7 @@ func (v *iterNative) readInt64Float64(key *int64, value *float64) bool {
 	return true
 }
 
-func iterMakerInt64Float64(s ReStream) ReusableInput {
+func iterMakerInt64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Float64)
 	return ret
@@ -8300,7 +8301,7 @@ func (v *iterNative) readETInt64Float64(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Float64(s ReStream) ReusableInput {
+func iterMakerETInt64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Float64)
 	return ret
@@ -8320,7 +8321,7 @@ func (v *iterNative) readInt64Typex_T(key *int64, value *typex.T) bool {
 	return true
 }
 
-func iterMakerInt64Typex_T(s ReStream) ReusableInput {
+func iterMakerInt64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_T)
 	return ret
@@ -8341,7 +8342,7 @@ func (v *iterNative) readETInt64Typex_T(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_T(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_T)
 	return ret
@@ -8361,7 +8362,7 @@ func (v *iterNative) readInt64Typex_U(key *int64, value *typex.U) bool {
 	return true
 }
 
-func iterMakerInt64Typex_U(s ReStream) ReusableInput {
+func iterMakerInt64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_U)
 	return ret
@@ -8382,7 +8383,7 @@ func (v *iterNative) readETInt64Typex_U(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_U(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_U)
 	return ret
@@ -8402,7 +8403,7 @@ func (v *iterNative) readInt64Typex_V(key *int64, value *typex.V) bool {
 	return true
 }
 
-func iterMakerInt64Typex_V(s ReStream) ReusableInput {
+func iterMakerInt64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_V)
 	return ret
@@ -8423,7 +8424,7 @@ func (v *iterNative) readETInt64Typex_V(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_V(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_V)
 	return ret
@@ -8443,7 +8444,7 @@ func (v *iterNative) readInt64Typex_W(key *int64, value *typex.W) bool {
 	return true
 }
 
-func iterMakerInt64Typex_W(s ReStream) ReusableInput {
+func iterMakerInt64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_W)
 	return ret
@@ -8464,7 +8465,7 @@ func (v *iterNative) readETInt64Typex_W(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_W(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_W)
 	return ret
@@ -8484,7 +8485,7 @@ func (v *iterNative) readInt64Typex_X(key *int64, value *typex.X) bool {
 	return true
 }
 
-func iterMakerInt64Typex_X(s ReStream) ReusableInput {
+func iterMakerInt64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_X)
 	return ret
@@ -8505,7 +8506,7 @@ func (v *iterNative) readETInt64Typex_X(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_X(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_X)
 	return ret
@@ -8525,7 +8526,7 @@ func (v *iterNative) readInt64Typex_Y(key *int64, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerInt64Typex_Y(s ReStream) ReusableInput {
+func iterMakerInt64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_Y)
 	return ret
@@ -8546,7 +8547,7 @@ func (v *iterNative) readETInt64Typex_Y(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_Y(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_Y)
 	return ret
@@ -8566,7 +8567,7 @@ func (v *iterNative) readInt64Typex_Z(key *int64, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerInt64Typex_Z(s ReStream) ReusableInput {
+func iterMakerInt64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readInt64Typex_Z)
 	return ret
@@ -8587,7 +8588,7 @@ func (v *iterNative) readETInt64Typex_Z(et *typex.EventTime, key *int64, value *
 	return true
 }
 
-func iterMakerETInt64Typex_Z(s ReStream) ReusableInput {
+func iterMakerETInt64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETInt64Typex_Z)
 	return ret
@@ -8606,7 +8607,7 @@ func (v *iterNative) readUint(val *uint) bool {
 	return true
 }
 
-func iterMakerUint(s ReStream) ReusableInput {
+func iterMakerUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint)
 	return ret
@@ -8626,7 +8627,7 @@ func (v *iterNative) readETUint(et *typex.EventTime, val *uint) bool {
 	return true
 }
 
-func iterMakerETUint(s ReStream) ReusableInput {
+func iterMakerETUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint)
 	return ret
@@ -8646,7 +8647,7 @@ func (v *iterNative) readUintByteSlice(key *uint, value *[]byte) bool {
 	return true
 }
 
-func iterMakerUintByteSlice(s ReStream) ReusableInput {
+func iterMakerUintByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintByteSlice)
 	return ret
@@ -8667,7 +8668,7 @@ func (v *iterNative) readETUintByteSlice(et *typex.EventTime, key *uint, value *
 	return true
 }
 
-func iterMakerETUintByteSlice(s ReStream) ReusableInput {
+func iterMakerETUintByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintByteSlice)
 	return ret
@@ -8687,7 +8688,7 @@ func (v *iterNative) readUintBool(key *uint, value *bool) bool {
 	return true
 }
 
-func iterMakerUintBool(s ReStream) ReusableInput {
+func iterMakerUintBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintBool)
 	return ret
@@ -8708,7 +8709,7 @@ func (v *iterNative) readETUintBool(et *typex.EventTime, key *uint, value *bool)
 	return true
 }
 
-func iterMakerETUintBool(s ReStream) ReusableInput {
+func iterMakerETUintBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintBool)
 	return ret
@@ -8728,7 +8729,7 @@ func (v *iterNative) readUintString(key *uint, value *string) bool {
 	return true
 }
 
-func iterMakerUintString(s ReStream) ReusableInput {
+func iterMakerUintString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintString)
 	return ret
@@ -8749,7 +8750,7 @@ func (v *iterNative) readETUintString(et *typex.EventTime, key *uint, value *str
 	return true
 }
 
-func iterMakerETUintString(s ReStream) ReusableInput {
+func iterMakerETUintString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintString)
 	return ret
@@ -8769,7 +8770,7 @@ func (v *iterNative) readUintInt(key *uint, value *int) bool {
 	return true
 }
 
-func iterMakerUintInt(s ReStream) ReusableInput {
+func iterMakerUintInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintInt)
 	return ret
@@ -8790,7 +8791,7 @@ func (v *iterNative) readETUintInt(et *typex.EventTime, key *uint, value *int) b
 	return true
 }
 
-func iterMakerETUintInt(s ReStream) ReusableInput {
+func iterMakerETUintInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintInt)
 	return ret
@@ -8810,7 +8811,7 @@ func (v *iterNative) readUintInt8(key *uint, value *int8) bool {
 	return true
 }
 
-func iterMakerUintInt8(s ReStream) ReusableInput {
+func iterMakerUintInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintInt8)
 	return ret
@@ -8831,7 +8832,7 @@ func (v *iterNative) readETUintInt8(et *typex.EventTime, key *uint, value *int8)
 	return true
 }
 
-func iterMakerETUintInt8(s ReStream) ReusableInput {
+func iterMakerETUintInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintInt8)
 	return ret
@@ -8851,7 +8852,7 @@ func (v *iterNative) readUintInt16(key *uint, value *int16) bool {
 	return true
 }
 
-func iterMakerUintInt16(s ReStream) ReusableInput {
+func iterMakerUintInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintInt16)
 	return ret
@@ -8872,7 +8873,7 @@ func (v *iterNative) readETUintInt16(et *typex.EventTime, key *uint, value *int1
 	return true
 }
 
-func iterMakerETUintInt16(s ReStream) ReusableInput {
+func iterMakerETUintInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintInt16)
 	return ret
@@ -8892,7 +8893,7 @@ func (v *iterNative) readUintInt32(key *uint, value *int32) bool {
 	return true
 }
 
-func iterMakerUintInt32(s ReStream) ReusableInput {
+func iterMakerUintInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintInt32)
 	return ret
@@ -8913,7 +8914,7 @@ func (v *iterNative) readETUintInt32(et *typex.EventTime, key *uint, value *int3
 	return true
 }
 
-func iterMakerETUintInt32(s ReStream) ReusableInput {
+func iterMakerETUintInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintInt32)
 	return ret
@@ -8933,7 +8934,7 @@ func (v *iterNative) readUintInt64(key *uint, value *int64) bool {
 	return true
 }
 
-func iterMakerUintInt64(s ReStream) ReusableInput {
+func iterMakerUintInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintInt64)
 	return ret
@@ -8954,7 +8955,7 @@ func (v *iterNative) readETUintInt64(et *typex.EventTime, key *uint, value *int6
 	return true
 }
 
-func iterMakerETUintInt64(s ReStream) ReusableInput {
+func iterMakerETUintInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintInt64)
 	return ret
@@ -8974,7 +8975,7 @@ func (v *iterNative) readUintUint(key *uint, value *uint) bool {
 	return true
 }
 
-func iterMakerUintUint(s ReStream) ReusableInput {
+func iterMakerUintUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintUint)
 	return ret
@@ -8995,7 +8996,7 @@ func (v *iterNative) readETUintUint(et *typex.EventTime, key *uint, value *uint)
 	return true
 }
 
-func iterMakerETUintUint(s ReStream) ReusableInput {
+func iterMakerETUintUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintUint)
 	return ret
@@ -9015,7 +9016,7 @@ func (v *iterNative) readUintUint8(key *uint, value *uint8) bool {
 	return true
 }
 
-func iterMakerUintUint8(s ReStream) ReusableInput {
+func iterMakerUintUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintUint8)
 	return ret
@@ -9036,7 +9037,7 @@ func (v *iterNative) readETUintUint8(et *typex.EventTime, key *uint, value *uint
 	return true
 }
 
-func iterMakerETUintUint8(s ReStream) ReusableInput {
+func iterMakerETUintUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintUint8)
 	return ret
@@ -9056,7 +9057,7 @@ func (v *iterNative) readUintUint16(key *uint, value *uint16) bool {
 	return true
 }
 
-func iterMakerUintUint16(s ReStream) ReusableInput {
+func iterMakerUintUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintUint16)
 	return ret
@@ -9077,7 +9078,7 @@ func (v *iterNative) readETUintUint16(et *typex.EventTime, key *uint, value *uin
 	return true
 }
 
-func iterMakerETUintUint16(s ReStream) ReusableInput {
+func iterMakerETUintUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintUint16)
 	return ret
@@ -9097,7 +9098,7 @@ func (v *iterNative) readUintUint32(key *uint, value *uint32) bool {
 	return true
 }
 
-func iterMakerUintUint32(s ReStream) ReusableInput {
+func iterMakerUintUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintUint32)
 	return ret
@@ -9118,7 +9119,7 @@ func (v *iterNative) readETUintUint32(et *typex.EventTime, key *uint, value *uin
 	return true
 }
 
-func iterMakerETUintUint32(s ReStream) ReusableInput {
+func iterMakerETUintUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintUint32)
 	return ret
@@ -9138,7 +9139,7 @@ func (v *iterNative) readUintUint64(key *uint, value *uint64) bool {
 	return true
 }
 
-func iterMakerUintUint64(s ReStream) ReusableInput {
+func iterMakerUintUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintUint64)
 	return ret
@@ -9159,7 +9160,7 @@ func (v *iterNative) readETUintUint64(et *typex.EventTime, key *uint, value *uin
 	return true
 }
 
-func iterMakerETUintUint64(s ReStream) ReusableInput {
+func iterMakerETUintUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintUint64)
 	return ret
@@ -9179,7 +9180,7 @@ func (v *iterNative) readUintFloat32(key *uint, value *float32) bool {
 	return true
 }
 
-func iterMakerUintFloat32(s ReStream) ReusableInput {
+func iterMakerUintFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintFloat32)
 	return ret
@@ -9200,7 +9201,7 @@ func (v *iterNative) readETUintFloat32(et *typex.EventTime, key *uint, value *fl
 	return true
 }
 
-func iterMakerETUintFloat32(s ReStream) ReusableInput {
+func iterMakerETUintFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintFloat32)
 	return ret
@@ -9220,7 +9221,7 @@ func (v *iterNative) readUintFloat64(key *uint, value *float64) bool {
 	return true
 }
 
-func iterMakerUintFloat64(s ReStream) ReusableInput {
+func iterMakerUintFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintFloat64)
 	return ret
@@ -9241,7 +9242,7 @@ func (v *iterNative) readETUintFloat64(et *typex.EventTime, key *uint, value *fl
 	return true
 }
 
-func iterMakerETUintFloat64(s ReStream) ReusableInput {
+func iterMakerETUintFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintFloat64)
 	return ret
@@ -9261,7 +9262,7 @@ func (v *iterNative) readUintTypex_T(key *uint, value *typex.T) bool {
 	return true
 }
 
-func iterMakerUintTypex_T(s ReStream) ReusableInput {
+func iterMakerUintTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_T)
 	return ret
@@ -9282,7 +9283,7 @@ func (v *iterNative) readETUintTypex_T(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_T(s ReStream) ReusableInput {
+func iterMakerETUintTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_T)
 	return ret
@@ -9302,7 +9303,7 @@ func (v *iterNative) readUintTypex_U(key *uint, value *typex.U) bool {
 	return true
 }
 
-func iterMakerUintTypex_U(s ReStream) ReusableInput {
+func iterMakerUintTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_U)
 	return ret
@@ -9323,7 +9324,7 @@ func (v *iterNative) readETUintTypex_U(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_U(s ReStream) ReusableInput {
+func iterMakerETUintTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_U)
 	return ret
@@ -9343,7 +9344,7 @@ func (v *iterNative) readUintTypex_V(key *uint, value *typex.V) bool {
 	return true
 }
 
-func iterMakerUintTypex_V(s ReStream) ReusableInput {
+func iterMakerUintTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_V)
 	return ret
@@ -9364,7 +9365,7 @@ func (v *iterNative) readETUintTypex_V(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_V(s ReStream) ReusableInput {
+func iterMakerETUintTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_V)
 	return ret
@@ -9384,7 +9385,7 @@ func (v *iterNative) readUintTypex_W(key *uint, value *typex.W) bool {
 	return true
 }
 
-func iterMakerUintTypex_W(s ReStream) ReusableInput {
+func iterMakerUintTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_W)
 	return ret
@@ -9405,7 +9406,7 @@ func (v *iterNative) readETUintTypex_W(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_W(s ReStream) ReusableInput {
+func iterMakerETUintTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_W)
 	return ret
@@ -9425,7 +9426,7 @@ func (v *iterNative) readUintTypex_X(key *uint, value *typex.X) bool {
 	return true
 }
 
-func iterMakerUintTypex_X(s ReStream) ReusableInput {
+func iterMakerUintTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_X)
 	return ret
@@ -9446,7 +9447,7 @@ func (v *iterNative) readETUintTypex_X(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_X(s ReStream) ReusableInput {
+func iterMakerETUintTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_X)
 	return ret
@@ -9466,7 +9467,7 @@ func (v *iterNative) readUintTypex_Y(key *uint, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerUintTypex_Y(s ReStream) ReusableInput {
+func iterMakerUintTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_Y)
 	return ret
@@ -9487,7 +9488,7 @@ func (v *iterNative) readETUintTypex_Y(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_Y(s ReStream) ReusableInput {
+func iterMakerETUintTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_Y)
 	return ret
@@ -9507,7 +9508,7 @@ func (v *iterNative) readUintTypex_Z(key *uint, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerUintTypex_Z(s ReStream) ReusableInput {
+func iterMakerUintTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUintTypex_Z)
 	return ret
@@ -9528,7 +9529,7 @@ func (v *iterNative) readETUintTypex_Z(et *typex.EventTime, key *uint, value *ty
 	return true
 }
 
-func iterMakerETUintTypex_Z(s ReStream) ReusableInput {
+func iterMakerETUintTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUintTypex_Z)
 	return ret
@@ -9547,7 +9548,7 @@ func (v *iterNative) readUint8(val *uint8) bool {
 	return true
 }
 
-func iterMakerUint8(s ReStream) ReusableInput {
+func iterMakerUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8)
 	return ret
@@ -9567,7 +9568,7 @@ func (v *iterNative) readETUint8(et *typex.EventTime, val *uint8) bool {
 	return true
 }
 
-func iterMakerETUint8(s ReStream) ReusableInput {
+func iterMakerETUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8)
 	return ret
@@ -9587,7 +9588,7 @@ func (v *iterNative) readUint8ByteSlice(key *uint8, value *[]byte) bool {
 	return true
 }
 
-func iterMakerUint8ByteSlice(s ReStream) ReusableInput {
+func iterMakerUint8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8ByteSlice)
 	return ret
@@ -9608,7 +9609,7 @@ func (v *iterNative) readETUint8ByteSlice(et *typex.EventTime, key *uint8, value
 	return true
 }
 
-func iterMakerETUint8ByteSlice(s ReStream) ReusableInput {
+func iterMakerETUint8ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8ByteSlice)
 	return ret
@@ -9628,7 +9629,7 @@ func (v *iterNative) readUint8Bool(key *uint8, value *bool) bool {
 	return true
 }
 
-func iterMakerUint8Bool(s ReStream) ReusableInput {
+func iterMakerUint8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Bool)
 	return ret
@@ -9649,7 +9650,7 @@ func (v *iterNative) readETUint8Bool(et *typex.EventTime, key *uint8, value *boo
 	return true
 }
 
-func iterMakerETUint8Bool(s ReStream) ReusableInput {
+func iterMakerETUint8Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Bool)
 	return ret
@@ -9669,7 +9670,7 @@ func (v *iterNative) readUint8String(key *uint8, value *string) bool {
 	return true
 }
 
-func iterMakerUint8String(s ReStream) ReusableInput {
+func iterMakerUint8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8String)
 	return ret
@@ -9690,7 +9691,7 @@ func (v *iterNative) readETUint8String(et *typex.EventTime, key *uint8, value *s
 	return true
 }
 
-func iterMakerETUint8String(s ReStream) ReusableInput {
+func iterMakerETUint8String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8String)
 	return ret
@@ -9710,7 +9711,7 @@ func (v *iterNative) readUint8Int(key *uint8, value *int) bool {
 	return true
 }
 
-func iterMakerUint8Int(s ReStream) ReusableInput {
+func iterMakerUint8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Int)
 	return ret
@@ -9731,7 +9732,7 @@ func (v *iterNative) readETUint8Int(et *typex.EventTime, key *uint8, value *int)
 	return true
 }
 
-func iterMakerETUint8Int(s ReStream) ReusableInput {
+func iterMakerETUint8Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Int)
 	return ret
@@ -9751,7 +9752,7 @@ func (v *iterNative) readUint8Int8(key *uint8, value *int8) bool {
 	return true
 }
 
-func iterMakerUint8Int8(s ReStream) ReusableInput {
+func iterMakerUint8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Int8)
 	return ret
@@ -9772,7 +9773,7 @@ func (v *iterNative) readETUint8Int8(et *typex.EventTime, key *uint8, value *int
 	return true
 }
 
-func iterMakerETUint8Int8(s ReStream) ReusableInput {
+func iterMakerETUint8Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Int8)
 	return ret
@@ -9792,7 +9793,7 @@ func (v *iterNative) readUint8Int16(key *uint8, value *int16) bool {
 	return true
 }
 
-func iterMakerUint8Int16(s ReStream) ReusableInput {
+func iterMakerUint8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Int16)
 	return ret
@@ -9813,7 +9814,7 @@ func (v *iterNative) readETUint8Int16(et *typex.EventTime, key *uint8, value *in
 	return true
 }
 
-func iterMakerETUint8Int16(s ReStream) ReusableInput {
+func iterMakerETUint8Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Int16)
 	return ret
@@ -9833,7 +9834,7 @@ func (v *iterNative) readUint8Int32(key *uint8, value *int32) bool {
 	return true
 }
 
-func iterMakerUint8Int32(s ReStream) ReusableInput {
+func iterMakerUint8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Int32)
 	return ret
@@ -9854,7 +9855,7 @@ func (v *iterNative) readETUint8Int32(et *typex.EventTime, key *uint8, value *in
 	return true
 }
 
-func iterMakerETUint8Int32(s ReStream) ReusableInput {
+func iterMakerETUint8Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Int32)
 	return ret
@@ -9874,7 +9875,7 @@ func (v *iterNative) readUint8Int64(key *uint8, value *int64) bool {
 	return true
 }
 
-func iterMakerUint8Int64(s ReStream) ReusableInput {
+func iterMakerUint8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Int64)
 	return ret
@@ -9895,7 +9896,7 @@ func (v *iterNative) readETUint8Int64(et *typex.EventTime, key *uint8, value *in
 	return true
 }
 
-func iterMakerETUint8Int64(s ReStream) ReusableInput {
+func iterMakerETUint8Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Int64)
 	return ret
@@ -9915,7 +9916,7 @@ func (v *iterNative) readUint8Uint(key *uint8, value *uint) bool {
 	return true
 }
 
-func iterMakerUint8Uint(s ReStream) ReusableInput {
+func iterMakerUint8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Uint)
 	return ret
@@ -9936,7 +9937,7 @@ func (v *iterNative) readETUint8Uint(et *typex.EventTime, key *uint8, value *uin
 	return true
 }
 
-func iterMakerETUint8Uint(s ReStream) ReusableInput {
+func iterMakerETUint8Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Uint)
 	return ret
@@ -9956,7 +9957,7 @@ func (v *iterNative) readUint8Uint8(key *uint8, value *uint8) bool {
 	return true
 }
 
-func iterMakerUint8Uint8(s ReStream) ReusableInput {
+func iterMakerUint8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Uint8)
 	return ret
@@ -9977,7 +9978,7 @@ func (v *iterNative) readETUint8Uint8(et *typex.EventTime, key *uint8, value *ui
 	return true
 }
 
-func iterMakerETUint8Uint8(s ReStream) ReusableInput {
+func iterMakerETUint8Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Uint8)
 	return ret
@@ -9997,7 +9998,7 @@ func (v *iterNative) readUint8Uint16(key *uint8, value *uint16) bool {
 	return true
 }
 
-func iterMakerUint8Uint16(s ReStream) ReusableInput {
+func iterMakerUint8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Uint16)
 	return ret
@@ -10018,7 +10019,7 @@ func (v *iterNative) readETUint8Uint16(et *typex.EventTime, key *uint8, value *u
 	return true
 }
 
-func iterMakerETUint8Uint16(s ReStream) ReusableInput {
+func iterMakerETUint8Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Uint16)
 	return ret
@@ -10038,7 +10039,7 @@ func (v *iterNative) readUint8Uint32(key *uint8, value *uint32) bool {
 	return true
 }
 
-func iterMakerUint8Uint32(s ReStream) ReusableInput {
+func iterMakerUint8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Uint32)
 	return ret
@@ -10059,7 +10060,7 @@ func (v *iterNative) readETUint8Uint32(et *typex.EventTime, key *uint8, value *u
 	return true
 }
 
-func iterMakerETUint8Uint32(s ReStream) ReusableInput {
+func iterMakerETUint8Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Uint32)
 	return ret
@@ -10079,7 +10080,7 @@ func (v *iterNative) readUint8Uint64(key *uint8, value *uint64) bool {
 	return true
 }
 
-func iterMakerUint8Uint64(s ReStream) ReusableInput {
+func iterMakerUint8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Uint64)
 	return ret
@@ -10100,7 +10101,7 @@ func (v *iterNative) readETUint8Uint64(et *typex.EventTime, key *uint8, value *u
 	return true
 }
 
-func iterMakerETUint8Uint64(s ReStream) ReusableInput {
+func iterMakerETUint8Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Uint64)
 	return ret
@@ -10120,7 +10121,7 @@ func (v *iterNative) readUint8Float32(key *uint8, value *float32) bool {
 	return true
 }
 
-func iterMakerUint8Float32(s ReStream) ReusableInput {
+func iterMakerUint8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Float32)
 	return ret
@@ -10141,7 +10142,7 @@ func (v *iterNative) readETUint8Float32(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Float32(s ReStream) ReusableInput {
+func iterMakerETUint8Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Float32)
 	return ret
@@ -10161,7 +10162,7 @@ func (v *iterNative) readUint8Float64(key *uint8, value *float64) bool {
 	return true
 }
 
-func iterMakerUint8Float64(s ReStream) ReusableInput {
+func iterMakerUint8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Float64)
 	return ret
@@ -10182,7 +10183,7 @@ func (v *iterNative) readETUint8Float64(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Float64(s ReStream) ReusableInput {
+func iterMakerETUint8Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Float64)
 	return ret
@@ -10202,7 +10203,7 @@ func (v *iterNative) readUint8Typex_T(key *uint8, value *typex.T) bool {
 	return true
 }
 
-func iterMakerUint8Typex_T(s ReStream) ReusableInput {
+func iterMakerUint8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_T)
 	return ret
@@ -10223,7 +10224,7 @@ func (v *iterNative) readETUint8Typex_T(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_T(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_T)
 	return ret
@@ -10243,7 +10244,7 @@ func (v *iterNative) readUint8Typex_U(key *uint8, value *typex.U) bool {
 	return true
 }
 
-func iterMakerUint8Typex_U(s ReStream) ReusableInput {
+func iterMakerUint8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_U)
 	return ret
@@ -10264,7 +10265,7 @@ func (v *iterNative) readETUint8Typex_U(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_U(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_U)
 	return ret
@@ -10284,7 +10285,7 @@ func (v *iterNative) readUint8Typex_V(key *uint8, value *typex.V) bool {
 	return true
 }
 
-func iterMakerUint8Typex_V(s ReStream) ReusableInput {
+func iterMakerUint8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_V)
 	return ret
@@ -10305,7 +10306,7 @@ func (v *iterNative) readETUint8Typex_V(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_V(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_V)
 	return ret
@@ -10325,7 +10326,7 @@ func (v *iterNative) readUint8Typex_W(key *uint8, value *typex.W) bool {
 	return true
 }
 
-func iterMakerUint8Typex_W(s ReStream) ReusableInput {
+func iterMakerUint8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_W)
 	return ret
@@ -10346,7 +10347,7 @@ func (v *iterNative) readETUint8Typex_W(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_W(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_W)
 	return ret
@@ -10366,7 +10367,7 @@ func (v *iterNative) readUint8Typex_X(key *uint8, value *typex.X) bool {
 	return true
 }
 
-func iterMakerUint8Typex_X(s ReStream) ReusableInput {
+func iterMakerUint8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_X)
 	return ret
@@ -10387,7 +10388,7 @@ func (v *iterNative) readETUint8Typex_X(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_X(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_X)
 	return ret
@@ -10407,7 +10408,7 @@ func (v *iterNative) readUint8Typex_Y(key *uint8, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerUint8Typex_Y(s ReStream) ReusableInput {
+func iterMakerUint8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_Y)
 	return ret
@@ -10428,7 +10429,7 @@ func (v *iterNative) readETUint8Typex_Y(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_Y(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_Y)
 	return ret
@@ -10448,7 +10449,7 @@ func (v *iterNative) readUint8Typex_Z(key *uint8, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerUint8Typex_Z(s ReStream) ReusableInput {
+func iterMakerUint8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint8Typex_Z)
 	return ret
@@ -10469,7 +10470,7 @@ func (v *iterNative) readETUint8Typex_Z(et *typex.EventTime, key *uint8, value *
 	return true
 }
 
-func iterMakerETUint8Typex_Z(s ReStream) ReusableInput {
+func iterMakerETUint8Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint8Typex_Z)
 	return ret
@@ -10488,7 +10489,7 @@ func (v *iterNative) readUint16(val *uint16) bool {
 	return true
 }
 
-func iterMakerUint16(s ReStream) ReusableInput {
+func iterMakerUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16)
 	return ret
@@ -10508,7 +10509,7 @@ func (v *iterNative) readETUint16(et *typex.EventTime, val *uint16) bool {
 	return true
 }
 
-func iterMakerETUint16(s ReStream) ReusableInput {
+func iterMakerETUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16)
 	return ret
@@ -10528,7 +10529,7 @@ func (v *iterNative) readUint16ByteSlice(key *uint16, value *[]byte) bool {
 	return true
 }
 
-func iterMakerUint16ByteSlice(s ReStream) ReusableInput {
+func iterMakerUint16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16ByteSlice)
 	return ret
@@ -10549,7 +10550,7 @@ func (v *iterNative) readETUint16ByteSlice(et *typex.EventTime, key *uint16, val
 	return true
 }
 
-func iterMakerETUint16ByteSlice(s ReStream) ReusableInput {
+func iterMakerETUint16ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16ByteSlice)
 	return ret
@@ -10569,7 +10570,7 @@ func (v *iterNative) readUint16Bool(key *uint16, value *bool) bool {
 	return true
 }
 
-func iterMakerUint16Bool(s ReStream) ReusableInput {
+func iterMakerUint16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Bool)
 	return ret
@@ -10590,7 +10591,7 @@ func (v *iterNative) readETUint16Bool(et *typex.EventTime, key *uint16, value *b
 	return true
 }
 
-func iterMakerETUint16Bool(s ReStream) ReusableInput {
+func iterMakerETUint16Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Bool)
 	return ret
@@ -10610,7 +10611,7 @@ func (v *iterNative) readUint16String(key *uint16, value *string) bool {
 	return true
 }
 
-func iterMakerUint16String(s ReStream) ReusableInput {
+func iterMakerUint16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16String)
 	return ret
@@ -10631,7 +10632,7 @@ func (v *iterNative) readETUint16String(et *typex.EventTime, key *uint16, value 
 	return true
 }
 
-func iterMakerETUint16String(s ReStream) ReusableInput {
+func iterMakerETUint16String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16String)
 	return ret
@@ -10651,7 +10652,7 @@ func (v *iterNative) readUint16Int(key *uint16, value *int) bool {
 	return true
 }
 
-func iterMakerUint16Int(s ReStream) ReusableInput {
+func iterMakerUint16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Int)
 	return ret
@@ -10672,7 +10673,7 @@ func (v *iterNative) readETUint16Int(et *typex.EventTime, key *uint16, value *in
 	return true
 }
 
-func iterMakerETUint16Int(s ReStream) ReusableInput {
+func iterMakerETUint16Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Int)
 	return ret
@@ -10692,7 +10693,7 @@ func (v *iterNative) readUint16Int8(key *uint16, value *int8) bool {
 	return true
 }
 
-func iterMakerUint16Int8(s ReStream) ReusableInput {
+func iterMakerUint16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Int8)
 	return ret
@@ -10713,7 +10714,7 @@ func (v *iterNative) readETUint16Int8(et *typex.EventTime, key *uint16, value *i
 	return true
 }
 
-func iterMakerETUint16Int8(s ReStream) ReusableInput {
+func iterMakerETUint16Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Int8)
 	return ret
@@ -10733,7 +10734,7 @@ func (v *iterNative) readUint16Int16(key *uint16, value *int16) bool {
 	return true
 }
 
-func iterMakerUint16Int16(s ReStream) ReusableInput {
+func iterMakerUint16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Int16)
 	return ret
@@ -10754,7 +10755,7 @@ func (v *iterNative) readETUint16Int16(et *typex.EventTime, key *uint16, value *
 	return true
 }
 
-func iterMakerETUint16Int16(s ReStream) ReusableInput {
+func iterMakerETUint16Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Int16)
 	return ret
@@ -10774,7 +10775,7 @@ func (v *iterNative) readUint16Int32(key *uint16, value *int32) bool {
 	return true
 }
 
-func iterMakerUint16Int32(s ReStream) ReusableInput {
+func iterMakerUint16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Int32)
 	return ret
@@ -10795,7 +10796,7 @@ func (v *iterNative) readETUint16Int32(et *typex.EventTime, key *uint16, value *
 	return true
 }
 
-func iterMakerETUint16Int32(s ReStream) ReusableInput {
+func iterMakerETUint16Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Int32)
 	return ret
@@ -10815,7 +10816,7 @@ func (v *iterNative) readUint16Int64(key *uint16, value *int64) bool {
 	return true
 }
 
-func iterMakerUint16Int64(s ReStream) ReusableInput {
+func iterMakerUint16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Int64)
 	return ret
@@ -10836,7 +10837,7 @@ func (v *iterNative) readETUint16Int64(et *typex.EventTime, key *uint16, value *
 	return true
 }
 
-func iterMakerETUint16Int64(s ReStream) ReusableInput {
+func iterMakerETUint16Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Int64)
 	return ret
@@ -10856,7 +10857,7 @@ func (v *iterNative) readUint16Uint(key *uint16, value *uint) bool {
 	return true
 }
 
-func iterMakerUint16Uint(s ReStream) ReusableInput {
+func iterMakerUint16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Uint)
 	return ret
@@ -10877,7 +10878,7 @@ func (v *iterNative) readETUint16Uint(et *typex.EventTime, key *uint16, value *u
 	return true
 }
 
-func iterMakerETUint16Uint(s ReStream) ReusableInput {
+func iterMakerETUint16Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Uint)
 	return ret
@@ -10897,7 +10898,7 @@ func (v *iterNative) readUint16Uint8(key *uint16, value *uint8) bool {
 	return true
 }
 
-func iterMakerUint16Uint8(s ReStream) ReusableInput {
+func iterMakerUint16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Uint8)
 	return ret
@@ -10918,7 +10919,7 @@ func (v *iterNative) readETUint16Uint8(et *typex.EventTime, key *uint16, value *
 	return true
 }
 
-func iterMakerETUint16Uint8(s ReStream) ReusableInput {
+func iterMakerETUint16Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Uint8)
 	return ret
@@ -10938,7 +10939,7 @@ func (v *iterNative) readUint16Uint16(key *uint16, value *uint16) bool {
 	return true
 }
 
-func iterMakerUint16Uint16(s ReStream) ReusableInput {
+func iterMakerUint16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Uint16)
 	return ret
@@ -10959,7 +10960,7 @@ func (v *iterNative) readETUint16Uint16(et *typex.EventTime, key *uint16, value 
 	return true
 }
 
-func iterMakerETUint16Uint16(s ReStream) ReusableInput {
+func iterMakerETUint16Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Uint16)
 	return ret
@@ -10979,7 +10980,7 @@ func (v *iterNative) readUint16Uint32(key *uint16, value *uint32) bool {
 	return true
 }
 
-func iterMakerUint16Uint32(s ReStream) ReusableInput {
+func iterMakerUint16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Uint32)
 	return ret
@@ -11000,7 +11001,7 @@ func (v *iterNative) readETUint16Uint32(et *typex.EventTime, key *uint16, value 
 	return true
 }
 
-func iterMakerETUint16Uint32(s ReStream) ReusableInput {
+func iterMakerETUint16Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Uint32)
 	return ret
@@ -11020,7 +11021,7 @@ func (v *iterNative) readUint16Uint64(key *uint16, value *uint64) bool {
 	return true
 }
 
-func iterMakerUint16Uint64(s ReStream) ReusableInput {
+func iterMakerUint16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Uint64)
 	return ret
@@ -11041,7 +11042,7 @@ func (v *iterNative) readETUint16Uint64(et *typex.EventTime, key *uint16, value 
 	return true
 }
 
-func iterMakerETUint16Uint64(s ReStream) ReusableInput {
+func iterMakerETUint16Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Uint64)
 	return ret
@@ -11061,7 +11062,7 @@ func (v *iterNative) readUint16Float32(key *uint16, value *float32) bool {
 	return true
 }
 
-func iterMakerUint16Float32(s ReStream) ReusableInput {
+func iterMakerUint16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Float32)
 	return ret
@@ -11082,7 +11083,7 @@ func (v *iterNative) readETUint16Float32(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Float32(s ReStream) ReusableInput {
+func iterMakerETUint16Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Float32)
 	return ret
@@ -11102,7 +11103,7 @@ func (v *iterNative) readUint16Float64(key *uint16, value *float64) bool {
 	return true
 }
 
-func iterMakerUint16Float64(s ReStream) ReusableInput {
+func iterMakerUint16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Float64)
 	return ret
@@ -11123,7 +11124,7 @@ func (v *iterNative) readETUint16Float64(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Float64(s ReStream) ReusableInput {
+func iterMakerETUint16Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Float64)
 	return ret
@@ -11143,7 +11144,7 @@ func (v *iterNative) readUint16Typex_T(key *uint16, value *typex.T) bool {
 	return true
 }
 
-func iterMakerUint16Typex_T(s ReStream) ReusableInput {
+func iterMakerUint16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_T)
 	return ret
@@ -11164,7 +11165,7 @@ func (v *iterNative) readETUint16Typex_T(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_T(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_T)
 	return ret
@@ -11184,7 +11185,7 @@ func (v *iterNative) readUint16Typex_U(key *uint16, value *typex.U) bool {
 	return true
 }
 
-func iterMakerUint16Typex_U(s ReStream) ReusableInput {
+func iterMakerUint16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_U)
 	return ret
@@ -11205,7 +11206,7 @@ func (v *iterNative) readETUint16Typex_U(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_U(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_U)
 	return ret
@@ -11225,7 +11226,7 @@ func (v *iterNative) readUint16Typex_V(key *uint16, value *typex.V) bool {
 	return true
 }
 
-func iterMakerUint16Typex_V(s ReStream) ReusableInput {
+func iterMakerUint16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_V)
 	return ret
@@ -11246,7 +11247,7 @@ func (v *iterNative) readETUint16Typex_V(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_V(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_V)
 	return ret
@@ -11266,7 +11267,7 @@ func (v *iterNative) readUint16Typex_W(key *uint16, value *typex.W) bool {
 	return true
 }
 
-func iterMakerUint16Typex_W(s ReStream) ReusableInput {
+func iterMakerUint16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_W)
 	return ret
@@ -11287,7 +11288,7 @@ func (v *iterNative) readETUint16Typex_W(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_W(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_W)
 	return ret
@@ -11307,7 +11308,7 @@ func (v *iterNative) readUint16Typex_X(key *uint16, value *typex.X) bool {
 	return true
 }
 
-func iterMakerUint16Typex_X(s ReStream) ReusableInput {
+func iterMakerUint16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_X)
 	return ret
@@ -11328,7 +11329,7 @@ func (v *iterNative) readETUint16Typex_X(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_X(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_X)
 	return ret
@@ -11348,7 +11349,7 @@ func (v *iterNative) readUint16Typex_Y(key *uint16, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerUint16Typex_Y(s ReStream) ReusableInput {
+func iterMakerUint16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_Y)
 	return ret
@@ -11369,7 +11370,7 @@ func (v *iterNative) readETUint16Typex_Y(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_Y(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_Y)
 	return ret
@@ -11389,7 +11390,7 @@ func (v *iterNative) readUint16Typex_Z(key *uint16, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerUint16Typex_Z(s ReStream) ReusableInput {
+func iterMakerUint16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint16Typex_Z)
 	return ret
@@ -11410,7 +11411,7 @@ func (v *iterNative) readETUint16Typex_Z(et *typex.EventTime, key *uint16, value
 	return true
 }
 
-func iterMakerETUint16Typex_Z(s ReStream) ReusableInput {
+func iterMakerETUint16Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint16Typex_Z)
 	return ret
@@ -11429,7 +11430,7 @@ func (v *iterNative) readUint32(val *uint32) bool {
 	return true
 }
 
-func iterMakerUint32(s ReStream) ReusableInput {
+func iterMakerUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32)
 	return ret
@@ -11449,7 +11450,7 @@ func (v *iterNative) readETUint32(et *typex.EventTime, val *uint32) bool {
 	return true
 }
 
-func iterMakerETUint32(s ReStream) ReusableInput {
+func iterMakerETUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32)
 	return ret
@@ -11469,7 +11470,7 @@ func (v *iterNative) readUint32ByteSlice(key *uint32, value *[]byte) bool {
 	return true
 }
 
-func iterMakerUint32ByteSlice(s ReStream) ReusableInput {
+func iterMakerUint32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32ByteSlice)
 	return ret
@@ -11490,7 +11491,7 @@ func (v *iterNative) readETUint32ByteSlice(et *typex.EventTime, key *uint32, val
 	return true
 }
 
-func iterMakerETUint32ByteSlice(s ReStream) ReusableInput {
+func iterMakerETUint32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32ByteSlice)
 	return ret
@@ -11510,7 +11511,7 @@ func (v *iterNative) readUint32Bool(key *uint32, value *bool) bool {
 	return true
 }
 
-func iterMakerUint32Bool(s ReStream) ReusableInput {
+func iterMakerUint32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Bool)
 	return ret
@@ -11531,7 +11532,7 @@ func (v *iterNative) readETUint32Bool(et *typex.EventTime, key *uint32, value *b
 	return true
 }
 
-func iterMakerETUint32Bool(s ReStream) ReusableInput {
+func iterMakerETUint32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Bool)
 	return ret
@@ -11551,7 +11552,7 @@ func (v *iterNative) readUint32String(key *uint32, value *string) bool {
 	return true
 }
 
-func iterMakerUint32String(s ReStream) ReusableInput {
+func iterMakerUint32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32String)
 	return ret
@@ -11572,7 +11573,7 @@ func (v *iterNative) readETUint32String(et *typex.EventTime, key *uint32, value 
 	return true
 }
 
-func iterMakerETUint32String(s ReStream) ReusableInput {
+func iterMakerETUint32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32String)
 	return ret
@@ -11592,7 +11593,7 @@ func (v *iterNative) readUint32Int(key *uint32, value *int) bool {
 	return true
 }
 
-func iterMakerUint32Int(s ReStream) ReusableInput {
+func iterMakerUint32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Int)
 	return ret
@@ -11613,7 +11614,7 @@ func (v *iterNative) readETUint32Int(et *typex.EventTime, key *uint32, value *in
 	return true
 }
 
-func iterMakerETUint32Int(s ReStream) ReusableInput {
+func iterMakerETUint32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Int)
 	return ret
@@ -11633,7 +11634,7 @@ func (v *iterNative) readUint32Int8(key *uint32, value *int8) bool {
 	return true
 }
 
-func iterMakerUint32Int8(s ReStream) ReusableInput {
+func iterMakerUint32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Int8)
 	return ret
@@ -11654,7 +11655,7 @@ func (v *iterNative) readETUint32Int8(et *typex.EventTime, key *uint32, value *i
 	return true
 }
 
-func iterMakerETUint32Int8(s ReStream) ReusableInput {
+func iterMakerETUint32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Int8)
 	return ret
@@ -11674,7 +11675,7 @@ func (v *iterNative) readUint32Int16(key *uint32, value *int16) bool {
 	return true
 }
 
-func iterMakerUint32Int16(s ReStream) ReusableInput {
+func iterMakerUint32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Int16)
 	return ret
@@ -11695,7 +11696,7 @@ func (v *iterNative) readETUint32Int16(et *typex.EventTime, key *uint32, value *
 	return true
 }
 
-func iterMakerETUint32Int16(s ReStream) ReusableInput {
+func iterMakerETUint32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Int16)
 	return ret
@@ -11715,7 +11716,7 @@ func (v *iterNative) readUint32Int32(key *uint32, value *int32) bool {
 	return true
 }
 
-func iterMakerUint32Int32(s ReStream) ReusableInput {
+func iterMakerUint32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Int32)
 	return ret
@@ -11736,7 +11737,7 @@ func (v *iterNative) readETUint32Int32(et *typex.EventTime, key *uint32, value *
 	return true
 }
 
-func iterMakerETUint32Int32(s ReStream) ReusableInput {
+func iterMakerETUint32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Int32)
 	return ret
@@ -11756,7 +11757,7 @@ func (v *iterNative) readUint32Int64(key *uint32, value *int64) bool {
 	return true
 }
 
-func iterMakerUint32Int64(s ReStream) ReusableInput {
+func iterMakerUint32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Int64)
 	return ret
@@ -11777,7 +11778,7 @@ func (v *iterNative) readETUint32Int64(et *typex.EventTime, key *uint32, value *
 	return true
 }
 
-func iterMakerETUint32Int64(s ReStream) ReusableInput {
+func iterMakerETUint32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Int64)
 	return ret
@@ -11797,7 +11798,7 @@ func (v *iterNative) readUint32Uint(key *uint32, value *uint) bool {
 	return true
 }
 
-func iterMakerUint32Uint(s ReStream) ReusableInput {
+func iterMakerUint32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Uint)
 	return ret
@@ -11818,7 +11819,7 @@ func (v *iterNative) readETUint32Uint(et *typex.EventTime, key *uint32, value *u
 	return true
 }
 
-func iterMakerETUint32Uint(s ReStream) ReusableInput {
+func iterMakerETUint32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Uint)
 	return ret
@@ -11838,7 +11839,7 @@ func (v *iterNative) readUint32Uint8(key *uint32, value *uint8) bool {
 	return true
 }
 
-func iterMakerUint32Uint8(s ReStream) ReusableInput {
+func iterMakerUint32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Uint8)
 	return ret
@@ -11859,7 +11860,7 @@ func (v *iterNative) readETUint32Uint8(et *typex.EventTime, key *uint32, value *
 	return true
 }
 
-func iterMakerETUint32Uint8(s ReStream) ReusableInput {
+func iterMakerETUint32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Uint8)
 	return ret
@@ -11879,7 +11880,7 @@ func (v *iterNative) readUint32Uint16(key *uint32, value *uint16) bool {
 	return true
 }
 
-func iterMakerUint32Uint16(s ReStream) ReusableInput {
+func iterMakerUint32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Uint16)
 	return ret
@@ -11900,7 +11901,7 @@ func (v *iterNative) readETUint32Uint16(et *typex.EventTime, key *uint32, value 
 	return true
 }
 
-func iterMakerETUint32Uint16(s ReStream) ReusableInput {
+func iterMakerETUint32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Uint16)
 	return ret
@@ -11920,7 +11921,7 @@ func (v *iterNative) readUint32Uint32(key *uint32, value *uint32) bool {
 	return true
 }
 
-func iterMakerUint32Uint32(s ReStream) ReusableInput {
+func iterMakerUint32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Uint32)
 	return ret
@@ -11941,7 +11942,7 @@ func (v *iterNative) readETUint32Uint32(et *typex.EventTime, key *uint32, value 
 	return true
 }
 
-func iterMakerETUint32Uint32(s ReStream) ReusableInput {
+func iterMakerETUint32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Uint32)
 	return ret
@@ -11961,7 +11962,7 @@ func (v *iterNative) readUint32Uint64(key *uint32, value *uint64) bool {
 	return true
 }
 
-func iterMakerUint32Uint64(s ReStream) ReusableInput {
+func iterMakerUint32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Uint64)
 	return ret
@@ -11982,7 +11983,7 @@ func (v *iterNative) readETUint32Uint64(et *typex.EventTime, key *uint32, value 
 	return true
 }
 
-func iterMakerETUint32Uint64(s ReStream) ReusableInput {
+func iterMakerETUint32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Uint64)
 	return ret
@@ -12002,7 +12003,7 @@ func (v *iterNative) readUint32Float32(key *uint32, value *float32) bool {
 	return true
 }
 
-func iterMakerUint32Float32(s ReStream) ReusableInput {
+func iterMakerUint32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Float32)
 	return ret
@@ -12023,7 +12024,7 @@ func (v *iterNative) readETUint32Float32(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Float32(s ReStream) ReusableInput {
+func iterMakerETUint32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Float32)
 	return ret
@@ -12043,7 +12044,7 @@ func (v *iterNative) readUint32Float64(key *uint32, value *float64) bool {
 	return true
 }
 
-func iterMakerUint32Float64(s ReStream) ReusableInput {
+func iterMakerUint32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Float64)
 	return ret
@@ -12064,7 +12065,7 @@ func (v *iterNative) readETUint32Float64(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Float64(s ReStream) ReusableInput {
+func iterMakerETUint32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Float64)
 	return ret
@@ -12084,7 +12085,7 @@ func (v *iterNative) readUint32Typex_T(key *uint32, value *typex.T) bool {
 	return true
 }
 
-func iterMakerUint32Typex_T(s ReStream) ReusableInput {
+func iterMakerUint32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_T)
 	return ret
@@ -12105,7 +12106,7 @@ func (v *iterNative) readETUint32Typex_T(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_T(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_T)
 	return ret
@@ -12125,7 +12126,7 @@ func (v *iterNative) readUint32Typex_U(key *uint32, value *typex.U) bool {
 	return true
 }
 
-func iterMakerUint32Typex_U(s ReStream) ReusableInput {
+func iterMakerUint32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_U)
 	return ret
@@ -12146,7 +12147,7 @@ func (v *iterNative) readETUint32Typex_U(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_U(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_U)
 	return ret
@@ -12166,7 +12167,7 @@ func (v *iterNative) readUint32Typex_V(key *uint32, value *typex.V) bool {
 	return true
 }
 
-func iterMakerUint32Typex_V(s ReStream) ReusableInput {
+func iterMakerUint32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_V)
 	return ret
@@ -12187,7 +12188,7 @@ func (v *iterNative) readETUint32Typex_V(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_V(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_V)
 	return ret
@@ -12207,7 +12208,7 @@ func (v *iterNative) readUint32Typex_W(key *uint32, value *typex.W) bool {
 	return true
 }
 
-func iterMakerUint32Typex_W(s ReStream) ReusableInput {
+func iterMakerUint32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_W)
 	return ret
@@ -12228,7 +12229,7 @@ func (v *iterNative) readETUint32Typex_W(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_W(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_W)
 	return ret
@@ -12248,7 +12249,7 @@ func (v *iterNative) readUint32Typex_X(key *uint32, value *typex.X) bool {
 	return true
 }
 
-func iterMakerUint32Typex_X(s ReStream) ReusableInput {
+func iterMakerUint32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_X)
 	return ret
@@ -12269,7 +12270,7 @@ func (v *iterNative) readETUint32Typex_X(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_X(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_X)
 	return ret
@@ -12289,7 +12290,7 @@ func (v *iterNative) readUint32Typex_Y(key *uint32, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerUint32Typex_Y(s ReStream) ReusableInput {
+func iterMakerUint32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_Y)
 	return ret
@@ -12310,7 +12311,7 @@ func (v *iterNative) readETUint32Typex_Y(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_Y(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_Y)
 	return ret
@@ -12330,7 +12331,7 @@ func (v *iterNative) readUint32Typex_Z(key *uint32, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerUint32Typex_Z(s ReStream) ReusableInput {
+func iterMakerUint32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint32Typex_Z)
 	return ret
@@ -12351,7 +12352,7 @@ func (v *iterNative) readETUint32Typex_Z(et *typex.EventTime, key *uint32, value
 	return true
 }
 
-func iterMakerETUint32Typex_Z(s ReStream) ReusableInput {
+func iterMakerETUint32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint32Typex_Z)
 	return ret
@@ -12370,7 +12371,7 @@ func (v *iterNative) readUint64(val *uint64) bool {
 	return true
 }
 
-func iterMakerUint64(s ReStream) ReusableInput {
+func iterMakerUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64)
 	return ret
@@ -12390,7 +12391,7 @@ func (v *iterNative) readETUint64(et *typex.EventTime, val *uint64) bool {
 	return true
 }
 
-func iterMakerETUint64(s ReStream) ReusableInput {
+func iterMakerETUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64)
 	return ret
@@ -12410,7 +12411,7 @@ func (v *iterNative) readUint64ByteSlice(key *uint64, value *[]byte) bool {
 	return true
 }
 
-func iterMakerUint64ByteSlice(s ReStream) ReusableInput {
+func iterMakerUint64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64ByteSlice)
 	return ret
@@ -12431,7 +12432,7 @@ func (v *iterNative) readETUint64ByteSlice(et *typex.EventTime, key *uint64, val
 	return true
 }
 
-func iterMakerETUint64ByteSlice(s ReStream) ReusableInput {
+func iterMakerETUint64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64ByteSlice)
 	return ret
@@ -12451,7 +12452,7 @@ func (v *iterNative) readUint64Bool(key *uint64, value *bool) bool {
 	return true
 }
 
-func iterMakerUint64Bool(s ReStream) ReusableInput {
+func iterMakerUint64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Bool)
 	return ret
@@ -12472,7 +12473,7 @@ func (v *iterNative) readETUint64Bool(et *typex.EventTime, key *uint64, value *b
 	return true
 }
 
-func iterMakerETUint64Bool(s ReStream) ReusableInput {
+func iterMakerETUint64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Bool)
 	return ret
@@ -12492,7 +12493,7 @@ func (v *iterNative) readUint64String(key *uint64, value *string) bool {
 	return true
 }
 
-func iterMakerUint64String(s ReStream) ReusableInput {
+func iterMakerUint64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64String)
 	return ret
@@ -12513,7 +12514,7 @@ func (v *iterNative) readETUint64String(et *typex.EventTime, key *uint64, value 
 	return true
 }
 
-func iterMakerETUint64String(s ReStream) ReusableInput {
+func iterMakerETUint64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64String)
 	return ret
@@ -12533,7 +12534,7 @@ func (v *iterNative) readUint64Int(key *uint64, value *int) bool {
 	return true
 }
 
-func iterMakerUint64Int(s ReStream) ReusableInput {
+func iterMakerUint64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Int)
 	return ret
@@ -12554,7 +12555,7 @@ func (v *iterNative) readETUint64Int(et *typex.EventTime, key *uint64, value *in
 	return true
 }
 
-func iterMakerETUint64Int(s ReStream) ReusableInput {
+func iterMakerETUint64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Int)
 	return ret
@@ -12574,7 +12575,7 @@ func (v *iterNative) readUint64Int8(key *uint64, value *int8) bool {
 	return true
 }
 
-func iterMakerUint64Int8(s ReStream) ReusableInput {
+func iterMakerUint64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Int8)
 	return ret
@@ -12595,7 +12596,7 @@ func (v *iterNative) readETUint64Int8(et *typex.EventTime, key *uint64, value *i
 	return true
 }
 
-func iterMakerETUint64Int8(s ReStream) ReusableInput {
+func iterMakerETUint64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Int8)
 	return ret
@@ -12615,7 +12616,7 @@ func (v *iterNative) readUint64Int16(key *uint64, value *int16) bool {
 	return true
 }
 
-func iterMakerUint64Int16(s ReStream) ReusableInput {
+func iterMakerUint64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Int16)
 	return ret
@@ -12636,7 +12637,7 @@ func (v *iterNative) readETUint64Int16(et *typex.EventTime, key *uint64, value *
 	return true
 }
 
-func iterMakerETUint64Int16(s ReStream) ReusableInput {
+func iterMakerETUint64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Int16)
 	return ret
@@ -12656,7 +12657,7 @@ func (v *iterNative) readUint64Int32(key *uint64, value *int32) bool {
 	return true
 }
 
-func iterMakerUint64Int32(s ReStream) ReusableInput {
+func iterMakerUint64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Int32)
 	return ret
@@ -12677,7 +12678,7 @@ func (v *iterNative) readETUint64Int32(et *typex.EventTime, key *uint64, value *
 	return true
 }
 
-func iterMakerETUint64Int32(s ReStream) ReusableInput {
+func iterMakerETUint64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Int32)
 	return ret
@@ -12697,7 +12698,7 @@ func (v *iterNative) readUint64Int64(key *uint64, value *int64) bool {
 	return true
 }
 
-func iterMakerUint64Int64(s ReStream) ReusableInput {
+func iterMakerUint64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Int64)
 	return ret
@@ -12718,7 +12719,7 @@ func (v *iterNative) readETUint64Int64(et *typex.EventTime, key *uint64, value *
 	return true
 }
 
-func iterMakerETUint64Int64(s ReStream) ReusableInput {
+func iterMakerETUint64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Int64)
 	return ret
@@ -12738,7 +12739,7 @@ func (v *iterNative) readUint64Uint(key *uint64, value *uint) bool {
 	return true
 }
 
-func iterMakerUint64Uint(s ReStream) ReusableInput {
+func iterMakerUint64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Uint)
 	return ret
@@ -12759,7 +12760,7 @@ func (v *iterNative) readETUint64Uint(et *typex.EventTime, key *uint64, value *u
 	return true
 }
 
-func iterMakerETUint64Uint(s ReStream) ReusableInput {
+func iterMakerETUint64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Uint)
 	return ret
@@ -12779,7 +12780,7 @@ func (v *iterNative) readUint64Uint8(key *uint64, value *uint8) bool {
 	return true
 }
 
-func iterMakerUint64Uint8(s ReStream) ReusableInput {
+func iterMakerUint64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Uint8)
 	return ret
@@ -12800,7 +12801,7 @@ func (v *iterNative) readETUint64Uint8(et *typex.EventTime, key *uint64, value *
 	return true
 }
 
-func iterMakerETUint64Uint8(s ReStream) ReusableInput {
+func iterMakerETUint64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Uint8)
 	return ret
@@ -12820,7 +12821,7 @@ func (v *iterNative) readUint64Uint16(key *uint64, value *uint16) bool {
 	return true
 }
 
-func iterMakerUint64Uint16(s ReStream) ReusableInput {
+func iterMakerUint64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Uint16)
 	return ret
@@ -12841,7 +12842,7 @@ func (v *iterNative) readETUint64Uint16(et *typex.EventTime, key *uint64, value 
 	return true
 }
 
-func iterMakerETUint64Uint16(s ReStream) ReusableInput {
+func iterMakerETUint64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Uint16)
 	return ret
@@ -12861,7 +12862,7 @@ func (v *iterNative) readUint64Uint32(key *uint64, value *uint32) bool {
 	return true
 }
 
-func iterMakerUint64Uint32(s ReStream) ReusableInput {
+func iterMakerUint64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Uint32)
 	return ret
@@ -12882,7 +12883,7 @@ func (v *iterNative) readETUint64Uint32(et *typex.EventTime, key *uint64, value 
 	return true
 }
 
-func iterMakerETUint64Uint32(s ReStream) ReusableInput {
+func iterMakerETUint64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Uint32)
 	return ret
@@ -12902,7 +12903,7 @@ func (v *iterNative) readUint64Uint64(key *uint64, value *uint64) bool {
 	return true
 }
 
-func iterMakerUint64Uint64(s ReStream) ReusableInput {
+func iterMakerUint64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Uint64)
 	return ret
@@ -12923,7 +12924,7 @@ func (v *iterNative) readETUint64Uint64(et *typex.EventTime, key *uint64, value 
 	return true
 }
 
-func iterMakerETUint64Uint64(s ReStream) ReusableInput {
+func iterMakerETUint64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Uint64)
 	return ret
@@ -12943,7 +12944,7 @@ func (v *iterNative) readUint64Float32(key *uint64, value *float32) bool {
 	return true
 }
 
-func iterMakerUint64Float32(s ReStream) ReusableInput {
+func iterMakerUint64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Float32)
 	return ret
@@ -12964,7 +12965,7 @@ func (v *iterNative) readETUint64Float32(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Float32(s ReStream) ReusableInput {
+func iterMakerETUint64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Float32)
 	return ret
@@ -12984,7 +12985,7 @@ func (v *iterNative) readUint64Float64(key *uint64, value *float64) bool {
 	return true
 }
 
-func iterMakerUint64Float64(s ReStream) ReusableInput {
+func iterMakerUint64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Float64)
 	return ret
@@ -13005,7 +13006,7 @@ func (v *iterNative) readETUint64Float64(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Float64(s ReStream) ReusableInput {
+func iterMakerETUint64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Float64)
 	return ret
@@ -13025,7 +13026,7 @@ func (v *iterNative) readUint64Typex_T(key *uint64, value *typex.T) bool {
 	return true
 }
 
-func iterMakerUint64Typex_T(s ReStream) ReusableInput {
+func iterMakerUint64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_T)
 	return ret
@@ -13046,7 +13047,7 @@ func (v *iterNative) readETUint64Typex_T(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_T(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_T)
 	return ret
@@ -13066,7 +13067,7 @@ func (v *iterNative) readUint64Typex_U(key *uint64, value *typex.U) bool {
 	return true
 }
 
-func iterMakerUint64Typex_U(s ReStream) ReusableInput {
+func iterMakerUint64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_U)
 	return ret
@@ -13087,7 +13088,7 @@ func (v *iterNative) readETUint64Typex_U(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_U(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_U)
 	return ret
@@ -13107,7 +13108,7 @@ func (v *iterNative) readUint64Typex_V(key *uint64, value *typex.V) bool {
 	return true
 }
 
-func iterMakerUint64Typex_V(s ReStream) ReusableInput {
+func iterMakerUint64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_V)
 	return ret
@@ -13128,7 +13129,7 @@ func (v *iterNative) readETUint64Typex_V(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_V(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_V)
 	return ret
@@ -13148,7 +13149,7 @@ func (v *iterNative) readUint64Typex_W(key *uint64, value *typex.W) bool {
 	return true
 }
 
-func iterMakerUint64Typex_W(s ReStream) ReusableInput {
+func iterMakerUint64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_W)
 	return ret
@@ -13169,7 +13170,7 @@ func (v *iterNative) readETUint64Typex_W(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_W(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_W)
 	return ret
@@ -13189,7 +13190,7 @@ func (v *iterNative) readUint64Typex_X(key *uint64, value *typex.X) bool {
 	return true
 }
 
-func iterMakerUint64Typex_X(s ReStream) ReusableInput {
+func iterMakerUint64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_X)
 	return ret
@@ -13210,7 +13211,7 @@ func (v *iterNative) readETUint64Typex_X(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_X(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_X)
 	return ret
@@ -13230,7 +13231,7 @@ func (v *iterNative) readUint64Typex_Y(key *uint64, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerUint64Typex_Y(s ReStream) ReusableInput {
+func iterMakerUint64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_Y)
 	return ret
@@ -13251,7 +13252,7 @@ func (v *iterNative) readETUint64Typex_Y(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_Y(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_Y)
 	return ret
@@ -13271,7 +13272,7 @@ func (v *iterNative) readUint64Typex_Z(key *uint64, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerUint64Typex_Z(s ReStream) ReusableInput {
+func iterMakerUint64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readUint64Typex_Z)
 	return ret
@@ -13292,7 +13293,7 @@ func (v *iterNative) readETUint64Typex_Z(et *typex.EventTime, key *uint64, value
 	return true
 }
 
-func iterMakerETUint64Typex_Z(s ReStream) ReusableInput {
+func iterMakerETUint64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETUint64Typex_Z)
 	return ret
@@ -13311,7 +13312,7 @@ func (v *iterNative) readFloat32(val *float32) bool {
 	return true
 }
 
-func iterMakerFloat32(s ReStream) ReusableInput {
+func iterMakerFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32)
 	return ret
@@ -13331,7 +13332,7 @@ func (v *iterNative) readETFloat32(et *typex.EventTime, val *float32) bool {
 	return true
 }
 
-func iterMakerETFloat32(s ReStream) ReusableInput {
+func iterMakerETFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32)
 	return ret
@@ -13351,7 +13352,7 @@ func (v *iterNative) readFloat32ByteSlice(key *float32, value *[]byte) bool {
 	return true
 }
 
-func iterMakerFloat32ByteSlice(s ReStream) ReusableInput {
+func iterMakerFloat32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32ByteSlice)
 	return ret
@@ -13372,7 +13373,7 @@ func (v *iterNative) readETFloat32ByteSlice(et *typex.EventTime, key *float32, v
 	return true
 }
 
-func iterMakerETFloat32ByteSlice(s ReStream) ReusableInput {
+func iterMakerETFloat32ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32ByteSlice)
 	return ret
@@ -13392,7 +13393,7 @@ func (v *iterNative) readFloat32Bool(key *float32, value *bool) bool {
 	return true
 }
 
-func iterMakerFloat32Bool(s ReStream) ReusableInput {
+func iterMakerFloat32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Bool)
 	return ret
@@ -13413,7 +13414,7 @@ func (v *iterNative) readETFloat32Bool(et *typex.EventTime, key *float32, value 
 	return true
 }
 
-func iterMakerETFloat32Bool(s ReStream) ReusableInput {
+func iterMakerETFloat32Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Bool)
 	return ret
@@ -13433,7 +13434,7 @@ func (v *iterNative) readFloat32String(key *float32, value *string) bool {
 	return true
 }
 
-func iterMakerFloat32String(s ReStream) ReusableInput {
+func iterMakerFloat32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32String)
 	return ret
@@ -13454,7 +13455,7 @@ func (v *iterNative) readETFloat32String(et *typex.EventTime, key *float32, valu
 	return true
 }
 
-func iterMakerETFloat32String(s ReStream) ReusableInput {
+func iterMakerETFloat32String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32String)
 	return ret
@@ -13474,7 +13475,7 @@ func (v *iterNative) readFloat32Int(key *float32, value *int) bool {
 	return true
 }
 
-func iterMakerFloat32Int(s ReStream) ReusableInput {
+func iterMakerFloat32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Int)
 	return ret
@@ -13495,7 +13496,7 @@ func (v *iterNative) readETFloat32Int(et *typex.EventTime, key *float32, value *
 	return true
 }
 
-func iterMakerETFloat32Int(s ReStream) ReusableInput {
+func iterMakerETFloat32Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Int)
 	return ret
@@ -13515,7 +13516,7 @@ func (v *iterNative) readFloat32Int8(key *float32, value *int8) bool {
 	return true
 }
 
-func iterMakerFloat32Int8(s ReStream) ReusableInput {
+func iterMakerFloat32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Int8)
 	return ret
@@ -13536,7 +13537,7 @@ func (v *iterNative) readETFloat32Int8(et *typex.EventTime, key *float32, value 
 	return true
 }
 
-func iterMakerETFloat32Int8(s ReStream) ReusableInput {
+func iterMakerETFloat32Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Int8)
 	return ret
@@ -13556,7 +13557,7 @@ func (v *iterNative) readFloat32Int16(key *float32, value *int16) bool {
 	return true
 }
 
-func iterMakerFloat32Int16(s ReStream) ReusableInput {
+func iterMakerFloat32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Int16)
 	return ret
@@ -13577,7 +13578,7 @@ func (v *iterNative) readETFloat32Int16(et *typex.EventTime, key *float32, value
 	return true
 }
 
-func iterMakerETFloat32Int16(s ReStream) ReusableInput {
+func iterMakerETFloat32Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Int16)
 	return ret
@@ -13597,7 +13598,7 @@ func (v *iterNative) readFloat32Int32(key *float32, value *int32) bool {
 	return true
 }
 
-func iterMakerFloat32Int32(s ReStream) ReusableInput {
+func iterMakerFloat32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Int32)
 	return ret
@@ -13618,7 +13619,7 @@ func (v *iterNative) readETFloat32Int32(et *typex.EventTime, key *float32, value
 	return true
 }
 
-func iterMakerETFloat32Int32(s ReStream) ReusableInput {
+func iterMakerETFloat32Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Int32)
 	return ret
@@ -13638,7 +13639,7 @@ func (v *iterNative) readFloat32Int64(key *float32, value *int64) bool {
 	return true
 }
 
-func iterMakerFloat32Int64(s ReStream) ReusableInput {
+func iterMakerFloat32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Int64)
 	return ret
@@ -13659,7 +13660,7 @@ func (v *iterNative) readETFloat32Int64(et *typex.EventTime, key *float32, value
 	return true
 }
 
-func iterMakerETFloat32Int64(s ReStream) ReusableInput {
+func iterMakerETFloat32Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Int64)
 	return ret
@@ -13679,7 +13680,7 @@ func (v *iterNative) readFloat32Uint(key *float32, value *uint) bool {
 	return true
 }
 
-func iterMakerFloat32Uint(s ReStream) ReusableInput {
+func iterMakerFloat32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Uint)
 	return ret
@@ -13700,7 +13701,7 @@ func (v *iterNative) readETFloat32Uint(et *typex.EventTime, key *float32, value 
 	return true
 }
 
-func iterMakerETFloat32Uint(s ReStream) ReusableInput {
+func iterMakerETFloat32Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Uint)
 	return ret
@@ -13720,7 +13721,7 @@ func (v *iterNative) readFloat32Uint8(key *float32, value *uint8) bool {
 	return true
 }
 
-func iterMakerFloat32Uint8(s ReStream) ReusableInput {
+func iterMakerFloat32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Uint8)
 	return ret
@@ -13741,7 +13742,7 @@ func (v *iterNative) readETFloat32Uint8(et *typex.EventTime, key *float32, value
 	return true
 }
 
-func iterMakerETFloat32Uint8(s ReStream) ReusableInput {
+func iterMakerETFloat32Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Uint8)
 	return ret
@@ -13761,7 +13762,7 @@ func (v *iterNative) readFloat32Uint16(key *float32, value *uint16) bool {
 	return true
 }
 
-func iterMakerFloat32Uint16(s ReStream) ReusableInput {
+func iterMakerFloat32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Uint16)
 	return ret
@@ -13782,7 +13783,7 @@ func (v *iterNative) readETFloat32Uint16(et *typex.EventTime, key *float32, valu
 	return true
 }
 
-func iterMakerETFloat32Uint16(s ReStream) ReusableInput {
+func iterMakerETFloat32Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Uint16)
 	return ret
@@ -13802,7 +13803,7 @@ func (v *iterNative) readFloat32Uint32(key *float32, value *uint32) bool {
 	return true
 }
 
-func iterMakerFloat32Uint32(s ReStream) ReusableInput {
+func iterMakerFloat32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Uint32)
 	return ret
@@ -13823,7 +13824,7 @@ func (v *iterNative) readETFloat32Uint32(et *typex.EventTime, key *float32, valu
 	return true
 }
 
-func iterMakerETFloat32Uint32(s ReStream) ReusableInput {
+func iterMakerETFloat32Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Uint32)
 	return ret
@@ -13843,7 +13844,7 @@ func (v *iterNative) readFloat32Uint64(key *float32, value *uint64) bool {
 	return true
 }
 
-func iterMakerFloat32Uint64(s ReStream) ReusableInput {
+func iterMakerFloat32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Uint64)
 	return ret
@@ -13864,7 +13865,7 @@ func (v *iterNative) readETFloat32Uint64(et *typex.EventTime, key *float32, valu
 	return true
 }
 
-func iterMakerETFloat32Uint64(s ReStream) ReusableInput {
+func iterMakerETFloat32Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Uint64)
 	return ret
@@ -13884,7 +13885,7 @@ func (v *iterNative) readFloat32Float32(key *float32, value *float32) bool {
 	return true
 }
 
-func iterMakerFloat32Float32(s ReStream) ReusableInput {
+func iterMakerFloat32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Float32)
 	return ret
@@ -13905,7 +13906,7 @@ func (v *iterNative) readETFloat32Float32(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Float32(s ReStream) ReusableInput {
+func iterMakerETFloat32Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Float32)
 	return ret
@@ -13925,7 +13926,7 @@ func (v *iterNative) readFloat32Float64(key *float32, value *float64) bool {
 	return true
 }
 
-func iterMakerFloat32Float64(s ReStream) ReusableInput {
+func iterMakerFloat32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Float64)
 	return ret
@@ -13946,7 +13947,7 @@ func (v *iterNative) readETFloat32Float64(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Float64(s ReStream) ReusableInput {
+func iterMakerETFloat32Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Float64)
 	return ret
@@ -13966,7 +13967,7 @@ func (v *iterNative) readFloat32Typex_T(key *float32, value *typex.T) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_T(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_T)
 	return ret
@@ -13987,7 +13988,7 @@ func (v *iterNative) readETFloat32Typex_T(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_T(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_T)
 	return ret
@@ -14007,7 +14008,7 @@ func (v *iterNative) readFloat32Typex_U(key *float32, value *typex.U) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_U(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_U)
 	return ret
@@ -14028,7 +14029,7 @@ func (v *iterNative) readETFloat32Typex_U(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_U(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_U)
 	return ret
@@ -14048,7 +14049,7 @@ func (v *iterNative) readFloat32Typex_V(key *float32, value *typex.V) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_V(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_V)
 	return ret
@@ -14069,7 +14070,7 @@ func (v *iterNative) readETFloat32Typex_V(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_V(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_V)
 	return ret
@@ -14089,7 +14090,7 @@ func (v *iterNative) readFloat32Typex_W(key *float32, value *typex.W) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_W(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_W)
 	return ret
@@ -14110,7 +14111,7 @@ func (v *iterNative) readETFloat32Typex_W(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_W(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_W)
 	return ret
@@ -14130,7 +14131,7 @@ func (v *iterNative) readFloat32Typex_X(key *float32, value *typex.X) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_X(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_X)
 	return ret
@@ -14151,7 +14152,7 @@ func (v *iterNative) readETFloat32Typex_X(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_X(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_X)
 	return ret
@@ -14171,7 +14172,7 @@ func (v *iterNative) readFloat32Typex_Y(key *float32, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_Y(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_Y)
 	return ret
@@ -14192,7 +14193,7 @@ func (v *iterNative) readETFloat32Typex_Y(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_Y(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_Y)
 	return ret
@@ -14212,7 +14213,7 @@ func (v *iterNative) readFloat32Typex_Z(key *float32, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerFloat32Typex_Z(s ReStream) ReusableInput {
+func iterMakerFloat32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat32Typex_Z)
 	return ret
@@ -14233,7 +14234,7 @@ func (v *iterNative) readETFloat32Typex_Z(et *typex.EventTime, key *float32, val
 	return true
 }
 
-func iterMakerETFloat32Typex_Z(s ReStream) ReusableInput {
+func iterMakerETFloat32Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat32Typex_Z)
 	return ret
@@ -14252,7 +14253,7 @@ func (v *iterNative) readFloat64(val *float64) bool {
 	return true
 }
 
-func iterMakerFloat64(s ReStream) ReusableInput {
+func iterMakerFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64)
 	return ret
@@ -14272,7 +14273,7 @@ func (v *iterNative) readETFloat64(et *typex.EventTime, val *float64) bool {
 	return true
 }
 
-func iterMakerETFloat64(s ReStream) ReusableInput {
+func iterMakerETFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64)
 	return ret
@@ -14292,7 +14293,7 @@ func (v *iterNative) readFloat64ByteSlice(key *float64, value *[]byte) bool {
 	return true
 }
 
-func iterMakerFloat64ByteSlice(s ReStream) ReusableInput {
+func iterMakerFloat64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64ByteSlice)
 	return ret
@@ -14313,7 +14314,7 @@ func (v *iterNative) readETFloat64ByteSlice(et *typex.EventTime, key *float64, v
 	return true
 }
 
-func iterMakerETFloat64ByteSlice(s ReStream) ReusableInput {
+func iterMakerETFloat64ByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64ByteSlice)
 	return ret
@@ -14333,7 +14334,7 @@ func (v *iterNative) readFloat64Bool(key *float64, value *bool) bool {
 	return true
 }
 
-func iterMakerFloat64Bool(s ReStream) ReusableInput {
+func iterMakerFloat64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Bool)
 	return ret
@@ -14354,7 +14355,7 @@ func (v *iterNative) readETFloat64Bool(et *typex.EventTime, key *float64, value 
 	return true
 }
 
-func iterMakerETFloat64Bool(s ReStream) ReusableInput {
+func iterMakerETFloat64Bool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Bool)
 	return ret
@@ -14374,7 +14375,7 @@ func (v *iterNative) readFloat64String(key *float64, value *string) bool {
 	return true
 }
 
-func iterMakerFloat64String(s ReStream) ReusableInput {
+func iterMakerFloat64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64String)
 	return ret
@@ -14395,7 +14396,7 @@ func (v *iterNative) readETFloat64String(et *typex.EventTime, key *float64, valu
 	return true
 }
 
-func iterMakerETFloat64String(s ReStream) ReusableInput {
+func iterMakerETFloat64String(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64String)
 	return ret
@@ -14415,7 +14416,7 @@ func (v *iterNative) readFloat64Int(key *float64, value *int) bool {
 	return true
 }
 
-func iterMakerFloat64Int(s ReStream) ReusableInput {
+func iterMakerFloat64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Int)
 	return ret
@@ -14436,7 +14437,7 @@ func (v *iterNative) readETFloat64Int(et *typex.EventTime, key *float64, value *
 	return true
 }
 
-func iterMakerETFloat64Int(s ReStream) ReusableInput {
+func iterMakerETFloat64Int(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Int)
 	return ret
@@ -14456,7 +14457,7 @@ func (v *iterNative) readFloat64Int8(key *float64, value *int8) bool {
 	return true
 }
 
-func iterMakerFloat64Int8(s ReStream) ReusableInput {
+func iterMakerFloat64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Int8)
 	return ret
@@ -14477,7 +14478,7 @@ func (v *iterNative) readETFloat64Int8(et *typex.EventTime, key *float64, value 
 	return true
 }
 
-func iterMakerETFloat64Int8(s ReStream) ReusableInput {
+func iterMakerETFloat64Int8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Int8)
 	return ret
@@ -14497,7 +14498,7 @@ func (v *iterNative) readFloat64Int16(key *float64, value *int16) bool {
 	return true
 }
 
-func iterMakerFloat64Int16(s ReStream) ReusableInput {
+func iterMakerFloat64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Int16)
 	return ret
@@ -14518,7 +14519,7 @@ func (v *iterNative) readETFloat64Int16(et *typex.EventTime, key *float64, value
 	return true
 }
 
-func iterMakerETFloat64Int16(s ReStream) ReusableInput {
+func iterMakerETFloat64Int16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Int16)
 	return ret
@@ -14538,7 +14539,7 @@ func (v *iterNative) readFloat64Int32(key *float64, value *int32) bool {
 	return true
 }
 
-func iterMakerFloat64Int32(s ReStream) ReusableInput {
+func iterMakerFloat64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Int32)
 	return ret
@@ -14559,7 +14560,7 @@ func (v *iterNative) readETFloat64Int32(et *typex.EventTime, key *float64, value
 	return true
 }
 
-func iterMakerETFloat64Int32(s ReStream) ReusableInput {
+func iterMakerETFloat64Int32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Int32)
 	return ret
@@ -14579,7 +14580,7 @@ func (v *iterNative) readFloat64Int64(key *float64, value *int64) bool {
 	return true
 }
 
-func iterMakerFloat64Int64(s ReStream) ReusableInput {
+func iterMakerFloat64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Int64)
 	return ret
@@ -14600,7 +14601,7 @@ func (v *iterNative) readETFloat64Int64(et *typex.EventTime, key *float64, value
 	return true
 }
 
-func iterMakerETFloat64Int64(s ReStream) ReusableInput {
+func iterMakerETFloat64Int64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Int64)
 	return ret
@@ -14620,7 +14621,7 @@ func (v *iterNative) readFloat64Uint(key *float64, value *uint) bool {
 	return true
 }
 
-func iterMakerFloat64Uint(s ReStream) ReusableInput {
+func iterMakerFloat64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Uint)
 	return ret
@@ -14641,7 +14642,7 @@ func (v *iterNative) readETFloat64Uint(et *typex.EventTime, key *float64, value 
 	return true
 }
 
-func iterMakerETFloat64Uint(s ReStream) ReusableInput {
+func iterMakerETFloat64Uint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Uint)
 	return ret
@@ -14661,7 +14662,7 @@ func (v *iterNative) readFloat64Uint8(key *float64, value *uint8) bool {
 	return true
 }
 
-func iterMakerFloat64Uint8(s ReStream) ReusableInput {
+func iterMakerFloat64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Uint8)
 	return ret
@@ -14682,7 +14683,7 @@ func (v *iterNative) readETFloat64Uint8(et *typex.EventTime, key *float64, value
 	return true
 }
 
-func iterMakerETFloat64Uint8(s ReStream) ReusableInput {
+func iterMakerETFloat64Uint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Uint8)
 	return ret
@@ -14702,7 +14703,7 @@ func (v *iterNative) readFloat64Uint16(key *float64, value *uint16) bool {
 	return true
 }
 
-func iterMakerFloat64Uint16(s ReStream) ReusableInput {
+func iterMakerFloat64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Uint16)
 	return ret
@@ -14723,7 +14724,7 @@ func (v *iterNative) readETFloat64Uint16(et *typex.EventTime, key *float64, valu
 	return true
 }
 
-func iterMakerETFloat64Uint16(s ReStream) ReusableInput {
+func iterMakerETFloat64Uint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Uint16)
 	return ret
@@ -14743,7 +14744,7 @@ func (v *iterNative) readFloat64Uint32(key *float64, value *uint32) bool {
 	return true
 }
 
-func iterMakerFloat64Uint32(s ReStream) ReusableInput {
+func iterMakerFloat64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Uint32)
 	return ret
@@ -14764,7 +14765,7 @@ func (v *iterNative) readETFloat64Uint32(et *typex.EventTime, key *float64, valu
 	return true
 }
 
-func iterMakerETFloat64Uint32(s ReStream) ReusableInput {
+func iterMakerETFloat64Uint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Uint32)
 	return ret
@@ -14784,7 +14785,7 @@ func (v *iterNative) readFloat64Uint64(key *float64, value *uint64) bool {
 	return true
 }
 
-func iterMakerFloat64Uint64(s ReStream) ReusableInput {
+func iterMakerFloat64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Uint64)
 	return ret
@@ -14805,7 +14806,7 @@ func (v *iterNative) readETFloat64Uint64(et *typex.EventTime, key *float64, valu
 	return true
 }
 
-func iterMakerETFloat64Uint64(s ReStream) ReusableInput {
+func iterMakerETFloat64Uint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Uint64)
 	return ret
@@ -14825,7 +14826,7 @@ func (v *iterNative) readFloat64Float32(key *float64, value *float32) bool {
 	return true
 }
 
-func iterMakerFloat64Float32(s ReStream) ReusableInput {
+func iterMakerFloat64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Float32)
 	return ret
@@ -14846,7 +14847,7 @@ func (v *iterNative) readETFloat64Float32(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Float32(s ReStream) ReusableInput {
+func iterMakerETFloat64Float32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Float32)
 	return ret
@@ -14866,7 +14867,7 @@ func (v *iterNative) readFloat64Float64(key *float64, value *float64) bool {
 	return true
 }
 
-func iterMakerFloat64Float64(s ReStream) ReusableInput {
+func iterMakerFloat64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Float64)
 	return ret
@@ -14887,7 +14888,7 @@ func (v *iterNative) readETFloat64Float64(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Float64(s ReStream) ReusableInput {
+func iterMakerETFloat64Float64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Float64)
 	return ret
@@ -14907,7 +14908,7 @@ func (v *iterNative) readFloat64Typex_T(key *float64, value *typex.T) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_T(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_T)
 	return ret
@@ -14928,7 +14929,7 @@ func (v *iterNative) readETFloat64Typex_T(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_T(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_T)
 	return ret
@@ -14948,7 +14949,7 @@ func (v *iterNative) readFloat64Typex_U(key *float64, value *typex.U) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_U(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_U)
 	return ret
@@ -14969,7 +14970,7 @@ func (v *iterNative) readETFloat64Typex_U(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_U(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_U)
 	return ret
@@ -14989,7 +14990,7 @@ func (v *iterNative) readFloat64Typex_V(key *float64, value *typex.V) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_V(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_V)
 	return ret
@@ -15010,7 +15011,7 @@ func (v *iterNative) readETFloat64Typex_V(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_V(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_V)
 	return ret
@@ -15030,7 +15031,7 @@ func (v *iterNative) readFloat64Typex_W(key *float64, value *typex.W) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_W(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_W)
 	return ret
@@ -15051,7 +15052,7 @@ func (v *iterNative) readETFloat64Typex_W(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_W(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_W)
 	return ret
@@ -15071,7 +15072,7 @@ func (v *iterNative) readFloat64Typex_X(key *float64, value *typex.X) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_X(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_X)
 	return ret
@@ -15092,7 +15093,7 @@ func (v *iterNative) readETFloat64Typex_X(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_X(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_X)
 	return ret
@@ -15112,7 +15113,7 @@ func (v *iterNative) readFloat64Typex_Y(key *float64, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_Y(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_Y)
 	return ret
@@ -15133,7 +15134,7 @@ func (v *iterNative) readETFloat64Typex_Y(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_Y(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_Y)
 	return ret
@@ -15153,7 +15154,7 @@ func (v *iterNative) readFloat64Typex_Z(key *float64, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerFloat64Typex_Z(s ReStream) ReusableInput {
+func iterMakerFloat64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readFloat64Typex_Z)
 	return ret
@@ -15174,7 +15175,7 @@ func (v *iterNative) readETFloat64Typex_Z(et *typex.EventTime, key *float64, val
 	return true
 }
 
-func iterMakerETFloat64Typex_Z(s ReStream) ReusableInput {
+func iterMakerETFloat64Typex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETFloat64Typex_Z)
 	return ret
@@ -15193,7 +15194,7 @@ func (v *iterNative) readTypex_T(val *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_T)
 	return ret
@@ -15213,7 +15214,7 @@ func (v *iterNative) readETTypex_T(et *typex.EventTime, val *typex.T) bool {
 	return true
 }
 
-func iterMakerETTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_T)
 	return ret
@@ -15233,7 +15234,7 @@ func (v *iterNative) readTypex_TByteSlice(key *typex.T, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_TByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_TByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TByteSlice)
 	return ret
@@ -15254,7 +15255,7 @@ func (v *iterNative) readETTypex_TByteSlice(et *typex.EventTime, key *typex.T, v
 	return true
 }
 
-func iterMakerETTypex_TByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_TByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TByteSlice)
 	return ret
@@ -15274,7 +15275,7 @@ func (v *iterNative) readTypex_TBool(key *typex.T, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_TBool(s ReStream) ReusableInput {
+func iterMakerTypex_TBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TBool)
 	return ret
@@ -15295,7 +15296,7 @@ func (v *iterNative) readETTypex_TBool(et *typex.EventTime, key *typex.T, value 
 	return true
 }
 
-func iterMakerETTypex_TBool(s ReStream) ReusableInput {
+func iterMakerETTypex_TBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TBool)
 	return ret
@@ -15315,7 +15316,7 @@ func (v *iterNative) readTypex_TString(key *typex.T, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_TString(s ReStream) ReusableInput {
+func iterMakerTypex_TString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TString)
 	return ret
@@ -15336,7 +15337,7 @@ func (v *iterNative) readETTypex_TString(et *typex.EventTime, key *typex.T, valu
 	return true
 }
 
-func iterMakerETTypex_TString(s ReStream) ReusableInput {
+func iterMakerETTypex_TString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TString)
 	return ret
@@ -15356,7 +15357,7 @@ func (v *iterNative) readTypex_TInt(key *typex.T, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_TInt(s ReStream) ReusableInput {
+func iterMakerTypex_TInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TInt)
 	return ret
@@ -15377,7 +15378,7 @@ func (v *iterNative) readETTypex_TInt(et *typex.EventTime, key *typex.T, value *
 	return true
 }
 
-func iterMakerETTypex_TInt(s ReStream) ReusableInput {
+func iterMakerETTypex_TInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TInt)
 	return ret
@@ -15397,7 +15398,7 @@ func (v *iterNative) readTypex_TInt8(key *typex.T, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_TInt8(s ReStream) ReusableInput {
+func iterMakerTypex_TInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TInt8)
 	return ret
@@ -15418,7 +15419,7 @@ func (v *iterNative) readETTypex_TInt8(et *typex.EventTime, key *typex.T, value 
 	return true
 }
 
-func iterMakerETTypex_TInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_TInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TInt8)
 	return ret
@@ -15438,7 +15439,7 @@ func (v *iterNative) readTypex_TInt16(key *typex.T, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_TInt16(s ReStream) ReusableInput {
+func iterMakerTypex_TInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TInt16)
 	return ret
@@ -15459,7 +15460,7 @@ func (v *iterNative) readETTypex_TInt16(et *typex.EventTime, key *typex.T, value
 	return true
 }
 
-func iterMakerETTypex_TInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_TInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TInt16)
 	return ret
@@ -15479,7 +15480,7 @@ func (v *iterNative) readTypex_TInt32(key *typex.T, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_TInt32(s ReStream) ReusableInput {
+func iterMakerTypex_TInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TInt32)
 	return ret
@@ -15500,7 +15501,7 @@ func (v *iterNative) readETTypex_TInt32(et *typex.EventTime, key *typex.T, value
 	return true
 }
 
-func iterMakerETTypex_TInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_TInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TInt32)
 	return ret
@@ -15520,7 +15521,7 @@ func (v *iterNative) readTypex_TInt64(key *typex.T, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_TInt64(s ReStream) ReusableInput {
+func iterMakerTypex_TInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TInt64)
 	return ret
@@ -15541,7 +15542,7 @@ func (v *iterNative) readETTypex_TInt64(et *typex.EventTime, key *typex.T, value
 	return true
 }
 
-func iterMakerETTypex_TInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_TInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TInt64)
 	return ret
@@ -15561,7 +15562,7 @@ func (v *iterNative) readTypex_TUint(key *typex.T, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_TUint(s ReStream) ReusableInput {
+func iterMakerTypex_TUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TUint)
 	return ret
@@ -15582,7 +15583,7 @@ func (v *iterNative) readETTypex_TUint(et *typex.EventTime, key *typex.T, value 
 	return true
 }
 
-func iterMakerETTypex_TUint(s ReStream) ReusableInput {
+func iterMakerETTypex_TUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TUint)
 	return ret
@@ -15602,7 +15603,7 @@ func (v *iterNative) readTypex_TUint8(key *typex.T, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_TUint8(s ReStream) ReusableInput {
+func iterMakerTypex_TUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TUint8)
 	return ret
@@ -15623,7 +15624,7 @@ func (v *iterNative) readETTypex_TUint8(et *typex.EventTime, key *typex.T, value
 	return true
 }
 
-func iterMakerETTypex_TUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_TUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TUint8)
 	return ret
@@ -15643,7 +15644,7 @@ func (v *iterNative) readTypex_TUint16(key *typex.T, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_TUint16(s ReStream) ReusableInput {
+func iterMakerTypex_TUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TUint16)
 	return ret
@@ -15664,7 +15665,7 @@ func (v *iterNative) readETTypex_TUint16(et *typex.EventTime, key *typex.T, valu
 	return true
 }
 
-func iterMakerETTypex_TUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_TUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TUint16)
 	return ret
@@ -15684,7 +15685,7 @@ func (v *iterNative) readTypex_TUint32(key *typex.T, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_TUint32(s ReStream) ReusableInput {
+func iterMakerTypex_TUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TUint32)
 	return ret
@@ -15705,7 +15706,7 @@ func (v *iterNative) readETTypex_TUint32(et *typex.EventTime, key *typex.T, valu
 	return true
 }
 
-func iterMakerETTypex_TUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_TUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TUint32)
 	return ret
@@ -15725,7 +15726,7 @@ func (v *iterNative) readTypex_TUint64(key *typex.T, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_TUint64(s ReStream) ReusableInput {
+func iterMakerTypex_TUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TUint64)
 	return ret
@@ -15746,7 +15747,7 @@ func (v *iterNative) readETTypex_TUint64(et *typex.EventTime, key *typex.T, valu
 	return true
 }
 
-func iterMakerETTypex_TUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_TUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TUint64)
 	return ret
@@ -15766,7 +15767,7 @@ func (v *iterNative) readTypex_TFloat32(key *typex.T, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_TFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_TFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TFloat32)
 	return ret
@@ -15787,7 +15788,7 @@ func (v *iterNative) readETTypex_TFloat32(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_TFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TFloat32)
 	return ret
@@ -15807,7 +15808,7 @@ func (v *iterNative) readTypex_TFloat64(key *typex.T, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_TFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_TFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TFloat64)
 	return ret
@@ -15828,7 +15829,7 @@ func (v *iterNative) readETTypex_TFloat64(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_TFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TFloat64)
 	return ret
@@ -15848,7 +15849,7 @@ func (v *iterNative) readTypex_TTypex_T(key *typex.T, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_T)
 	return ret
@@ -15869,7 +15870,7 @@ func (v *iterNative) readETTypex_TTypex_T(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_T)
 	return ret
@@ -15889,7 +15890,7 @@ func (v *iterNative) readTypex_TTypex_U(key *typex.T, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_U)
 	return ret
@@ -15910,7 +15911,7 @@ func (v *iterNative) readETTypex_TTypex_U(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_U)
 	return ret
@@ -15930,7 +15931,7 @@ func (v *iterNative) readTypex_TTypex_V(key *typex.T, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_V)
 	return ret
@@ -15951,7 +15952,7 @@ func (v *iterNative) readETTypex_TTypex_V(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_V)
 	return ret
@@ -15971,7 +15972,7 @@ func (v *iterNative) readTypex_TTypex_W(key *typex.T, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_W)
 	return ret
@@ -15992,7 +15993,7 @@ func (v *iterNative) readETTypex_TTypex_W(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_W)
 	return ret
@@ -16012,7 +16013,7 @@ func (v *iterNative) readTypex_TTypex_X(key *typex.T, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_X)
 	return ret
@@ -16033,7 +16034,7 @@ func (v *iterNative) readETTypex_TTypex_X(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_X)
 	return ret
@@ -16053,7 +16054,7 @@ func (v *iterNative) readTypex_TTypex_Y(key *typex.T, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_Y)
 	return ret
@@ -16074,7 +16075,7 @@ func (v *iterNative) readETTypex_TTypex_Y(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_Y)
 	return ret
@@ -16094,7 +16095,7 @@ func (v *iterNative) readTypex_TTypex_Z(key *typex.T, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_TTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_TTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_TTypex_Z)
 	return ret
@@ -16115,7 +16116,7 @@ func (v *iterNative) readETTypex_TTypex_Z(et *typex.EventTime, key *typex.T, val
 	return true
 }
 
-func iterMakerETTypex_TTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_TTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_TTypex_Z)
 	return ret
@@ -16134,7 +16135,7 @@ func (v *iterNative) readTypex_U(val *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_U)
 	return ret
@@ -16154,7 +16155,7 @@ func (v *iterNative) readETTypex_U(et *typex.EventTime, val *typex.U) bool {
 	return true
 }
 
-func iterMakerETTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_U)
 	return ret
@@ -16174,7 +16175,7 @@ func (v *iterNative) readTypex_UByteSlice(key *typex.U, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_UByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_UByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UByteSlice)
 	return ret
@@ -16195,7 +16196,7 @@ func (v *iterNative) readETTypex_UByteSlice(et *typex.EventTime, key *typex.U, v
 	return true
 }
 
-func iterMakerETTypex_UByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_UByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UByteSlice)
 	return ret
@@ -16215,7 +16216,7 @@ func (v *iterNative) readTypex_UBool(key *typex.U, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_UBool(s ReStream) ReusableInput {
+func iterMakerTypex_UBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UBool)
 	return ret
@@ -16236,7 +16237,7 @@ func (v *iterNative) readETTypex_UBool(et *typex.EventTime, key *typex.U, value 
 	return true
 }
 
-func iterMakerETTypex_UBool(s ReStream) ReusableInput {
+func iterMakerETTypex_UBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UBool)
 	return ret
@@ -16256,7 +16257,7 @@ func (v *iterNative) readTypex_UString(key *typex.U, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_UString(s ReStream) ReusableInput {
+func iterMakerTypex_UString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UString)
 	return ret
@@ -16277,7 +16278,7 @@ func (v *iterNative) readETTypex_UString(et *typex.EventTime, key *typex.U, valu
 	return true
 }
 
-func iterMakerETTypex_UString(s ReStream) ReusableInput {
+func iterMakerETTypex_UString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UString)
 	return ret
@@ -16297,7 +16298,7 @@ func (v *iterNative) readTypex_UInt(key *typex.U, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_UInt(s ReStream) ReusableInput {
+func iterMakerTypex_UInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UInt)
 	return ret
@@ -16318,7 +16319,7 @@ func (v *iterNative) readETTypex_UInt(et *typex.EventTime, key *typex.U, value *
 	return true
 }
 
-func iterMakerETTypex_UInt(s ReStream) ReusableInput {
+func iterMakerETTypex_UInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UInt)
 	return ret
@@ -16338,7 +16339,7 @@ func (v *iterNative) readTypex_UInt8(key *typex.U, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_UInt8(s ReStream) ReusableInput {
+func iterMakerTypex_UInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UInt8)
 	return ret
@@ -16359,7 +16360,7 @@ func (v *iterNative) readETTypex_UInt8(et *typex.EventTime, key *typex.U, value 
 	return true
 }
 
-func iterMakerETTypex_UInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_UInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UInt8)
 	return ret
@@ -16379,7 +16380,7 @@ func (v *iterNative) readTypex_UInt16(key *typex.U, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_UInt16(s ReStream) ReusableInput {
+func iterMakerTypex_UInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UInt16)
 	return ret
@@ -16400,7 +16401,7 @@ func (v *iterNative) readETTypex_UInt16(et *typex.EventTime, key *typex.U, value
 	return true
 }
 
-func iterMakerETTypex_UInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_UInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UInt16)
 	return ret
@@ -16420,7 +16421,7 @@ func (v *iterNative) readTypex_UInt32(key *typex.U, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_UInt32(s ReStream) ReusableInput {
+func iterMakerTypex_UInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UInt32)
 	return ret
@@ -16441,7 +16442,7 @@ func (v *iterNative) readETTypex_UInt32(et *typex.EventTime, key *typex.U, value
 	return true
 }
 
-func iterMakerETTypex_UInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_UInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UInt32)
 	return ret
@@ -16461,7 +16462,7 @@ func (v *iterNative) readTypex_UInt64(key *typex.U, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_UInt64(s ReStream) ReusableInput {
+func iterMakerTypex_UInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UInt64)
 	return ret
@@ -16482,7 +16483,7 @@ func (v *iterNative) readETTypex_UInt64(et *typex.EventTime, key *typex.U, value
 	return true
 }
 
-func iterMakerETTypex_UInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_UInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UInt64)
 	return ret
@@ -16502,7 +16503,7 @@ func (v *iterNative) readTypex_UUint(key *typex.U, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_UUint(s ReStream) ReusableInput {
+func iterMakerTypex_UUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UUint)
 	return ret
@@ -16523,7 +16524,7 @@ func (v *iterNative) readETTypex_UUint(et *typex.EventTime, key *typex.U, value 
 	return true
 }
 
-func iterMakerETTypex_UUint(s ReStream) ReusableInput {
+func iterMakerETTypex_UUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UUint)
 	return ret
@@ -16543,7 +16544,7 @@ func (v *iterNative) readTypex_UUint8(key *typex.U, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_UUint8(s ReStream) ReusableInput {
+func iterMakerTypex_UUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UUint8)
 	return ret
@@ -16564,7 +16565,7 @@ func (v *iterNative) readETTypex_UUint8(et *typex.EventTime, key *typex.U, value
 	return true
 }
 
-func iterMakerETTypex_UUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_UUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UUint8)
 	return ret
@@ -16584,7 +16585,7 @@ func (v *iterNative) readTypex_UUint16(key *typex.U, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_UUint16(s ReStream) ReusableInput {
+func iterMakerTypex_UUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UUint16)
 	return ret
@@ -16605,7 +16606,7 @@ func (v *iterNative) readETTypex_UUint16(et *typex.EventTime, key *typex.U, valu
 	return true
 }
 
-func iterMakerETTypex_UUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_UUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UUint16)
 	return ret
@@ -16625,7 +16626,7 @@ func (v *iterNative) readTypex_UUint32(key *typex.U, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_UUint32(s ReStream) ReusableInput {
+func iterMakerTypex_UUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UUint32)
 	return ret
@@ -16646,7 +16647,7 @@ func (v *iterNative) readETTypex_UUint32(et *typex.EventTime, key *typex.U, valu
 	return true
 }
 
-func iterMakerETTypex_UUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_UUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UUint32)
 	return ret
@@ -16666,7 +16667,7 @@ func (v *iterNative) readTypex_UUint64(key *typex.U, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_UUint64(s ReStream) ReusableInput {
+func iterMakerTypex_UUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UUint64)
 	return ret
@@ -16687,7 +16688,7 @@ func (v *iterNative) readETTypex_UUint64(et *typex.EventTime, key *typex.U, valu
 	return true
 }
 
-func iterMakerETTypex_UUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_UUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UUint64)
 	return ret
@@ -16707,7 +16708,7 @@ func (v *iterNative) readTypex_UFloat32(key *typex.U, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_UFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_UFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UFloat32)
 	return ret
@@ -16728,7 +16729,7 @@ func (v *iterNative) readETTypex_UFloat32(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_UFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UFloat32)
 	return ret
@@ -16748,7 +16749,7 @@ func (v *iterNative) readTypex_UFloat64(key *typex.U, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_UFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_UFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UFloat64)
 	return ret
@@ -16769,7 +16770,7 @@ func (v *iterNative) readETTypex_UFloat64(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_UFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UFloat64)
 	return ret
@@ -16789,7 +16790,7 @@ func (v *iterNative) readTypex_UTypex_T(key *typex.U, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_T)
 	return ret
@@ -16810,7 +16811,7 @@ func (v *iterNative) readETTypex_UTypex_T(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_T)
 	return ret
@@ -16830,7 +16831,7 @@ func (v *iterNative) readTypex_UTypex_U(key *typex.U, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_U)
 	return ret
@@ -16851,7 +16852,7 @@ func (v *iterNative) readETTypex_UTypex_U(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_U)
 	return ret
@@ -16871,7 +16872,7 @@ func (v *iterNative) readTypex_UTypex_V(key *typex.U, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_V)
 	return ret
@@ -16892,7 +16893,7 @@ func (v *iterNative) readETTypex_UTypex_V(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_V)
 	return ret
@@ -16912,7 +16913,7 @@ func (v *iterNative) readTypex_UTypex_W(key *typex.U, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_W)
 	return ret
@@ -16933,7 +16934,7 @@ func (v *iterNative) readETTypex_UTypex_W(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_W)
 	return ret
@@ -16953,7 +16954,7 @@ func (v *iterNative) readTypex_UTypex_X(key *typex.U, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_X)
 	return ret
@@ -16974,7 +16975,7 @@ func (v *iterNative) readETTypex_UTypex_X(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_X)
 	return ret
@@ -16994,7 +16995,7 @@ func (v *iterNative) readTypex_UTypex_Y(key *typex.U, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_Y)
 	return ret
@@ -17015,7 +17016,7 @@ func (v *iterNative) readETTypex_UTypex_Y(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_Y)
 	return ret
@@ -17035,7 +17036,7 @@ func (v *iterNative) readTypex_UTypex_Z(key *typex.U, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_UTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_UTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_UTypex_Z)
 	return ret
@@ -17056,7 +17057,7 @@ func (v *iterNative) readETTypex_UTypex_Z(et *typex.EventTime, key *typex.U, val
 	return true
 }
 
-func iterMakerETTypex_UTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_UTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_UTypex_Z)
 	return ret
@@ -17075,7 +17076,7 @@ func (v *iterNative) readTypex_V(val *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_V)
 	return ret
@@ -17095,7 +17096,7 @@ func (v *iterNative) readETTypex_V(et *typex.EventTime, val *typex.V) bool {
 	return true
 }
 
-func iterMakerETTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_V)
 	return ret
@@ -17115,7 +17116,7 @@ func (v *iterNative) readTypex_VByteSlice(key *typex.V, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_VByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_VByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VByteSlice)
 	return ret
@@ -17136,7 +17137,7 @@ func (v *iterNative) readETTypex_VByteSlice(et *typex.EventTime, key *typex.V, v
 	return true
 }
 
-func iterMakerETTypex_VByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_VByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VByteSlice)
 	return ret
@@ -17156,7 +17157,7 @@ func (v *iterNative) readTypex_VBool(key *typex.V, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_VBool(s ReStream) ReusableInput {
+func iterMakerTypex_VBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VBool)
 	return ret
@@ -17177,7 +17178,7 @@ func (v *iterNative) readETTypex_VBool(et *typex.EventTime, key *typex.V, value 
 	return true
 }
 
-func iterMakerETTypex_VBool(s ReStream) ReusableInput {
+func iterMakerETTypex_VBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VBool)
 	return ret
@@ -17197,7 +17198,7 @@ func (v *iterNative) readTypex_VString(key *typex.V, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_VString(s ReStream) ReusableInput {
+func iterMakerTypex_VString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VString)
 	return ret
@@ -17218,7 +17219,7 @@ func (v *iterNative) readETTypex_VString(et *typex.EventTime, key *typex.V, valu
 	return true
 }
 
-func iterMakerETTypex_VString(s ReStream) ReusableInput {
+func iterMakerETTypex_VString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VString)
 	return ret
@@ -17238,7 +17239,7 @@ func (v *iterNative) readTypex_VInt(key *typex.V, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_VInt(s ReStream) ReusableInput {
+func iterMakerTypex_VInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VInt)
 	return ret
@@ -17259,7 +17260,7 @@ func (v *iterNative) readETTypex_VInt(et *typex.EventTime, key *typex.V, value *
 	return true
 }
 
-func iterMakerETTypex_VInt(s ReStream) ReusableInput {
+func iterMakerETTypex_VInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VInt)
 	return ret
@@ -17279,7 +17280,7 @@ func (v *iterNative) readTypex_VInt8(key *typex.V, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_VInt8(s ReStream) ReusableInput {
+func iterMakerTypex_VInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VInt8)
 	return ret
@@ -17300,7 +17301,7 @@ func (v *iterNative) readETTypex_VInt8(et *typex.EventTime, key *typex.V, value 
 	return true
 }
 
-func iterMakerETTypex_VInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_VInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VInt8)
 	return ret
@@ -17320,7 +17321,7 @@ func (v *iterNative) readTypex_VInt16(key *typex.V, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_VInt16(s ReStream) ReusableInput {
+func iterMakerTypex_VInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VInt16)
 	return ret
@@ -17341,7 +17342,7 @@ func (v *iterNative) readETTypex_VInt16(et *typex.EventTime, key *typex.V, value
 	return true
 }
 
-func iterMakerETTypex_VInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_VInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VInt16)
 	return ret
@@ -17361,7 +17362,7 @@ func (v *iterNative) readTypex_VInt32(key *typex.V, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_VInt32(s ReStream) ReusableInput {
+func iterMakerTypex_VInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VInt32)
 	return ret
@@ -17382,7 +17383,7 @@ func (v *iterNative) readETTypex_VInt32(et *typex.EventTime, key *typex.V, value
 	return true
 }
 
-func iterMakerETTypex_VInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_VInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VInt32)
 	return ret
@@ -17402,7 +17403,7 @@ func (v *iterNative) readTypex_VInt64(key *typex.V, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_VInt64(s ReStream) ReusableInput {
+func iterMakerTypex_VInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VInt64)
 	return ret
@@ -17423,7 +17424,7 @@ func (v *iterNative) readETTypex_VInt64(et *typex.EventTime, key *typex.V, value
 	return true
 }
 
-func iterMakerETTypex_VInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_VInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VInt64)
 	return ret
@@ -17443,7 +17444,7 @@ func (v *iterNative) readTypex_VUint(key *typex.V, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_VUint(s ReStream) ReusableInput {
+func iterMakerTypex_VUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VUint)
 	return ret
@@ -17464,7 +17465,7 @@ func (v *iterNative) readETTypex_VUint(et *typex.EventTime, key *typex.V, value 
 	return true
 }
 
-func iterMakerETTypex_VUint(s ReStream) ReusableInput {
+func iterMakerETTypex_VUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VUint)
 	return ret
@@ -17484,7 +17485,7 @@ func (v *iterNative) readTypex_VUint8(key *typex.V, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_VUint8(s ReStream) ReusableInput {
+func iterMakerTypex_VUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VUint8)
 	return ret
@@ -17505,7 +17506,7 @@ func (v *iterNative) readETTypex_VUint8(et *typex.EventTime, key *typex.V, value
 	return true
 }
 
-func iterMakerETTypex_VUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_VUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VUint8)
 	return ret
@@ -17525,7 +17526,7 @@ func (v *iterNative) readTypex_VUint16(key *typex.V, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_VUint16(s ReStream) ReusableInput {
+func iterMakerTypex_VUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VUint16)
 	return ret
@@ -17546,7 +17547,7 @@ func (v *iterNative) readETTypex_VUint16(et *typex.EventTime, key *typex.V, valu
 	return true
 }
 
-func iterMakerETTypex_VUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_VUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VUint16)
 	return ret
@@ -17566,7 +17567,7 @@ func (v *iterNative) readTypex_VUint32(key *typex.V, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_VUint32(s ReStream) ReusableInput {
+func iterMakerTypex_VUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VUint32)
 	return ret
@@ -17587,7 +17588,7 @@ func (v *iterNative) readETTypex_VUint32(et *typex.EventTime, key *typex.V, valu
 	return true
 }
 
-func iterMakerETTypex_VUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_VUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VUint32)
 	return ret
@@ -17607,7 +17608,7 @@ func (v *iterNative) readTypex_VUint64(key *typex.V, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_VUint64(s ReStream) ReusableInput {
+func iterMakerTypex_VUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VUint64)
 	return ret
@@ -17628,7 +17629,7 @@ func (v *iterNative) readETTypex_VUint64(et *typex.EventTime, key *typex.V, valu
 	return true
 }
 
-func iterMakerETTypex_VUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_VUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VUint64)
 	return ret
@@ -17648,7 +17649,7 @@ func (v *iterNative) readTypex_VFloat32(key *typex.V, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_VFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_VFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VFloat32)
 	return ret
@@ -17669,7 +17670,7 @@ func (v *iterNative) readETTypex_VFloat32(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_VFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VFloat32)
 	return ret
@@ -17689,7 +17690,7 @@ func (v *iterNative) readTypex_VFloat64(key *typex.V, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_VFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_VFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VFloat64)
 	return ret
@@ -17710,7 +17711,7 @@ func (v *iterNative) readETTypex_VFloat64(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_VFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VFloat64)
 	return ret
@@ -17730,7 +17731,7 @@ func (v *iterNative) readTypex_VTypex_T(key *typex.V, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_T)
 	return ret
@@ -17751,7 +17752,7 @@ func (v *iterNative) readETTypex_VTypex_T(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_T)
 	return ret
@@ -17771,7 +17772,7 @@ func (v *iterNative) readTypex_VTypex_U(key *typex.V, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_U)
 	return ret
@@ -17792,7 +17793,7 @@ func (v *iterNative) readETTypex_VTypex_U(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_U)
 	return ret
@@ -17812,7 +17813,7 @@ func (v *iterNative) readTypex_VTypex_V(key *typex.V, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_V)
 	return ret
@@ -17833,7 +17834,7 @@ func (v *iterNative) readETTypex_VTypex_V(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_V)
 	return ret
@@ -17853,7 +17854,7 @@ func (v *iterNative) readTypex_VTypex_W(key *typex.V, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_W)
 	return ret
@@ -17874,7 +17875,7 @@ func (v *iterNative) readETTypex_VTypex_W(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_W)
 	return ret
@@ -17894,7 +17895,7 @@ func (v *iterNative) readTypex_VTypex_X(key *typex.V, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_X)
 	return ret
@@ -17915,7 +17916,7 @@ func (v *iterNative) readETTypex_VTypex_X(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_X)
 	return ret
@@ -17935,7 +17936,7 @@ func (v *iterNative) readTypex_VTypex_Y(key *typex.V, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_Y)
 	return ret
@@ -17956,7 +17957,7 @@ func (v *iterNative) readETTypex_VTypex_Y(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_Y)
 	return ret
@@ -17976,7 +17977,7 @@ func (v *iterNative) readTypex_VTypex_Z(key *typex.V, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_VTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_VTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_VTypex_Z)
 	return ret
@@ -17997,7 +17998,7 @@ func (v *iterNative) readETTypex_VTypex_Z(et *typex.EventTime, key *typex.V, val
 	return true
 }
 
-func iterMakerETTypex_VTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_VTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_VTypex_Z)
 	return ret
@@ -18016,7 +18017,7 @@ func (v *iterNative) readTypex_W(val *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_W)
 	return ret
@@ -18036,7 +18037,7 @@ func (v *iterNative) readETTypex_W(et *typex.EventTime, val *typex.W) bool {
 	return true
 }
 
-func iterMakerETTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_W)
 	return ret
@@ -18056,7 +18057,7 @@ func (v *iterNative) readTypex_WByteSlice(key *typex.W, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_WByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_WByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WByteSlice)
 	return ret
@@ -18077,7 +18078,7 @@ func (v *iterNative) readETTypex_WByteSlice(et *typex.EventTime, key *typex.W, v
 	return true
 }
 
-func iterMakerETTypex_WByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_WByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WByteSlice)
 	return ret
@@ -18097,7 +18098,7 @@ func (v *iterNative) readTypex_WBool(key *typex.W, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_WBool(s ReStream) ReusableInput {
+func iterMakerTypex_WBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WBool)
 	return ret
@@ -18118,7 +18119,7 @@ func (v *iterNative) readETTypex_WBool(et *typex.EventTime, key *typex.W, value 
 	return true
 }
 
-func iterMakerETTypex_WBool(s ReStream) ReusableInput {
+func iterMakerETTypex_WBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WBool)
 	return ret
@@ -18138,7 +18139,7 @@ func (v *iterNative) readTypex_WString(key *typex.W, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_WString(s ReStream) ReusableInput {
+func iterMakerTypex_WString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WString)
 	return ret
@@ -18159,7 +18160,7 @@ func (v *iterNative) readETTypex_WString(et *typex.EventTime, key *typex.W, valu
 	return true
 }
 
-func iterMakerETTypex_WString(s ReStream) ReusableInput {
+func iterMakerETTypex_WString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WString)
 	return ret
@@ -18179,7 +18180,7 @@ func (v *iterNative) readTypex_WInt(key *typex.W, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_WInt(s ReStream) ReusableInput {
+func iterMakerTypex_WInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WInt)
 	return ret
@@ -18200,7 +18201,7 @@ func (v *iterNative) readETTypex_WInt(et *typex.EventTime, key *typex.W, value *
 	return true
 }
 
-func iterMakerETTypex_WInt(s ReStream) ReusableInput {
+func iterMakerETTypex_WInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WInt)
 	return ret
@@ -18220,7 +18221,7 @@ func (v *iterNative) readTypex_WInt8(key *typex.W, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_WInt8(s ReStream) ReusableInput {
+func iterMakerTypex_WInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WInt8)
 	return ret
@@ -18241,7 +18242,7 @@ func (v *iterNative) readETTypex_WInt8(et *typex.EventTime, key *typex.W, value 
 	return true
 }
 
-func iterMakerETTypex_WInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_WInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WInt8)
 	return ret
@@ -18261,7 +18262,7 @@ func (v *iterNative) readTypex_WInt16(key *typex.W, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_WInt16(s ReStream) ReusableInput {
+func iterMakerTypex_WInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WInt16)
 	return ret
@@ -18282,7 +18283,7 @@ func (v *iterNative) readETTypex_WInt16(et *typex.EventTime, key *typex.W, value
 	return true
 }
 
-func iterMakerETTypex_WInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_WInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WInt16)
 	return ret
@@ -18302,7 +18303,7 @@ func (v *iterNative) readTypex_WInt32(key *typex.W, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_WInt32(s ReStream) ReusableInput {
+func iterMakerTypex_WInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WInt32)
 	return ret
@@ -18323,7 +18324,7 @@ func (v *iterNative) readETTypex_WInt32(et *typex.EventTime, key *typex.W, value
 	return true
 }
 
-func iterMakerETTypex_WInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_WInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WInt32)
 	return ret
@@ -18343,7 +18344,7 @@ func (v *iterNative) readTypex_WInt64(key *typex.W, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_WInt64(s ReStream) ReusableInput {
+func iterMakerTypex_WInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WInt64)
 	return ret
@@ -18364,7 +18365,7 @@ func (v *iterNative) readETTypex_WInt64(et *typex.EventTime, key *typex.W, value
 	return true
 }
 
-func iterMakerETTypex_WInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_WInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WInt64)
 	return ret
@@ -18384,7 +18385,7 @@ func (v *iterNative) readTypex_WUint(key *typex.W, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_WUint(s ReStream) ReusableInput {
+func iterMakerTypex_WUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WUint)
 	return ret
@@ -18405,7 +18406,7 @@ func (v *iterNative) readETTypex_WUint(et *typex.EventTime, key *typex.W, value 
 	return true
 }
 
-func iterMakerETTypex_WUint(s ReStream) ReusableInput {
+func iterMakerETTypex_WUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WUint)
 	return ret
@@ -18425,7 +18426,7 @@ func (v *iterNative) readTypex_WUint8(key *typex.W, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_WUint8(s ReStream) ReusableInput {
+func iterMakerTypex_WUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WUint8)
 	return ret
@@ -18446,7 +18447,7 @@ func (v *iterNative) readETTypex_WUint8(et *typex.EventTime, key *typex.W, value
 	return true
 }
 
-func iterMakerETTypex_WUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_WUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WUint8)
 	return ret
@@ -18466,7 +18467,7 @@ func (v *iterNative) readTypex_WUint16(key *typex.W, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_WUint16(s ReStream) ReusableInput {
+func iterMakerTypex_WUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WUint16)
 	return ret
@@ -18487,7 +18488,7 @@ func (v *iterNative) readETTypex_WUint16(et *typex.EventTime, key *typex.W, valu
 	return true
 }
 
-func iterMakerETTypex_WUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_WUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WUint16)
 	return ret
@@ -18507,7 +18508,7 @@ func (v *iterNative) readTypex_WUint32(key *typex.W, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_WUint32(s ReStream) ReusableInput {
+func iterMakerTypex_WUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WUint32)
 	return ret
@@ -18528,7 +18529,7 @@ func (v *iterNative) readETTypex_WUint32(et *typex.EventTime, key *typex.W, valu
 	return true
 }
 
-func iterMakerETTypex_WUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_WUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WUint32)
 	return ret
@@ -18548,7 +18549,7 @@ func (v *iterNative) readTypex_WUint64(key *typex.W, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_WUint64(s ReStream) ReusableInput {
+func iterMakerTypex_WUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WUint64)
 	return ret
@@ -18569,7 +18570,7 @@ func (v *iterNative) readETTypex_WUint64(et *typex.EventTime, key *typex.W, valu
 	return true
 }
 
-func iterMakerETTypex_WUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_WUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WUint64)
 	return ret
@@ -18589,7 +18590,7 @@ func (v *iterNative) readTypex_WFloat32(key *typex.W, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_WFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_WFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WFloat32)
 	return ret
@@ -18610,7 +18611,7 @@ func (v *iterNative) readETTypex_WFloat32(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_WFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WFloat32)
 	return ret
@@ -18630,7 +18631,7 @@ func (v *iterNative) readTypex_WFloat64(key *typex.W, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_WFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_WFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WFloat64)
 	return ret
@@ -18651,7 +18652,7 @@ func (v *iterNative) readETTypex_WFloat64(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_WFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WFloat64)
 	return ret
@@ -18671,7 +18672,7 @@ func (v *iterNative) readTypex_WTypex_T(key *typex.W, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_T)
 	return ret
@@ -18692,7 +18693,7 @@ func (v *iterNative) readETTypex_WTypex_T(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_T)
 	return ret
@@ -18712,7 +18713,7 @@ func (v *iterNative) readTypex_WTypex_U(key *typex.W, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_U)
 	return ret
@@ -18733,7 +18734,7 @@ func (v *iterNative) readETTypex_WTypex_U(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_U)
 	return ret
@@ -18753,7 +18754,7 @@ func (v *iterNative) readTypex_WTypex_V(key *typex.W, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_V)
 	return ret
@@ -18774,7 +18775,7 @@ func (v *iterNative) readETTypex_WTypex_V(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_V)
 	return ret
@@ -18794,7 +18795,7 @@ func (v *iterNative) readTypex_WTypex_W(key *typex.W, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_W)
 	return ret
@@ -18815,7 +18816,7 @@ func (v *iterNative) readETTypex_WTypex_W(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_W)
 	return ret
@@ -18835,7 +18836,7 @@ func (v *iterNative) readTypex_WTypex_X(key *typex.W, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_X)
 	return ret
@@ -18856,7 +18857,7 @@ func (v *iterNative) readETTypex_WTypex_X(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_X)
 	return ret
@@ -18876,7 +18877,7 @@ func (v *iterNative) readTypex_WTypex_Y(key *typex.W, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_Y)
 	return ret
@@ -18897,7 +18898,7 @@ func (v *iterNative) readETTypex_WTypex_Y(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_Y)
 	return ret
@@ -18917,7 +18918,7 @@ func (v *iterNative) readTypex_WTypex_Z(key *typex.W, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_WTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_WTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_WTypex_Z)
 	return ret
@@ -18938,7 +18939,7 @@ func (v *iterNative) readETTypex_WTypex_Z(et *typex.EventTime, key *typex.W, val
 	return true
 }
 
-func iterMakerETTypex_WTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_WTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_WTypex_Z)
 	return ret
@@ -18957,7 +18958,7 @@ func (v *iterNative) readTypex_X(val *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_X)
 	return ret
@@ -18977,7 +18978,7 @@ func (v *iterNative) readETTypex_X(et *typex.EventTime, val *typex.X) bool {
 	return true
 }
 
-func iterMakerETTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_X)
 	return ret
@@ -18997,7 +18998,7 @@ func (v *iterNative) readTypex_XByteSlice(key *typex.X, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_XByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_XByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XByteSlice)
 	return ret
@@ -19018,7 +19019,7 @@ func (v *iterNative) readETTypex_XByteSlice(et *typex.EventTime, key *typex.X, v
 	return true
 }
 
-func iterMakerETTypex_XByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_XByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XByteSlice)
 	return ret
@@ -19038,7 +19039,7 @@ func (v *iterNative) readTypex_XBool(key *typex.X, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_XBool(s ReStream) ReusableInput {
+func iterMakerTypex_XBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XBool)
 	return ret
@@ -19059,7 +19060,7 @@ func (v *iterNative) readETTypex_XBool(et *typex.EventTime, key *typex.X, value 
 	return true
 }
 
-func iterMakerETTypex_XBool(s ReStream) ReusableInput {
+func iterMakerETTypex_XBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XBool)
 	return ret
@@ -19079,7 +19080,7 @@ func (v *iterNative) readTypex_XString(key *typex.X, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_XString(s ReStream) ReusableInput {
+func iterMakerTypex_XString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XString)
 	return ret
@@ -19100,7 +19101,7 @@ func (v *iterNative) readETTypex_XString(et *typex.EventTime, key *typex.X, valu
 	return true
 }
 
-func iterMakerETTypex_XString(s ReStream) ReusableInput {
+func iterMakerETTypex_XString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XString)
 	return ret
@@ -19120,7 +19121,7 @@ func (v *iterNative) readTypex_XInt(key *typex.X, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_XInt(s ReStream) ReusableInput {
+func iterMakerTypex_XInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XInt)
 	return ret
@@ -19141,7 +19142,7 @@ func (v *iterNative) readETTypex_XInt(et *typex.EventTime, key *typex.X, value *
 	return true
 }
 
-func iterMakerETTypex_XInt(s ReStream) ReusableInput {
+func iterMakerETTypex_XInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XInt)
 	return ret
@@ -19161,7 +19162,7 @@ func (v *iterNative) readTypex_XInt8(key *typex.X, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_XInt8(s ReStream) ReusableInput {
+func iterMakerTypex_XInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XInt8)
 	return ret
@@ -19182,7 +19183,7 @@ func (v *iterNative) readETTypex_XInt8(et *typex.EventTime, key *typex.X, value 
 	return true
 }
 
-func iterMakerETTypex_XInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_XInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XInt8)
 	return ret
@@ -19202,7 +19203,7 @@ func (v *iterNative) readTypex_XInt16(key *typex.X, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_XInt16(s ReStream) ReusableInput {
+func iterMakerTypex_XInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XInt16)
 	return ret
@@ -19223,7 +19224,7 @@ func (v *iterNative) readETTypex_XInt16(et *typex.EventTime, key *typex.X, value
 	return true
 }
 
-func iterMakerETTypex_XInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_XInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XInt16)
 	return ret
@@ -19243,7 +19244,7 @@ func (v *iterNative) readTypex_XInt32(key *typex.X, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_XInt32(s ReStream) ReusableInput {
+func iterMakerTypex_XInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XInt32)
 	return ret
@@ -19264,7 +19265,7 @@ func (v *iterNative) readETTypex_XInt32(et *typex.EventTime, key *typex.X, value
 	return true
 }
 
-func iterMakerETTypex_XInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_XInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XInt32)
 	return ret
@@ -19284,7 +19285,7 @@ func (v *iterNative) readTypex_XInt64(key *typex.X, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_XInt64(s ReStream) ReusableInput {
+func iterMakerTypex_XInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XInt64)
 	return ret
@@ -19305,7 +19306,7 @@ func (v *iterNative) readETTypex_XInt64(et *typex.EventTime, key *typex.X, value
 	return true
 }
 
-func iterMakerETTypex_XInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_XInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XInt64)
 	return ret
@@ -19325,7 +19326,7 @@ func (v *iterNative) readTypex_XUint(key *typex.X, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_XUint(s ReStream) ReusableInput {
+func iterMakerTypex_XUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XUint)
 	return ret
@@ -19346,7 +19347,7 @@ func (v *iterNative) readETTypex_XUint(et *typex.EventTime, key *typex.X, value 
 	return true
 }
 
-func iterMakerETTypex_XUint(s ReStream) ReusableInput {
+func iterMakerETTypex_XUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XUint)
 	return ret
@@ -19366,7 +19367,7 @@ func (v *iterNative) readTypex_XUint8(key *typex.X, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_XUint8(s ReStream) ReusableInput {
+func iterMakerTypex_XUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XUint8)
 	return ret
@@ -19387,7 +19388,7 @@ func (v *iterNative) readETTypex_XUint8(et *typex.EventTime, key *typex.X, value
 	return true
 }
 
-func iterMakerETTypex_XUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_XUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XUint8)
 	return ret
@@ -19407,7 +19408,7 @@ func (v *iterNative) readTypex_XUint16(key *typex.X, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_XUint16(s ReStream) ReusableInput {
+func iterMakerTypex_XUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XUint16)
 	return ret
@@ -19428,7 +19429,7 @@ func (v *iterNative) readETTypex_XUint16(et *typex.EventTime, key *typex.X, valu
 	return true
 }
 
-func iterMakerETTypex_XUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_XUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XUint16)
 	return ret
@@ -19448,7 +19449,7 @@ func (v *iterNative) readTypex_XUint32(key *typex.X, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_XUint32(s ReStream) ReusableInput {
+func iterMakerTypex_XUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XUint32)
 	return ret
@@ -19469,7 +19470,7 @@ func (v *iterNative) readETTypex_XUint32(et *typex.EventTime, key *typex.X, valu
 	return true
 }
 
-func iterMakerETTypex_XUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_XUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XUint32)
 	return ret
@@ -19489,7 +19490,7 @@ func (v *iterNative) readTypex_XUint64(key *typex.X, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_XUint64(s ReStream) ReusableInput {
+func iterMakerTypex_XUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XUint64)
 	return ret
@@ -19510,7 +19511,7 @@ func (v *iterNative) readETTypex_XUint64(et *typex.EventTime, key *typex.X, valu
 	return true
 }
 
-func iterMakerETTypex_XUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_XUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XUint64)
 	return ret
@@ -19530,7 +19531,7 @@ func (v *iterNative) readTypex_XFloat32(key *typex.X, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_XFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_XFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XFloat32)
 	return ret
@@ -19551,7 +19552,7 @@ func (v *iterNative) readETTypex_XFloat32(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_XFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XFloat32)
 	return ret
@@ -19571,7 +19572,7 @@ func (v *iterNative) readTypex_XFloat64(key *typex.X, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_XFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_XFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XFloat64)
 	return ret
@@ -19592,7 +19593,7 @@ func (v *iterNative) readETTypex_XFloat64(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_XFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XFloat64)
 	return ret
@@ -19612,7 +19613,7 @@ func (v *iterNative) readTypex_XTypex_T(key *typex.X, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_T)
 	return ret
@@ -19633,7 +19634,7 @@ func (v *iterNative) readETTypex_XTypex_T(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_T)
 	return ret
@@ -19653,7 +19654,7 @@ func (v *iterNative) readTypex_XTypex_U(key *typex.X, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_U)
 	return ret
@@ -19674,7 +19675,7 @@ func (v *iterNative) readETTypex_XTypex_U(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_U)
 	return ret
@@ -19694,7 +19695,7 @@ func (v *iterNative) readTypex_XTypex_V(key *typex.X, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_V)
 	return ret
@@ -19715,7 +19716,7 @@ func (v *iterNative) readETTypex_XTypex_V(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_V)
 	return ret
@@ -19735,7 +19736,7 @@ func (v *iterNative) readTypex_XTypex_W(key *typex.X, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_W)
 	return ret
@@ -19756,7 +19757,7 @@ func (v *iterNative) readETTypex_XTypex_W(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_W)
 	return ret
@@ -19776,7 +19777,7 @@ func (v *iterNative) readTypex_XTypex_X(key *typex.X, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_X)
 	return ret
@@ -19797,7 +19798,7 @@ func (v *iterNative) readETTypex_XTypex_X(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_X)
 	return ret
@@ -19817,7 +19818,7 @@ func (v *iterNative) readTypex_XTypex_Y(key *typex.X, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_Y)
 	return ret
@@ -19838,7 +19839,7 @@ func (v *iterNative) readETTypex_XTypex_Y(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_Y)
 	return ret
@@ -19858,7 +19859,7 @@ func (v *iterNative) readTypex_XTypex_Z(key *typex.X, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_XTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_XTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_XTypex_Z)
 	return ret
@@ -19879,7 +19880,7 @@ func (v *iterNative) readETTypex_XTypex_Z(et *typex.EventTime, key *typex.X, val
 	return true
 }
 
-func iterMakerETTypex_XTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_XTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_XTypex_Z)
 	return ret
@@ -19898,7 +19899,7 @@ func (v *iterNative) readTypex_Y(val *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_Y)
 	return ret
@@ -19918,7 +19919,7 @@ func (v *iterNative) readETTypex_Y(et *typex.EventTime, val *typex.Y) bool {
 	return true
 }
 
-func iterMakerETTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_Y)
 	return ret
@@ -19938,7 +19939,7 @@ func (v *iterNative) readTypex_YByteSlice(key *typex.Y, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_YByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_YByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YByteSlice)
 	return ret
@@ -19959,7 +19960,7 @@ func (v *iterNative) readETTypex_YByteSlice(et *typex.EventTime, key *typex.Y, v
 	return true
 }
 
-func iterMakerETTypex_YByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_YByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YByteSlice)
 	return ret
@@ -19979,7 +19980,7 @@ func (v *iterNative) readTypex_YBool(key *typex.Y, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_YBool(s ReStream) ReusableInput {
+func iterMakerTypex_YBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YBool)
 	return ret
@@ -20000,7 +20001,7 @@ func (v *iterNative) readETTypex_YBool(et *typex.EventTime, key *typex.Y, value 
 	return true
 }
 
-func iterMakerETTypex_YBool(s ReStream) ReusableInput {
+func iterMakerETTypex_YBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YBool)
 	return ret
@@ -20020,7 +20021,7 @@ func (v *iterNative) readTypex_YString(key *typex.Y, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_YString(s ReStream) ReusableInput {
+func iterMakerTypex_YString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YString)
 	return ret
@@ -20041,7 +20042,7 @@ func (v *iterNative) readETTypex_YString(et *typex.EventTime, key *typex.Y, valu
 	return true
 }
 
-func iterMakerETTypex_YString(s ReStream) ReusableInput {
+func iterMakerETTypex_YString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YString)
 	return ret
@@ -20061,7 +20062,7 @@ func (v *iterNative) readTypex_YInt(key *typex.Y, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_YInt(s ReStream) ReusableInput {
+func iterMakerTypex_YInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YInt)
 	return ret
@@ -20082,7 +20083,7 @@ func (v *iterNative) readETTypex_YInt(et *typex.EventTime, key *typex.Y, value *
 	return true
 }
 
-func iterMakerETTypex_YInt(s ReStream) ReusableInput {
+func iterMakerETTypex_YInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YInt)
 	return ret
@@ -20102,7 +20103,7 @@ func (v *iterNative) readTypex_YInt8(key *typex.Y, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_YInt8(s ReStream) ReusableInput {
+func iterMakerTypex_YInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YInt8)
 	return ret
@@ -20123,7 +20124,7 @@ func (v *iterNative) readETTypex_YInt8(et *typex.EventTime, key *typex.Y, value 
 	return true
 }
 
-func iterMakerETTypex_YInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_YInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YInt8)
 	return ret
@@ -20143,7 +20144,7 @@ func (v *iterNative) readTypex_YInt16(key *typex.Y, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_YInt16(s ReStream) ReusableInput {
+func iterMakerTypex_YInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YInt16)
 	return ret
@@ -20164,7 +20165,7 @@ func (v *iterNative) readETTypex_YInt16(et *typex.EventTime, key *typex.Y, value
 	return true
 }
 
-func iterMakerETTypex_YInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_YInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YInt16)
 	return ret
@@ -20184,7 +20185,7 @@ func (v *iterNative) readTypex_YInt32(key *typex.Y, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_YInt32(s ReStream) ReusableInput {
+func iterMakerTypex_YInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YInt32)
 	return ret
@@ -20205,7 +20206,7 @@ func (v *iterNative) readETTypex_YInt32(et *typex.EventTime, key *typex.Y, value
 	return true
 }
 
-func iterMakerETTypex_YInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_YInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YInt32)
 	return ret
@@ -20225,7 +20226,7 @@ func (v *iterNative) readTypex_YInt64(key *typex.Y, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_YInt64(s ReStream) ReusableInput {
+func iterMakerTypex_YInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YInt64)
 	return ret
@@ -20246,7 +20247,7 @@ func (v *iterNative) readETTypex_YInt64(et *typex.EventTime, key *typex.Y, value
 	return true
 }
 
-func iterMakerETTypex_YInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_YInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YInt64)
 	return ret
@@ -20266,7 +20267,7 @@ func (v *iterNative) readTypex_YUint(key *typex.Y, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_YUint(s ReStream) ReusableInput {
+func iterMakerTypex_YUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YUint)
 	return ret
@@ -20287,7 +20288,7 @@ func (v *iterNative) readETTypex_YUint(et *typex.EventTime, key *typex.Y, value 
 	return true
 }
 
-func iterMakerETTypex_YUint(s ReStream) ReusableInput {
+func iterMakerETTypex_YUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YUint)
 	return ret
@@ -20307,7 +20308,7 @@ func (v *iterNative) readTypex_YUint8(key *typex.Y, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_YUint8(s ReStream) ReusableInput {
+func iterMakerTypex_YUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YUint8)
 	return ret
@@ -20328,7 +20329,7 @@ func (v *iterNative) readETTypex_YUint8(et *typex.EventTime, key *typex.Y, value
 	return true
 }
 
-func iterMakerETTypex_YUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_YUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YUint8)
 	return ret
@@ -20348,7 +20349,7 @@ func (v *iterNative) readTypex_YUint16(key *typex.Y, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_YUint16(s ReStream) ReusableInput {
+func iterMakerTypex_YUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YUint16)
 	return ret
@@ -20369,7 +20370,7 @@ func (v *iterNative) readETTypex_YUint16(et *typex.EventTime, key *typex.Y, valu
 	return true
 }
 
-func iterMakerETTypex_YUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_YUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YUint16)
 	return ret
@@ -20389,7 +20390,7 @@ func (v *iterNative) readTypex_YUint32(key *typex.Y, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_YUint32(s ReStream) ReusableInput {
+func iterMakerTypex_YUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YUint32)
 	return ret
@@ -20410,7 +20411,7 @@ func (v *iterNative) readETTypex_YUint32(et *typex.EventTime, key *typex.Y, valu
 	return true
 }
 
-func iterMakerETTypex_YUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_YUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YUint32)
 	return ret
@@ -20430,7 +20431,7 @@ func (v *iterNative) readTypex_YUint64(key *typex.Y, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_YUint64(s ReStream) ReusableInput {
+func iterMakerTypex_YUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YUint64)
 	return ret
@@ -20451,7 +20452,7 @@ func (v *iterNative) readETTypex_YUint64(et *typex.EventTime, key *typex.Y, valu
 	return true
 }
 
-func iterMakerETTypex_YUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_YUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YUint64)
 	return ret
@@ -20471,7 +20472,7 @@ func (v *iterNative) readTypex_YFloat32(key *typex.Y, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_YFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_YFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YFloat32)
 	return ret
@@ -20492,7 +20493,7 @@ func (v *iterNative) readETTypex_YFloat32(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_YFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YFloat32)
 	return ret
@@ -20512,7 +20513,7 @@ func (v *iterNative) readTypex_YFloat64(key *typex.Y, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_YFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_YFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YFloat64)
 	return ret
@@ -20533,7 +20534,7 @@ func (v *iterNative) readETTypex_YFloat64(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_YFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YFloat64)
 	return ret
@@ -20553,7 +20554,7 @@ func (v *iterNative) readTypex_YTypex_T(key *typex.Y, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_T)
 	return ret
@@ -20574,7 +20575,7 @@ func (v *iterNative) readETTypex_YTypex_T(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_T)
 	return ret
@@ -20594,7 +20595,7 @@ func (v *iterNative) readTypex_YTypex_U(key *typex.Y, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_U)
 	return ret
@@ -20615,7 +20616,7 @@ func (v *iterNative) readETTypex_YTypex_U(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_U)
 	return ret
@@ -20635,7 +20636,7 @@ func (v *iterNative) readTypex_YTypex_V(key *typex.Y, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_V)
 	return ret
@@ -20656,7 +20657,7 @@ func (v *iterNative) readETTypex_YTypex_V(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_V)
 	return ret
@@ -20676,7 +20677,7 @@ func (v *iterNative) readTypex_YTypex_W(key *typex.Y, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_W)
 	return ret
@@ -20697,7 +20698,7 @@ func (v *iterNative) readETTypex_YTypex_W(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_W)
 	return ret
@@ -20717,7 +20718,7 @@ func (v *iterNative) readTypex_YTypex_X(key *typex.Y, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_X)
 	return ret
@@ -20738,7 +20739,7 @@ func (v *iterNative) readETTypex_YTypex_X(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_X)
 	return ret
@@ -20758,7 +20759,7 @@ func (v *iterNative) readTypex_YTypex_Y(key *typex.Y, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_Y)
 	return ret
@@ -20779,7 +20780,7 @@ func (v *iterNative) readETTypex_YTypex_Y(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_Y)
 	return ret
@@ -20799,7 +20800,7 @@ func (v *iterNative) readTypex_YTypex_Z(key *typex.Y, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_YTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_YTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_YTypex_Z)
 	return ret
@@ -20820,7 +20821,7 @@ func (v *iterNative) readETTypex_YTypex_Z(et *typex.EventTime, key *typex.Y, val
 	return true
 }
 
-func iterMakerETTypex_YTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_YTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_YTypex_Z)
 	return ret
@@ -20839,7 +20840,7 @@ func (v *iterNative) readTypex_Z(val *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_Z)
 	return ret
@@ -20859,7 +20860,7 @@ func (v *iterNative) readETTypex_Z(et *typex.EventTime, val *typex.Z) bool {
 	return true
 }
 
-func iterMakerETTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_Z)
 	return ret
@@ -20879,7 +20880,7 @@ func (v *iterNative) readTypex_ZByteSlice(key *typex.Z, value *[]byte) bool {
 	return true
 }
 
-func iterMakerTypex_ZByteSlice(s ReStream) ReusableInput {
+func iterMakerTypex_ZByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZByteSlice)
 	return ret
@@ -20900,7 +20901,7 @@ func (v *iterNative) readETTypex_ZByteSlice(et *typex.EventTime, key *typex.Z, v
 	return true
 }
 
-func iterMakerETTypex_ZByteSlice(s ReStream) ReusableInput {
+func iterMakerETTypex_ZByteSlice(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZByteSlice)
 	return ret
@@ -20920,7 +20921,7 @@ func (v *iterNative) readTypex_ZBool(key *typex.Z, value *bool) bool {
 	return true
 }
 
-func iterMakerTypex_ZBool(s ReStream) ReusableInput {
+func iterMakerTypex_ZBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZBool)
 	return ret
@@ -20941,7 +20942,7 @@ func (v *iterNative) readETTypex_ZBool(et *typex.EventTime, key *typex.Z, value 
 	return true
 }
 
-func iterMakerETTypex_ZBool(s ReStream) ReusableInput {
+func iterMakerETTypex_ZBool(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZBool)
 	return ret
@@ -20961,7 +20962,7 @@ func (v *iterNative) readTypex_ZString(key *typex.Z, value *string) bool {
 	return true
 }
 
-func iterMakerTypex_ZString(s ReStream) ReusableInput {
+func iterMakerTypex_ZString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZString)
 	return ret
@@ -20982,7 +20983,7 @@ func (v *iterNative) readETTypex_ZString(et *typex.EventTime, key *typex.Z, valu
 	return true
 }
 
-func iterMakerETTypex_ZString(s ReStream) ReusableInput {
+func iterMakerETTypex_ZString(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZString)
 	return ret
@@ -21002,7 +21003,7 @@ func (v *iterNative) readTypex_ZInt(key *typex.Z, value *int) bool {
 	return true
 }
 
-func iterMakerTypex_ZInt(s ReStream) ReusableInput {
+func iterMakerTypex_ZInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZInt)
 	return ret
@@ -21023,7 +21024,7 @@ func (v *iterNative) readETTypex_ZInt(et *typex.EventTime, key *typex.Z, value *
 	return true
 }
 
-func iterMakerETTypex_ZInt(s ReStream) ReusableInput {
+func iterMakerETTypex_ZInt(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt)
 	return ret
@@ -21043,7 +21044,7 @@ func (v *iterNative) readTypex_ZInt8(key *typex.Z, value *int8) bool {
 	return true
 }
 
-func iterMakerTypex_ZInt8(s ReStream) ReusableInput {
+func iterMakerTypex_ZInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZInt8)
 	return ret
@@ -21064,7 +21065,7 @@ func (v *iterNative) readETTypex_ZInt8(et *typex.EventTime, key *typex.Z, value 
 	return true
 }
 
-func iterMakerETTypex_ZInt8(s ReStream) ReusableInput {
+func iterMakerETTypex_ZInt8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt8)
 	return ret
@@ -21084,7 +21085,7 @@ func (v *iterNative) readTypex_ZInt16(key *typex.Z, value *int16) bool {
 	return true
 }
 
-func iterMakerTypex_ZInt16(s ReStream) ReusableInput {
+func iterMakerTypex_ZInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZInt16)
 	return ret
@@ -21105,7 +21106,7 @@ func (v *iterNative) readETTypex_ZInt16(et *typex.EventTime, key *typex.Z, value
 	return true
 }
 
-func iterMakerETTypex_ZInt16(s ReStream) ReusableInput {
+func iterMakerETTypex_ZInt16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt16)
 	return ret
@@ -21125,7 +21126,7 @@ func (v *iterNative) readTypex_ZInt32(key *typex.Z, value *int32) bool {
 	return true
 }
 
-func iterMakerTypex_ZInt32(s ReStream) ReusableInput {
+func iterMakerTypex_ZInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZInt32)
 	return ret
@@ -21146,7 +21147,7 @@ func (v *iterNative) readETTypex_ZInt32(et *typex.EventTime, key *typex.Z, value
 	return true
 }
 
-func iterMakerETTypex_ZInt32(s ReStream) ReusableInput {
+func iterMakerETTypex_ZInt32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt32)
 	return ret
@@ -21166,7 +21167,7 @@ func (v *iterNative) readTypex_ZInt64(key *typex.Z, value *int64) bool {
 	return true
 }
 
-func iterMakerTypex_ZInt64(s ReStream) ReusableInput {
+func iterMakerTypex_ZInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZInt64)
 	return ret
@@ -21187,7 +21188,7 @@ func (v *iterNative) readETTypex_ZInt64(et *typex.EventTime, key *typex.Z, value
 	return true
 }
 
-func iterMakerETTypex_ZInt64(s ReStream) ReusableInput {
+func iterMakerETTypex_ZInt64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZInt64)
 	return ret
@@ -21207,7 +21208,7 @@ func (v *iterNative) readTypex_ZUint(key *typex.Z, value *uint) bool {
 	return true
 }
 
-func iterMakerTypex_ZUint(s ReStream) ReusableInput {
+func iterMakerTypex_ZUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZUint)
 	return ret
@@ -21228,7 +21229,7 @@ func (v *iterNative) readETTypex_ZUint(et *typex.EventTime, key *typex.Z, value 
 	return true
 }
 
-func iterMakerETTypex_ZUint(s ReStream) ReusableInput {
+func iterMakerETTypex_ZUint(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint)
 	return ret
@@ -21248,7 +21249,7 @@ func (v *iterNative) readTypex_ZUint8(key *typex.Z, value *uint8) bool {
 	return true
 }
 
-func iterMakerTypex_ZUint8(s ReStream) ReusableInput {
+func iterMakerTypex_ZUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZUint8)
 	return ret
@@ -21269,7 +21270,7 @@ func (v *iterNative) readETTypex_ZUint8(et *typex.EventTime, key *typex.Z, value
 	return true
 }
 
-func iterMakerETTypex_ZUint8(s ReStream) ReusableInput {
+func iterMakerETTypex_ZUint8(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint8)
 	return ret
@@ -21289,7 +21290,7 @@ func (v *iterNative) readTypex_ZUint16(key *typex.Z, value *uint16) bool {
 	return true
 }
 
-func iterMakerTypex_ZUint16(s ReStream) ReusableInput {
+func iterMakerTypex_ZUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZUint16)
 	return ret
@@ -21310,7 +21311,7 @@ func (v *iterNative) readETTypex_ZUint16(et *typex.EventTime, key *typex.Z, valu
 	return true
 }
 
-func iterMakerETTypex_ZUint16(s ReStream) ReusableInput {
+func iterMakerETTypex_ZUint16(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint16)
 	return ret
@@ -21330,7 +21331,7 @@ func (v *iterNative) readTypex_ZUint32(key *typex.Z, value *uint32) bool {
 	return true
 }
 
-func iterMakerTypex_ZUint32(s ReStream) ReusableInput {
+func iterMakerTypex_ZUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZUint32)
 	return ret
@@ -21351,7 +21352,7 @@ func (v *iterNative) readETTypex_ZUint32(et *typex.EventTime, key *typex.Z, valu
 	return true
 }
 
-func iterMakerETTypex_ZUint32(s ReStream) ReusableInput {
+func iterMakerETTypex_ZUint32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint32)
 	return ret
@@ -21371,7 +21372,7 @@ func (v *iterNative) readTypex_ZUint64(key *typex.Z, value *uint64) bool {
 	return true
 }
 
-func iterMakerTypex_ZUint64(s ReStream) ReusableInput {
+func iterMakerTypex_ZUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZUint64)
 	return ret
@@ -21392,7 +21393,7 @@ func (v *iterNative) readETTypex_ZUint64(et *typex.EventTime, key *typex.Z, valu
 	return true
 }
 
-func iterMakerETTypex_ZUint64(s ReStream) ReusableInput {
+func iterMakerETTypex_ZUint64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZUint64)
 	return ret
@@ -21412,7 +21413,7 @@ func (v *iterNative) readTypex_ZFloat32(key *typex.Z, value *float32) bool {
 	return true
 }
 
-func iterMakerTypex_ZFloat32(s ReStream) ReusableInput {
+func iterMakerTypex_ZFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZFloat32)
 	return ret
@@ -21433,7 +21434,7 @@ func (v *iterNative) readETTypex_ZFloat32(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZFloat32(s ReStream) ReusableInput {
+func iterMakerETTypex_ZFloat32(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZFloat32)
 	return ret
@@ -21453,7 +21454,7 @@ func (v *iterNative) readTypex_ZFloat64(key *typex.Z, value *float64) bool {
 	return true
 }
 
-func iterMakerTypex_ZFloat64(s ReStream) ReusableInput {
+func iterMakerTypex_ZFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZFloat64)
 	return ret
@@ -21474,7 +21475,7 @@ func (v *iterNative) readETTypex_ZFloat64(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZFloat64(s ReStream) ReusableInput {
+func iterMakerETTypex_ZFloat64(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZFloat64)
 	return ret
@@ -21494,7 +21495,7 @@ func (v *iterNative) readTypex_ZTypex_T(key *typex.Z, value *typex.T) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_T(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_T)
 	return ret
@@ -21515,7 +21516,7 @@ func (v *iterNative) readETTypex_ZTypex_T(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_T(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_T(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_T)
 	return ret
@@ -21535,7 +21536,7 @@ func (v *iterNative) readTypex_ZTypex_U(key *typex.Z, value *typex.U) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_U(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_U)
 	return ret
@@ -21556,7 +21557,7 @@ func (v *iterNative) readETTypex_ZTypex_U(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_U(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_U(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_U)
 	return ret
@@ -21576,7 +21577,7 @@ func (v *iterNative) readTypex_ZTypex_V(key *typex.Z, value *typex.V) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_V(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_V)
 	return ret
@@ -21597,7 +21598,7 @@ func (v *iterNative) readETTypex_ZTypex_V(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_V(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_V(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_V)
 	return ret
@@ -21617,7 +21618,7 @@ func (v *iterNative) readTypex_ZTypex_W(key *typex.Z, value *typex.W) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_W(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_W)
 	return ret
@@ -21638,7 +21639,7 @@ func (v *iterNative) readETTypex_ZTypex_W(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_W(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_W(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_W)
 	return ret
@@ -21658,7 +21659,7 @@ func (v *iterNative) readTypex_ZTypex_X(key *typex.Z, value *typex.X) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_X(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_X)
 	return ret
@@ -21679,7 +21680,7 @@ func (v *iterNative) readETTypex_ZTypex_X(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_X(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_X(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_X)
 	return ret
@@ -21699,7 +21700,7 @@ func (v *iterNative) readTypex_ZTypex_Y(key *typex.Z, value *typex.Y) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_Y(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_Y)
 	return ret
@@ -21720,7 +21721,7 @@ func (v *iterNative) readETTypex_ZTypex_Y(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_Y(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_Y(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_Y)
 	return ret
@@ -21740,7 +21741,7 @@ func (v *iterNative) readTypex_ZTypex_Z(key *typex.Z, value *typex.Z) bool {
 	return true
 }
 
-func iterMakerTypex_ZTypex_Z(s ReStream) ReusableInput {
+func iterMakerTypex_ZTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readTypex_ZTypex_Z)
 	return ret
@@ -21761,7 +21762,7 @@ func (v *iterNative) readETTypex_ZTypex_Z(et *typex.EventTime, key *typex.Z, val
 	return true
 }
 
-func iterMakerETTypex_ZTypex_Z(s ReStream) ReusableInput {
+func iterMakerETTypex_ZTypex_Z(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readETTypex_ZTypex_Z)
 	return ret

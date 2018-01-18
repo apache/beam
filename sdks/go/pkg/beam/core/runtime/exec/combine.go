@@ -60,7 +60,7 @@ func (n *Combine) Up(ctx context.Context) error {
 	}
 
 	if n.Edge.CombineFn.AddInputFn() == nil {
-		n.mergeFn = reflectx.MakeFunc2x1(n.Edge.CombineFn.MergeAccumulatorsFn().Fn.Interface())
+		n.mergeFn = reflectx.ToFunc2x1(n.Edge.CombineFn.MergeAccumulatorsFn().Fn)
 	}
 
 	// TODO(herohde) 6/28/2017: maybe record the per-key mode in the Edge

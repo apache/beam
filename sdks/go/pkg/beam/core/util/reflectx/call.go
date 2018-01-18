@@ -20,6 +20,9 @@ import (
 	"reflect"
 	"sync"
 
+	"fmt"
+	"runtime/debug"
+
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
@@ -86,6 +89,16 @@ func (c *reflectFunc) Type() reflect.Type {
 
 func (c *reflectFunc) Call(args []interface{}) []interface{} {
 	return Interface(c.fn.Call(ValueOf(args)))
+}
+
+// CallNoPanic calls the given Func and catches any panic.
+func CallNoPanic(fn Func, args []interface{}) (ret []interface{}, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic: %v %s", r, debug.Stack())
+		}
+	}()
+	return fn.Call(args), nil
 }
 
 // ValueOf performs a per-element reflect.ValueOf.

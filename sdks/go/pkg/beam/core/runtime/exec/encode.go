@@ -16,76 +16,87 @@
 package exec
 
 import (
-	"context"
 	"fmt"
 	"reflect"
-	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-//go:generate specialize --input=encoders.tmpl --x=data,universals
-
-// Encoder is a uniform custom encoder interface.
+// Encoder is a uniform custom encoder interface. It wraps various
+// forms of reflectx.Funcs.
 type Encoder interface {
 	// Encode encodes the given value (of the given type).
-	Encode(reflect.Type, reflect.Value) ([]byte, error)
+	Encode(reflect.Type, interface{}) ([]byte, error)
 }
 
-var (
-	encoders   = make(map[string]func(reflect.Value) Encoder)
-	encodersMu sync.Mutex
-)
+func makeEncoder(fn reflectx.Func) Encoder {
+	// Detect one of the valid decoder forms and allow it to be invoked
+	// efficiently, relying on the general reflectx.Func framework for
+	// avoiding expensive reflection calls. There are 4 forms:
+	//
+	//          T -> []byte
+	//          T -> ([]byte, error)
+	//  (Type, T) -> []byte
+	//  (Type, T) -> ([][byte, error)
+	//
+	// We simply enumerate the forms. The wrappers simply ignore the
+	// appropriate parts.
 
-// RegisterEncoder registers an custom encoder invoker for the given type,
-// such as "func(int)[]byte". If multiple encoder invokers are registered
-// for the same type, the last registration wins.
-func RegisterEncoder(t reflect.Type, maker func(reflect.Value) Encoder) {
-	encodersMu.Lock()
-	defer encodersMu.Unlock()
-
-	key := t.String()
-	if _, exists := encoders[key]; exists {
-		log.Warnf(context.Background(), "Encoder for %v already registered. Overwriting.", key)
+	switch fn.Type().NumIn() {
+	case 1:
+		switch fn.Type().NumOut() {
+		case 1:
+			return &encoder1x1{fn: reflectx.ToFunc1x1(fn)}
+		case 2:
+			return &encoder1x2{fn: reflectx.ToFunc1x2(fn)}
+		}
+	case 2:
+		switch fn.Type().NumOut() {
+		case 1:
+			return &encoder2x1{fn: reflectx.ToFunc2x1(fn)}
+		case 2:
+			return &encoder2x2{fn: reflectx.ToFunc2x2(fn)}
+		}
 	}
-	encoders[key] = maker
+	panic(fmt.Sprintf("Invalid encoder: %v", fn))
 }
 
-func makeEncoder(fn *funcx.Fn) Encoder {
-	encodersMu.Lock()
-	maker, exists := encoders[fn.Fn.Type().String()]
-	encodersMu.Unlock()
-
-	if exists {
-		return maker(fn.Fn)
-	}
-
-	// If no specialized implementation is available, we use the (slower)
-	// reflection-based one.
-
-	return &encoder{fn: fn}
+type encoder1x1 struct {
+	fn reflectx.Func1x1
 }
 
-type encoder struct {
-	fn *funcx.Fn
+func (d *encoder1x1) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+	return d.fn.Call1x1(v).([]byte), nil
 }
 
-func (e *encoder) Encode(t reflect.Type, elm reflect.Value) ([]byte, error) {
-	args := make([]reflect.Value, len(e.fn.Param))
-	if index, ok := e.fn.Type(); ok {
-		args[index] = reflect.ValueOf(t)
-	}
-	params := e.fn.Params(funcx.FnValue)
-	args[params[0]] = elm
+type encoder1x2 struct {
+	fn reflectx.Func1x2
+}
 
-	ret, err := reflectCallNoPanic(e.fn.Fn, args)
+func (d *encoder1x2) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+	val, err := d.fn.Call1x2(v)
 	if err != nil {
-		return nil, err
+		return nil, err.(error)
 	}
-	if index, ok := e.fn.Error(); ok && !ret[index].IsNil() {
-		return nil, fmt.Errorf("encode error: %v", ret[index].Interface())
+	return val.([]byte), nil
+}
+
+type encoder2x1 struct {
+	fn reflectx.Func2x1
+}
+
+func (d *encoder2x1) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+	return d.fn.Call2x1(t, v).([]byte), nil
+}
+
+type encoder2x2 struct {
+	fn reflectx.Func2x2
+}
+
+func (d *encoder2x2) Encode(t reflect.Type, v interface{}) ([]byte, error) {
+	val, err := d.fn.Call2x2(t, v)
+	if err != nil {
+		return nil, err.(error)
 	}
-	data := ret[e.fn.Returns(funcx.RetValue)[0]].Interface().([]byte)
-	return data, nil
+	return val.([]byte), nil
 }

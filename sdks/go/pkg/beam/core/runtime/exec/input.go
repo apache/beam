@@ -27,8 +27,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
-//go:generate specialize --input=inputs.tmpl --x=data,universals --y=data,universals
-
 // TODO(herohde) 4/26/2017: SideInput representation? We want it to be amenable
 // to the State API. For now, just use Stream.
 

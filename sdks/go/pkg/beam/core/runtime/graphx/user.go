@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // EncodeType encodes a type as a string. Unless registered, the decoded type
@@ -53,8 +54,8 @@ func DecodeType(data string) (reflect.Type, error) {
 // EncodeFn encodes a function and parameter types as a string. The function
 // symbol must be resolvable via the runtime.SymbolResolver. The types must
 // be encodable.
-func EncodeFn(fn reflect.Value) (string, error) {
-	u, err := funcx.New(fn.Interface())
+func EncodeFn(fn reflectx.Func) (string, error) {
+	u, err := funcx.New(fn)
 	if err != nil {
 		return "", err
 	}
@@ -67,14 +68,14 @@ func EncodeFn(fn reflect.Value) (string, error) {
 
 // DecodeFn encodes a function. The function symbol must be resolvable via the
 // runtime.SymbolResolver. The parameter types must be encodable.
-func DecodeFn(data string) (reflect.Value, error) {
+func DecodeFn(data string) (reflectx.Func, error) {
 	var ref v1.UserFn
 	if err := protox.DecodeBase64(data, &ref); err != nil {
-		return reflect.Value{}, err
+		return nil, err
 	}
 	fn, err := DecodeUserFn(&ref)
 	if err != nil {
-		return reflect.Value{}, err
+		return nil, err
 	}
 	return fn.Fn, nil
 }

@@ -23,6 +23,7 @@ import (
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // TestInvoke verifies the the various forms of input to Invoke are handled correctly.
@@ -99,17 +100,17 @@ func TestInvoke(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fn, err := funcx.New(test.Fn)
+		fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
 		if err != nil {
 			t.Fatalf("function not valid: %v", err)
 		}
 
 		val, err := Invoke(context.Background(), fn, test.Opt, makeArgs(test.Args)...)
 		if err != nil {
-			t.Fatalf("Invoke(%v,%v) failed: %v", fn.Name, test.Args, err)
+			t.Fatalf("Invoke(%v,%v) failed: %v", fn.Fn.Name(), test.Args, err)
 		}
 		if val != nil && val.Elm.Interface() != test.Expected {
-			t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Name, test.Args, val.Elm.Interface(), test.Expected)
+			t.Errorf("Invoke(%v,%v) = %v, want %v", fn.Fn.Name(), test.Args, val.Elm.Interface(), test.Expected)
 		}
 	}
 }
@@ -204,7 +205,7 @@ func BenchmarkReflectCallReuseArgs(b *testing.B) {
 }
 
 func BenchmarkInvokeCall(b *testing.B) {
-	fn, _ := funcx.New(inc)
+	fn, _ := funcx.New(reflectx.MakeFunc(inc))
 	ctx := context.Background()
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
@@ -215,7 +216,7 @@ func BenchmarkInvokeCall(b *testing.B) {
 }
 
 func BenchmarkInvokeCallExtra(b *testing.B) {
-	fn, _ := funcx.New(inc)
+	fn, _ := funcx.New(reflectx.MakeFunc(inc))
 	ctx := context.Background()
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
@@ -241,7 +242,7 @@ func BenchmarkReflectFnCall(b *testing.B) {
 }
 
 func BenchmarkInvokeFnCall(b *testing.B) {
-	fn, _ := funcx.New(reflect.MakeFunc(reflect.TypeOf(inc), incFn).Interface().(func(int) int))
+	fn, _ := funcx.New(reflectx.MakeFunc(reflect.MakeFunc(reflect.TypeOf(inc), incFn).Interface().(func(int) int)))
 	ctx := context.Background()
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {
@@ -252,7 +253,7 @@ func BenchmarkInvokeFnCall(b *testing.B) {
 }
 
 func BenchmarkInvokeFnCallExtra(b *testing.B) {
-	fn, _ := funcx.New(reflect.MakeFunc(reflect.TypeOf(inc), incFn).Interface().(func(int) int))
+	fn, _ := funcx.New(reflectx.MakeFunc(reflect.MakeFunc(reflect.TypeOf(inc), incFn).Interface().(func(int) int)))
 	ctx := context.Background()
 	n := reflect.ValueOf(0)
 	for i := 0; i < b.N; i++ {

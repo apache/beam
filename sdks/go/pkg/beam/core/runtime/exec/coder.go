@@ -89,7 +89,7 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 	case coder.Custom:
 		return &customEncoder{
 			t:   c.Custom.Type,
-			enc: makeEncoder(c.Custom.Enc),
+			enc: makeEncoder(c.Custom.Enc.Fn),
 		}
 
 	case coder.KV:
@@ -116,7 +116,7 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 	case coder.Custom:
 		return &customDecoder{
 			t:   c.Custom.Type,
-			dec: makeDecoder(c.Custom.Dec),
+			dec: makeDecoder(c.Custom.Dec.Fn),
 		}
 
 	case coder.KV:
@@ -190,7 +190,7 @@ type customEncoder struct {
 func (c *customEncoder) Encode(val FullValue, w io.Writer) error {
 	// (1) Call encode
 
-	data, err := c.enc.Encode(c.t, val.Elm)
+	data, err := c.enc.Encode(c.t, val.Elm.Interface())
 	if err != nil {
 		return err
 	}
@@ -228,7 +228,7 @@ func (c *customDecoder) Decode(r io.Reader) (FullValue, error) {
 	if err != nil {
 		return FullValue{}, err
 	}
-	return FullValue{Elm: val}, err
+	return FullValue{Elm: reflect.ValueOf(val)}, err
 }
 
 type kvEncoder struct {

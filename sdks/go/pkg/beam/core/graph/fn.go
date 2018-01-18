@@ -43,7 +43,7 @@ type Fn struct {
 // Name returns the name of the function or struct.
 func (f *Fn) Name() string {
 	if f.Fn != nil {
-		return f.Fn.Name
+		return f.Fn.Fn.Name()
 	}
 	t := reflectx.SkipPtr(reflect.TypeOf(f.Recv))
 	return fmt.Sprintf("%v.%v", t.PkgPath(), t.Name())
@@ -51,42 +51,38 @@ func (f *Fn) Name() string {
 
 // DynFn is a generator for dynamically-created functions:
 //
-//      gen:   []byte -> T
+//    gen: (name string, t reflect.Type, []byte) -> func : T
 //
-// where the generated function, fn : T, is created by reflect.MakeFunc and
-// uses reflect.Values. The type, T, must be a valid funcx.Fn type. The
-// generator takes some arbitrary data as a []byte input. This concept allows
-// serialization of dynamically-generated functions, which do not have a valid
-// (unique) symbol. All such functions use the "reflect.makeFuncStub" symbol.
+// where the generated function, fn : T, is re-created at runtime. This concept
+// allows serialization of dynamically-generated functions, which do not have a
+// valid (unique) symbol such as one created via reflect.MakeFunc.
 type DynFn struct {
-	// Name is the (fake) name of the function. The actual symbol name is
-	// always "reflect.makeFuncStub".
+	// Name is the name of the function. It does not have to be a valid symbol.
 	Name string
-	// T is the type of the function
+	// T is the type of the generated function
 	T reflect.Type
-	// Data holds the data for the generator.
+	// Data holds the data for the generator. This data is trivially serializable.
 	Data []byte
-	// Gen is the function generator.
-	Gen func([]byte) func([]reflect.Value) []reflect.Value
+	// Gen is the function generator. The function generator itself must be a
+	// function with a unique symbol.
+	Gen func(string, reflect.Type, []byte) reflectx.Func
 }
 
 // NewFn pre-processes a function, dynamic function or struct for graph
 // construction.
 func NewFn(fn interface{}) (*Fn, error) {
 	if gen, ok := fn.(*DynFn); ok {
-		f, err := funcx.New(reflect.MakeFunc(gen.T, gen.Gen(gen.Data)).Interface())
+		f, err := funcx.New(gen.Gen(gen.Name, gen.T, gen.Data))
 		if err != nil {
 			return nil, err
 		}
-		f.Name = gen.Name
-
 		return &Fn{Fn: f, DynFn: gen}, nil
 	}
 
 	val := reflect.ValueOf(fn)
 	switch val.Type().Kind() {
 	case reflect.Func:
-		f, err := funcx.New(fn)
+		f, err := funcx.New(reflectx.MakeFunc(fn))
 		if err != nil {
 			return nil, err
 		}
@@ -120,7 +116,7 @@ func NewFn(fn interface{}) (*Fn, error) {
 			// serialize each method, call them explicitly and avoid struct
 			// registration.
 
-			f, err := funcx.New(val.Method(i).Interface())
+			f, err := funcx.New(reflectx.MakeFunc(val.Method(i).Interface()))
 			if err != nil {
 				return nil, fmt.Errorf("method %v invalid: %v", m.Name, err)
 			}

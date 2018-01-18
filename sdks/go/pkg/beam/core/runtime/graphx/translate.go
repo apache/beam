@@ -152,7 +152,7 @@ func (m *marshaller) addScopeTree(s *ScopeTree) string {
 // diff computes A\B and returns its keys as an identity map.
 func diff(a, b map[string]bool) map[string]string {
 	ret := make(map[string]string)
-	for key, _ := range a {
+	for key := range a {
 		if !b[key] {
 			ret[key] = key
 		}

@@ -51,7 +51,7 @@ func Include(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollectio
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
 
-	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: true}, col)
+	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFunc{Fn: reflectx.MakeFunc(fn)}, Include: true}, col)
 }
 
 // Exclude filters the elements of a PCollection<A> based on the given function,
@@ -71,12 +71,12 @@ func Exclude(s beam.Scope, col beam.PCollection, fn interface{}) beam.PCollectio
 	t := typex.SkipW(col.Type()).Type()
 	funcx.MustSatisfy(fn, funcx.Replace(sig, beam.TType, t))
 
-	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFn{Fn: reflect.ValueOf(fn)}, Include: false}, col)
+	return beam.ParDo(s, &filterFn{Predicate: beam.EncodedFunc{Fn: reflectx.MakeFunc(fn)}, Include: false}, col)
 }
 
 type filterFn struct {
 	// Predicate is the encoded predicate.
-	Predicate beam.EncodedFn `json:"predicate"`
+	Predicate beam.EncodedFunc `json:"predicate"`
 	// Include indicates whether to include or exclude elements that satisfy the predicate.
 	Include bool `json:"include"`
 
@@ -84,7 +84,7 @@ type filterFn struct {
 }
 
 func (f *filterFn) Setup() {
-	f.fn = reflectx.MakeFunc1x1(f.Predicate.Fn.Interface())
+	f.fn = reflectx.ToFunc1x1(f.Predicate.Fn)
 }
 
 func (f *filterFn) ProcessElement(elm beam.T, emit func(beam.T)) {

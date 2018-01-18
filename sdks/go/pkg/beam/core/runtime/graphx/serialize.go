@@ -31,7 +31,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-var genFnType = reflect.TypeOf((*func([]byte) func([]reflect.Value) []reflect.Value)(nil)).Elem()
+var genFnType = reflect.TypeOf((*func(string, reflect.Type, []byte) reflectx.Func)(nil)).Elem()
 
 // EncodeMultiEdge converts the preprocessed representation into the wire
 // representation of the multiedge, capturing input and output type information.
@@ -221,7 +221,7 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 			Name: u.Dynfn.Name,
 			T:    t,
 			Data: u.Dynfn.Data,
-			Gen:  gen.(func([]byte) func([]reflect.Value) []reflect.Value),
+			Gen:  gen.(func(string, reflect.Type, []byte) reflectx.Func),
 		})
 	}
 	if u.Fn != nil {
@@ -246,9 +246,10 @@ func decodeFn(u *v1.Fn) (*graph.Fn, error) {
 // EncodeUserFn translates the preprocessed representation of a Beam user function
 // into the wire representation, capturing all the inputs and outputs needed.
 func EncodeUserFn(u *funcx.Fn) (*v1.UserFn, error) {
-	// TODO(herohde) 5/23/2017: reject closures. They can't be serialized.
+	// TODO(herohde) 5/23/2017: reject closures and dynamic functions. They can't
+	// be serialized.
 
-	symbol := reflectx.FunctionName(u.Fn.Interface())
+	symbol := u.Fn.Name()
 	t, err := encodeType(u.Fn.Type())
 	if err != nil {
 		return nil, fmt.Errorf("encode: bad function type: %v", err)
@@ -269,7 +270,7 @@ func DecodeUserFn(ref *v1.UserFn) (*funcx.Fn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decode: failed to find symbol %v: %v", ref.Name, err)
 	}
-	ret, err := funcx.New(reflectx.LoadFunction(ptr, t))
+	ret, err := funcx.New(reflectx.MakeFunc(reflectx.LoadFunction(ptr, t)))
 	if err != nil {
 		return nil, err
 	}
