@@ -24,6 +24,7 @@ public interface Update<T> {
   /**
    * Update argument - i.e. call a method that modifies state of {@code what}.
    * @param what the object to update
+   * @throws Exception on error
    */
   void update(T what) throws Exception;
 
