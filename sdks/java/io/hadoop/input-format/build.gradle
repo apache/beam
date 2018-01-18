@@ -31,6 +31,7 @@ dependencies {
   shadow library.java.findbugs_jsr305
   provided library.java.hadoop_common
   provided library.java.hadoop_mapreduce_client_core
+  testCompile group: "org.postgresql", name: "postgresql", version:"9.4.1212.jre7"
   testCompile library.java.hamcrest_core
   testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
   testCompile project(path: ":runners:direct-java", configuration: "shadow")
