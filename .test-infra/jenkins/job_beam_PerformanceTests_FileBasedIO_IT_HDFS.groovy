@@ -90,7 +90,6 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 project        : 'apache-beam-testing',
                 tempRoot       : 'gs://temp-storage-for-perf-tests',
                 numberOfRecords: '1000000',
-                filenamePrefix : "${testConfiguration.jobName}/\${BUILD_ID}/",
         ]
         if (testConfiguration.containsKey('extraPipelineArgs')) {
             pipelineArgs << testConfiguration.extraPipelineArgs
@@ -113,7 +112,13 @@ private void create_filebasedio_performance_test_job(testConfiguration) {
                 beam_it_options          : pipelineArgsJoined,
                 beam_extra_mvn_properties: '["filesystem=hdfs"]',
                 bigquery_table           : testConfiguration.bqTable,
+                beam_options_config_file : makePathAbsolute('pkb-config.yml'),
+                beam_kubernetes_scripts  : makePathAbsolute('hdfs-single-datanode-cluster.yml') + ',' + makePathAbsolute('hdfs-single-datanode-cluster-for-local-dev.yml')
         ]
         common_job_properties.buildPerformanceTest(delegate, argMap)
     }
+}
+
+static def makePathAbsolute(String path) {
+    return '"$WORKSPACE/.test-infra/kubernetes/hadoop/SmallITCluster/' + path + '"'
 }
