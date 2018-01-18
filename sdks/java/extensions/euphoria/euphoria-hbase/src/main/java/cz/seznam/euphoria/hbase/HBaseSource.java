@@ -16,8 +16,6 @@
 package cz.seznam.euphoria.hbase;
 
 import cz.seznam.euphoria.core.client.functional.VoidFunction;
-import cz.seznam.euphoria.core.client.io.BoundedDataSource;
-import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.hadoop.input.HadoopSource;
 import cz.seznam.euphoria.shadow.com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -54,6 +52,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
 
   /**
    * Create builder for the sink.
+   * @return new builder for {@link HBaseSource}
    */
   public static Builder newBuilder() {
     return new Builder();
@@ -194,9 +193,9 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
 
     /**
      * Add specific column to the input.
-     * @param family
-     * @param qualifier
-     * @return
+     * @param family family to read
+     * @param qualifier qualifier to read
+     * @return this
      */
     public Builder addColumn(String family, String qualifier) {
       return addColumn(family.getBytes(DEFAULT), qualifier.getBytes(DEFAULT));
@@ -205,7 +204,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
 
     /**
      * Specify scanner caching
-     * @param caching
+     * @param caching scan caching
      * @return this
      */
     public Builder withScanCaching(int caching) {
@@ -215,7 +214,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
 
     /**
      * Specify batch size.
-     * @param batchSize
+     * @param batchSize scan batch size
      * @return this
      */
     public Builder withBatchSize(int batchSize) {
@@ -245,7 +244,7 @@ public class HBaseSource extends HadoopSource<ImmutableBytesWritable, Result> {
 
     /**
      * Specify startRow.
-     * @param startRow
+     * @param startRow scan start row
      * @return  this
      */
     public Builder withStartRow(byte[] startRow) {
