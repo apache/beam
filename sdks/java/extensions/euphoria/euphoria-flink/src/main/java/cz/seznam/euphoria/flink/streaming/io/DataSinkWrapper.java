@@ -62,7 +62,7 @@ public class DataSinkWrapper<T>
   }
 
   @Override
-  public void invoke(StreamingElement<?, T> elem) throws Exception {
+  public void invoke(StreamingElement<?, T> elem, Context context) throws Exception {
     writer.write(elem.getElement());
   }
 

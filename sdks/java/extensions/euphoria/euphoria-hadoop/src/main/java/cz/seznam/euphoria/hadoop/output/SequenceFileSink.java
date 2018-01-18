@@ -242,6 +242,7 @@ public class SequenceFileSink<K, V> extends HadoopSink<K, V> {
    *
    * @deprecated will be in next release private, use {@link #of(Class, Class)} instead
    */
+  @SuppressWarnings("unchecked")
   public SequenceFileSink(Class<K> keyType, Class<V> valueType,
                           String path, Configuration hadoopConfig) {
     super((Class) SequenceFileOutputFormat.class,
