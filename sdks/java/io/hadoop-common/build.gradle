@@ -22,7 +22,7 @@ applyJavaNature()
 description = "Apache Beam :: SDKs :: Java :: IO :: Hadoop Common"
 
 dependencies {
-  shadow project(path: ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-core", configuration: "shadow")
+  shadow project(path: ":sdks:java:core", configuration: "shadow")
   shadow library.java.findbugs_jsr305
   provided library.java.hadoop_client
   provided library.java.hadoop_common

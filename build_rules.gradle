@@ -34,7 +34,10 @@ println "Applying build_rules.gradle to $project.name"
 /*************************************************************************************************/
 // Apply common properties/repositories and tasks to all projects.
 
-group = "org.apache.beam"
+// Gradle determines project uniqueness based upon the project group and its name.
+// We use the project.path as the group name to make this mapping unique since
+// we have a few projects with the same name.
+group = project.path
 version = "2.3.0-SNAPSHOT"
 
 // Define the default set of repositories for all builds.
@@ -106,6 +109,14 @@ offlineDependencies {
 
 /*************************************************************************************************/
 
+// Returns a string representing the relocated path to be used with the shadow plugin when
+// given a suffix such as "com.google.common".
+ext.getJavaRelocatedPath = { String suffix ->
+  return "org.apache.beam"
+    + (project.path + ":" + project.name).replace(":", ".").replace("-", "_")
+    + ".repackaged."
+    + suffix;
+}
 
 // A class defining the set of configurable properties accepted by applyJavaNature
 class JavaNatureConfiguration {
@@ -260,7 +271,7 @@ ext.applyJavaNature = {
   // is expected to be used for the different Gradle configurations.
   //
   // TODO: Enforce all relocations are always performed to:
-  // "org.apache.beam." + project.name.replace("-", ".") + ".repackaged."
+  // getJavaRelocatedPath(package_suffix) where package_suffix is something like "com.google.commmon"
   if (configuration.enableShadow) {
     apply plugin: 'com.github.johnrengelman.shadow'
 
@@ -272,7 +283,7 @@ ext.applyJavaNature = {
         exclude(".*")
         include(dependency(library.java.guava))
       }
-      relocate("com.google.common", "org.apache.beam." + project.name.replace("-", ".") + ".repackaged.com.google.common") {
+      relocate("com.google.common", getJavaRelocatedPath("com.google.common")) {
         // com.google.common is too generic, need to exclude guava-testlib
         exclude "com.google.common.collect.testing.**"
         exclude "com.google.common.escape.testing.**"
@@ -331,7 +342,6 @@ ext.applyJavaNature = {
       force library.java.values()
     }
   }
-
 }
 
 /*************************************************************************************************/
@@ -348,11 +358,11 @@ ext.applyGoNature = {
   // TODO: Figure out how to do this by automatically figuring out the task dependency DAG
   // based upon task type.
   List<String> goProjects = [
-      ":beam-sdks-parent:beam-sdks-go",
-      ":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcemd",
-      ":beam-runners-parent:beam-runners-gcp-parent:beam-runners-gcp-gcsproxy",
-      ":beam-sdks-parent:beam-sdks-python:beam-sdks-python-container",
-      ":beam-sdks-parent:beam-sdks-java-parent:beam-sdks-java-container",
+      ":sdks:go",
+      ":runners:gcp:gcemd",
+      ":runners:gcp:gcsproxy",
+      ":sdks:python:container",
+      ":sdks:java:container",
   ]
   if (!goProjects.contains(project.path)) {
     throw new GradleException(project.path + " has not been defined within the list of well known go projects within build_rules.gradle.")
@@ -370,7 +380,6 @@ ext.applyGoNature = {
     }
   }
 }
-
 
 /*************************************************************************************************/
 
