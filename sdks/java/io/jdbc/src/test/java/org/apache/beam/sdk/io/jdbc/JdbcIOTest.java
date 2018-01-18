@@ -37,6 +37,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.TestRow;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -111,16 +112,16 @@ public class JdbcIOTest implements Serializable {
     dataSource.setServerName("localhost");
     dataSource.setPortNumber(port);
 
-    readTableName = JdbcTestHelper.getTableName("UT_READ");
+    readTableName = DatabaseTestHelper.getTestTableName("UT_READ");
 
-    JdbcTestHelper.createDataTable(dataSource, readTableName);
+    DatabaseTestHelper.createTable(dataSource, readTableName);
     addInitialData(dataSource, readTableName);
   }
 
   @AfterClass
   public static void shutDownDatabase() throws Exception {
     try {
-      JdbcTestHelper.cleanUpDataTable(dataSource, readTableName);
+      DatabaseTestHelper.deleteTable(dataSource, readTableName);
     } finally {
       if (derbyServer != null) {
         derbyServer.shutdown();
@@ -253,8 +254,8 @@ public class JdbcIOTest implements Serializable {
   public void testWrite() throws Exception {
     final long rowsToAdd = 1000L;
 
-    String tableName = JdbcTestHelper.getTableName("UT_WRITE");
-    JdbcTestHelper.createDataTable(dataSource, tableName);
+    String tableName = DatabaseTestHelper.getTestTableName("UT_WRITE");
+    DatabaseTestHelper.createTable(dataSource, tableName);
     try {
       ArrayList<KV<Integer, String>> data = new ArrayList<>();
       for (int i = 0; i < rowsToAdd; i++) {
@@ -290,7 +291,7 @@ public class JdbcIOTest implements Serializable {
         }
       }
     } finally {
-      JdbcTestHelper.cleanUpDataTable(dataSource, tableName);
+      DatabaseTestHelper.deleteTable(dataSource, tableName);
     }
   }
 

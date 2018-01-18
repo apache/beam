@@ -18,11 +18,10 @@
 package org.apache.beam.sdk.io.jdbc;
 
 import java.sql.SQLException;
-import java.text.ParseException;
 import java.util.List;
-
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.io.common.DatabaseTestHelper;
 import org.apache.beam.sdk.io.common.HashingFn;
 import org.apache.beam.sdk.io.common.IOTestPipelineOptions;
 import org.apache.beam.sdk.io.common.TestRow;
@@ -74,34 +73,20 @@ public class JdbcIOIT {
   public TestPipeline pipelineRead = TestPipeline.create();
 
   @BeforeClass
-  public static void setup() throws SQLException, ParseException {
+  public static void setup() throws SQLException {
     PipelineOptionsFactory.register(IOTestPipelineOptions.class);
     IOTestPipelineOptions options = TestPipeline.testingPipelineOptions()
         .as(IOTestPipelineOptions.class);
 
     numberOfRows = options.getNumberOfRecords();
-    dataSource = getDataSource(options);
-
-    tableName = JdbcTestHelper.getTableName("IT");
-    JdbcTestHelper.createDataTable(dataSource, tableName);
-  }
-
-  private static PGSimpleDataSource getDataSource(IOTestPipelineOptions options) {
-    PGSimpleDataSource dataSource = new PGSimpleDataSource();
-
-    dataSource.setDatabaseName(options.getPostgresDatabaseName());
-    dataSource.setServerName(options.getPostgresServerName());
-    dataSource.setPortNumber(options.getPostgresPort());
-    dataSource.setUser(options.getPostgresUsername());
-    dataSource.setPassword(options.getPostgresPassword());
-    dataSource.setSsl(options.getPostgresSsl());
-
-    return dataSource;
+    dataSource = DatabaseTestHelper.getPostgresDataSource(options);
+    tableName = DatabaseTestHelper.getTestTableName("IT");
+    DatabaseTestHelper.createTable(dataSource, tableName);
   }
 
   @AfterClass
   public static void tearDown() throws SQLException {
-    JdbcTestHelper.cleanUpDataTable(dataSource, tableName);
+    DatabaseTestHelper.deleteTable(dataSource, tableName);
   }
 
   /**
