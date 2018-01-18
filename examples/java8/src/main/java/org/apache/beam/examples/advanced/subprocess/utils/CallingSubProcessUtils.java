@@ -48,8 +48,6 @@ public class CallingSubProcessUtils {
   public static void setUp(SubProcessConfiguration configuration, String binaryName)
       throws Exception {
 
-    if (!initCompleted) {
-
       if (semaphore == null) {
         initSemaphore(configuration.getConcurrency());
       }
@@ -64,8 +62,6 @@ public class CallingSubProcessUtils {
           downloadedFiles.add(binaryName);
         }
       }
-      initCompleted = true;
-    }
   }
 
   // If you have two ExternalLibraryDoFns in your graph with different concurrency values, this will
