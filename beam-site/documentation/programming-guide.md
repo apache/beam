@@ -378,12 +378,13 @@ finite length. An unbounded `PCollection` must be processed using a streaming
 job that runs continuously, as the entire collection can never be available for
 processing at any one time.
 
-When performing an operation that groups elements in an unbounded `PCollection`,
-Beam requires a concept called **windowing** to divide a continuously updating
-data set into logical windows of finite size.  Beam processes each window as a
-bundle, and processing continues as the data set is generated. These logical
-windows are determined by some characteristic associated with a data element,
-such as a **timestamp**.
+Beam uses [windowing](#windowing) to divide a continuously updating unbounded
+`PCollection` into logical windows of finite size. These logical windows are
+determined by some characteristic associated with a data element, such as a
+**timestamp**. Aggregation transforms (such as `GroupByKey` and `Combine`) work
+on a per-window basis — as the data set is generated, they process each
+`PCollection` as a succession of these finite windows.
+
 
 #### 3.2.5. Element timestamps
 
