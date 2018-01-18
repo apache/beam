@@ -124,7 +124,7 @@ func TestBind(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fn, err := funcx.New(test.Fn)
+		fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
 		if err != nil {
 			t.Errorf("Invalid Fn: %v", err)
 			continue
@@ -172,7 +172,7 @@ func TestBindWithTypedefs(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		fn, err := funcx.New(test.Fn)
+		fn, err := funcx.New(reflectx.MakeFunc(test.Fn))
 		if err != nil {
 			t.Errorf("Invalid Fn: %v", err)
 			continue

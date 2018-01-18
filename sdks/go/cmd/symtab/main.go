@@ -72,12 +72,12 @@ func main() {
 
 	// Restarts counter and calls increment function by its address.
 	counter = 0
-	ret, err := funcx.New(reflectx.LoadFunction(addr, t))
+	ret, err := funcx.New(reflectx.MakeFunc(reflectx.LoadFunction(addr, t)))
 	if err != nil {
 		log.Fatalf("error creating function out of address")
 		return
 	}
-	ret.Fn.Call([]reflect.Value{reflect.ValueOf(arg)})
+	ret.Fn.Call([]interface{}{arg})
 
 	// Checks that function was executed.
 	if counter != 1 {

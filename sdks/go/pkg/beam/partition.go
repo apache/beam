@@ -54,7 +54,7 @@ func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 	}
 	fnT := reflect.FuncOf(in, []reflect.Type{reflectx.Error}, false)
 
-	data, err := json.Marshal(partitionData{N: n, Fn: EncodedFn{Fn: reflect.ValueOf(fn)}})
+	data, err := json.Marshal(partitionData{N: n, Fn: EncodedFunc{Fn: reflectx.MakeFunc(fn)}})
 	if err != nil {
 		panic(fmt.Sprintf("failed to encode partition function: %v", err))
 	}
@@ -64,33 +64,57 @@ func Partition(s Scope, n int, fn interface{}, col PCollection) []PCollection {
 
 // partitionData contains the data needed for the partition DoFn generator.
 type partitionData struct {
-	N  int       `json:"n"`
-	Fn EncodedFn `json:"fn"`
+	N  int         `json:"n"`
+	Fn EncodedFunc `json:"fn"`
 }
 
-// makePartitionFn returns a closure with the following underlying type:
+// partitionFn is a Func with the following underlying type:
 //
 //     fn : (EventTime, T, emit_1, emit_2, ..., emit_N) -> error
 //
 // where emit_i : (EventTime, T) -> () and N is given by the encoded
-// partitionData value.
-func makePartitionFn(enc []byte) func([]reflect.Value) []reflect.Value {
+// partitionData value. For any input element, it invokes to the
+// given partition function to determine which emitter to use.
+type partitionFn struct {
+	name string
+	t    reflect.Type
+	n    int
+	fn   reflectx.Func1x1
+}
+
+func (f *partitionFn) Name() string {
+	return f.name
+}
+
+func (f *partitionFn) Type() reflect.Type {
+	return f.t
+}
+
+func (f *partitionFn) Call(args []interface{}) []interface{} {
+	timestamp := args[0]
+	value := args[1]
+
+	n := f.fn.Call1x1(value).(int)
+	if n < 0 || n >= f.n {
+		return []interface{}{fmt.Errorf("partitionFn(%v) = %v, want [0,%v)", value, n, f.n)}
+	}
+
+	emit := args[n+2]
+	reflectx.MakeFunc2x0(emit).Call2x0(timestamp, value)
+
+	var err error
+	return []interface{}{err}
+}
+
+func makePartitionFn(name string, t reflect.Type, enc []byte) reflectx.Func {
 	var data partitionData
 	if err := json.Unmarshal(enc, &data); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal partitionFn data: %v", err))
 	}
-	return func(args []reflect.Value) []reflect.Value {
-		timestamp := args[0]
-		value := args[1]
-
-		n := data.Fn.Fn.Call([]reflect.Value{value})[0].Interface().(int)
-		if n < 0 || n >= data.N {
-			ret := reflect.ValueOf(fmt.Errorf("partitionFn(%v) = %v, want [0,%v)", value.Interface(), n, data.N))
-			return []reflect.Value{ret.Convert(reflectx.Error)} // convert to error interface
-		}
-
-		emit := args[n+2]
-		emit.Call([]reflect.Value{timestamp, value})
-		return []reflect.Value{reflect.Zero(reflectx.Error)}
+	return &partitionFn{
+		name: name,
+		t:    t,
+		n:    data.N,
+		fn:   reflectx.ToFunc1x1(data.Fn.Fn),
 	}
 }

@@ -62,10 +62,10 @@ func (c *CustomCoder) Equals(o *CustomCoder) bool {
 	if c.Type != o.Type {
 		return false
 	}
-	if c.Dec.Name != o.Dec.Name {
+	if c.Dec.Fn.Name() != o.Dec.Fn.Name() {
 		return false
 	}
-	return c.Enc.Name == o.Enc.Name
+	return c.Enc.Fn.Name() == o.Enc.Fn.Name()
 }
 
 func (c *CustomCoder) String() string {
@@ -90,7 +90,7 @@ var (
 // NewCustomCoder creates a coder for the supplied parameters defining a
 // particular encoding strategy.
 func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*CustomCoder, error) {
-	enc, err := funcx.New(encode)
+	enc, err := funcx.New(reflectx.MakeFunc(encode))
 	if err != nil {
 		return nil, fmt.Errorf("bad encode: %v", err)
 	}
@@ -98,7 +98,7 @@ func NewCustomCoder(id string, t reflect.Type, encode, decode interface{}) (*Cus
 		return nil, fmt.Errorf("encode has incorrect signature: %v", err)
 	}
 
-	dec, err := funcx.New(decode)
+	dec, err := funcx.New(reflectx.MakeFunc(decode))
 	if err != nil {
 		return nil, fmt.Errorf("bad decode: %v", err)
 	}

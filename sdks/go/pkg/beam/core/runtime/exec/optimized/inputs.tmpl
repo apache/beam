@@ -13,33 +13,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package exec
+package {{.Package}}
 
 import (
     "io"
     "fmt"
     "reflect"
 
+    "github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
   	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+{{- range $import := .Imports}}
+    "{{$import}}"
+{{- end}}
 )
 
 func init() {
 {{- range $x := .X}}
-    RegisterInput(reflect.TypeOf((*func (*{{$x.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}})
-    RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}})
+    exec.RegisterInput(reflect.TypeOf((*func (*{{$x.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}})
+    exec.RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}})
 {{- range $y := .Y}}
-    RegisterInput(reflect.TypeOf((*func (*{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}}{{$y.Name}})
-    RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}}{{$y.Name}})
+    exec.RegisterInput(reflect.TypeOf((*func (*{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMaker{{$x.Name}}{{$y.Name}})
+    exec.RegisterInput(reflect.TypeOf((*func (*typex.EventTime, *{{$x.Type}}, *{{$y.Type}})bool)(nil)).Elem(), iterMakerET{{$x.Name}}{{$y.Name}})
 {{- end}}
 {{- end}}
 }
 
 type iterNative struct {
-	s     ReStream
+	s     exec.ReStream
 	fn    reflect.Value
 
 	// cur is the "current" stream, if any.
-	cur Stream
+	cur exec.Stream
 }
 
 func (v *iterNative) Init() error {
@@ -73,7 +77,7 @@ func (v *iterNative) read{{$x.Name}}(val *{{$x.Type}}) bool {
     return true
 }
 
-func iterMaker{{$x.Name}}(s ReStream) ReusableInput {
+func iterMaker{{$x.Name}}(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.read{{$x.Name}})
 	return ret
@@ -93,7 +97,7 @@ func (v *iterNative) readET{{$x.Name}}(et *typex.EventTime, val *{{$x.Type}}) bo
     return true
 }
 
-func iterMakerET{{$x.Name}}(s ReStream) ReusableInput {
+func iterMakerET{{$x.Name}}(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readET{{$x.Name}})
 	return ret
@@ -114,7 +118,7 @@ func (v *iterNative) read{{$x.Name}}{{$y.Name}}(key *{{$x.Type}}, value *{{$y.Ty
     return true
 }
 
-func iterMaker{{$x.Name}}{{$y.Name}}(s ReStream) ReusableInput {
+func iterMaker{{$x.Name}}{{$y.Name}}(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.read{{$x.Name}}{{$y.Name}})
 	return ret
@@ -135,7 +139,7 @@ func (v *iterNative) readET{{$x.Name}}{{$y.Name}}(et *typex.EventTime, key *{{$x
     return true
 }
 
-func iterMakerET{{$x.Name}}{{$y.Name}}(s ReStream) ReusableInput {
+func iterMakerET{{$x.Name}}{{$y.Name}}(s exec.ReStream) exec.ReusableInput {
 	ret := &iterNative{s: s}
 	ret.fn = reflect.ValueOf(ret.readET{{$x.Name}}{{$y.Name}})
 	return ret

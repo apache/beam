@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // TestCombineFn3String verifies that the accumulator correctly
@@ -28,7 +29,7 @@ func TestCombineFn3String(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := &combineFn{N: 3, Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}}
+	fn := &combineFn{N: 3, Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}}
 
 	tests := []struct {
 		Elms     []string
@@ -56,7 +57,7 @@ func TestCombineFn3RevString(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := &combineFn{N: 3, Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, Reversed: true}
+	fn := &combineFn{N: 3, Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, Reversed: true}
 
 	tests := []struct {
 		Elms     []string
@@ -83,7 +84,7 @@ func TestCombineFnMerge(t *testing.T) {
 	less := func(a, b string) bool {
 		return len(a) < len(b)
 	}
-	fn := &combineFn{N: 3, Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}}
+	fn := &combineFn{N: 3, Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}}
 
 	tests := []struct {
 		Elms     [][]string
