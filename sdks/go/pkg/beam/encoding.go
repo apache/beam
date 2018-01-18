@@ -20,6 +20,7 @@ import (
 	"reflect"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/graphx"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 // EncodeType encodes a type as a string. Unless registered, the decoded type
@@ -61,40 +62,40 @@ func (w *EncodedType) UnmarshalJSON(buf []byte) error {
 	return nil
 }
 
-// EncodeFn encodes a function and parameter types as a string. The function
+// EncodeFunc encodes a function and parameter types as a string. The function
 // symbol must be resolvable via the runtime.SymbolResolver. The types must
 // be encodable.
-func EncodeFn(fn reflect.Value) (string, error) {
+func EncodeFunc(fn reflectx.Func) (string, error) {
 	return graphx.EncodeFn(fn)
 }
 
-// DecodeFn encodes a function as a string. The function symbol must be
+// DecodeFunc encodes a function as a string. The function symbol must be
 // resolvable via the runtime.SymbolResolver. The parameter types must
 // be encodable.
-func DecodeFn(data string) (reflect.Value, error) {
+func DecodeFunc(data string) (reflectx.Func, error) {
 	return graphx.DecodeFn(data)
 }
 
-// EncodedFn is a serialization wrapper around a function for convenience.
-type EncodedFn struct {
+// EncodedFunc is a serialization wrapper around a function for convenience.
+type EncodedFunc struct {
 	// Fn is the function to preserve across serialization.
-	Fn reflect.Value
+	Fn reflectx.Func
 }
 
-func (w EncodedFn) MarshalJSON() ([]byte, error) {
-	str, err := EncodeFn(w.Fn)
+func (w EncodedFunc) MarshalJSON() ([]byte, error) {
+	str, err := EncodeFunc(w.Fn)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(str)
 }
 
-func (w *EncodedFn) UnmarshalJSON(buf []byte) error {
+func (w *EncodedFunc) UnmarshalJSON(buf []byte) error {
 	var s string
 	if err := json.Unmarshal(buf, &s); err != nil {
 		return err
 	}
-	fn, err := DecodeFn(s)
+	fn, err := DecodeFunc(s)
 	if err != nil {
 		return err
 	}

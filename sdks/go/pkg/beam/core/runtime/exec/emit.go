@@ -26,8 +26,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/log"
 )
 
-//go:generate specialize --input=emitters.tmpl --x=data,universals --y=data,universals
-
 // ReusableEmitter is a resettable value needed to hold the implicit context and
 // emit event time.
 type ReusableEmitter interface {

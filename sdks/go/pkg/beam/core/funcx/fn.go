@@ -19,7 +19,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"runtime"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
@@ -128,8 +127,7 @@ type ReturnParam struct {
 // Fn is the reflected user function or method, preprocessed. This wrapper
 // is useful both at graph construction time as well as execution time.
 type Fn struct {
-	Name string // robust name
-	Fn   reflect.Value
+	Fn reflectx.Func
 
 	Param []FnParam
 	Ret   []ReturnParam
@@ -212,20 +210,13 @@ func (u *Fn) String() string {
 	return fmt.Sprintf("%+v", *u)
 }
 
-// New returns a Fn from a function, if valid. Closures are considered valid
-// here, but will be rejected if they are attempted to be serialized.
-func New(dofn interface{}) (*Fn, error) {
-	fn := reflect.ValueOf(dofn)
-	if fn.Kind() != reflect.Func {
-		return nil, fmt.Errorf("not a function or method: %v", fn.Kind())
-	}
-
-	name := runtime.FuncForPC(fn.Pointer()).Name()
-	fntype := fn.Type()
-
+// New returns a Fn from a user function, if valid. Closures and dynamically
+// created functions are considered valid here, but will be rejected if they
+// are attempted to be serialized.
+func New(fn reflectx.Func) (*Fn, error) {
 	var param []FnParam
-	for i := 0; i < fntype.NumIn(); i++ {
-		t := fntype.In(i)
+	for i := 0; i < fn.Type().NumIn(); i++ {
+		t := fn.Type().In(i)
 
 		kind := FnIllegal
 		switch {
@@ -244,15 +235,15 @@ func New(dofn interface{}) (*Fn, error) {
 		case IsReIter(t):
 			kind = FnReIter
 		default:
-			return nil, fmt.Errorf("bad parameter type for %s: %v", name, t)
+			return nil, fmt.Errorf("bad parameter type for %s: %v", fn.Name(), t)
 		}
 
 		param = append(param, FnParam{Kind: kind, T: t})
 	}
 
 	var ret []ReturnParam
-	for i := 0; i < fntype.NumOut(); i++ {
-		t := fntype.Out(i)
+	for i := 0; i < fn.Type().NumOut(); i++ {
+		t := fn.Type().Out(i)
 
 		kind := RetIllegal
 		switch {
@@ -263,13 +254,13 @@ func New(dofn interface{}) (*Fn, error) {
 		case typex.IsContainer(t), typex.IsConcrete(t), typex.IsUniversal(t):
 			kind = RetValue
 		default:
-			return nil, fmt.Errorf("bad return type for %s: %v", name, t)
+			return nil, fmt.Errorf("bad return type for %s: %v", fn.Name(), t)
 		}
 
 		ret = append(ret, ReturnParam{Kind: kind, T: t})
 	}
 
-	u := &Fn{Fn: fn, Name: name, Param: param, Ret: ret}
+	u := &Fn{Fn: fn, Param: param, Ret: ret}
 
 	if err := validateOrder(u); err != nil {
 		return nil, err
@@ -308,14 +299,14 @@ func validateOrder(u *Fn) error {
 	// Validate the parameter ordering.
 	for i, p := range u.Param {
 		if paramState, err = nextParamState(paramState, p.Kind); err != nil {
-			return fmt.Errorf("%s at parameter %d for %s", err.Error(), i, u.Name)
+			return fmt.Errorf("%s at parameter %d for %s", err.Error(), i, u.Fn.Name())
 		}
 	}
 	// Validate the return value ordering.
 	retState := rsStart
 	for i, r := range u.Ret {
 		if retState, err = nextRetState(retState, r.Kind); err != nil {
-			return fmt.Errorf("%s for return value %d for %s", err.Error(), i, u.Name)
+			return fmt.Errorf("%s for return value %d for %s", err.Error(), i, u.Fn.Name())
 		}
 	}
 	return nil

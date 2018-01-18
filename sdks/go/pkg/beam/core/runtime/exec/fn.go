@@ -23,9 +23,8 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
-
-//go:generate specialize --input=callers.tmpl --x=data,universals
 
 // NOTE(herohde) 12/11/2017: the below helpers are ripe for type-specialization,
 // if the reflection overhead here turns out to be significant. It would
@@ -94,12 +93,12 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.
 
 	// (4) Invoke
 
-	ret, err := reflectCallNoPanic(fn.Fn, args)
+	ret, err := reflectx.CallNoPanic(fn.Fn, reflectx.Interface(args))
 	if err != nil {
 		return nil, err
 	}
-	if index, ok := fn.Error(); ok && ret[index].Interface() != nil {
-		return nil, ret[index].Interface().(error)
+	if index, ok := fn.Error(); ok && ret[index] != nil {
+		return nil, ret[index].(error)
 	}
 
 	// (5) Return direct output, if any.
@@ -108,12 +107,12 @@ func Invoke(ctx context.Context, fn *funcx.Fn, opt *MainInput, extra ...reflect.
 	if len(out) > 0 {
 		value := &FullValue{}
 		if index, ok := fn.OutEventTime(); ok {
-			value.Timestamp = ret[index].Interface().(typex.EventTime)
+			value.Timestamp = ret[index].(typex.EventTime)
 		}
 
-		value.Elm = ret[out[0]]
+		value.Elm = reflect.ValueOf(ret[out[0]])
 		if len(out) > 1 {
-			value.Elm2 = ret[out[1]]
+			value.Elm2 = reflect.ValueOf(ret[out[1]])
 		}
 		return value, nil
 	}

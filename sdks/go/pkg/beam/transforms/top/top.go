@@ -26,6 +26,7 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 var (
@@ -51,7 +52,7 @@ func Largest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.P
 	t := beam.ValidateNonCompositeType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
+	return beam.Combine(s, &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n}, col)
 }
 
 // LargestPerKey returns the largest N values for each key of a PCollection<KV<K,T>>.
@@ -64,7 +65,7 @@ func LargestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{}) 
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.CombinePerKey(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n}, col)
+	return beam.CombinePerKey(s, &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n}, col)
 }
 
 // Smallest returns the smallest N elements of a PCollection<T>. The order is
@@ -82,7 +83,7 @@ func Smallest(s beam.Scope, col beam.PCollection, n int, less interface{}) beam.
 	t := beam.ValidateNonCompositeType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+	return beam.Combine(s, &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n, Reversed: true}, col)
 }
 
 // SmallestPerKey returns the smallest N values for each key of a PCollection<KV<K,T>>.
@@ -95,7 +96,7 @@ func SmallestPerKey(s beam.Scope, col beam.PCollection, n int, less interface{})
 	_, t := beam.ValidateKVType(col)
 	validate(t, n, less)
 
-	return beam.Combine(s, &combineFn{Less: beam.EncodedFn{Fn: reflect.ValueOf(less)}, N: n, Reversed: true}, col)
+	return beam.Combine(s, &combineFn{Less: beam.EncodedFunc{Fn: reflectx.MakeFunc(less)}, N: n, Reversed: true}, col)
 }
 
 func validate(t typex.FullType, n int, less interface{}) {
@@ -113,7 +114,7 @@ func validate(t typex.FullType, n int, less interface{}) {
 
 type accum struct {
 	// list stores the elements of type A in order. It has at most size N.
-	list []reflect.Value
+	list []interface{}
 }
 
 // combineFn is the internal CombineFn. It maintains accumulators containing
@@ -121,11 +122,13 @@ type accum struct {
 // Less ordering on A. The natural order maintains the largest elements.
 type combineFn struct {
 	// Less is the < order on the underlying type, A.
-	Less beam.EncodedFn `json:"less"`
+	Less beam.EncodedFunc `json:"less"`
 	// Reversed indicates whether the ordering should be reversed.
 	Reversed bool `json:"reversed"`
 	// N is the number of elements to keep.
 	N int `json:"n"`
+
+	less reflectx.Func2x1
 }
 
 // TODO(herohde) 5/25/2017: a Setup/Init method would be useful.
@@ -135,13 +138,13 @@ func (f *combineFn) CreateAccumulator() accum {
 }
 
 func (f *combineFn) AddInput(a accum, val beam.T) accum {
-	t := f.Less.Fn.Type().In(0)                                  // == underlying type, A
-	ret := append(a.list, exec.Convert(reflect.ValueOf(val), t)) // unwrap T
+	t := f.Less.Fn.Type().In(0)                                              // == underlying type, A
+	ret := append(a.list, exec.Convert(reflect.ValueOf(val), t).Interface()) // unwrap T
 	return f.trim(ret)
 }
 
 func (f *combineFn) MergeAccumulators(list []accum) accum {
-	var ret []reflect.Value
+	var ret []interface{}
 	for _, a := range list {
 		ret = append(ret, a.list...)
 	}
@@ -151,19 +154,23 @@ func (f *combineFn) MergeAccumulators(list []accum) accum {
 func (f *combineFn) ExtractOutput(a accum) []beam.T {
 	var ret []beam.T
 	for _, elm := range a.list {
-		ret = append(ret, elm.Interface()) // implicitly wrap T
+		ret = append(ret, elm) // implicitly wrap T
 	}
 	return ret
 }
 
-func (f *combineFn) trim(ret []reflect.Value) accum {
+func (f *combineFn) trim(ret []interface{}) accum {
+	if f.less == nil {
+		f.less = reflectx.ToFunc2x1(f.Less.Fn)
+	}
+
 	if f.Reversed {
 		sort.SliceStable(ret, func(i, j int) bool {
-			return f.Less.Fn.Call([]reflect.Value{ret[i], ret[j]})[0].Bool() // uses <
+			return f.less.Call2x1(ret[i], ret[j]).(bool) // uses <
 		})
 	} else {
 		sort.SliceStable(ret, func(i, j int) bool {
-			return f.Less.Fn.Call([]reflect.Value{ret[j], ret[i]})[0].Bool() // uses >
+			return f.less.Call2x1(ret[j], ret[i]).(bool) // uses >
 		})
 	}
 	if len(ret) > f.N {

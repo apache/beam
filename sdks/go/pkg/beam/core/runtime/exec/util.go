@@ -18,7 +18,6 @@ package exec
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"runtime/debug"
 )
 
@@ -41,16 +40,6 @@ func callNoPanic(ctx context.Context, fn func(context.Context) error) (err error
 		}
 	}()
 	return fn(ctx)
-}
-
-// reflectCallNoPanic calls the given function and catches any panic.
-func reflectCallNoPanic(fn reflect.Value, args []reflect.Value) (ret []reflect.Value, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic: %v %s", r, debug.Stack())
-		}
-	}()
-	return fn.Call(args), nil
 }
 
 // MultiStartBundle calls StartBundle on multiple nodes. Convenience function.

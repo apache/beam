@@ -16,75 +16,87 @@
 package exec
 
 import (
-	"context"
 	"fmt"
 	"reflect"
-	"sync"
 
-	"github.com/apache/beam/sdks/go/pkg/beam/core/funcx"
-	"github.com/apache/beam/sdks/go/pkg/beam/log"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-//go:generate specialize --input=decoders.tmpl --x=data,universals
-
-// Decoder is a uniform custom encoder interface.
+// Decoder is a uniform custom encoder interface. It wraps various
+// forms of reflectx.Funcs.
 type Decoder interface {
 	// Decode decodes the []byte in to a value of the given type.
-	Decode(reflect.Type, []byte) (reflect.Value, error)
+	Decode(reflect.Type, []byte) (interface{}, error)
 }
 
-var (
-	decoders   = make(map[string]func(reflect.Value) Decoder)
-	decodersMu sync.Mutex
-)
+func makeDecoder(fn reflectx.Func) Decoder {
+	// Detect one of the valid decoder forms and allow it to be invoked
+	// efficiently, relying on the general reflectx.Func framework for
+	// avoiding expensive reflection calls. There are 4 forms:
+	//
+	//          []byte -> T
+	//          []byte -> (T, error)
+	//  (Type, []byte) -> T
+	//  (Type, []byte) -> (T, error)
+	//
+	// We simply enumerate the forms. The wrappers simply ignore the
+	// appropriate parts.
 
-// RegisterDecoder registers an custom decoder invoker for the given type,
-// such as "func(int)[]byte". If multiple decoder invokers are registered
-// for the same type, the last registration wins.
-func RegisterDecoder(t reflect.Type, maker func(reflect.Value) Decoder) {
-	decodersMu.Lock()
-	defer decodersMu.Unlock()
-
-	key := t.String()
-	if _, exists := decoders[key]; exists {
-		log.Warnf(context.Background(), "Decoder for %v already registered. Overwriting.", key)
+	switch fn.Type().NumIn() {
+	case 1:
+		switch fn.Type().NumOut() {
+		case 1:
+			return &decoder1x1{fn: reflectx.ToFunc1x1(fn)}
+		case 2:
+			return &decoder1x2{fn: reflectx.ToFunc1x2(fn)}
+		}
+	case 2:
+		switch fn.Type().NumOut() {
+		case 1:
+			return &decoder2x1{fn: reflectx.ToFunc2x1(fn)}
+		case 2:
+			return &decoder2x2{fn: reflectx.ToFunc2x2(fn)}
+		}
 	}
-	decoders[key] = maker
+	panic(fmt.Sprintf("Invalid decoder: %v", fn))
 }
 
-func makeDecoder(fn *funcx.Fn) Decoder {
-	decodersMu.Lock()
-	maker, exists := decoders[fn.Fn.Type().String()]
-	decodersMu.Unlock()
-
-	if exists {
-		return maker(fn.Fn)
-	}
-
-	// If no specialized implementation is available, we use the (slower)
-	// reflection-based one.
-
-	return &decoder{fn: fn}
+type decoder1x1 struct {
+	fn reflectx.Func1x1
 }
 
-type decoder struct {
-	fn *funcx.Fn
+func (d *decoder1x1) Decode(t reflect.Type, data []byte) (interface{}, error) {
+	return d.fn.Call1x1(data), nil
 }
 
-func (d *decoder) Decode(t reflect.Type, data []byte) (reflect.Value, error) {
-	args := make([]reflect.Value, len(d.fn.Param))
-	if index, ok := d.fn.Type(); ok {
-		args[index] = reflect.ValueOf(t)
-	}
-	params := d.fn.Params(funcx.FnValue)
-	args[params[0]] = reflect.ValueOf(data)
+type decoder1x2 struct {
+	fn reflectx.Func1x2
+}
 
-	ret, err := reflectCallNoPanic(d.fn.Fn, args)
+func (d *decoder1x2) Decode(t reflect.Type, data []byte) (interface{}, error) {
+	val, err := d.fn.Call1x2(data)
 	if err != nil {
-		return reflect.Value{}, err
+		return nil, err.(error)
 	}
-	if index, ok := d.fn.Error(); ok && !ret[index].IsNil() {
-		return reflect.Value{}, fmt.Errorf("decode error: %v", ret[index].Interface())
+	return val, nil
+}
+
+type decoder2x1 struct {
+	fn reflectx.Func2x1
+}
+
+func (d *decoder2x1) Decode(t reflect.Type, data []byte) (interface{}, error) {
+	return d.fn.Call2x1(t, data), nil
+}
+
+type decoder2x2 struct {
+	fn reflectx.Func2x2
+}
+
+func (d *decoder2x2) Decode(t reflect.Type, data []byte) (interface{}, error) {
+	val, err := d.fn.Call2x2(t, data)
+	if err != nil {
+		return nil, err.(error)
 	}
-	return ret[d.fn.Returns(funcx.RetValue)[0]], nil
+	return val, nil
 }

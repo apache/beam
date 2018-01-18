@@ -314,9 +314,7 @@ func NewCombine(g *Graph, s *Scope, u *CombineFn, in []*Node) (*MultiEdge, error
 	// MergeAccumulators is guaranteed to exist. We do not allow the accumulator
 	// to be a tuple type (i.e., so one can't define a inline KV merge function).
 
-	synth := &funcx.Fn{
-		Name: u.Name(),
-	}
+	synth := &funcx.Fn{}
 	if f := u.AddInputFn(); f != nil {
 		synth.Param = f.Param[1:] // drop accumulator parameter.
 	} else {

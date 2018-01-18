@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
 type foo struct {
@@ -180,7 +181,7 @@ func TestNew(t *testing.T) {
 	for _, test := range tests {
 		test := test
 		t.Run(test.Name, func(t *testing.T) {
-			u, err := New(test.Fn)
+			u, err := New(reflectx.MakeFunc(test.Fn))
 			if err != nil {
 				if test.Err == nil {
 					t.Fatalf("Expected test.Err to be set; got: New(%v) failed: %v", test.Fn, err)
