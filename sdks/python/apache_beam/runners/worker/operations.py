@@ -224,15 +224,16 @@ class ReadOperation(Operation):
 
   def start(self):
     with self.scoped_start_state:
-      super(ReadOperation, self).start()
-      range_tracker = self.spec.source.source.get_range_tracker(
-          self.spec.source.start_position, self.spec.source.stop_position)
-      for value in self.spec.source.source.read(range_tracker):
-        if isinstance(value, WindowedValue):
-          windowed_value = value
-        else:
-          windowed_value = _globally_windowed_value.with_value(value)
-        self.output(windowed_value)
+      with self.scoped_metrics_container:
+        super(ReadOperation, self).start()
+        range_tracker = self.spec.source.source.get_range_tracker(
+            self.spec.source.start_position, self.spec.source.stop_position)
+        for value in self.spec.source.source.read(range_tracker):
+          if isinstance(value, WindowedValue):
+            windowed_value = value
+          else:
+            windowed_value = _globally_windowed_value.with_value(value)
+          self.output(windowed_value)
 
 
 class InMemoryWriteOperation(Operation):
@@ -404,7 +405,6 @@ class CombineOperation(Operation):
     fn, args, kwargs = pickler.loads(self.spec.serialized_fn)[:3]
     self.phased_combine_fn = (
         PhasedCombineFnExecutor(self.spec.phase, fn, args, kwargs))
-    self.scoped_metrics_container = ScopedMetricsContainer()
 
   def finish(self):
     logging.debug('Finishing %s', self)
