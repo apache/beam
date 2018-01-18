@@ -43,7 +43,6 @@ from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.window import NonMergingWindowFn
 from apache_beam.transforms.window import TimestampCombiner
 from apache_beam.transforms.window import TimestampedValue
-from apache_beam.utils import urns
 from apache_beam.utils import windowed_value
 
 __all__ = [
@@ -493,6 +492,8 @@ class ReshufflePerKey(PTransform):
             (element[0], element[1].value), element[1].timestamp, [window])
 
     windowing_saved = pcoll.windowing
+    # The linter is confused.
+    # pylint: disable=abstract-class-instantiated
     result = (pcoll
               | ParDo(ReifyTimestamps())
               | 'IdentityWindow' >> WindowInto(
