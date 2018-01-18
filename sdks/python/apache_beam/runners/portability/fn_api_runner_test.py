@@ -23,13 +23,14 @@ import apache_beam as beam
 from apache_beam.runners.portability import fn_api_runner
 from apache_beam.runners.portability import maptask_executor_runner_test
 from apache_beam.runners.worker import sdk_worker
+from apache_beam.runners.worker import statesampler
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.transforms import window
 
-try:
-  from apache_beam.runners.worker.statesampler import DEFAULT_SAMPLING_PERIOD_MS
-except ImportError:
+if statesampler.FAST_SAMPLER:
+  DEFAULT_SAMPLING_PERIOD_MS = statesampler.DEFAULT_SAMPLING_PERIOD_MS
+else:
   DEFAULT_SAMPLING_PERIOD_MS = 0
 
 
