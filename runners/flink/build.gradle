@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import groovy.json.JsonOutput
+
 apply from: project(":").file("build_rules.gradle")
 applyJavaNature()
 
@@ -30,6 +32,7 @@ description = "Apache Beam :: Runners :: Flink"
  */
 evaluationDependsOn(":model:fn-execution")
 evaluationDependsOn(":runners:core-java")
+evaluationDependsOn(":sdks:java:core")
 
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
@@ -37,6 +40,10 @@ test {
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
+}
+
+configurations {
+  validatesRunner
 }
 
 def flink_version = "1.4.0"
@@ -57,19 +64,58 @@ dependencies {
   shadow "org.apache.flink:flink-java:$flink_version"
   shadow "org.apache.flink:flink-runtime_2.11:$flink_version"
   shadow "org.apache.flink:flink-streaming-java_2.11:$flink_version"
-  testCompile project(path: ":sdks:java:core", configuration: "shadowTest")
-  testCompile project(":model:fn-execution").sourceSets.test.output
-  testCompile project(":runners:core-java").sourceSets.test.output
-  testCompile library.java.commons_lang3
-  testCompile library.java.hamcrest_core
-  testCompile library.java.junit
-  testCompile library.java.mockito_core
-  testCompile library.java.google_api_services_bigquery
-  testCompile library.java.jackson_dataformat_yaml
-  testCompile "org.apache.flink:flink-core:$flink_version:tests"
-  testCompile "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
-  testCompile "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
-  testCompile "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  shadowTest project(path: ":sdks:java:core", configuration: "shadowTest")
+  shadowTest project(":model:fn-execution").sourceSets.test.output
+  shadowTest project(":runners:core-java").sourceSets.test.output
+  shadowTest library.java.commons_lang3
+  shadowTest library.java.hamcrest_core
+  shadowTest library.java.junit
+  shadowTest library.java.mockito_core
+  shadowTest library.java.google_api_services_bigquery
+  shadowTest library.java.jackson_dataformat_yaml
+  shadowTest "org.apache.flink:flink-core:$flink_version:tests"
+  shadowTest "org.apache.flink:flink-runtime_2.11:$flink_version:tests"
+  shadowTest "org.apache.flink:flink-streaming-java_2.11:$flink_version:tests"
+  shadowTest "org.apache.flink:flink-test-utils_2.11:$flink_version"
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(path: project.path, configuration: "shadow")
+}
+
+class ValidatesRunnerConfig {
+  String name
+  boolean streaming
+}
+
+def createValidatesRunnerTask(Map m) {
+  def config = m as ValidatesRunnerConfig
+  tasks.create(name: config.name, type: Test) {
+    group = "Verification"
+    def runnerType = config.streaming ? "streaming" : "batch"
+    description = "Validates the ${runnerType} runner"
+    def pipelineOptions = JsonOutput.toJson(["--runner=TestFlinkRunner", "--streaming=${config.streaming}"])
+    systemProperty "beamTestPipelineOptions", pipelineOptions
+    classpath = configurations.validatesRunner
+    testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+    maxParallelForks 4
+    useJUnit {
+      includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+      excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+      excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesSplittableParDo'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+      excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    }
+  }
+}
+
+createValidatesRunnerTask(name: "validatesRunnerBatch", streaming: false)
+createValidatesRunnerTask(name: "validatesRunnerStreaming", streaming: true)
+
+task validatesRunner {
+  group = "Verification"
+  description "Validates batch and streaming runners"
+  dependsOn validatesRunnerBatch
+  dependsOn validatesRunnerStreaming
 }
 
 task packageTests(type: Jar) {
