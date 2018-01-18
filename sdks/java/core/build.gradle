@@ -82,10 +82,10 @@ dependencies {
   shadowTest library.java.mockito_core
   shadowTest "com.esotericsoftware.kryo:kryo:2.21"
   flinkValidatesRunner project(path: project.path, configuration: "shadowTest")
-  flinkValidatesRunner project(path: ":beam-runners-parent:beam-runners-flink_2.11", configuration: "shadow")
+  flinkValidatesRunner project(path: ":runners:flink", configuration: "shadow")
   sparkValidatesRunner project(path: project.path, configuration: "shadowTest")
-  sparkValidatesRunner project(path: ":beam-runners-parent:beam-runners-spark", configuration: "shadow")
-  sparkValidatesRunner project(path: ":beam-runners-parent:beam-runners-spark", configuration: "provided")
+  sparkValidatesRunner project(path: ":runners:spark", configuration: "shadow")
+  sparkValidatesRunner project(path: ":runners:spark", configuration: "provided")
 }
 
 // Shade dependencies.
