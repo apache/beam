@@ -263,8 +263,6 @@
                   <goal>verify</goal>
                 </goals>
                 <configuration>
-                  <!-- https://issues.apache.org/jira/browse/BEAM-3397 -->
-		  <skip>true</skip>
                   <includes>
                     <include>WordCountIT.java</include>
                     <include>WindowedWordCountIT.java</include>
@@ -289,8 +287,6 @@
                   <goal>verify</goal>
                 </goals>
                 <configuration>
-                  <!-- https://issues.apache.org/jira/browse/BEAM-3397 -->
-		  <skip>true</skip>
                   <includes>
                     <include>WordCountIT.java</include>
                     <include>WindowedWordCountIT.java</include>
