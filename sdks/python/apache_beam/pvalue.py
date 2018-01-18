@@ -57,7 +57,7 @@ class PValue(object):
     (3) Has a value which is meaningful if the transform was executed.
   """
 
-  def __init__(self, pipeline, tag=None, element_type=None):
+  def __init__(self, pipeline, tag=None, element_type=None, windowing=None):
     """Initializes a PValue with all arguments hidden behind keyword arguments.
 
     Args:
@@ -72,6 +72,8 @@ class PValue(object):
     # generating this PValue. The field gets initialized when a transform
     # gets applied.
     self.producer = None
+    if windowing:
+      self._windowing = windowing
 
   def __str__(self):
     return self._str_internal()
@@ -143,7 +145,11 @@ class PCollection(PValue):
   def from_runner_api(proto, context):
     # Producer and tag will be filled in later, the key point is that the
     # same object is returned for the same pcollection id.
-    return PCollection(None, element_type=pickler.loads(proto.coder_id))
+    return PCollection(
+        None,
+        element_type=pickler.loads(proto.coder_id),
+        windowing=context.windowing_strategies.get_by_id(
+            proto.windowing_strategy_id))
 
 
 class _InvalidUnpickledPCollection(object):
