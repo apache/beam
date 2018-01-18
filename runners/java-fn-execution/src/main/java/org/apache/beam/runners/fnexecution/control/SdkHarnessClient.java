@@ -18,9 +18,9 @@
 package org.apache.beam.runners.fnexecution.control;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
@@ -115,12 +115,8 @@ public class SdkHarnessClient {
 
     return Futures.transform(
         genericResponse,
-        new Function<BeamFnApi.InstructionResponse, BeamFnApi.RegisterResponse>() {
-          @Override
-          public BeamFnApi.RegisterResponse apply(BeamFnApi.InstructionResponse input) {
-            return input.getRegister();
-          }
-        });
+        input -> input.getRegister(),
+        MoreExecutors.directExecutor());
   }
 
   /**
@@ -164,12 +160,8 @@ public class SdkHarnessClient {
     ListenableFuture<BeamFnApi.ProcessBundleResponse> specificResponse =
         Futures.transform(
             genericResponse,
-            new Function<BeamFnApi.InstructionResponse, BeamFnApi.ProcessBundleResponse>() {
-              @Override
-              public BeamFnApi.ProcessBundleResponse apply(BeamFnApi.InstructionResponse input) {
-                return input.getProcessBundle();
-              }
-            });
+            input -> input.getProcessBundle(),
+            MoreExecutors.directExecutor());
 
     return ActiveBundle.create(bundleId, specificResponse, dataReceiver);
   }
