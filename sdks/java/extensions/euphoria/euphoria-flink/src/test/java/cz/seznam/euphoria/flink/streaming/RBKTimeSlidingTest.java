@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.flink.streaming;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeSliding;
 import cz.seznam.euphoria.core.client.flow.Flow;
@@ -29,6 +28,7 @@ import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.util.Settings;
 import cz.seznam.euphoria.flink.TestFlinkExecutor;
+import cz.seznam.euphoria.testing.DatasetAssert;
 import org.junit.Test;
 
 import java.time.Duration;

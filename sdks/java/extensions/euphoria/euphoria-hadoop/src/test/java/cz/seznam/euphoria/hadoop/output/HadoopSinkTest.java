@@ -15,7 +15,6 @@
  */
 package cz.seznam.euphoria.hadoop.output;
 
-import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.flow.Flow;
 import cz.seznam.euphoria.core.client.io.DataSource;
 import cz.seznam.euphoria.core.client.io.ListDataSource;
@@ -25,6 +24,7 @@ import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.executor.local.LocalExecutor;
 import cz.seznam.euphoria.hadoop.HadoopUtils;
+import cz.seznam.euphoria.testing.DatasetAssert;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;

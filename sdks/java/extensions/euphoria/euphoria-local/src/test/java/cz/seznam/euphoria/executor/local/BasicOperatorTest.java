@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.executor.local;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.Session;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.TimeInterval;
@@ -36,6 +35,7 @@ import cz.seznam.euphoria.core.client.util.Pair;
 import cz.seznam.euphoria.core.client.util.Sums;
 import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
+import cz.seznam.euphoria.testing.DatasetAssert;
 import org.junit.Test;
 
 import java.time.Duration;
