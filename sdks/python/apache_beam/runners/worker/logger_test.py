@@ -140,7 +140,8 @@ class JsonLogFormatterTest(unittest.TestCase):
     with self.sampler.scoped_state('step', 'state'):
       with logger.PerThreadLoggingContext(
           work_item_id='workitem', stage_name='stage'):
-        formatter = logger.JsonLogFormatter(job_id='jobid', worker_id='workerid')
+        formatter = logger.JsonLogFormatter(
+            job_id='jobid', worker_id='workerid')
         record = self.create_log_record(**self.SAMPLE_RECORD)
         log_output = json.loads(formatter.format(record))
     expected_output = dict(self.SAMPLE_OUTPUT)
