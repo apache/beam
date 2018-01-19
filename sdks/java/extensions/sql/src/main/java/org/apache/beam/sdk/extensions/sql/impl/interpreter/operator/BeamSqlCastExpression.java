@@ -77,25 +77,27 @@ public class BeamSqlCastExpression extends BeamSqlExpression {
     switch (castOutputType) {
       case INTEGER:
         return BeamSqlPrimitive
-            .of(SqlTypeName.INTEGER, SqlFunctions.toInt((String) opValueEvaluated(index, inputRow, window)));
+            .of(SqlTypeName.INTEGER,
+                    SqlFunctions.toInt((Object) opValueEvaluated(index, inputRow, window)));
       case DOUBLE:
         return BeamSqlPrimitive.of(SqlTypeName.DOUBLE,
-            SqlFunctions.toDouble((String) opValueEvaluated(index, inputRow, window)));
+            SqlFunctions.toDouble((Object) opValueEvaluated(index, inputRow, window)));
       case SMALLINT:
         return BeamSqlPrimitive.of(SqlTypeName.SMALLINT,
-            SqlFunctions.toShort((String) opValueEvaluated(index, inputRow, window)));
+            SqlFunctions.toShort((Object) opValueEvaluated(index, inputRow, window)));
       case TINYINT:
         return BeamSqlPrimitive.of(SqlTypeName.TINYINT,
             SqlFunctions.toByte(opValueEvaluated(index, inputRow, window)));
       case BIGINT:
         return BeamSqlPrimitive
-            .of(SqlTypeName.BIGINT, SqlFunctions.toLong((String) opValueEvaluated(index, inputRow, window)));
+            .of(SqlTypeName.BIGINT,
+                    SqlFunctions.toLong((Object) opValueEvaluated(index, inputRow, window)));
       case DECIMAL:
         return BeamSqlPrimitive.of(SqlTypeName.DECIMAL,
-            SqlFunctions.toBigDecimal((String) opValueEvaluated(index, inputRow, window)));
+            SqlFunctions.toBigDecimal((Object) opValueEvaluated(index, inputRow, window)));
       case FLOAT:
-        return BeamSqlPrimitive
-            .of(SqlTypeName.FLOAT, SqlFunctions.toFloat((String) opValueEvaluated(index, inputRow, window)));
+        return BeamSqlPrimitive.of(SqlTypeName.FLOAT,
+                SqlFunctions.toFloat((Object) opValueEvaluated(index, inputRow, window)));
       case CHAR:
       case VARCHAR:
         return BeamSqlPrimitive
