@@ -226,6 +226,7 @@
                 <configuration>
                   <executable>${python.user.base}/bin/tox</executable>
                   <arguments>
+                    <!--Testenv that are only defined in envlist will be triggered.-->
                     <argument>envlist</argument>
                     <argument>-c</argument>
                     <argument>tox.ini</argument>
