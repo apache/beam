@@ -30,6 +30,7 @@ import cz.seznam.euphoria.core.client.operator.OptionalMethodBuilder;
 import cz.seznam.euphoria.core.client.operator.ReduceByKey;
 import cz.seznam.euphoria.core.client.operator.ReduceWindow;
 import cz.seznam.euphoria.core.client.util.Pair;
+import cz.seznam.euphoria.core.util.ExceptionUtils;
 import cz.seznam.euphoria.hadoop.output.HadoopSink;
 import cz.seznam.euphoria.hadoop.output.HadoopSink.HadoopWriter;
 import cz.seznam.euphoria.shadow.com.google.common.base.Strings;
@@ -53,12 +54,14 @@ import org.apache.hadoop.hbase.mapreduce.LoadIncrementalHFiles;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -73,6 +76,16 @@ import java.util.stream.Stream;
 public class HFileSink implements DataSink<Cell> {
 
   private static final Logger LOG = LoggerFactory.getLogger(HFileSink.class);
+
+  /**
+   * User that can change hdfs permissions
+   */
+  public static final String HDFS_USER = "hfilesink.hdfs.user";
+
+  /**
+   * Proper owner of built HFiles
+   */
+  public static final String HBASE_USER = "hfilesink.hbase.user";
 
   /**
    * Create builder for the sink.
@@ -206,7 +219,7 @@ public class HFileSink implements DataSink<Cell> {
 
   }
 
-  private final String table;
+  private final String tableName;
   private final boolean doBulkLoad;
   private final byte[][] endKeys;
   @Nullable
@@ -214,30 +227,38 @@ public class HFileSink implements DataSink<Cell> {
   private final UnaryFunction<Window<?>, String> folderNaming;
   private final HadoopSink<ImmutableBytesWritable, Cell> rawSink;
 
+  private final String hdfsUser;
+  private final String hbaseUser;
+
   @VisibleForTesting
   HFileSink(HFileSink clone) {
-    this.table = clone.table;
+    this.tableName = clone.tableName;
     this.doBulkLoad = clone.doBulkLoad;
     this.endKeys = clone.endKeys;
     this.windowing = clone.windowing;
     this.folderNaming = clone.folderNaming;
     this.rawSink = clone.rawSink;
+    this.hdfsUser = clone.hdfsUser;
+    this.hbaseUser = clone.hbaseUser;
   }
 
   HFileSink(
-      String table, boolean doBulkLoad,
-      Windowing<Cell, ?> windowing,
+      String tableName,
+      boolean doBulkLoad,
+      @Nullable Windowing<Cell, ?> windowing,
       UnaryFunction<Window<?>, String> folderNaming,
       Configuration conf,
       List<Update<Job>> updaters) {
 
     conf = toConf(updaters, conf);
-    this.table = table;
+    this.tableName = tableName;
     this.doBulkLoad = doBulkLoad;
-    this.endKeys = getEndKeys(table, conf);
+    this.endKeys = getEndKeys(tableName, conf);
     this.windowing = windowing;
     this.folderNaming = Objects.requireNonNull(folderNaming);
     this.rawSink = new HadoopSink<>(HFileOutputFormat2.class, conf);
+    this.hdfsUser = conf.get(HDFS_USER, "hdfs");
+    this.hbaseUser = conf.get(HBASE_USER, "hbase");
   }
 
   private static Configuration toConf(List<Update<Job>> updaters, Configuration conf) {
@@ -278,12 +299,12 @@ public class HFileSink implements DataSink<Cell> {
           int id = toRegionIdUninitialized(bufferedKeys, endKeys, ByteBuffer.wrap(
               first.getRowArray(), first.getRowOffset(), first.getRowLength()));
           HadoopWriter<ImmutableBytesWritable, Cell> writer;
-          writer = (HadoopWriter<ImmutableBytesWritable, Cell>) rawSink.openWriter(id);
+          writer = rawSink.openWriter(id);
           FileOutputCommitter committer = (FileOutputCommitter) writer.getOutputCommitter();
           ImmutableBytesWritable w = new ImmutableBytesWritable();
           try {
             Cell c = first;
-            for (;;) {
+            while (true) {
               w.set(c.getRowArray(), c.getRowOffset(), c.getRowLength());
               writer.write(Pair.of(w, c));
               if (!iterator.hasNext()) {
@@ -373,12 +394,19 @@ public class HFileSink implements DataSink<Cell> {
     if (doBulkLoad) {
       try {
         LOG.info("Bulk loading path {}", path);
-        LoadIncrementalHFiles load = new LoadIncrementalHFiles(rawSink.getConfiguration());
-        TableName t = TableName.valueOf(table);
-        try (Connection conn = ConnectionFactory.createConnection(rawSink.getConfiguration());
-            Table table = conn.getTable(t);
-            RegionLocator regionLocator = conn.getRegionLocator(t);
-            Admin admin = conn.getAdmin()) {
+        final Configuration conf = rawSink.getConfiguration();
+        final UserGroupInformation ugi = UserGroupInformation.createRemoteUser(hdfsUser);
+        ugi.doAs((PrivilegedAction<Void>) () -> ExceptionUtils.unchecked(() -> {
+          final FileSystem fs = path.getFileSystem(conf);
+          fs.setOwner(path, hbaseUser, null);
+          return null;
+        }));
+        final LoadIncrementalHFiles load = new LoadIncrementalHFiles(conf);
+        final TableName t = TableName.valueOf(tableName);
+        try (Connection conn = ConnectionFactory.createConnection(conf);
+             Table table = conn.getTable(t);
+             RegionLocator regionLocator = conn.getRegionLocator(t);
+             Admin admin = conn.getAdmin()) {
 
           load.doBulkLoad(path, admin, table, regionLocator);
         }
@@ -409,10 +437,10 @@ public class HFileSink implements DataSink<Cell> {
 
   private static int toRegionId(ByteBuffer[] endKeys, ByteBuffer row) {
     int search = Arrays.binarySearch(endKeys, row);
-    return search >= 0 ? search + 1: - (search + 1);
+    return search >= 0 ? search + 1 : -(search + 1);
   }
 
-   private static ByteBuffer[] initialize(byte[][] bytesEndKeys) {
+  private static ByteBuffer[] initialize(byte[][] bytesEndKeys) {
     return Arrays.stream(bytesEndKeys)
         .map(ByteBuffer::wrap)
         .toArray(l -> new ByteBuffer[bytesEndKeys.length]);
