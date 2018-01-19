@@ -45,8 +45,8 @@ var (
 	funcsMu sync.Mutex
 )
 
-// RegisterFunc registers an custom reflectFunc factory for the given type, such as
-// "func(int)bool". If multiple func factories are registered for the same type,
+// RegisterFunc registers an custom Func factory for the given type, such as
+// "func(int)bool". If multiple Func factories are registered for the same type,
 // the last registration wins.
 func RegisterFunc(t reflect.Type, maker func(interface{}) Func) {
 	funcsMu.Lock()
@@ -59,7 +59,7 @@ func RegisterFunc(t reflect.Type, maker func(interface{}) Func) {
 	funcs[key] = maker
 }
 
-// MakeFunc returns a reflectFunc for given function.
+// MakeFunc returns a Func for given function.
 func MakeFunc(fn interface{}) Func {
 	funcsMu.Lock()
 	maker, exists := funcs[reflect.TypeOf(fn).String()]
