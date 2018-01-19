@@ -16,7 +16,6 @@
 package cz.seznam.euphoria.executor.local;
 
 import cz.seznam.euphoria.core.client.dataset.Dataset;
-import cz.seznam.euphoria.core.client.dataset.asserts.DatasetAssert;
 import cz.seznam.euphoria.core.client.dataset.windowing.GlobalWindowing;
 import cz.seznam.euphoria.core.client.dataset.windowing.Time;
 import cz.seznam.euphoria.core.client.dataset.windowing.Window;
@@ -49,6 +48,7 @@ import cz.seznam.euphoria.core.client.util.Triple;
 import cz.seznam.euphoria.core.executor.Executor;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Lists;
 import cz.seznam.euphoria.shadow.com.google.common.collect.Sets;
+import cz.seznam.euphoria.testing.DatasetAssert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

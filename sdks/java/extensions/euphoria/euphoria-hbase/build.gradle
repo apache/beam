@@ -1,7 +1,7 @@
 dependencies {
   compile project(':euphoria-core')
   compile project(':euphoria-hadoop')
-  compile project(':euphoria-local')
+  testCompile project(':euphoria-local')
 
   compileOnly "org.apache.hbase:hbase-common:${hbaseVersion}"
   compileOnly "org.apache.hbase:hbase-client:${hbaseVersion}"

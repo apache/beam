@@ -5,6 +5,7 @@ configurations {
 dependencies {
   compile project(path: ':thirdparty-guava', configuration: 'shadow')
   compile "org.slf4j:slf4j-api:${slf4jVersion}"
+  testCompile project(path: ':euphoria-testing')
 }
 
 task testJar(type: Jar) {

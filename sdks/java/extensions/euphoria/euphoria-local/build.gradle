@@ -1,5 +1,6 @@
 dependencies {
   compile project(':euphoria-core')
+  testCompile project(':euphoria-testing')
   testCompile project(':euphoria-operator-testkit')
   testCompile project(path: ':euphoria-core', configuration: 'testArtifact')
 }

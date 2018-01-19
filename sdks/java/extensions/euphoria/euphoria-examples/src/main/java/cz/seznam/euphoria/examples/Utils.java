@@ -74,7 +74,7 @@ class Utils {
     try {
       return Pair.of(
           URLDecoder.decode(key, "UTF-8"),
-          URLDecoder.decode(value, "UTF-8"));
+          value == null ? null : URLDecoder.decode(value, "UTF-8"));
     } catch (UnsupportedEncodingException ex) {
       throw new RuntimeException(ex);
     }

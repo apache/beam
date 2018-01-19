@@ -15,6 +15,7 @@
  */
 package cz.seznam.euphoria.testing;
 
+import java.util.Arrays;
 import org.junit.Assert;
 
 import java.util.List;
@@ -22,6 +23,18 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class DatasetAssert {
+
+  /**
+   * Compare two datasets, no matter how they are ordered.
+   * @param <T> type of input data
+   * @param tested the tested dataset as list
+   * @param values varargs values
+   */
+  @SafeVarargs
+  public static <T> void unorderedEquals(List<T> tested, T... values) {
+    unorderedEquals(Arrays.asList(values), tested);
+  }
+
 
   /**
    * Compare two data sets, no matter how they are ordered.

@@ -1,5 +1,4 @@
 dependencies {
   compile project(':euphoria-core')
-  compile project(':euphoria-local')
   compile "junit:junit:${junitVersion}"
 }
