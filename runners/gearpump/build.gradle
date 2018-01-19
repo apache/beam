@@ -17,6 +17,7 @@
  */
 
 apply from: project(":").file("build_rules.gradle")
+applyJavaNature(javaVersion: 1.8)
 
 description = "Apache Beam :: Runners :: Gearpump"
 

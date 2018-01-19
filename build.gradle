@@ -22,7 +22,6 @@
 // tasks.
 
 apply from: project(":").file("build_rules.gradle")
-applyJavaNature(javaVersion: 1.8)
 
 // These versions are defined here because they represent
 // a dependency version which should match across multiple
