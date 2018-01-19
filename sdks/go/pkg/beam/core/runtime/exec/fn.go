@@ -26,10 +26,6 @@ import (
 	"github.com/apache/beam/sdks/go/pkg/beam/core/util/reflectx"
 )
 
-// NOTE(herohde) 12/11/2017: the below helpers are ripe for type-specialization,
-// if the reflection overhead here turns out to be significant. It would
-// be nice to be able to quantify any potential improvements first, however.
-
 // MainInput is the main input and is unfolded in the invocation, if present.
 type MainInput struct {
 	Key    FullValue
